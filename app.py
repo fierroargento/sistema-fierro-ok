@@ -1540,8 +1540,9 @@ def avanzar_pedido(id):
     return redirect(url_for("inicio"))
 
 
+with app.app_context():
+    db.create_all()
+    asegurar_columnas_extra()
+
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-        asegurar_columnas_extra()
     app.run(debug=True)
