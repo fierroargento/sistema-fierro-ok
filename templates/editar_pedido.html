@@ -1,0 +1,996 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+<style>
+.wizard-error-box {
+    display: none;
+    margin: 0 0 18px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+.wizard-error-box.is-visible {
+    display: block;
+}
+
+.wizard-error-box strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.wizard-error-box ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.wizard-error-box li {
+    margin: 4px 0;
+    line-height: 1.35;
+}
+
+.campo-error {
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.10) !important;
+    background: #fff7f7 !important;
+}
+
+.bloque-error {
+    border: 1px solid #fca5a5 !important;
+    border-radius: 10px;
+    padding: 10px;
+    background: #fff7f7 !important;
+}
+
+.tabla-items.bloque-error,
+.resultados-productos.bloque-error {
+    border: 1px solid #fca5a5 !important;
+}
+
+.wizard-error-box[data-step-label]::before {
+    content: attr(data-step-label);
+    display: block;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+</style>
+
+
+{% set modo_seguimiento = request.args.get('modo') == 'seguimiento' %}
+
+{% if modo_seguimiento %}
+<div class="card detalle-card" style="max-width: 760px;">
+    <div class="detalle-header">
+        <div>
+            <h2>Cargar seguimiento</h2>
+            <p class="detalle-sub">Pedido #{{ pedido.id }} | {{ pedido.cliente or "-" }}</p>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="error">{{ error|safe }}</div>
+    {% endif %}
+
+    <form method="POST">
+        <div class="detalle-box detalle-box-full">
+            <h3>Datos del envío</h3>
+            <p><strong>Canal:</strong> {{ pedido.canal or "-" }}</p>
+            <p><strong>Transporte:</strong> {{ pedido.empresa_envio or "-" }}</p>
+            <p><strong>Entrega:</strong> {{ pedido.tipo_entrega or "-" }}</p>
+            <p><strong>Sucursal:</strong> {{ pedido.sucursal_nombre or "-" }}</p>
+        </div>
+
+        <div class="detalle-box detalle-box-full" style="margin-top: 18px;">
+            <h3>Seguimiento</h3>
+            <input type="text" name="seguimiento" id="seguimiento" placeholder="Número de seguimiento" value="{{ pedido.seguimiento or '' }}" required>
+        </div>
+
+        <div class="detalle-acciones" style="margin-top: 18px;">
+            <div>
+                <a href="{{ url_for('detalle_pedido', id=pedido.id) if request.args.get('volver') == 'detalle' else url_for('inicio') }}" class="btn btn-secundario">Cancelar</a>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-confirmar">Guardar y continuar</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% else %}
+<div class="wizard">
+
+    <div class="wizard-sidebar">
+<div class="step active" id="step-1">Cliente</div>
+        <div class="step" id="step-2">Venta</div>
+        <div class="step" id="step-3">Envío</div>
+        <div class="step" id="step-4">Productos</div>
+    </div>
+
+    <div class="wizard-content">
+        <h2>Editar Pedido #{{ pedido.id }}</h2>
+
+        {% if error %}
+        <div class="error">{{ error|safe }}</div>
+        {% endif %}
+
+        <form method="POST" id="form" enctype="multipart/form-data">
+            <input type="hidden" name="current_step" id="current_step" value="{% if ((pedido.canal == 'Mercado Libre' and pedido.ml_tipo == 'Acordás la Entrega') or (pedido.canal == 'Tienda Nube' and pedido.empresa_envio == 'Vía Cargo') or (pedido.canal == 'Mayorista' and pedido.empresa_envio == 'Vía Cargo')) and pedido.estado == 'Cargando Pedido' %}3{% elif pedido.estado == 'Despachado' and pedido.empresa_envio == 'Vía Cargo' and not pedido.seguimiento %}3{% else %}1{% endif %}">
+            <input type="hidden" name="etiqueta_existente" id="etiqueta_existente" value="{{ pedido.etiqueta_archivo or '' }}">
+            <input type="hidden" name="comprobante_dux_existente" id="comprobante_dux_existente" value="{{ pedido.comprobante_dux_archivo or '' }}">
+            <input type="hidden" name="accion_paso2" id="accion_paso2" value="">
+
+            <div id="wizard_error_box" class="wizard-error-box"></div>
+
+            <div class="wizard-step" data-step="1">
+                <h3>Cliente</h3>
+                <input name="cliente" placeholder="Nombre y Apellido / Razón Social" value="{{ pedido.cliente or '' }}">
+                <input name="dni" placeholder="DNI / CUIT" value="{{ pedido.dni or '' }}">
+                <input name="telefono" placeholder="Teléfono (se normaliza automático)" value="{{ pedido.telefono or '' }}">
+                <input name="mail" placeholder="Mail" value="{{ pedido.mail or '' }}">
+            </div>
+
+            <div class="wizard-step" data-step="2">
+                <h3>Venta</h3>
+
+                <select name="canal" id="canal">
+                    <option value="">Canal</option>
+                    <option value="Mercado Libre" {% if pedido.canal == 'Mercado Libre' %}selected{% endif %}>Mercado Libre</option>
+                    <option value="Tienda Nube" {% if pedido.canal == 'Tienda Nube' %}selected{% endif %}>Tienda Nube</option>
+                    <option value="Mayorista" {% if pedido.canal == 'Mayorista' %}selected{% endif %}>Mayorista</option>
+                    <option value="Presencial" {% if pedido.canal == 'Presencial' %}selected{% endif %}>Presencial</option>
+                    <option value="Agregado" {% if pedido.canal == 'Agregado' %}selected{% endif %}>Agregado</option>
+                </select>
+
+                <input name="id_venta" placeholder="ID Venta" value="{{ pedido.id_venta or '' }}">
+
+                <div id="bloque_ml">
+                    <select name="ml_tipo" id="ml_tipo">
+                        <option value="">Tipo ML</option>
+                        <option value="Mercado Envíos" {% if pedido.ml_tipo == 'Mercado Envíos' %}selected{% endif %}>Mercado Envíos</option>
+                        <option value="Acordás la Entrega" {% if pedido.ml_tipo == 'Acordás la Entrega' %}selected{% endif %}>Acordás la Entrega</option>
+                    </select>
+                </div>
+
+                <div id="bloque_coordinar_envio" style="display:none;">
+                    <button type="button" class="btn btn-coordinar-whatsapp" onclick="coordinarEnvioWhatsapp()">
+                        Coordinar envío por WhatsApp
+                    </button>
+                </div>
+
+                <div id="bloque_seguimiento">
+                    <input name="seguimiento" id="seguimiento" placeholder="Número de seguimiento" value="{{ pedido.seguimiento or '' }}">
+                </div>
+
+                <div id="bloque_etiqueta">
+                    <input type="file" name="etiqueta" id="etiqueta" accept=".pdf,.png,.jpg,.jpeg,.webp">
+                    {% if pedido.etiqueta_archivo %}
+                    <div class="archivo-actual">
+                        Etiqueta actual: {{ pedido.etiqueta_archivo }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div id="bloque_comprobante_dux" style="display:none;">
+                    <input type="file" name="comprobante_dux" id="comprobante_dux" accept=".pdf,.png,.jpg,.jpeg,.webp">
+                    {% if pedido.comprobante_dux_archivo %}
+                    <div class="archivo-actual">
+                        Comprobante DUX actual: {{ pedido.comprobante_dux_archivo }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="wizard-step" data-step="3">
+                <h3>Envío</h3>
+
+                <div id="bloque_envio">
+                    <select name="empresa_envio" id="empresa_envio">
+                        <option value="">Transporte</option>
+                        <option value="Andreani" {% if pedido.empresa_envio == 'Andreani' %}selected{% endif %}>Andreani</option>
+                        <option value="Correo Argentino" {% if pedido.empresa_envio == 'Correo Argentino' %}selected{% endif %}>Correo Argentino</option>
+                        <option value="Vía Cargo" {% if pedido.empresa_envio == 'Vía Cargo' %}selected{% endif %}>Vía Cargo</option>
+                    </select>
+
+                    <select name="tipo_entrega" id="tipo_entrega">
+                        <option value="">Entrega</option>
+                        <option value="Domicilio" {% if pedido.tipo_entrega == 'Domicilio' %}selected{% endif %}>Domicilio</option>
+                        <option value="Sucursal" {% if pedido.tipo_entrega == 'Sucursal' %}selected{% endif %}>Sucursal</option>
+                    </select>
+                </div>
+
+                <div id="bloque_seguimiento_envio" style="display:none;">
+                    <input type="text" name="seguimiento_envio" id="seguimiento_envio" placeholder="Número de seguimiento" value="{{ pedido.seguimiento or '' }}">
+                </div>
+
+                <div id="contenedor_tracking_transporte"></div>
+
+                <div id="bloque_direccion">
+                    <input name="sucursal_nombre" id="sucursal_nombre" placeholder="Nombre de sucursal" value="{{ pedido.sucursal_nombre or '' }}">
+                    <input name="direccion" placeholder="Dirección" value="{{ pedido.direccion or '' }}">
+                    <div id="grupo_cp">
+                        <input name="codigo_postal" placeholder="Código Postal" value="{{ pedido.codigo_postal or '' }}">
+                    </div>
+                    <input name="localidad" placeholder="Localidad" value="{{ pedido.localidad or '' }}">
+                    <input name="provincia" placeholder="Provincia" value="{{ pedido.provincia or '' }}">
+                    <textarea name="observaciones" placeholder="Observaciones">{{ pedido.observaciones or '' }}</textarea>
+
+                    <label class="check-linea">
+                        <input type="checkbox" id="check_autorizado">
+                        Hay autorizado a retirar
+                    </label>
+
+                    <div id="bloque_autorizado">
+                        <input name="autorizado_nombre" placeholder="Nombre y Apellido / Razón Social autorizado" value="{{ pedido.autorizado_nombre or '' }}">
+                        <input name="autorizado_dni" placeholder="DNI / CUIT autorizado" value="{{ pedido.autorizado_dni or '' }}">
+                        <input name="autorizado_telefono" placeholder="Teléfono autorizado (se normaliza automático)" value="{{ pedido.autorizado_telefono or '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="wizard-step" data-step="4">
+                <h3>Productos</h3>
+
+                <input type="text" id="buscador_producto" placeholder="Buscar por SKU o descripción">
+
+                <div id="resultados_productos" class="resultados-productos"></div>
+
+                <div class="agregar-item-box">
+                    <input type="text" id="producto_seleccionado" placeholder="Producto seleccionado" readonly>
+                    <input type="number" id="cantidad_producto" placeholder="Cantidad" min="1" value="1">
+                    <button type="button" class="btn" onclick="agregarProducto()">Agregar producto</button>
+                </div>
+
+                <table class="tabla-items">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Descripción</th>
+                            <th>Cantidad</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla_items_body"></tbody>
+                </table>
+
+                <input type="hidden" name="items_texto" id="items_texto" value="{{ items_texto or '' }}">
+            </div>
+
+            <div class="wizard-buttons">
+                <button type="button" class="btn btn-secundario" id="prevBtn" onclick="prevStep()">Anterior</button>
+                <button type="button" class="btn" id="nextBtn" onclick="nextStep()">Siguiente</button>
+                <button type="submit" class="btn" id="submitBtn" style="display:none;">Guardar cambios</button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<script>
+let currentStep = parseInt(document.getElementById("current_step").value || "1", 10);
+let productos = [];
+let productoElegido = null;
+let itemsAgregados = [];
+
+const steps = document.querySelectorAll(".wizard-step");
+const sidebarSteps = document.querySelectorAll(".step");
+const submitBtn = document.getElementById("submitBtn");
+const nextBtn = document.getElementById("nextBtn");
+const prevBtn = document.getElementById("prevBtn");
+const formPrincipal = document.getElementById("form");
+const formTargetOriginal = formPrincipal.getAttribute("target") || "";
+
+const canal = document.getElementById("canal");
+const ml = document.getElementById("ml_tipo");
+
+const bloqueML = document.getElementById("bloque_ml");
+const bloqueEnvio = document.getElementById("bloque_envio");
+const bloqueDireccion = document.getElementById("bloque_direccion");
+const bloqueSeguimiento = document.getElementById("bloque_seguimiento");
+const bloqueEtiqueta = document.getElementById("bloque_etiqueta");
+const empresaEnvio = document.getElementById("empresa_envio");
+const bloqueAutorizado = document.getElementById("bloque_autorizado");
+const checkAutorizado = document.getElementById("check_autorizado");
+const accionPaso2 = document.getElementById("accion_paso2");
+const bloqueCoordinarEnvio = document.getElementById("bloque_coordinar_envio");
+const contenedorTrackingTransporte = document.getElementById("contenedor_tracking_transporte");
+const bloqueSeguimientoEnvio = document.getElementById("bloque_seguimiento_envio");
+const bloqueComprobanteDux = document.getElementById("bloque_comprobante_dux");
+const seguimientoEnvio = document.getElementById("seguimiento_envio");
+
+const wizardErrorBox = document.getElementById("wizard_error_box");
+
+function limpiarErroresVisuales() {
+    if (wizardErrorBox) {
+        wizardErrorBox.classList.remove("is-visible");
+        wizardErrorBox.innerHTML = "";
+        wizardErrorBox.removeAttribute("data-step-label");
+    }
+
+    document.querySelectorAll(".campo-error, .bloque-error").forEach(function (el) {
+        el.classList.remove("campo-error", "bloque-error");
+    });
+}
+
+function marcarCampoError(selector) {
+    if (!selector) return;
+    document.querySelectorAll(selector).forEach(function (campo) {
+        campo.classList.add(campo.matches("input, select, textarea") ? "campo-error" : "bloque-error");
+    });
+}
+
+function tituloErroresPaso() {
+    if (currentStep === 1) return "Paso Cliente";
+    if (currentStep === 2) return "Paso Venta";
+    if (currentStep === 3) return "Paso Envío";
+    if (currentStep === 4) return "Paso Productos";
+    return "Revisá estos datos";
+}
+
+function mostrarErroresVisuales(errores, selectores) {
+    limpiarErroresVisuales();
+
+    if (!errores || errores.length === 0 || !wizardErrorBox) {
+        return;
+    }
+
+    const unicos = [];
+    errores.forEach(function (error) {
+        if (error && !unicos.includes(error)) {
+            unicos.push(error);
+        }
+    });
+
+    const html = `<ul>${unicos.map(function (error) { return `<li>${error}</li>`; }).join("")}</ul>`;
+
+    wizardErrorBox.innerHTML = html;
+    wizardErrorBox.setAttribute("data-step-label", tituloErroresPaso());
+    wizardErrorBox.classList.add("is-visible");
+
+    (selectores || []).forEach(function (selector) {
+        marcarCampoError(selector);
+    });
+
+    const primerCampo = document.querySelector(".campo-error");
+    if (primerCampo) {
+        try {
+            primerCampo.focus({ preventScroll: true });
+        } catch (e) {
+            primerCampo.focus();
+        }
+    }
+
+    wizardErrorBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+
+function usaPasoEnvio() {
+    if (canal.value === "Mercado Libre" && ml.value === "Mercado Envíos") return false;
+    return true;
+}
+
+
+function transporteRequiereEtiquetaYSeguimiento() {
+    return empresaEnvio.value === "Andreani" || empresaEnvio.value === "Correo Argentino";
+}
+
+
+function soloDigitos(valor) {
+    return (valor || "").replace(/\D/g, "");
+}
+
+
+function normalizarTelefonoWhatsapp(raw) {
+    let solo = soloDigitos((raw || "").trim());
+    if (!solo) return "";
+
+    if (solo.startsWith("549")) return solo;
+
+    if (solo.startsWith("54")) {
+        let resto = solo.slice(2);
+        if (resto.startsWith("9")) return "54" + resto;
+        return "549" + resto;
+    }
+
+    if (solo.startsWith("9")) return "54" + solo;
+
+    if (solo.startsWith("15")) {
+        solo = solo.slice(2);
+    }
+
+    return "549" + solo;
+}
+
+
+function normalizarDniCuitVisual(raw) {
+    let solo = soloDigitos(raw);
+
+    if (!solo) return "";
+
+    if (solo.length === 11) {
+        return `${solo.slice(0, 2)}-${solo.slice(2, 10)}-${solo.slice(10)}`;
+    }
+
+    return solo;
+}
+
+
+function aplicarNormalizacionAutorizado() {
+    const autorizadoNombreInput = document.querySelector('[name="autorizado_nombre"]');
+    const autorizadoDniInput = document.querySelector('[name="autorizado_dni"]');
+    const autorizadoTelefonoInput = document.querySelector('[name="autorizado_telefono"]');
+
+    if (autorizadoNombreInput) {
+        autorizadoNombreInput.value = (autorizadoNombreInput.value || "").trim();
+    }
+
+    if (autorizadoDniInput) {
+        autorizadoDniInput.value = normalizarDniCuitVisual(autorizadoDniInput.value);
+    }
+
+    if (autorizadoTelefonoInput) {
+        autorizadoTelefonoInput.value = normalizarTelefonoWhatsapp(autorizadoTelefonoInput.value);
+    }
+}
+
+
+function aplicarNormalizacionPasoCliente() {
+    const clienteInput = document.querySelector('[name="cliente"]');
+    const dniInput = document.querySelector('[name="dni"]');
+    const telefonoInput = document.querySelector('[name="telefono"]');
+
+    if (clienteInput) {
+        clienteInput.value = (clienteInput.value || "").trim();
+    }
+
+    if (dniInput) {
+        dniInput.value = normalizarDniCuitVisual(dniInput.value);
+    }
+
+    if (telefonoInput) {
+        telefonoInput.value = normalizarTelefonoWhatsapp(telefonoInput.value);
+    }
+}
+
+
+function actualizarCamposEtiquetaYSeguimientoPorTransporte() {
+    const mostrar = transporteRequiereEtiquetaYSeguimiento();
+
+    if (bloqueSeguimiento) {
+        bloqueSeguimiento.style.display = mostrar ? "block" : "none";
+    }
+
+    if (bloqueEtiqueta) {
+        bloqueEtiqueta.style.display = mostrar ? "block" : "none";
+    }
+}
+
+function mostrarBotonCoordinarEnvio() {
+    const mostrar = (canal.value === "Mercado Libre" && ml.value === "Acordás la Entrega") || ((canal.value === "Tienda Nube" || canal.value === "Mayorista") && document.getElementById("empresa_envio").value === "Vía Cargo");
+    bloqueCoordinarEnvio.style.display = mostrar ? "block" : "none";
+}
+
+function coordinarEnvioWhatsapp() {
+    const cliente = (document.querySelector("[name=cliente]")?.value || "").trim();
+    const telefono = (document.querySelector("[name=telefono]")?.value || "").trim();
+
+    if (!cliente || !telefono) {
+        const errores = [];
+        const campos = [];
+
+        if (!cliente) {
+            errores.push("Antes de abrir WhatsApp, cargá el nombre o razón social del cliente.");
+            campos.push('[name="cliente"]');
+        }
+
+        if (!telefono) {
+            errores.push("Antes de abrir WhatsApp, cargá un teléfono válido del cliente.");
+            campos.push('[name="telefono"]');
+        }
+
+        currentStep = 1;
+        showStep(currentStep);
+        mostrarErroresVisuales(errores, campos);
+        return;
+    }
+
+    accionPaso2.value = "coordinar_whatsapp";
+    document.getElementById("current_step").value = "2";
+    formPrincipal.setAttribute("target", "_blank");
+    formPrincipal.submit();
+    setTimeout(function () {
+        formPrincipal.setAttribute("target", formTargetOriginal);
+        window.location.href = "/";
+    }, 300);
+}
+
+function showStep(step) {
+    steps.forEach(s => s.style.display = "none");
+    document.querySelector(`[data-step="${step}"]`).style.display = "block";
+
+    sidebarSteps.forEach(s => s.classList.remove("active"));
+
+    const pasoEnvioSidebar = document.getElementById("step-3");
+    pasoEnvioSidebar.style.display = usaPasoEnvio() ? "block" : "none";
+    mostrarBotonCoordinarEnvio();
+    actualizarCamposEtiquetaYSeguimientoPorTransporte();
+
+    document.getElementById("step-" + step).classList.add("active");
+
+    submitBtn.style.display = step === 4 ? "inline-block" : "none";
+    nextBtn.style.display = step === 4 ? "none" : "inline-block";
+    prevBtn.style.display = step === 1 ? "none" : "inline-block";
+
+    document.getElementById("current_step").value = step;
+    limpiarErroresVisuales();
+}
+
+
+function validarPaso() {
+    let errores = [];
+    let camposConError = [];
+    const comprobanteDuxInput = document.getElementById("comprobante_dux");
+    const comprobanteDuxExistente = document.getElementById("comprobante_dux_existente");
+
+    limpiarErroresVisuales();
+
+    function agregarError(mensaje, selector) {
+        errores.push(mensaje);
+        if (selector) {
+            camposConError.push(selector);
+        }
+    }
+
+    if (currentStep === 1) {
+        aplicarNormalizacionPasoCliente();
+
+        const cliente = document.querySelector("[name=cliente]").value.trim();
+        const dni = document.querySelector("[name=dni]").value.trim();
+        const telefono = document.querySelector("[name=telefono]").value.trim();
+        const mail = document.querySelector("[name=mail]").value.trim();
+
+        const dniSolo = soloDigitos(dni);
+        const telefonoSolo = normalizarTelefonoWhatsapp(telefono);
+
+        if (!cliente) agregarError("Completá el nombre y apellido o la razón social del cliente.", '[name="cliente"]');
+        if (!dni) agregarError("Completá el DNI o CUIT del cliente.", '[name="dni"]');
+        if (dni && !(dniSolo.length === 7 || dniSolo.length === 8 || dniSolo.length === 11)) agregarError("Revisá el DNI o CUIT del cliente. Tiene que ser un DNI de 7 u 8 dígitos o un CUIT de 11 dígitos.", '[name="dni"]');
+        if (!telefono) agregarError("Completá el teléfono del cliente.", '[name="telefono"]');
+        if (telefono && !(telefonoSolo.startsWith("549") && telefonoSolo.length >= 12)) agregarError("Revisá el teléfono del cliente. Podés pegarlo con espacios, guiones o +54 y el sistema lo acomoda solo.", '[name="telefono"]');
+        if (!mail) agregarError("Completá el mail del cliente.", '[name="mail"]');
+    }
+
+    if (currentStep === 2) {
+        const canalValor = document.getElementById("canal").value;
+        const mlValor = document.getElementById("ml_tipo").value;
+        const idVenta = document.querySelector("[name=id_venta]").value.trim();
+        const seguimiento = document.getElementById("seguimiento").value.trim();
+        const etiquetaNueva = document.getElementById("etiqueta").files.length;
+        const etiquetaExistente = document.getElementById("etiqueta_existente").value.trim();
+
+        if (!canalValor) agregarError("Elegí el canal de venta del pedido.", "#canal");
+        if (!idVenta) agregarError("Completá el ID de venta.", '[name="id_venta"]');
+
+        if (canalValor === "Mayorista") {
+            const tieneComprobanteDux = (comprobanteDuxInput && comprobanteDuxInput.files.length > 0) || (comprobanteDuxExistente && comprobanteDuxExistente.value.trim() !== "");
+            if (!tieneComprobanteDux) agregarError("Adjuntá el comprobante de venta de DUX para continuar con el pedido mayorista.", "#comprobante_dux");
+        }
+
+        if (canalValor === "Mercado Libre") {
+            if (!mlValor) agregarError("Elegí si el pedido de Mercado Libre va por Mercado Envíos o Acordás la Entrega.", "#ml_tipo");
+
+            if (mlValor === "Mercado Envíos" && !seguimiento) {
+                agregarError("Completá el número de seguimiento de Mercado Envíos.", "#seguimiento");
+            }
+
+            if (mlValor === "Mercado Envíos" && !etiquetaNueva && !etiquetaExistente) {
+                agregarError("Adjuntá la etiqueta del envío para continuar.", "#etiqueta");
+            }
+        }
+    }
+
+    if (currentStep === 3) {
+        const canalValor = document.getElementById("canal").value;
+        const mlValor = document.getElementById("ml_tipo").value;
+        const empresa = document.getElementById("empresa_envio").value;
+        const entrega = document.getElementById("tipo_entrega").value;
+
+        const sucursalNombre = document.querySelector("[name=sucursal_nombre]").value.trim();
+        const direccion = document.querySelector("[name=direccion]").value.trim();
+        const cp = document.querySelector("[name=codigo_postal]").value.trim();
+        const localidad = document.querySelector("[name=localidad]").value.trim();
+        const provincia = document.querySelector("[name=provincia]").value.trim();
+
+        const autorizadoNombre = document.querySelector("[name=autorizado_nombre]").value.trim();
+        const autorizadoDni = document.querySelector("[name=autorizado_dni]").value.trim();
+        const autorizadoTelefono = document.querySelector("[name=autorizado_telefono]").value.trim();
+
+        let requiereEnvio = false;
+
+        if (canalValor !== "Mercado Libre" && canalValor !== "") {
+            requiereEnvio = true;
+        }
+
+        if (canalValor === "Mayorista") {
+            document.getElementById("empresa_envio").value = "Vía Cargo";
+            document.getElementById("tipo_entrega").value = "Sucursal";
+        }
+
+        if (canalValor === "Mercado Libre" && mlValor === "Acordás la Entrega") {
+            requiereEnvio = true;
+        }
+
+        if (requiereEnvio) {
+            const seguimientoValor = (seguimientoEnvio && seguimientoEnvio.value.trim()) || document.getElementById("seguimiento").value.trim();
+            const etiquetaNueva = document.getElementById("etiqueta").files.length;
+            const etiquetaExistente = document.getElementById("etiqueta_existente").value.trim();
+
+            if (!empresa) agregarError("Elegí el transporte del pedido.", "#empresa_envio");
+            if (!entrega) agregarError("Elegí si la entrega es a domicilio o en sucursal.", "#tipo_entrega");
+
+            if (entrega === "Domicilio") {
+                if (!direccion) agregarError("Completá la dirección de entrega.", '[name="direccion"]');
+                if (!cp) agregarError("Completá el código postal de la entrega.", '[name="codigo_postal"]');
+                if (!localidad) agregarError("Completá la localidad de la entrega.", '[name="localidad"]');
+                if (!provincia) agregarError("Completá la provincia de la entrega.", '[name="provincia"]');
+            }
+
+            if ((empresa === "Andreani" || empresa === "Correo Argentino")) {
+                if (!seguimientoValor) agregarError("Completá el número de seguimiento del transporte.", "#seguimiento_envio");
+                if (!etiquetaNueva && !etiquetaExistente) agregarError("Adjuntá la etiqueta del envío para continuar.", "#etiqueta");
+            }
+
+            if (entrega === "Sucursal") {
+                if (!sucursalNombre) agregarError("Completá el nombre de la sucursal de retiro.", '[name="sucursal_nombre"]');
+                if (!direccion) agregarError("Completá la dirección de la sucursal de retiro.", '[name="direccion"]');
+                if (!localidad) agregarError("Completá la localidad de la sucursal de retiro.", '[name="localidad"]');
+                if (!provincia) agregarError("Completá la provincia de la sucursal de retiro.", '[name="provincia"]');
+
+                if (autorizadoNombre || autorizadoDni || autorizadoTelefono) {
+                    aplicarNormalizacionAutorizado();
+
+                    const autorizadoNombreNormalizado = document.querySelector('[name="autorizado_nombre"]').value.trim();
+                    const autorizadoDniNormalizado = document.querySelector('[name="autorizado_dni"]').value.trim();
+                    const autorizadoTelefonoNormalizado = document.querySelector('[name="autorizado_telefono"]').value.trim();
+                    const autorizadoDniSolo = soloDigitos(autorizadoDniNormalizado);
+                    const autorizadoTelefonoSolo = normalizarTelefonoWhatsapp(autorizadoTelefonoNormalizado);
+
+                    if (!autorizadoNombreNormalizado) agregarError("Completá el nombre y apellido del autorizado a retirar.", '[name="autorizado_nombre"]');
+                    if (!autorizadoDniNormalizado) agregarError("Completá el DNI o CUIT del autorizado a retirar.", '[name="autorizado_dni"]');
+                    if (autorizadoDniNormalizado && !(autorizadoDniSolo.length === 7 || autorizadoDniSolo.length === 8 || autorizadoDniSolo.length === 11)) {
+                        agregarError("DNI / CUIT del autorizado inválido.", '[name="autorizado_dni"]');
+                    }
+                    if (!autorizadoTelefonoNormalizado) agregarError("Completá el teléfono del autorizado a retirar.", '[name="autorizado_telefono"]');
+                    if (autorizadoTelefonoNormalizado && !(autorizadoTelefonoSolo.startsWith("549") && autorizadoTelefonoSolo.length >= 12)) {
+                        agregarError("Teléfono del autorizado inválido.", '[name="autorizado_telefono"]');
+                    }
+                }
+            }
+        }
+    }
+
+    if (currentStep === 4) {
+        if (itemsAgregados.length === 0) {
+            agregarError("Agregá al menos un producto antes de guardar el pedido.", ".agregar-item-box");
+        agregarError("Revisá la tabla de productos antes de guardar.", ".tabla-items");
+        }
+
+        itemsAgregados.forEach((item, index) => {
+            if (!item.sku || !String(item.sku).trim()) agregarError(`Falta SKU en el producto ${index + 1}.`, "#tabla_items_body");
+            if (!item.descripcion || !String(item.descripcion).trim()) agregarError(`Falta descripción en el producto ${index + 1}.`, "#tabla_items_body");
+            if (!item.cantidad || Number(item.cantidad) <= 0) agregarError(`Cantidad inválida en el producto ${index + 1}.`, "#tabla_items_body");
+        });
+    }
+
+    if (errores.length > 0) {
+        mostrarErroresVisuales(errores, camposConError);
+        return false;
+    }
+
+    return true;
+}
+
+
+function nextStep() {
+    if (!validarPaso()) return;
+
+    if (currentStep === 2 && !usaPasoEnvio()) {
+        currentStep = 4;
+        showStep(currentStep);
+        mostrarBotonCoordinarEnvio();
+        return;
+    }
+
+    if (currentStep < 4) {
+        currentStep++;
+        showStep(currentStep);
+        mostrarBotonCoordinarEnvio();
+    }
+}
+
+function prevStep() {
+    if (currentStep === 4 && !usaPasoEnvio()) {
+        currentStep = 2;
+        showStep(currentStep);
+mostrarBotonCoordinarEnvio();
+        return;
+    }
+
+    if (currentStep > 1) {
+        currentStep--;
+        showStep(currentStep);
+mostrarBotonCoordinarEnvio();
+    }
+}
+
+function actualizar() {
+    bloqueML.style.display = "none";
+    bloqueEnvio.style.display = "none";
+    bloqueDireccion.style.display = "none";
+    bloqueSeguimiento.style.display = "none";
+    bloqueEtiqueta.style.display = "none";
+    if (bloqueComprobanteDux) bloqueComprobanteDux.style.display = "none";
+    bloqueAutorizado.style.display = "none";
+    if (bloqueSeguimientoEnvio) bloqueSeguimientoEnvio.style.display = "none";
+
+    if (canal.value === "Mayorista") {
+        ml.value = "";
+        document.getElementById("empresa_envio").value = "Vía Cargo";
+        document.getElementById("tipo_entrega").value = "Sucursal";
+    }
+
+    const tipoEntrega = document.getElementById("tipo_entrega").value;
+    const grupoCP = document.getElementById("grupo_cp");
+    const sucursalNombre = document.getElementById("sucursal_nombre");
+    const transporte = document.getElementById("empresa_envio").value;
+
+    const esMercadoEnvios = canal.value === "Mercado Libre" && ml.value === "Mercado Envíos";
+    const esTnube = canal.value === "Tienda Nube";
+    const usaTrackingTransporte = transporte === "Andreani" || transporte === "Correo Argentino";
+
+    if (canal.value === "Mercado Libre") {
+        bloqueML.style.display = "block";
+
+        if (ml.value === "Mercado Envíos") {
+            bloqueSeguimiento.style.display = "block";
+            bloqueEtiqueta.style.display = "block";
+        }
+
+        if (ml.value === "Acordás la Entrega") {
+            bloqueEnvio.style.display = "block";
+            bloqueDireccion.style.display = "block";
+            if (transporte === "Vía Cargo" && bloqueSeguimientoEnvio) {
+                bloqueSeguimientoEnvio.style.display = "block";
+            }
+        }
+    } else if (canal.value !== "") {
+        bloqueEnvio.style.display = "block";
+        bloqueDireccion.style.display = "block";
+
+        if ((esTnube || canal.value === "Mayorista") && transporte === "Vía Cargo" && bloqueSeguimientoEnvio) {
+            bloqueSeguimientoEnvio.style.display = "block";
+        }
+    }
+
+    if (canal.value === "Mayorista" && bloqueComprobanteDux) {
+        bloqueComprobanteDux.style.display = "block";
+    }
+
+    if (esMercadoEnvios) {
+        if (bloqueSeguimiento.parentNode !== bloqueCoordinarEnvio.parentNode) {
+            bloqueCoordinarEnvio.parentNode.insertBefore(bloqueSeguimiento, bloqueCoordinarEnvio.nextSibling);
+        }
+        if (bloqueEtiqueta.parentNode !== bloqueSeguimiento.parentNode) {
+            bloqueSeguimiento.parentNode.insertBefore(bloqueEtiqueta, bloqueSeguimiento.nextSibling);
+        }
+    } else if (usaTrackingTransporte) {
+        if (bloqueSeguimiento.parentNode !== contenedorTrackingTransporte) {
+            contenedorTrackingTransporte.appendChild(bloqueSeguimiento);
+        }
+        if (bloqueEtiqueta.parentNode !== contenedorTrackingTransporte) {
+            contenedorTrackingTransporte.appendChild(bloqueEtiqueta);
+        }
+        bloqueSeguimiento.style.display = "block";
+        bloqueEtiqueta.style.display = "block";
+    } else {
+        if (bloqueSeguimiento.parentNode !== bloqueCoordinarEnvio.parentNode) {
+            bloqueCoordinarEnvio.parentNode.insertBefore(bloqueSeguimiento, bloqueCoordinarEnvio.nextSibling);
+        }
+        if (bloqueEtiqueta.parentNode !== bloqueSeguimiento.parentNode) {
+            bloqueSeguimiento.parentNode.insertBefore(bloqueEtiqueta, bloqueSeguimiento.nextSibling);
+        }
+    }
+
+    if (bloqueDireccion.style.display !== "none") {
+        if (tipoEntrega === "Sucursal") {
+            grupoCP.style.display = "none";
+            sucursalNombre.style.display = "block";
+            checkAutorizado.parentElement.style.display = canal.value === "Mayorista" ? "none" : "flex";
+            if (checkAutorizado.checked) {
+                bloqueAutorizado.style.display = "block";
+            }
+        } else {
+            grupoCP.style.display = "block";
+            sucursalNombre.style.display = "none";
+            checkAutorizado.parentElement.style.display = "none";
+            bloqueAutorizado.style.display = "none";
+        }
+    } else {
+        grupoCP.style.display = "block";
+        sucursalNombre.style.display = "none";
+        checkAutorizado.parentElement.style.display = "none";
+        bloqueAutorizado.style.display = "none";
+    }
+
+    if (currentStep === 3 && !usaPasoEnvio()) {
+        currentStep = 4;
+    }
+
+    const pasoEnvioSidebar = document.getElementById("step-3");
+    pasoEnvioSidebar.style.display = usaPasoEnvio() ? "block" : "none";
+    mostrarBotonCoordinarEnvio();
+}
+canal.addEventListener("change", actualizar);
+ml.addEventListener("change", actualizar);
+document.getElementById("tipo_entrega").addEventListener("change", actualizar);
+document.getElementById("empresa_envio").addEventListener("change", actualizar);
+checkAutorizado.addEventListener("change", actualizar);
+
+if (seguimientoEnvio && document.getElementById("seguimiento")) {
+    seguimientoEnvio.addEventListener("input", function() {
+        document.getElementById("seguimiento").value = seguimientoEnvio.value;
+    });
+}
+
+formPrincipal.addEventListener("submit", function() {
+    const seguimientoPrincipal = document.getElementById("seguimiento");
+    const transporteActual = document.getElementById("empresa_envio").value;
+
+    if (seguimientoEnvio && seguimientoPrincipal && transporteActual === "Vía Cargo") {
+        seguimientoPrincipal.value = seguimientoEnvio.value.trim();
+    }
+});
+
+async function cargarProductos() {
+    const res = await fetch("/productos");
+    productos = await res.json();
+}
+
+const buscador = document.getElementById("buscador_producto");
+const resultados = document.getElementById("resultados_productos");
+
+buscador.addEventListener("input", function() {
+    const texto = this.value.trim().toLowerCase();
+    resultados.innerHTML = "";
+
+    if (texto.length < 2) return;
+
+    const filtrados = productos
+        .filter(p =>
+            (p.sku && p.sku.toLowerCase().includes(texto)) ||
+            (p.descripcion && p.descripcion.toLowerCase().includes(texto))
+        )
+        .slice(0, 8);
+
+    filtrados.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "resultado-item";
+        div.textContent = `${p.sku} - ${p.descripcion}`;
+        div.onclick = () => seleccionarProducto(p);
+        resultados.appendChild(div);
+    });
+});
+
+function seleccionarProducto(p) {
+    productoElegido = p;
+    document.getElementById("producto_seleccionado").value = `${p.sku} - ${p.descripcion}`;
+    resultados.innerHTML = "";
+    buscador.value = "";
+}
+
+function agregarProducto() {
+    if (!productoElegido) {
+        currentStep = 4;
+        showStep(currentStep);
+        mostrarErroresVisuales(["Elegí un producto antes de agregarlo al pedido."], ["#buscador_producto", "#producto_seleccionado", ".agregar-item-box", ".resultados-productos"]);
+        return;
+    }
+
+    const cantidad = parseInt(document.getElementById("cantidad_producto").value, 10);
+
+    if (!cantidad || cantidad <= 0) {
+        currentStep = 4;
+        showStep(currentStep);
+        mostrarErroresVisuales(["Ingresá una cantidad válida para el producto seleccionado."], ["#cantidad_producto", ".agregar-item-box"]);
+        return;
+    }
+
+    itemsAgregados.push({
+        sku: productoElegido.sku,
+        descripcion: productoElegido.descripcion,
+        cantidad: cantidad
+    });
+
+    document.getElementById("cantidad_producto").value = 1;
+    document.getElementById("producto_seleccionado").value = "";
+    productoElegido = null;
+
+    renderizarItems();
+}
+
+function renderizarItems() {
+    const body = document.getElementById("tabla_items_body");
+    body.innerHTML = "";
+
+    itemsAgregados.forEach((item, index) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${item.sku}</td>
+            <td>${item.descripcion}</td>
+            <td>${item.cantidad}</td>
+            <td><button type="button" class="btn btn-eliminar" onclick="eliminarItem(${index})">Eliminar</button></td>
+        `;
+        body.appendChild(tr);
+    });
+
+    document.getElementById("items_texto").value = itemsAgregados
+        .map(i => `${i.sku}|${i.descripcion}|${i.cantidad}`)
+        .join("\n");
+}
+
+function eliminarItem(index) {
+    itemsAgregados.splice(index, 1);
+    renderizarItems();
+}
+
+function cargarItemsPrevios() {
+    const texto = document.getElementById("items_texto").value.trim();
+    if (!texto) return;
+
+    itemsAgregados = texto
+        .split("\n")
+        .map(linea => linea.trim())
+        .filter(Boolean)
+        .map(linea => {
+            const partes = linea.split("|").map(p => p.trim());
+            return {
+                sku: partes[0] || "",
+                descripcion: partes[1] || "",
+                cantidad: parseInt(partes[2], 10) || 1
+            };
+        });
+
+    renderizarItems();
+}
+
+async function inicializarFormulario() {
+    await cargarProductos();
+    cargarItemsPrevios();
+
+    const hayAutorizadoInicial = (
+        (document.querySelector("[name=autorizado_nombre]").value || "").trim() ||
+        (document.querySelector("[name=autorizado_dni]").value || "").trim() ||
+        (document.querySelector("[name=autorizado_telefono]").value || "").trim()
+    );
+
+    if (hayAutorizadoInicial) {
+        checkAutorizado.checked = true;
+    }
+
+    if (seguimientoEnvio && document.getElementById("seguimiento")) {
+        seguimientoEnvio.value = document.getElementById("seguimiento").value || seguimientoEnvio.value || "";
+    }
+
+    actualizar();
+    showStep(currentStep);
+mostrarBotonCoordinarEnvio();
+}
+
+inicializarFormulario();
+</script>
+{% endif %}
+
+{% endblock %}

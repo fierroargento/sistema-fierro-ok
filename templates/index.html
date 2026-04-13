@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="card listado-card">
+
+    <div class="listado-header">
+        <div>
+            <h2>{{ titulo_inicio_por_rol() }}</h2>
+            <p class="listado-sub">{{ subtitulo_inicio_por_rol() }}</p>
+        </div>
+
+        {% if puede_crear_pedido() %}
+        <a href="{{ url_for('nuevo_pedido') }}" class="btn btn-nuevo">Nuevo pedido</a>
+        {% endif %}
+    </div>
+
+    <div class="resumen-operativo" id="resumen_operativo">
+        <div class="resumen-card resumen-card-rojo filtro-card" data-filtro="rojo" tabindex="0" role="button" aria-label="Filtrar críticos">
+            <div class="resumen-card-titulo">Críticos</div>
+            <div class="resumen-card-valor" id="contador_rojo">{{ resumen_operativo.rojo }}</div>
+        </div>
+        <div class="resumen-card resumen-card-amarillo filtro-card" data-filtro="amarillo" tabindex="0" role="button" aria-label="Filtrar en riesgo">
+            <div class="resumen-card-titulo">En riesgo</div>
+            <div class="resumen-card-valor" id="contador_amarillo">{{ resumen_operativo.amarillo }}</div>
+        </div>
+        <div class="resumen-card resumen-card-verde filtro-card" data-filtro="verde" tabindex="0" role="button" aria-label="Filtrar al día">
+            <div class="resumen-card-titulo">Al día</div>
+            <div class="resumen-card-valor" id="contador_verde">{{ resumen_operativo.verde }}</div>
+        </div>
+        <div class="resumen-card resumen-card-azul filtro-card" data-filtro="sin_despacho" tabindex="0" role="button" aria-label="Filtrar sin despacho">
+            <div class="resumen-card-titulo">Sin despacho</div>
+            <div class="resumen-card-valor" id="contador_sin_despacho">{{ resumen_operativo.sin_despacho }}</div>
+        </div>
+    </div>
+
+    <table class="tabla-pedidos">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Cliente</th>
+                <th>ID Venta</th>
+                <th>Canal</th>
+                <th>Seguimiento</th>
+                <th>Estado</th>
+                <th>Hace cuánto</th>
+                <th>Acción sugerida</th>
+                <th>Acción rápida</th>
+                <th></th>
+            </tr>
+        </thead>
+
+        <tbody id="tabla_pedidos_body">
+            {% for p in pedidos %}
+            <tr class="fila-{{ semaforo_pedido(p) }}" data-semaforo="{{ semaforo_pedido(p) }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado'] else 'si' }}">
+                <td>{{ p.id }}</td>
+                <td>{{ p.cliente }}</td>
+                <td>{{ p.id_venta or "-" }}</td>
+                <td>{{ p.canal or "-" }}</td>
+                <td>{{ p.seguimiento or "-" }}</td>
+                <td>
+                    <span class="estado-listado estado-{{ (p.estado or 'sin-estado') | lower | replace(' ', '-') }}">
+                        {{ p.estado }}
+                    </span>
+                </td>
+                <td class="col-antiguedad">
+                    {{ tiempo_transcurrido(fecha_referencia_estado(p)) }}
+                </td>
+                <td>
+                    <span class="accion-listado">
+                        {{ accion_sugerida_pedido(p) }}
+                    </span>
+                </td>
+                <td>
+                    {% if requiere_contacto_cliente(p) %}
+                        <a href="{{ url_for('editar_pedido', id=p.id) }}" class="btn btn-accion-rapida">
+                            Completar carga
+                        </a>
+                    {% elif puede_imprimir_pedido(p) %}
+                        <a href="{{ url_for('lanzar_impresion', id=p.id) }}" target="_blank" class="btn btn-accion-rapida btn-confirmar">
+                            Imprimir etiqueta
+                        </a>
+                    {% elif p.estado == "Verificar llegada a destino" and rol_actual == "carga" and p.tipo_entrega == "Sucursal" %}
+                        <a href="{{ url_for('confirmar_entrega', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar" target="_blank">
+                            Avisar al Cliente
+                        </a>
+                    {% elif p.estado == "Listo para retirar" and rol_actual == "carga" and p.tipo_entrega == "Sucursal" %}
+                        <a href="{{ url_for('avanzar_pedido', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
+                            Marcar entregado
+                        </a>
+                    {% elif p.estado == "Verificar llegada a destino" and rol_actual == "carga" and p.tipo_entrega == "Domicilio" %}
+                        <a href="{{ url_for('avanzar_pedido', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
+                            Marcar entregado
+                        </a>
+                    {% elif p.estado == "Entregado" and rol_actual == "carga" and p.canal == "Mercado Libre" and p.ml_tipo == "Acordás la Entrega" %}
+                        <a href="{{ url_for('cerrar_ml', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
+                            Ya avisé Mercado Libre
+                        </a>
+                    {% elif p.estado == "Entregado" or p.estado == "Finalizado" %}
+                        <span class="accion-listado">Sin acción</span>
+                    {% elif (rol_actual == "admin") or (rol_actual == "carga" and p.estado == "Despachado") or (rol_actual == "despacho" and p.estado in ["Etiqueta Impresa", "Embalado"]) %}
+                        <a href="{% if texto_boton_estado(p) == 'Cargar seguimiento' %}{{ url_for('editar_pedido', id=p.id, modo='seguimiento', volver='inicio') }}{% else %}{{ url_for('avanzar_pedido', id=p.id) }}{% endif %}" class="btn btn-accion-rapida {% if texto_boton_estado(p) in ['Marcar embalado','Marcar despachado','Marcar entregado','Cargar seguimiento','Confirmar entrega','Ya avisé Mercado Libre'] %}btn-confirmar{% endif %}">
+                            {{ texto_boton_estado(p) }}
+                        </a>
+                    {% else %}
+                        <span class="accion-listado">Sin acción</span>
+                    {% endif %}
+                </td>
+                <td class="col-acciones">
+                    <a href="{{ url_for('detalle_pedido', id=p.id) }}" class="btn btn-secundario">Ver pedido</a>
+                    {% if puede_editar_pedido(p) %}
+                    <a href="{{ url_for('editar_pedido', id=p.id) }}" class="btn btn-secundario">Editar</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr id="fila_sin_pedidos">
+                <td colspan="10">No hay pedidos para este operador.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+<script>
+(function () {
+    const cards = document.querySelectorAll('.filtro-card');
+    const filas = document.querySelectorAll('#tabla_pedidos_body tr[data-semaforo]');
+    const vacio = document.getElementById('fila_sin_pedidos');
+    const contadorRojo = document.getElementById('contador_rojo');
+    const contadorAmarillo = document.getElementById('contador_amarillo');
+    const contadorVerde = document.getElementById('contador_verde');
+    const contadorSinDespacho = document.getElementById('contador_sin_despacho');
+    const filtroStorageKey = 'fierro_filtro_inicio_{{ rol_actual }}';
+    const rolActual = "{{ rol_actual }}";
+
+    if (!cards.length || !filas.length) return;
+
+    let filtroActivo = 'todos';
+
+    function filtroDefaultPorRol() {
+        return 'todos';
+    }
+
+    function rolRecuerdaFiltro() {
+        return rolActual === 'carga' || rolActual === 'admin';
+    }
+
+    function guardarFiltro(filtro) {
+        try {
+            if (rolRecuerdaFiltro()) {
+                localStorage.setItem(filtroStorageKey, filtro);
+            }
+        } catch (e) {}
+    }
+
+    function leerFiltroGuardado() {
+        try {
+            if (!rolRecuerdaFiltro()) return '';
+            return localStorage.getItem(filtroStorageKey) || '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function limpiarFiltroGuardado() {
+        try {
+            localStorage.removeItem(filtroStorageKey);
+        } catch (e) {}
+    }
+
+    function filtroEsValido(filtro) {
+        if (filtro === 'todos') return true;
+        return Array.from(cards).some(function (card) {
+            return card.dataset.filtro === filtro;
+        });
+    }
+
+    function actualizarFilaVacia(visibles) {
+        if (!vacio) return;
+        vacio.style.display = visibles === 0 ? '' : 'none';
+    }
+
+    function actualizarContadores() {
+        let rojos = 0;
+        let amarillos = 0;
+        let verdes = 0;
+        let sinDespacho = 0;
+
+        filas.forEach(function (fila) {
+            const color = fila.dataset.semaforo || 'gris';
+            const despachado = fila.dataset.despachado === 'si';
+
+            if (color === 'rojo') rojos += 1;
+            if (color === 'amarillo') amarillos += 1;
+            if (color === 'verde') verdes += 1;
+            if (!despachado) sinDespacho += 1;
+        });
+
+        if (contadorRojo) contadorRojo.textContent = rojos;
+        if (contadorAmarillo) contadorAmarillo.textContent = amarillos;
+        if (contadorVerde) contadorVerde.textContent = verdes;
+        if (contadorSinDespacho) contadorSinDespacho.textContent = sinDespacho;
+    }
+
+    function aplicarFiltro(filtro) {
+        let visibles = 0;
+
+        filas.forEach(function (fila) {
+            const color = fila.dataset.semaforo || 'gris';
+            const despachado = fila.dataset.despachado === 'si';
+
+            let mostrar = true;
+
+            if (filtro === 'rojo') mostrar = color === 'rojo';
+            else if (filtro === 'amarillo') mostrar = color === 'amarillo';
+            else if (filtro === 'verde') mostrar = color === 'verde';
+            else if (filtro === 'sin_despacho') mostrar = !despachado;
+
+            fila.style.display = mostrar ? '' : 'none';
+            if (mostrar) visibles += 1;
+        });
+
+        cards.forEach(function (card) {
+            card.classList.toggle('filtro-card-activo', card.dataset.filtro === filtro && filtro !== 'todos');
+        });
+
+        filtroActivo = filtro;
+
+        if (rolRecuerdaFiltro()) {
+            guardarFiltro(filtroActivo);
+        } else {
+            limpiarFiltroGuardado();
+        }
+
+        actualizarFilaVacia(visibles);
+    }
+
+    function toggleFiltro(filtro) {
+        aplicarFiltro(filtroActivo === filtro ? 'todos' : filtro);
+    }
+
+    cards.forEach(function (card) {
+        card.addEventListener('click', function () {
+            toggleFiltro(this.dataset.filtro || 'todos');
+        });
+
+        card.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggleFiltro(this.dataset.filtro || 'todos');
+            }
+        });
+    });
+
+    if (!rolRecuerdaFiltro()) {
+        limpiarFiltroGuardado();
+    }
+
+    actualizarContadores();
+
+    const filtroGuardado = leerFiltroGuardado();
+    const filtroInicial = filtroEsValido(filtroGuardado) && filtroGuardado
+        ? filtroGuardado
+        : filtroDefaultPorRol();
+
+    aplicarFiltro(filtroInicial);
+})();
+</script>
+
+</div>
+
+{% endblock %}

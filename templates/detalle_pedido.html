@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+.detalle-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 18px;
+}
+
+.detalle-header-central {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    text-align: center;
+}
+
+.detalle-header-derecha {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.estado-chip-cumplido {
+    background: #A4F4CF;
+    color: #124E64;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-weight: 800;
+    white-space: nowrap;
+    font-size: 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(18, 78, 100, 0.16);
+}
+
+.estado-chip-cumplido::before {
+    content: "✓";
+    font-weight: 900;
+}
+
+.siguiente-paso-texto {
+    color: #124E64;
+    font-size: 20px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.detalle-grid-resumen {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 18px;
+    margin-top: 18px;
+}
+
+@media (max-width: 1100px) {
+    .detalle-header {
+        grid-template-columns: 1fr;
+        justify-items: start;
+    }
+
+    .detalle-header-central,
+    .detalle-header-derecha {
+        justify-content: flex-start;
+    }
+
+    .detalle-grid-resumen {
+        grid-template-columns: 1fr;
+    }
+}
+
+.btn-confirmar {
+    background-color: #124E64;
+    color: #ffffff;
+    font-weight: 700;
+}
+.btn-confirmar:hover {
+    filter: brightness(0.96);
+}
+
+.accion-subrayada {
+    text-decoration: underline;
+    font-weight: 700;
+    color: #124E64;
+}
+</style>
+
+
+<div class="card detalle-card">
+
+    <div class="detalle-header">
+        <div>
+            <h2>Pedido #{{ pedido.id }}</h2>
+            <p class="detalle-sub">{{ pedido.cliente or "-" }} | {{ pedido.canal or "-" }}</p>
+        </div>
+
+        <div class="detalle-header-central">
+            <div class="estado-chip-cumplido">
+                {{ pedido.estado or "-" }}
+            </div>
+        </div>
+
+        <div class="detalle-header-derecha">
+            <div class="siguiente-paso-texto">
+                Siguiente paso: <span class="accion-subrayada">{{ accion_sugerida }}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="error">{{ error|safe }}</div>
+    {% endif %}
+
+    <div class="detalle-grid-resumen">
+
+        <div class="detalle-box">
+            <h3>Cliente</h3>
+            <p><strong>Nombre:</strong> {{ pedido.cliente or "-" }}</p>
+            <p><strong>DNI:</strong> {{ pedido.dni or "-" }}</p>
+            <p><strong>Teléfono:</strong> {{ pedido.telefono or "-" }}</p>
+            <p><strong>Mail:</strong> {{ pedido.mail or "-" }}</p>
+        </div>
+
+        <div class="detalle-box">
+            <h3>Venta</h3>
+            <p><strong>Canal:</strong> {{ pedido.canal or "-" }}</p>
+            <p><strong>ID venta:</strong> {{ pedido.id_venta or "-" }}</p>
+            <p><strong>Tipo ML:</strong> {{ pedido.ml_tipo or "-" }}</p>
+            <p><strong>Seguimiento:</strong> {{ pedido.seguimiento or "-" }}</p>
+            {% if pedido.canal == "Mayorista" %}
+            <p><strong>Comprobante DUX:</strong>
+                {% if pedido.comprobante_dux_archivo %}
+                    <a href="{{ url_for('ver_etiqueta', nombre_archivo=pedido.comprobante_dux_archivo) }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                {% else %}
+                    -
+                {% endif %}
+            </p>
+            {% endif %}
+            <p><strong>Etiqueta:</strong>
+                {% if pedido.etiqueta_archivo %}
+                    <a href="{{ url_for('ver_etiqueta', nombre_archivo=pedido.etiqueta_archivo) }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                {% elif pedido.empresa_envio == "Vía Cargo" %}
+                    Etiqueta interna
+                {% else %}
+                    -
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="detalle-box">
+            <h3>Entrega</h3>
+            <p><strong>Transporte:</strong> {{ pedido.empresa_envio or "-" }}</p>
+            <p><strong>Tipo entrega:</strong> {{ pedido.tipo_entrega or "-" }}</p>
+            <p><strong>Sucursal:</strong> {{ pedido.sucursal_nombre or "-" }}</p>
+            <p><strong>Dirección:</strong> {{ pedido.direccion or "-" }}</p>
+            <p><strong>CP:</strong> {{ pedido.codigo_postal or "-" }}</p>
+            <p><strong>Localidad:</strong> {{ pedido.localidad or "-" }}</p>
+            <p><strong>Provincia:</strong> {{ pedido.provincia or "-" }}</p>
+            {% if pedido.observaciones %}
+            <p><strong>Observaciones:</strong> {{ pedido.observaciones }}</p>
+            {% endif %}
+        </div>
+
+    </div>
+
+    {% if rol_actual == "admin" %}
+    <div class="detalle-box detalle-box-full" style="margin-top: 18px;">
+        <h3>Fechas del pedido</h3>
+        <table class="tabla-items">
+            <tbody>
+                <tr><td><strong>Creado</strong></td><td>{{ pedido.fecha_creacion.strftime("%d/%m/%Y %H:%M") if pedido.fecha_creacion else "-" }}</td></tr>
+                <tr><td><strong>Etiqueta impresa</strong></td><td>{{ pedido.fecha_etiqueta_impresa.strftime("%d/%m/%Y %H:%M") if pedido.fecha_etiqueta_impresa else "-" }}</td></tr>
+                <tr><td><strong>Embalado</strong></td><td>{{ pedido.fecha_embalado.strftime("%d/%m/%Y %H:%M") if pedido.fecha_embalado else "-" }}</td></tr>
+                <tr><td><strong>Despachado</strong></td><td>{{ pedido.fecha_despachado.strftime("%d/%m/%Y %H:%M") if pedido.fecha_despachado else "-" }}</td></tr>
+                <tr><td><strong>Entregado</strong></td><td>{{ pedido.fecha_entregado.strftime("%d/%m/%Y %H:%M") if pedido.fecha_entregado else "-" }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="detalle-box detalle-box-full" style="margin-top: 18px;">
+        <h3>Detalle de productos</h3>
+        <table class="tabla-items">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Descripción</th>
+                    <th>Cantidad</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in pedido.items %}
+                <tr>
+                    <td>{{ item.sku or "-" }}</td>
+                    <td>{{ item.descripcion or "-" }}</td>
+                    <td>{{ item.cantidad or 0 }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3">Sin productos cargados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="detalle-acciones">
+        <div>
+            <a href="{{ url_for('inicio') }}" class="btn btn-secundario">Volver</a>
+            {% if puede_editar_pedido(pedido) %}
+            <a href="{{ url_for('editar_pedido', id=pedido.id, modo='seguimiento', volver='detalle') }}" class="btn btn-secundario">Editar</a>
+            {% endif %}
+        </div>
+
+        <div>
+            {% if puede_contactar_cliente(pedido) %}
+                <a href="{{ whatsapp_url }}" target="_blank" class="btn btn-coordinar-whatsapp">
+                    Contactar por WhatsApp
+                </a>
+            {% elif requiere_cargar_seguimiento(pedido) %}
+                <a href="{{ url_for('editar_pedido', id=pedido.id) }}" class="btn btn-confirmar">
+                    Cargar seguimiento
+                </a>
+            {% elif puede_imprimir_pedido(pedido) %}
+            <a href="{{ url_for('lanzar_impresion', id=pedido.id, origen='detalle') }}" class="btn btn-accion-rapida btn-confirmar" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
+                Imprimir etiqueta
+            </a>
+            {% elif pedido.estado != "Entregado" %}
+                <a href="{{ url_for('avanzar_pedido', id=pedido.id) }}" class="btn btn-confirmar">
+                    {{ texto_boton }}
+                </a>
+            {% else %}
+                <span class="accion-listado">Sin acción</span>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+
+<script>
+function imprimirDesdeDetalle(urlImpresion, urlRecarga) {
+    window.open(urlImpresion, "_blank");
+    setTimeout(function () {
+        window.location.href = urlRecarga + (urlRecarga.indexOf("?") >= 0 ? "&" : "?") + "_r=" + Date.now();
+    }, 1200);
+    return false;
+}
+</script>
+
+{% endblock %}

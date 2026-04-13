@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Lanzando impresión</title>
+</head>
+<body>
+    <script>
+        (function () {
+            var volverUrl = "{{ volver_url }}";
+            var printUrl = "{{ print_url }}";
+
+            try {
+                if (window.opener && !window.opener.closed) {
+                    setTimeout(function () {
+                        try {
+                            window.opener.location.href = volverUrl;
+                            setTimeout(function () {
+                                try {
+                                    window.opener.location.reload();
+                                } catch (e) {}
+                            }, 250);
+                        } catch (e) {}
+                    }, 150);
+                }
+            } catch (e) {}
+
+            window.location.href = printUrl;
+        })();
+    </script>
+</body>
+</html>

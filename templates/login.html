@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ingreso - Fierro App</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="login-page">
+    <div class="login-card">
+        <h1>Fierro</h1>
+        <p class="login-sub">Ingreso de operadores</p>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <input type="text" name="username" placeholder="Usuario">
+            <input type="password" name="password" placeholder="Contraseña">
+            <button type="submit" class="btn login-btn">Ingresar</button>
+        </form>
+
+        <div class="login-ayuda">
+            <div><strong>Usuarios de prueba:</strong></div>
+            <div>admin / admin123</div>
+            <div>carga / carga123</div>
+            <div>despacho / despacho123</div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

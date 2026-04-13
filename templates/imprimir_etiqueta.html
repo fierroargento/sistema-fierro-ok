@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Imprimir etiqueta</title>
+<style>
+    @page {
+        size: A4;
+        margin: 0;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    html, body {
+        margin: 0;
+        padding: 0;
+        width: 210mm;
+        height: 297mm;
+        font-family: Arial, sans-serif;
+        background: #e5e7eb;
+        color: #1f2937;
+    }
+
+    .barra {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: #cfe8d5;
+        border-bottom: 1px solid #d1d5db;
+    }
+
+    .titulo {
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .acciones {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        background: #1e3a5f;
+        color: white;
+        padding: 9px 12px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .hoja {
+        width: 210mm;
+        height: calc(297mm - 53px);
+        background: white;
+        display: grid;
+        grid-template-rows: 50% 50%;
+    }
+
+    .bloque-etiqueta {
+        border-bottom: 2px solid #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4mm 6mm 3mm 6mm;
+        overflow: hidden;
+    }
+
+    .bloque-etiqueta img {
+        width: auto;
+        height: 90%;
+        max-width: 100%;
+        object-fit: contain;
+        display: block;
+    }
+
+    .bloque-items {
+        padding: 7mm 8mm 6mm 8mm;
+        overflow: hidden;
+    }
+
+    .items-titulo {
+        font-size: 16px;
+        font-weight: 900;
+        margin-bottom: 8px;
+        letter-spacing: 0.2px;
+    }
+
+    .tabla-items {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .tabla-items th {
+        text-align: left;
+        font-size: 13px;
+        font-weight: 900;
+        padding: 6px 6px 7px 6px;
+        border-bottom: 2px solid #000;
+    }
+
+    .tabla-items td {
+        font-size: 14px;
+        padding: 7px 6px;
+        vertical-align: top;
+        border-bottom: 1px solid #d1d5db;
+        word-wrap: break-word;
+    }
+
+    .col-cantidad {
+        width: 27%;
+        font-weight: 900;
+    }
+
+    .col-sku {
+        width: 23%;
+        font-weight: 900;
+    }
+
+    .col-desc {
+        width: 50%;
+    }
+
+    .cantidad-texto {
+        font-weight: 900;
+        font-size: 15px;
+        white-space: nowrap;
+    }
+
+    .sin-items {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 8px;
+    }
+
+    @media print {
+        html, body {
+            background: white;
+        }
+
+        .barra {
+            display: none;
+        }
+
+        .hoja {
+            height: 297mm;
+        }
+    }
+</style>
+</head>
+<body>
+    <div class="barra">
+        <div class="titulo">Impresión de etiqueta - Pedido #{{ pedido.id }}</div>
+        <div class="acciones">
+            <button class="btn" onclick="window.print()">Imprimir</button>
+            <a class="btn" href="{{ url_original }}" target="_blank" rel="noopener noreferrer">Abrir original</a>
+        </div>
+    </div>
+
+    <div class="hoja">
+        <div class="bloque-etiqueta">
+            <img src="{{ url_archivo }}" alt="Etiqueta">
+        </div>
+
+        <div class="bloque-items">
+            <div class="items-titulo">ITEMS DEL PEDIDO</div>
+
+            {% if pedido.items %}
+            <table class="tabla-items">
+                <thead>
+                    <tr>
+                        <th class="col-cantidad">CANTIDAD</th>
+                        <th class="col-sku">SKU</th>
+                        <th class="col-desc">DESCRIPCIÓN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in pedido.items %}
+                    <tr>
+                        <td class="col-cantidad">
+                            <span class="cantidad-texto">CANTIDAD X {{ item.cantidad }}</span>
+                        </td>
+                        <td class="col-sku">{{ item.sku }}</td>
+                        <td class="col-desc">{{ item.descripcion }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="sin-items">No hay items cargados en este pedido.</div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

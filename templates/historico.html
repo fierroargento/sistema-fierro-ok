@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="card listado-card">
+    <div class="listado-header">
+        <div>
+            <h2>Histórico</h2>
+            <p class="listado-sub">Pedidos finalizados</p>
+        </div>
+    </div>
+
+    <table class="tabla-pedidos">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Cliente</th>
+                <th>ID Venta</th>
+                <th>Canal</th>
+                <th>Seguimiento</th>
+                <th>Estado</th>
+                <th>Hace cuánto</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in pedidos %}
+            <tr>
+                <td>{{ p.id }}</td>
+                <td>{{ p.cliente }}</td>
+                <td>{{ p.id_venta or "-" }}</td>
+                <td>{{ p.canal or "-" }}</td>
+                <td>{{ p.seguimiento or "-" }}</td>
+                <td>
+                    <span class="estado-listado estado-{{ (p.estado or 'sin-estado') | lower | replace(' ', '-') }}">
+                        {{ p.estado }}
+                    </span>
+                </td>
+                <td class="col-antiguedad">{{ tiempo_transcurrido(fecha_referencia_estado(p)) }}</td>
+                <td class="col-acciones">
+                    <a href="{{ url_for('detalle_pedido', id=p.id) }}" class="btn btn-secundario">Ver pedido</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8">No hay pedidos en histórico.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

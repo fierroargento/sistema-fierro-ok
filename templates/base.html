@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fierro App</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+{% if usuario_logueado %}
+<div class="layout">
+    <div class="sidebar">
+        <div class="sidebar-brand">
+            <img src="{{ url_for('static', filename='logo_fierro.png') }}" alt="Fierro Argento" class="sidebar-logo">
+            <div class="sidebar-brand-title">Fierro System<span>APB 1.0 by Tincho</span></div>
+        </div>
+
+        <div class="menu">
+            <a href="{{ url_for('inicio') }}">Inicio</a>
+            {% if puede_crear_pedido() %}
+            <a href="{{ url_for('nuevo_pedido') }}">Nuevo Pedido</a>
+            {% endif %}
+            {% if puede_ver_historico() %}
+            <a href="{{ url_for('historico') }}">Histórico</a>
+            {% endif %}
+
+            <div class="menu-user">
+                <div class="menu-user-nombre">{{ usuario_logueado.nombre }}</div>
+                <div class="menu-user-rol">Rol: {{ rol_actual }}</div>
+            </div>
+
+            <a href="{{ url_for('logout') }}">Cerrar sesión</a>
+        </div>
+    </div>
+
+    <div class="main">
+{% else %}
+<div class="layout">
+    <div class="main login-main">
+{% endif %}
+
+        {% if usuario_logueado and alertas_operativas() %}
+        <div class="alerta-barra">
+            {% for alerta in alertas_operativas() %}
+            <div class="alerta alerta-{{ alerta.tipo }}">{{ alerta.texto }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+
+{% if usuario_logueado %}
+    </div>
+</div>
+{% else %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    {% if usuario_logueado %}
+    const REFRESH_MS = 20000;
+    let lastRefreshAt = Date.now();
+    const filtroStorageKey = 'fierro_filtro_inicio_{{ rol_actual }}';
+
+    function onWorkPage() {
+        return window.location.pathname === "/";
+    }
+
+    function limpiarFiltroInicio() {
+        try {
+            localStorage.removeItem(filtroStorageKey);
+        } catch (e) {}
+    }
+
+    function refreshIfNeeded(force) {
+        if (!onWorkPage()) return;
+        const now = Date.now();
+        if (force || now - lastRefreshAt >= REFRESH_MS) {
+            lastRefreshAt = now;
+            window.location.reload();
+        }
+    }
+
+    if (!onWorkPage()) {
+        limpiarFiltroInicio();
+    }
+
+    setInterval(function () {
+        refreshIfNeeded(false);
+    }, REFRESH_MS);
+
+    window.addEventListener("focus", function () {
+        refreshIfNeeded(true);
+    });
+
+    document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) {
+            refreshIfNeeded(true);
+        }
+    });
+    {% endif %}
+})();
+</script>
+
+</body>
+</html>

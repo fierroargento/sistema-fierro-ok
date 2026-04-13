@@ -1,0 +1,1547 @@
+import os
+import re
+import pandas as pd
+import fitz
+from datetime import datetime
+from functools import wraps
+
+from flask import Flask, request, redirect, render_template, url_for, jsonify, send_from_directory, session
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
+from werkzeug.utils import secure_filename
+
+app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///pedidos.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
+app.config["SECRET_KEY"] = "fierro-apb-roles-v1"
+
+os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+db = SQLAlchemy(app)
+
+USUARIOS = {
+    "admin": {"password": "admin123", "rol": "admin", "nombre": "Administrador"},
+    "carga": {"password": "carga123", "rol": "carga", "nombre": "Operador de Carga"},
+    "despacho": {"password": "despacho123", "rol": "despacho", "nombre": "Embalaje y Despacho"},
+}
+
+
+class Pedido(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    cliente = db.Column(db.String(120), nullable=False)
+    dni = db.Column(db.String(20))
+    telefono = db.Column(db.String(30))
+    mail = db.Column(db.String(120))
+
+    canal = db.Column(db.String(50), nullable=False)
+    id_venta = db.Column(db.String(50))
+
+    ml_tipo = db.Column(db.String(50))
+    empresa_envio = db.Column(db.String(50))
+    tipo_entrega = db.Column(db.String(30))
+
+    direccion = db.Column(db.String(200))
+    codigo_postal = db.Column(db.String(10))
+    localidad = db.Column(db.String(100))
+    provincia = db.Column(db.String(100))
+    observaciones = db.Column(db.String(300))
+
+    sucursal_nombre = db.Column(db.String(150))
+    autorizado_nombre = db.Column(db.String(120))
+    autorizado_dni = db.Column(db.String(20))
+    autorizado_telefono = db.Column(db.String(30))
+
+    seguimiento = db.Column(db.String(100))
+    etiqueta_archivo = db.Column(db.String(255))
+    estado = db.Column(db.String(50), default="Cargando Pedido")
+
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_etiqueta_impresa = db.Column(db.DateTime)
+    fecha_embalado = db.Column(db.DateTime)
+    fecha_despachado = db.Column(db.DateTime)
+    fecha_entregado = db.Column(db.DateTime)
+
+    items = db.relationship("PedidoItem", cascade="all, delete-orphan")
+
+
+class PedidoItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"))
+    sku = db.Column(db.String(50))
+    descripcion = db.Column(db.String(200))
+    cantidad = db.Column(db.Integer)
+
+
+def asegurar_columna_si_no_existe(nombre_columna, definicion_sql):
+    columnas = db.session.execute(text("PRAGMA table_info(pedido)")).fetchall()
+    nombres = [col[1] for col in columnas]
+
+    if nombre_columna not in nombres:
+        db.session.execute(text(f"ALTER TABLE pedido ADD COLUMN {nombre_columna} {definicion_sql}"))
+        db.session.commit()
+
+
+def asegurar_columnas_extra():
+    asegurar_columna_si_no_existe("etiqueta_archivo", "VARCHAR(255)")
+    asegurar_columna_si_no_existe("sucursal_nombre", "VARCHAR(150)")
+    asegurar_columna_si_no_existe("autorizado_nombre", "VARCHAR(120)")
+    asegurar_columna_si_no_existe("autorizado_dni", "VARCHAR(20)")
+    asegurar_columna_si_no_existe("autorizado_telefono", "VARCHAR(30)")
+    asegurar_columna_si_no_existe("fecha_etiqueta_impresa", "DATETIME")
+    asegurar_columna_si_no_existe("fecha_embalado", "DATETIME")
+    asegurar_columna_si_no_existe("fecha_despachado", "DATETIME")
+    asegurar_columna_si_no_existe("fecha_entregado", "DATETIME")
+
+
+def guardar_etiqueta_subida(archivo):
+    if not archivo or not archivo.filename:
+        return ""
+
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    nombre_seguro = secure_filename(archivo.filename)
+    nombre_final = f"{timestamp}_{nombre_seguro}"
+    ruta = os.path.join(app.config["UPLOAD_FOLDER"], nombre_final)
+    archivo.save(ruta)
+    return nombre_final
+
+
+
+
+def generar_preview_etiqueta_pdf(nombre_archivo):
+    ruta_pdf = os.path.join(app.config["UPLOAD_FOLDER"], nombre_archivo)
+
+    base_nombre = os.path.splitext(nombre_archivo)[0]
+    nombre_preview = f"{base_nombre}__preview_recortado.png"
+    ruta_preview = os.path.join(app.config["UPLOAD_FOLDER"], nombre_preview)
+
+    if os.path.exists(ruta_preview):
+        try:
+            if os.path.getmtime(ruta_preview) >= os.path.getmtime(ruta_pdf):
+                return nombre_preview
+        except OSError:
+            pass
+
+    doc = fitz.open(ruta_pdf)
+    try:
+        page = doc[0]
+        zoom = 3
+        matrix = fitz.Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=matrix, alpha=False)
+
+        width = pix.width
+        height = pix.height
+        channels = pix.n
+        data = pix.samples
+
+        umbral_blanco = 245
+        min_x, min_y = width, height
+        max_x, max_y = -1, -1
+
+        for y in range(height):
+            row_offset = y * width * channels
+            for x in range(width):
+                i = row_offset + x * channels
+                r = data[i]
+                g = data[i + 1]
+                b = data[i + 2]
+
+                if r < umbral_blanco or g < umbral_blanco or b < umbral_blanco:
+                    if x < min_x:
+                        min_x = x
+                    if y < min_y:
+                        min_y = y
+                    if x > max_x:
+                        max_x = x
+                    if y > max_y:
+                        max_y = y
+
+        if max_x == -1 or max_y == -1:
+            clip_rect = page.rect
+        else:
+            margen_px = 12
+            min_x = max(0, min_x - margen_px)
+            min_y = max(0, min_y - margen_px)
+            max_x = min(width - 1, max_x + margen_px)
+            max_y = min(height - 1, max_y + margen_px)
+
+            clip_rect = fitz.Rect(
+                min_x / zoom,
+                min_y / zoom,
+                (max_x + 1) / zoom,
+                (max_y + 1) / zoom,
+            )
+
+        pix_recortado = page.get_pixmap(matrix=matrix, clip=clip_rect, alpha=False)
+        pix_recortado.save(ruta_preview)
+
+        return nombre_preview
+    finally:
+        doc.close()
+
+def hay_autorizado(pedido):
+    return bool(
+        (pedido.autorizado_nombre and str(pedido.autorizado_nombre).strip()) or
+        (pedido.autorizado_dni and str(pedido.autorizado_dni).strip()) or
+        (pedido.autorizado_telefono and str(pedido.autorizado_telefono).strip())
+    )
+
+
+def normalizar_telefono(raw):
+    telefono = "" if raw is None else str(raw).strip()
+
+    if not telefono:
+        return ""
+
+    telefono = telefono.replace("+", "")
+    solo_digitos = re.sub(r"\D", "", telefono)
+
+    if solo_digitos.startswith("549"):
+        return solo_digitos
+
+    if solo_digitos.startswith("54"):
+        resto = solo_digitos[2:]
+        if resto.startswith("9"):
+            return "54" + resto
+        return "549" + resto
+
+    if solo_digitos.startswith("15"):
+        solo_digitos = solo_digitos[2:]
+
+    return "549" + solo_digitos
+
+
+def whatsapp_link_pedido(pedido):
+    numero = normalizar_telefono(pedido.telefono)
+    if not numero:
+        return ""
+
+    mensaje = f"Hola {pedido.cliente or ''}, te escribimos de Fierro por tu pedido #{pedido.id}."
+    from urllib.parse import quote
+    return f"https://wa.me/{numero}?text={quote(mensaje)}"
+
+def requiere_seguimiento_retiro(pedido):
+    return bool(
+        pedido.estado == "Verificar llegada a destino"
+        and pedido.tipo_entrega == "Sucursal"
+        and (
+            (
+                pedido.canal == "Mercado Libre"
+                and pedido.ml_tipo == "Acordás la Entrega"
+            )
+            or (
+                pedido.canal == "Tienda Nube"
+                and pedido.empresa_envio == "Vía Cargo"
+            )
+            or (
+                pedido.canal == "Mayorista"
+                and pedido.empresa_envio == "Vía Cargo"
+            )
+        )
+    )
+
+
+def whatsapp_link_confirmar_entrega(pedido):
+    numero = normalizar_telefono(pedido.telefono)
+    if not numero:
+        return ""
+
+    mensaje = (
+        f"Hola {pedido.cliente or ''}, te escribimos de Fierro por tu pedido #{pedido.id}. "
+        f"Tu compra ya está disponible para retirar en sucursal. "
+        f"Cuando la retires, por favor avisame así cerramos la entrega. ¡Gracias!"
+    )
+
+    from urllib.parse import quote
+    return f"https://wa.me/{numero}?text={quote(mensaje)}"
+
+def es_mercado_envios(pedido):
+    return pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos"
+
+
+def es_tnube(pedido):
+    return pedido.canal == "Tienda Nube"
+
+
+def es_tnube_via_cargo(pedido):
+    return es_tnube(pedido) and pedido.empresa_envio == "Vía Cargo"
+
+
+def es_mayorista(pedido):
+    return pedido.canal == "Mayorista"
+
+
+def es_mayorista_via_cargo(pedido):
+    return es_mayorista(pedido) and pedido.empresa_envio == "Vía Cargo"
+
+
+def usa_flujo_etiqueta_directa(pedido):
+    return es_mercado_envios(pedido) or (es_tnube(pedido) and pedido.empresa_envio in ["Andreani", "Correo Argentino"])
+
+
+def es_ml_acordas_entrega(pedido):
+    return pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega"
+
+
+def usa_flujo_acordas_entrega(pedido):
+    return es_ml_acordas_entrega(pedido) or es_tnube_via_cargo(pedido) or es_mayorista_via_cargo(pedido)
+
+
+def puede_imprimir_etiqueta_directamente(pedido):
+    return bool(
+        usa_flujo_etiqueta_directa(pedido)
+        and pedido.seguimiento
+        and pedido.etiqueta_archivo
+        and len(pedido.items) > 0
+    )
+
+
+def despacho_completo(pedido):
+    if not pedido.empresa_envio or not pedido.tipo_entrega:
+        return False
+
+    if pedido.tipo_entrega == "Domicilio":
+        return bool(
+            pedido.direccion
+            and pedido.codigo_postal
+            and pedido.localidad
+            and pedido.provincia
+        )
+
+    if pedido.tipo_entrega == "Sucursal":
+        if not (pedido.sucursal_nombre and pedido.direccion and pedido.localidad and pedido.provincia):
+            return False
+
+        if hay_autorizado(pedido):
+            return bool(
+                pedido.autorizado_nombre
+                and pedido.autorizado_dni
+                and pedido.autorizado_telefono
+            )
+        return True
+
+    return False
+
+
+def puede_imprimir_acordas_entrega(pedido):
+    return bool(
+        usa_flujo_acordas_entrega(pedido)
+        and len(pedido.items) > 0
+        and despacho_completo(pedido)
+        and (
+            pedido.empresa_envio == "Vía Cargo"
+            or bool(pedido.etiqueta_archivo)
+        )
+    )
+
+
+def requiere_contacto_cliente(pedido):
+    return bool(
+        usa_flujo_acordas_entrega(pedido)
+        and not despacho_completo(pedido)
+    )
+
+
+def actualizar_estado_automatico(pedido):
+    if pedido.estado == "Cargando Pedido" and (
+        puede_imprimir_etiqueta_directamente(pedido)
+        or puede_imprimir_acordas_entrega(pedido)
+    ):
+        pedido.estado = "Etiqueta Lista"
+
+
+def aplicar_autoavance_post_despacho(pedido):
+    if pedido.estado != "Despachado":
+        return
+
+    if pedido.empresa_envio == "Vía Cargo":
+        if pedido.seguimiento:
+            pedido.estado = "Verificar llegada a destino"
+        return
+
+    if (
+        pedido.canal == "Mercado Libre"
+        and pedido.ml_tipo == "Acordás la Entrega"
+        and pedido.empresa_envio in ["Andreani", "Correo Argentino"]
+        and pedido.seguimiento
+    ):
+        pedido.estado = "Verificar llegada a destino"
+
+
+def aplicar_estado_y_fechas(pedido, nuevo_estado):
+    if not nuevo_estado:
+        return
+
+    pedido.estado = nuevo_estado
+    ahora = datetime.utcnow()
+
+    if nuevo_estado == "Etiqueta Impresa":
+        if not pedido.fecha_etiqueta_impresa:
+            pedido.fecha_etiqueta_impresa = ahora
+    elif nuevo_estado == "Embalado":
+        pedido.fecha_embalado = ahora
+    elif nuevo_estado == "Despachado":
+        pedido.fecha_despachado = ahora
+        aplicar_autoavance_post_despacho(pedido)
+    elif nuevo_estado == "Entregado":
+        pedido.fecha_entregado = ahora
+
+        if usa_flujo_etiqueta_directa(pedido) or es_tnube_via_cargo(pedido) or es_mayorista_via_cargo(pedido):
+            pedido.estado = "Finalizado"
+
+
+def motor_bloqueo(pedido):
+    errores = []
+
+    if not pedido.cliente:
+        errores.append("Falta cliente.")
+
+    if not pedido.canal:
+        errores.append("Falta canal.")
+
+    if not pedido.items:
+        errores.append("No hay productos cargados.")
+
+    if pedido.canal == "Mercado Libre":
+        if not pedido.ml_tipo:
+            errores.append("Falta tipo de envío ML.")
+
+        elif pedido.ml_tipo == "Mercado Envíos":
+            if not pedido.seguimiento:
+                errores.append("Falta seguimiento ML.")
+            if not pedido.etiqueta_archivo:
+                errores.append("Falta adjuntar etiqueta.")
+
+        elif pedido.ml_tipo == "Acordás la Entrega":
+            pass
+
+    requiere_datos_envio = True
+
+    if usa_flujo_acordas_entrega(pedido) and not despacho_completo(pedido):
+        requiere_datos_envio = False
+
+    if requiere_datos_envio and pedido.empresa_envio:
+        if not pedido.tipo_entrega:
+            errores.append("Falta tipo de entrega.")
+
+        if pedido.tipo_entrega == "Domicilio":
+            if not pedido.direccion or not pedido.localidad or not pedido.provincia:
+                errores.append("Faltan datos domicilio.")
+            if not pedido.codigo_postal:
+                errores.append("Falta CP.")
+
+        if pedido.tipo_entrega == "Sucursal":
+            if not pedido.sucursal_nombre:
+                errores.append("Falta nombre de sucursal.")
+            if not pedido.direccion or not pedido.localidad or not pedido.provincia:
+                errores.append("Faltan datos sucursal.")
+
+            if hay_autorizado(pedido):
+                if not pedido.autorizado_nombre:
+                    errores.append("Falta nombre del autorizado.")
+                if not pedido.autorizado_dni:
+                    errores.append("Falta DNI del autorizado.")
+                if not pedido.autorizado_telefono:
+                    errores.append("Falta teléfono del autorizado.")
+
+    if requiere_datos_envio and not pedido.empresa_envio and not usa_flujo_etiqueta_directa(pedido):
+        errores.append("Falta transporte.")
+
+    if pedido.empresa_envio in ["Andreani", "Correo Argentino"]:
+        if not pedido.seguimiento:
+            errores.append("Falta número de seguimiento.")
+        if not pedido.etiqueta_archivo:
+            errores.append("Falta adjuntar etiqueta.")
+
+    if es_tnube(pedido) and not pedido.empresa_envio:
+        errores.append("Falta transporte.")
+
+    return errores
+
+
+def siguiente_estado(e):
+    flujo = {
+        "Cargando Pedido": "Etiqueta Lista",
+        "Etiqueta Lista": "Etiqueta Impresa",
+        "Etiqueta Impresa": "Embalado",
+        "Embalado": "Despachado",
+        "Despachado": "Entregado",
+        "Verificar llegada a destino": "Entregado",
+        "Listo para retirar": "Entregado",
+    }
+    return flujo.get(e)
+
+
+def texto_boton_estado(pedido):
+    if pedido.estado == "Cargando Pedido":
+        if requiere_contacto_cliente(pedido):
+            return "Contactar cliente"
+        if puede_imprimir_etiqueta_directamente(pedido):
+            return "Imprimir etiqueta"
+        if pedido.empresa_envio == "Vía Cargo":
+            return "Preparar pedido"
+        return "Generar etiqueta"
+
+    if pedido.estado == "Etiqueta Lista":
+        return "Imprimir etiqueta"
+
+    if pedido.estado == "Etiqueta Impresa":
+        return "Marcar embalado"
+
+    if pedido.estado == "Embalado":
+        return "Marcar despachado"
+
+    if pedido.estado == "Despachado":
+        if pedido.empresa_envio == "Vía Cargo" and not pedido.seguimiento:
+            return "Cargar seguimiento"
+        return "Marcar entregado"
+
+    if pedido.estado == "Verificar llegada a destino":
+        if pedido.tipo_entrega == "Sucursal":
+            return "Avisar al cliente"
+        return "Marcar entregado"
+
+    if pedido.estado == "Listo para retirar":
+        return "Marcar entregado"
+
+    if pedido.estado == "Entregado":
+        if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
+            return "Ya avisé Mercado Libre"
+        return "Sin acción"
+
+    return "Avanzar estado"
+
+
+def accion_sugerida_pedido(pedido):
+    if pedido.estado == "Cargando Pedido":
+        if not pedido.cliente:
+            return "Falta cargar cliente"
+
+        if not pedido.canal:
+            return "Falta elegir canal"
+
+        if pedido.canal == "Mercado Libre" and not pedido.ml_tipo:
+            return "Falta elegir tipo ML"
+
+        if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos" and not pedido.seguimiento:
+            return "Falta cargar seguimiento"
+
+        if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos" and not pedido.etiqueta_archivo:
+            return "Falta adjuntar etiqueta"
+
+        if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" and not pedido.empresa_envio:
+            return "Falta elegir transporte"
+
+        if pedido.canal == "Tienda Nube" and not pedido.empresa_envio:
+            return "Falta elegir transporte"
+
+        if pedido.empresa_envio and not pedido.tipo_entrega:
+            return "Falta elegir tipo de entrega"
+
+        if pedido.empresa_envio and pedido.tipo_entrega == "Domicilio":
+            if not pedido.direccion or not pedido.localidad or not pedido.provincia or not pedido.codigo_postal:
+                return "Faltan datos de domicilio"
+
+        if pedido.empresa_envio and pedido.tipo_entrega == "Sucursal":
+            if not pedido.sucursal_nombre or not pedido.direccion or not pedido.localidad or not pedido.provincia:
+                return "Faltan datos de sucursal"
+
+            if hay_autorizado(pedido):
+                if not pedido.autorizado_nombre or not pedido.autorizado_dni or not pedido.autorizado_telefono:
+                    return "Faltan datos del autorizado"
+
+        if not pedido.items:
+            return "Falta cargar productos"
+
+        if requiere_contacto_cliente(pedido):
+            return "Contactar cliente por WhatsApp"
+
+        if puede_imprimir_etiqueta_directamente(pedido):
+            return "Imprimir etiqueta"
+
+        if pedido.empresa_envio == "Vía Cargo":
+            return "Pedido listo para imprimir etiqueta"
+
+        return "Pedido listo para generar etiqueta"
+
+    if pedido.estado == "Etiqueta Lista":
+        return "Imprimir etiqueta"
+
+    if pedido.estado == "Etiqueta Impresa":
+        return "Embalar pedido"
+
+    if pedido.estado == "Embalado":
+        return "Despachar pedido"
+
+    if pedido.estado == "Despachado":
+        if pedido.empresa_envio == "Vía Cargo" and not pedido.seguimiento:
+            return "Cargar seguimiento"
+        return "Confirmar entrega"
+
+    if pedido.estado == "Verificar llegada a destino":
+        return "Hacer seguimiento"
+
+    if pedido.estado == "Listo para retirar":
+        return "Confirmar entrega"
+
+    if pedido.estado == "Entregado":
+        if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
+            return "Avisar a Mercado Libre"
+        return "Pedido terminado"
+
+    return ""
+
+
+def fecha_referencia_estado(pedido):
+    if pedido.estado == "Etiqueta Impresa":
+        return pedido.fecha_etiqueta_impresa or pedido.fecha_creacion
+
+    if pedido.estado == "Embalado":
+        return pedido.fecha_embalado or pedido.fecha_etiqueta_impresa or pedido.fecha_creacion
+
+    if pedido.estado in ["Despachado", "Verificar llegada a destino", "Listo para retirar"]:
+        return pedido.fecha_despachado or pedido.fecha_embalado or pedido.fecha_creacion
+
+    if pedido.estado == "Entregado":
+        return pedido.fecha_entregado or pedido.fecha_despachado or pedido.fecha_creacion
+
+    return pedido.fecha_creacion
+
+
+def tiempo_transcurrido(fecha):
+    if not fecha:
+        return ""
+
+    ahora = datetime.utcnow()
+    diff = ahora - fecha
+    minutos = max(0, int(diff.total_seconds() // 60))
+    horas = minutos // 60
+    dias = horas // 24
+
+    if minutos < 60:
+        return f"hace {minutos} min"
+    if horas < 24:
+        return f"hace {horas} hs"
+    return f"hace {dias} días"
+
+
+def semaforo_pedido(pedido):
+    if not pedido:
+        return "gris"
+
+    ahora = datetime.utcnow()
+
+    # ---------------------------
+    # PEDIDOS DESPACHADOS (seguimiento)
+    # ---------------------------
+    if pedido.estado in ["Despachado", "Verificar llegada a destino", "Listo para retirar"]:
+        if not pedido.fecha_despachado:
+            return "gris"
+
+        diff_horas = max(0, (ahora - pedido.fecha_despachado).total_seconds() / 3600)
+
+        if diff_horas < 72:
+            return "verde"
+        if diff_horas < 96:
+            return "amarillo"
+        return "rojo"
+
+    # ---------------------------
+    # PEDIDOS INTERNOS (operación)
+    # ---------------------------
+    if not pedido.fecha_creacion:
+        return "gris"
+
+    diff_horas = max(0, (ahora - pedido.fecha_creacion).total_seconds() / 3600)
+
+    if diff_horas < 12:
+        return "verde"
+    if diff_horas < 24:
+        return "amarillo"
+    return "rojo"
+
+
+def prioridad_pedido(pedido):
+    color = semaforo_pedido(pedido)
+
+    if color == "rojo":
+        return 0
+    if color == "amarillo":
+        return 1
+    if color == "verde":
+        return 2
+    return 3
+
+
+def pedido_con_datos_pendientes(pedido):
+    return bool(
+        pedido
+        and pedido.estado == "Cargando Pedido"
+    )
+
+
+def orden_inicio_pedido(pedido):
+    rol = rol_actual()
+    prioridad = prioridad_pedido(pedido)
+    id_orden = -(pedido.id or 0)
+
+    if rol == "carga":
+        grupo = 0 if pedido_con_datos_pendientes(pedido) else 1
+        return (grupo, prioridad, id_orden)
+
+    if rol == "despacho":
+        grupo = 0 if pedido_sin_despacho(pedido) else 1
+        return (grupo, prioridad, id_orden)
+
+    return (prioridad, id_orden)
+
+
+def alertas_operativas():
+    ahora = datetime.utcnow()
+    alertas = []
+
+    pedidos = Pedido.query.all()
+
+    sin_despachar = 0
+    sin_carga = 0
+    seguimiento = 0
+
+    for pedido in pedidos:
+        if pedido.estado == "Cargando Pedido" and pedido.fecha_creacion:
+            if (ahora - pedido.fecha_creacion).total_seconds() >= 4 * 3600:
+                sin_carga += 1
+
+        if pedido.estado in ["Etiqueta Impresa", "Embalado"]:
+            ref = fecha_referencia_estado(pedido)
+            if ref and (ahora - ref).total_seconds() >= 24 * 3600:
+                sin_despachar += 1
+
+        if pedido.empresa_envio == "Vía Cargo" and pedido.estado in ["Despachado", "Verificar llegada a destino"]:
+            ref = pedido.fecha_despachado or fecha_referencia_estado(pedido)
+            if ref and (ahora - ref).total_seconds() >= 72 * 3600:
+                seguimiento += 1
+
+    if sin_despachar:
+        alertas.append({"tipo": "roja", "texto": f"{sin_despachar} pedidos sin despachar desde hace más de 24 hs"})
+
+    if sin_carga:
+        alertas.append({"tipo": "amarilla", "texto": f"{sin_carga} pedidos con carga incompleta desde hace más de 4 hs"})
+
+    if seguimiento:
+        alertas.append({"tipo": "amarilla", "texto": f"{seguimiento} pedidos Vía Cargo para seguimiento (72 hs)"})
+
+    return alertas
+
+
+def pedido_sin_despacho(pedido):
+    return bool(
+        pedido
+        and pedido.estado not in ["Despachado", "Verificar llegada a destino", "Listo para retirar", "Entregado", "Finalizado"]
+    )
+
+
+def resumen_operativo(pedidos):
+    resumen = {
+        "rojo": 0,
+        "amarillo": 0,
+        "verde": 0,
+        "gris": 0,
+        "sin_despacho": 0,
+        "total": 0,
+    }
+
+    for pedido in pedidos:
+        color = semaforo_pedido(pedido)
+        resumen[color] = resumen.get(color, 0) + 1
+        if pedido_sin_despacho(pedido):
+            resumen["sin_despacho"] += 1
+        resumen["total"] += 1
+
+    return resumen
+
+
+
+
+def accion_guardado_paso2():
+    return (request.form.get("accion_paso2") or "").strip()
+
+
+def es_guardado_parcial_acordas():
+    canal = request.form.get("canal")
+    ml_tipo = request.form.get("ml_tipo")
+    empresa_envio = request.form.get("empresa_envio")
+
+    return bool(
+        request.method == "POST"
+        and (
+            (canal == "Mercado Libre" and ml_tipo == "Acordás la Entrega")
+            or (canal == "Tienda Nube" and empresa_envio == "Vía Cargo")
+        )
+        and accion_guardado_paso2() in ["guardar_y_seguir_despues", "coordinar_whatsapp"]
+    )
+
+def usuario_actual():
+    username = session.get("username")
+    if not username:
+        return None
+    return USUARIOS.get(username)
+
+
+def rol_actual():
+    usuario = usuario_actual()
+    if not usuario:
+        return ""
+    return usuario["rol"]
+
+
+def login_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not usuario_actual():
+            return redirect(url_for("login"))
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def estados_visibles_inicio():
+    rol = rol_actual()
+
+    if rol == "admin":
+        return None
+
+    if rol == "carga":
+        return ["Cargando Pedido", "Despachado", "Verificar llegada a destino", "Listo para retirar", "Entregado"]
+
+    if rol == "despacho":
+        return ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]
+
+    return []
+
+
+def titulo_inicio_por_rol():
+    rol = rol_actual()
+
+    if rol == "admin":
+        return "Panel administrador"
+
+    if rol == "carga":
+        return "Panel operador de carga"
+
+    if rol == "despacho":
+        return "Panel embalaje y despacho"
+
+    return "Pedidos"
+
+
+def subtitulo_inicio_por_rol():
+    rol = rol_actual()
+
+    if rol == "admin":
+        return "Control total del sistema"
+
+    if rol == "carga":
+        return "Carga, edición y seguimiento final"
+
+    if rol == "despacho":
+        return "Pedidos listos para imprimir, embalar y despachar"
+
+    return "Vista general de trabajo"
+
+
+def puede_ver_pedido(pedido):
+    rol = rol_actual()
+
+    if rol == "admin":
+        return True
+
+    if rol == "carga":
+        return pedido.estado in ["Cargando Pedido", "Despachado", "Verificar llegada a destino", "Listo para retirar", "Entregado"]
+
+    if rol == "despacho":
+        return pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado", "Despachado"]
+
+    return False
+
+
+def puede_editar_pedido(pedido):
+    rol = rol_actual()
+
+    if rol == "admin":
+        return True
+
+    if rol == "carga":
+        return pedido.estado in ["Cargando Pedido", "Despachado", "Verificar llegada a destino", "Listo para retirar"]
+
+    return False
+
+
+def puede_crear_pedido():
+    return rol_actual() in ["admin", "carga"]
+
+
+def puede_ver_historico():
+    return rol_actual() in ["admin", "carga"]
+
+
+def puede_imprimir_pedido(pedido):
+    rol = rol_actual()
+
+    imprimible = pedido.estado == "Etiqueta Lista"
+
+    if rol == "admin":
+        return pedido.estado not in ["Entregado", "Finalizado"] and imprimible
+
+    if rol == "despacho":
+        return pedido.estado not in ["Entregado", "Finalizado"] and imprimible
+
+    return False
+
+
+def puede_contactar_cliente(pedido):
+    rol = rol_actual()
+    if rol not in ["admin", "carga"]:
+        return False
+    return requiere_contacto_cliente(pedido) and bool(whatsapp_link_pedido(pedido))
+
+
+def requiere_cargar_seguimiento(pedido):
+    return bool(
+        pedido.estado == "Despachado"
+        and pedido.empresa_envio == "Vía Cargo"
+        and not pedido.seguimiento
+    )
+
+
+def puede_avanzar_segun_rol(pedido):
+    rol = rol_actual()
+
+    if rol == "admin":
+        return True, []
+
+    if rol == "carga":
+        if pedido.estado in ["Despachado", "Verificar llegada a destino", "Listo para retirar"]:
+            return True, []
+        return False, ["Este estado lo trabaja Embalaje y Despacho."]
+
+    if rol == "despacho":
+        if pedido.estado in ["Etiqueta Impresa", "Embalado"]:
+            return True, []
+        return False, ["Este estado lo trabaja el operador de Carga."]
+
+    return False, ["No tenés permisos para esta acción."]
+
+
+def puede_avanzar_pedido(pedido):
+    errores = motor_bloqueo(pedido)
+
+    if pedido.estado == "Cargando Pedido" and errores:
+        return False, errores
+
+    if pedido.estado == "Despachado":
+        if pedido.empresa_envio == "Vía Cargo" and not pedido.seguimiento:
+            return False, ["En Vía Cargo el seguimiento se carga después del despacho."]
+
+    puede_por_rol, errores_rol = puede_avanzar_segun_rol(pedido)
+    if not puede_por_rol:
+        return False, errores_rol
+
+    return True, []
+
+
+def cargar_items_desde_texto(pedido, items_texto):
+    PedidoItem.query.filter_by(pedido_id=pedido.id).delete()
+
+    items = items_texto.splitlines()
+
+    for linea in items:
+        if linea.strip():
+            partes = [p.strip() for p in linea.split("|")]
+
+            if len(partes) >= 3:
+                sku = partes[0]
+                descripcion = partes[1]
+                cantidad = int(partes[2])
+
+                item = PedidoItem(
+                    pedido_id=pedido.id,
+                    sku=sku,
+                    descripcion=descripcion,
+                    cantidad=cantidad
+                )
+                db.session.add(item)
+
+
+def items_a_texto(pedido):
+    lineas = []
+    for item in pedido.items:
+        lineas.append(f"{item.sku}|{item.descripcion}|{item.cantidad}")
+    return "\n".join(lineas)
+
+
+@app.context_processor
+def inyectar_contexto_global():
+    return {
+        "usuario_logueado": usuario_actual(),
+        "rol_actual": rol_actual(),
+        "titulo_inicio_por_rol": titulo_inicio_por_rol,
+        "subtitulo_inicio_por_rol": subtitulo_inicio_por_rol,
+        "puede_crear_pedido": puede_crear_pedido,
+        "puede_ver_historico": puede_ver_historico,
+        "puede_editar_pedido": puede_editar_pedido,
+        "puede_ver_pedido": puede_ver_pedido,
+        "puede_imprimir_pedido": puede_imprimir_pedido,
+        "puede_contactar_cliente": puede_contactar_cliente,
+        "whatsapp_link_pedido": whatsapp_link_pedido,
+        "requiere_contacto_cliente": requiere_contacto_cliente,
+        "requiere_cargar_seguimiento": requiere_cargar_seguimiento,
+        "tiempo_transcurrido": tiempo_transcurrido,
+        "fecha_referencia_estado": fecha_referencia_estado,
+        "alertas_operativas": alertas_operativas,
+        "semaforo_pedido": semaforo_pedido,
+    }
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if usuario_actual():
+        return redirect(url_for("inicio"))
+
+    error = ""
+
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+
+        usuario = USUARIOS.get(username)
+
+        if not usuario or usuario["password"] != password:
+            error = "Usuario o contraseña incorrectos."
+        else:
+            session["username"] = username
+            return redirect(url_for("inicio"))
+
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+@app.route("/")
+@login_required
+def inicio():
+    pedidos = Pedido.query.all()
+
+    cambios = False
+    for pedido in pedidos:
+        telefono_original = pedido.telefono or ""
+        telefono_normalizado = normalizar_telefono(telefono_original)
+        if telefono_original and telefono_normalizado and telefono_original != telefono_normalizado:
+            pedido.telefono = telefono_normalizado
+            cambios = True
+
+        estado_anterior = pedido.estado
+        actualizar_estado_automatico(pedido)
+        if pedido.estado != estado_anterior:
+            cambios = True
+
+    if cambios:
+        db.session.commit()
+
+    estados = estados_visibles_inicio()
+    if estados is not None:
+        pedidos = [p for p in pedidos if p.estado in estados]
+
+    pedidos.sort(key=orden_inicio_pedido)
+
+    return render_template(
+        "index.html",
+        pedidos=pedidos,
+        resumen_operativo=resumen_operativo(pedidos),
+        accion_sugerida_pedido=accion_sugerida_pedido,
+        texto_boton_estado=texto_boton_estado,
+        puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente
+    )
+
+
+
+@app.route("/historico")
+@login_required
+def historico():
+    if not puede_ver_historico():
+        return redirect(url_for("inicio"))
+
+    pedidos = Pedido.query.filter_by(estado="Finalizado").order_by(Pedido.id.desc()).all()
+
+    return render_template(
+        "historico.html",
+        pedidos=pedidos
+    )
+
+
+@app.route("/productos")
+@login_required
+def productos():
+    df = pd.read_excel("productos.xlsx")
+
+    productos = []
+
+    for _, row in df.iterrows():
+        sku = "" if pd.isna(row.iloc[0]) else str(row.iloc[0]).strip()
+        descripcion = "" if pd.isna(row.iloc[1]) else str(row.iloc[1]).strip()
+
+        if descripcion:
+            productos.append({
+                "sku": sku,
+                "descripcion": descripcion
+            })
+
+    return jsonify(productos)
+
+
+@app.route("/uploads/<path:nombre_archivo>")
+@login_required
+def ver_etiqueta(nombre_archivo):
+    return send_from_directory(app.config["UPLOAD_FOLDER"], nombre_archivo)
+
+
+@app.route("/pedido/<int:id>/lanzar-impresion")
+@login_required
+def lanzar_impresion(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_imprimir_pedido(pedido):
+        return redirect(url_for("inicio"))
+
+    actualizar_estado_automatico(pedido)
+    db.session.commit()
+
+    origen = (request.args.get("origen") or "").strip()
+
+    if origen == "detalle":
+        volver_url = url_for("detalle_pedido", id=pedido.id)
+    else:
+        volver_url = url_for("inicio")
+
+    return render_template(
+        "lanzar_impresion.html",
+        print_url=url_for("imprimir_etiqueta", id=pedido.id, origen=origen),
+        volver_url=volver_url
+    )
+
+
+@app.route("/pedido/<int:id>/imprimir-etiqueta")
+@login_required
+def imprimir_etiqueta(id):
+    pedido = Pedido.query.get_or_404(id)
+    origen = (request.args.get("origen") or "").strip()
+
+
+    if not puede_imprimir_pedido(pedido):
+        return redirect(url_for("inicio"))
+
+    actualizar_estado_automatico(pedido)
+
+    if pedido.estado in ["Cargando Pedido", "Etiqueta Lista"] and (
+        pedido.estado == "Etiqueta Lista"
+        or puede_imprimir_etiqueta_directamente(pedido)
+        or puede_imprimir_acordas_entrega(pedido)
+    ):
+        aplicar_estado_y_fechas(pedido, "Etiqueta Impresa")
+        db.session.commit()
+
+    if pedido.empresa_envio == "Vía Cargo" and not es_mercado_envios(pedido):
+        return render_template(
+            "imprimir_etiqueta_interna.html",
+            pedido=pedido,
+            hay_autorizado=hay_autorizado,
+            volver_url=(url_for("detalle_pedido", id=pedido.id) if origen == "detalle" else url_for("inicio"))
+        )
+
+    if not pedido.etiqueta_archivo:
+        return render_template(
+            "detalle_pedido.html",
+            pedido=pedido,
+            error="No hay etiqueta adjunta para imprimir.",
+            accion_sugerida=accion_sugerida_pedido(pedido),
+            texto_boton=texto_boton_estado(pedido),
+            hay_autorizado=hay_autorizado,
+            puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
+            whatsapp_url=whatsapp_link_pedido(pedido)
+        )
+
+    extension = pedido.etiqueta_archivo.rsplit(".", 1)[-1].lower() if "." in pedido.etiqueta_archivo else ""
+    url_original = url_for("ver_etiqueta", nombre_archivo=pedido.etiqueta_archivo)
+
+    if extension == "pdf":
+        nombre_preview = generar_preview_etiqueta_pdf(pedido.etiqueta_archivo)
+        url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
+    else:
+        url_archivo = url_original
+
+    return render_template(
+        "imprimir_etiqueta.html",
+        pedido=pedido,
+        url_archivo=url_archivo,
+        url_original=url_original,
+        extension=extension
+    )
+
+
+@app.route("/nuevo", methods=["GET", "POST"])
+@login_required
+def nuevo_pedido():
+    if not puede_crear_pedido():
+        return redirect(url_for("inicio"))
+
+    if request.method == "POST":
+        etiqueta_existente = request.form.get("etiqueta_existente", "").strip()
+        archivo_etiqueta = request.files.get("etiqueta")
+
+        if archivo_etiqueta and archivo_etiqueta.filename:
+            etiqueta_existente = guardar_etiqueta_subida(archivo_etiqueta)
+
+        canal = request.form.get("canal")
+        ml_tipo = request.form.get("ml_tipo")
+
+        empresa_envio = request.form.get("empresa_envio")
+        tipo_entrega = request.form.get("tipo_entrega")
+        direccion = request.form.get("direccion")
+        codigo_postal = request.form.get("codigo_postal")
+        localidad = request.form.get("localidad")
+        provincia = request.form.get("provincia")
+        observaciones = request.form.get("observaciones")
+        sucursal_nombre = request.form.get("sucursal_nombre")
+        autorizado_nombre = request.form.get("autorizado_nombre")
+        autorizado_dni = request.form.get("autorizado_dni")
+        autorizado_telefono = request.form.get("autorizado_telefono")
+
+        if canal == "Mercado Libre" and ml_tipo == "Mercado Envíos":
+            empresa_envio = ""
+            tipo_entrega = ""
+            direccion = ""
+            codigo_postal = ""
+            localidad = ""
+            provincia = ""
+            observaciones = ""
+            sucursal_nombre = ""
+            autorizado_nombre = ""
+            autorizado_dni = ""
+            autorizado_telefono = ""
+
+        pedido = Pedido(
+            cliente=request.form.get("cliente"),
+            dni=request.form.get("dni"),
+            telefono=normalizar_telefono(request.form.get("telefono")),
+            mail=request.form.get("mail"),
+            canal=canal,
+            id_venta=request.form.get("id_venta"),
+            ml_tipo=ml_tipo,
+            empresa_envio=empresa_envio,
+            tipo_entrega=tipo_entrega,
+            direccion=direccion,
+            codigo_postal=codigo_postal,
+            localidad=localidad,
+            provincia=provincia,
+            observaciones=observaciones,
+            sucursal_nombre=sucursal_nombre,
+            autorizado_nombre=autorizado_nombre,
+            autorizado_dni=autorizado_dni,
+            autorizado_telefono=autorizado_telefono,
+            seguimiento=request.form.get("seguimiento"),
+            etiqueta_archivo=etiqueta_existente
+        )
+
+        db.session.add(pedido)
+        db.session.flush()
+
+        if es_guardado_parcial_acordas():
+            db.session.commit()
+
+            if accion_guardado_paso2() == "coordinar_whatsapp":
+                whatsapp_url = whatsapp_link_pedido(pedido)
+                if whatsapp_url:
+                    return redirect(whatsapp_url)
+
+            return redirect(url_for("inicio"))
+
+        cargar_items_desde_texto(pedido, request.form.get("items_texto", ""))
+        actualizar_estado_automatico(pedido)
+
+        errores = motor_bloqueo(pedido)
+
+        if errores:
+            db.session.rollback()
+            return render_template(
+                "nuevo_pedido.html",
+                error="<br>".join(errores),
+                form_data=request.form,
+                etiqueta_guardada=etiqueta_existente
+            )
+
+        db.session.commit()
+
+        if canal == "Mercado Libre" and ml_tipo == "Acordás la Entrega" and not despacho_completo(pedido):
+            return redirect(url_for("inicio"))
+
+        return redirect(url_for("inicio"))
+
+    return render_template("nuevo_pedido.html", error="", form_data={}, etiqueta_guardada="")
+
+
+@app.route("/pedido/<int:id>")
+@login_required
+def detalle_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido):
+        return redirect(url_for("inicio"))
+
+    estado_anterior = pedido.estado
+    actualizar_estado_automatico(pedido)
+    if pedido.estado != estado_anterior:
+        db.session.commit()
+
+    return render_template(
+        "detalle_pedido.html",
+        pedido=pedido,
+        error="",
+        accion_sugerida=accion_sugerida_pedido(pedido),
+        texto_boton=texto_boton_estado(pedido),
+        hay_autorizado=hay_autorizado,
+        puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
+        whatsapp_url=whatsapp_link_pedido(pedido)
+    )
+
+
+@app.route("/pedido/<int:id>/editar", methods=["GET", "POST"])
+@login_required
+def editar_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_editar_pedido(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    modo = (request.args.get("modo") or "").strip()
+    volver = (request.args.get("volver") or "").strip()
+
+    if request.method == "POST":
+        if modo == "seguimiento":
+            seguimiento_valor = (request.form.get("seguimiento") or "").strip()
+
+            if not seguimiento_valor:
+                return render_template(
+                    "editar_pedido.html",
+                    pedido=pedido,
+                    items_texto=items_a_texto(pedido),
+                    error="Falta número de seguimiento."
+                )
+
+            pedido.seguimiento = seguimiento_valor
+            aplicar_autoavance_post_despacho(pedido)
+
+            db.session.commit()
+
+            if volver == "detalle":
+                return redirect(url_for("detalle_pedido", id=pedido.id))
+            return redirect(url_for("inicio"))
+
+        etiqueta_actual = request.form.get("etiqueta_existente", "").strip()
+        archivo_etiqueta = request.files.get("etiqueta")
+
+        if archivo_etiqueta and archivo_etiqueta.filename:
+            etiqueta_actual = guardar_etiqueta_subida(archivo_etiqueta)
+
+        canal = request.form.get("canal")
+        ml_tipo = request.form.get("ml_tipo")
+
+        empresa_envio = request.form.get("empresa_envio")
+        tipo_entrega = request.form.get("tipo_entrega")
+        direccion = request.form.get("direccion")
+        codigo_postal = request.form.get("codigo_postal")
+        localidad = request.form.get("localidad")
+        provincia = request.form.get("provincia")
+        observaciones = request.form.get("observaciones")
+        sucursal_nombre = request.form.get("sucursal_nombre")
+        autorizado_nombre = request.form.get("autorizado_nombre")
+        autorizado_dni = request.form.get("autorizado_dni")
+        autorizado_telefono = request.form.get("autorizado_telefono")
+
+        if canal == "Mercado Libre" and ml_tipo == "Mercado Envíos":
+            empresa_envio = ""
+            tipo_entrega = ""
+            direccion = ""
+            codigo_postal = ""
+            localidad = ""
+            provincia = ""
+            observaciones = ""
+            sucursal_nombre = ""
+            autorizado_nombre = ""
+            autorizado_dni = ""
+            autorizado_telefono = ""
+
+        pedido.cliente = request.form.get("cliente")
+        pedido.dni = request.form.get("dni")
+        pedido.telefono = normalizar_telefono(request.form.get("telefono"))
+        pedido.mail = request.form.get("mail")
+        pedido.canal = canal
+        pedido.id_venta = request.form.get("id_venta")
+        pedido.ml_tipo = ml_tipo
+        pedido.empresa_envio = empresa_envio
+        pedido.tipo_entrega = tipo_entrega
+        pedido.direccion = direccion
+        pedido.codigo_postal = codigo_postal
+        pedido.localidad = localidad
+        pedido.provincia = provincia
+        pedido.observaciones = observaciones
+        pedido.sucursal_nombre = sucursal_nombre
+        pedido.autorizado_nombre = autorizado_nombre
+        pedido.autorizado_dni = autorizado_dni
+        pedido.autorizado_telefono = autorizado_telefono
+        seguimiento_valor = (request.form.get("seguimiento") or request.form.get("seguimiento_envio") or "").strip()
+        pedido.seguimiento = seguimiento_valor
+        pedido.etiqueta_archivo = etiqueta_actual
+
+        if es_guardado_parcial_acordas():
+            db.session.commit()
+
+            if accion_guardado_paso2() == "coordinar_whatsapp":
+                whatsapp_url = whatsapp_link_pedido(pedido)
+                if whatsapp_url:
+                    return redirect(whatsapp_url)
+
+            return redirect(url_for("inicio"))
+
+        cargar_items_desde_texto(pedido, request.form.get("items_texto", ""))
+        actualizar_estado_automatico(pedido)
+
+        errores = motor_bloqueo(pedido)
+
+        if errores:
+            db.session.rollback()
+
+            pedido_temporal = {
+                "id": pedido.id,
+                "cliente": request.form.get("cliente", ""),
+                "dni": request.form.get("dni", ""),
+                "telefono": normalizar_telefono(request.form.get("telefono", "")),
+                "mail": request.form.get("mail", ""),
+                "canal": canal or "",
+                "id_venta": request.form.get("id_venta", ""),
+                "ml_tipo": ml_tipo or "",
+                "empresa_envio": empresa_envio or "",
+                "tipo_entrega": tipo_entrega or "",
+                "direccion": direccion or "",
+                "codigo_postal": codigo_postal or "",
+                "localidad": localidad or "",
+                "provincia": provincia or "",
+                "observaciones": observaciones or "",
+                "sucursal_nombre": sucursal_nombre or "",
+                "autorizado_nombre": autorizado_nombre or "",
+                "autorizado_dni": autorizado_dni or "",
+                "autorizado_telefono": autorizado_telefono or "",
+                "seguimiento": seguimiento_valor,
+                "etiqueta_archivo": etiqueta_actual,
+                "estado": pedido.estado
+            }
+
+            return render_template(
+                "editar_pedido.html",
+                pedido=pedido_temporal,
+                items_texto=request.form.get("items_texto", ""),
+                error="<br>".join(errores)
+            )
+
+        aplicar_autoavance_post_despacho(pedido)
+
+        db.session.commit()
+
+        return redirect(url_for("inicio"))
+
+    return render_template(
+        "editar_pedido.html",
+        pedido=pedido,
+        items_texto=items_a_texto(pedido),
+        error=""
+    )
+
+@app.route("/pedido/<int:id>/confirmar-entrega")
+@login_required
+def confirmar_entrega(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido):
+        return redirect(url_for("inicio"))
+
+    if not requiere_seguimiento_retiro(pedido):
+        return redirect(url_for("inicio"))
+
+    pedido.estado = "Listo para retirar"
+    db.session.commit()
+
+    whatsapp_url = whatsapp_link_confirmar_entrega(pedido)
+    if whatsapp_url:
+        return redirect(whatsapp_url)
+
+    return redirect(url_for("inicio"))
+
+
+@app.route("/pedido/<int:id>/cerrar-ml")
+@login_required
+def cerrar_ml(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido):
+        return redirect(url_for("inicio"))
+
+    if not (
+        pedido.estado == "Entregado"
+        and pedido.canal == "Mercado Libre"
+        and pedido.ml_tipo == "Acordás la Entrega"
+    ):
+        return redirect(url_for("inicio"))
+
+    pedido.estado = "Finalizado"
+    db.session.commit()
+
+    return redirect(url_for("inicio"))
+
+@app.route("/pedido/<int:id>/avanzar")
+@login_required
+def avanzar_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido):
+        return redirect(url_for("inicio"))
+
+    puede_avanzar, errores = puede_avanzar_pedido(pedido)
+
+    if not puede_avanzar:
+        return render_template(
+            "detalle_pedido.html",
+            pedido=pedido,
+            error="<br>".join(errores),
+            accion_sugerida=accion_sugerida_pedido(pedido),
+            texto_boton=texto_boton_estado(pedido),
+            hay_autorizado=hay_autorizado,
+            puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
+            whatsapp_url=whatsapp_link_pedido(pedido)
+        )
+
+    nuevo = siguiente_estado(pedido.estado)
+
+    if nuevo:
+        aplicar_estado_y_fechas(pedido, nuevo)
+        db.session.commit()
+
+    return redirect(url_for("inicio"))
+
+
+if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+        asegurar_columnas_extra()
+    app.run(debug=True)
