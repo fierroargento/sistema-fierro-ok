@@ -850,11 +850,13 @@ function agregarProducto() {
         cantidad: cantidad
     });
 
-    document.getElementById("cantidad_producto").value = 1;
+        document.getElementById("cantidad_producto").value = 1;
     document.getElementById("producto_seleccionado").value = "";
     productoElegido = null;
 
+    limpiarErroresVisuales();
     renderizarItems();
+}
 }
 
 function renderizarItems() {
