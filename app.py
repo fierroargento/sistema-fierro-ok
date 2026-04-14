@@ -7,14 +7,22 @@ from functools import wraps
 
 from flask import Flask, request, redirect, render_template, url_for, jsonify, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///pedidos.db"
+
+database_url = os.getenv("DATABASE_URL", "").strip()
+if database_url:
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///pedidos.db"
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
-app.config["SECRET_KEY"] = "fierro-apb-roles-v1"
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "fierro-apb-roles-v1")
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
@@ -74,11 +82,17 @@ class PedidoItem(db.Model):
     cantidad = db.Column(db.Integer)
 
 
-def asegurar_columna_si_no_existe(nombre_columna, definicion_sql):
-    columnas = db.session.execute(text("PRAGMA table_info(pedido)")).fetchall()
-    nombres = [col[1] for col in columnas]
+class Producto(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sku = db.Column(db.String(80), nullable=False, index=True)
+    descripcion = db.Column(db.String(255), nullable=False, index=True)
 
-    if nombre_columna not in nombres:
+
+def asegurar_columna_si_no_existe(nombre_columna, definicion_sql):
+    inspector = inspect(db.engine)
+    columnas = [col["name"] for col in inspector.get_columns("pedido")]
+
+    if nombre_columna not in columnas:
         db.session.execute(text(f"ALTER TABLE pedido ADD COLUMN {nombre_columna} {definicion_sql}"))
         db.session.commit()
 
@@ -89,10 +103,37 @@ def asegurar_columnas_extra():
     asegurar_columna_si_no_existe("autorizado_nombre", "VARCHAR(120)")
     asegurar_columna_si_no_existe("autorizado_dni", "VARCHAR(20)")
     asegurar_columna_si_no_existe("autorizado_telefono", "VARCHAR(30)")
-    asegurar_columna_si_no_existe("fecha_etiqueta_impresa", "DATETIME")
-    asegurar_columna_si_no_existe("fecha_embalado", "DATETIME")
-    asegurar_columna_si_no_existe("fecha_despachado", "DATETIME")
-    asegurar_columna_si_no_existe("fecha_entregado", "DATETIME")
+    asegurar_columna_si_no_existe("fecha_etiqueta_impresa", "TIMESTAMP")
+    asegurar_columna_si_no_existe("fecha_embalado", "TIMESTAMP")
+    asegurar_columna_si_no_existe("fecha_despachado", "TIMESTAMP")
+    asegurar_columna_si_no_existe("fecha_entregado", "TIMESTAMP")
+
+
+def productos_desde_excel(archivo_excel):
+    df = pd.read_excel(archivo_excel)
+
+    productos = []
+    for _, row in df.iterrows():
+        sku = "" if pd.isna(row.iloc[0]) else str(row.iloc[0]).strip()
+        descripcion = "" if pd.isna(row.iloc[1]) else str(row.iloc[1]).strip()
+
+        if descripcion:
+            productos.append({
+                "sku": sku,
+                "descripcion": descripcion
+            })
+    return productos
+
+
+def sincronizar_productos_desde_excel(archivo_excel):
+    productos = productos_desde_excel(archivo_excel)
+
+    db.session.query(Producto).delete()
+    for prod in productos:
+        db.session.add(Producto(sku=prod["sku"], descripcion=prod["descripcion"]))
+    db.session.commit()
+
+    return len(productos)
 
 
 def guardar_etiqueta_subida(archivo):
@@ -1068,6 +1109,43 @@ def inicio():
 
 
 
+@app.route("/ayuda")
+@login_required
+def ayuda():
+    return render_template("ayuda.html")
+
+
+@app.route("/admin/productos", methods=["GET", "POST"])
+@login_required
+@admin_required
+def admin_productos():
+    mensaje = ""
+    error = ""
+
+    if request.method == "POST":
+        archivo = request.files.get("archivo_productos")
+        if not archivo or not archivo.filename:
+            error = "Tenés que seleccionar un Excel."
+        else:
+            try:
+                cantidad = sincronizar_productos_desde_excel(archivo)
+                mensaje = f"Productos actualizados: {cantidad}"
+            except Exception as e:
+                db.session.rollback()
+                error = f"No se pudo importar el Excel: {e}"
+
+    total_productos = Producto.query.count()
+    ultimos = Producto.query.order_by(Producto.descripcion.asc()).limit(20).all()
+
+    return render_template(
+        "admin_productos.html",
+        mensaje=mensaje,
+        error=error,
+        total_productos=total_productos,
+        ultimos=ultimos
+    )
+
+
 @app.route("/historico")
 @login_required
 def historico():
@@ -1085,21 +1163,25 @@ def historico():
 @app.route("/productos")
 @login_required
 def productos():
-    df = pd.read_excel("productos.xlsx")
+    productos_db = Producto.query.order_by(Producto.descripcion.asc()).all()
 
-    productos = []
+    if productos_db:
+        return jsonify([
+            {"sku": p.sku or "", "descripcion": p.descripcion or ""}
+            for p in productos_db
+        ])
 
-    for _, row in df.iterrows():
-        sku = "" if pd.isna(row.iloc[0]) else str(row.iloc[0]).strip()
-        descripcion = "" if pd.isna(row.iloc[1]) else str(row.iloc[1]).strip()
+    ruta_excel = os.path.join(app.root_path, "productos.xlsx")
+    if os.path.exists(ruta_excel):
+        productos = productos_desde_excel(ruta_excel)
+        if productos:
+            try:
+                sincronizar_productos_desde_excel(ruta_excel)
+            except Exception as e:
+                print("No se pudo sincronizar productos desde Excel:", e)
+        return jsonify(productos)
 
-        if descripcion:
-            productos.append({
-                "sku": sku,
-                "descripcion": descripcion
-            })
-
-    return jsonify(productos)
+    return jsonify([])
 
 
 @app.route("/uploads/<path:nombre_archivo>")
@@ -1543,6 +1625,13 @@ def avanzar_pedido(id):
 with app.app_context():
     db.create_all()
     asegurar_columnas_extra()
+
+    ruta_excel = os.path.join(app.root_path, "productos.xlsx")
+    if Producto.query.count() == 0 and os.path.exists(ruta_excel):
+        try:
+            sincronizar_productos_desde_excel(ruta_excel)
+        except Exception as e:
+            print("No se pudo cargar productos iniciales desde Excel:", e)
 
 if __name__ == "__main__":
     app.run(debug=True)

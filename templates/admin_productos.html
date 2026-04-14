@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h1>Productos</h1>
+    <p>Total cargados: <strong>{{ total_productos }}</strong></p>
+
+    {% if mensaje %}<div class="alerta alerta-ok">{{ mensaje }}</div>{% endif %}
+    {% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="form-bloque">
+        <p><strong>Subir Excel</strong> (columna A = SKU, columna B = Descripción)</p>
+        <input type="file" name="archivo_productos" accept=".xlsx,.xls">
+        <button type="submit">Actualizar productos</button>
+    </form>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Vista rápida</h2>
+        <table class="tabla">
+            <thead><tr><th>SKU</th><th>Descripción</th></tr></thead>
+            <tbody>
+            {% for p in ultimos %}
+                <tr><td>{{ p.sku }}</td><td>{{ p.descripcion }}</td></tr>
+            {% else %}
+                <tr><td colspan="2">No hay productos cargados.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -25,6 +25,10 @@
             {% if puede_ver_historico() %}
             <a href="{{ url_for('historico') }}">Histórico</a>
             {% endif %}
+            {% if rol_actual == "admin" %}
+            <a href="{{ url_for('admin_productos') }}">Productos</a>
+            {% endif %}
+            <a href="{{ url_for('ayuda') }}">Ayuda</a>
 
             <div class="menu-user">
                 <div class="menu-user-nombre">{{ usuario_logueado.nombre }}</div>
