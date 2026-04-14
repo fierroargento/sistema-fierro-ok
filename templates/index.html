@@ -80,19 +80,19 @@
                         <a href="{{ url_for('lanzar_impresion', id=p.id) }}" target="_blank" class="btn btn-accion-rapida btn-confirmar">
                             Imprimir etiqueta
                         </a>
-                    {% elif p.estado == "Verificar llegada a destino" and rol_actual == "carga" and p.tipo_entrega == "Sucursal" %}
+                    {% elif p.estado == "Verificar llegada a destino" and rol_actual in ["carga", "admin"] and p.tipo_entrega == "Sucursal" %}
                         <a href="{{ url_for('confirmar_entrega', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar" target="_blank">
                             Avisar al Cliente
                         </a>
-                    {% elif p.estado == "Listo para retirar" and rol_actual == "carga" and p.tipo_entrega == "Sucursal" %}
+                    {% elif p.estado == "Listo para retirar" and rol_actual in ["carga", "admin"] and p.tipo_entrega == "Sucursal" %}
                         <a href="{{ url_for('avanzar_pedido', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
                             Marcar entregado
                         </a>
-                    {% elif p.estado == "Verificar llegada a destino" and rol_actual == "carga" and p.tipo_entrega == "Domicilio" %}
+                    {% elif p.estado == "Verificar llegada a destino" and rol_actual in ["carga", "admin"] and p.tipo_entrega == "Domicilio" %}
                         <a href="{{ url_for('avanzar_pedido', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
                             Marcar entregado
                         </a>
-                    {% elif p.estado == "Entregado" and rol_actual == "carga" and p.canal == "Mercado Libre" and p.ml_tipo == "Acordás la Entrega" %}
+                    {% elif p.estado == "Entregado" and rol_actual in ["carga", "admin"] and p.canal == "Mercado Libre" and p.ml_tipo == "Acordás la Entrega" %}
                         <a href="{{ url_for('cerrar_ml', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
                             Ya avisé Mercado Libre
                         </a>
