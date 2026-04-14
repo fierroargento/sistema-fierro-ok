@@ -127,7 +127,13 @@
     </table>
 
 <script>
-function copiarTexto(texto) { ... }
+function copiarTexto(texto) {
+    navigator.clipboard.writeText(texto).then(function () {
+        console.log("Copiado:", texto);
+    }).catch(function (err) {
+        console.error("Error al copiar:", err);
+    });
+}
 
 (function () {
     const cards = document.querySelectorAll('.filtro-card');
