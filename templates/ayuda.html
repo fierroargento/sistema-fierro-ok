@@ -1,20 +1,39 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-    <h1>Ayuda APB</h1>
-    <h2>Carga</h2>
-    <p>1. Entrá a Nuevo Pedido.</p>
-    <p>2. Completá cliente y venta.</p>
-    <p>3. Cargá productos.</p>
-    <p>4. Guardá.</p>
+   <h1>Ayuda APB</h1>
 
-    <h2>Despacho</h2>
-    <p>1. Imprimí etiqueta.</p>
-    <p>2. Embalá.</p>
-    <p>3. Despachá.</p>
-    <p>4. Si corresponde, cargá seguimiento.</p>
+<h2>Carga</h2>
+<p><strong>Alta de pedido</strong></p>
+<p>1. Entrá a <strong>Nuevo Pedido</strong>.</p>
+<p>2. Completá los datos de <strong>Cliente</strong>.</p>
+<p>3. Completá los datos de <strong>Venta</strong>.</p>
+<p>4. Completá los datos de <strong>Envío</strong>.</p>
+<p>5. Cargá los <strong>Productos</strong>.</p>
+<p>6. Guardá el pedido.</p>
 
-    <h2>Productos</h2>
-    <p>El admin puede actualizar el padrón desde el menú Productos subiendo un Excel con SKU en la primera columna y descripción en la segunda.</p>
+<p><strong>Seguimiento después de despachado</strong></p>
+<p>1. Revisá el tablero y seguí la <strong>Acción sugerida</strong>.</p>
+<p>2. Si el pedido requiere confirmación de entrega al cliente, usá el botón correspondiente.</p>
+<p>3. Si el pedido de Mercado Libre / Acordás la Entrega ya fue recibido por el cliente, usá <strong>Ya avisé Mercado Libre</strong>.</p>
+<p>4. El pedido recién se considera cerrado cuando termina su flujo final.</p>
+
+<h2>Despacho</h2>
+<p>1. Revisá los pedidos del tablero de despacho.</p>
+<p>2. Imprimí la etiqueta si corresponde.</p>
+<p>3. Prepará y embalá el pedido.</p>
+<p>4. Despachá el pedido.</p>
+<p>5. No cargues seguimiento salvo que el flujo real del canal lo pida.</p>
+
+<h2>Mercado Libre - Acordás la Entrega</h2>
+<p>1. Cuando el pedido ya fue entregado al cliente, el sistema puede dejarlo en estado <strong>Entregado</strong>.</p>
+<p>2. En ese punto todavía puede faltar la acción final: <strong>avisar a Mercado Libre</strong>.</p>
+<p>3. Usá el botón <strong>Ya avisé Mercado Libre</strong> para cerrar correctamente ese tramo del flujo.</p>
+
+<h2>Productos</h2>
+<p>El administrador puede actualizar el padrón desde el menú <strong>Productos</strong> subiendo un Excel con:</p>
+<p>• primera columna: <strong>SKU</strong></p>
+<p>• segunda columna: <strong>Descripción</strong></p>
+<p>La carga reemplaza el padrón actual.</p>
 </div>
 {% endblock %}
