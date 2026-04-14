@@ -144,11 +144,66 @@ function copiarTexto(texto) {
     const contadorVerde = document.getElementById('contador_verde');
     const contadorSinDespacho = document.getElementById('contador_sin_despacho');
     const filtroStorageKey = 'fierro_filtro_inicio_{{ rol_actual }}';
-    const rolActual = "{{ rol_actual }}";
+const rolActual = "{{ rol_actual }}";
 
-    if (!cards.length || !filas.length) return;
+function obtenerPrioridad(fila) {
+    const estado = (fila.querySelector('.estado-listado')?.innerText || '').toLowerCase();
+    const tiempoTexto = (fila.querySelector('td:nth-child(7)')?.innerText || '').toLowerCase();
+
+    let minutos = 0;
+
+    if (tiempoTexto.includes('hs')) {
+        minutos = parseInt(tiempoTexto) * 60;
+    } else if (tiempoTexto.includes('min')) {
+        minutos = parseInt(tiempoTexto);
+    }
+
+    let prioridad = 5;
+
+    if (estado.includes('dato') || estado.includes('pendiente')) {
+        prioridad = 1;
+    } else if (estado.includes('sin despacho')) {
+        prioridad = 2;
+    } else if (
+        estado.includes('etiqueta lista') ||
+        estado.includes('etiqueta impresa') ||
+        estado.includes('embalado')
+    ) {
+        prioridad = 3;
+    } else if (
+        estado.includes('despachado') ||
+        estado.includes('listo para retirar') ||
+        estado.includes('esperando confirmación de retiro')
+    ) {
+        prioridad = 4;
+    }
+
+    return { prioridad, minutos };
+}
+
+function ordenarTablaPorPrioridad() {
+    const tbody = document.getElementById('tabla_pedidos_body');
+    const filasArray = Array.from(tbody.querySelectorAll('tr[data-semaforo]'));
+
+    filasArray.sort((a, b) => {
+        const pa = obtenerPrioridad(a);
+        const pb = obtenerPrioridad(b);
+
+        if (pa.prioridad !== pb.prioridad) {
+            return pa.prioridad - pb.prioridad;
+        }
+
+        return pb.minutos - pa.minutos;
+    });
+
+    filasArray.forEach(fila => tbody.appendChild(fila));
+}
+
+if (!cards.length || !filas.length) return;
 
     let filtroActivo = 'todos';
+
+    ordenarTablaPorPrioridad();
 
     function filtroDefaultPorRol() {
         return 'todos';
