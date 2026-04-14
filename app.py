@@ -1117,7 +1117,6 @@ def ayuda():
 
 @app.route("/admin/productos", methods=["GET", "POST"])
 @login_required
-@admin_required
 def admin_productos():
     mensaje = ""
     error = ""
