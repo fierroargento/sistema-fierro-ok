@@ -791,8 +791,22 @@ checkAutorizado.addEventListener("change", actualizar);
 
 // ===== productos =====
 async function cargarProductos() {
+  try {
     const res = await fetch("/productos");
+
+    if (!res.ok) {
+      throw new Error("HTTP " + res.status);
+    }
+
     productos = await res.json();
+
+    if (!Array.isArray(productos)) {
+      throw new Error("Respuesta inválida en /productos");
+    }
+  } catch (error) {
+    console.error("Error cargando productos:", error);
+    productos = [];
+  }
 }
 
 const buscador = document.getElementById("buscador_producto");
