@@ -849,7 +849,16 @@ def estados_visibles_inicio():
     rol = rol_actual()
 
     if rol == "admin":
-        return None
+        return [
+            "Cargando Pedido",
+            "Etiqueta Lista",
+            "Etiqueta Impresa",
+            "Embalado",
+            "Despachado",
+            "Verificar llegada a destino",
+            "Listo para retirar",
+            "Entregado",
+        ]
 
     if rol == "carga":
         return ["Cargando Pedido", "Despachado", "Verificar llegada a destino", "Listo para retirar", "Entregado"]
