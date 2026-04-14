@@ -55,9 +55,14 @@
             <tr class="fila-{{ semaforo_pedido(p) }}" data-semaforo="{{ semaforo_pedido(p) }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado'] else 'si' }}">
                 <td>{{ p.id }}</td>
                 <td>{{ p.cliente }}</td>
-                <td>{{ p.id_venta or "-" }}</td>
+                <td>
+                  <span>{{ p.id_venta or "-" }}</span>
+                          {% if p.id_venta %}
+                    <button type="button" class="btn-copiar-mini" onclick="copiarTexto('{{ p.id_venta }}')">📋</button>
+                      {% endif %}
+                </td>
                 <td>{{ p.canal or "-" }}</td>
-                <td>{{ p.seguimiento or "-" }}</td>
+                <td>     <span>{{ p.seguimiento or "-" }}</span>     {% if p.seguimiento %}     <button type="button" class="btn-copiar-mini" onclick="copiarTexto('{{ p.seguimiento }}')">📋</button>     {% endif %} </td>
                 <td>
                     <span class="estado-listado estado-{{ (p.estado or 'sin-estado') | lower | replace(' ', '-') }}">
                         {{ p.estado }}
@@ -122,6 +127,8 @@
     </table>
 
 <script>
+function copiarTexto(texto) { ... }
+
 (function () {
     const cards = document.querySelectorAll('.filtro-card');
     const filas = document.querySelectorAll('#tabla_pedidos_body tr[data-semaforo]');
