@@ -981,6 +981,18 @@ td, th {
 tr.fila-rojo td .btn-accion-rapida {
     background: #7f1d1d;
 }
+.btn-copiar-mini {
+  margin-left: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-copiar-mini:hover {
+  transform: scale(1.1);
+}
+
 
 tr.fila-amarillo td .btn-accion-rapida {
     background: #92400e;
