@@ -218,6 +218,16 @@
                     <input name="provincia" placeholder="Provincia" value="{{ pedido.provincia or '' }}">
                     <textarea name="observaciones" placeholder="Observaciones">{{ pedido.observaciones or '' }}</textarea>
 
+                    <hr>
+
+                    <h4>Gestión de reclamo</h4>
+
+                    <input type="text" name="numero_reclamo" placeholder="Número de reclamo" value="{{ pedido.numero_reclamo or '' }}">
+
+                    <textarea name="observacion_reclamo" placeholder="Observación del reclamo">{{ pedido.observacion_reclamo or '' }}</textarea>
+
+                    <input type="text" name="motivo_no_entregado" placeholder="Motivo no entregado" value="{{ pedido.motivo_no_entregado or '' }}">
+
                     <label class="check-linea">
                         <input type="checkbox" id="check_autorizado">
                         Hay autorizado a retirar
