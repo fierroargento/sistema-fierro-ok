@@ -1445,7 +1445,7 @@ def editar_pedido(id):
     modo = (request.args.get("modo") or "").strip()
     volver = (request.args.get("volver") or "").strip()
 
-        if request.method == "POST":
+    if request.method == "POST":
         if modo == "reclamos":
             pedido.numero_reclamo = (request.form.get("numero_reclamo") or "").strip()
             pedido.observacion_reclamo = (request.form.get("observacion_reclamo") or "").strip()
