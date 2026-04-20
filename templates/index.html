@@ -149,6 +149,7 @@ const rolActual = "{{ rol_actual }}";
 function obtenerPrioridad(fila) {
     const estado = (fila.querySelector('.estado-listado')?.innerText || '').toLowerCase();
     const tiempoTexto = (fila.querySelector('td:nth-child(7)')?.innerText || '').toLowerCase();
+    const semaforo = (fila.dataset.semaforo || '').toLowerCase();
 
     let minutos = 0;
 
@@ -158,27 +159,54 @@ function obtenerPrioridad(fila) {
         minutos = parseInt(tiempoTexto);
     }
 
-    let prioridad = 5;
+    let prioridadSemaforo = 4;
 
-    if (estado.includes('dato') || estado.includes('pendiente')) {
-        prioridad = 1;
-    } else if (estado.includes('sin despacho')) {
-        prioridad = 2;
-    } else if (
-        estado.includes('etiqueta lista') ||
-        estado.includes('etiqueta impresa') ||
-        estado.includes('embalado')
-    ) {
-        prioridad = 3;
-    } else if (
-        estado.includes('despachado') ||
-        estado.includes('listo para retirar') ||
-        estado.includes('esperando confirmación de retiro')
-    ) {
-        prioridad = 4;
+    if (semaforo === 'rojo') {
+        prioridadSemaforo = 1;
+    } else if (semaforo === 'amarillo') {
+        prioridadSemaforo = 2;
+    } else if (semaforo === 'verde') {
+        prioridadSemaforo = 3;
     }
 
-    return { prioridad, minutos };
+    let prioridadEstado = 5;
+
+    if (rolActual === 'carga') {
+        if (estado.includes('cargando pedido')) {
+            prioridadEstado = 1;
+        } else if (estado.includes('con demora de entrega')) {
+            prioridadEstado = 2;
+        } else if (estado.includes('con reclamo en transporte')) {
+            prioridadEstado = 3;
+        } else if (estado.includes('listo para retirar')) {
+            prioridadEstado = 4;
+        }
+    } else if (rolActual === 'despacho') {
+        if (estado.includes('etiqueta lista')) {
+            prioridadEstado = 1;
+        } else if (estado.includes('etiqueta impresa')) {
+            prioridadEstado = 2;
+        } else if (estado.includes('embalado')) {
+            prioridadEstado = 3;
+        }
+    } else {
+        if (estado.includes('cargando pedido')) {
+            prioridadEstado = 1;
+        } else if (
+            estado.includes('etiqueta lista') ||
+            estado.includes('etiqueta impresa') ||
+            estado.includes('embalado')
+        ) {
+            prioridadEstado = 2;
+        } else if (
+            estado.includes('despachado') ||
+            estado.includes('listo para retirar')
+        ) {
+            prioridadEstado = 3;
+        }
+    }
+
+    return { prioridadSemaforo, prioridadEstado, minutos };
 }
 
 function ordenarTablaPorPrioridad() {
@@ -189,8 +217,12 @@ function ordenarTablaPorPrioridad() {
         const pa = obtenerPrioridad(a);
         const pb = obtenerPrioridad(b);
 
-        if (pa.prioridad !== pb.prioridad) {
-            return pa.prioridad - pb.prioridad;
+        if (pa.prioridadSemaforo !== pb.prioridadSemaforo) {
+            return pa.prioridadSemaforo - pb.prioridadSemaforo;
+        }
+
+        if (pa.prioridadEstado !== pb.prioridadEstado) {
+            return pa.prioridadEstado - pb.prioridadEstado;
         }
 
         return pb.minutos - pa.minutos;
