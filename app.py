@@ -84,7 +84,7 @@ class Pedido(db.Model):
     # =====================
     motivo_no_entregado = db.Column(db.String(300))
 
-    items = db.relationship("PedidoItem", cascade="all, delete-orphan"))
+    items = db.relationship("PedidoItem", cascade="all, delete-orphan")
 
 
 class PedidoItem(db.Model):
