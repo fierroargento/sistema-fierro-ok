@@ -107,18 +107,18 @@ def asegurar_columnas_extra():
     asegurar_columna_si_no_existe("fecha_embalado", "TIMESTAMP")
     asegurar_columna_si_no_existe("fecha_despachado", "TIMESTAMP")
     asegurar_columna_si_no_existe("fecha_entregado", "TIMESTAMP")
-    # =========================
+   # =====================
     # CAMPOS RECLAMOS
-    # =========================
-    asegurar_columna_si_no_existe("pedido", "numero_reclamo", "TEXT")
-    asegurar_columna_si_no_existe("pedido", "fecha_hora_reclamo", "TIMESTAMP")
-    asegurar_columna_si_no_existe("pedido", "ultima_revision_reclamo", "TIMESTAMP")
-    asegurar_columna_si_no_existe("pedido", "observacion_reclamo", "TEXT")
+    # =====================
+    asegurar_columna_si_no_existe("numero_reclamo", "TEXT")
+    asegurar_columna_si_no_existe("fecha_hora_reclamo", "TIMESTAMP")
+    asegurar_columna_si_no_existe("ultima_revision_reclamo", "TIMESTAMP")
+    asegurar_columna_si_no_existe("observacion_reclamo", "TEXT")
 
-    # =========================
+    # =====================
     # NO ENTREGADO
-    # =========================
-    asegurar_columna_si_no_existe("pedido", "motivo_no_entregado", "TEXT")
+    # =====================
+    asegurar_columna_si_no_existe("motivo_no_entregado", "TEXT")
 
 def productos_desde_excel(archivo_excel):
     df = pd.read_excel(archivo_excel)
