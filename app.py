@@ -970,7 +970,7 @@ def puede_editar_pedido(pedido):
         return True
 
     if rol == "carga":
-        return pedido.estado in ["Cargando Pedido", "Despachado", "Verificar llegada a destino", "Listo para retirar"]
+        return pedido.estado in ["Cargando Pedido", "Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]
 
     return False
 
