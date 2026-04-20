@@ -4,6 +4,23 @@
 
 
 <style>
+.btn-reclamos-envio {
+    display: block;
+    text-align: center;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-weight: 600;
+    background: #FFB86A;
+    color: #1f2937;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    margin: 0 6px;
+}
+
+.btn-reclamos-envio:hover {
+    background: #f59e0b;
+    color: #111827;
+}    
 .wizard-error-box {
     display: none;
     margin: 0 0 18px;
@@ -155,7 +172,7 @@
 
         {% if pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado', 'Con reclamo en transporte', 'Con demora de entrega'] %}
         <div style="height: 24px;"></div>
-        <a href="{{ url_for('editar_pedido', id=pedido.id, modo='reclamos') }}" class="step" style="text-decoration: none;">Reclamos</a>
+        <a href="{{ url_for('editar_pedido', id=pedido.id, modo='reclamos') }}" class="btn-reclamos-envio">Reclamos Envío</a>
         {% endif %}
     </div>
 
