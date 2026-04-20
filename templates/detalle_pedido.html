@@ -180,6 +180,15 @@
     </div>
     {% endif %}
 
+    {% if pedido.numero_reclamo or pedido.observacion_reclamo or pedido.motivo_no_entregado %}
+    <div class="detalle-box detalle-box-full" style="margin-top: 18px;">
+        <h3>Reclamo de envío</h3>
+        <p><strong>N° reclamo:</strong> {{ pedido.numero_reclamo or "-" }}</p>
+        <p><strong>Observación:</strong> {{ pedido.observacion_reclamo or "-" }}</p>
+        <p><strong>Motivo no entregado:</strong> {{ pedido.motivo_no_entregado or "-" }}</p>
+    </div>
+    {% endif %}
+
     <div class="detalle-box detalle-box-full" style="margin-top: 18px;">
         <h3>Detalle de productos</h3>
         <table class="tabla-items">
@@ -211,6 +220,9 @@
             <a href="{{ url_for('inicio') }}" class="btn btn-secundario">Volver</a>
             {% if puede_editar_pedido(pedido) %}
             <a href="{{ url_for('editar_pedido', id=pedido.id, modo='seguimiento', volver='detalle') }}" class="btn btn-secundario">Editar</a>
+            {% if pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado', 'Con reclamo en transporte', 'Con demora de entrega'] %}
+            <a href="{{ url_for('editar_pedido', id=pedido.id, modo='reclamos') }}" class="btn btn-secundario">Reclamos Envío</a>
+            {% endif %}
             {% endif %}
         </div>
 
