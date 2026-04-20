@@ -46,9 +46,12 @@
 {% endif %}
 
         {% if usuario_logueado and alertas_operativas() %}
-        <div class="alerta-barra">
+        <div class="alerta-popup-contenedor">
             {% for alerta in alertas_operativas() %}
-            <div class="alerta alerta-{{ alerta.tipo }}">{{ alerta.texto }}</div>
+            <div class="alerta alerta-{{ alerta.tipo }} alerta-popup">
+                <button type="button" class="alerta-cerrar" onclick="this.parentElement.style.display='none'">×</button>
+                <span>{{ alerta.texto }}</span>
+            </div>
             {% endfor %}
         </div>
         {% endif %}
