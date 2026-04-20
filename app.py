@@ -741,6 +741,7 @@ def orden_inicio_pedido(pedido):
 def alertas_operativas():
     ahora = datetime.utcnow()
     alertas = []
+    rol = rol_actual()
 
     pedidos = Pedido.query.all()
 
@@ -753,24 +754,26 @@ def alertas_operativas():
             if (ahora - pedido.fecha_creacion).total_seconds() >= 4 * 3600:
                 sin_carga += 1
 
-        if pedido.estado in ["Etiqueta Impresa", "Embalado"]:
+        if pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]:
             ref = fecha_referencia_estado(pedido)
             if ref and (ahora - ref).total_seconds() >= 24 * 3600:
                 sin_despachar += 1
 
-        if pedido.empresa_envio == "Vía Cargo" and pedido.estado in ["Despachado", "Verificar llegada a destino"]:
+        if pedido.empresa_envio == "Vía Cargo" and pedido.estado in ["Despachado", "Verificar llegada a destino", "Listo para retirar"]:
             ref = pedido.fecha_despachado or fecha_referencia_estado(pedido)
             if ref and (ahora - ref).total_seconds() >= 72 * 3600:
                 seguimiento += 1
 
-    if sin_despachar:
-        alertas.append({"tipo": "roja", "texto": f"{sin_despachar} pedidos sin despachar desde hace más de 24 hs"})
+    if rol in ["despacho", "admin"]:
+        if sin_despachar:
+            alertas.append({"tipo": "roja", "texto": f"{sin_despachar} pedidos sin despacho desde hace más de 24 hs"})
 
-    if sin_carga:
-        alertas.append({"tipo": "amarilla", "texto": f"{sin_carga} pedidos con carga incompleta desde hace más de 4 hs"})
+    if rol in ["carga", "admin"]:
+        if sin_carga:
+            alertas.append({"tipo": "amarilla", "texto": f"{sin_carga} pedidos con carga incompleta desde hace más de 4 hs"})
 
-    if seguimiento:
-        alertas.append({"tipo": "amarilla", "texto": f"{seguimiento} pedidos Vía Cargo para seguimiento (72 hs)"})
+        if seguimiento:
+            alertas.append({"tipo": "amarilla", "texto": f"{seguimiento} pedidos para seguimiento logístico (72 hs)"})
 
     return alertas
 
