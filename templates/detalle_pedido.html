@@ -233,7 +233,7 @@
 
     <div class="detalle-acciones">
         <div>
-            <a href="{{ url_for('inicio') }}" class="btn btn-secundario {% if pedido.estado == 'Con reclamo en transporte' %}btn-confirmar{% endif %}">Volver</a>
+            <a href="{{ url_for('inicio') }}" class="btn btn-secundario">Volver</a>
                 {% if puede_editar_pedido(pedido) %}
                 <a href="{{ url_for('editar_pedido', id=pedido.id, modo='seguimiento', volver='detalle') }}" class="btn btn-secundario">Editar</a>
                 {% if pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado', 'Con reclamo en transporte', 'Con demora de entrega'] %}
