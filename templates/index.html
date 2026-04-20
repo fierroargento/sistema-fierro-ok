@@ -113,9 +113,6 @@
                 </td>
                 <td class="col-acciones">
                     <a href="{{ url_for('detalle_pedido', id=p.id) }}" class="btn btn-secundario">Ver pedido</a>
-                    {% if puede_editar_pedido(p) %}
-                    <a href="{{ url_for('editar_pedido', id=p.id) }}" class="btn btn-secundario">Editar</a>
-                    {% endif %}
                 </td>
             </tr>
             {% else %}
