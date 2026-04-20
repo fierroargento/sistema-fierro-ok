@@ -103,7 +103,7 @@
                         </a>
                     {% elif p.estado == "Entregado" or p.estado == "Finalizado" %}
                         <span class="accion-listado">Sin acción</span>
-                    {% elif (rol_actual == "admin") or (rol_actual == "carga" and p.estado == "Despachado") or (rol_actual == "despacho" and p.estado in ["Etiqueta Impresa", "Embalado"]) %}
+                    {% elif (rol_actual == "admin") or (rol_actual == "carga" and p.estado in ["Despachado", "Con reclamo en transporte"]) or (rol_actual == "despacho" and p.estado in ["Etiqueta Impresa", "Embalado"]) %}
                         <a href="{% if texto_boton_estado(p) == 'Cargar seguimiento' %}{{ url_for('editar_pedido', id=p.id, modo='seguimiento', volver='inicio') }}{% else %}{{ url_for('avanzar_pedido', id=p.id) }}{% endif %}" class="btn btn-accion-rapida {% if texto_boton_estado(p) in ['Marcar embalado','Marcar despachado','Marcar entregado','Cargar seguimiento','Confirmar entrega','Ya avisé Mercado Libre'] %}btn-confirmar{% endif %}">
                             {{ texto_boton_estado(p) }}
                         </a>
