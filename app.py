@@ -783,6 +783,7 @@ def alertas_operativas():
     sin_despachar = 0
     sin_carga = 0
     seguimiento = 0
+    reclamos_sin_revision = 0
 
     for pedido in pedidos:
         if pedido.estado == "Cargando Pedido" and pedido.fecha_creacion:
@@ -797,7 +798,15 @@ def alertas_operativas():
         if pedido.empresa_envio == "Vía Cargo" and pedido.estado in ["Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
             ref = pedido.fecha_despachado or fecha_referencia_estado(pedido)
             if ref and (ahora - ref).total_seconds() >= 72 * 3600:
+                seguimiento += 1        if pedido.empresa_envio == "Vía Cargo" and pedido.estado in ["Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
+            ref = pedido.fecha_despachado or fecha_referencia_estado(pedido)
+            if ref and (ahora - ref).total_seconds() >= 72 * 3600:
                 seguimiento += 1
+
+        if pedido.estado == "Con reclamo en transporte":
+            ref_reclamo = pedido.ultima_revision_reclamo or pedido.fecha_hora_reclamo
+            if ref_reclamo and (ahora - ref_reclamo).total_seconds() >= 24 * 3600:
+                reclamos_sin_revision += 1
 
     if rol in ["despacho", "admin"]:
         if sin_despachar:
@@ -809,6 +818,9 @@ def alertas_operativas():
 
         if seguimiento:
             alertas.append({"tipo": "amarilla", "texto": f"{seguimiento} pedidos para seguimiento logístico (72 hs)"})
+
+        if reclamos_sin_revision:
+            alertas.append({"tipo": "roja", "texto": f"{reclamos_sin_revision} pedidos con reclamo sin revisar desde hace más de 24 hs"})
 
     return alertas
 
