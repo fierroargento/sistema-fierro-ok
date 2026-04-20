@@ -1445,7 +1445,15 @@ def editar_pedido(id):
     modo = (request.args.get("modo") or "").strip()
     volver = (request.args.get("volver") or "").strip()
 
-    if request.method == "POST":
+        if request.method == "POST":
+        if modo == "reclamos":
+            pedido.numero_reclamo = (request.form.get("numero_reclamo") or "").strip()
+            pedido.observacion_reclamo = (request.form.get("observacion_reclamo") or "").strip()
+            pedido.motivo_no_entregado = (request.form.get("motivo_no_entregado") or "").strip()
+
+            db.session.commit()
+            return redirect(url_for("editar_pedido", id=pedido.id, modo="reclamos"))
+
         if modo == "seguimiento":
             seguimiento_valor = (request.form.get("seguimiento") or "").strip()
 
