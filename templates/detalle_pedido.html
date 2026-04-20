@@ -182,10 +182,26 @@
 
     {% if pedido.numero_reclamo or pedido.observacion_reclamo or pedido.motivo_no_entregado %}
     <div class="detalle-box detalle-box-full" style="margin-top: 18px;">
-        <h3>Reclamo de envío</h3>
-        <p><strong>N° reclamo:</strong> {{ pedido.numero_reclamo or "-" }}</p>
-        <p><strong>Observación:</strong> {{ pedido.observacion_reclamo or "-" }}</p>
-        <p><strong>Motivo no entregado:</strong> {{ pedido.motivo_no_entregado or "-" }}</p>
+<h3>Reclamo de envío</h3>
+<p><strong>N° reclamo:</strong> {{ pedido.numero_reclamo or "-" }}</p>
+<p><strong>Observación:</strong> {{ pedido.observacion_reclamo or "-" }}</p>
+<p><strong>Motivo no entregado:</strong> {{ pedido.motivo_no_entregado or "-" }}</p>
+
+<p><strong>Fecha reclamo:</strong> 
+    {% if pedido.fecha_hora_reclamo %}
+        {{ pedido.fecha_hora_reclamo.strftime('%d/%m/%Y %H:%M') }}
+    {% else %}
+        -
+    {% endif %}
+</p>
+
+<p><strong>Última revisión:</strong> 
+    {% if pedido.ultima_revision_reclamo %}
+        {{ pedido.ultima_revision_reclamo.strftime('%d/%m/%Y %H:%M') }}
+    {% else %}
+        -
+    {% endif %}
+</p>
     </div>
     {% endif %}
 
@@ -217,7 +233,7 @@
 
     <div class="detalle-acciones">
         <div>
-            <a href="{{ url_for('inicio') }}" class="btn btn-secundario">Volver</a>
+            <a href="{{ url_for('inicio') }}" class="btn btn-secundario {% if pedido.estado == 'Con reclamo en transporte' %}btn-confirmar{% endif %}">Volver</a>
                 {% if puede_editar_pedido(pedido) %}
                 <a href="{{ url_for('editar_pedido', id=pedido.id, modo='seguimiento', volver='detalle') }}" class="btn btn-secundario">Editar</a>
                 {% if pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado', 'Con reclamo en transporte', 'Con demora de entrega'] %}
@@ -229,6 +245,13 @@
                 {% endif %}
             </a>
             {% endif %}
+
+            {% if pedido.estado == "Con reclamo en transporte" %}
+            <a href="{{ url_for('revisar_reclamo', id=pedido.id) }}" class="btn btn-secundario">
+                Revisado hoy
+            </a>
+            {% endif %}
+
             {% endif %}
         </div>
 
