@@ -798,9 +798,6 @@ def alertas_operativas():
         if pedido.empresa_envio == "Vía Cargo" and pedido.estado in ["Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
             ref = pedido.fecha_despachado or fecha_referencia_estado(pedido)
             if ref and (ahora - ref).total_seconds() >= 72 * 3600:
-                seguimiento += 1        if pedido.empresa_envio == "Vía Cargo" and pedido.estado in ["Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
-            ref = pedido.fecha_despachado or fecha_referencia_estado(pedido)
-            if ref and (ahora - ref).total_seconds() >= 72 * 3600:
                 seguimiento += 1
 
         if pedido.estado == "Con reclamo en transporte":
