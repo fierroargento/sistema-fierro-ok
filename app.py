@@ -1452,7 +1452,7 @@ def editar_pedido(id):
             pedido.motivo_no_entregado = (request.form.get("motivo_no_entregado") or "").strip()
 
             db.session.commit()
-            return redirect(url_for("editar_pedido", id=pedido.id, modo="reclamos"))
+            return redirect(url_for("detalle_pedido", id=pedido.id))
 
         if modo == "seguimiento":
             seguimiento_valor = (request.form.get("seguimiento") or "").strip()
