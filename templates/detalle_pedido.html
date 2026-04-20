@@ -218,10 +218,16 @@
     <div class="detalle-acciones">
         <div>
             <a href="{{ url_for('inicio') }}" class="btn btn-secundario">Volver</a>
-            {% if puede_editar_pedido(pedido) %}
-            <a href="{{ url_for('editar_pedido', id=pedido.id, modo='seguimiento', volver='detalle') }}" class="btn btn-secundario">Editar</a>
-            {% if pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado', 'Con reclamo en transporte', 'Con demora de entrega'] %}
-            <a href="{{ url_for('editar_pedido', id=pedido.id, modo='reclamos') }}" class="btn btn-secundario">Reclamos Envío</a>
+                {% if puede_editar_pedido(pedido) %}
+                <a href="{{ url_for('editar_pedido', id=pedido.id, modo='seguimiento', volver='detalle') }}" class="btn btn-secundario">Editar</a>
+                {% if pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado', 'Con reclamo en transporte', 'Con demora de entrega'] %}
+            <a href="{{ url_for('editar_pedido', id=pedido.id, modo='reclamos') }}" class="btn btn-secundario">
+                {% if pedido.numero_reclamo or pedido.observacion_reclamo or pedido.motivo_no_entregado %}
+                Editar Reclamo Envío
+                {% else %}
+                Cargar Reclamo Envío
+                {% endif %}
+            </a>
             {% endif %}
             {% endif %}
         </div>
@@ -240,9 +246,17 @@
                 Imprimir etiqueta
             </a>
             {% elif pedido.estado != "Entregado" %}
-                <a href="{{ url_for('avanzar_pedido', id=pedido.id) }}" class="btn btn-confirmar">
-                    {{ texto_boton }}
-                </a>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+        <a href="{{ url_for('avanzar_pedido', id=pedido.id) }}" class="btn btn-confirmar">
+            {{ texto_boton }}
+        </a>
+
+        {% if pedido.estado in ["Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"] %}
+        <a href="{{ url_for('marcar_no_entregado', id=pedido.id) }}" class="btn btn-secundario">
+            No entregado
+        </a>
+        {% endif %}
+    </div>
             {% else %}
                 <span class="accion-listado">Sin acción</span>
             {% endif %}
