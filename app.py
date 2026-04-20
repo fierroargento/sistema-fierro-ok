@@ -70,8 +70,21 @@ class Pedido(db.Model):
     fecha_embalado = db.Column(db.DateTime)
     fecha_despachado = db.Column(db.DateTime)
     fecha_entregado = db.Column(db.DateTime)
+    
+    # =====================
+    # CAMPOS RECLAMOS
+    # =====================
+    numero_reclamo = db.Column(db.String(100))
+    fecha_hora_reclamo = db.Column(db.DateTime)
+    ultima_revision_reclamo = db.Column(db.DateTime)
+    observacion_reclamo = db.Column(db.String(300))
 
-    items = db.relationship("PedidoItem", cascade="all, delete-orphan")
+    # =====================
+    # NO ENTREGADO
+    # =====================
+    motivo_no_entregado = db.Column(db.String(300))
+
+    items = db.relationship("PedidoItem", cascade="all, delete-orphan"))
 
 
 class PedidoItem(db.Model):
