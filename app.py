@@ -586,8 +586,6 @@ def texto_boton_estado(pedido):
 
     return "Avanzar estado"
 
-    return "Avanzar estado"
-
 
 def accion_sugerida_pedido(pedido):
     if pedido.estado == "Cargando Pedido":
@@ -962,16 +960,7 @@ def puede_ver_pedido(pedido):
     return False
 
 
-def puede_editar_pedido(pedido):
-    rol = rol_actual()
 
-    if rol == "admin":
-        return True
-
-    if rol == "carga":
-        return pedido.estado in ["Cargando Pedido", "Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]
-
-    return False
 
 
 def puede_editar_pedido(pedido):
@@ -1017,7 +1006,7 @@ def puede_contactar_cliente(pedido):
 
 def requiere_cargar_seguimiento(pedido):
     return bool(
-        pedido.estado == "Despachado"
+        pedido.estado in ["Despachado", "Con reclamo en transporte"]
         and pedido.empresa_envio == "Vía Cargo"
         and not pedido.seguimiento
     )
@@ -1697,6 +1686,27 @@ def marcar_no_entregado(id):
     db.session.commit()
 
     return redirect(url_for("detalle_pedido", id=pedido.id))
+
+@app.route("/pedido/<int:id>/revisar-reclamo")
+@login_required
+def revisar_reclamo(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_editar_pedido(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    if pedido.estado != "Con reclamo en transporte":
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    pedido.ultima_revision_reclamo = datetime.utcnow()
+
+    if not pedido.fecha_hora_reclamo:
+        pedido.fecha_hora_reclamo = datetime.utcnow()
+
+    db.session.commit()
+
+    return redirect(url_for("detalle_pedido", id=pedido.id))
+
 
 @app.route("/pedido/<int:id>/avanzar")
 @login_required
