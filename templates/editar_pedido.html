@@ -61,7 +61,9 @@
 </style>
 
 
-{% set modo_seguimiento = request.args.get('modo') == 'seguimiento' %}
+{% set modo_actual = request.args.get('modo', '') %}
+{% set modo_seguimiento = modo_actual == 'seguimiento' %}
+{% set modo_reclamos = modo_actual == 'reclamos' %}
 
 {% if modo_seguimiento %}
 <div class="card detalle-card" style="max-width: 760px;">
@@ -100,14 +102,61 @@
         </div>
     </form>
 </div>
-{% else %}
-<div class="wizard">
+    {% elif modo_reclamos %}
+<div class="card detalle-card" style="max-width: 760px;">
+    <div class="detalle-header">
+        <div>
+            <h2>Reclamos de envío</h2>
+            <p class="detalle-sub">Pedido #{{ pedido.id }} | {{ pedido.cliente or "-" }}</p>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="error">{{ error|safe }}</div>
+    {% endif %}
+
+    <form method="POST">
+        <div class="detalle-box detalle-box-full">
+            <h3>Datos del envío</h3>
+            <p><strong>Canal:</strong> {{ pedido.canal or "-" }}</p>
+            <p><strong>Transporte:</strong> {{ pedido.empresa_envio or "-" }}</p>
+            <p><strong>Entrega:</strong> {{ pedido.tipo_entrega or "-" }}</p>
+            <p><strong>Seguimiento:</strong> {{ pedido.seguimiento or "-" }}</p>
+        </div>
+
+        <div class="detalle-box detalle-box-full" style="margin-top: 18px;">
+            <h3>Gestión de reclamo</h3>
+
+            <input type="text" name="numero_reclamo" placeholder="Número de reclamo" value="{{ pedido.numero_reclamo or '' }}">
+
+            <textarea name="observacion_reclamo" placeholder="Observación del reclamo">{{ pedido.observacion_reclamo or '' }}</textarea>
+
+            <input type="text" name="motivo_no_entregado" placeholder="Motivo no entregado" value="{{ pedido.motivo_no_entregado or '' }}">
+        </div>
+
+        <div class="detalle-acciones" style="margin-top: 18px;">
+            <div>
+                <a href="{{ url_for('editar_pedido', id=pedido.id) }}" class="btn btn-secundario">Volver</a>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-confirmar">Guardar reclamo</button>
+            </div>
+        </div>
+        </form>
+        </div>
+        {% else %}
+        <div class="wizard">
 
     <div class="wizard-sidebar">
-<div class="step active" id="step-1">Cliente</div>
+    <div class="step active" id="step-1">Cliente</div>
         <div class="step" id="step-2">Venta</div>
         <div class="step" id="step-3">Envío</div>
         <div class="step" id="step-4">Productos</div>
+
+        {% if pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado', 'Con reclamo en transporte', 'Con demora de entrega'] %}
+        <div style="height: 24px;"></div>
+        <a href="{{ url_for('editar_pedido', id=pedido.id, modo='reclamos') }}" class="step" style="text-decoration: none;">Reclamos</a>
+        {% endif %}
     </div>
 
     <div class="wizard-content">
@@ -218,15 +267,7 @@
                     <input name="provincia" placeholder="Provincia" value="{{ pedido.provincia or '' }}">
                     <textarea name="observaciones" placeholder="Observaciones">{{ pedido.observaciones or '' }}</textarea>
 
-                    <hr>
-
-                    <h4>Gestión de reclamo</h4>
-
-                    <input type="text" name="numero_reclamo" placeholder="Número de reclamo" value="{{ pedido.numero_reclamo or '' }}">
-
-                    <textarea name="observacion_reclamo" placeholder="Observación del reclamo">{{ pedido.observacion_reclamo or '' }}</textarea>
-
-                    <input type="text" name="motivo_no_entregado" placeholder="Motivo no entregado" value="{{ pedido.motivo_no_entregado or '' }}">
+                    
 
                     <label class="check-linea">
                         <input type="checkbox" id="check_autorizado">
@@ -286,7 +327,7 @@ let productoElegido = null;
 let itemsAgregados = [];
 
 const steps = document.querySelectorAll(".wizard-step");
-const sidebarSteps = document.querySelectorAll(".step");
+const sidebarSteps = document.querySelectorAll(".wizard-sidebar .step[id^='step-']");
 const submitBtn = document.getElementById("submitBtn");
 const nextBtn = document.getElementById("nextBtn");
 const prevBtn = document.getElementById("prevBtn");
