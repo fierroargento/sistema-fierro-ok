@@ -99,7 +99,20 @@ class PedidoItem(db.Model):
     pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"))
     sku = db.Column(db.String(50))
     descripcion = db.Column(db.String(200))
+    cantidad = db.Column(db.Integer)class PedidoItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"))
+    sku = db.Column(db.String(50))
+    descripcion = db.Column(db.String(200))
     cantidad = db.Column(db.Integer)
+
+    # =====================
+    # DEVOLUCIÓN POR ITEM
+    # =====================
+    cantidad_devuelta_ok = db.Column(db.Integer)
+    cantidad_devuelta_danada = db.Column(db.Integer)
+    estado_devolucion_item = db.Column(db.String(50))  # ok / parcial / danado
+    observacion_devolucion_item = db.Column(db.String(300))
 
 
 class Producto(db.Model):
@@ -114,6 +127,14 @@ def asegurar_columna_si_no_existe(nombre_columna, definicion_sql):
 
     if nombre_columna not in columnas:
         db.session.execute(text(f"ALTER TABLE pedido ADD COLUMN {nombre_columna} {definicion_sql}"))
+        db.session.commit()
+
+def asegurar_columna_item_si_no_existe(nombre_columna, definicion_sql):
+    inspector = inspect(db.engine)
+    columnas = [col["name"] for col in inspector.get_columns("pedido_item")]
+
+    if nombre_columna not in columnas:
+        db.session.execute(text(f"ALTER TABLE pedido_item ADD COLUMN {nombre_columna} {definicion_sql}"))
         db.session.commit()
 
 
@@ -145,6 +166,14 @@ def asegurar_columnas_extra():
     asegurar_columna_si_no_existe("fecha_devolucion", "TIMESTAMP")
     asegurar_columna_si_no_existe("estado_devolucion", "TEXT")
     asegurar_columna_si_no_existe("observacion_devolucion", "TEXT")
+
+    # =====================
+    # DEVOLUCIÓN POR ITEM
+    # =====================
+    asegurar_columna_item_si_no_existe("cantidad_devuelta_ok", "INTEGER")
+    asegurar_columna_item_si_no_existe("cantidad_devuelta_danada", "INTEGER")
+    asegurar_columna_item_si_no_existe("estado_devolucion_item", "TEXT")
+    asegurar_columna_item_si_no_existe("observacion_devolucion_item", "TEXT")
 
 def productos_desde_excel(archivo_excel):
     df = pd.read_excel(archivo_excel)
@@ -1861,6 +1890,39 @@ def gestionar_devolucion(id):
                 pedido=pedido,
                 error="La fecha de devolución no tiene un formato válido."
             )
+
+        for item in pedido.items:
+            estado_item = (request.form.get(f"estado_item_{item.id}") or "").strip()
+            obs_item = (request.form.get(f"obs_item_{item.id}") or "").strip()
+
+            try:
+                cantidad_ok = int((request.form.get(f"cantidad_ok_{item.id}") or "0").strip() or "0")
+                cantidad_danada = int((request.form.get(f"cantidad_danada_{item.id}") or "0").strip() or "0")
+            except ValueError:
+                return render_template(
+                    "gestionar_devolucion.html",
+                    pedido=pedido,
+                    error=f"Las cantidades del item {item.sku} no son válidas."
+                )
+
+            if cantidad_ok < 0 or cantidad_danada < 0:
+                return render_template(
+                    "gestionar_devolucion.html",
+                    pedido=pedido,
+                    error=f"Las cantidades del item {item.sku} no pueden ser negativas."
+                )
+
+            if cantidad_ok + cantidad_danada > (item.cantidad or 0):
+                return render_template(
+                    "gestionar_devolucion.html",
+                    pedido=pedido,
+                    error=f"En el item {item.sku}, la suma entre OK y dañada no puede superar la cantidad original."
+                )
+
+            item.estado_devolucion_item = estado_item
+            item.cantidad_devuelta_ok = cantidad_ok
+            item.cantidad_devuelta_danada = cantidad_danada
+            item.observacion_devolucion_item = obs_item
 
         pedido.estado_devolucion = estado_devolucion
         pedido.observacion_devolucion = observacion_devolucion
