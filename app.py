@@ -666,6 +666,88 @@ def accion_sugerida_pedido(pedido):
 
     return ""
 
+def accion_principal_pedido(pedido, origen="inicio"):
+    rol = rol_actual()
+    es_inicio = origen == "inicio"
+
+    clase_base = "btn btn-accion-rapida" if es_inicio else "btn"
+    clase_confirmar = "btn btn-accion-rapida btn-confirmar" if es_inicio else "btn btn-confirmar"
+
+    if requiere_contacto_cliente(pedido):
+        return {
+            "tipo": "completar_carga",
+            "texto": "Completar carga",
+            "url": url_for("editar_pedido", id=pedido.id),
+            "clases": clase_confirmar,
+            "target": "",
+        }
+
+    if puede_imprimir_pedido(pedido):
+        return {
+            "tipo": "imprimir_etiqueta",
+            "texto": "Imprimir etiqueta",
+            "url": url_for("lanzar_impresion", id=pedido.id, origen=origen),
+            "clases": "btn btn-accion-rapida btn-confirmar" if es_inicio else "btn btn-accion-rapida btn-confirmar",
+            "target": "_blank" if es_inicio else "",
+        }
+
+    if pedido.estado == "Verificar llegada a destino" and rol in ["carga", "admin"] and pedido.tipo_entrega == "Sucursal":
+        return {
+            "tipo": "avisar_cliente",
+            "texto": "Avisar al Cliente",
+            "url": url_for("confirmar_entrega", id=pedido.id),
+            "clases": clase_confirmar,
+            "target": "_blank",
+        }
+
+    if pedido.estado == "Listo para retirar" and rol in ["carga", "admin"] and pedido.tipo_entrega == "Sucursal":
+        return {
+            "tipo": "marcar_entregado",
+            "texto": "Marcar entregado",
+            "url": url_for("avanzar_pedido", id=pedido.id),
+            "clases": clase_confirmar,
+            "target": "",
+        }
+
+    if pedido.estado == "Verificar llegada a destino" and rol in ["carga", "admin"] and pedido.tipo_entrega == "Domicilio":
+        return {
+            "tipo": "marcar_entregado",
+            "texto": "Marcar entregado",
+            "url": url_for("avanzar_pedido", id=pedido.id),
+            "clases": clase_confirmar,
+            "target": "",
+        }
+
+    if pedido.estado == "Entregado" and rol in ["carga", "admin"] and pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
+        return {
+            "tipo": "cerrar_ml",
+            "texto": "Ya avisé Mercado Libre",
+            "url": url_for("cerrar_ml", id=pedido.id),
+            "clases": clase_confirmar,
+            "target": "",
+        }
+
+    if pedido.estado in ["Entregado", "Finalizado"]:
+        return None
+
+    if (rol == "admin") or (rol == "carga" and pedido.estado in ["Despachado", "Con reclamo en transporte"]) or (rol == "despacho" and pedido.estado in ["Etiqueta Impresa", "Embalado"]):
+        texto = texto_boton_estado(pedido)
+
+        if texto == "Cargar seguimiento":
+            url = url_for("editar_pedido", id=pedido.id, modo="seguimiento", volver=origen)
+        else:
+            url = url_for("avanzar_pedido", id=pedido.id)
+
+        return {
+            "tipo": "accion_estado",
+            "texto": texto,
+            "url": url,
+            "clases": clase_confirmar,
+            "target": "",
+        }
+
+    return None
+
 
 def fecha_referencia_estado(pedido):
     if pedido.estado == "Etiqueta Impresa":
@@ -1098,6 +1180,7 @@ def inyectar_contexto_global():
         "fecha_referencia_estado": fecha_referencia_estado,
         "alertas_operativas": alertas_operativas,
         "semaforo_pedido": semaforo_pedido,
+        "accion_principal_pedido": accion_principal_pedido,
     }
 
 
