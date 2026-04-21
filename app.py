@@ -1823,7 +1823,7 @@ def marcar_no_entregado(id):
 
     return redirect(url_for("detalle_pedido", id=pedido.id))
 
-@app.route("/pedido/<int:id>/gestionar-devolucion")
+@app.route("/pedido/<int:id>/gestionar-devolucion", methods=["GET", "POST"])
 @login_required
 def gestionar_devolucion(id):
     pedido = Pedido.query.get_or_404(id)
@@ -1834,12 +1834,46 @@ def gestionar_devolucion(id):
     if pedido.estado != "No entregado":
         return redirect(url_for("detalle_pedido", id=pedido.id))
 
-    # Acá después podés agregar lógica más compleja si querés
-    pedido.estado = "Finalizado"
+    if request.method == "POST":
+        fecha_devolucion_raw = (request.form.get("fecha_devolucion") or "").strip()
+        estado_devolucion = (request.form.get("estado_devolucion") or "").strip()
+        observacion_devolucion = (request.form.get("observacion_devolucion") or "").strip()
 
-    db.session.commit()
+        if not fecha_devolucion_raw:
+            return render_template(
+                "gestionar_devolucion.html",
+                pedido=pedido,
+                error="Tenés que cargar la fecha de recepción de la devolución."
+            )
 
-    return redirect(url_for("detalle_pedido", id=pedido.id))
+        if not estado_devolucion:
+            return render_template(
+                "gestionar_devolucion.html",
+                pedido=pedido,
+                error="Tenés que indicar el estado de la devolución."
+            )
+
+        try:
+            pedido.fecha_devolucion = datetime.strptime(fecha_devolucion_raw, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            return render_template(
+                "gestionar_devolucion.html",
+                pedido=pedido,
+                error="La fecha de devolución no tiene un formato válido."
+            )
+
+        pedido.estado_devolucion = estado_devolucion
+        pedido.observacion_devolucion = observacion_devolucion
+        pedido.estado = "Finalizado"
+
+        db.session.commit()
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    return render_template(
+        "gestionar_devolucion.html",
+        pedido=pedido,
+        error=""
+    )
 
 @app.route("/pedido/<int:id>/revisar-reclamo")
 @login_required
