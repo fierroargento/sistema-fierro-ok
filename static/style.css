@@ -241,7 +241,8 @@ textarea {
 }
 
 .btn-accion-rapida {
-    min-width: 200px;
+    width: 100%;
+    min-width: 0;
     background: #0f3f50;
     color: #ffffff;
     font-weight: 800;
@@ -338,7 +339,7 @@ td, th {
 }
 
 .tabla-pedidos tbody tr:hover {
-    background: #f8fafc;
+    filter: brightness(0.985);
 }
 
 .tabla-pedidos tbody td,
@@ -805,12 +806,46 @@ td, th {
 
 
 .tabla-pedidos {
-    table-layout: auto;
+    table-layout: fixed;
 }
 
 .tabla-pedidos th,
 .tabla-pedidos td {
     white-space: normal;
+}
+.tabla-pedidos th:nth-child(1),
+.tabla-pedidos td:nth-child(1) {
+    width: 42px;
+}
+
+.tabla-pedidos th:nth-child(5),
+.tabla-pedidos td:nth-child(5) {
+    width: 110px;
+}
+
+.tabla-pedidos th:nth-child(6),
+.tabla-pedidos td:nth-child(6) {
+    width: 210px;
+}
+
+.tabla-pedidos th:nth-child(7),
+.tabla-pedidos td:nth-child(7) {
+    width: 100px;
+}
+
+.tabla-pedidos th:nth-child(8),
+.tabla-pedidos td:nth-child(8) {
+    width: 110px;
+}
+
+.tabla-pedidos th:nth-child(9),
+.tabla-pedidos td:nth-child(9) {
+    width: 210px;
+}
+
+.tabla-pedidos th:nth-child(10),
+.tabla-pedidos td:nth-child(10) {
+    width: 130px;
 }
 
 .col-antiguedad {
@@ -825,7 +860,8 @@ td, th {
     }
 
     .btn-accion-rapida {
-        min-width: 170px;
+        width: 100%;
+        min-width: 0;
     }
 
         .estado-listado {
@@ -901,7 +937,12 @@ td, th {
 .fila-gris {
     background-color: #f3f4f6;
 }
-
+.fila-verde td,
+.fila-amarillo td,
+.fila-rojo td,
+.fila-gris td {
+    background-color: inherit;
+}
 
 
 .resumen-operativo {
