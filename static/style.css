@@ -509,12 +509,32 @@ td, th {
     display: none;
 }
 
-.wizard-buttons,
-.detalle-acciones {
+.wizard-buttons {
     margin-top: 18px;
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+}
+
+.detalle-acciones {
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.detalle-acciones > .btn:first-child {
+    margin-right: auto;
+}
+
+.detalle-acciones .btn {
+    flex: 0 0 auto;
+    min-width: 126px;
+}
+
+.detalle-acciones .btn-secundario {
+    min-width: 78px;
 }
 
 .wizard-buttons #prevBtn {
