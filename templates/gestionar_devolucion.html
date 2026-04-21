@@ -42,6 +42,10 @@
                             <th>SKU</th>
                             <th>Descripción</th>
                             <th>Cantidad</th>
+                            <th>Estado del item</th>
+                            <th>Cant. OK</th>
+                            <th>Cant. dañada</th>
+                            <th>Observación</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -50,6 +54,23 @@
                             <td>{{ item.sku }}</td>
                             <td>{{ item.descripcion }}</td>
                             <td>{{ item.cantidad }}</td>
+                            <td>
+                                <select name="estado_item_{{ item.id }}">
+                                    <option value="">Seleccionar</option>
+                                    <option value="ok" {% if item.estado_devolucion_item == 'ok' %}selected{% endif %}>OK</option>
+                                    <option value="parcial" {% if item.estado_devolucion_item == 'parcial' %}selected{% endif %}>Parcial</option>
+                                    <option value="danado" {% if item.estado_devolucion_item == 'danado' %}selected{% endif %}>Dañado</option>
+                                </select>
+                            </td>
+                            <td>
+                                <input type="number" min="0" max="{{ item.cantidad }}" name="cantidad_ok_{{ item.id }}" value="{{ item.cantidad_devuelta_ok or 0 }}">
+                            </td>
+                            <td>
+                                <input type="number" min="0" max="{{ item.cantidad }}" name="cantidad_danada_{{ item.id }}" value="{{ item.cantidad_devuelta_danada or 0 }}">
+                            </td>
+                            <td>
+                                <input type="text" name="obs_item_{{ item.id }}" value="{{ item.observacion_devolucion_item or '' }}">
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
