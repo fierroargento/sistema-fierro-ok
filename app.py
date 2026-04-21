@@ -641,6 +641,9 @@ def texto_boton_estado(pedido):
     if pedido.estado == "No entregado":
         return "Gestionar devolución"
 
+    if pedido.estado == "Reclamar a Mercado Libre":
+        return "Ya reclamé en Mercado Libre"
+
     if pedido.estado == "Entregado":
         if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
             return "Ya avisé Mercado Libre"
@@ -727,6 +730,9 @@ def accion_sugerida_pedido(pedido):
     if pedido.estado == "No entregado":
         return "Gestionar devolución"
 
+    if pedido.estado == "Reclamar a Mercado Libre":
+        return "Gestionar reclamo en Mercado Libre"
+
     if pedido.estado == "Entregado":
         if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
             return "Avisar a Mercado Libre"
@@ -800,6 +806,15 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "tipo": "gestionar_devolucion",
             "texto": "Gestionar devolución",
             "url": url_for("gestionar_devolucion", id=pedido.id),
+            "clases": clase_confirmar,
+            "target": "",
+        }
+
+    if pedido.estado == "Reclamar a Mercado Libre" and rol in ["admin", "carga"]:
+        return {
+            "tipo": "reclamar_ml_devolucion",
+            "texto": "Ya reclamé en Mercado Libre",
+            "url": url_for("cerrar_reclamo_ml_devolucion", id=pedido.id),
             "clases": clase_confirmar,
             "target": "",
         }
@@ -1064,11 +1079,12 @@ def estados_visibles_inicio():
             "Verificar llegada a destino",
             "Listo para retirar",
             "No entregado",
+            "Reclamar a Mercado Libre",
             "Entregado",
         ]
 
     if rol == "carga":
-        return ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado"]
+        return ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Reclamar a Mercado Libre", "Entregado"]
 
     if rol == "despacho":
         return ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]
@@ -1131,7 +1147,7 @@ def puede_editar_pedido(pedido):
         return True
 
     if rol == "carga":
-        return pedido.estado in ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado"]
+        return pedido.estado in ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Reclamar a Mercado Libre", "Entregado"]
 
     return False
 
@@ -1180,7 +1196,7 @@ def puede_avanzar_segun_rol(pedido):
         return True, []
 
     if rol == "carga":
-        if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado"]:
+        if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Reclamar a Mercado Libre"]:
             return True, []
         return False, ["Este estado lo trabaja Embalaje y Despacho."]
 
@@ -1973,7 +1989,22 @@ def gestionar_devolucion(id):
 
         pedido.estado_devolucion = estado_devolucion
         pedido.observacion_devolucion = observacion_devolucion
-        pedido.estado = "Finalizado"
+
+        requiere_reclamo_ml = False
+
+        if pedido.canal == "Mercado Libre":
+            for item in pedido.items:
+                if (
+                    item.estado_devolucion_item in ["parcial", "danado"]
+                    or (item.cantidad_devuelta_danada or 0) > 0
+                ):
+                    requiere_reclamo_ml = True
+                    break
+
+        if requiere_reclamo_ml:
+            pedido.estado = "Reclamar a Mercado Libre"
+        else:
+            pedido.estado = "Finalizado"
 
         db.session.commit()
         return redirect(url_for("detalle_pedido", id=pedido.id))
@@ -1996,7 +2027,22 @@ def gestionar_devolucion(id):
         error="",
         form_data=form_data
     )
+@app.route("/pedido/<int:id>/cerrar-reclamo-ml-devolucion")
+@login_required
+def cerrar_reclamo_ml_devolucion(id):
+    pedido = Pedido.query.get_or_404(id)
 
+    if not puede_editar_pedido(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    if pedido.estado != "Reclamar a Mercado Libre":
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    pedido.estado = "Finalizado"
+    db.session.commit()
+
+    return redirect(url_for("detalle_pedido", id=pedido.id))
+    
 @app.route("/pedido/<int:id>/revisar-reclamo")
 @login_required
 def revisar_reclamo(id):
