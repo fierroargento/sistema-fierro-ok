@@ -260,30 +260,55 @@
         </div>
 
         <div>
+        <div>
             {% if puede_contactar_cliente(pedido) %}
                 <a href="{{ whatsapp_url }}" target="_blank" class="btn btn-coordinar-whatsapp">
                     Contactar por WhatsApp
                 </a>
-            {% elif requiere_cargar_seguimiento(pedido) %}
-                <a href="{{ url_for('editar_pedido', id=pedido.id) }}" class="btn btn-confirmar">
-                    Cargar seguimiento
-                </a>
             {% elif puede_imprimir_pedido(pedido) %}
-            <a href="{{ url_for('lanzar_impresion', id=pedido.id, origen='detalle') }}" class="btn btn-accion-rapida btn-confirmar" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
-                Imprimir etiqueta
-            </a>
+                <a href="{{ url_for('lanzar_impresion', id=pedido.id, origen='detalle') }}" class="btn btn-accion-rapida btn-confirmar" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
+                    Imprimir etiqueta
+                </a>
+            {% elif pedido.estado == "Verificar llegada a destino" and rol_actual in ["carga", "admin"] and pedido.tipo_entrega == "Sucursal" %}
+                <a href="{{ url_for('confirmar_entrega', id=pedido.id) }}" class="btn btn-confirmar" target="_blank">
+                    Avisar al Cliente
+                </a>
+            {% elif pedido.estado == "Listo para retirar" and rol_actual in ["carga", "admin"] and pedido.tipo_entrega == "Sucursal" %}
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+                    <a href="{{ url_for('avanzar_pedido', id=pedido.id) }}" class="btn btn-confirmar">
+                        Marcar entregado
+                    </a>
+                    <a href="{{ url_for('marcar_no_entregado', id=pedido.id) }}" class="btn btn-secundario">
+                        No entregado
+                    </a>
+                </div>
+            {% elif pedido.estado == "Verificar llegada a destino" and rol_actual in ["carga", "admin"] and pedido.tipo_entrega == "Domicilio" %}
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+                    <a href="{{ url_for('avanzar_pedido', id=pedido.id) }}" class="btn btn-confirmar">
+                        Marcar entregado
+                    </a>
+                    <a href="{{ url_for('marcar_no_entregado', id=pedido.id) }}" class="btn btn-secundario">
+                        No entregado
+                    </a>
+                </div>
+            {% elif pedido.estado == "Entregado" and rol_actual in ["carga", "admin"] and pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" %}
+                <a href="{{ url_for('cerrar_ml', id=pedido.id) }}" class="btn btn-confirmar">
+                    Ya avisé Mercado Libre
+                </a>
+            {% elif pedido.estado == "Entregado" or pedido.estado == "Finalizado" %}
+                <span class="accion-listado">Sin acción</span>
             {% elif pedido.estado != "Entregado" %}
-    <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
-        <a href="{{ url_for('avanzar_pedido', id=pedido.id) }}" class="btn btn-confirmar">
-            {{ texto_boton }}
-        </a>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+                    <a href="{{ url_for('avanzar_pedido', id=pedido.id) }}" class="btn btn-confirmar">
+                        {{ texto_boton }}
+                    </a>
 
-        {% if pedido.estado in ["Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"] %}
-        <a href="{{ url_for('marcar_no_entregado', id=pedido.id) }}" class="btn btn-secundario">
-            No entregado
-        </a>
-        {% endif %}
-    </div>
+                    {% if pedido.estado in ["Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"] %}
+                    <a href="{{ url_for('marcar_no_entregado', id=pedido.id) }}" class="btn btn-secundario">
+                        No entregado
+                    </a>
+                    {% endif %}
+                </div>
             {% else %}
                 <span class="accion-listado">Sin acción</span>
             {% endif %}
