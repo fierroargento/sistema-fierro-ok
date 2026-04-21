@@ -20,18 +20,18 @@
 
                 <label for="fecha_devolucion"><strong>Fecha de recepción de la devolución</strong></label>
                 <input type="datetime-local" id="fecha_devolucion" name="fecha_devolucion"
-                       value="{% if pedido.fecha_devolucion %}{{ pedido.fecha_devolucion.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                       value="{{ form_data.fecha_devolucion }}">
 
                 <label for="estado_devolucion"><strong>Estado de devolución</strong></label>
                 <select id="estado_devolucion" name="estado_devolucion">
                     <option value="">Seleccionar</option>
-                    <option value="completa" {% if pedido.estado_devolucion == 'completa' %}selected{% endif %}>Completa - producto recuperado OK</option>
-                    <option value="parcial" {% if pedido.estado_devolucion == 'parcial' %}selected{% endif %}>Parcial - faltan o fallaron items</option>
-                    <option value="danada" {% if pedido.estado_devolucion == 'danada' %}selected{% endif %}>Devuelta en mal estado</option>
+                    <option value="completa" {% if form_data.estado_devolucion == 'completa' %}selected{% endif %}>Completa - producto recuperado OK</option>
+                    <option value="parcial" {% if form_data.estado_devolucion == 'parcial' %}selected{% endif %}>Parcial - faltan o fallaron items</option>
+                    <option value="danada" {% if form_data.estado_devolucion == 'danada' %}selected{% endif %}>Devuelta en mal estado</option>
                 </select>
 
                 <label for="observacion_devolucion"><strong>Observación</strong></label>
-                <textarea id="observacion_devolucion" name="observacion_devolucion">{{ pedido.observacion_devolucion or '' }}</textarea>
+                <textarea id="observacion_devolucion" name="observacion_devolucion">{{ form_data.observacion_devolucion }}</textarea>
             </div>
 
             <div class="detalle-box detalle-box-full">
@@ -57,19 +57,19 @@
                             <td>
                                 <select name="estado_item_{{ item.id }}">
                                     <option value="">Seleccionar</option>
-                                    <option value="ok" {% if item.estado_devolucion_item == 'ok' %}selected{% endif %}>OK</option>
-                                    <option value="parcial" {% if item.estado_devolucion_item == 'parcial' %}selected{% endif %}>Parcial</option>
-                                    <option value="danado" {% if item.estado_devolucion_item == 'danado' %}selected{% endif %}>Dañado</option>
+                                    <option value="ok" {% if form_data['estado_item_' ~ item.id] == 'ok' %}selected{% endif %}>OK</option>
+                                    <option value="parcial" {% if form_data['estado_item_' ~ item.id] == 'parcial' %}selected{% endif %}>Parcial</option>
+                                    <option value="danado" {% if form_data['estado_item_' ~ item.id] == 'danado' %}selected{% endif %}>Dañado</option>
                                 </select>
                             </td>
                             <td>
-                                <input type="number" min="0" max="{{ item.cantidad }}" name="cantidad_ok_{{ item.id }}" value="{{ item.cantidad_devuelta_ok or 0 }}">
+                                <input type="number" min="0" max="{{ item.cantidad }}" name="cantidad_ok_{{ item.id }}" value="{{ form_data['cantidad_ok_' ~ item.id] }}">
                             </td>
                             <td>
-                                <input type="number" min="0" max="{{ item.cantidad }}" name="cantidad_danada_{{ item.id }}" value="{{ item.cantidad_devuelta_danada or 0 }}">
+                                <input type="number" min="0" max="{{ item.cantidad }}" name="cantidad_danada_{{ item.id }}" value="{{ form_data['cantidad_danada_' ~ item.id] }}">
                             </td>
                             <td>
-                                <input type="text" name="obs_item_{{ item.id }}" value="{{ item.observacion_devolucion_item or '' }}">
+                                <input type="text" name="obs_item_{{ item.id }}" value="{{ form_data['obs_item_' ~ item.id] }}">
                             </td>
                         </tr>
                         {% endfor %}
