@@ -520,21 +520,34 @@ td, th {
     margin-top: 18px;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
     flex-wrap: wrap;
     gap: 12px;
 }
-.detalle-acciones > .btn:first-child {
+
+.detalle-acciones > :first-child {
     margin-right: auto;
 }
 
-.detalle-acciones .btn {
+.detalle-acciones > * {
     flex: 0 0 auto;
+}
+
+.detalle-acciones form {
+    margin: 0;
+    display: inline-flex;
+}
+
+.detalle-acciones .btn,
+.detalle-acciones a.btn,
+.detalle-acciones form .btn {
     min-width: 126px;
 }
 
-.detalle-acciones .btn-secundario {
-    min-width: 78px;
+.detalle-acciones .btn-secundario,
+.detalle-acciones a.btn-secundario,
+.detalle-acciones form .btn-secundario {
+    min-width: 92px;
 }
 
 .wizard-buttons #prevBtn {
