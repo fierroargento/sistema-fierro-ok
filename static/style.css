@@ -221,8 +221,9 @@ textarea {
 }
 
 .btn-confirmar {
-    background: var(--fierro-btn);
-    color: #fff;
+    background-color: #124E64;
+    color: #ffffff;
+    font-weight: 700;
 }
 
 .btn-nuevo {
