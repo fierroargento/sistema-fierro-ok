@@ -261,9 +261,10 @@
 
         <div>
         <div>
-            {% if puede_contactar_cliente(pedido) %}
-                <a href="{{ whatsapp_url }}" target="_blank" class="btn btn-coordinar-whatsapp">
-                    Contactar por WhatsApp
+                    <div>
+            {% if requiere_contacto_cliente(pedido) %}
+                <a href="{{ url_for('editar_pedido', id=pedido.id) }}" class="btn btn-confirmar">
+                    Completar carga
                 </a>
             {% elif puede_imprimir_pedido(pedido) %}
                 <a href="{{ url_for('lanzar_impresion', id=pedido.id, origen='detalle') }}" class="btn btn-accion-rapida btn-confirmar" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
