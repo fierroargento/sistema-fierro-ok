@@ -660,7 +660,7 @@ def texto_boton_estado(pedido):
     if pedido.estado == "Reclamar a Mercado Libre" and rol in ["admin", "carga"]:
         return {
             "tipo": "gestionar_reclamo_ml",
-            "texto": "Gestionar reclamo Mercado Libre",
+            "texto": "Gestionar reclamo Meli",
             "url": url_for("cerrar_reclamo_ml_devolucion", id=pedido.id),
             "classes": clase_confirmar,
             "target": "",
@@ -835,7 +835,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
     if pedido.estado == "Reclamar a Mercado Libre" and rol in ["admin", "carga"]:
         return {
             "tipo": "reclamar_ml_devolucion",
-            "texto": "Gestionar reclamo Mercado Libre",
+            "texto": "Gestionar reclamo Meli",
             "url": url_for("cerrar_reclamo_ml_devolucion", id=pedido.id),
             "clases": clase_confirmar,
             "target": "",
