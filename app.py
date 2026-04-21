@@ -1886,7 +1886,7 @@ def gestionar_devolucion(id):
                 error="La fecha de devolución no tiene un formato válido."
             )
 
-        for item in pedido.items:
+                for item in pedido.items:
             estado_item = (request.form.get(f"estado_item_{item.id}") or "").strip()
             obs_item = (request.form.get(f"obs_item_{item.id}") or "").strip()
 
@@ -1900,6 +1900,13 @@ def gestionar_devolucion(id):
                     error=f"Las cantidades del item {item.sku} no son válidas."
                 )
 
+            if not estado_item:
+                return render_template(
+                    "gestionar_devolucion.html",
+                    pedido=pedido,
+                    error=f"Tenés que indicar el estado del item {item.sku}."
+                )
+
             if cantidad_ok < 0 or cantidad_danada < 0:
                 return render_template(
                     "gestionar_devolucion.html",
@@ -1907,11 +1914,34 @@ def gestionar_devolucion(id):
                     error=f"Las cantidades del item {item.sku} no pueden ser negativas."
                 )
 
-            if cantidad_ok + cantidad_danada > (item.cantidad or 0):
+            total = item.cantidad or 0
+
+            if cantidad_ok + cantidad_danada == 0:
                 return render_template(
                     "gestionar_devolucion.html",
                     pedido=pedido,
-                    error=f"En el item {item.sku}, la suma entre OK y dañada no puede superar la cantidad original."
+                    error=f"Tenés que indicar al menos una cantidad para el item {item.sku}."
+                )
+
+            if cantidad_ok + cantidad_danada > total:
+                return render_template(
+                    "gestionar_devolucion.html",
+                    pedido=pedido,
+                    error=f"La suma de cantidades del item {item.sku} supera la cantidad original."
+                )
+
+            if estado_item == "ok" and cantidad_danada > 0:
+                return render_template(
+                    "gestionar_devolucion.html",
+                    pedido=pedido,
+                    error=f"El item {item.sku} está marcado como OK pero tiene cantidad dañada."
+                )
+
+            if estado_item == "danado" and cantidad_ok > 0:
+                return render_template(
+                    "gestionar_devolucion.html",
+                    pedido=pedido,
+                    error=f"El item {item.sku} está marcado como dañado pero tiene cantidad OK."
                 )
 
             item.estado_devolucion_item = estado_item
