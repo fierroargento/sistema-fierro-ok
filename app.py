@@ -2,6 +2,8 @@ import os
 import re
 import pandas as pd
 import fitz
+import cloudinary
+import cloudinary.uploader
 from datetime import datetime
 from functools import wraps
 
@@ -11,6 +13,11 @@ from sqlalchemy import text, inspect
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+)
 
 database_url = os.getenv("DATABASE_URL", "").strip()
 if database_url:
@@ -217,12 +224,12 @@ def guardar_etiqueta_subida(archivo):
     if not archivo or not archivo.filename:
         return ""
 
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
-    nombre_seguro = secure_filename(archivo.filename)
-    nombre_final = f"{timestamp}_{nombre_seguro}"
-    ruta = os.path.join(app.config["UPLOAD_FOLDER"], nombre_final)
-    archivo.save(ruta)
-    return nombre_final
+    try:
+        resultado = cloudinary.uploader.upload(archivo, resource_type="raw")
+        return resultado["secure_url"]
+    except Exception as e:
+        print("Error subiendo a Cloudinary:", e)
+        return ""
 
 
 
