@@ -230,6 +230,9 @@ def guardar_etiqueta_subida(archivo):
 def generar_preview_etiqueta_pdf(nombre_archivo):
     ruta_pdf = os.path.join(app.config["UPLOAD_FOLDER"], nombre_archivo)
 
+    if not os.path.exists(ruta_pdf):
+        return None
+
     base_nombre = os.path.splitext(nombre_archivo)[0]
     nombre_preview = f"{base_nombre}__preview_recortado.png"
     ruta_preview = os.path.join(app.config["UPLOAD_FOLDER"], nombre_preview)
@@ -241,7 +244,11 @@ def generar_preview_etiqueta_pdf(nombre_archivo):
         except OSError:
             pass
 
-    doc = fitz.open(ruta_pdf)
+    try:
+        doc = fitz.open(ruta_pdf)
+    except Exception:
+        return None
+
     try:
         page = doc[0]
         zoom = 3
@@ -295,6 +302,8 @@ def generar_preview_etiqueta_pdf(nombre_archivo):
         pix_recortado.save(ruta_preview)
 
         return nombre_preview
+    except Exception:
+        return None
     finally:
         doc.close()
 
@@ -1511,10 +1520,35 @@ def imprimir_etiqueta(id):
         )
 
     extension = pedido.etiqueta_archivo.rsplit(".", 1)[-1].lower() if "." in pedido.etiqueta_archivo else ""
+    ruta_etiqueta = os.path.join(app.config["UPLOAD_FOLDER"], pedido.etiqueta_archivo)
+
+    if not os.path.exists(ruta_etiqueta):
+        return render_template(
+            "detalle_pedido.html",
+            pedido=pedido,
+            error="La etiqueta adjunta ya no está disponible en el servidor.",
+            accion_sugerida=accion_sugerida_pedido(pedido),
+            texto_boton=texto_boton_estado(pedido),
+            hay_autorizado=hay_autorizado,
+            puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
+            whatsapp_url=whatsapp_link_pedido(pedido)
+        )
+
     url_original = url_for("ver_etiqueta", nombre_archivo=pedido.etiqueta_archivo)
 
     if extension == "pdf":
         nombre_preview = generar_preview_etiqueta_pdf(pedido.etiqueta_archivo)
+        if not nombre_preview:
+            return render_template(
+                "detalle_pedido.html",
+                pedido=pedido,
+                error="No se pudo generar la vista previa de la etiqueta.",
+                accion_sugerida=accion_sugerida_pedido(pedido),
+                texto_boton=texto_boton_estado(pedido),
+                hay_autorizado=hay_autorizado,
+                puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
+                whatsapp_url=whatsapp_link_pedido(pedido)
+            )
         url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
     else:
         url_archivo = url_original
