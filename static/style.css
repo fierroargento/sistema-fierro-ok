@@ -244,8 +244,8 @@ textarea {
 .btn-accion-rapida {
     display: inline-flex;
     width: 100%;
-    max-width: 170px;
-    min-width: 150px;
+    max-width: 260px;
+    min-width: 170px;
     background: #0f3f50;
     color: #ffffff;
     font-weight: 800;
@@ -932,6 +932,11 @@ td, th {
 .detalle-acciones .btn:hover,
 .detalle-acciones .btn:active {
     color: #ffffff;
+}
+.detalle-acciones .btn-accion-rapida {
+    width: auto;
+    max-width: none;
+    min-width: 260px;
 }
 
 .fila-verde {
