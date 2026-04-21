@@ -235,6 +235,18 @@
     <div class="detalle-acciones">
         <a href="{{ url_for('inicio') }}" class="btn btn-secundario btn-volver">Volver</a>
 
+        {% if accion %}
+            {% if accion.tipo == "imprimir_etiqueta" %}
+                <a href="{{ accion.url }}" class="{{ accion.clases }}" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
+                    {{ accion.texto }}
+                </a>
+            {% else %}
+                <a href="{{ accion.url }}" class="{{ accion.clases }}" {% if accion.target %}target="{{ accion.target }}"{% endif %}>
+                    {{ accion.texto }}
+                </a>
+            {% endif %}
+        {% endif %}
+
         {% if puede_editar_pedido(pedido) and pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Con reclamo en transporte', 'Con demora de entrega'] %}
         <a href="{{ url_for('editar_pedido', id=pedido.id, modo='reclamos') }}" class="btn btn-secundario">
             {% if pedido.numero_reclamo or pedido.observacion_reclamo or pedido.motivo_no_entregado %}
@@ -251,23 +263,13 @@
         </a>
         {% endif %}
 
-        {% if accion %}
-            {% if accion.tipo == "imprimir_etiqueta" %}
-                <a href="{{ accion.url }}" class="{{ accion.clases }}" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
-                    {{ accion.texto }}
-                </a>
-            {% else %}
-                <a href="{{ accion.url }}" class="{{ accion.clases }}" {% if accion.target %}target="{{ accion.target }}"{% endif %}>
-                    {{ accion.texto }}
-                </a>
-            {% endif %}
+        {% if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"] %}
+        <a href="{{ url_for('marcar_no_entregado', id=pedido.id) }}" class="btn btn-secundario">
+            No entregado
+        </a>
+        {% endif %}
 
-            {% if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"] %}
-            <a href="{{ url_for('marcar_no_entregado', id=pedido.id) }}" class="btn btn-secundario">
-                No entregado
-            </a>
-            {% endif %}
-        {% else %}
+        {% if not accion %}
             <span class="accion-listado">Sin acción</span>
         {% endif %}
     </div>
