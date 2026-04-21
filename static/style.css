@@ -519,49 +519,25 @@ td, th {
 .detalle-acciones {
     margin-top: 18px;
     display: flex;
-    align-items: flex-end;
-    justify-content: flex-start;.detalle-acciones {
-    margin-top: 18px;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
     gap: 12px;
     width: 100%;
 }
 
-.detalle-acciones > div:first-child,
-.detalle-acciones > :first-child {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
+.detalle-acciones .btn-volver {
     margin-right: auto;
 }
 
-.detalle-acciones > div:last-child {
-    display: flex;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    gap: 12px;
-    justify-content: flex-end;
-}
-
-.detalle-acciones form {
-    margin: 0;
-    display: inline-flex;
-    flex: 0 0 auto;
-}
-
 .detalle-acciones .btn,
-.detalle-acciones a.btn,
-.detalle-acciones form .btn {
+.detalle-acciones a.btn {
+    flex: 0 0 auto;
     min-width: 126px;
 }
 
 .detalle-acciones .btn-secundario,
-.detalle-acciones a.btn-secundario,
-.detalle-acciones form .btn-secundario {
+.detalle-acciones a.btn-secundario {
     min-width: 92px;
 }
 
