@@ -54,7 +54,7 @@
             {% for p in pedidos %}
             {% set accion = accion_principal_pedido(p, 'inicio') %}
             <tr class="fila-{{ semaforo_pedido(p) }}" data-semaforo="{{ semaforo_pedido(p) }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado'] else 'si' }}">
-                <td>{{ p.id }}</td>
+            <tr class="fila-{{ semaforo_pedido(p) }}" data-semaforo="{{ semaforo_pedido(p) }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Con demora de entrega', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado'] else 'si' }}">                <td>{{ p.id }}</td>
                 <td>{{ p.cliente }}</td>
                 <td>
                   <span>{{ p.id_venta or "-" }}</span>
