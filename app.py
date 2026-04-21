@@ -657,16 +657,11 @@ def texto_boton_estado(pedido):
     if pedido.estado == "No entregado":
         return "Gestionar devolución"
 
-    if pedido.estado == "Reclamar a Mercado Libre" and rol in ["admin", "carga"]:
-        return {
-            "tipo": "gestionar_reclamo_ml",
-            "texto": "Gestionar reclamo Meli",
-            "url": url_for("cerrar_reclamo_ml_devolucion", id=pedido.id),
-            "classes": clase_confirmar,
-            "target": "",
-    }
+    if pedido.estado == "Reclamar a Mercado Libre":
+        return "Gestionar reclamo Meli"
 
     if pedido.estado == "Entregado":
+        
         if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
             return "Ya avisé Mercado Libre"
         return "Sin acción"
@@ -753,7 +748,7 @@ def accion_sugerida_pedido(pedido):
         return "Gestionar devolución"
 
     if pedido.estado == "Reclamar a Mercado Libre":
-        return "Gestionar reclamo en Meli"
+        return "Gestionar reclamo Meli"
 
     if pedido.estado == "Entregado":
         if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
