@@ -244,7 +244,7 @@ textarea {
     display: inline-flex;
     width: auto;
     min-width: 150px;
-    max-width: none;
+    max-width: 170px;
     background: #0f3f50;
     color: #ffffff;
     font-weight: 800;
@@ -805,21 +805,26 @@ td, th {
     color: var(--fierro-text-soft);
     font-weight: 700;
 }
-.tabla-pedidos td:nth-child(9),
-.tabla-pedidos td:nth-child(10) {
-    white-space: nowrap;
-}
+
 
 .tabla-pedidos th:nth-child(9),
-.tabla-pedidos td:nth-child(9),
-.tabla-pedidos th:nth-child(10),
-.tabla-pedidos td:nth-child(10) {
+.tabla-pedidos td:nth-child(9) {
     text-align: center;
 }
 
-.tabla-pedidos td:nth-child(9) .btn-accion-rapida,
+.tabla-pedidos td:nth-child(9) .btn-accion-rapida {
+    margin: 0 auto;
+}
+
+.tabla-pedidos th:nth-child(10),
+.tabla-pedidos td:nth-child(10) {
+    text-align: center;
+    width: 110px;
+}
+
 .tabla-pedidos td:nth-child(10) .btn {
     margin: 0 auto;
+    min-width: 96px;
 }
 
 .tabla-pedidos {
@@ -833,8 +838,13 @@ td, th {
 
 .tabla-pedidos td:nth-child(2),
 .tabla-pedidos td:nth-child(4),
-.tabla-pedidos td:nth-child(8) {
+.tabla-pedidos td:nth-child(8),
+.tabla-pedidos td:nth-child(9) {
     white-space: normal;
+}
+.tabla-pedidos th:nth-child(9),
+.tabla-pedidos td:nth-child(9) {
+    width: 185px;
 }
 
 
@@ -850,8 +860,9 @@ td, th {
     }
 
     .btn-accion-rapida {
-        width: 100%;
-        min-width: 0;
+        width: auto;
+        min-width: 150px;
+        max-width: 170px;
     }
 
         .estado-listado {
