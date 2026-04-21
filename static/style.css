@@ -242,9 +242,9 @@ textarea {
 
 .btn-accion-rapida {
     display: inline-flex;
-    width: 100%;
-    max-width: 160px;
-    min-width: 0;
+    width: auto;
+    min-width: 150px;
+    max-width: none;
     background: #0f3f50;
     color: #ffffff;
     font-weight: 800;
@@ -805,43 +805,38 @@ td, th {
     color: var(--fierro-text-soft);
     font-weight: 700;
 }
+.tabla-pedidos td:nth-child(9),
+.tabla-pedidos td:nth-child(10) {
+    white-space: nowrap;
+}
 
 .tabla-pedidos th:nth-child(9),
-.tabla-pedidos td:nth-child(9) {
+.tabla-pedidos td:nth-child(9),
+.tabla-pedidos th:nth-child(10),
+.tabla-pedidos td:nth-child(10) {
     text-align: center;
 }
 
-.tabla-pedidos td:nth-child(9) .btn-accion-rapida {
+.tabla-pedidos td:nth-child(9) .btn-accion-rapida,
+.tabla-pedidos td:nth-child(10) .btn {
     margin: 0 auto;
 }
 
 .tabla-pedidos {
-    table-layout: fixed;
+    table-layout: auto;
 }
 
 .tabla-pedidos th,
 .tabla-pedidos td {
+    white-space: nowrap;
+}
+
+.tabla-pedidos td:nth-child(2),
+.tabla-pedidos td:nth-child(4),
+.tabla-pedidos td:nth-child(8) {
     white-space: normal;
 }
-.tabla-pedidos th:nth-child(6),
-.tabla-pedidos td:nth-child(6) {
-    width: 190px;
-}
 
-.tabla-pedidos th:nth-child(7),
-.tabla-pedidos td:nth-child(7) {
-    width: 105px;
-}
-
-.tabla-pedidos th:nth-child(8),
-.tabla-pedidos td:nth-child(8) {
-    width: 125px;
-}
-
-.tabla-pedidos th:nth-child(9),
-.tabla-pedidos td:nth-child(9) {
-    width: 170px;
-}
 
 .col-antiguedad {
     white-space: nowrap;
