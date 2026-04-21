@@ -5,3 +5,4 @@ openpyxl
 pymupdf
 gunicorn
 psycopg2-binary
+cloudinary
