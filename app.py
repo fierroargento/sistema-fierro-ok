@@ -1549,6 +1549,8 @@ def editar_pedido(id):
 
     modo = (request.args.get("modo") or "").strip()
     volver = (request.args.get("volver") or "").strip()
+    if modo == "reclamos" and pedido.estado not in ["Despachado", "Verificar llegada a destino", "Listo para retirar", "Con reclamo en transporte", "Con demora de entrega"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id))
 
     if request.method == "POST":
         if modo == "reclamos":
