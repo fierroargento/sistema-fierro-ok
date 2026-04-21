@@ -155,8 +155,8 @@ a {
 }
 
 .card {
-    width: min(1520px, calc(100vw - 324px));
-    max-width: calc(100vw - 324px);
+    width: 96%;
+    max-width: none;
     padding: 16px 18px;
     border-radius: 16px;
     color: #1f2937;
@@ -164,7 +164,8 @@ a {
 
 .listado-card,
 .detalle-card {
-    width: min(1600px, calc(100vw - 324px));
+    width: 96%;
+    max-width: none;
 }
 
 input, select, textarea {
@@ -242,9 +243,9 @@ textarea {
 
 .btn-accion-rapida {
     display: inline-flex;
-    width: auto;
-    min-width: 150px;
+    width: 100%;
     max-width: 170px;
+    min-width: 150px;
     background: #0f3f50;
     color: #ffffff;
     font-weight: 800;
@@ -413,8 +414,8 @@ td, th {
 
 .wizard {
     display: flex;
-    width: min(1600px, calc(100vw - 324px));
-    max-width: calc(100vw - 340px);
+    width: 96%;
+    max-width: none;
     border-radius: 16px;
     overflow: hidden;
 }
@@ -699,13 +700,6 @@ td, th {
     .resumen-operativo {
         grid-template-columns: 1fr 1fr;
     }
-
-    .card,
-    .wizard,
-    .listado-card,
-    .detalle-card {
-        max-width: calc(100vw - 320px);
-    }
 }
 
 @media (max-width: 1100px) {
@@ -729,12 +723,7 @@ td, th {
         padding: 18px;
     }
 
-    .card,
-    .wizard,
-    .listado-card,
-    .detalle-card {
-        max-width: calc(100vw - 260px);
-    }
+
 
     .detalle-grid,
     .detalle-grid-resumen {
@@ -833,18 +822,17 @@ td, th {
 
 .tabla-pedidos th,
 .tabla-pedidos td {
+    white-space: normal;
+}
+
+.tabla-pedidos td:nth-child(9),
+.tabla-pedidos td:nth-child(10) {
     white-space: nowrap;
 }
 
-.tabla-pedidos td:nth-child(2),
-.tabla-pedidos td:nth-child(4),
-.tabla-pedidos td:nth-child(8),
-.tabla-pedidos td:nth-child(9) {
-    white-space: normal;
-}
 .tabla-pedidos th:nth-child(9),
 .tabla-pedidos td:nth-child(9) {
-    width: 185px;
+    width: 190px;
 }
 
 
@@ -860,7 +848,7 @@ td, th {
     }
 
     .btn-accion-rapida {
-        width: auto;
+        width: 100%;
         min-width: 150px;
         max-width: 170px;
     }
