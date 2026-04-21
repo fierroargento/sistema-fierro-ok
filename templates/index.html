@@ -52,6 +52,7 @@
 
         <tbody id="tabla_pedidos_body">
             {% for p in pedidos %}
+            {% set accion = accion_principal_pedido(p, 'inicio') %}
             <tr class="fila-{{ semaforo_pedido(p) }}" data-semaforo="{{ semaforo_pedido(p) }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado'] else 'si' }}">
                 <td>{{ p.id }}</td>
                 <td>{{ p.cliente }}</td>
@@ -73,39 +74,14 @@
                 </td>
                 <td>
                     <span class="accion-listado">
-                        {{ accion_sugerida_pedido(p) }}
+                        {{ accion.texto if accion else 'Sin acción' }}
                     </span>
                 </td>
                 <td>
-                    {% if requiere_contacto_cliente(p) %}
-                        <a href="{{ url_for('editar_pedido', id=p.id) }}" class="btn btn-accion-rapida">
-                            Completar carga
-                        </a>
-                    {% elif puede_imprimir_pedido(p) %}
-                        <a href="{{ url_for('lanzar_impresion', id=p.id) }}" target="_blank" class="btn btn-accion-rapida btn-confirmar">
-                            Imprimir etiqueta
-                        </a>
-                    {% elif p.estado == "Verificar llegada a destino" and rol_actual in ["carga", "admin"] and p.tipo_entrega == "Sucursal" %}
-                        <a href="{{ url_for('confirmar_entrega', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar" target="_blank">
-                            Avisar al Cliente
-                        </a>
-                    {% elif p.estado == "Listo para retirar" and rol_actual in ["carga", "admin"] and p.tipo_entrega == "Sucursal" %}
-                        <a href="{{ url_for('avanzar_pedido', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
-                            Marcar entregado
-                        </a>
-                    {% elif p.estado == "Verificar llegada a destino" and rol_actual in ["carga", "admin"] and p.tipo_entrega == "Domicilio" %}
-                        <a href="{{ url_for('avanzar_pedido', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
-                            Marcar entregado
-                        </a>
-                    {% elif p.estado == "Entregado" and rol_actual in ["carga", "admin"] and p.canal == "Mercado Libre" and p.ml_tipo == "Acordás la Entrega" %}
-                        <a href="{{ url_for('cerrar_ml', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
-                            Ya avisé Mercado Libre
-                        </a>
-                    {% elif p.estado == "Entregado" or p.estado == "Finalizado" %}
-                        <span class="accion-listado">Sin acción</span>
-                    {% elif (rol_actual == "admin") or (rol_actual == "carga" and p.estado in ["Despachado", "Con reclamo en transporte"]) or (rol_actual == "despacho" and p.estado in ["Etiqueta Impresa", "Embalado"]) %}
-                        <a href="{% if texto_boton_estado(p) == 'Cargar seguimiento' %}{{ url_for('editar_pedido', id=p.id, modo='seguimiento', volver='inicio') }}{% else %}{{ url_for('avanzar_pedido', id=p.id) }}{% endif %}" class="btn btn-accion-rapida {% if texto_boton_estado(p) in ['Marcar embalado','Marcar despachado','Marcar entregado','Cargar seguimiento','Confirmar entrega','Ya avisé Mercado Libre'] %}btn-confirmar{% endif %}">
-                            {{ texto_boton_estado(p) }}
+                <td>
+                    {% if accion %}
+                        <a href="{{ accion.url }}" class="{{ accion.clases }}" {% if accion.target %}target="{{ accion.target }}"{% endif %}>
+                            {{ accion.texto }}
                         </a>
                     {% else %}
                         <span class="accion-listado">Sin acción</span>
