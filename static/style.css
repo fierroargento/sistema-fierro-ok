@@ -402,14 +402,15 @@ td, th {
 }
 
 .col-acciones {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
     min-width: 128px;
+    text-align: center;
 }
 
 .col-acciones .btn {
-    width: 100%;
+    display: inline-flex;
+    width: auto;
+    min-width: 96px;
+    margin: 0 auto;
 }
 
 .wizard {
@@ -808,12 +809,15 @@ td, th {
 .tabla-pedidos th:nth-child(10),
 .tabla-pedidos td:nth-child(10) {
     text-align: center;
-    width: 110px;
 }
 
 .tabla-pedidos td:nth-child(10) .btn {
     margin: 0 auto;
     min-width: 96px;
+}
+.tabla-pedidos thead th:last-child,
+.tabla-pedidos tbody td:last-child {
+    width: 120px;
 }
 
 .tabla-pedidos {
@@ -825,8 +829,7 @@ td, th {
     white-space: normal;
 }
 
-.tabla-pedidos td:nth-child(9),
-.tabla-pedidos td:nth-child(10) {
+.tabla-pedidos td:nth-child(9) {
     white-space: nowrap;
 }
 
