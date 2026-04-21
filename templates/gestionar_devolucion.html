@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card detalle-card">
+    <div class="detalle-header">
+        <div>
+            <h2>Gestionar devolución</h2>
+            <p class="detalle-sub">Pedido #{{ pedido.id }} — {{ pedido.cliente }}</p>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="error">{{ error|safe }}</div>
+    {% endif %}
+
+    <form method="POST">
+        <div class="detalle-grid-resumen">
+            <div class="detalle-box">
+                <h3>Datos de devolución</h3>
+
+                <label for="fecha_devolucion"><strong>Fecha de recepción de la devolución</strong></label>
+                <input type="datetime-local" id="fecha_devolucion" name="fecha_devolucion"
+                       value="{% if pedido.fecha_devolucion %}{{ pedido.fecha_devolucion.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+
+                <label for="estado_devolucion"><strong>Estado de devolución</strong></label>
+                <select id="estado_devolucion" name="estado_devolucion">
+                    <option value="">Seleccionar</option>
+                    <option value="completa" {% if pedido.estado_devolucion == 'completa' %}selected{% endif %}>Completa - producto recuperado OK</option>
+                    <option value="parcial" {% if pedido.estado_devolucion == 'parcial' %}selected{% endif %}>Parcial - faltan o fallaron items</option>
+                    <option value="danada" {% if pedido.estado_devolucion == 'danada' %}selected{% endif %}>Devuelta en mal estado</option>
+                </select>
+
+                <label for="observacion_devolucion"><strong>Observación</strong></label>
+                <textarea id="observacion_devolucion" name="observacion_devolucion">{{ pedido.observacion_devolucion or '' }}</textarea>
+            </div>
+
+            <div class="detalle-box detalle-box-full">
+                <h3>Items del pedido</h3>
+                <table class="tabla-items">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Descripción</th>
+                            <th>Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in pedido.items %}
+                        <tr>
+                            <td>{{ item.sku }}</td>
+                            <td>{{ item.descripcion }}</td>
+                            <td>{{ item.cantidad }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="detalle-acciones">
+            <a href="{{ url_for('detalle_pedido', id=pedido.id) }}" class="btn btn-secundario btn-volver">Volver</a>
+            <button type="submit" class="btn btn-confirmar">Guardar y finalizar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
