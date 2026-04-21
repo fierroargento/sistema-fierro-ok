@@ -816,7 +816,7 @@ def semaforo_pedido(pedido):
     # ---------------------------
     # PEDIDOS DESPACHADOS (seguimiento)
     # ---------------------------
-    if pedido.estado in ["Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
+    if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
         if not pedido.fecha_despachado:
             return "gris"
 
