@@ -236,7 +236,7 @@
         <div>
             <a href="{{ url_for('inicio') }}" class="btn btn-secundario">Volver</a>
 
-            {% if puede_editar_pedido(pedido) and pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Entregado', 'Finalizado', 'Con reclamo en transporte', 'Con demora de entrega'] %}
+            {% if puede_editar_pedido(pedido) and pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Con reclamo en transporte', 'Con demora de entrega'] %}
             <a href="{{ url_for('editar_pedido', id=pedido.id, modo='reclamos') }}" class="btn btn-secundario">
                 {% if pedido.numero_reclamo or pedido.observacion_reclamo or pedido.motivo_no_entregado %}
                 Editar Reclamo Envío
