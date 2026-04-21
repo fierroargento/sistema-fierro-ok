@@ -902,6 +902,9 @@ def semaforo_pedido(pedido):
 
     ahora = datetime.utcnow()
 
+    # RECLAMOS ML SIEMPRE CRÍTICOS
+    if pedido.estado == "Reclamar a Mercado Libre":
+        return "rojo"
     # ---------------------------
     # PEDIDOS DESPACHADOS (seguimiento)
     # ---------------------------
