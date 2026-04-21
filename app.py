@@ -835,7 +835,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
     if pedido.estado == "Reclamar a Mercado Libre" and rol in ["admin", "carga"]:
         return {
             "tipo": "reclamar_ml_devolucion",
-            "texto": "Reclamo resuelto en Mercado Libre",
+            "texto": "Gestionar reclamo Mercado Libre",
             "url": url_for("cerrar_reclamo_ml_devolucion", id=pedido.id),
             "clases": clase_confirmar,
             "target": "",
