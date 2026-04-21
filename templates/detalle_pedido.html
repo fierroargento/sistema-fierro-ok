@@ -265,7 +265,7 @@
                     </a>
                 {% endif %}
 
-                {% if pedido.estado in ["Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"] %}
+                {% if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"] %}
                 <a href="{{ url_for('marcar_no_entregado', id=pedido.id) }}" class="btn btn-secundario">
                     No entregado
                 </a>
