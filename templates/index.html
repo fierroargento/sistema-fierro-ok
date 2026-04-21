@@ -79,7 +79,7 @@
                 </td>
                 <td>
                     <span class="accion-listado">
-                        {{ accion.texto if accion else 'Sin acción' }}
+                        {{ accion_sugerida_pedido(p) or 'Sin acción' }}
                     </span>
                 </td>
                 <td>
