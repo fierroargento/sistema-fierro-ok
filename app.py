@@ -565,7 +565,6 @@ def siguiente_estado(e):
         "Con reclamo en transporte": "Entregado",
         "Verificar llegada a destino": "Entregado",
         "Listo para retirar": "Entregado",
-        "No entregado": "Finalizado",
     }
     return flujo.get(e)
 
@@ -759,8 +758,17 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "target": "",
         }
 
-    if pedido.estado in ["Entregado", "Finalizado"]:
-        return None
+if pedido.estado == "No entregado" and rol in ["admin", "carga"]:
+    return {
+        "tipo": "gestionar_devolucion",
+        "texto": "Gestionar devolución",
+        "url": url_for("gestionar_devolucion", id=pedido.id),
+        "clases": clase_confirmar,
+        "target": "",
+    }
+
+if pedido.estado in ["Entregado", "Finalizado"]:
+    return None
 
     if (rol == "admin") or (rol == "carga" and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "No entregado"]) or (rol == "despacho" and pedido.estado in ["Etiqueta Impresa", "Embalado"]):
         texto = texto_boton_estado(pedido)
@@ -1797,6 +1805,24 @@ def marcar_no_entregado(id):
 
     if not pedido.motivo_no_entregado:
         pedido.motivo_no_entregado = "Pendiente de gestión de devolución"
+
+    db.session.commit()
+
+    return redirect(url_for("detalle_pedido", id=pedido.id))
+
+@app.route("/pedido/<int:id>/gestionar-devolucion")
+@login_required
+def gestionar_devolucion(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_editar_pedido(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    if pedido.estado != "No entregado":
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    # Acá después podés agregar lógica más compleja si querés
+    pedido.estado = "Finalizado"
 
     db.session.commit()
 
