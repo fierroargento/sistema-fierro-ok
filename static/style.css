@@ -241,12 +241,14 @@ textarea {
 }
 
 .btn-accion-rapida {
+    display: inline-flex;
     width: 100%;
+    max-width: 160px;
     min-width: 0;
     background: #0f3f50;
     color: #ffffff;
     font-weight: 800;
-    font-size: 14px;
+    font-size: 13px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.12);
     transform: scale(1);
     transition: all 0.15s ease;
@@ -804,6 +806,14 @@ td, th {
     font-weight: 700;
 }
 
+.tabla-pedidos th:nth-child(9),
+.tabla-pedidos td:nth-child(9) {
+    text-align: center;
+}
+
+.tabla-pedidos td:nth-child(9) .btn-accion-rapida {
+    margin: 0 auto;
+}
 
 .tabla-pedidos {
     table-layout: fixed;
@@ -813,39 +823,24 @@ td, th {
 .tabla-pedidos td {
     white-space: normal;
 }
-.tabla-pedidos th:nth-child(1),
-.tabla-pedidos td:nth-child(1) {
-    width: 42px;
-}
-
-.tabla-pedidos th:nth-child(5),
-.tabla-pedidos td:nth-child(5) {
-    width: 110px;
-}
-
 .tabla-pedidos th:nth-child(6),
 .tabla-pedidos td:nth-child(6) {
-    width: 210px;
+    width: 190px;
 }
 
 .tabla-pedidos th:nth-child(7),
 .tabla-pedidos td:nth-child(7) {
-    width: 100px;
+    width: 105px;
 }
 
 .tabla-pedidos th:nth-child(8),
 .tabla-pedidos td:nth-child(8) {
-    width: 110px;
+    width: 125px;
 }
 
 .tabla-pedidos th:nth-child(9),
 .tabla-pedidos td:nth-child(9) {
-    width: 210px;
-}
-
-.tabla-pedidos th:nth-child(10),
-.tabla-pedidos td:nth-child(10) {
-    width: 130px;
+    width: 170px;
 }
 
 .col-antiguedad {
