@@ -99,11 +99,6 @@ class PedidoItem(db.Model):
     pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"))
     sku = db.Column(db.String(50))
     descripcion = db.Column(db.String(200))
-    cantidad = db.Column(db.Integer)class PedidoItem(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"))
-    sku = db.Column(db.String(50))
-    descripcion = db.Column(db.String(200))
     cantidad = db.Column(db.Integer)
 
     # =====================
