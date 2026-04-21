@@ -224,6 +224,15 @@ textarea {
     background-color: #124E64;
     color: #ffffff;
     font-weight: 700;
+    border-radius: 8px;
+    padding: 10px 16px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-confirmar:hover {
+    background-color: #0f3f52;
 }
 
 .btn-nuevo {
