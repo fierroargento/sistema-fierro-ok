@@ -1458,12 +1458,7 @@ def productos():
 @app.route("/uploads/<path:nombre_archivo>")
 @login_required
 def ver_etiqueta(nombre_archivo):
-    ruta_archivo = os.path.join(app.config["UPLOAD_FOLDER"], nombre_archivo)
-
-    if not os.path.exists(ruta_archivo):
-        return "El adjunto solicitado ya no está disponible en el servidor.", 404
-
-    return send_from_directory(app.config["UPLOAD_FOLDER"], nombre_archivo)
+    return "Los adjuntos locales ya no se utilizan en esta versión del sistema.", 410
 
 
 @app.route("/pedido/<int:id>/lanzar-impresion")
@@ -1532,13 +1527,12 @@ def imprimir_etiqueta(id):
         )
 
     extension = pedido.etiqueta_archivo.rsplit(".", 1)[-1].lower() if "." in pedido.etiqueta_archivo else ""
-    ruta_etiqueta = os.path.join(app.config["UPLOAD_FOLDER"], pedido.etiqueta_archivo)
 
-    if not os.path.exists(ruta_etiqueta):
+    if not pedido.etiqueta_archivo.startswith("http"):
         return render_template(
             "detalle_pedido.html",
             pedido=pedido,
-            error="La etiqueta adjunta ya no está disponible en el servidor.",
+            error="La etiqueta no está en Cloudinary. Volvé a cargarla.",
             accion_sugerida=accion_sugerida_pedido(pedido),
             texto_boton=texto_boton_estado(pedido),
             hay_autorizado=hay_autorizado,
@@ -1546,24 +1540,8 @@ def imprimir_etiqueta(id):
             whatsapp_url=whatsapp_link_pedido(pedido)
         )
 
-    url_original = url_for("ver_etiqueta", nombre_archivo=pedido.etiqueta_archivo)
-
-    if extension == "pdf":
-        nombre_preview = generar_preview_etiqueta_pdf(pedido.etiqueta_archivo)
-        if not nombre_preview:
-            return render_template(
-                "detalle_pedido.html",
-                pedido=pedido,
-                error="No se pudo generar la vista previa de la etiqueta.",
-                accion_sugerida=accion_sugerida_pedido(pedido),
-                texto_boton=texto_boton_estado(pedido),
-                hay_autorizado=hay_autorizado,
-                puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-                whatsapp_url=whatsapp_link_pedido(pedido)
-            )
-        url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
-    else:
-        url_archivo = url_original
+    url_original = pedido.etiqueta_archivo
+    url_archivo = pedido.etiqueta_archivo
 
     return render_template(
         "imprimir_etiqueta.html",
