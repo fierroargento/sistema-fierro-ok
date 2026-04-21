@@ -758,17 +758,17 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "target": "",
         }
 
-if pedido.estado == "No entregado" and rol in ["admin", "carga"]:
-    return {
-        "tipo": "gestionar_devolucion",
-        "texto": "Gestionar devolución",
-        "url": url_for("gestionar_devolucion", id=pedido.id),
-        "clases": clase_confirmar,
-        "target": "",
-    }
+    if pedido.estado == "No entregado" and rol in ["admin", "carga"]:
+        return {
+            "tipo": "gestionar_devolucion",
+            "texto": "Gestionar devolución",
+            "url": url_for("gestionar_devolucion", id=pedido.id),
+            "clases": clase_confirmar,
+            "target": "",
+        }
 
-if pedido.estado in ["Entregado", "Finalizado"]:
-    return None
+    if pedido.estado in ["Entregado", "Finalizado"]:
+        return None
 
     if (rol == "admin") or (rol == "carga" and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "No entregado"]) or (rol == "despacho" and pedido.estado in ["Etiqueta Impresa", "Embalado"]):
         texto = texto_boton_estado(pedido)
