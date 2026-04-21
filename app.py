@@ -565,6 +565,7 @@ def siguiente_estado(e):
         "Con reclamo en transporte": "Entregado",
         "Verificar llegada a destino": "Entregado",
         "Listo para retirar": "Entregado",
+        "No entregado": "Finalizado",
     }
     return flujo.get(e)
 
@@ -600,6 +601,9 @@ def texto_boton_estado(pedido):
 
     if pedido.estado == "Listo para retirar":
         return "Marcar entregado"
+
+    if pedido.estado == "No entregado":
+        return "Gestionar devolución"
 
     if pedido.estado == "Entregado":
         if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
@@ -684,6 +688,9 @@ def accion_sugerida_pedido(pedido):
     if pedido.estado == "Listo para retirar":
         return "Confirmar entrega"
 
+    if pedido.estado == "No entregado":
+        return "Gestionar devolución"
+
     if pedido.estado == "Entregado":
         if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
             return "Avisar a Mercado Libre"
@@ -755,7 +762,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
     if pedido.estado in ["Entregado", "Finalizado"]:
         return None
 
-    if (rol == "admin") or (rol == "carga" and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte"]) or (rol == "despacho" and pedido.estado in ["Etiqueta Impresa", "Embalado"]):
+    if (rol == "admin") or (rol == "carga" and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "No entregado"]) or (rol == "despacho" and pedido.estado in ["Etiqueta Impresa", "Embalado"]):
         texto = texto_boton_estado(pedido)
 
         if texto == "Cargar seguimiento":
@@ -781,7 +788,7 @@ def fecha_referencia_estado(pedido):
     if pedido.estado == "Embalado":
         return pedido.fecha_embalado or pedido.fecha_etiqueta_impresa or pedido.fecha_creacion
 
-    if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
+    if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado"]:
         return pedido.fecha_despachado or pedido.fecha_embalado or pedido.fecha_creacion
 
     if pedido.estado == "Entregado":
@@ -930,7 +937,7 @@ def alertas_operativas():
 def pedido_sin_despacho(pedido):
     return bool(
         pedido
-        and pedido.estado not in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "Entregado", "Finalizado"]
+        and pedido.estado not in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado", "Finalizado"]
     )
 
 
@@ -1011,11 +1018,12 @@ def estados_visibles_inicio():
             "Con reclamo en transporte",
             "Verificar llegada a destino",
             "Listo para retirar",
+            "No entregado",
             "Entregado",
         ]
 
     if rol == "carga":
-        return ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "Entregado"]
+        return ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado"]
 
     if rol == "despacho":
         return ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]
@@ -1060,7 +1068,7 @@ def puede_ver_pedido(pedido):
         return True
 
     if rol == "carga":
-        return pedido.estado in ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "Entregado"]
+        return pedido.estado in ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado"]
 
     if rol == "despacho":
         return pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado", "Despachado"]
@@ -1078,7 +1086,7 @@ def puede_editar_pedido(pedido):
         return True
 
     if rol == "carga":
-        return pedido.estado in ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]
+        return pedido.estado in ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado"]
 
     return False
 
@@ -1127,7 +1135,7 @@ def puede_avanzar_segun_rol(pedido):
         return True, []
 
     if rol == "carga":
-        if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
+        if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado"]:
             return True, []
         return False, ["Este estado lo trabaja Embalaje y Despacho."]
 
@@ -1785,14 +1793,10 @@ def marcar_no_entregado(id):
     if pedido.estado not in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
         return redirect(url_for("detalle_pedido", id=pedido.id))
 
-    pedido.estado = "Con reclamo en transporte"
-    pedido.ultima_revision_reclamo = datetime.utcnow()
-
-    if not pedido.fecha_hora_reclamo:
-        pedido.fecha_hora_reclamo = datetime.utcnow()
+    pedido.estado = "No entregado"
 
     if not pedido.motivo_no_entregado:
-        pedido.motivo_no_entregado = "Pendiente de gestión"
+        pedido.motivo_no_entregado = "Pendiente de gestión de devolución"
 
     db.session.commit()
 
