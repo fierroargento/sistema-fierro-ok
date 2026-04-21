@@ -1451,6 +1451,11 @@ def productos():
 @app.route("/uploads/<path:nombre_archivo>")
 @login_required
 def ver_etiqueta(nombre_archivo):
+    ruta_archivo = os.path.join(app.config["UPLOAD_FOLDER"], nombre_archivo)
+
+    if not os.path.exists(ruta_archivo):
+        return "El adjunto solicitado ya no está disponible en el servidor.", 404
+
     return send_from_directory(app.config["UPLOAD_FOLDER"], nombre_archivo)
 
 
