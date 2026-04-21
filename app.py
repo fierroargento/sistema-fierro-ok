@@ -670,8 +670,8 @@ def accion_principal_pedido(pedido, origen="inicio"):
     rol = rol_actual()
     es_inicio = origen == "inicio"
 
-    clase_base = "btn btn-accion-rapida" if es_inicio else "btn"
-    clase_confirmar = "btn btn-accion-rapida btn-confirmar" if es_inicio else "btn btn-confirmar"
+    clase_base = "btn btn-accion-rapida"
+    clase_confirmar = "btn btn-accion-rapida btn-confirmar"
 
     if requiere_contacto_cliente(pedido):
         return {
