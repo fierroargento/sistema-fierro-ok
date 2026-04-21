@@ -339,22 +339,29 @@ td, th {
     color: #1f2937;
 }
 
+.tabla-pedidos td:nth-child(6),
+.tabla-pedidos th:nth-child(6) {
+    text-align: center;
+    vertical-align: middle;
+}
+
 .estado-listado {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    min-width: 136px;
-    min-height: 40px;
-    padding: 7px 14px;
+    width: 190px;
+    min-height: 44px;
+    padding: 8px 16px;
     border-radius: 999px;
     font-size: 12px;
-    line-height: 1.15;
+    line-height: 1.2;
     font-weight: 800;
     background: var(--fierro-alert);
     color: var(--fierro-estado-text);
     border: 1px solid rgba(18, 78, 100, 0.15);
     white-space: normal;
+    margin: 0 auto;
 }
 
 .estado-cargando-pedido {
@@ -811,8 +818,9 @@ td, th {
         min-width: 170px;
     }
 
-    .estado-listado {
-        min-width: 120px;
+        .estado-listado {
+        width: 190px;
+        min-width: 190px;
     }
 }
 .wizard-step[data-step="4"] {
