@@ -519,23 +519,30 @@ td, th {
 .detalle-acciones {
     margin-top: 18px;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: flex-start;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 12px;
+    width: 100%;
 }
 
 .detalle-acciones > :first-child {
-    margin-right: auto;
+    margin-right: 0;
 }
 
 .detalle-acciones > * {
     flex: 0 0 auto;
 }
 
+.detalle-acciones .btn-volver,
+.detalle-acciones > :first-child {
+    margin-right: auto;
+}
+
 .detalle-acciones form {
     margin: 0;
     display: inline-flex;
+    flex: 0 0 auto;
 }
 
 .detalle-acciones .btn,
