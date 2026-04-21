@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card detalle-card">
+    <div class="detalle-header">
+        <div>
+            <h2>Cerrar reclamo de Mercado Libre</h2>
+            <p class="detalle-sub">Pedido #{{ pedido.id }} — {{ pedido.cliente }}</p>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="error">{{ error|safe }}</div>
+    {% endif %}
+
+    <form method="POST">
+        <div class="detalle-grid-resumen">
+            <div class="detalle-box">
+                <h3>Datos del reclamo</h3>
+
+                <label for="numero_reclamo_ml"><strong>Número de reclamo ML</strong></label>
+                <input type="text" id="numero_reclamo_ml" name="numero_reclamo_ml" value="{{ pedido.numero_reclamo_ml or '' }}">
+
+                <label for="resultado_reclamo_ml"><strong>Resultado del reclamo</strong></label>
+                <select id="resultado_reclamo_ml" name="resultado_reclamo_ml">
+                    <option value="">Seleccionar</option>
+                    <option value="reintegrado" {% if pedido.resultado_reclamo_ml == 'reintegrado' %}selected{% endif %}>Reintegrado</option>
+                    <option value="rechazado" {% if pedido.resultado_reclamo_ml == 'rechazado' %}selected{% endif %}>Rechazado</option>
+                    <option value="parcial" {% if pedido.resultado_reclamo_ml == 'parcial' %}selected{% endif %}>Parcial</option>
+                </select>
+
+                <label for="monto_recuperado_ml"><strong>Monto recuperado</strong></label>
+                <input type="number" step="0.01" min="0" id="monto_recuperado_ml" name="monto_recuperado_ml" value="{{ pedido.monto_recuperado_ml if pedido.monto_recuperado_ml is not none else '' }}">
+
+                <label for="observacion_reclamo_ml"><strong>Observación</strong></label>
+                <textarea id="observacion_reclamo_ml" name="observacion_reclamo_ml">{{ pedido.observacion_reclamo_ml or '' }}</textarea>
+            </div>
+
+            <div class="detalle-box detalle-box-full">
+                <h3>Resumen de devolución</h3>
+                <table class="tabla-items">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Descripción</th>
+                            <th>Cantidad</th>
+                            <th>Estado item</th>
+                            <th>Cant. OK</th>
+                            <th>Cant. dañada</th>
+                            <th>Observación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in pedido.items %}
+                        <tr>
+                            <td>{{ item.sku }}</td>
+                            <td>{{ item.descripcion }}</td>
+                            <td>{{ item.cantidad }}</td>
+                            <td>{{ item.estado_devolucion_item or '-' }}</td>
+                            <td>{{ item.cantidad_devuelta_ok or 0 }}</td>
+                            <td>{{ item.cantidad_devuelta_danada or 0 }}</td>
+                            <td>{{ item.observacion_devolucion_item or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="detalle-acciones">
+            <a href="{{ url_for('detalle_pedido', id=pedido.id) }}" class="btn btn-secundario btn-volver">Volver</a>
+            <button type="submit" class="btn btn-confirmar">Cerrar reclamo y finalizar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
