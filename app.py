@@ -1782,7 +1782,7 @@ def marcar_no_entregado(id):
     if not puede_editar_pedido(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id))
 
-    if pedido.estado not in ["Despachado", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
+    if pedido.estado not in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
         return redirect(url_for("detalle_pedido", id=pedido.id))
 
     pedido.estado = "Con reclamo en transporte"
