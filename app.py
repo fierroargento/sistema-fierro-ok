@@ -89,6 +89,14 @@ class Pedido(db.Model):
     fecha_devolucion = db.Column(db.DateTime)
     estado_devolucion = db.Column(db.String(50))  # pendiente / parcial / completa
     observacion_devolucion = db.Column(db.String(300))
+
+    # =====================
+    # RECLAMO MERCADO LIBRE POR DEVOLUCIÓN
+    # =====================
+    numero_reclamo_ml = db.Column(db.String(100))
+    resultado_reclamo_ml = db.Column(db.String(50))  # reintegrado / rechazado / parcial
+    monto_recuperado_ml = db.Column(db.Float)
+    observacion_reclamo_ml = db.Column(db.String(300))
     
 
     items = db.relationship("PedidoItem", cascade="all, delete-orphan")
@@ -161,6 +169,14 @@ def asegurar_columnas_extra():
     asegurar_columna_si_no_existe("fecha_devolucion", "TIMESTAMP")
     asegurar_columna_si_no_existe("estado_devolucion", "TEXT")
     asegurar_columna_si_no_existe("observacion_devolucion", "TEXT")
+    
+    # =====================
+    # RECLAMO MERCADO LIBRE POR DEVOLUCIÓN
+    # =====================
+    asegurar_columna_si_no_existe("numero_reclamo_ml", "TEXT")
+    asegurar_columna_si_no_existe("resultado_reclamo_ml", "TEXT")
+    asegurar_columna_si_no_existe("monto_recuperado_ml", "FLOAT")
+    asegurar_columna_si_no_existe("observacion_reclamo_ml", "TEXT")
 
     # =====================
     # DEVOLUCIÓN POR ITEM
@@ -642,7 +658,7 @@ def texto_boton_estado(pedido):
         return "Gestionar devolución"
 
     if pedido.estado == "Reclamar a Mercado Libre":
-        return "Ya reclamé en Mercado Libre"
+        return "Reclamo resuelto en Mercado Libre"
 
     if pedido.estado == "Entregado":
         if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
@@ -731,7 +747,7 @@ def accion_sugerida_pedido(pedido):
         return "Gestionar devolución"
 
     if pedido.estado == "Reclamar a Mercado Libre":
-        return "Gestionar reclamo en Mercado Libre"
+        return "Cerrar reclamo de Mercado Libre"
 
     if pedido.estado == "Entregado":
         if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
@@ -813,7 +829,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
     if pedido.estado == "Reclamar a Mercado Libre" and rol in ["admin", "carga"]:
         return {
             "tipo": "reclamar_ml_devolucion",
-            "texto": "Ya reclamé en Mercado Libre",
+            "texto": "Reclamo resuelto en Mercado Libre",
             "url": url_for("cerrar_reclamo_ml_devolucion", id=pedido.id),
             "clases": clase_confirmar,
             "target": "",
@@ -2027,7 +2043,7 @@ def gestionar_devolucion(id):
         error="",
         form_data=form_data
     )
-@app.route("/pedido/<int:id>/cerrar-reclamo-ml-devolucion")
+@app.route("/pedido/<int:id>/cerrar-reclamo-ml-devolucion", methods=["GET", "POST"])
 @login_required
 def cerrar_reclamo_ml_devolucion(id):
     pedido = Pedido.query.get_or_404(id)
@@ -2037,6 +2053,64 @@ def cerrar_reclamo_ml_devolucion(id):
 
     if pedido.estado != "Reclamar a Mercado Libre":
         return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    if request.method == "POST":
+        numero_reclamo_ml = (request.form.get("numero_reclamo_ml") or "").strip()
+        resultado_reclamo_ml = (request.form.get("resultado_reclamo_ml") or "").strip()
+        monto_recuperado_raw = (request.form.get("monto_recuperado_ml") or "").strip()
+        observacion_reclamo_ml = (request.form.get("observacion_reclamo_ml") or "").strip()
+
+        if not numero_reclamo_ml:
+            return render_template(
+                "cerrar_reclamo_ml_devolucion.html",
+                pedido=pedido,
+                error="Tenés que cargar el número de reclamo de Mercado Libre."
+            )
+
+        if not resultado_reclamo_ml:
+            return render_template(
+                "cerrar_reclamo_ml_devolucion.html",
+                pedido=pedido,
+                error="Tenés que indicar el resultado del reclamo."
+            )
+
+        if not monto_recuperado_raw:
+            return render_template(
+                "cerrar_reclamo_ml_devolucion.html",
+                pedido=pedido,
+                error="Tenés que indicar el monto recuperado."
+            )
+
+        try:
+            monto_recuperado_ml = float(monto_recuperado_raw.replace(",", "."))
+        except ValueError:
+            return render_template(
+                "cerrar_reclamo_ml_devolucion.html",
+                pedido=pedido,
+                error="El monto recuperado no es válido."
+            )
+
+        if monto_recuperado_ml < 0:
+            return render_template(
+                "cerrar_reclamo_ml_devolucion.html",
+                pedido=pedido,
+                error="El monto recuperado no puede ser negativo."
+            )
+
+        pedido.numero_reclamo_ml = numero_reclamo_ml
+        pedido.resultado_reclamo_ml = resultado_reclamo_ml
+        pedido.monto_recuperado_ml = monto_recuperado_ml
+        pedido.observacion_reclamo_ml = observacion_reclamo_ml
+        pedido.estado = "Finalizado"
+
+        db.session.commit()
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    return render_template(
+        "cerrar_reclamo_ml_devolucion.html",
+        pedido=pedido,
+        error=""
+    )
 
     pedido.estado = "Finalizado"
     db.session.commit()
