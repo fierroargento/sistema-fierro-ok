@@ -225,7 +225,13 @@ def guardar_etiqueta_subida(archivo):
         return ""
 
     try:
-        resultado = cloudinary.uploader.upload(archivo, resource_type="raw")
+        resultado = cloudinary.uploader.upload(
+            archivo,
+            resource_type="image",
+            use_filename=True,
+            unique_filename=True,
+            overwrite=False
+        )
         return resultado["secure_url"]
     except Exception as e:
         print("Error subiendo a Cloudinary:", e)
