@@ -1886,7 +1886,7 @@ def gestionar_devolucion(id):
                 error="La fecha de devolución no tiene un formato válido."
             )
 
-                for item in pedido.items:
+        for item in pedido.items:
             estado_item = (request.form.get(f"estado_item_{item.id}") or "").strip()
             obs_item = (request.form.get(f"obs_item_{item.id}") or "").strip()
 
