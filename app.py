@@ -753,7 +753,7 @@ def accion_sugerida_pedido(pedido):
         return "Gestionar devolución"
 
     if pedido.estado == "Reclamar a Mercado Libre":
-        return "Cerrar reclamo de Mercado Libre"
+        return "Gestionar reclamo en Meli"
 
     if pedido.estado == "Entregado":
         if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
