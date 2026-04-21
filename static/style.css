@@ -520,23 +520,31 @@ td, th {
     margin-top: 18px;
     display: flex;
     align-items: flex-end;
-    justify-content: flex-start;
+    justify-content: flex-start;.detalle-acciones {
+    margin-top: 18px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
     flex-wrap: nowrap;
     gap: 12px;
     width: 100%;
 }
 
+.detalle-acciones > div:first-child,
 .detalle-acciones > :first-child {
-    margin-right: 0;
-}
-
-.detalle-acciones > * {
-    flex: 0 0 auto;
-}
-
-.detalle-acciones .btn-volver,
-.detalle-acciones > :first-child {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
     margin-right: auto;
+}
+
+.detalle-acciones > div:last-child {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: flex-end;
 }
 
 .detalle-acciones form {
