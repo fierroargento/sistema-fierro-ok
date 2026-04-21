@@ -167,11 +167,15 @@
     <div class="hoja">
         <div class="bloque-etiqueta">
             {% if extension == "pdf" %}
-    <iframe src="{{ url_archivo }}" width="100%" height="600px"></iframe>
-        {% else %}
-    <img src="{{ url_archivo }}" alt="Etiqueta" style="max-width:100%;">
-        {% endif %}
-        </div>
+    <iframe 
+            src="{{ url_archivo }}"
+                width="100%" 
+                height="600px"
+                    style="border:none;">
+    </iframe>
+            {% else %}
+            <img src="{{ url_archivo }}" alt="Etiqueta" style="max-width:100%;">
+                {% endif %}
 
         <div class="bloque-items">
             <div class="items-titulo">ITEMS DEL PEDIDO</div>
