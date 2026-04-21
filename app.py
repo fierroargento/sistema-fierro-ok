@@ -83,6 +83,13 @@ class Pedido(db.Model):
     # NO ENTREGADO
     # =====================
     motivo_no_entregado = db.Column(db.String(300))
+    # =====================
+    # DEVOLUCIÓN
+    # =====================
+    fecha_devolucion = db.Column(db.DateTime)
+    estado_devolucion = db.Column(db.String(50))  # pendiente / parcial / completa
+    observacion_devolucion = db.Column(db.String(300))
+    
 
     items = db.relationship("PedidoItem", cascade="all, delete-orphan")
 
@@ -132,6 +139,12 @@ def asegurar_columnas_extra():
     # NO ENTREGADO
     # =====================
     asegurar_columna_si_no_existe("motivo_no_entregado", "TEXT")
+    # =====================
+    # DEVOLUCIÓN
+    # =====================
+    asegurar_columna_si_no_existe("fecha_devolucion", "TIMESTAMP")
+    asegurar_columna_si_no_existe("estado_devolucion", "TEXT")
+    asegurar_columna_si_no_existe("observacion_devolucion", "TEXT")
 
 def productos_desde_excel(archivo_excel):
     df = pd.read_excel(archivo_excel)
