@@ -1606,6 +1606,18 @@ def imprimir_etiqueta(id):
                     url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
             else:
                 url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
+        elif ((pedido.empresa_envio and "mercado" in pedido.empresa_envio.lower())
+              or es_mercado_envios(pedido)):
+            preset_etiqueta = "mercado"
+            nombre_pdf_local = asegurar_pdf_local_desde_url(pedido.etiqueta_archivo, prefijo=f"pedido_{pedido.id}_mercado")
+            if nombre_pdf_local:
+                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local, proveedor="mercado")
+                if nombre_preview:
+                    url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
+                else:
+                    url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
+            else:
+                url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
         else:
             preset_etiqueta = "default"
             url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
