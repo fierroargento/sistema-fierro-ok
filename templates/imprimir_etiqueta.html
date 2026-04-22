@@ -13,6 +13,15 @@
         box-sizing: border-box;
     }
 
+    :root {
+        --label-row: 56%;
+        --items-row: 44%;
+        --label-scale: 1.82;
+        --label-top: 0mm;
+        --label-left: 50%;
+        --label-shift-x: -50%;
+    }
+
     html, body {
         margin: 0;
         padding: 0;
@@ -21,6 +30,27 @@
         font-family: Arial, sans-serif;
         background: #e5e7eb;
         color: #1f2937;
+    }
+
+    body.preset-correo {
+        --label-scale: 1.60;
+        --label-top: 0mm;
+        --label-left: 0mm;
+        --label-shift-x: 0;
+    }
+
+    body.preset-andreani {
+        --label-scale: 1.96;
+        --label-top: 0mm;
+        --label-left: 50%;
+        --label-shift-x: -50%;
+    }
+
+    body.preset-default {
+        --label-scale: 1.82;
+        --label-top: 0mm;
+        --label-left: 50%;
+        --label-shift-x: -50%;
     }
 
     .barra {
@@ -60,32 +90,39 @@
         height: calc(297mm - 53px);
         background: white;
         display: grid;
-        grid-template-rows: 50% 50%;
+        grid-template-rows: var(--label-row) var(--items-row);
     }
 
     .bloque-etiqueta {
         border-bottom: 2px solid #000;
-        display: flex;
-        align-items: flex-start;
-        justify-content: flex-start;
-        padding: 1mm 1mm 1mm 1mm;
         overflow: hidden;
         position: relative;
+        background: white;
     }
 
-    .bloque-etiqueta img,
-    .bloque-etiqueta iframe {
+    .etiqueta-frame {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        position: relative;
+        background: white;
+    }
+
+    .etiqueta-frame img,
+    .etiqueta-frame iframe {
         display: block;
         border: none;
         background: white;
     }
 
-    .bloque-etiqueta img {
+    .etiqueta-frame img {
+        position: absolute;
+        top: var(--label-top);
+        left: var(--label-left);
         height: 100%;
         width: auto;
         max-width: none;
-        display: block;
-        transform: scale(1.78);
+        transform: translateX(var(--label-shift-x)) scale(var(--label-scale));
         transform-origin: top left;
     }
 
@@ -164,7 +201,7 @@
     }
 </style>
 </head>
-<body>
+<body class="preset-{{ preset_etiqueta }}">
     <div class="barra">
         <div class="titulo">Impresión de etiqueta - Pedido #{{ pedido.id }}</div>
         <div class="acciones">
@@ -175,7 +212,9 @@
 
     <div class="hoja">
         <div class="bloque-etiqueta">
-            <img src="{{ url_archivo }}" alt="Etiqueta">
+            <div class="etiqueta-frame">
+                <img src="{{ url_archivo }}" alt="Etiqueta">
+            </div>
         </div>
 
         <div class="bloque-items">
