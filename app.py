@@ -1552,7 +1552,7 @@ def imprimir_etiqueta(id):
     url_original = pedido.etiqueta_archivo
 
     if extension == "pdf":
-        url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
+        url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png,c_trim/")
     else:
         url_archivo = pedido.etiqueta_archivo
 
