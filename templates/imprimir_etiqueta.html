@@ -1,250 +1,87 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Imprimir etiqueta</title>
+
 <style>
-    @page {
-        size: A4;
-        margin: 0;
-    }
+@page {
+    size: A4;
+    margin: 0;
+}
 
-    * {
-        box-sizing: border-box;
-    }
+body {
+    margin: 0;
+    font-family: Arial;
+}
 
-    :root {
-        --label-row: 58%;
-        --items-row: 42%;
-        --label-scale: 1.82;
-        --label-top: 0mm;
-        --label-left: 50%;
-        --label-shift-x: -50%;
-    }
+/* CONTENEDOR MEDIA HOJA */
+.hoja {
+    width: 100%;
+    height: 50vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
 
-    html, body {
-        margin: 0;
-        padding: 0;
-        width: 210mm;
-        height: 297mm;
-        font-family: Arial, sans-serif;
-        background: #e5e7eb;
-        color: #1f2937;
-    }
+/* AREA UTIL 90% */
+.etiqueta-container {
+    width: 90%;
+    height: 90%;
+    overflow: hidden;
+    position: relative;
+}
 
-    body.preset-correo {
-        --label-scale: 1.53;
-        --label-top: 0mm;
-        --label-left: 0mm;
-        --label-shift-x: 0;
-    }
+/* PDF BASE */
+.pdf {
+    width: 100%;
+    height: auto;
+    transform-origin: top center;
+}
 
-    body.preset-andreani {
-        --label-scale: 1.96;
-        --label-top: 0mm;
-        --label-left: 50%;
-        --label-shift-x: -50%;
-    }
+/* ===== AJUSTES POR EMPRESA ===== */
 
-    body.preset-default {
-        --label-scale: 1.82;
-        --label-top: 0mm;
-        --label-left: 50%;
-        --label-shift-x: -50%;
-    }
+/* CORREO (recorte fuerte abajo) */
+.correo .pdf {
+    transform: scale(1.15) translateY(-8%);
+}
 
-    .barra {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 16px;
-        background: #cfe8d5;
-        border-bottom: 1px solid #d1d5db;
-    }
+/* ANDREANI (casi sin recorte) */
+.andreani .pdf {
+    transform: scale(1.25) translateY(-2%);
+}
 
-    .titulo {
-        font-size: 18px;
-        font-weight: 700;
-    }
+/* MERCADO ENVIOS */
+.mercado .pdf {
+    transform: scale(1.20) translateY(-5%);
+}
 
-    .acciones {
-        display: flex;
-        gap: 10px;
-    }
-
-    .btn {
-        background: #1e3a5f;
-        color: white;
-        padding: 9px 12px;
-        border-radius: 8px;
-        border: none;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 14px;
-        font-weight: 700;
-    }
-
-    .hoja {
-        width: 210mm;
-        height: calc(297mm - 53px);
-        background: white;
-        display: grid;
-        grid-template-rows: var(--label-row) var(--items-row);
-    }
-
-    .bloque-etiqueta {
-        border-bottom: 2px solid #000;
-        overflow: hidden;
-        position: relative;
-        background: white;
-    }
-
-    .etiqueta-frame {
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        position: relative;
-        background: white;
-    }
-
-    .etiqueta-frame img,
-    .etiqueta-frame iframe {
-        display: block;
-        border: none;
-        background: white;
-    }
-
-    .etiqueta-frame img {
-        position: absolute;
-        top: var(--label-top);
-        left: var(--label-left);
-        height: 100%;
-        width: auto;
-        max-width: none;
-        transform: translateX(var(--label-shift-x)) scale(var(--label-scale));
-        transform-origin: top left;
-    }
-
-    .bloque-items {
-        padding: 7mm 8mm 6mm 8mm;
-        overflow: hidden;
-    }
-
-    .items-titulo {
-        font-size: 16px;
-        font-weight: 900;
-        margin-bottom: 8px;
-        letter-spacing: 0.2px;
-    }
-
-    .tabla-items {
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: fixed;
-    }
-
-    .tabla-items th {
-        text-align: left;
-        font-size: 13px;
-        font-weight: 900;
-        padding: 6px 6px 7px 6px;
-        border-bottom: 2px solid #000;
-    }
-
-    .tabla-items td {
-        font-size: 14px;
-        padding: 7px 6px;
-        vertical-align: top;
-        border-bottom: 1px solid #d1d5db;
-        word-wrap: break-word;
-    }
-
-    .col-cantidad {
-        width: 27%;
-        font-weight: 900;
-    }
-
-    .col-sku {
-        width: 23%;
-        font-weight: 900;
-    }
-
-    .col-desc {
-        width: 50%;
-    }
-
-    .cantidad-texto {
-        font-weight: 900;
-        font-size: 15px;
-        white-space: nowrap;
-    }
-
-    .sin-items {
-        font-size: 14px;
-        color: #6b7280;
-        margin-top: 8px;
-    }
-
-    @media print {
-        html, body {
-            background: white;
-        }
-
-        .barra {
-            display: none;
-        }
-
-        .hoja {
-            height: 297mm;
-        }
-    }
+/* ITEMS ABAJO */
+.items {
+    width: 90%;
+    margin: 10px auto 0;
+    font-size: 12px;
+}
 </style>
 </head>
-<body class="preset-{{ preset_etiqueta }}">
-    <div class="barra">
-        <div class="titulo">Impresión de etiqueta - Pedido #{{ pedido.id }}</div>
-        <div class="acciones">
-            <button class="btn" onclick="window.print()">Imprimir</button>
-            <a class="btn" href="{{ url_original }}" target="_blank" rel="noopener noreferrer">Abrir original</a>
-        </div>
+
+<body>
+
+<div class="hoja">
+
+    <!-- IMPORTANTE: cambiar clase según empresa -->
+    <div class="etiqueta-container {{ tipo_envio }}">
+
+        <img src="{{ etiqueta_url }}" class="pdf">
+
     </div>
 
-    <div class="hoja">
-        <div class="bloque-etiqueta">
-            <div class="etiqueta-frame">
-                <img src="{{ url_archivo }}" alt="Etiqueta">
-            </div>
-        </div>
+</div>
 
-        <div class="bloque-items">
-            <div class="items-titulo">ITEMS DEL PEDIDO</div>
+<div class="items">
+    <b>ITEMS DEL PEDIDO</b><br><br>
+    {{ items }}
+</div>
 
-            {% if pedido.items %}
-            <table class="tabla-items">
-                <thead>
-                    <tr>
-                        <th class="col-cantidad">CANTIDAD</th>
-                        <th class="col-sku">SKU</th>
-                        <th class="col-desc">DESCRIPCIÓN</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in pedido.items %}
-                    <tr>
-                        <td class="col-cantidad">
-                            <span class="cantidad-texto">CANTIDAD X {{ item.cantidad }}</span>
-                        </td>
-                        <td class="col-sku">{{ item.sku }}</td>
-                        <td class="col-desc">{{ item.descripcion }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="sin-items">No hay items cargados en este pedido.</div>
-            {% endif %}
-        </div>
-    </div>
 </body>
 </html>
