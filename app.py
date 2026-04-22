@@ -1,9 +1,10 @@
 import os
 import re
-import pandas as pd
-import fitz
 import hashlib
 from urllib.request import urlopen
+from urllib.parse import urlparse
+import pandas as pd
+import fitz
 import cloudinary
 import cloudinary.uploader
 from datetime import datetime
@@ -245,55 +246,26 @@ def guardar_etiqueta_subida(archivo):
 
 
 
+def asegurar_pdf_local_desde_url(url_pdf, prefijo="etiqueta"):
+    if not url_pdf or not url_pdf.startswith("http"):
+        return None
 
-def _recortar_preview_pdf(doc, margen_px=18, zoom=3):
-    page = doc[0]
-    matrix = fitz.Matrix(zoom, zoom)
-    pix = page.get_pixmap(matrix=matrix, alpha=False)
+    parsed = urlparse(url_pdf)
+    extension = os.path.splitext(parsed.path)[1].lower() or ".pdf"
+    firma = hashlib.md5(url_pdf.encode("utf-8")).hexdigest()[:12]
+    nombre_archivo = secure_filename(f"{prefijo}_{firma}{extension}")
+    ruta_pdf = os.path.join(app.config["UPLOAD_FOLDER"], nombre_archivo)
 
-    width = pix.width
-    height = pix.height
-    channels = pix.n
-    data = pix.samples
+    if os.path.exists(ruta_pdf) and os.path.getsize(ruta_pdf) > 0:
+        return nombre_archivo
 
-    umbral_blanco = 245
-    min_x, min_y = width, height
-    max_x, max_y = -1, -1
-
-    for y in range(height):
-        row_offset = y * width * channels
-        for x in range(width):
-            i = row_offset + x * channels
-            r = data[i]
-            g = data[i + 1]
-            b = data[i + 2]
-
-            if r < umbral_blanco or g < umbral_blanco or b < umbral_blanco:
-                if x < min_x:
-                    min_x = x
-                if y < min_y:
-                    min_y = y
-                if x > max_x:
-                    max_x = x
-                if y > max_y:
-                    max_y = y
-
-    if max_x == -1 or max_y == -1:
-        clip_rect = page.rect
-    else:
-        min_x = max(0, min_x - margen_px)
-        min_y = max(0, min_y - margen_px)
-        max_x = min(width - 1, max_x + margen_px)
-        max_y = min(height - 1, max_y + margen_px)
-
-        clip_rect = fitz.Rect(
-            min_x / zoom,
-            min_y / zoom,
-            (max_x + 1) / zoom,
-            (max_y + 1) / zoom,
-        )
-
-    return page.get_pixmap(matrix=matrix, clip=clip_rect, alpha=False)
+    try:
+        with urlopen(url_pdf) as response, open(ruta_pdf, "wb") as salida:
+            salida.write(response.read())
+        return nombre_archivo
+    except Exception as e:
+        print("No se pudo descargar PDF para preview:", e)
+        return None
 
 
 def generar_preview_etiqueta_pdf(nombre_archivo):
@@ -315,45 +287,67 @@ def generar_preview_etiqueta_pdf(nombre_archivo):
 
     try:
         doc = fitz.open(ruta_pdf)
-        pix_recortado = _recortar_preview_pdf(doc, margen_px=18, zoom=3)
-        pix_recortado.save(ruta_preview)
-        return nombre_preview
-    except Exception:
+    except Exception as e:
+        print("No se pudo abrir PDF para preview:", e)
         return None
-    finally:
-        try:
-            doc.close()
-        except Exception:
-            pass
-
-
-def generar_preview_etiqueta_pdf_desde_url(url_pdf, sufijo="default"):
-    if not url_pdf:
-        return None
-
-    hash_fuente = hashlib.md5(f"{sufijo}|{url_pdf}".encode("utf-8")).hexdigest()
-    nombre_preview = f"preview_{hash_fuente}.png"
-    ruta_preview = os.path.join(app.config["UPLOAD_FOLDER"], nombre_preview)
-
-    if os.path.exists(ruta_preview):
-        return nombre_preview
 
     try:
-        with urlopen(url_pdf) as respuesta:
-            pdf_bytes = respuesta.read()
+        page = doc[0]
+        zoom = 3
+        matrix = fitz.Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=matrix, alpha=False)
 
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        pix_recortado = _recortar_preview_pdf(doc, margen_px=18, zoom=3)
+        width = pix.width
+        height = pix.height
+        channels = pix.n
+        data = pix.samples
+
+        umbral_blanco = 245
+        min_x, min_y = width, height
+        max_x, max_y = -1, -1
+
+        for y in range(height):
+            row_offset = y * width * channels
+            for x in range(width):
+                i = row_offset + x * channels
+                r = data[i]
+                g = data[i + 1]
+                b = data[i + 2]
+
+                if r < umbral_blanco or g < umbral_blanco or b < umbral_blanco:
+                    if x < min_x:
+                        min_x = x
+                    if y < min_y:
+                        min_y = y
+                    if x > max_x:
+                        max_x = x
+                    if y > max_y:
+                        max_y = y
+
+        if max_x == -1 or max_y == -1:
+            clip_rect = page.rect
+        else:
+            margen_px = 12
+            min_x = max(0, min_x - margen_px)
+            min_y = max(0, min_y - margen_px)
+            max_x = min(width - 1, max_x + margen_px)
+            max_y = min(height - 1, max_y + margen_px)
+
+            clip_rect = fitz.Rect(
+                min_x / zoom,
+                min_y / zoom,
+                (max_x + 1) / zoom,
+                (max_y + 1) / zoom,
+            )
+
+        pix_recortado = page.get_pixmap(matrix=matrix, clip=clip_rect, alpha=False)
         pix_recortado.save(ruta_preview)
         return nombre_preview
     except Exception as e:
-        print("No se pudo generar preview PDF desde URL:", e)
+        print("No se pudo generar preview recortada:", e)
         return None
     finally:
-        try:
-            doc.close()
-        except Exception:
-            pass
+        doc.close()
 
 def hay_autorizado(pedido):
     return bool(
@@ -1499,10 +1493,7 @@ def productos():
 @app.route("/uploads/<path:nombre_archivo>")
 @login_required
 def ver_etiqueta(nombre_archivo):
-    ruta_archivo = os.path.join(app.config["UPLOAD_FOLDER"], nombre_archivo)
-    if os.path.exists(ruta_archivo):
-        return send_from_directory(app.config["UPLOAD_FOLDER"], nombre_archivo)
-    return "Archivo local no encontrado.", 404
+    return send_from_directory(app.config["UPLOAD_FOLDER"], nombre_archivo)
 
 
 @app.route("/pedido/<int:id>/lanzar-impresion")
@@ -1588,18 +1579,22 @@ def imprimir_etiqueta(id):
 
     if extension == "pdf":
         if pedido.empresa_envio and "andreani" in pedido.empresa_envio.lower():
-            nombre_preview = generar_preview_etiqueta_pdf_desde_url(pedido.etiqueta_archivo, sufijo="andreani")
-            if nombre_preview:
-                url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
+            preset_etiqueta = "andreani"
+            nombre_pdf_local = asegurar_pdf_local_desde_url(pedido.etiqueta_archivo, prefijo=f"pedido_{pedido.id}_andreani")
+            if nombre_pdf_local:
+                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local)
+                if nombre_preview:
+                    url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
+                else:
+                    url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
             else:
                 url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
-            preset_etiqueta = "andreani"
         elif pedido.empresa_envio and "correo" in pedido.empresa_envio.lower():
-            url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
             preset_etiqueta = "correo"
-        else:
             url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
+        else:
             preset_etiqueta = "default"
+            url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
     else:
         url_archivo = pedido.etiqueta_archivo
         preset_etiqueta = "default"
