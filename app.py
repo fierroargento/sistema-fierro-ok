@@ -1556,8 +1556,6 @@ def imprimir_etiqueta(id):
 
         if pedido.empresa_envio and "andreani" in pedido.empresa_envio.lower():
             preset_etiqueta = "andreani"
-        elif pedido.empresa_envio and "correo" in pedido.empresa_envio.lower():
-            preset_etiqueta = "correo"
         else:
             preset_etiqueta = "default"
     else:
