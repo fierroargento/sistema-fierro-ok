@@ -60,7 +60,7 @@
         height: calc(297mm - 53px);
         background: white;
         display: grid;
-        grid-template-rows: 50% 50%;
+        grid-template-rows: 62% 38%;
     }
 
     .bloque-etiqueta {
@@ -68,23 +68,23 @@
         display: flex;
         align-items: flex-start;
         justify-content: flex-start;
-        padding: 3mm 3mm 2mm 3mm;
+        padding: 2mm 2mm 2mm 2mm;
         overflow: hidden;
+        position: relative;
     }
 
     .bloque-etiqueta img,
     .bloque-etiqueta iframe {
-        width: auto;
-        height: 100%;
-        max-width: none;
         display: block;
         border: none;
         background: white;
     }
 
     .bloque-etiqueta img {
-        object-fit: contain;
-        object-position: top left;
+        width: 240%;
+        height: auto;
+        max-width: none;
+        transform-origin: top left;
     }
 
     .bloque-items {
@@ -173,7 +173,7 @@
 
     <div class="hoja">
         <div class="bloque-etiqueta">
-            <img src="{{ url_archivo }}" alt="Etiqueta" style="height:100%; width:auto; max-width:none;">
+            <img src="{{ url_archivo }}" alt="Etiqueta">
         </div>
 
         <div class="bloque-items">
