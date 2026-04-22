@@ -293,10 +293,6 @@ def _recortar_preview_pdf(doc, proveedor="default", margen_px=12, zoom=3):
     elif proveedor == "mercado" and landscape:
         col_threshold = 0.02
         row_threshold = 0.002
-    elif proveedor == "mercado" and not landscape:
-        # Etiqueta ML portrait: mostrar completa, solo recortar márgenes blancos vacíos.
-        col_threshold = 0.001
-        row_threshold = 0.001
 
     col_density = mask.mean(axis=0)
     cols = np.where(col_density > col_threshold)[0]
@@ -1604,17 +1600,6 @@ def imprimir_etiqueta(id):
             nombre_pdf_local = asegurar_pdf_local_desde_url(pedido.etiqueta_archivo, prefijo=f"pedido_{pedido.id}_correo")
             if nombre_pdf_local:
                 nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local, proveedor="correo")
-                if nombre_preview:
-                    url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
-                else:
-                    url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
-            else:
-                url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
-        elif es_mercado_envios(pedido):
-            preset_etiqueta = "mercado"
-            nombre_pdf_local = asegurar_pdf_local_desde_url(pedido.etiqueta_archivo, prefijo=f"pedido_{pedido.id}_mercado")
-            if nombre_pdf_local:
-                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local, proveedor="mercado")
                 if nombre_preview:
                     url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
                 else:
