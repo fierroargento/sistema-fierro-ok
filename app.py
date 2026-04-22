@@ -2279,6 +2279,9 @@ def avanzar_pedido(id):
         aplicar_estado_y_fechas(pedido, nuevo)
         db.session.commit()
 
+    if rol_actual() == "despacho" and pedido.estado in ["Embalado", "Despachado"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
     return redirect(url_for("inicio"))
 
 
