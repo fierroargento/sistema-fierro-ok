@@ -1552,27 +1552,13 @@ def imprimir_etiqueta(id):
     url_original = pedido.etiqueta_archivo
 
     if extension == "pdf":
+        url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
+
         if pedido.empresa_envio and "andreani" in pedido.empresa_envio.lower():
-            # ANDREANI → formato vertical
-            url_archivo = pedido.etiqueta_archivo.replace(
-                "/upload/",
-                "/upload/pg_1,f_png/"
-            )
             preset_etiqueta = "andreani"
-
         elif pedido.empresa_envio and "correo" in pedido.empresa_envio.lower():
-            # CORREO → formato horizontal
-            url_archivo = pedido.etiqueta_archivo.replace(
-                "/upload/",
-                "/upload/pg_1,f_png/"
-            )
             preset_etiqueta = "correo"
-
         else:
-            url_archivo = pedido.etiqueta_archivo.replace(
-                "/upload/",
-                "/upload/pg_1,f_png/"
-            )
             preset_etiqueta = "default"
     else:
         url_archivo = pedido.etiqueta_archivo
