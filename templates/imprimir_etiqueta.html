@@ -72,12 +72,18 @@
         overflow: hidden;
     }
 
-    .bloque-etiqueta img {
-        width: auto;
-        height: 90%;
+    .bloque-etiqueta img,
+    .bloque-etiqueta iframe {
+        width: 100%;
+        height: 100%;
         max-width: 100%;
-        object-fit: contain;
         display: block;
+        border: none;
+        background: white;
+    }
+
+    .bloque-etiqueta img {
+        object-fit: contain;
     }
 
     .bloque-items {
@@ -164,7 +170,6 @@
         </div>
     </div>
 
-    <div class="hoja">
     <div class="hoja">
         <div class="bloque-etiqueta">
             {% if extension == "pdf" %}
