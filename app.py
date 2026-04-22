@@ -4,6 +4,7 @@ import hashlib
 from urllib.request import urlopen
 from urllib.parse import urlparse
 import pandas as pd
+import numpy as np
 import fitz
 import cloudinary
 import cloudinary.uploader
@@ -268,14 +269,67 @@ def asegurar_pdf_local_desde_url(url_pdf, prefijo="etiqueta"):
         return None
 
 
-def generar_preview_etiqueta_pdf(nombre_archivo):
+def _recortar_preview_pdf(doc, proveedor="default", margen_px=12, zoom=3):
+    page = doc[0]
+    matrix = fitz.Matrix(zoom, zoom)
+    pix = page.get_pixmap(matrix=matrix, alpha=False)
+
+    arr = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)[:, :, :3]
+    mask = np.any(arr < 245, axis=2)
+
+    if not mask.any():
+        return page.get_pixmap(matrix=matrix, alpha=False)
+
+    width = pix.width
+    height = pix.height
+    landscape = width > height
+
+    col_threshold = 0.001
+    row_threshold = 0.001
+
+    if proveedor == "correo" and landscape:
+        col_threshold = 0.005
+        row_threshold = 0.002
+    elif proveedor == "mercado" and landscape:
+        col_threshold = 0.02
+        row_threshold = 0.002
+
+    col_density = mask.mean(axis=0)
+    cols = np.where(col_density > col_threshold)[0]
+    if cols.size == 0:
+        cols = np.where(col_density > 0.001)[0]
+    if cols.size == 0:
+        cols = np.arange(width)
+
+    row_density = mask[:, cols[0]:cols[-1] + 1].mean(axis=1)
+    rows = np.where(row_density > row_threshold)[0]
+    if rows.size == 0:
+        rows = np.where(mask.mean(axis=1) > 0.001)[0]
+    if rows.size == 0:
+        rows = np.arange(height)
+
+    min_x = max(0, int(cols[0]) - margen_px)
+    max_x = min(width - 1, int(cols[-1]) + margen_px)
+    min_y = max(0, int(rows[0]) - margen_px)
+    max_y = min(height - 1, int(rows[-1]) + margen_px)
+
+    clip_rect = fitz.Rect(
+        min_x / zoom,
+        min_y / zoom,
+        (max_x + 1) / zoom,
+        (max_y + 1) / zoom,
+    )
+    return page.get_pixmap(matrix=matrix, clip=clip_rect, alpha=False)
+
+
+def generar_preview_etiqueta_pdf(nombre_archivo, proveedor="default"):
     ruta_pdf = os.path.join(app.config["UPLOAD_FOLDER"], nombre_archivo)
 
     if not os.path.exists(ruta_pdf):
         return None
 
     base_nombre = os.path.splitext(nombre_archivo)[0]
-    nombre_preview = f"{base_nombre}__preview_recortado.png"
+    nombre_preview = f"{base_nombre}__preview_recortado_{proveedor}.png"
     ruta_preview = os.path.join(app.config["UPLOAD_FOLDER"], nombre_preview)
 
     if os.path.exists(ruta_preview):
@@ -292,55 +346,7 @@ def generar_preview_etiqueta_pdf(nombre_archivo):
         return None
 
     try:
-        page = doc[0]
-        zoom = 3
-        matrix = fitz.Matrix(zoom, zoom)
-        pix = page.get_pixmap(matrix=matrix, alpha=False)
-
-        width = pix.width
-        height = pix.height
-        channels = pix.n
-        data = pix.samples
-
-        umbral_blanco = 245
-        min_x, min_y = width, height
-        max_x, max_y = -1, -1
-
-        for y in range(height):
-            row_offset = y * width * channels
-            for x in range(width):
-                i = row_offset + x * channels
-                r = data[i]
-                g = data[i + 1]
-                b = data[i + 2]
-
-                if r < umbral_blanco or g < umbral_blanco or b < umbral_blanco:
-                    if x < min_x:
-                        min_x = x
-                    if y < min_y:
-                        min_y = y
-                    if x > max_x:
-                        max_x = x
-                    if y > max_y:
-                        max_y = y
-
-        if max_x == -1 or max_y == -1:
-            clip_rect = page.rect
-        else:
-            margen_px = 12
-            min_x = max(0, min_x - margen_px)
-            min_y = max(0, min_y - margen_px)
-            max_x = min(width - 1, max_x + margen_px)
-            max_y = min(height - 1, max_y + margen_px)
-
-            clip_rect = fitz.Rect(
-                min_x / zoom,
-                min_y / zoom,
-                (max_x + 1) / zoom,
-                (max_y + 1) / zoom,
-            )
-
-        pix_recortado = page.get_pixmap(matrix=matrix, clip=clip_rect, alpha=False)
+        pix_recortado = _recortar_preview_pdf(doc, proveedor=proveedor, margen_px=12, zoom=3)
         pix_recortado.save(ruta_preview)
         return nombre_preview
     except Exception as e:
@@ -1582,7 +1588,7 @@ def imprimir_etiqueta(id):
             preset_etiqueta = "andreani"
             nombre_pdf_local = asegurar_pdf_local_desde_url(pedido.etiqueta_archivo, prefijo=f"pedido_{pedido.id}_andreani")
             if nombre_pdf_local:
-                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local)
+                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local, proveedor="andreani")
                 if nombre_preview:
                     url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
                 else:
@@ -1591,7 +1597,15 @@ def imprimir_etiqueta(id):
                 url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
         elif pedido.empresa_envio and "correo" in pedido.empresa_envio.lower():
             preset_etiqueta = "correo"
-            url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
+            nombre_pdf_local = asegurar_pdf_local_desde_url(pedido.etiqueta_archivo, prefijo=f"pedido_{pedido.id}_correo")
+            if nombre_pdf_local:
+                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local, proveedor="correo")
+                if nombre_preview:
+                    url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
+                else:
+                    url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
+            else:
+                url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
         else:
             preset_etiqueta = "default"
             url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
