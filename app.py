@@ -1209,7 +1209,7 @@ def puede_ver_pedido(pedido):
         return pedido.estado in ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado"]
 
     if rol == "despacho":
-        return pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado", "Despachado"]
+        return pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]
 
     return False
 
