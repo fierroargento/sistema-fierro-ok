@@ -66,17 +66,17 @@
     .bloque-etiqueta {
         border-bottom: 2px solid #000;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 4mm 6mm 3mm 6mm;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 3mm 3mm 2mm 3mm;
         overflow: hidden;
     }
 
     .bloque-etiqueta img,
     .bloque-etiqueta iframe {
-        width: 100%;
+        width: auto;
         height: 100%;
-        max-width: 100%;
+        max-width: none;
         display: block;
         border: none;
         background: white;
@@ -84,6 +84,7 @@
 
     .bloque-etiqueta img {
         object-fit: contain;
+        object-position: top left;
     }
 
     .bloque-items {
@@ -172,7 +173,7 @@
 
     <div class="hoja">
         <div class="bloque-etiqueta">
-            <img src="{{ url_archivo }}" alt="Etiqueta" style="max-width:100%; max-height:100%;">
+            <img src="{{ url_archivo }}" alt="Etiqueta" style="height:100%; width:auto; max-width:none;">
         </div>
 
         <div class="bloque-items">
