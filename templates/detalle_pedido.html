@@ -93,7 +93,7 @@
     <div class="detalle-header">
         <div>
             <h2>Pedido #{{ pedido.id }}</h2>
-            <p class="detalle-sub">{{ pedido.cliente or "-" }} | {{ pedido.canal or "-" }}</p>
+            <p class="detalle-sub">{{ (pedido.cliente or "-")|upper }} | {{ pedido.canal or "-" }}</p>
         </div>
 
         <div class="detalle-header-central">
@@ -117,7 +117,7 @@
 
         <div class="detalle-box">
             <h3>Cliente</h3>
-            <p><strong>Nombre:</strong> {{ pedido.cliente or "-" }}</p>
+            <p><strong>Nombre:</strong> {{ (pedido.cliente or "-")|upper }}</p>
             <p><strong>DNI:</strong> {{ pedido.dni or "-" }}</p>
             <p><strong>Teléfono:</strong> {{ pedido.telefono or "-" }}</p>
             <p><strong>Mail:</strong> {{ pedido.mail or "-" }}</p>
@@ -140,7 +140,7 @@
             {% endif %}
             <p><strong>Etiqueta:</strong>
                 {% if pedido.etiqueta_archivo %}
-                    <a href="{{ url_for('ver_etiqueta', nombre_archivo=pedido.etiqueta_archivo) }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                    <a href="{{ pedido.etiqueta_archivo }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
                 {% elif pedido.empresa_envio == "Vía Cargo" %}
                     Etiqueta interna
                 {% else %}
