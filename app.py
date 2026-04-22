@@ -1551,41 +1551,41 @@ def imprimir_etiqueta(id):
 
     url_original = pedido.etiqueta_archivo
 
-if extension == "pdf":
-    if pedido.empresa_envio and "andreani" in pedido.empresa_envio.lower():
-        # ANDREANI → formato vertical
-        url_archivo = pedido.etiqueta_archivo.replace(
-            "/upload/",
-            "/upload/pg_1,f_png/"
-        )
-        preset_etiqueta = "andreani"
+    if extension == "pdf":
+        if pedido.empresa_envio and "andreani" in pedido.empresa_envio.lower():
+            # ANDREANI → formato vertical
+            url_archivo = pedido.etiqueta_archivo.replace(
+                "/upload/",
+                "/upload/pg_1,f_png/"
+            )
+            preset_etiqueta = "andreani"
 
-    elif pedido.empresa_envio and "correo" in pedido.empresa_envio.lower():
-        # CORREO → formato horizontal
-        url_archivo = pedido.etiqueta_archivo.replace(
-            "/upload/",
-            "/upload/pg_1,f_png/"
-        )
-        preset_etiqueta = "correo"
+        elif pedido.empresa_envio and "correo" in pedido.empresa_envio.lower():
+            # CORREO → formato horizontal
+            url_archivo = pedido.etiqueta_archivo.replace(
+                "/upload/",
+                "/upload/pg_1,f_png/"
+            )
+            preset_etiqueta = "correo"
 
+        else:
+            url_archivo = pedido.etiqueta_archivo.replace(
+                "/upload/",
+                "/upload/pg_1,f_png/"
+            )
+            preset_etiqueta = "default"
     else:
-        url_archivo = pedido.etiqueta_archivo.replace(
-            "/upload/",
-            "/upload/pg_1,f_png/"
-        )
+        url_archivo = pedido.etiqueta_archivo
         preset_etiqueta = "default"
-else:
-    url_archivo = pedido.etiqueta_archivo
-    preset_etiqueta = "default"
 
-return render_template(
-    "imprimir_etiqueta.html",
-    pedido=pedido,
-    url_archivo=url_archivo,
-    url_original=url_original,
-    extension=extension,
-    preset_etiqueta=preset_etiqueta
-)
+    return render_template(
+        "imprimir_etiqueta.html",
+        pedido=pedido,
+        url_archivo=url_archivo,
+        url_original=url_original,
+        extension=extension,
+        preset_etiqueta=preset_etiqueta
+    )
 
 
 @app.route("/nuevo", methods=["GET", "POST"])
