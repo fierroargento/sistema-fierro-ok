@@ -232,10 +232,13 @@ def guardar_etiqueta_subida(archivo):
             unique_filename=True,
             overwrite=False
         )
-        return resultado["secure_url"]
+        return {
+            "url": resultado.get("secure_url", ""),
+            "public_id": resultado.get("public_id", "")
+        }
     except Exception as e:
         print("Error subiendo a Cloudinary:", e)
-        return ""
+        return {"url": "", "public_id": ""}
 
 
 
@@ -1547,7 +1550,11 @@ def imprimir_etiqueta(id):
         )
 
     url_original = pedido.etiqueta_archivo
-    url_archivo = pedido.etiqueta_archivo
+
+    if extension == "pdf":
+        url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
+    else:
+        url_archivo = pedido.etiqueta_archivo
 
     return render_template(
         "imprimir_etiqueta.html",
@@ -1569,7 +1576,8 @@ def nuevo_pedido():
         archivo_etiqueta = request.files.get("etiqueta")
 
         if archivo_etiqueta and archivo_etiqueta.filename:
-            etiqueta_existente = guardar_etiqueta_subida(archivo_etiqueta)
+            subida = guardar_etiqueta_subida(archivo_etiqueta)
+            etiqueta_existente = subida.get("url", "")
 
         canal = request.form.get("canal")
         ml_tipo = request.form.get("ml_tipo")
@@ -1736,7 +1744,8 @@ def editar_pedido(id):
         archivo_etiqueta = request.files.get("etiqueta")
 
         if archivo_etiqueta and archivo_etiqueta.filename:
-            etiqueta_actual = guardar_etiqueta_subida(archivo_etiqueta)
+            subida = guardar_etiqueta_subida(archivo_etiqueta)
+            etiqueta_actual = subida.get("url", "")
 
         canal = request.form.get("canal")
         ml_tipo = request.form.get("ml_tipo")
