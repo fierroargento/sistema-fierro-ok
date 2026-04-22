@@ -16,11 +16,11 @@
     :root {
         --label-row: 58%;
         --items-row: 42%;
-        --img-width: 78%;
-        --img-height: auto;
+        --img-width: auto;
+        --img-height: 100%;
         --img-left: 50%;
-        --img-top: 4mm;
-        --img-transform: translateX(-50%);
+        --img-top: 0%;
+        --img-transform: translate(-50%, 0) scale(1.82);
         --img-origin: top center;
     }
 
@@ -32,17 +32,6 @@
         font-family: Arial, sans-serif;
         background: #e5e7eb;
         color: #1f2937;
-    }
-
-    body.preset-andreani {
-        --label-row: 58%;
-        --items-row: 42%;
-        --img-width: 78%;
-        --img-height: auto;
-        --img-left: 50%;
-        --img-top: 3mm;
-        --img-transform: translateX(-50%);
-        --img-origin: top center;
     }
 
     body.preset-correo {
@@ -63,12 +52,21 @@
         --img-origin: center center;
     }
 
-    body.preset-default {
-        --img-width: 82%;
-        --img-height: auto;
+    body.preset-andreani {
+        --img-width: auto;
+        --img-height: 100%;
         --img-left: 50%;
-        --img-top: 4mm;
-        --img-transform: translateX(-50%);
+        --img-top: 50%;
+        --img-transform: translate(-50%, -50%);
+        --img-origin: center center;
+    }
+
+    body.preset-default {
+        --img-width: auto;
+        --img-height: 100%;
+        --img-left: 50%;
+        --img-top: 0%;
+        --img-transform: translate(-50%, 0) scale(1.82);
         --img-origin: top center;
     }
 
@@ -248,15 +246,17 @@
                 <tbody>
                     {% for item in pedido.items %}
                     <tr>
-                        <td class="col-cantidad"><span class="cantidad-texto">CANTIDAD X {{ item.cantidad }}</span></td>
-                        <td class="col-sku">{{ item.sku or '-' }}</td>
-                        <td class="col-desc">{{ item.descripcion or '-' }}</td>
+                        <td class="col-cantidad">
+                            <span class="cantidad-texto">CANTIDAD X {{ item.cantidad }}</span>
+                        </td>
+                        <td class="col-sku">{{ item.sku }}</td>
+                        <td class="col-desc">{{ item.descripcion }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
             {% else %}
-            <div class="sin-items">Sin items cargados.</div>
+            <div class="sin-items">No hay items cargados en este pedido.</div>
             {% endif %}
         </div>
     </div>
