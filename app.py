@@ -48,6 +48,7 @@ USUARIOS = {
 
 
 class Pedido(db.Model):
+    ml_pack_id = db.Column(db.String(50))
     id = db.Column(db.Integer, primary_key=True)
 
     cliente = db.Column(db.String(120), nullable=False)
