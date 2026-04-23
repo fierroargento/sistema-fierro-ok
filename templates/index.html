@@ -96,7 +96,7 @@
                 </td>
                 {% endif %}
                 <td class="col-acciones">
-                    <a href="{{ url_for('detalle_pedido', id=p.id) }}" class="btn btn-secundario">
+                    <a href="{{ url_for('detalle_pedido', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
                         {% if rol_actual in ['despacho', 'carga'] %}
                             Procesar pedido
                         {% else %}
