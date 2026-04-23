@@ -1537,6 +1537,19 @@ def ml_obtener_order(order_id):
 def ml_obtener_shipment(shipping_id):
     if not shipping_id:
         return {}
+
+def ml_obtener_etiqueta_url(shipping_id):
+    if not shipping_id:
+        return None
+    try:
+        data = ml_api_get("/shipment_labels", params={"shipment_ids": shipping_id})
+        results = data.get("results") or []
+        if results:
+            return results[0].get("url")
+    except Exception as e:
+        print("No se pudo obtener etiqueta ML:", e)
+    return None
+
     try:
         return ml_api_get(f"/shipments/{shipping_id}")
     except Exception as e:
@@ -1614,19 +1627,30 @@ def ml_aplicar_datos_envio(pedido, order, shipment):
 
     pedido.ml_tipo = ml_mapear_tipo(order, shipment)
     pedido.tipo_entrega = ml_mapear_tipo_entrega(order, shipment)
+
     pedido.seguimiento = (
         shipment.get("tracking_number")
         or shipment.get("tracking_method")
         or pedido.seguimiento
     )
+
     if pedido.ml_tipo == "Mercado Envíos":
         pedido.empresa_envio = "Mercado Envíos"
+
     pedido.direccion = receiver_address.get("address_line") or pedido.direccion
     pedido.codigo_postal = receiver_address.get("zip_code") or pedido.codigo_postal
     pedido.localidad = city.get("name") or pedido.localidad
     pedido.provincia = state.get("name") or pedido.provincia
     pedido.sucursal_nombre = receiver_address.get("agency_name") or pedido.sucursal_nombre
     pedido.ml_shipping_status = shipment.get("status") or shipping.get("status") or pedido.ml_shipping_status
+
+    if pedido.ml_tipo == "Mercado Envíos" and pedido.ml_shipping_id:
+        if not pedido.etiqueta_archivo:
+            url_etiqueta = ml_obtener_etiqueta_url(pedido.ml_shipping_id)
+            if url_etiqueta:
+                nombre_pdf = asegurar_pdf_local_desde_url(url_etiqueta, prefijo="ml")
+                if nombre_pdf:
+                    pedido.etiqueta_archivo = nombre_pdf
 
 
 def ml_pedido_existente_por_order_id(order_id):
