@@ -2748,13 +2748,14 @@ def avanzar_pedido(id):
 
 with app.app_context():
     db.create_all()
-    # LIMPIEZA TOTAL (EJECUTAR UNA SOLA VEZ)
-from sqlalchemy import text
-
+# LIMPIEZA TOTAL (EJECUTAR UNA SOLA VEZ)
 with app.app_context():
+    db.create_all()
+    asegurar_columnas_extra()
+    asegurar_columnas_integracion_ml()
+
     db.session.execute(text("DELETE FROM pedido_item"))
     db.session.execute(text("DELETE FROM pedido"))
-    db.session.execute(text("DELETE FROM archivo_adjunto"))
     db.session.execute(text("DELETE FROM mercado_libre_cuenta"))
     db.session.commit()
     asegurar_columnas_extra()
