@@ -48,8 +48,11 @@ USUARIOS = {
 
 
 class Pedido(db.Model):
+    origen = db.Column(db.String(30))
     ml_pack_id = db.Column(db.String(50))
+    ml_order_status = db.Column(db.String(50))
     ml_shipping_status = db.Column(db.String(50))
+    ultima_sync_ml = db.Column(db.DateTime)
     id = db.Column(db.Integer, primary_key=True)
 
     cliente = db.Column(db.String(120), nullable=False)
@@ -1587,12 +1590,47 @@ def ml_aplicar_datos_envio(pedido, order, shipment):
     pedido.ml_shipping_status = shipment.get("status") or shipping.get("status") or pedido.ml_shipping_status
 
 
-def ml_upsert_pedido_desde_order(order):
+def ml_pedido_existente_por_order_id(order_id):
+    if not order_id:
+        return None
+
+    pedido = (
+        Pedido.query
+        .filter_by(canal="Mercado Libre", id_venta=order_id)
+        .order_by(Pedido.id.asc())
+        .first()
+    )
+
+    if pedido:
+        return pedido
+
+    return (
+        Pedido.query
+        .filter_by(id_venta=order_id)
+        .order_by(Pedido.id.asc())
+        .first()
+    )
+
+
+def ml_order_debe_omitirse(order):
     order_id = str(order.get("id") or "").strip()
     if not order_id:
-        return None, False
+        return True, "sin ID de orden"
 
-    pedido = Pedido.query.filter_by(id_venta=order_id).first()
+    estado = str(order.get("status") or "").lower().strip()
+    if estado in ["cancelled", "invalid"]:
+        return True, f"estado ML {estado}"
+
+    return False, ""
+
+
+def ml_upsert_pedido_desde_order(order):
+    omitir, motivo_omision = ml_order_debe_omitirse(order)
+    if omitir:
+        return None, False, motivo_omision
+
+    order_id = str(order.get("id") or "").strip()
+    pedido = ml_pedido_existente_por_order_id(order_id)
     creado = pedido is None
 
     if creado:
@@ -1601,15 +1639,16 @@ def ml_upsert_pedido_desde_order(order):
             canal="Mercado Libre",
             id_venta=order_id,
             estado="Cargando Pedido",
+            origen="mercadolibre",
         )
         db.session.add(pedido)
 
     shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
 
     pedido.origen = "mercadolibre"
-    pedido.cliente = ml_nombre_cliente(order)
     pedido.canal = "Mercado Libre"
     pedido.id_venta = order_id
+    pedido.cliente = ml_nombre_cliente(order) or pedido.cliente
     pedido.mail = pedido.mail or ""
     pedido.telefono = pedido.telefono or ""
     pedido.observaciones = (pedido.observaciones or "").strip()
@@ -1626,6 +1665,9 @@ def ml_upsert_pedido_desde_order(order):
     for order_item in order_items:
         item_data = order_item.get("item") or {}
         sku = str(item_data.get("seller_sku") or item_data.get("id") or "").strip()
+        if not sku:
+            sku = str(item_data.get("id") or "SIN-SKU").strip()
+
         descripcion = str(item_data.get("title") or "Producto ML").strip()
         cantidad = int(order_item.get("quantity") or 1)
 
@@ -1638,13 +1680,18 @@ def ml_upsert_pedido_desde_order(order):
             item.cantidad = cantidad
         usados.add(sku)
 
-    for sku, item in list(existentes.items()):
-        if sku not in usados:
-            db.session.delete(item)
+    if pedido.estado == "Cargando Pedido":
+        for sku, item in list(existentes.items()):
+            if sku not in usados:
+                db.session.delete(item)
 
+    estado_anterior = pedido.estado
     actualizar_estado_automatico(pedido)
-    return pedido, creado
 
+    if not creado and estado_anterior != pedido.estado and estado_anterior != "Cargando Pedido":
+        pedido.estado = estado_anterior
+
+    return pedido, creado, ""
 
 def ml_sync_manual(limit=20):
     cuenta = cuenta_ml_actual()
@@ -1654,25 +1701,43 @@ def ml_sync_manual(limit=20):
     orders = ml_obtener_orders_recientes(cuenta, limit=limit)
     creados = 0
     actualizados = 0
+    omitidos = 0
+    errores = []
 
     for order in orders:
-        pedido, creado = ml_upsert_pedido_desde_order(order)
-        if not pedido:
-            continue
-        if creado:
-            creados += 1
-        else:
-            actualizados += 1
+        order_id = str(order.get("id") or "").strip() or "sin_id"
+        try:
+            pedido, creado, motivo_omision = ml_upsert_pedido_desde_order(order)
+            if not pedido:
+                omitidos += 1
+                if motivo_omision:
+                    errores.append(f"{order_id}: omitido ({motivo_omision})")
+                continue
+
+            if creado:
+                creados += 1
+            else:
+                actualizados += 1
+        except Exception as e:
+            omitidos += 1
+            errores.append(f"{order_id}: {e}")
 
     cuenta.last_sync_at = datetime.utcnow()
-    cuenta.last_sync_status = "ok"
-    cuenta.last_sync_detail = f"Pedidos leídos: {len(orders)} | Nuevos: {creados} | Actualizados: {actualizados}"
+    cuenta.last_sync_status = "ok" if not errores else "parcial"
+
+    detalle = f"Pedidos leídos: {len(orders)} | Nuevos: {creados} | Actualizados: {actualizados} | Omitidos: {omitidos}"
+    if errores:
+        detalle += " | Detalle: " + " ; ".join(errores[:5])
+
+    cuenta.last_sync_detail = detalle
     db.session.commit()
 
     return {
         "leidos": len(orders),
         "creados": creados,
         "actualizados": actualizados,
+        "omitidos": omitidos,
+        "errores": errores,
     }
 
 
@@ -1903,7 +1968,12 @@ def sync_mercadolibre():
 
     try:
         resultado = ml_sync_manual(limit=20)
-        mensaje = f"Sync ML OK. Leídos: {resultado['leidos']} | Nuevos: {resultado['creados']} | Actualizados: {resultado['actualizados']}"
+        mensaje = (
+            f"Sync ML OK. Leídos: {resultado['leidos']} | "
+            f"Nuevos: {resultado['creados']} | "
+            f"Actualizados: {resultado['actualizados']} | "
+            f"Omitidos: {resultado['omitidos']}"
+        )
         return redirect(url_for("admin_integraciones", ok=mensaje))
     except Exception as e:
         if cuenta:
