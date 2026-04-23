@@ -10,6 +10,16 @@
         </div>
     </div>
 
+    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 18px; flex-wrap: wrap;">
+        <input
+            type="text"
+            id="buscador_historico"
+            placeholder="Buscar por cliente, ID venta o seguimiento"
+            style="min-width: 320px; max-width: 520px; width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 14px;"
+        >
+        <button type="button" class="btn btn-secundario" onclick="limpiarBusquedaHistorico()">Limpiar</button>
+    </div>
+
     <table class="tabla-pedidos">
         <thead>
             <tr>
@@ -23,11 +33,11 @@
                 <th></th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="tabla_historico_body">
             {% for p in pedidos %}
-            <tr>
+            <tr data-cliente="{{ (p.cliente or '')|lower }}" data-idventa="{{ (p.id_venta or '')|lower }}" data-seguimiento="{{ (p.seguimiento or '')|lower }}">
                 <td>{{ p.id }}</td>
-                <td>{{ p.cliente }}</td>
+                <td>{{ (p.cliente or '-')|upper }}</td>
                 <td>{{ p.id_venta or "-" }}</td>
                 <td>{{ p.canal or "-" }}</td>
                 <td>{{ p.seguimiento or "-" }}</td>
@@ -42,12 +52,50 @@
                 </td>
             </tr>
             {% else %}
-            <tr>
+            <tr id="fila_sin_historico">
                 <td colspan="8">No hay pedidos en histórico.</td>
             </tr>
             {% endfor %}
+            <tr id="fila_sin_resultados" style="display: none;">
+                <td colspan="8">No hay coincidencias para esa búsqueda.</td>
+            </tr>
         </tbody>
     </table>
 </div>
+
+<script>
+function limpiarBusquedaHistorico() {
+    const input = document.getElementById('buscador_historico');
+    if (!input) return;
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+}
+
+(function () {
+    const input = document.getElementById('buscador_historico');
+    const filas = Array.from(document.querySelectorAll('#tabla_historico_body tr[data-cliente]'));
+    const filaSinResultados = document.getElementById('fila_sin_resultados');
+
+    if (!input || !filas.length) return;
+
+    input.addEventListener('input', function () {
+        const q = (this.value || '').trim().toLowerCase();
+        let visibles = 0;
+
+        filas.forEach(function (fila) {
+            const cliente = fila.dataset.cliente || '';
+            const idventa = fila.dataset.idventa || '';
+            const seguimiento = fila.dataset.seguimiento || '';
+            const match = !q || cliente.includes(q) || idventa.includes(q) || seguimiento.includes(q);
+            fila.style.display = match ? '' : 'none';
+            if (match) visibles += 1;
+        });
+
+        if (filaSinResultados) {
+            filaSinResultados.style.display = visibles === 0 ? '' : 'none';
+        }
+    });
+})();
+</script>
 
 {% endblock %}
