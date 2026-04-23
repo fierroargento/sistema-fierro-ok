@@ -4,6 +4,12 @@
 
 <div class="card listado-card">
 
+    {% if ok_feedback %}
+    <div style="margin-bottom: 16px; padding: 12px 16px; border-radius: 10px; background: #A4F4CF; color: #124E64; font-weight: 700; border: 1px solid rgba(18, 78, 100, 0.16);">
+        ✔ {{ ok_feedback }}
+    </div>
+    {% endif %}
+
     <div class="listado-header">
         <div>
             <h2>{{ titulo_inicio_por_rol() }}</h2>
@@ -97,12 +103,12 @@
                 {% endif %}
                 <td class="col-acciones">
                     <a href="{{ url_for('detalle_pedido', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
-                        {% if rol_actual in ['despacho', 'carga'] %}
+                {% if rol_actual in ['despacho', 'carga'] %}
                             Procesar pedido
-                        {% else %}
-                            Ver pedido
-                        {% endif %}
-                    </a>
+                {% else %}
+                    Ver pedido
+                    {% endif %}
+                </a>
                 </td>
             </tr>
             {% else %}
