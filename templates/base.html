@@ -56,6 +56,12 @@
         </div>
         {% endif %}
 
+        {% if ok_feedback %}
+        <div id="toast-feedback" class="toast-feedback">
+            <span>✔ {{ ok_feedback }}</span>
+        </div>
+        {% endif %}
+
         {% block content %}{% endblock %}
 
 {% if usuario_logueado %}
@@ -110,6 +116,21 @@
         }
     });
     {% endif %}
+})();
+
+(function () {
+    const toast = document.getElementById("toast-feedback");
+    if (!toast) return;
+
+    setTimeout(function () {
+        toast.classList.add("toast-hide");
+    }, 2200);
+
+    setTimeout(function () {
+        if (toast && toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 2600);
 })();
 </script>
 
