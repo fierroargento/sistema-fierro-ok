@@ -1675,7 +1675,6 @@ def ml_pedido_existente_por_order_id(order_id):
     )
 
 
-def ml_logistica_no_operable(order, shipment):
     shipping = order.get("shipping") or {}
     tags = order.get("tags") or []
 
@@ -1686,23 +1685,24 @@ def ml_logistica_no_operable(order, shipment):
         shipping.get("mode"),
     ]
 
-    valores_normalizados = [str(valor or "").lower().strip() for valor in valores if str(valor or "").strip()]
-    tags_normalizados = [str(tag or "").lower().strip() for tag in tags]
+    valores_normalizados = [str(v or "").lower().strip() for v in valores]
+    tags_normalizados = [str(t or "").lower().strip() for t in tags]
 
+    # 🔴 FULL (el que te está rompiendo todo)
     if (
         "fulfillment" in valores_normalizados
         or "fulfillment" in tags_normalizados
         or "meli_full" in tags_normalizados
         or "mercado_envios_full" in tags_normalizados
+        or "full" in tags_normalizados
     ):
         return True, "Mercado Envíos Full"
 
+    # 🔴 FLEX
     if (
         "self_service" in valores_normalizados
-        or "self_service" in tags_normalizados
         or "flex" in valores_normalizados
         or "flex" in tags_normalizados
-        or "mercado_envios_flex" in tags_normalizados
     ):
         return True, "Mercado Envíos Flex"
 
