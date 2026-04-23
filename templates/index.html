@@ -41,8 +41,7 @@
                 <th>Cliente</th>
                 <th>ID Venta</th>
                 <th>Canal</th>
-                <th>Seguimiento</th>
-                <th>Estado</th>
+                <th>Tipo ML</th>
                 <th>Hace cuánto</th>
                 <th>Acción sugerida</th>
                 {% if rol_actual == 'admin' %}
@@ -55,7 +54,7 @@
         <tbody id="tabla_pedidos_body">
             {% for p in pedidos %}
             {% set accion = accion_principal_pedido(p, 'inicio') %}
-            <tr class="fila-{{ semaforo_pedido(p) }}" data-semaforo="{{ semaforo_pedido(p) }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Con demora de entrega', 'Verificar llegada a destino', 'Listo para retirar', 'No entregado', 'Entregado', 'Finalizado'] else 'si' }}">
+            <tr class="fila-{{ semaforo_pedido(p) }}" data-semaforo="{{ semaforo_pedido(p) }}" data-estado="{{ (p.estado or '')|lower }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Con demora de entrega', 'Verificar llegada a destino', 'Listo para retirar', 'No entregado', 'Entregado', 'Finalizado'] else 'si' }}">
                 <td>{{ p.id }}</td>
                 <td><strong>{{ (p.cliente or "-")|upper }}</strong></td>
                 <td>
@@ -66,14 +65,8 @@
                 </td>
                 <td>{{ p.canal or "-" }}</td>
                 <td>
-                    <span>{{ p.seguimiento or "-" }}</span>
-                    {% if p.seguimiento %}
-                    <button type="button" class="btn-copiar-mini" onclick="copiarTexto('{{ p.seguimiento }}')">📋</button>
-                    {% endif %}
-                </td>
-                <td>
-                    <span class="estado-listado estado-{{ (p.estado or 'sin-estado') | lower | replace(' ', '-') }}">
-                        {{ p.estado }}
+                    <span class="tipo-ml-listado tipo-ml-{{ (p.ml_tipo or 'sin-tipo') | lower | replace(' ', '-') }}">
+                        {{ p.ml_tipo or "-" }}
                     </span>
                 </td>
                 <td class="col-antiguedad">
@@ -107,7 +100,7 @@
             </tr>
             {% else %}
             <tr id="fila_sin_pedidos">
-                <td colspan="{% if rol_actual == 'admin' %}10{% else %}9{% endif %}">No hay pedidos para este operador.</td>
+                <td colspan="{% if rol_actual == 'admin' %}9{% else %}8{% endif %}">No hay pedidos para este operador.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -134,8 +127,8 @@ function copiarTexto(texto) {
 const rolActual = "{{ rol_actual }}";
 
 function obtenerPrioridad(fila) {
-    const estado = (fila.querySelector('.estado-listado')?.innerText || '').toLowerCase();
-    const tiempoTexto = (fila.querySelector('td:nth-child(7)')?.innerText || '').toLowerCase();
+    const estado = (fila.dataset.estado || '').toLowerCase();
+    const tiempoTexto = (fila.querySelector('td:nth-child(6)')?.innerText || '').toLowerCase();
     const semaforo = (fila.dataset.semaforo || '').toLowerCase();
 
     let minutos = 0;
