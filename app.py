@@ -1522,6 +1522,17 @@ def ml_obtener_orders_recientes(cuenta, limit=20):
     )
     return data.get("results") or []
 
+def ml_obtener_order(order_id):
+    order_id = str(order_id or "").strip()
+    if not order_id:
+        return {}
+    try:
+        return ml_api_get(f"/orders/{order_id}")
+    except Exception as e:
+        print("No se pudo consultar order ML:", e)
+        return {}
+
+
 
 def ml_obtener_shipment(shipping_id):
     if not shipping_id:
