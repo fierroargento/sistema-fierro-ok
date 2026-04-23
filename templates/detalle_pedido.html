@@ -240,6 +240,10 @@
                 <a href="{{ accion.url }}" class="{{ accion.clases }}" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
                     {{ accion.texto }}
                 </a>
+            {% elif accion.tipo == "avisar_cliente" %}
+                <a href="{{ accion.url }}" class="{{ accion.clases }}" onclick="return abrirWhatsappYRecargar(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
+                    {{ accion.texto }}
+                </a>
             {% else %}
                 <a href="{{ accion.url }}" class="{{ accion.clases }}" {% if accion.target %}target="{{ accion.target }}"{% endif %}>
                     {{ accion.texto }}
@@ -280,6 +284,14 @@
 <script>
 function imprimirDesdeDetalle(urlImpresion, urlRecarga) {
     window.open(urlImpresion, "_blank");
+    setTimeout(function () {
+        window.location.href = urlRecarga + (urlRecarga.indexOf("?") >= 0 ? "&" : "?") + "_r=" + Date.now();
+    }, 1200);
+    return false;
+}
+
+function abrirWhatsappYRecargar(urlWhatsapp, urlRecarga) {
+    window.open(urlWhatsapp, "_blank");
     setTimeout(function () {
         window.location.href = urlRecarga + (urlRecarga.indexOf("?") >= 0 ? "&" : "?") + "_r=" + Date.now();
     }, 1200);
