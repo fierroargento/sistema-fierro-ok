@@ -45,7 +45,7 @@
                 <th>Estado</th>
                 <th>Hace cuánto</th>
                 <th>Acción sugerida</th>
-                {% if rol_actual != 'despacho' %}
+                {% if rol_actual == 'admin' %}
                 <th>Acción rápida</th>
                 {% endif %}
                 <th></th>
@@ -84,7 +84,7 @@
                         {{ accion_sugerida_pedido(p) or 'Sin acción' }}
                     </span>
                 </td>
-                {% if rol_actual != 'despacho' %}
+                {% if rol_actual == 'admin' %}
                 <td>
                     {% if accion %}
                         <a href="{{ accion.url }}" class="{{ accion.clases }}" {% if accion.target %}target="{{ accion.target }}"{% endif %}>
@@ -97,17 +97,17 @@
                 {% endif %}
                 <td class="col-acciones">
                     <a href="{{ url_for('detalle_pedido', id=p.id) }}" class="btn btn-secundario">
-                {% if rol_actual == 'despacho' %}
+                        {% if rol_actual in ['despacho', 'carga'] %}
                             Procesar pedido
-                {% else %}
-                    Ver pedido
-                    {% endif %}
-                </a>
+                        {% else %}
+                            Ver pedido
+                        {% endif %}
+                    </a>
                 </td>
             </tr>
             {% else %}
             <tr id="fila_sin_pedidos">
-                <td colspan="{% if rol_actual != 'despacho' %}10{% else %}9{% endif %}">No hay pedidos para este operador.</td>
+                <td colspan="{% if rol_actual == 'admin' %}10{% else %}9{% endif %}">No hay pedidos para este operador.</td>
             </tr>
             {% endfor %}
         </tbody>
