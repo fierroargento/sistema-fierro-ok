@@ -726,6 +726,21 @@ def texto_boton_estado(pedido):
     return "Avanzar estado"
 
 
+def texto_feedback_estado(estado):
+    mensajes = {
+        "Etiqueta Impresa": "Etiqueta impresa correctamente.",
+        "Embalado": "Pedido embalado correctamente.",
+        "Despachado": "Pedido despachado correctamente.",
+        "Verificar llegada a destino": "Pedido despachado correctamente.",
+        "Listo para retirar": "Cliente avisado correctamente.",
+        "Entregado": "Pedido entregado correctamente.",
+        "Finalizado": "Pedido finalizado correctamente.",
+        "No entregado": "Pedido marcado como no entregado.",
+        "Con reclamo en transporte": "Reclamo cargado correctamente.",
+    }
+    return mensajes.get(estado, "Acción realizada correctamente.")
+
+
 def accion_sugerida_pedido(pedido):
     if pedido.estado == "Cargando Pedido":
         if not pedido.cliente:
@@ -1411,16 +1426,17 @@ def inicio():
 
     pedidos.sort(key=orden_inicio_pedido)
 
+    ok_feedback = (request.args.get("ok") or "").strip()
+
     return render_template(
         "index.html",
         pedidos=pedidos,
         resumen_operativo=resumen_operativo(pedidos),
         accion_sugerida_pedido=accion_sugerida_pedido,
         texto_boton_estado=texto_boton_estado,
-        puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente
+        puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
+        ok_feedback=ok_feedback
     )
-
-
 
 @app.route("/ayuda")
 @login_required
@@ -1750,17 +1766,19 @@ def detalle_pedido(id):
     if pedido.estado != estado_anterior:
         db.session.commit()
 
+    ok_feedback = (request.args.get("ok") or "").strip()
+
     return render_template(
         "detalle_pedido.html",
         pedido=pedido,
         error="",
+        ok_feedback=ok_feedback,
         accion_sugerida=accion_sugerida_pedido(pedido),
         texto_boton=texto_boton_estado(pedido),
         hay_autorizado=hay_autorizado,
         puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
         whatsapp_url=whatsapp_link_pedido(pedido)
     )
-
 
 @app.route("/pedido/<int:id>/editar", methods=["GET", "POST"])
 @login_required
@@ -1948,8 +1966,7 @@ def confirmar_entrega(id):
     if whatsapp_url:
         return redirect(whatsapp_url)
 
-    return redirect(url_for("inicio"))
-
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok=texto_feedback_estado("Listo para retirar")))
 
 @app.route("/pedido/<int:id>/cerrar-ml")
 @login_required
@@ -1969,8 +1986,7 @@ def cerrar_ml(id):
     pedido.estado = "Finalizado"
     db.session.commit()
 
-    return redirect(url_for("inicio"))
-
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok=texto_feedback_estado("Finalizado")))
 
 @app.route("/pedido/<int:id>/marcar-no-entregado")
 @login_required
@@ -1990,7 +2006,7 @@ def marcar_no_entregado(id):
 
     db.session.commit()
 
-    return redirect(url_for("detalle_pedido", id=pedido.id))
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok=texto_feedback_estado("No entregado")))
 
 @app.route("/pedido/<int:id>/gestionar-devolucion", methods=["GET", "POST"])
 @login_required
@@ -2248,8 +2264,7 @@ def revisar_reclamo(id):
 
     db.session.commit()
 
-    return redirect(url_for("detalle_pedido", id=pedido.id))
-
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok="Reclamo revisado correctamente."))
 
 @app.route("/pedido/<int:id>/avanzar")
 @login_required
@@ -2266,6 +2281,7 @@ def avanzar_pedido(id):
             "detalle_pedido.html",
             pedido=pedido,
             error="<br>".join(errores),
+            ok_feedback="",
             accion_sugerida=accion_sugerida_pedido(pedido),
             texto_boton=texto_boton_estado(pedido),
             hay_autorizado=hay_autorizado,
@@ -2279,22 +2295,14 @@ def avanzar_pedido(id):
         aplicar_estado_y_fechas(pedido, nuevo)
         db.session.commit()
 
-    if rol_actual() == "despacho" and pedido.estado in ["Embalado", "Despachado"]:
-        return redirect(url_for("detalle_pedido", id=pedido.id))
+    mensaje_ok = texto_feedback_estado(pedido.estado)
 
-    return redirect(url_for("inicio"))
+    if rol_actual() == "despacho":
+        if pedido.estado == "Embalado":
+            return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje_ok))
+        return redirect(url_for("inicio", ok=mensaje_ok))
 
+    if rol_actual() == "carga":
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje_ok))
 
-with app.app_context():
-    db.create_all()
-    asegurar_columnas_extra()
-
-    ruta_excel = os.path.join(app.root_path, "productos.xlsx")
-    if Producto.query.count() == 0 and os.path.exists(ruta_excel):
-        try:
-            sincronizar_productos_desde_excel(ruta_excel)
-        except Exception as e:
-            print("No se pudo cargar productos iniciales desde Excel:", e)
-
-if __name__ == "__main__":
-    app.run(debug=True)
+    return redirect(url_for("inicio", ok=mensaje_ok))
