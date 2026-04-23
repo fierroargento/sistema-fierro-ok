@@ -1,14 +1,15 @@
 import os
 import re
+import json
 import hashlib
-from urllib.request import urlopen
-from urllib.parse import urlparse
+from urllib.request import urlopen, Request
+from urllib.parse import urlparse, urlencode
 import pandas as pd
 import numpy as np
 import fitz
 import cloudinary
 import cloudinary.uploader
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 
 from flask import Flask, request, redirect, render_template, url_for, jsonify, send_from_directory, session
@@ -135,6 +136,22 @@ class Producto(db.Model):
     descripcion = db.Column(db.String(255), nullable=False, index=True)
 
 
+class MercadoLibreCuenta(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id_ml = db.Column(db.String(50))
+    nickname = db.Column(db.String(120))
+    access_token = db.Column(db.Text)
+    refresh_token = db.Column(db.Text)
+    token_expires_at = db.Column(db.DateTime)
+    scope = db.Column(db.Text)
+    estado_conexion = db.Column(db.String(30), default="desconectada")
+    last_sync_at = db.Column(db.DateTime)
+    last_sync_status = db.Column(db.String(30))
+    last_sync_detail = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 def asegurar_columna_si_no_existe(nombre_columna, definicion_sql):
     inspector = inspect(db.engine)
     columnas = [col["name"] for col in inspector.get_columns("pedido")]
@@ -196,6 +213,15 @@ def asegurar_columnas_extra():
     asegurar_columna_item_si_no_existe("cantidad_devuelta_danada", "INTEGER")
     asegurar_columna_item_si_no_existe("estado_devolucion_item", "TEXT")
     asegurar_columna_item_si_no_existe("observacion_devolucion_item", "TEXT")
+
+
+def asegurar_columnas_integracion_ml():
+    asegurar_columna_si_no_existe("origen", "VARCHAR(30)")
+    asegurar_columna_si_no_existe("ml_pack_id", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("ml_order_status", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("ml_shipping_status", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("ultima_sync_ml", "TIMESTAMP")
+
 
 def productos_desde_excel(archivo_excel):
     df = pd.read_excel(archivo_excel)
@@ -1347,6 +1373,307 @@ def items_a_texto(pedido):
     return "\n".join(lineas)
 
 
+def puede_administrar_integraciones():
+    return rol_actual() == "admin"
+
+
+def cuenta_ml_actual():
+    return MercadoLibreCuenta.query.order_by(MercadoLibreCuenta.id.asc()).first()
+
+
+def ml_client_id():
+    return (os.getenv("MELI_CLIENT_ID") or "").strip()
+
+
+def ml_client_secret():
+    return (os.getenv("MELI_CLIENT_SECRET") or "").strip()
+
+
+def ml_redirect_uri():
+    return (os.getenv("MELI_REDIRECT_URI") or "").strip()
+
+
+def ml_config_faltante():
+    faltantes = []
+    if not ml_client_id():
+        faltantes.append("MELI_CLIENT_ID")
+    if not ml_client_secret():
+        faltantes.append("MELI_CLIENT_SECRET")
+    if not ml_redirect_uri():
+        faltantes.append("MELI_REDIRECT_URI")
+    return faltantes
+
+
+def ml_token_vencido(cuenta):
+    if not cuenta or not cuenta.token_expires_at:
+        return True
+    return cuenta.token_expires_at <= datetime.utcnow() + timedelta(minutes=2)
+
+
+def ml_http_json(method, url, data=None, headers=None):
+    headers = headers or {}
+    body = None
+
+    if data is not None:
+        encoded = urlencode(data).encode("utf-8")
+        body = encoded
+        headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
+
+    req = Request(url, data=body, method=method.upper())
+    headers.setdefault("Accept", "application/json")
+
+    for key, value in headers.items():
+        req.add_header(key, value)
+
+    with urlopen(req) as response:
+        raw = response.read().decode("utf-8")
+        if not raw.strip():
+            return {}
+        return json.loads(raw)
+
+
+def ml_exchange_code_for_token(code):
+    payload = {
+        "grant_type": "authorization_code",
+        "client_id": ml_client_id(),
+        "client_secret": ml_client_secret(),
+        "code": code,
+        "redirect_uri": ml_redirect_uri(),
+    }
+    return ml_http_json("POST", "https://api.mercadolibre.com/oauth/token", data=payload)
+
+
+def ml_refresh_access_token(cuenta):
+    if not cuenta or not cuenta.refresh_token:
+        raise ValueError("La cuenta de Mercado Libre no tiene refresh token guardado.")
+
+    payload = {
+        "grant_type": "refresh_token",
+        "client_id": ml_client_id(),
+        "client_secret": ml_client_secret(),
+        "refresh_token": cuenta.refresh_token,
+    }
+    token_data = ml_http_json("POST", "https://api.mercadolibre.com/oauth/token", data=payload)
+    ml_guardar_token_en_cuenta(cuenta, token_data)
+    return cuenta
+
+
+def ml_guardar_token_en_cuenta(cuenta, token_data):
+    cuenta.access_token = token_data.get("access_token") or cuenta.access_token
+    cuenta.refresh_token = token_data.get("refresh_token") or cuenta.refresh_token
+    expires_in = int(token_data.get("expires_in") or 0)
+    if expires_in > 0:
+        cuenta.token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+    cuenta.scope = token_data.get("scope") or cuenta.scope
+    cuenta.estado_conexion = "conectada" if cuenta.access_token else "error"
+
+
+def ml_access_token_vigente():
+    cuenta = cuenta_ml_actual()
+    if not cuenta:
+        raise ValueError("No hay una cuenta de Mercado Libre conectada.")
+
+    if ml_token_vencido(cuenta):
+        cuenta = ml_refresh_access_token(cuenta)
+        db.session.commit()
+
+    if not cuenta.access_token:
+        raise ValueError("La cuenta conectada no tiene access token válido.")
+
+    return cuenta.access_token
+
+
+def ml_api_get(path, params=None):
+    token = ml_access_token_vigente()
+    params = params or {}
+    query = urlencode(params)
+    url = f"https://api.mercadolibre.com{path}"
+    if query:
+        url = f"{url}?{query}"
+    return ml_http_json("GET", url, headers={"Authorization": f"Bearer {token}"})
+
+
+def ml_obtener_usuario_actual():
+    return ml_api_get("/users/me")
+
+
+def ml_obtener_orders_recientes(cuenta, limit=20):
+    if not cuenta or not cuenta.user_id_ml:
+        raise ValueError("La cuenta de Mercado Libre no tiene user_id asociado.")
+
+    data = ml_api_get(
+        "/orders/search",
+        params={
+            "seller": cuenta.user_id_ml,
+            "sort": "date_desc",
+            "limit": limit,
+        },
+    )
+    return data.get("results") or []
+
+
+def ml_obtener_shipment(shipping_id):
+    if not shipping_id:
+        return {}
+    try:
+        return ml_api_get(f"/shipments/{shipping_id}")
+    except Exception as e:
+        print("No se pudo consultar shipment ML:", e)
+        return {}
+
+
+def ml_nombre_cliente(order):
+    buyer = order.get("buyer") or {}
+    nombre = " ".join([
+        str(buyer.get("first_name") or "").strip(),
+        str(buyer.get("last_name") or "").strip(),
+    ]).strip()
+    return nombre or str(buyer.get("nickname") or "Cliente Mercado Libre").strip()
+
+
+def ml_mapear_tipo(order, shipment):
+    shipping = order.get("shipping") or {}
+    mode = str((shipping.get("mode") or shipment.get("mode") or "")).lower().strip()
+    logistic_type = str((shipment.get("logistic_type") or "")).lower().strip()
+
+    if mode == "custom":
+        return "Acordás la Entrega"
+
+    if mode in ["me1", "me2", "fulfillment", "cross_docking", "drop_off"]:
+        return "Mercado Envíos"
+
+    if logistic_type in ["fulfillment", "cross_docking", "drop_off", "xd_drop_off", "self_service"]:
+        return "Mercado Envíos"
+
+    return "Mercado Envíos" if shipping.get("id") else "Acordás la Entrega"
+
+
+def ml_mapear_tipo_entrega(order, shipment):
+    shipping_option = shipment.get("shipping_option") or {}
+    delivery_type = str((shipping_option.get("delivery_type") or "")).lower().strip()
+    receiver_address = shipment.get("receiver_address") or {}
+
+    if delivery_type == "pickup":
+        return "Sucursal"
+
+    if receiver_address.get("address_line"):
+        return "Domicilio"
+
+    return ""
+
+
+def ml_aplicar_datos_envio(pedido, order, shipment):
+    shipping = order.get("shipping") or {}
+    receiver_address = shipment.get("receiver_address") or {}
+    city = receiver_address.get("city") or {}
+    state = receiver_address.get("state") or {}
+
+    pedido.ml_tipo = ml_mapear_tipo(order, shipment)
+    pedido.tipo_entrega = ml_mapear_tipo_entrega(order, shipment)
+    pedido.seguimiento = (
+        shipment.get("tracking_number")
+        or shipment.get("tracking_method")
+        or pedido.seguimiento
+    )
+    if pedido.ml_tipo == "Mercado Envíos":
+        pedido.empresa_envio = "Mercado Envíos"
+    pedido.direccion = receiver_address.get("address_line") or pedido.direccion
+    pedido.codigo_postal = receiver_address.get("zip_code") or pedido.codigo_postal
+    pedido.localidad = city.get("name") or pedido.localidad
+    pedido.provincia = state.get("name") or pedido.provincia
+    pedido.sucursal_nombre = receiver_address.get("agency_name") or pedido.sucursal_nombre
+    pedido.ml_shipping_status = shipment.get("status") or shipping.get("status") or pedido.ml_shipping_status
+
+
+def ml_upsert_pedido_desde_order(order):
+    order_id = str(order.get("id") or "").strip()
+    if not order_id:
+        return None, False
+
+    pedido = Pedido.query.filter_by(id_venta=order_id).first()
+    creado = pedido is None
+
+    if creado:
+        pedido = Pedido(
+            cliente=ml_nombre_cliente(order),
+            canal="Mercado Libre",
+            id_venta=order_id,
+            estado="Cargando Pedido",
+        )
+        db.session.add(pedido)
+
+    shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
+
+    pedido.origen = "mercadolibre"
+    pedido.cliente = ml_nombre_cliente(order)
+    pedido.canal = "Mercado Libre"
+    pedido.id_venta = order_id
+    pedido.mail = pedido.mail or ""
+    pedido.telefono = pedido.telefono or ""
+    pedido.observaciones = (pedido.observaciones or "").strip()
+    pedido.ml_pack_id = str(order.get("pack_id") or "").strip() or pedido.ml_pack_id
+    pedido.ml_order_status = order.get("status") or pedido.ml_order_status
+    pedido.ultima_sync_ml = datetime.utcnow()
+
+    ml_aplicar_datos_envio(pedido, order, shipment)
+
+    order_items = order.get("order_items") or []
+    existentes = {str(item.sku or "").strip(): item for item in pedido.items}
+    usados = set()
+
+    for order_item in order_items:
+        item_data = order_item.get("item") or {}
+        sku = str(item_data.get("seller_sku") or item_data.get("id") or "").strip()
+        descripcion = str(item_data.get("title") or "Producto ML").strip()
+        cantidad = int(order_item.get("quantity") or 1)
+
+        item = existentes.get(sku)
+        if item is None:
+            item = PedidoItem(sku=sku, descripcion=descripcion, cantidad=cantidad)
+            pedido.items.append(item)
+        else:
+            item.descripcion = descripcion
+            item.cantidad = cantidad
+        usados.add(sku)
+
+    for sku, item in list(existentes.items()):
+        if sku not in usados:
+            db.session.delete(item)
+
+    actualizar_estado_automatico(pedido)
+    return pedido, creado
+
+
+def ml_sync_manual(limit=20):
+    cuenta = cuenta_ml_actual()
+    if not cuenta:
+        raise ValueError("No hay cuenta de Mercado Libre conectada.")
+
+    orders = ml_obtener_orders_recientes(cuenta, limit=limit)
+    creados = 0
+    actualizados = 0
+
+    for order in orders:
+        pedido, creado = ml_upsert_pedido_desde_order(order)
+        if not pedido:
+            continue
+        if creado:
+            creados += 1
+        else:
+            actualizados += 1
+
+    cuenta.last_sync_at = datetime.utcnow()
+    cuenta.last_sync_status = "ok"
+    cuenta.last_sync_detail = f"Pedidos leídos: {len(orders)} | Nuevos: {creados} | Actualizados: {actualizados}"
+    db.session.commit()
+
+    return {
+        "leidos": len(orders),
+        "creados": creados,
+        "actualizados": actualizados,
+    }
+
+
 @app.context_processor
 def inyectar_contexto_global():
     return {
@@ -1356,6 +1683,8 @@ def inyectar_contexto_global():
         "subtitulo_inicio_por_rol": subtitulo_inicio_por_rol,
         "puede_crear_pedido": puede_crear_pedido,
         "puede_ver_historico": puede_ver_historico,
+        "puede_administrar_integraciones": puede_administrar_integraciones,
+        "cuenta_ml_actual": cuenta_ml_actual,
         "puede_editar_pedido": puede_editar_pedido,
         "puede_ver_pedido": puede_ver_pedido,
         "puede_imprimir_pedido": puede_imprimir_pedido,
@@ -1472,6 +1801,115 @@ def admin_productos():
         total_productos=total_productos,
         ultimos=ultimos
     )
+
+
+@app.route("/admin/integraciones")
+@login_required
+def admin_integraciones():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+
+    cuenta_ml = cuenta_ml_actual()
+    faltantes = ml_config_faltante()
+    ok_feedback = (request.args.get("ok") or "").strip()
+    error = (request.args.get("error") or "").strip()
+
+    return render_template(
+        "admin_integraciones.html",
+        cuenta_ml=cuenta_ml,
+        faltantes=faltantes,
+        ok_feedback=ok_feedback,
+        error=error,
+    )
+
+
+@app.route("/admin/integraciones/mercadolibre/conectar")
+@login_required
+def conectar_mercadolibre():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+
+    faltantes = ml_config_faltante()
+    if faltantes:
+        return redirect(url_for("admin_integraciones", error=f"Faltan variables: {', '.join(faltantes)}"))
+
+    params = urlencode({
+        "response_type": "code",
+        "client_id": ml_client_id(),
+        "redirect_uri": ml_redirect_uri(),
+    })
+    return redirect(f"https://auth.mercadolibre.com.ar/authorization?{params}")
+
+
+@app.route("/admin/integraciones/mercadolibre/callback")
+@login_required
+def callback_mercadolibre():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+
+    error = (request.args.get("error") or "").strip()
+    code = (request.args.get("code") or "").strip()
+
+    if error:
+        return redirect(url_for("admin_integraciones", error=f"Mercado Libre devolvió error: {error}"))
+
+    if not code:
+        return redirect(url_for("admin_integraciones", error="Mercado Libre no devolvió código de autorización."))
+
+    try:
+        token_data = ml_exchange_code_for_token(code)
+        cuenta = cuenta_ml_actual() or MercadoLibreCuenta()
+        ml_guardar_token_en_cuenta(cuenta, token_data)
+        if cuenta.id is None:
+            db.session.add(cuenta)
+        db.session.flush()
+
+        perfil = ml_obtener_usuario_actual()
+        cuenta.user_id_ml = str(perfil.get("id") or cuenta.user_id_ml or "")
+        cuenta.nickname = perfil.get("nickname") or cuenta.nickname
+        cuenta.estado_conexion = "conectada"
+        db.session.commit()
+        return redirect(url_for("admin_integraciones", ok="Cuenta de Mercado Libre vinculada correctamente."))
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for("admin_integraciones", error=f"No se pudo vincular Mercado Libre: {e}"))
+
+
+@app.route("/admin/integraciones/mercadolibre/desconectar", methods=["POST"])
+@login_required
+def desconectar_mercadolibre():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+
+    cuenta = cuenta_ml_actual()
+    if cuenta:
+        db.session.delete(cuenta)
+        db.session.commit()
+
+    return redirect(url_for("admin_integraciones", ok="Cuenta de Mercado Libre desconectada."))
+
+
+@app.route("/admin/integraciones/mercadolibre/sync", methods=["POST"])
+@login_required
+def sync_mercadolibre():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+
+    cuenta = cuenta_ml_actual()
+    if not cuenta:
+        return redirect(url_for("admin_integraciones", error="Primero conectá una cuenta de Mercado Libre."))
+
+    try:
+        resultado = ml_sync_manual(limit=20)
+        mensaje = f"Sync ML OK. Leídos: {resultado['leidos']} | Nuevos: {resultado['creados']} | Actualizados: {resultado['actualizados']}"
+        return redirect(url_for("admin_integraciones", ok=mensaje))
+    except Exception as e:
+        if cuenta:
+            cuenta.last_sync_at = datetime.utcnow()
+            cuenta.last_sync_status = "error"
+            cuenta.last_sync_detail = str(e)
+            db.session.commit()
+        return redirect(url_for("admin_integraciones", error=f"Falló la sincronización: {e}"))
 
 
 @app.route("/historico")
@@ -2306,3 +2744,9 @@ def avanzar_pedido(id):
         return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje_ok))
 
     return redirect(url_for("inicio", ok=mensaje_ok))
+
+
+with app.app_context():
+    db.create_all()
+    asegurar_columnas_extra()
+    asegurar_columnas_integracion_ml()

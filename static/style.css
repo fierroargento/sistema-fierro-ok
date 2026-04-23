@@ -1128,3 +1128,26 @@ tr.fila-amarillo td .btn-accion-rapida {
     opacity: 0;
     transform: translateY(-8px);
 }
+
+.boton-accion,
+.boton-cancelar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: none;
+    text-decoration: none;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.boton-accion {
+    background: #124E64;
+    color: #ffffff;
+}
+
+.boton-cancelar {
+    background: #e5e7eb;
+    color: #1f2937;
+}

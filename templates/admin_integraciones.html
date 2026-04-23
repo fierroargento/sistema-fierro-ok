@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h1>Integraciones</h1>
+    <p>Base inicial para vincular Mercado Libre y traer pedidos al flujo Fierro.</p>
+
+    {% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Mercado Libre</h2>
+
+        {% if faltantes %}
+        <div class="alerta alerta-error">
+            Faltan variables de entorno: <strong>{{ faltantes|join(', ') }}</strong>
+        </div>
+        {% endif %}
+
+        <table class="tabla">
+            <tbody>
+                <tr>
+                    <th style="width:240px;">Estado conexión</th>
+                    <td>{{ cuenta_ml.estado_conexion if cuenta_ml else 'desconectada' }}</td>
+                </tr>
+                <tr>
+                    <th>Nickname</th>
+                    <td>{{ cuenta_ml.nickname if cuenta_ml and cuenta_ml.nickname else '-' }}</td>
+                </tr>
+                <tr>
+                    <th>User ID ML</th>
+                    <td>{{ cuenta_ml.user_id_ml if cuenta_ml and cuenta_ml.user_id_ml else '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Token vence</th>
+                    <td>{{ cuenta_ml.token_expires_at.strftime('%d/%m/%Y %H:%M') if cuenta_ml and cuenta_ml.token_expires_at else '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Última sync</th>
+                    <td>{{ cuenta_ml.last_sync_at.strftime('%d/%m/%Y %H:%M') if cuenta_ml and cuenta_ml.last_sync_at else '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Detalle última sync</th>
+                    <td>{{ cuenta_ml.last_sync_detail if cuenta_ml and cuenta_ml.last_sync_detail else '-' }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="acciones" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+            {% if not faltantes %}
+                {% if cuenta_ml and cuenta_ml.access_token %}
+                <form method="post" action="{{ url_for('sync_mercadolibre') }}">
+                    <button type="submit" class="boton-accion">Sincronizar pedidos ML</button>
+                </form>
+                <form method="post" action="{{ url_for('desconectar_mercadolibre') }}" onsubmit="return confirm('¿Desconectar la cuenta de Mercado Libre?');">
+                    <button type="submit" class="boton-cancelar">Desconectar cuenta</button>
+                </form>
+                {% else %}
+                <a href="{{ url_for('conectar_mercadolibre') }}" class="boton-accion">Conectar Mercado Libre</a>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+            <h3>Qué hace esta fase</h3>
+            <ul>
+                <li>Vincula la cuenta por OAuth.</li>
+                <li>Guarda access token y refresh token.</li>
+                <li>Permite una sync manual de pedidos recientes.</li>
+                <li>Usa <strong>ID Venta</strong> como identificador externo principal.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
