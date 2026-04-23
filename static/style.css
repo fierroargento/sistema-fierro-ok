@@ -1151,3 +1151,87 @@ tr.fila-amarillo td .btn-accion-rapida {
     background: #e5e7eb;
     color: #1f2937;
 }
+
+/* =========================================================
+   AJUSTE TABLERO INICIO - INTEGRACIÓN ML
+   Evita columnas corridas y botones cortados en admin.
+   ========================================================= */
+.listado-card {
+    overflow: hidden;
+}
+
+.tabla-pedidos {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.tabla-pedidos th,
+.tabla-pedidos td {
+    padding: 7px 8px;
+    font-size: 12px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.tabla-pedidos th:nth-child(1),
+.tabla-pedidos td:nth-child(1) { width: 3%; }
+
+.tabla-pedidos th:nth-child(2),
+.tabla-pedidos td:nth-child(2) { width: 16%; }
+
+.tabla-pedidos th:nth-child(3),
+.tabla-pedidos td:nth-child(3) { width: 12%; }
+
+.tabla-pedidos th:nth-child(4),
+.tabla-pedidos td:nth-child(4) { width: 7%; }
+
+.tabla-pedidos th:nth-child(5),
+.tabla-pedidos td:nth-child(5) { width: 13%; }
+
+.tabla-pedidos th:nth-child(6),
+.tabla-pedidos td:nth-child(6) { width: 15%; }
+
+.tabla-pedidos th:nth-child(7),
+.tabla-pedidos td:nth-child(7) {
+    width: 6%;
+    white-space: normal;
+}
+
+.tabla-pedidos th:nth-child(8),
+.tabla-pedidos td:nth-child(8) { width: 9%; }
+
+.tabla-pedidos th:nth-child(9),
+.tabla-pedidos td:nth-child(9) {
+    width: 11%;
+    white-space: normal;
+}
+
+.tabla-pedidos th:nth-child(10),
+.tabla-pedidos td:nth-child(10) { width: 8%; }
+
+.estado-listado {
+    width: 100%;
+    min-width: 0;
+    max-width: 170px;
+    min-height: 38px;
+    padding: 7px 8px;
+    font-size: 12px;
+}
+
+.tabla-pedidos .btn-accion-rapida,
+.tabla-pedidos .btn {
+    width: 100%;
+    min-width: 0;
+    max-width: 150px;
+    padding: 8px 8px;
+    font-size: 12px;
+    white-space: normal;
+}
+
+.btn-copiar-mini {
+    display: inline-block;
+    margin-left: 3px;
+    padding: 0;
+    line-height: 1;
+}

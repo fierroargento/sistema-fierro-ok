@@ -52,6 +52,9 @@ class Pedido(db.Model):
     ml_pack_id = db.Column(db.String(50))
     ml_order_status = db.Column(db.String(50))
     ml_shipping_status = db.Column(db.String(50))
+    ml_shipping_id = db.Column(db.String(50))
+    ml_logistic_type = db.Column(db.String(50))
+    ml_shipping_mode = db.Column(db.String(50))
     ultima_sync_ml = db.Column(db.DateTime)
     id = db.Column(db.Integer, primary_key=True)
 
@@ -225,6 +228,9 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ml_pack_id", "VARCHAR(50)")
     asegurar_columna_si_no_existe("ml_order_status", "VARCHAR(50)")
     asegurar_columna_si_no_existe("ml_shipping_status", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("ml_shipping_id", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("ml_logistic_type", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("ml_shipping_mode", "VARCHAR(50)")
     asegurar_columna_si_no_existe("ultima_sync_ml", "TIMESTAMP")
 
 
@@ -1527,13 +1533,31 @@ def ml_obtener_shipment(shipping_id):
         return {}
 
 
-def ml_nombre_cliente(order):
+def ml_nombre_cliente(order, shipment=None):
+    shipment = shipment or {}
     buyer = order.get("buyer") or {}
-    nombre = " ".join([
+    receiver_address = shipment.get("receiver_address") or {}
+
+    candidatos = [
+        receiver_address.get("receiver_name"),
+        receiver_address.get("recipient_name"),
+        shipment.get("receiver_name"),
+        order.get("receiver_name"),
+        order.get("recipient_name"),
+    ]
+
+    nombre_buyer = " ".join([
         str(buyer.get("first_name") or "").strip(),
         str(buyer.get("last_name") or "").strip(),
     ]).strip()
-    return nombre or str(buyer.get("nickname") or "Cliente Mercado Libre").strip()
+    candidatos.append(nombre_buyer)
+
+    for candidato in candidatos:
+        valor = str(candidato or "").strip()
+        if valor:
+            return valor
+
+    return str(buyer.get("nickname") or "Cliente Mercado Libre").strip()
 
 
 def ml_mapear_tipo(order, shipment):
@@ -1572,6 +1596,10 @@ def ml_aplicar_datos_envio(pedido, order, shipment):
     receiver_address = shipment.get("receiver_address") or {}
     city = receiver_address.get("city") or {}
     state = receiver_address.get("state") or {}
+
+    pedido.ml_shipping_id = str(shipping.get("id") or shipment.get("id") or pedido.ml_shipping_id or "").strip()
+    pedido.ml_logistic_type = str(shipment.get("logistic_type") or shipping.get("logistic_type") or pedido.ml_logistic_type or "").strip()
+    pedido.ml_shipping_mode = str(shipment.get("mode") or shipping.get("mode") or pedido.ml_shipping_mode or "").strip()
 
     pedido.ml_tipo = ml_mapear_tipo(order, shipment)
     pedido.tipo_entrega = ml_mapear_tipo_entrega(order, shipment)
@@ -1612,7 +1640,46 @@ def ml_pedido_existente_por_order_id(order_id):
     )
 
 
-def ml_order_debe_omitirse(order):
+def ml_logistica_no_operable(order, shipment):
+    shipping = order.get("shipping") or {}
+    tags = order.get("tags") or []
+
+    valores = [
+        shipment.get("logistic_type"),
+        shipment.get("mode"),
+        shipping.get("logistic_type"),
+        shipping.get("mode"),
+    ]
+
+    valores_normalizados = [str(valor or "").lower().strip() for valor in valores if str(valor or "").strip()]
+    tags_normalizados = [str(tag or "").lower().strip() for tag in tags]
+
+    if (
+        "fulfillment" in valores_normalizados
+        or "fulfillment" in tags_normalizados
+        or "meli_full" in tags_normalizados
+        or "mercado_envios_full" in tags_normalizados
+    ):
+        return True, "Mercado Envíos Full"
+
+    if (
+        "self_service" in valores_normalizados
+        or "self_service" in tags_normalizados
+        or "flex" in valores_normalizados
+        or "flex" in tags_normalizados
+        or "mercado_envios_flex" in tags_normalizados
+    ):
+        return True, "Mercado Envíos Flex"
+
+    return False, ""
+
+
+def ml_es_envio_full(order, shipment):
+    no_operable, motivo = ml_logistica_no_operable(order, shipment)
+    return no_operable and motivo == "Mercado Envíos Full"
+
+
+def ml_order_debe_omitirse(order, shipment=None):
     order_id = str(order.get("id") or "").strip()
     if not order_id:
         return True, "sin ID de orden"
@@ -1621,21 +1688,55 @@ def ml_order_debe_omitirse(order):
     if estado in ["cancelled", "invalid"]:
         return True, f"estado ML {estado}"
 
+    no_operable, motivo = ml_logistica_no_operable(order, shipment or {})
+    if no_operable:
+        return True, motivo
+
     return False, ""
 
 
+def ml_borrar_pedido_importado_si_corresponde(pedido):
+    if not pedido:
+        return False
+
+    if pedido.canal != "Mercado Libre":
+        return False
+
+    if pedido.origen != "mercadolibre":
+        return False
+
+    if pedido.estado != "Cargando Pedido":
+        return False
+
+    db.session.delete(pedido)
+    return True
+
+
 def ml_upsert_pedido_desde_order(order):
+    order_id = str(order.get("id") or "").strip()
+
     omitir, motivo_omision = ml_order_debe_omitirse(order)
     if omitir:
+        pedido_existente = ml_pedido_existente_por_order_id(order_id)
+        if ml_borrar_pedido_importado_si_corresponde(pedido_existente):
+            return None, False, f"{motivo_omision} - pedido importado eliminado"
         return None, False, motivo_omision
 
-    order_id = str(order.get("id") or "").strip()
+    shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
+
+    omitir, motivo_omision = ml_order_debe_omitirse(order, shipment)
+    if omitir:
+        pedido_existente = ml_pedido_existente_por_order_id(order_id)
+        if ml_borrar_pedido_importado_si_corresponde(pedido_existente):
+            return None, False, f"{motivo_omision} - pedido importado eliminado"
+        return None, False, motivo_omision
+
     pedido = ml_pedido_existente_por_order_id(order_id)
     creado = pedido is None
 
     if creado:
         pedido = Pedido(
-            cliente=ml_nombre_cliente(order),
+            cliente=ml_nombre_cliente(order, shipment),
             canal="Mercado Libre",
             id_venta=order_id,
             estado="Cargando Pedido",
@@ -1643,12 +1744,10 @@ def ml_upsert_pedido_desde_order(order):
         )
         db.session.add(pedido)
 
-    shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
-
     pedido.origen = "mercadolibre"
     pedido.canal = "Mercado Libre"
     pedido.id_venta = order_id
-    pedido.cliente = ml_nombre_cliente(order) or pedido.cliente
+    pedido.cliente = ml_nombre_cliente(order, shipment) or pedido.cliente
     pedido.mail = pedido.mail or ""
     pedido.telefono = pedido.telefono or ""
     pedido.observaciones = (pedido.observaciones or "").strip()
@@ -1693,16 +1792,48 @@ def ml_upsert_pedido_desde_order(order):
 
     return pedido, creado, ""
 
+def ml_limpiar_pedidos_ml_no_operables_existentes():
+    pedidos = (
+        Pedido.query
+        .filter_by(canal="Mercado Libre", origen="mercadolibre", estado="Cargando Pedido")
+        .order_by(Pedido.id.asc())
+        .all()
+    )
+
+    eliminados = 0
+    detalles = []
+
+    for pedido in pedidos:
+        order_id = str(pedido.id_venta or "").strip()
+        if not order_id:
+            continue
+
+        order = ml_obtener_order(order_id)
+        if not order:
+            continue
+
+        shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
+        omitir, motivo = ml_order_debe_omitirse(order, shipment)
+
+        if omitir and ml_borrar_pedido_importado_si_corresponde(pedido):
+            eliminados += 1
+            detalles.append(f"{order_id}: eliminado ({motivo})")
+
+    return eliminados, detalles
+
+
 def ml_sync_manual(limit=20):
     cuenta = cuenta_ml_actual()
     if not cuenta:
         raise ValueError("No hay cuenta de Mercado Libre conectada.")
 
+    eliminados_existentes, detalles_eliminados = ml_limpiar_pedidos_ml_no_operables_existentes()
+
     orders = ml_obtener_orders_recientes(cuenta, limit=limit)
     creados = 0
     actualizados = 0
     omitidos = 0
-    errores = []
+    errores = list(detalles_eliminados)
 
     for order in orders:
         order_id = str(order.get("id") or "").strip() or "sin_id"
@@ -1725,7 +1856,7 @@ def ml_sync_manual(limit=20):
     cuenta.last_sync_at = datetime.utcnow()
     cuenta.last_sync_status = "ok" if not errores else "parcial"
 
-    detalle = f"Pedidos leídos: {len(orders)} | Nuevos: {creados} | Actualizados: {actualizados} | Omitidos: {omitidos}"
+    detalle = f"Pedidos leídos: {len(orders)} | Nuevos: {creados} | Actualizados: {actualizados} | Omitidos: {omitidos} | Eliminados no operables: {eliminados_existentes}"
     if errores:
         detalle += " | Detalle: " + " ; ".join(errores[:5])
 
@@ -1737,6 +1868,7 @@ def ml_sync_manual(limit=20):
         "creados": creados,
         "actualizados": actualizados,
         "omitidos": omitidos,
+        "eliminados": eliminados_existentes,
         "errores": errores,
     }
 
@@ -1972,7 +2104,8 @@ def sync_mercadolibre():
             f"Sync ML OK. Leídos: {resultado['leidos']} | "
             f"Nuevos: {resultado['creados']} | "
             f"Actualizados: {resultado['actualizados']} | "
-            f"Omitidos: {resultado['omitidos']}"
+            f"Omitidos: {resultado['omitidos']} | "
+            f"Eliminados: {resultado['eliminados']}"
         )
         return redirect(url_for("admin_integraciones", ok=mensaje))
     except Exception as e:
