@@ -1153,8 +1153,10 @@ tr.fila-amarillo td .btn-accion-rapida {
 }
 
 /* =========================================================
-   AJUSTE TABLERO INICIO - INTEGRACIÓN ML
-   Evita columnas corridas y botones cortados en admin.
+   AJUSTE TABLERO INICIO - TABLA LIVIANA
+   Inicio queda como tablero de decisión rápida.
+   Columnas activas: ID, Cliente, ID Venta, Canal, Tipo ML,
+   Hace cuánto, Acción sugerida, Acción rápida y Ver.
    ========================================================= */
 .listado-card {
     overflow: hidden;
@@ -1178,52 +1180,80 @@ tr.fila-amarillo td .btn-accion-rapida {
 .tabla-pedidos td:nth-child(1) { width: 3%; }
 
 .tabla-pedidos th:nth-child(2),
-.tabla-pedidos td:nth-child(2) { width: 16%; }
+.tabla-pedidos td:nth-child(2) { width: 18%; }
 
 .tabla-pedidos th:nth-child(3),
-.tabla-pedidos td:nth-child(3) { width: 12%; }
+.tabla-pedidos td:nth-child(3) { width: 14%; }
 
 .tabla-pedidos th:nth-child(4),
-.tabla-pedidos td:nth-child(4) { width: 7%; }
+.tabla-pedidos td:nth-child(4) { width: 8%; }
 
 .tabla-pedidos th:nth-child(5),
 .tabla-pedidos td:nth-child(5) { width: 13%; }
 
 .tabla-pedidos th:nth-child(6),
-.tabla-pedidos td:nth-child(6) { width: 15%; }
-
-.tabla-pedidos th:nth-child(7),
-.tabla-pedidos td:nth-child(7) {
-    width: 6%;
-    white-space: normal;
+.tabla-pedidos td:nth-child(6) {
+    width: 8%;
+    white-space: nowrap;
 }
 
+.tabla-pedidos th:nth-child(7),
+.tabla-pedidos td:nth-child(7) { width: 13%; }
+
 .tabla-pedidos th:nth-child(8),
-.tabla-pedidos td:nth-child(8) { width: 9%; }
+.tabla-pedidos td:nth-child(8) {
+    width: 12%;
+    text-align: center;
+}
 
 .tabla-pedidos th:nth-child(9),
 .tabla-pedidos td:nth-child(9) {
     width: 11%;
-    white-space: normal;
+    text-align: center;
 }
 
-.tabla-pedidos th:nth-child(10),
-.tabla-pedidos td:nth-child(10) { width: 8%; }
+.tabla-pedidos td:nth-child(8) .btn-accion-rapida,
+.tabla-pedidos td:nth-child(9) .btn-accion-rapida,
+.tabla-pedidos td:nth-child(8) .btn,
+.tabla-pedidos td:nth-child(9) .btn {
+    margin: 0 auto;
+}
 
-.estado-listado {
-    width: 100%;
-    min-width: 0;
-    max-width: 170px;
-    min-height: 38px;
-    padding: 7px 8px;
+.tipo-ml-listado {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #124E64;
+    border: 1px solid rgba(18, 78, 100, 0.16);
     font-size: 12px;
+    font-weight: 800;
+    line-height: 1.15;
+    text-align: center;
+}
+
+.tipo-ml-acordás-la-entrega,
+.tipo-ml-acordas-la-entrega {
+    background: #fffbeb;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.tipo-ml-mercado-envíos,
+.tipo-ml-mercado-envios {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #a7f3d0;
 }
 
 .tabla-pedidos .btn-accion-rapida,
 .tabla-pedidos .btn {
     width: 100%;
     min-width: 0;
-    max-width: 150px;
+    max-width: 170px;
     padding: 8px 8px;
     font-size: 12px;
     white-space: normal;
