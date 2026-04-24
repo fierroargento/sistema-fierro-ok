@@ -56,6 +56,9 @@
                 <form method="post" action="{{ url_for('reset_prueba_mercadolibre') }}" onsubmit="return confirm('Esto elimina SOLO pedidos importados de Mercado Libre que siguen en Cargando Pedido. No toca manuales, no toca despachados, no toca finalizados. ¿Seguimos?');">
                     <button type="submit" class="boton-cancelar">Borrar pedidos ML de prueba</button>
                 </form>
+                <form method="post" action="{{ url_for('reset_total_mercadolibre') }}" onsubmit="return confirm('RESET TOTAL ML EN FIERRO: elimina TODOS los pedidos importados desde Mercado Libre dentro del Sistema Fierro. NO toca Mercado Libre real. ¿Confirmás?');">
+                    <button type="submit" class="boton-cancelar">Reset total ML en Fierro</button>
+                </form>
                 {% else %}
                 <a href="{{ url_for('conectar_mercadolibre') }}" class="boton-accion">Conectar Mercado Libre</a>
                 {% endif %}

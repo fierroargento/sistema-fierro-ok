@@ -182,7 +182,12 @@
             {% endif %}
             <p><strong>Etiqueta:</strong>
                 {% if pedido.etiqueta_archivo %}
-                    <a href="{{ pedido.etiqueta_archivo }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                    {% set etiqueta_valor = pedido.etiqueta_archivo|string %}
+                    {% if etiqueta_valor.startswith("http") %}
+                        <a href="{{ etiqueta_valor }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                    {% else %}
+                        <a href="{{ url_for('ver_archivo_pedido_compat', pedido_id=pedido.id, nombre_archivo=etiqueta_valor) }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                    {% endif %}
                 {% elif pedido.empresa_envio == "Vía Cargo" %}
                     Etiqueta interna
                 {% else %}

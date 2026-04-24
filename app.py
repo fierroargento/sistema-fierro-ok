@@ -1738,37 +1738,84 @@ def buscar_valor_recursivo(data, claves):
     return ""
 
 
+def ml_billing_base(billing_info):
+    """Devuelve el bloque real buyer.billing_info cuando ML responde V2."""
+    if not isinstance(billing_info, dict):
+        return {}
+
+    buyer = billing_info.get("buyer") or {}
+    if isinstance(buyer, dict):
+        info = buyer.get("billing_info") or {}
+        if isinstance(info, dict) and info:
+            return info
+
+    info = billing_info.get("billing_info") or {}
+    if isinstance(info, dict) and info:
+        return info
+
+    return billing_info
+
+
+def ml_billing_additional_info_map(billing_info):
+    info = ml_billing_base(billing_info)
+    adicionales = info.get("additional_info") or billing_info.get("additional_info") or []
+    salida = {}
+
+    if isinstance(adicionales, list):
+        for item in adicionales:
+            if not isinstance(item, dict):
+                continue
+            tipo = str(item.get("type") or item.get("key") or item.get("name") or "").lower().strip()
+            valor = item.get("value")
+            if tipo and valor not in [None, ""]:
+                salida[tipo] = valor
+
+    return salida
+
+
 def ml_extraer_documento_billing(billing_info):
-    valor = buscar_valor_recursivo(
-        billing_info,
-        [
-            "doc_number",
-            "document_number",
-            "number",
-            "dni",
-            "cuit",
-            "taxpayer_number",
-            "identification_number",
-        ]
-    )
-    valor = re.sub(r"\D", "", str(valor or ""))
-    if valor in ["0", "00", "00000000", "000000000", "00000000000"]:
-        return ""
-    return valor
+    info = ml_billing_base(billing_info)
+    adicionales = ml_billing_additional_info_map(billing_info)
+
+    identificacion = info.get("identification") or {}
+    atributos = info.get("attributes") or {}
+
+    candidatos = [
+        identificacion.get("number") if isinstance(identificacion, dict) else "",
+        adicionales.get("doc_number"),
+        adicionales.get("secondary_doc_number"),
+        atributos.get("doc_type_number") if isinstance(atributos, dict) else "",
+        info.get("doc_number"),
+        info.get("document_number"),
+        info.get("dni"),
+        info.get("cuit"),
+        buscar_valor_recursivo(info.get("identification") or {}, ["number"]),
+    ]
+
+    for candidato in candidatos:
+        valor = re.sub(r"\D", "", str(candidato or ""))
+        if valor and valor not in ["0", "00", "00000000", "000000000", "0000000000", "00000000000"]:
+            return valor
+
+    return ""
 
 
 def ml_extraer_nombre_billing(billing_info):
-    candidatos = []
+    info = ml_billing_base(billing_info)
+    adicionales = ml_billing_additional_info_map(billing_info)
 
-    for clave in ["business_name", "name", "full_name", "legal_name"]:
-        candidatos.append(buscar_valor_recursivo(billing_info, clave))
+    business_name = str(info.get("business_name") or adicionales.get("business_name") or "").strip()
+    if business_name:
+        return business_name
 
-    first = str(buscar_valor_recursivo(billing_info, ["first_name", "firstname"]) or "").strip()
-    last = str(buscar_valor_recursivo(billing_info, ["last_name", "lastname"]) or "").strip()
-    candidatos.append(f"{first} {last}".strip())
+    nombre = str(info.get("name") or adicionales.get("first_name") or "").strip()
+    apellido = str(info.get("last_name") or adicionales.get("last_name") or "").strip()
+    nombre_completo = f"{nombre} {apellido}".strip()
+    if nombre_completo and not nombre_completo.isdigit():
+        return nombre_completo
 
-    for candidato in candidatos:
-        valor = str(candidato or "").strip()
+    for clave in ["full_name", "legal_name"]:
+        valor = str(info.get(clave) or adicionales.get(clave) or "").strip()
         if valor and not valor.isdigit():
             return valor
 
@@ -1776,27 +1823,38 @@ def ml_extraer_nombre_billing(billing_info):
 
 
 def ml_extraer_direccion_billing(billing_info):
-    direccion = buscar_valor_recursivo(billing_info, ["address_line", "address", "street_name"])
-    numero = buscar_valor_recursivo(billing_info, ["street_number", "number"])
-    ciudad = buscar_valor_recursivo(billing_info, ["city_name", "city", "locality", "localidad"])
-    provincia = buscar_valor_recursivo(billing_info, ["state_name", "state", "province", "provincia"])
-    cp = buscar_valor_recursivo(billing_info, ["zip_code", "postal_code", "cp"])
+    info = ml_billing_base(billing_info)
+    adicionales = ml_billing_additional_info_map(billing_info)
 
-    partes = []
-    calle = str(direccion or "").strip()
-    nro = str(numero or "").strip()
+    address = info.get("address") or {}
+    if not isinstance(address, dict):
+        address = {}
 
-    if calle and nro and nro not in calle:
-        partes.append(f"{calle} {nro}".strip())
+    estado = address.get("state") or {}
+    if not isinstance(estado, dict):
+        estado = {}
+
+    calle = str(address.get("street_name") or adicionales.get("street_name") or "").strip()
+    numero = str(address.get("street_number") or adicionales.get("street_number") or "").strip()
+    comentario = str(address.get("comment") or adicionales.get("comment") or "").strip()
+    ciudad = str(address.get("city_name") or adicionales.get("city_name") or "").strip()
+    provincia = str(estado.get("name") or address.get("state_name") or adicionales.get("state_name") or "").strip()
+    cp = str(address.get("zip_code") or adicionales.get("zip_code") or "").strip()
+
+    direccion = ""
+    if calle and numero:
+        direccion = f"{calle} {numero}".strip()
     elif calle:
-        partes.append(calle)
+        direccion = calle
 
-    for valor in [ciudad, provincia, cp]:
+    partes = [direccion, comentario, ciudad, provincia, cp]
+    salida = []
+    for valor in partes:
         valor = str(valor or "").strip()
-        if valor and valor not in partes:
-            partes.append(valor)
+        if valor and valor not in salida:
+            salida.append(valor)
 
-    return ", ".join(partes).strip()
+    return ", ".join(salida).strip()
 
 
 def ml_extraer_telefono(order, shipment):
@@ -1955,6 +2013,43 @@ def ml_obtener_etiqueta_url(shipping_id):
     return ml_guardar_etiqueta_pdf(shipping_id)
 
 
+
+def etiqueta_archivo_local_disponible(etiqueta_archivo):
+    archivo = os.path.basename(str(etiqueta_archivo or ""))
+    if not archivo:
+        return False
+    return os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], archivo))
+
+
+def ml_asegurar_etiqueta_disponible(pedido):
+    """
+    Garantiza que la etiqueta ML esté disponible en el servidor actual.
+    Render puede perder archivos locales al redeploy, por eso re-descargamos por shipping_id.
+    """
+    if not pedido or not es_mercado_envios(pedido):
+        return True
+
+    if pedido.etiqueta_archivo and str(pedido.etiqueta_archivo).startswith("http"):
+        return True
+
+    if etiqueta_archivo_local_disponible(pedido.etiqueta_archivo):
+        return True
+
+    if not pedido.ml_shipping_id and pedido.id_venta:
+        order = ml_obtener_order(pedido.id_venta)
+        shipment_id = (order.get("shipping") or {}).get("id") if order else ""
+        if shipment_id:
+            pedido.ml_shipping_id = str(shipment_id).strip()
+
+    if pedido.ml_shipping_id:
+        nombre_pdf = ml_guardar_etiqueta_pdf(pedido.ml_shipping_id)
+        if nombre_pdf:
+            pedido.etiqueta_archivo = os.path.basename(str(nombre_pdf))
+            return etiqueta_archivo_local_disponible(pedido.etiqueta_archivo)
+
+    return False
+
+
 def ml_nombre_cliente(order, shipment=None):
     shipment = shipment or {}
     buyer = order.get("buyer") or {}
@@ -2043,7 +2138,7 @@ def ml_aplicar_datos_envio(pedido, order, shipment):
     pedido.ml_shipping_status = shipment.get("status") or shipping.get("status") or pedido.ml_shipping_status
 
     if pedido.ml_tipo == "Mercado Envíos" and pedido.ml_shipping_id:
-        if not pedido.etiqueta_archivo:
+        if not pedido.etiqueta_archivo or not etiqueta_archivo_local_disponible(pedido.etiqueta_archivo):
             nombre_pdf = ml_guardar_etiqueta_pdf(pedido.ml_shipping_id)
             if nombre_pdf:
                 pedido.etiqueta_archivo = os.path.basename(str(nombre_pdf))
@@ -2584,6 +2679,59 @@ def reset_prueba_mercadolibre():
     except Exception as e:
         return redirect(url_for("admin_integraciones", error=f"No se pudieron eliminar pedidos ML de prueba: {e}"))
 
+@app.route("/admin/integraciones/mercadolibre/reset-total", methods=["POST"])
+@login_required
+def reset_total_mercadolibre():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+
+    try:
+        pedidos = (
+            Pedido.query
+            .filter(Pedido.canal == "Mercado Libre")
+            .filter(Pedido.origen == "mercadolibre")
+            .all()
+        )
+        eliminados = len(pedidos)
+
+        for pedido in pedidos:
+            db.session.delete(pedido)
+
+        db.session.commit()
+        return redirect(url_for(
+            "admin_integraciones",
+            ok=f"Reset total ML realizado. Pedidos importados de Mercado Libre eliminados en Fierro: {eliminados}. Ahora podés sincronizar de nuevo."
+        ))
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for("admin_integraciones", error=f"No se pudo hacer reset total ML: {e}"))
+
+
+@app.route("/admin/reset_ml")
+@login_required
+def reset_ml_directo():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+
+    try:
+        pedidos = (
+            Pedido.query
+            .filter(Pedido.canal == "Mercado Libre")
+            .filter(Pedido.origen == "mercadolibre")
+            .all()
+        )
+        eliminados = len(pedidos)
+
+        for pedido in pedidos:
+            db.session.delete(pedido)
+
+        db.session.commit()
+        return f"OK - pedidos ML importados borrados de Fierro: {eliminados}. No se tocó Mercado Libre."
+    except Exception as e:
+        db.session.rollback()
+        return f"ERROR - no se pudo borrar: {e}", 500
+
+
 
 @app.route("/historico")
 @login_required
@@ -2629,6 +2777,30 @@ def ver_etiqueta(nombre_archivo):
     return send_from_directory(app.config["UPLOAD_FOLDER"], nombre_archivo)
 
 
+@app.route("/pedido/<path:nombre_archivo>")
+@login_required
+def ver_archivo_pedido_sin_id_compat(nombre_archivo):
+    # Compatibilidad con links relativos viejos tipo /pedido/ml_xxx.pdf.
+    # Busca el pedido que tenga ese nombre de etiqueta y redirige al link seguro con ID.
+    archivo = os.path.basename(str(nombre_archivo or ""))
+    if not archivo:
+        return "Etiqueta no disponible", 404
+
+    pedido = (
+        Pedido.query
+        .filter(Pedido.etiqueta_archivo.ilike(f"%{archivo}%"))
+        .order_by(Pedido.id.desc())
+        .first()
+    )
+
+    if not pedido:
+        return "Etiqueta no encontrada", 404
+
+    return redirect(url_for("ver_archivo_pedido_compat", pedido_id=pedido.id, nombre_archivo=archivo))
+
+
+
+
 
 @app.route("/pedido/<int:pedido_id>/<path:nombre_archivo>")
 @login_required
@@ -2645,13 +2817,23 @@ def ver_archivo_pedido_compat(pedido_id, nombre_archivo):
     # Esto evita Not Found por URLs viejas o rutas relativas.
     ruta = os.path.join(app.config["UPLOAD_FOLDER"], archivo_guardado)
     if not os.path.exists(ruta):
-        # Último intento: si por alguna razón está en etiqueta_archivo con ruta completa.
-        if os.path.exists(str(pedido.etiqueta_archivo)):
-            return send_from_directory(
-                os.path.dirname(str(pedido.etiqueta_archivo)),
-                os.path.basename(str(pedido.etiqueta_archivo))
-            )
-        return "Etiqueta no encontrada en el servidor", 404
+        if es_mercado_envios(pedido):
+            try:
+                ml_asegurar_etiqueta_disponible(pedido)
+                db.session.commit()
+                archivo_guardado = os.path.basename(str(pedido.etiqueta_archivo))
+                ruta = os.path.join(app.config["UPLOAD_FOLDER"], archivo_guardado)
+            except Exception as e:
+                print("No se pudo re-descargar etiqueta ML desde link compatible:", e)
+
+        if not os.path.exists(ruta):
+            # Último intento: si por alguna razón está en etiqueta_archivo con ruta completa.
+            if os.path.exists(str(pedido.etiqueta_archivo)):
+                return send_from_directory(
+                    os.path.dirname(str(pedido.etiqueta_archivo)),
+                    os.path.basename(str(pedido.etiqueta_archivo))
+                )
+            return "Etiqueta no encontrada en el servidor", 404
 
     return send_from_directory(app.config["UPLOAD_FOLDER"], archivo_guardado)
 
@@ -2686,21 +2868,14 @@ def imprimir_etiqueta(id):
     pedido = Pedido.query.get_or_404(id)
     origen = (request.args.get("origen") or "").strip()
 
-
     if not puede_imprimir_pedido(pedido):
         return redirect(url_for("inicio"))
 
     actualizar_estado_automatico(pedido)
 
-    if pedido.estado in ["Cargando Pedido", "Etiqueta Lista"] and (
-        pedido.estado == "Etiqueta Lista"
-        or puede_imprimir_etiqueta_directamente(pedido)
-        or puede_imprimir_acordas_entrega(pedido)
-    ):
+    if pedido.empresa_envio == "Vía Cargo" and not es_mercado_envios(pedido):
         aplicar_estado_y_fechas(pedido, "Etiqueta Impresa")
         db.session.commit()
-
-    if pedido.empresa_envio == "Vía Cargo" and not es_mercado_envios(pedido):
         return render_template(
             "imprimir_etiqueta_interna.html",
             pedido=pedido,
@@ -2708,11 +2883,33 @@ def imprimir_etiqueta(id):
             volver_url=(url_for("detalle_pedido", id=pedido.id) if origen == "detalle" else url_for("inicio"))
         )
 
+    if es_mercado_envios(pedido):
+        try:
+            etiqueta_ok = ml_asegurar_etiqueta_disponible(pedido)
+        except Exception as e:
+            print("No se pudo asegurar etiqueta ML:", e)
+            etiqueta_ok = False
+
+        if not etiqueta_ok:
+            db.session.commit()
+            return render_template(
+                "detalle_pedido.html",
+                pedido=pedido,
+                error="La etiqueta de Mercado Envíos todavía no está disponible. Resincronizá ML o probá de nuevo en unos minutos.",
+                ok_feedback="",
+                accion_sugerida=accion_sugerida_pedido(pedido),
+                texto_boton=texto_boton_estado(pedido),
+                hay_autorizado=hay_autorizado,
+                puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
+                whatsapp_url=whatsapp_link_pedido(pedido)
+            )
+
     if not pedido.etiqueta_archivo:
         return render_template(
             "detalle_pedido.html",
             pedido=pedido,
             error="No hay etiqueta adjunta para imprimir.",
+            ok_feedback="",
             accion_sugerida=accion_sugerida_pedido(pedido),
             texto_boton=texto_boton_estado(pedido),
             hay_autorizado=hay_autorizado,
@@ -2720,63 +2917,59 @@ def imprimir_etiqueta(id):
             whatsapp_url=whatsapp_link_pedido(pedido)
         )
 
-    extension = pedido.etiqueta_archivo.rsplit(".", 1)[-1].lower() if "." in pedido.etiqueta_archivo else ""
+    etiqueta = str(pedido.etiqueta_archivo or "").strip()
+    extension = etiqueta.rsplit(".", 1)[-1].lower() if "." in etiqueta else ""
+    url_original = etiqueta
+    preset_etiqueta = "default"
 
-    if not pedido.etiqueta_archivo.startswith("http"):
-        return render_template(
-            "detalle_pedido.html",
-            pedido=pedido,
-            error="La etiqueta no está disponible en el servidor. Volvé a sincronizar ML.",
-            accion_sugerida=accion_sugerida_pedido(pedido),
-            texto_boton=texto_boton_estado(pedido),
-            hay_autorizado=hay_autorizado,
-            puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-            whatsapp_url=whatsapp_link_pedido(pedido)
-        )
-
-    url_original = pedido.etiqueta_archivo
-
-    if extension == "pdf":
-        if pedido.empresa_envio and "andreani" in pedido.empresa_envio.lower():
-            preset_etiqueta = "andreani"
-            nombre_pdf_local = asegurar_pdf_local_desde_url(pedido.etiqueta_archivo, prefijo=f"pedido_{pedido.id}_andreani")
-            if nombre_pdf_local:
-                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local, proveedor="andreani")
-                if nombre_preview:
-                    url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
-                else:
-                    url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
+    if etiqueta.startswith("http"):
+        if extension == "pdf":
+            if pedido.empresa_envio and "andreani" in pedido.empresa_envio.lower():
+                preset_etiqueta = "andreani"
+                nombre_pdf_local = asegurar_pdf_local_desde_url(etiqueta, prefijo=f"pedido_{pedido.id}_andreani")
+                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local, proveedor="andreani") if nombre_pdf_local else None
+                url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview) if nombre_preview else etiqueta.replace("/upload/", "/upload/pg_1,f_png/")
+            elif pedido.empresa_envio and "correo" in pedido.empresa_envio.lower():
+                preset_etiqueta = "correo"
+                nombre_pdf_local = asegurar_pdf_local_desde_url(etiqueta, prefijo=f"pedido_{pedido.id}_correo")
+                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local, proveedor="correo") if nombre_pdf_local else None
+                url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview) if nombre_preview else etiqueta.replace("/upload/", "/upload/pg_1,f_png/")
+            elif (pedido.empresa_envio and "mercado" in pedido.empresa_envio.lower()) or es_mercado_envios(pedido):
+                preset_etiqueta = "mercado"
+                nombre_pdf_local = asegurar_pdf_local_desde_url(etiqueta, prefijo=f"pedido_{pedido.id}_mercado")
+                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local, proveedor="mercado") if nombre_pdf_local else None
+                url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview) if nombre_preview else etiqueta.replace("/upload/", "/upload/pg_1,f_png/")
             else:
-                url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
-        elif pedido.empresa_envio and "correo" in pedido.empresa_envio.lower():
-            preset_etiqueta = "correo"
-            nombre_pdf_local = asegurar_pdf_local_desde_url(pedido.etiqueta_archivo, prefijo=f"pedido_{pedido.id}_correo")
-            if nombre_pdf_local:
-                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local, proveedor="correo")
-                if nombre_preview:
-                    url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
-                else:
-                    url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
-            else:
-                url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
-        elif ((pedido.empresa_envio and "mercado" in pedido.empresa_envio.lower())
-              or es_mercado_envios(pedido)):
-            preset_etiqueta = "mercado"
-            nombre_pdf_local = asegurar_pdf_local_desde_url(pedido.etiqueta_archivo, prefijo=f"pedido_{pedido.id}_mercado")
-            if nombre_pdf_local:
-                nombre_preview = generar_preview_etiqueta_pdf(nombre_pdf_local, proveedor="mercado")
-                if nombre_preview:
-                    url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview)
-                else:
-                    url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
-            else:
-                url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
+                url_archivo = etiqueta.replace("/upload/", "/upload/pg_1,f_png/")
         else:
-            preset_etiqueta = "default"
-            url_archivo = pedido.etiqueta_archivo.replace("/upload/", "/upload/pg_1,f_png/")
+            url_archivo = etiqueta
     else:
-        url_archivo = pedido.etiqueta_archivo
-        preset_etiqueta = "default"
+        archivo_local = os.path.basename(etiqueta)
+        ruta_local = os.path.join(app.config["UPLOAD_FOLDER"], archivo_local)
+
+        if not os.path.exists(ruta_local):
+            return render_template(
+                "detalle_pedido.html",
+                pedido=pedido,
+                error="La etiqueta no está disponible en el servidor. Probá resincronizar ML.",
+                ok_feedback="",
+                accion_sugerida=accion_sugerida_pedido(pedido),
+                texto_boton=texto_boton_estado(pedido),
+                hay_autorizado=hay_autorizado,
+                puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
+                whatsapp_url=whatsapp_link_pedido(pedido)
+            )
+
+        if extension == "pdf":
+            proveedor = "mercado" if es_mercado_envios(pedido) else "default"
+            preset_etiqueta = proveedor
+            nombre_preview = generar_preview_etiqueta_pdf(archivo_local, proveedor=proveedor)
+            url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview or archivo_local)
+        else:
+            url_archivo = url_for("ver_etiqueta", nombre_archivo=archivo_local)
+
+    aplicar_estado_y_fechas(pedido, "Etiqueta Impresa")
+    db.session.commit()
 
     return render_template(
         "imprimir_etiqueta.html",
