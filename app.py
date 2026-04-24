@@ -1504,6 +1504,70 @@ def ml_api_get(path, params=None):
     return ml_http_json("GET", url, headers={"Authorization": f"Bearer {token}"})
 
 
+
+def ml_api_get_binario(path, params=None, accept="application/pdf"):
+    token = ml_access_token_vigente()
+    params = params or {}
+    query = urlencode(params)
+    url = f"https://api.mercadolibre.com{path}"
+    if query:
+        url = f"{url}?{query}"
+
+    req = Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Accept", accept)
+
+    with urlopen(req) as response:
+        contenido = response.read()
+        content_type = response.headers.get("Content-Type", "")
+        return contenido, content_type
+
+
+def ml_guardar_etiqueta_pdf(shipping_id):
+    shipping_id = str(shipping_id or "").strip()
+    if not shipping_id:
+        return None
+
+    nombre_archivo = secure_filename(f"ml_{shipping_id}.pdf")
+    ruta_pdf = os.path.join(app.config["UPLOAD_FOLDER"], nombre_archivo)
+
+    if os.path.exists(ruta_pdf) and os.path.getsize(ruta_pdf) > 0:
+        return nombre_archivo
+
+    intentos = [
+        {"shipment_ids": shipping_id, "response_type": "pdf"},
+        {"shipment_ids": shipping_id},
+    ]
+
+    for params in intentos:
+        try:
+            contenido, content_type = ml_api_get_binario(
+                "/shipment_labels",
+                params=params,
+                accept="application/pdf",
+            )
+
+            if contenido and (contenido[:4] == b"%PDF" or "pdf" in str(content_type).lower()):
+                with open(ruta_pdf, "wb") as salida:
+                    salida.write(contenido)
+                return nombre_archivo
+
+            try:
+                data = json.loads(contenido.decode("utf-8"))
+                results = data.get("results") or []
+                if results and results[0].get("url"):
+                    nombre_descargado = asegurar_pdf_local_desde_url(results[0].get("url"), prefijo="ml")
+                    if nombre_descargado:
+                        return nombre_descargado
+            except Exception:
+                pass
+
+        except Exception as e:
+            print("No se pudo descargar etiqueta ML:", e)
+
+    return None
+
+
 def ml_obtener_usuario_actual():
     return ml_api_get("/users/me")
 
@@ -1545,16 +1609,8 @@ def ml_obtener_shipment(shipping_id):
         return {}
 
 def ml_obtener_etiqueta_url(shipping_id):
-    if not shipping_id:
-        return None
-    try:
-        data = ml_api_get("/shipment_labels", params={"shipment_ids": shipping_id})
-        results = data.get("results") or []
-        if results:
-            return results[0].get("url")
-    except Exception as e:
-        print("No se pudo obtener etiqueta ML:", e)
-    return None
+    # Compatibilidad: mantiene el nombre viejo, pero ahora descarga y devuelve el archivo local.
+    return ml_guardar_etiqueta_pdf(shipping_id)
 
 
 def ml_nombre_cliente(order, shipment=None):
@@ -1646,11 +1702,9 @@ def ml_aplicar_datos_envio(pedido, order, shipment):
 
     if pedido.ml_tipo == "Mercado Envíos" and pedido.ml_shipping_id:
         if not pedido.etiqueta_archivo:
-            url_etiqueta = ml_obtener_etiqueta_url(pedido.ml_shipping_id)
-            if url_etiqueta:
-                nombre_pdf = asegurar_pdf_local_desde_url(url_etiqueta, prefijo="ml")
-                if nombre_pdf:
-                    pedido.etiqueta_archivo = nombre_pdf
+            nombre_pdf = ml_guardar_etiqueta_pdf(pedido.ml_shipping_id)
+            if nombre_pdf:
+                pedido.etiqueta_archivo = nombre_pdf
 
 
 def ml_pedido_existente_por_order_id(order_id):
