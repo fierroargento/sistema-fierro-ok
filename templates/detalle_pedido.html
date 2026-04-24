@@ -86,31 +86,46 @@
     color: #124E64;
 }
 
-.ml-sugerido-box {
-    border: 1px solid rgba(18, 78, 100, 0.18);
-    background: #f3fbff;
+.apb-ml-box {
+    margin-top: 18px;
+    border: 2px solid rgba(18, 78, 100, 0.18);
+    background: #f8fcfd;
 }
 
-.ml-sugerido-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px 20px;
+.apb-ml-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+    background: #A4F4CF;
+    color: #124E64;
+    margin: 4px 6px 4px 0;
 }
 
-.ml-sugerido-grid p {
-    margin: 4px 0;
+.apb-ml-badge.alerta {
+    background: #FFB86A;
 }
 
-.ml-aviso {
+.apb-ml-mensaje {
+    width: 100%;
+    min-height: 130px;
+    resize: vertical;
+    border: 1px solid rgba(18, 78, 100, 0.22);
+    border-radius: 14px;
+    padding: 12px;
+    font-size: 15px;
+    line-height: 1.4;
+    box-sizing: border-box;
+}
+
+.apb-ml-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
     margin-top: 12px;
-    color: #7a4a00;
-    font-weight: 700;
-}
-
-@media (max-width: 900px) {
-    .ml-sugerido-grid {
-        grid-template-columns: 1fr;
-    }
 }
 </style>
 
@@ -192,24 +207,46 @@
 
     </div>
 
-    {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" and pedido_tiene_datos_facturacion_ml(pedido) %}
-    <div class="detalle-box detalle-box-full ml-sugerido-box" style="margin-top: 18px;">
-        <h3>Datos sugeridos desde Mercado Libre / Facturación</h3>
-        <div class="ml-sugerido-grid">
-            <p><strong>Nombre:</strong> {{ pedido.ml_facturacion_nombre or "-" }}</p>
-            <p><strong>DNI/CUIT:</strong> {{ pedido.ml_facturacion_dni or "-" }}</p>
-            <p><strong>Condición:</strong> {{ pedido.ml_facturacion_condicion or "-" }}</p>
-            <p><strong>Dirección:</strong> {{ pedido.ml_facturacion_direccion or "-" }}</p>
-            <p><strong>CP:</strong> {{ pedido.ml_facturacion_codigo_postal or "-" }}</p>
-            <p><strong>Localidad:</strong> {{ pedido.ml_facturacion_localidad or "-" }}</p>
-            <p><strong>Provincia:</strong> {{ pedido.ml_facturacion_provincia or "-" }}</p>
+
+    {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" %}
+    {% set faltantes_apb = ml_datos_apb_pedido(pedido) %}
+    <div class="detalle-box detalle-box-full apb-ml-box">
+        <h3>Control APB Mercado Libre - Acordás la Entrega</h3>
+
+        {% if faltantes_apb %}
+            <p><strong>Estado APB:</strong> requiere completar datos antes de avanzar.</p>
+            {% for faltante in faltantes_apb %}
+                <span class="apb-ml-badge alerta">Falta {{ faltante }}</span>
+            {% endfor %}
+        {% else %}
+            <p><strong>Estado APB:</strong> datos mínimos completos.</p>
+            <span class="apb-ml-badge">OK para operar</span>
+        {% endif %}
+
+        <div style="margin-top: 12px;">
+            <p><strong>Nick ML:</strong> {{ pedido.ml_buyer_nickname or "-" }}</p>
+            <p><strong>Nombre fiscal ML:</strong> {{ pedido.ml_billing_nombre or "-" }}</p>
+            <p><strong>DNI/CUIT fiscal ML:</strong> {{ pedido.ml_billing_documento or "-" }}</p>
+            <p><strong>Dirección fiscal / referencia ML:</strong> {{ pedido.ml_billing_direccion or "-" }}</p>
         </div>
-        <div class="ml-aviso">
-            APB: estos datos vienen de ML/facturación. Usalos como base y confirmalos con el comprador antes de despachar.
+
+        {% if pedido.ml_mensaje_contacto or faltantes_apb %}
+        <div style="margin-top: 14px;">
+            <h4>Mensaje prearmado para chat ML</h4>
+            <textarea id="mensaje-ml-apb" class="apb-ml-mensaje" readonly>{{ pedido.ml_mensaje_contacto or generar_mensaje_contacto_ml(pedido) }}</textarea>
+            <div class="apb-ml-actions">
+                <button type="button" class="btn btn-confirmar" onclick="copiarMensajeMLAPB()">Copiar mensaje</button>
+                {% if ml_link_detalle_venta(pedido) %}
+                <a href="{{ ml_link_detalle_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secundario">Abrir venta en ML</a>
+                {% endif %}
+                {% if puede_editar_pedido(pedido) %}
+                <a href="{{ url_for('editar_pedido', id=pedido.id, paso=1) }}" class="btn btn-secundario">Completar datos</a>
+                {% endif %}
+            </div>
         </div>
+        {% endif %}
     </div>
     {% endif %}
-
     {% if rol_actual == "admin" %}
     <details class="detalle-box detalle-box-full" style="margin-top: 18px;">
         <summary style="cursor: pointer; font-weight: 700;">Fechas del pedido</summary>
@@ -280,13 +317,6 @@
     <div class="detalle-acciones">
         <a href="{{ url_for('inicio') }}" class="btn btn-secundario btn-volver">Volver</a>
 
-        {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" %}
-        <button type="button" class="btn btn-secundario" onclick="copiarMensajeMlEntrega();">
-            Copiar mensaje ML datos entrega
-        </button>
-        <textarea id="mensajeMlEntrega" style="display:none;">{{ mensaje_ml_datos_entrega(pedido) }}</textarea>
-        {% endif %}
-
         {% if accion %}
             {% if accion.tipo == "imprimir_etiqueta" %}
                 <a href="{{ accion.url }}" class="{{ accion.clases }}" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
@@ -350,34 +380,20 @@ function abrirWhatsappYRecargar(urlWhatsapp, urlRecarga) {
     return false;
 }
 
-function copiarMensajeMlEntrega() {
-    var campo = document.getElementById("mensajeMlEntrega");
-    if (!campo) {
-        alert("No se encontró el mensaje para copiar.");
-        return false;
+function copiarMensajeMLAPB() {
+    const textarea = document.getElementById("mensaje-ml-apb");
+    if (!textarea) {
+        return;
     }
 
-    var texto = campo.value || campo.textContent || "";
+    textarea.select();
+    textarea.setSelectionRange(0, 99999);
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(texto).then(function () {
-            alert("Mensaje copiado. Pegalo en el chat de Mercado Libre.");
-        }).catch(function () {
-            campo.style.display = "block";
-            campo.select();
-            document.execCommand("copy");
-            campo.style.display = "none";
-            alert("Mensaje copiado. Pegalo en el chat de Mercado Libre.");
-        });
+        navigator.clipboard.writeText(textarea.value);
     } else {
-        campo.style.display = "block";
-        campo.select();
         document.execCommand("copy");
-        campo.style.display = "none";
-        alert("Mensaje copiado. Pegalo en el chat de Mercado Libre.");
     }
-
-    return false;
 }
 </script>
 

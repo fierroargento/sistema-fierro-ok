@@ -56,6 +56,20 @@ class Pedido(db.Model):
     ml_logistic_type = db.Column(db.String(50))
     ml_shipping_mode = db.Column(db.String(50))
     ultima_sync_ml = db.Column(db.DateTime)
+
+    # =====================
+    # APB MERCADO LIBRE
+    # =====================
+    ml_buyer_id = db.Column(db.String(50))
+    ml_buyer_nickname = db.Column(db.String(120))
+    ml_nombre_real = db.Column(db.Boolean, default=False)
+    ml_datos_fiscales_ok = db.Column(db.Boolean, default=False)
+    ml_billing_nombre = db.Column(db.String(200))
+    ml_billing_documento = db.Column(db.String(30))
+    ml_billing_direccion = db.Column(db.String(300))
+    ml_campos_faltantes = db.Column(db.Text)
+    ml_mensaje_contacto = db.Column(db.Text)
+
     id = db.Column(db.Integer, primary_key=True)
 
     cliente = db.Column(db.String(120), nullable=False)
@@ -232,6 +246,19 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ml_logistic_type", "VARCHAR(50)")
     asegurar_columna_si_no_existe("ml_shipping_mode", "VARCHAR(50)")
     asegurar_columna_si_no_existe("ultima_sync_ml", "TIMESTAMP")
+
+    # =====================
+    # APB MERCADO LIBRE
+    # =====================
+    asegurar_columna_si_no_existe("ml_buyer_id", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("ml_buyer_nickname", "VARCHAR(120)")
+    asegurar_columna_si_no_existe("ml_nombre_real", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("ml_datos_fiscales_ok", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("ml_billing_nombre", "VARCHAR(200)")
+    asegurar_columna_si_no_existe("ml_billing_documento", "VARCHAR(30)")
+    asegurar_columna_si_no_existe("ml_billing_direccion", "VARCHAR(300)")
+    asegurar_columna_si_no_existe("ml_campos_faltantes", "TEXT")
+    asegurar_columna_si_no_existe("ml_mensaje_contacto", "TEXT")
 
 
 def productos_desde_excel(archivo_excel):
@@ -655,7 +682,12 @@ def motor_bloqueo(pedido):
                 errores.append("Falta adjuntar etiqueta.")
 
         elif pedido.ml_tipo == "Acordás la Entrega":
-            pass
+            if parece_nickname_ml(pedido.cliente, pedido.ml_buyer_nickname) and not (pedido.ml_billing_nombre or "").strip():
+                errores.append("Falta nombre real del cliente.")
+            if not (pedido.dni or "").strip() and not (pedido.ml_billing_documento or "").strip():
+                errores.append("Falta DNI/CUIT del cliente.")
+            if not (pedido.telefono or "").strip():
+                errores.append("Falta teléfono del cliente.")
 
     requiere_datos_envio = True
 
@@ -1657,6 +1689,267 @@ def ml_obtener_shipment(shipping_id):
         print("No se pudo consultar shipment ML:", e)
         return {}
 
+
+def ml_obtener_billing_info(order_id):
+    order_id = str(order_id or "").strip()
+    if not order_id:
+        return {}
+
+    try:
+        token = ml_access_token_vigente()
+        url = f"https://api.mercadolibre.com/orders/{order_id}/billing_info"
+        req = Request(url, method="GET")
+        req.add_header("Authorization", f"Bearer {token}")
+        req.add_header("Accept", "application/json")
+        req.add_header("x-version", "2")
+
+        with urlopen(req) as response:
+            raw = response.read().decode("utf-8")
+            if not raw.strip():
+                return {}
+            return json.loads(raw)
+    except Exception as e:
+        print("No se pudo consultar billing_info ML:", e)
+        return {}
+
+
+def buscar_valor_recursivo(data, claves):
+    if not isinstance(claves, (list, tuple, set)):
+        claves = [claves]
+
+    claves_normalizadas = {str(c).lower().strip() for c in claves}
+
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if str(key).lower().strip() in claves_normalizadas and value not in [None, ""]:
+                return value
+
+        for value in data.values():
+            encontrado = buscar_valor_recursivo(value, claves_normalizadas)
+            if encontrado not in [None, ""]:
+                return encontrado
+
+    if isinstance(data, list):
+        for item in data:
+            encontrado = buscar_valor_recursivo(item, claves_normalizadas)
+            if encontrado not in [None, ""]:
+                return encontrado
+
+    return ""
+
+
+def ml_extraer_documento_billing(billing_info):
+    valor = buscar_valor_recursivo(
+        billing_info,
+        [
+            "doc_number",
+            "document_number",
+            "number",
+            "dni",
+            "cuit",
+            "taxpayer_number",
+            "identification_number",
+        ]
+    )
+    valor = re.sub(r"\D", "", str(valor or ""))
+    if valor in ["0", "00", "00000000", "000000000", "00000000000"]:
+        return ""
+    return valor
+
+
+def ml_extraer_nombre_billing(billing_info):
+    candidatos = []
+
+    for clave in ["business_name", "name", "full_name", "legal_name"]:
+        candidatos.append(buscar_valor_recursivo(billing_info, clave))
+
+    first = str(buscar_valor_recursivo(billing_info, ["first_name", "firstname"]) or "").strip()
+    last = str(buscar_valor_recursivo(billing_info, ["last_name", "lastname"]) or "").strip()
+    candidatos.append(f"{first} {last}".strip())
+
+    for candidato in candidatos:
+        valor = str(candidato or "").strip()
+        if valor and not valor.isdigit():
+            return valor
+
+    return ""
+
+
+def ml_extraer_direccion_billing(billing_info):
+    direccion = buscar_valor_recursivo(billing_info, ["address_line", "address", "street_name"])
+    numero = buscar_valor_recursivo(billing_info, ["street_number", "number"])
+    ciudad = buscar_valor_recursivo(billing_info, ["city_name", "city", "locality", "localidad"])
+    provincia = buscar_valor_recursivo(billing_info, ["state_name", "state", "province", "provincia"])
+    cp = buscar_valor_recursivo(billing_info, ["zip_code", "postal_code", "cp"])
+
+    partes = []
+    calle = str(direccion or "").strip()
+    nro = str(numero or "").strip()
+
+    if calle and nro and nro not in calle:
+        partes.append(f"{calle} {nro}".strip())
+    elif calle:
+        partes.append(calle)
+
+    for valor in [ciudad, provincia, cp]:
+        valor = str(valor or "").strip()
+        if valor and valor not in partes:
+            partes.append(valor)
+
+    return ", ".join(partes).strip()
+
+
+def ml_extraer_telefono(order, shipment):
+    buyer = order.get("buyer") or {}
+    phone = buyer.get("phone") or {}
+    receiver_address = (shipment or {}).get("receiver_address") or {}
+
+    candidatos = []
+    area = str(phone.get("area_code") or "").strip()
+    number = str(phone.get("number") or "").strip()
+    if area or number:
+        candidatos.append(f"{area}{number}")
+
+    candidatos.extend([
+        phone.get("extension"),
+        receiver_address.get("receiver_phone"),
+        receiver_address.get("phone"),
+        shipment.get("receiver_phone") if isinstance(shipment, dict) else "",
+    ])
+
+    for candidato in candidatos:
+        normalizado = normalizar_telefono(candidato)
+        digitos = re.sub(r"\D", "", normalizado or "")
+        if digitos and digitos not in ["5490", "54900", "54900000000", "5490000000000"] and len(digitos) >= 10:
+            return normalizado
+
+    return ""
+
+
+def ml_buyer_tiene_nombre_real(order):
+    buyer = order.get("buyer") or {}
+    first = str(buyer.get("first_name") or "").strip()
+    last = str(buyer.get("last_name") or "").strip()
+    return bool(first and last)
+
+
+def parece_nickname_ml(nombre, nickname=""):
+    nombre = str(nombre or "").strip()
+    nickname = str(nickname or "").strip()
+
+    if not nombre:
+        return True
+
+    if nombre.lower() in ["cliente mercado libre", "cliente ml", "mercado libre"]:
+        return True
+
+    if nickname and nombre.lower() == nickname.lower():
+        return True
+
+    if " " not in nombre and re.search(r"\d", nombre):
+        return True
+
+    if " " not in nombre and nombre.upper() == nombre and len(nombre) >= 5:
+        return True
+
+    return False
+
+
+def ml_datos_apb_pedido(pedido):
+    faltantes = []
+
+    if not pedido:
+        return faltantes
+
+    if es_ml_acordas_entrega(pedido):
+        if parece_nickname_ml(pedido.cliente, pedido.ml_buyer_nickname) and not (pedido.ml_billing_nombre or "").strip():
+            faltantes.append("nombre real")
+
+        if not (pedido.dni or "").strip() and not (pedido.ml_billing_documento or "").strip():
+            faltantes.append("DNI/CUIT")
+
+        if not (pedido.telefono or "").strip():
+            faltantes.append("teléfono")
+
+        if not despacho_completo(pedido):
+            faltantes.append("datos de entrega")
+
+    return faltantes
+
+
+def generar_mensaje_contacto_ml(pedido):
+    if not pedido or not es_ml_acordas_entrega(pedido):
+        return ""
+
+    nombre_base = (pedido.ml_billing_nombre or pedido.cliente or "").strip()
+    if parece_nickname_ml(nombre_base, pedido.ml_buyer_nickname):
+        nombre_saludo = ""
+    else:
+        nombre_saludo = " " + nombre_base.split()[0]
+
+    lineas = [
+        f"Hola{nombre_saludo}! Gracias por tu compra en Fierro Argento.",
+        "Para coordinar la entrega, por favor confirmame los datos de entrega y un número de contacto.",
+    ]
+
+    referencias = []
+    if pedido.ml_billing_nombre:
+        referencias.append(f"Nombre: {pedido.ml_billing_nombre}")
+    if pedido.ml_billing_documento:
+        referencias.append(f"Documento: {pedido.ml_billing_documento}")
+    if pedido.ml_billing_direccion:
+        referencias.append(f"Dirección de referencia: {pedido.ml_billing_direccion}")
+
+    if referencias:
+        lineas.append("Tengo como referencia: " + " | ".join(referencias))
+
+    lineas.append("Muchas gracias!")
+
+    mensaje = "\n".join(lineas).strip()
+    if len(mensaje) > 500:
+        mensaje = mensaje[:497] + "..."
+    return mensaje
+
+
+def ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info=None):
+    buyer = order.get("buyer") or {}
+    billing_info = billing_info or {}
+
+    pedido.ml_buyer_id = str(buyer.get("id") or pedido.ml_buyer_id or "").strip()
+    pedido.ml_buyer_nickname = str(buyer.get("nickname") or pedido.ml_buyer_nickname or "").strip()
+
+    nombre_ml = ml_nombre_cliente(order, shipment)
+    nombre_billing = ml_extraer_nombre_billing(billing_info)
+    documento_billing = ml_extraer_documento_billing(billing_info)
+    direccion_billing = ml_extraer_direccion_billing(billing_info)
+    telefono_ml = ml_extraer_telefono(order, shipment)
+
+    pedido.ml_nombre_real = bool(ml_buyer_tiene_nombre_real(order) or (nombre_ml and not parece_nickname_ml(nombre_ml, pedido.ml_buyer_nickname)))
+    pedido.ml_datos_fiscales_ok = bool(documento_billing or nombre_billing)
+    pedido.ml_billing_nombre = nombre_billing or pedido.ml_billing_nombre
+    pedido.ml_billing_documento = documento_billing or pedido.ml_billing_documento
+    pedido.ml_billing_direccion = direccion_billing or pedido.ml_billing_direccion
+
+    if nombre_ml and not parece_nickname_ml(nombre_ml, pedido.ml_buyer_nickname):
+        pedido.cliente = nombre_ml
+    elif nombre_billing and parece_nickname_ml(pedido.cliente, pedido.ml_buyer_nickname):
+        pedido.cliente = nombre_billing
+
+    if documento_billing and not (pedido.dni or "").strip():
+        pedido.dni = documento_billing
+
+    if telefono_ml and not (pedido.telefono or "").strip():
+        pedido.telefono = telefono_ml
+
+    faltantes = ml_datos_apb_pedido(pedido)
+    pedido.ml_campos_faltantes = ", ".join(faltantes)
+    pedido.ml_mensaje_contacto = generar_mensaje_contacto_ml(pedido) if faltantes else ""
+
+
+def ml_link_detalle_venta(pedido):
+    if not pedido or pedido.canal != "Mercado Libre" or not pedido.id_venta:
+        return ""
+    return f"https://www.mercadolibre.com.ar/ventas/{pedido.id_venta}/detalle"
 def ml_obtener_etiqueta_url(shipping_id):
     # Compatibilidad: mantiene el nombre viejo, pero ahora descarga y devuelve el archivo local.
     return ml_guardar_etiqueta_pdf(shipping_id)
@@ -1870,6 +2163,8 @@ def ml_upsert_pedido_desde_order(order):
             return None, False, f"{motivo_omision} - pedido importado eliminado"
         return None, False, motivo_omision
 
+    billing_info = ml_obtener_billing_info(order_id)
+
     pedido = ml_pedido_existente_por_order_id(order_id)
     creado = pedido is None
 
@@ -1886,7 +2181,7 @@ def ml_upsert_pedido_desde_order(order):
     pedido.origen = "mercadolibre"
     pedido.canal = "Mercado Libre"
     pedido.id_venta = order_id
-    pedido.cliente = ml_nombre_cliente(order, shipment) or pedido.cliente
+
     pedido.mail = pedido.mail or ""
     pedido.telefono = pedido.telefono or ""
     pedido.observaciones = (pedido.observaciones or "").strip()
@@ -1895,6 +2190,7 @@ def ml_upsert_pedido_desde_order(order):
     pedido.ultima_sync_ml = datetime.utcnow()
 
     ml_aplicar_datos_envio(pedido, order, shipment)
+    ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info)
 
     order_items = order.get("order_items") or []
     existentes = {str(item.sku or "").strip(): item for item in pedido.items}
@@ -2052,6 +2348,9 @@ def inyectar_contexto_global():
         "alertas_operativas": alertas_operativas,
         "semaforo_pedido": semaforo_pedido,
         "accion_principal_pedido": accion_principal_pedido,
+        "ml_datos_apb_pedido": ml_datos_apb_pedido,
+        "ml_link_detalle_venta": ml_link_detalle_venta,
+        "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,
     }
 
 
