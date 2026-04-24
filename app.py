@@ -2073,8 +2073,8 @@ def ml_enviar_mensaje_acordas(pedido, texto):
 
     if pack_id:
         intentos.append(f"/messages/packs/{pack_id}/sellers/{seller_id}?tag=post_sale")
-    if order_id:
-        intentos.append(f"/messages/orders/{order_id}/sellers/{seller_id}?tag=post_sale")
+    if order_id and order_id != pack_id:
+        intentos.append(f"/messages/packs/{order_id}/sellers/{seller_id}?tag=post_sale")
 
     if not intentos:
         raise ValueError("El pedido no tiene ID de venta ni pack ID de Mercado Libre.")
