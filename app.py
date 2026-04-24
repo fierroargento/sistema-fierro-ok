@@ -538,7 +538,6 @@ def usa_flujo_acordas_entrega(pedido):
 def puede_imprimir_etiqueta_directamente(pedido):
     return bool(
         usa_flujo_etiqueta_directa(pedido)
-        and pedido.seguimiento
         and pedido.etiqueta_archivo
         and len(pedido.items) > 0
     )
@@ -820,9 +819,6 @@ def accion_sugerida_pedido(pedido):
 
         if pedido.canal == "Mercado Libre" and not pedido.ml_tipo:
             return "Falta elegir tipo ML"
-
-        if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos" and not pedido.seguimiento:
-            return "Falta cargar seguimiento"
 
         if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos" and not pedido.etiqueta_archivo:
             return "Falta adjuntar etiqueta"
