@@ -1886,11 +1886,13 @@ def ml_upsert_pedido_desde_order(order):
     pedido.origen = "mercadolibre"
     pedido.canal = "Mercado Libre"
     pedido.id_venta = order_id
-    # Forzar actualización de cliente con mejor dato disponible
+
+    # ✅ FIX CLIENTE (BIEN INDENTADO)
     nombre_ml = ml_nombre_cliente(order, shipment)
 
     if nombre_ml and nombre_ml.lower() != "cliente mercado libre":
-    pedido.cliente = nombre_ml
+        pedido.cliente = nombre_ml
+
     pedido.mail = pedido.mail or ""
     pedido.telefono = pedido.telefono or ""
     pedido.observaciones = (pedido.observaciones or "").strip()
