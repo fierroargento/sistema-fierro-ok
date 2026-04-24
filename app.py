@@ -2045,23 +2045,20 @@ def ml_link_chat_venta(pedido):
     return f"https://www.mercadolibre.com.ar/ventas/{pedido.id_venta}/mensajes"
 
 def generar_mensaje_contacto_ml_api(pedido):
-    """Mensaje seguro para enviar por API ML: evita palabras que disparan PERSONAL_DATA."""
+    """Primer contacto seguro para API ML: no pide datos personales ni de entrega."""
     if not pedido or not es_ml_acordas_entrega(pedido):
         return ""
 
     texto = (
         "Hola! Desde Fierro 100% Argento agradecemos tu compra.\n\n"
-        "Para coordinar el envio sin cargo y poder despachar correctamente, "
-        "necesitamos que nos confirmes los datos de entrega y recepcion por este chat.\n\n"
-        "Gracias! Quedamos atentos para avanzar con el despacho."
+        "Te escribimos para coordinar el envio de tu pedido y avanzar con el despacho.\n\n"
+        "Quedamos atentos a tu respuesta por este medio. Muchas gracias!"
     )
 
     if len(texto) > 348:
         texto = texto[:345] + "..."
 
     return texto
-
-
 def ml_enviar_mensaje_acordas(pedido, texto):
     if not pedido or pedido.canal != "Mercado Libre" or not es_ml_acordas_entrega(pedido):
         raise ValueError("El pedido no corresponde a Mercado Libre / Acordás la Entrega.")
