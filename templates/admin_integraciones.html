@@ -53,6 +53,9 @@
                 <form method="post" action="{{ url_for('desconectar_mercadolibre') }}" onsubmit="return confirm('¿Desconectar la cuenta de Mercado Libre?');">
                     <button type="submit" class="boton-cancelar">Desconectar cuenta</button>
                 </form>
+                <form method="post" action="{{ url_for('reset_prueba_mercadolibre') }}" onsubmit="return confirm('Esto elimina SOLO pedidos importados de Mercado Libre que siguen en Cargando Pedido. No toca manuales, no toca despachados, no toca finalizados. ¿Seguimos?');">
+                    <button type="submit" class="boton-cancelar">Borrar pedidos ML de prueba</button>
+                </form>
                 {% else %}
                 <a href="{{ url_for('conectar_mercadolibre') }}" class="boton-accion">Conectar Mercado Libre</a>
                 {% endif %}
