@@ -1936,15 +1936,15 @@ def generar_mensaje_contacto_ml(pedido):
         return ""
 
     return (
-        "Hola, desde Fierro 100% Argento agradecemos tu compra!\\n"
+        "Hola, desde Fierro 100% Argento agradecemos tu compra!\n"
         "Tu compra tiene envío gratis, pero al ser un producto que no está dentro del sistema de Mercado Envíos, "
-        "necesitamos coordinar los datos para encargarnos del despacho y que llegue correctamente a destino.\\n"
-        "Para esto necesitamos que nos confirmes los datos de entrega:\\n"
-        "- Nombre y apellido de quien recibe la compra\\n"
-        "- Documento\\n"
-        "- Domicilio completo\\n"
-        "- Teléfono de contacto\\n"
-        "- Email\\n"
+        "necesitamos coordinar los datos para encargarnos del despacho y que llegue correctamente a destino.\n"
+        "Para esto necesitamos que nos confirmes los datos de entrega:\n"
+        "- Nombre y apellido de quien recibe la compra\n"
+        "- Documento\n"
+        "- Domicilio completo\n"
+        "- Teléfono de contacto\n"
+        "- Email\n"
         "Muchas gracias! Quedamos atentos a tu respuesta para continuar con el despacho de tu compra."
     )
 
