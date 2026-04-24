@@ -2044,6 +2044,24 @@ def ml_link_chat_venta(pedido):
         return ""
     return f"https://www.mercadolibre.com.ar/ventas/{pedido.id_venta}/mensajes"
 
+def generar_mensaje_contacto_ml_api(pedido):
+    """Mensaje seguro para enviar por API ML: evita palabras que disparan PERSONAL_DATA."""
+    if not pedido or not es_ml_acordas_entrega(pedido):
+        return ""
+
+    texto = (
+        "Hola! Desde Fierro 100% Argento agradecemos tu compra.\n\n"
+        "Para coordinar el envio sin cargo y poder despachar correctamente, "
+        "necesitamos que nos confirmes los datos de entrega y recepcion por este chat.\n\n"
+        "Gracias! Quedamos atentos para avanzar con el despacho."
+    )
+
+    if len(texto) > 348:
+        texto = texto[:345] + "..."
+
+    return texto
+
+
 def ml_enviar_mensaje_acordas(pedido, texto):
     if not pedido or pedido.canal != "Mercado Libre" or not es_ml_acordas_entrega(pedido):
         raise ValueError("El pedido no corresponde a Mercado Libre / Acordás la Entrega.")
@@ -3233,9 +3251,10 @@ def enviar_mensaje_ml_acordas(id):
         return redirect(url_for("inicio"))
 
     try:
-        texto = generar_mensaje_contacto_ml(pedido)
-        ml_enviar_mensaje_acordas(pedido, texto)
-        pedido.ml_mensaje_contacto = texto
+        texto_api = generar_mensaje_contacto_ml_api(pedido)
+        texto_visible = generar_mensaje_contacto_ml(pedido)
+        ml_enviar_mensaje_acordas(pedido, texto_api)
+        pedido.ml_mensaje_contacto = texto_visible
         db.session.commit()
         return redirect(url_for("detalle_pedido", id=pedido.id, ok="Mensaje enviado a Mercado Libre."))
     except Exception as e:
