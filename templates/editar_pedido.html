@@ -184,7 +184,7 @@
         {% endif %}
 
         <form method="POST" id="form" enctype="multipart/form-data">
-            <input type="hidden" name="current_step" id="current_step" value="{% if ((pedido.canal == 'Mercado Libre' and pedido.ml_tipo == 'Acordás la Entrega') or (pedido.canal == 'Tienda Nube' and pedido.empresa_envio == 'Vía Cargo') or (pedido.canal == 'Mayorista' and pedido.empresa_envio == 'Vía Cargo')) and pedido.estado == 'Cargando Pedido' %}3{% elif pedido.estado == 'Despachado' and pedido.empresa_envio == 'Vía Cargo' and not pedido.seguimiento %}3{% else %}1{% endif %}">
+            <input type="hidden" name="current_step" id="current_step" value="{% if request.args.get('paso') in ['1','2','3','4'] %}{{ request.args.get('paso') }}{% elif ((pedido.canal == 'Mercado Libre' and pedido.ml_tipo == 'Acordás la Entrega') or (pedido.canal == 'Tienda Nube' and pedido.empresa_envio == 'Vía Cargo') or (pedido.canal == 'Mayorista' and pedido.empresa_envio == 'Vía Cargo')) and pedido.estado == 'Cargando Pedido' %}3{% elif pedido.estado == 'Despachado' and pedido.empresa_envio == 'Vía Cargo' and not pedido.seguimiento %}3{% else %}1{% endif %}">
             <input type="hidden" name="etiqueta_existente" id="etiqueta_existente" value="{{ pedido.etiqueta_archivo or '' }}">
             <input type="hidden" name="comprobante_dux_existente" id="comprobante_dux_existente" value="{{ pedido.comprobante_dux_archivo or '' }}">
             <input type="hidden" name="accion_paso2" id="accion_paso2" value="">

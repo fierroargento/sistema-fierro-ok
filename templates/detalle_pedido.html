@@ -166,9 +166,9 @@
     </div>
 
     {% if rol_actual == "admin" %}
-    <div class="detalle-box detalle-box-full" style="margin-top: 18px;">
-        <h3>Fechas del pedido</h3>
-        <table class="tabla-items">
+    <details class="detalle-box detalle-box-full" style="margin-top: 18px;">
+        <summary style="cursor: pointer; font-weight: 700;">Fechas del pedido</summary>
+        <table class="tabla-items" style="margin-top: 12px;">
             <tbody>
                 <tr><td><strong>Creado</strong></td><td>{{ pedido.fecha_creacion.strftime("%d/%m/%Y %H:%M") if pedido.fecha_creacion else "-" }}</td></tr>
                 <tr><td><strong>Etiqueta impresa</strong></td><td>{{ pedido.fecha_etiqueta_impresa.strftime("%d/%m/%Y %H:%M") if pedido.fecha_etiqueta_impresa else "-" }}</td></tr>
@@ -177,7 +177,7 @@
                 <tr><td><strong>Entregado</strong></td><td>{{ pedido.fecha_entregado.strftime("%d/%m/%Y %H:%M") if pedido.fecha_entregado else "-" }}</td></tr>
             </tbody>
         </table>
-    </div>
+    </details>
     {% endif %}
 
     {% if pedido.numero_reclamo or pedido.observacion_reclamo or pedido.motivo_no_entregado %}

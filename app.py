@@ -866,6 +866,44 @@ def accion_sugerida_pedido(pedido):
 
     return ""
 
+
+def primer_paso_pendiente_carga(pedido):
+    if not pedido:
+        return 1
+
+    # Paso 1: Cliente
+    if not pedido.cliente:
+        return 1
+
+    # En ML Acordás suele faltar info operativa del cliente.
+    # Lo mandamos primero a Cliente para completar DNI / teléfono antes de coordinar envío.
+    if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
+        if not pedido.dni or not pedido.telefono:
+            return 1
+
+    # Paso 2: Venta
+    if not pedido.canal:
+        return 2
+
+    if pedido.canal == "Mercado Libre":
+        if not pedido.id_venta or not pedido.ml_tipo:
+            return 2
+
+    # Paso 3: Envío
+    if requiere_contacto_cliente(pedido):
+        return 3
+
+    if pedido.empresa_envio and not pedido.tipo_entrega:
+        return 3
+
+    # Paso 4: Productos
+    if not pedido.items or len(pedido.items) == 0:
+        return 4
+
+    return 1
+
+
+
 def accion_principal_pedido(pedido, origen="inicio"):
     rol = rol_actual()
     es_inicio = origen == "inicio"
@@ -877,7 +915,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
         return {
             "tipo": "completar_carga",
             "texto": "Completar carga",
-            "url": url_for("editar_pedido", id=pedido.id),
+            "url": url_for("editar_pedido", id=pedido.id, paso=primer_paso_pendiente_carga(pedido)),
             "clases": clase_confirmar,
             "target": "",
         }
