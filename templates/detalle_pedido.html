@@ -8,17 +8,6 @@
     grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 10px;
-    margin-bottom: 6px;
-}
-
-.detalle-header h2 {
-    font-size: 16px;
-    line-height: 1.05;
-}
-
-.detalle-sub {
-    font-size: 10px;
-    margin-top: 1px;
 }
 
 .detalle-header-central {
@@ -36,14 +25,14 @@
 .estado-chip-cumplido {
     background: #A4F4CF;
     color: #124E64;
-    padding: 6px 10px;
+    padding: 7px 12px;
     border-radius: 999px;
     font-weight: 800;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: 14px;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     border: 1px solid rgba(18, 78, 100, 0.16);
 }
 
@@ -54,7 +43,7 @@
 
 .siguiente-paso-texto {
     color: #124E64;
-    font-size: 12px;
+    font-size: 15px;
     font-weight: 700;
     white-space: nowrap;
 }
@@ -62,8 +51,31 @@
 .detalle-grid-resumen {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
-    margin-top: 8px;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.detalle-card h2 {
+    font-size: 20px;
+    margin-bottom: 3px;
+}
+
+.detalle-sub {
+    margin: 0;
+    font-size: 13px;
+}
+
+.detalle-grid-resumen .detalle-box {
+    padding: 12px 14px;
+}
+
+.detalle-grid-resumen .detalle-box h3 {
+    margin-bottom: 8px;
+}
+
+.detalle-grid-resumen .detalle-box p {
+    margin: 4px 0;
+    font-size: 13px;
 }
 
 @media (max-width: 1100px) {
@@ -98,7 +110,7 @@
 }
 
 .apb-ml-box {
-    margin-top: 8px;
+    margin-top: 18px;
     border: 2px solid rgba(18, 78, 100, 0.18);
     background: #f8fcfd;
 }
@@ -122,13 +134,13 @@
 
 .apb-ml-mensaje {
     width: 100%;
-    min-height: 88px;
+    min-height: 130px;
     resize: vertical;
     border: 1px solid rgba(18, 78, 100, 0.22);
     border-radius: 14px;
-    padding: 9px 10px;
-    font-size: 13px;
-    line-height: 1.3;
+    padding: 12px;
+    font-size: 15px;
+    line-height: 1.4;
     box-sizing: border-box;
 }
 
@@ -136,27 +148,8 @@
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    margin-top: 6px;
+    margin-top: 12px;
 }
-.detalle-box {
-    padding: 10px 12px;
-}
-
-.detalle-box h3 {
-    margin: 0 0 6px;
-    font-size: 14px;
-}
-
-.detalle-box p {
-    margin: 3px 0;
-    font-size: 12px;
-    line-height: 1.25;
-}
-
-.apb-ml-box-compacto {
-    padding: 10px 12px;
-}
-
 </style>
 
 
@@ -248,9 +241,12 @@
         <div class="apb-ml-mensaje-box">
             <textarea id="mensaje-ml-apb" class="apb-ml-mensaje" readonly>{{ generar_mensaje_contacto_ml(pedido) }}</textarea>
             <div class="apb-ml-actions">
-                <button type="button" class="btn btn-confirmar" onclick="copiarMensajeMLAPB()">Copiar mensaje</button>
+                {% if ml_link_chat_venta(pedido) %}
+                <button type="button" class="btn btn-confirmar" onclick="copiarMensajeYEnviarMLAPB('{{ ml_link_chat_venta(pedido) }}')">Enviar mensaje ML</button>
+                {% endif %}
+                <button type="button" class="btn btn-secundario apb-btn-secundario" onclick="copiarMensajeMLAPB()">Copiar mensaje</button>
                 {% if ml_link_detalle_venta(pedido) %}
-                <a href="{{ ml_link_detalle_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secundario">Abrir venta en ML</a>
+                <a href="{{ ml_link_detalle_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secundario apb-btn-secundario">Abrir venta en ML</a>
                 {% endif %}
                 <span id="mensaje-ml-copiado" class="apb-copy-feedback"></span>
             </div>
@@ -404,6 +400,20 @@ function copiarMensajeMLAPB() {
     } else {
         document.execCommand("copy");
     }
+
+    const feedback = document.getElementById("mensaje-ml-copiado");
+    if (feedback) {
+        feedback.textContent = "Mensaje copiado";
+        setTimeout(function () { feedback.textContent = ""; }, 1800);
+    }
+}
+
+function copiarMensajeYEnviarMLAPB(urlChat) {
+    copiarMensajeMLAPB();
+    if (urlChat) {
+        window.open(urlChat, "_blank");
+    }
+    return false;
 }
 </script>
 

@@ -1398,3 +1398,17 @@ tr.fila-amarillo td .btn-accion-rapida {
     font-weight: 700;
     color: #124E64;
 }
+
+/* Ajustes APB mensaje Mercado Libre */
+.apb-ml-actions .apb-btn-secundario,
+.apb-ml-actions a.apb-btn-secundario {
+    color: #ffffff !important;
+    background: var(--fierro-btn-soft);
+    opacity: 1;
+}
+
+.apb-copy-feedback {
+    font-size: 13px;
+    font-weight: 700;
+    color: #124E64;
+}

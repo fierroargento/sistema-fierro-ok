@@ -1936,13 +1936,17 @@ def generar_mensaje_contacto_ml(pedido):
         return ""
 
     return (
-        "Hola! Gracias por tu compra en Fierro 100% Argento.\n"
-        "Tu producto tiene envío gratis. Como esta publicación se coordina por Acordás la entrega, "
-        "necesitamos que nos confirmes estos datos para despacharlo correctamente:\n"
-        "Nombre y apellido, DNI/CUIT, domicilio completo o sucursal de entrega, teléfono y email.\n"
-        "Quedamos atentos para avanzar con el envío. Muchas gracias!"
+        "Hola, desde Fierro 100% Argento agradecemos tu compra!\n\n"
+        "Tenés envío gratis, pero necesitamos coordinar algunos datos para poder despachar tu pedido "
+        "y que llegue correctamente a destino.\n\n"
+        "Por favor confirmanos:\n\n"
+        "- Nombre y apellido de quien recibe la compra\n"
+        "- Documento\n"
+        "- Domicilio completo\n"
+        "- Teléfono de contacto\n"
+        "- Email\n\n"
+        "Muchas gracias! Quedamos atentos a tu respuesta para continuar con el despacho de tu compra."
     )
-
 def ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info=None):
     buyer = order.get("buyer") or {}
     billing_info = billing_info or {}
@@ -1982,6 +1986,12 @@ def ml_link_detalle_venta(pedido):
     if not pedido or pedido.canal != "Mercado Libre" or not pedido.id_venta:
         return ""
     return f"https://www.mercadolibre.com.ar/ventas/{pedido.id_venta}/detalle"
+
+
+def ml_link_chat_venta(pedido):
+    if not pedido or pedido.canal != "Mercado Libre" or not pedido.id_venta:
+        return ""
+    return f"https://www.mercadolibre.com.ar/ventas/{pedido.id_venta}/mensajes"
 def ml_obtener_etiqueta_url(shipping_id):
     # Compatibilidad: mantiene el nombre viejo, pero ahora descarga y devuelve el archivo local.
     return ml_guardar_etiqueta_pdf(shipping_id)
@@ -2425,6 +2435,7 @@ def inyectar_contexto_global():
         "accion_principal_pedido": accion_principal_pedido,
         "ml_datos_apb_pedido": ml_datos_apb_pedido,
         "ml_link_detalle_venta": ml_link_detalle_venta,
+        "ml_link_chat_venta": ml_link_chat_venta,
         "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,
     }
 
