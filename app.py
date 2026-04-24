@@ -1886,13 +1886,7 @@ def ml_upsert_pedido_desde_order(order):
     pedido.origen = "mercadolibre"
     pedido.canal = "Mercado Libre"
     pedido.id_venta = order_id
-
-    # ✅ FIX CLIENTE (BIEN INDENTADO)
-    nombre_ml = ml_nombre_cliente(order, shipment)
-
-    if nombre_ml and nombre_ml.lower() != "cliente mercado libre":
-        pedido.cliente = nombre_ml
-
+    pedido.cliente = ml_nombre_cliente(order, shipment) or pedido.cliente
     pedido.mail = pedido.mail or ""
     pedido.telefono = pedido.telefono or ""
     pedido.observaciones = (pedido.observaciones or "").strip()
@@ -1936,6 +1930,23 @@ def ml_upsert_pedido_desde_order(order):
         pedido.estado = estado_anterior
 
     return pedido, creado, ""
+
+def ml_borrar_pedidos_ml_cargando_importados():
+    pedidos = (
+        Pedido.query
+        .filter_by(canal="Mercado Libre", origen="mercadolibre", estado="Cargando Pedido")
+        .order_by(Pedido.id.asc())
+        .all()
+    )
+
+    total = len(pedidos)
+
+    for pedido in pedidos:
+        db.session.delete(pedido)
+
+    db.session.commit()
+    return total
+
 
 def ml_limpiar_pedidos_ml_no_operables_existentes():
     pedidos = (
@@ -2244,7 +2255,7 @@ def sync_mercadolibre():
         return redirect(url_for("admin_integraciones", error="Primero conectá una cuenta de Mercado Libre."))
 
     try:
-        resultado = ml_sync_manual(limit=20)
+        resultado = ml_sync_manual(limit=50)
         mensaje = (
             f"Sync ML OK. Leídos: {resultado['leidos']} | "
             f"Nuevos: {resultado['creados']} | "
@@ -2260,6 +2271,19 @@ def sync_mercadolibre():
             cuenta.last_sync_detail = str(e)
             db.session.commit()
         return redirect(url_for("admin_integraciones", error=f"Falló la sincronización: {e}"))
+
+
+@app.route("/admin/integraciones/mercadolibre/reset-prueba", methods=["POST"])
+@login_required
+def reset_prueba_mercadolibre():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+
+    try:
+        eliminados = ml_borrar_pedidos_ml_cargando_importados()
+        return redirect(url_for("admin_integraciones", ok=f"Pedidos ML de prueba eliminados: {eliminados}. Ahora podés sincronizar de nuevo."))
+    except Exception as e:
+        return redirect(url_for("admin_integraciones", error=f"No se pudieron eliminar pedidos ML de prueba: {e}"))
 
 
 @app.route("/historico")
