@@ -3,6 +3,7 @@ import re
 import json
 import hashlib
 from urllib.request import urlopen, Request
+from urllib.error import HTTPError
 from urllib.parse import urlparse, urlencode
 import pandas as pd
 import numpy as np
@@ -1578,6 +1579,25 @@ def ml_api_get(path, params=None):
 
 
 
+def ml_api_post_json(path, payload=None):
+    token = ml_access_token_vigente()
+    url = f"https://api.mercadolibre.com{path}"
+    data = json.dumps(payload or {}).encode("utf-8")
+
+    req = Request(url, data=data, method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Accept", "application/json")
+
+    try:
+        with urlopen(req) as response:
+            raw = response.read().decode("utf-8")
+            return json.loads(raw) if raw.strip() else {}
+    except HTTPError as e:
+        detalle = e.read().decode("utf-8", errors="ignore")
+        raise ValueError(f"Mercado Libre rechazó el mensaje: {detalle or e}")
+
+
 def ml_api_get_binario(path, params=None, accept="application/pdf"):
     token = ml_access_token_vigente()
     params = params or {}
@@ -1992,6 +2012,51 @@ def ml_link_chat_venta(pedido):
     if not pedido or pedido.canal != "Mercado Libre" or not pedido.id_venta:
         return ""
     return f"https://www.mercadolibre.com.ar/ventas/{pedido.id_venta}/mensajes"
+
+def ml_enviar_mensaje_acordas(pedido, texto):
+    if not pedido or pedido.canal != "Mercado Libre" or not es_ml_acordas_entrega(pedido):
+        raise ValueError("El pedido no corresponde a Mercado Libre / Acordás la Entrega.")
+
+    texto = str(texto or "").strip()
+    if not texto:
+        raise ValueError("No hay mensaje para enviar.")
+
+    cuenta = MercadoLibreCuenta.query.first()
+    seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+    buyer_id = str(pedido.ml_buyer_id or "").strip()
+
+    if not seller_id:
+        raise ValueError("No hay cuenta de Mercado Libre conectada.")
+    if not buyer_id:
+        raise ValueError("No se encontró el ID del comprador de Mercado Libre.")
+
+    payload = {
+        "from": {"user_id": int(seller_id)},
+        "to": {"user_id": int(buyer_id)},
+        "text": texto,
+    }
+
+    intentos = []
+    pack_id = str(pedido.ml_pack_id or "").strip()
+    order_id = str(pedido.id_venta or "").strip()
+
+    if pack_id:
+        intentos.append(f"/messages/packs/{pack_id}/sellers/{seller_id}")
+    if order_id:
+        intentos.append(f"/messages/orders/{order_id}/sellers/{seller_id}")
+
+    if not intentos:
+        raise ValueError("El pedido no tiene ID de venta ni pack ID de Mercado Libre.")
+
+    ultimo_error = None
+    for path in intentos:
+        try:
+            return ml_api_post_json(path, payload)
+        except Exception as e:
+            ultimo_error = e
+            print("No se pudo enviar mensaje ML por", path, e)
+
+    raise ValueError(str(ultimo_error or "No se pudo enviar el mensaje a Mercado Libre."))
 def ml_obtener_etiqueta_url(shipping_id):
     # Compatibilidad: mantiene el nombre viejo, pero ahora descarga y devuelve el archivo local.
     return ml_guardar_etiqueta_pdf(shipping_id)
@@ -3127,6 +3192,34 @@ def detalle_pedido(id):
         whatsapp_url=whatsapp_link_pedido(pedido)
     )
 
+
+@app.route("/pedido/<int:id>/enviar-mensaje-ml", methods=["POST"])
+@login_required
+def enviar_mensaje_ml_acordas(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido):
+        return redirect(url_for("inicio"))
+
+    try:
+        texto = generar_mensaje_contacto_ml(pedido)
+        ml_enviar_mensaje_acordas(pedido, texto)
+        pedido.ml_mensaje_contacto = texto
+        db.session.commit()
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok="Mensaje enviado a Mercado Libre."))
+    except Exception as e:
+        db.session.rollback()
+        return render_template(
+            "detalle_pedido.html",
+            pedido=pedido,
+            error=f"No se pudo enviar el mensaje a Mercado Libre: {e}",
+            ok_feedback="",
+            accion_sugerida=accion_sugerida_pedido(pedido),
+            texto_boton=texto_boton_estado(pedido),
+            hay_autorizado=hay_autorizado,
+            puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
+            whatsapp_url=whatsapp_link_pedido(pedido),
+        )
 @app.route("/pedido/<int:id>/editar", methods=["GET", "POST"])
 @login_required
 def editar_pedido(id):

@@ -134,21 +134,22 @@
 
 .apb-ml-mensaje {
     width: 100%;
-    min-height: 130px;
+    height: 86px;
+    min-height: 86px;
     resize: vertical;
     border: 1px solid rgba(18, 78, 100, 0.22);
-    border-radius: 14px;
-    padding: 12px;
-    font-size: 15px;
-    line-height: 1.4;
+    border-radius: 10px;
+    padding: 7px 9px;
+    font-size: 12.5px;
+    line-height: 1.22;
     box-sizing: border-box;
 }
 
 .apb-ml-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 12px;
+    gap: 7px;
+    margin-top: 6px;
 }
 </style>
 
@@ -242,7 +243,9 @@
             <textarea id="mensaje-ml-apb" class="apb-ml-mensaje" readonly>{{ generar_mensaje_contacto_ml(pedido) }}</textarea>
             <div class="apb-ml-actions">
                 {% if ml_link_chat_venta(pedido) %}
-                <button type="button" class="btn btn-confirmar" onclick="copiarMensajeYEnviarMLAPB('{{ ml_link_chat_venta(pedido) }}')">Enviar mensaje ML</button>
+                <form method="POST" action="{{ url_for('enviar_mensaje_ml_acordas', id=pedido.id) }}" style="display:inline;" onsubmit="return confirmarEnvioMensajeMLAPB();">
+                    <button type="submit" class="btn btn-confirmar">Enviar mensaje ML</button>
+                </form>
                 {% endif %}
                 <button type="button" class="btn btn-secundario apb-btn-secundario" onclick="copiarMensajeMLAPB()">Copiar mensaje</button>
                 {% if ml_link_detalle_venta(pedido) %}
@@ -408,12 +411,8 @@ function copiarMensajeMLAPB() {
     }
 }
 
-function copiarMensajeYEnviarMLAPB(urlChat) {
-    copiarMensajeMLAPB();
-    if (urlChat) {
-        window.open(urlChat, "_blank");
-    }
-    return false;
+function confirmarEnvioMensajeMLAPB() {
+    return confirm("¿Enviar este mensaje al chat de Mercado Libre?");
 }
 </script>
 
