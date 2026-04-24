@@ -85,6 +85,33 @@
     font-weight: 700;
     color: #124E64;
 }
+
+.ml-sugerido-box {
+    border: 1px solid rgba(18, 78, 100, 0.18);
+    background: #f3fbff;
+}
+
+.ml-sugerido-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 20px;
+}
+
+.ml-sugerido-grid p {
+    margin: 4px 0;
+}
+
+.ml-aviso {
+    margin-top: 12px;
+    color: #7a4a00;
+    font-weight: 700;
+}
+
+@media (max-width: 900px) {
+    .ml-sugerido-grid {
+        grid-template-columns: 1fr;
+    }
+}
 </style>
 
 
@@ -165,6 +192,24 @@
 
     </div>
 
+    {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" and pedido_tiene_datos_facturacion_ml(pedido) %}
+    <div class="detalle-box detalle-box-full ml-sugerido-box" style="margin-top: 18px;">
+        <h3>Datos sugeridos desde Mercado Libre / Facturación</h3>
+        <div class="ml-sugerido-grid">
+            <p><strong>Nombre:</strong> {{ pedido.ml_facturacion_nombre or "-" }}</p>
+            <p><strong>DNI/CUIT:</strong> {{ pedido.ml_facturacion_dni or "-" }}</p>
+            <p><strong>Condición:</strong> {{ pedido.ml_facturacion_condicion or "-" }}</p>
+            <p><strong>Dirección:</strong> {{ pedido.ml_facturacion_direccion or "-" }}</p>
+            <p><strong>CP:</strong> {{ pedido.ml_facturacion_codigo_postal or "-" }}</p>
+            <p><strong>Localidad:</strong> {{ pedido.ml_facturacion_localidad or "-" }}</p>
+            <p><strong>Provincia:</strong> {{ pedido.ml_facturacion_provincia or "-" }}</p>
+        </div>
+        <div class="ml-aviso">
+            APB: estos datos vienen de ML/facturación. Usalos como base y confirmalos con el comprador antes de despachar.
+        </div>
+    </div>
+    {% endif %}
+
     {% if rol_actual == "admin" %}
     <details class="detalle-box detalle-box-full" style="margin-top: 18px;">
         <summary style="cursor: pointer; font-weight: 700;">Fechas del pedido</summary>
@@ -235,6 +280,13 @@
     <div class="detalle-acciones">
         <a href="{{ url_for('inicio') }}" class="btn btn-secundario btn-volver">Volver</a>
 
+        {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" %}
+        <button type="button" class="btn btn-secundario" onclick="copiarMensajeMlEntrega();">
+            Copiar mensaje ML datos entrega
+        </button>
+        <textarea id="mensajeMlEntrega" style="display:none;">{{ mensaje_ml_datos_entrega(pedido) }}</textarea>
+        {% endif %}
+
         {% if accion %}
             {% if accion.tipo == "imprimir_etiqueta" %}
                 <a href="{{ accion.url }}" class="{{ accion.clases }}" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
@@ -295,6 +347,36 @@ function abrirWhatsappYRecargar(urlWhatsapp, urlRecarga) {
     setTimeout(function () {
         window.location.href = urlRecarga + (urlRecarga.indexOf("?") >= 0 ? "&" : "?") + "_r=" + Date.now();
     }, 1200);
+    return false;
+}
+
+function copiarMensajeMlEntrega() {
+    var campo = document.getElementById("mensajeMlEntrega");
+    if (!campo) {
+        alert("No se encontró el mensaje para copiar.");
+        return false;
+    }
+
+    var texto = campo.value || campo.textContent || "";
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto).then(function () {
+            alert("Mensaje copiado. Pegalo en el chat de Mercado Libre.");
+        }).catch(function () {
+            campo.style.display = "block";
+            campo.select();
+            document.execCommand("copy");
+            campo.style.display = "none";
+            alert("Mensaje copiado. Pegalo en el chat de Mercado Libre.");
+        });
+    } else {
+        campo.style.display = "block";
+        campo.select();
+        document.execCommand("copy");
+        campo.style.display = "none";
+        alert("Mensaje copiado. Pegalo en el chat de Mercado Libre.");
+    }
+
     return false;
 }
 </script>
