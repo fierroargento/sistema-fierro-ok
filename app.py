@@ -1951,22 +1951,53 @@ def ml_datos_apb_pedido(pedido):
     return faltantes
 
 
+def pedido_es_plegable_pp6040(pedido):
+    """Detecta parrilla plegable para usar mensaje neutro ML Acordas."""
+    if not pedido:
+        return False
+
+    for item in (pedido.items or []):
+        sku = str(getattr(item, "sku", "") or "").upper()
+        descripcion = str(getattr(item, "descripcion", "") or "").upper()
+        if "PP6040" in sku or "PP6040" in descripcion or "PLEGABLE" in descripcion:
+            return True
+
+    return False
+
+
 def generar_mensaje_contacto_ml(pedido):
     if not pedido or not es_ml_acordas_entrega(pedido):
         return ""
 
-    return (
-        "Hola, desde Fierro 100% Argento agradecemos tu compra!\n\n"
-        "Tenés envío gratis, pero necesitamos coordinar algunos datos para poder despachar tu pedido "
-        "y que llegue correctamente a destino.\n\n"
-        "Por favor confirmanos:\n\n"
-        "- Nombre y apellido de quien recibe la compra\n"
-        "- Documento\n"
-        "- Domicilio completo\n"
-        "- Teléfono de contacto\n"
-        "- Email\n\n"
-        "Muchas gracias! Quedamos atentos a tu respuesta para continuar con el despacho de tu compra."
-    )
+    if pedido_es_plegable_pp6040(pedido):
+        texto = (
+            "Hola! Desde Fierro 100% Argento agradecemos tu compra.\n\n"
+            "Tenes envio gratis, pero necesitamos coordinar para que llegue correctamente a destino.\n\n"
+            "Por favor confirmanos:\n"
+            "- Nombre completo de quien recibe\n"
+            "- Documento\n"
+            "- Direccion\n"
+            "- Telefono de contacto\n\n"
+            "Gracias! Quedamos atentos para continuar con el despacho."
+        )
+    else:
+        texto = (
+            "Hola! Desde Fierro 100% Argento agradecemos tu compra.\n\n"
+            "Tu pedido tiene envio sin cargo con retiro en sucursal Via Cargo. Para coordinar correctamente, necesitamos que nos confirmes:\n\n"
+            "- Nombre completo\n"
+            "- Documento\n"
+            "- Direccion\n"
+            "- Telefono\n\n"
+            "Con esto verificamos la sucursal mas cercana a tu domicilio.\n\n"
+            "Gracias! Quedamos atentos."
+        )
+
+    if len(texto) > 348:
+        texto = texto[:345] + "..."
+
+    return texto
+
+
 def ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info=None):
     buyer = order.get("buyer") or {}
     billing_info = billing_info or {}
@@ -2041,9 +2072,9 @@ def ml_enviar_mensaje_acordas(pedido, texto):
     order_id = str(pedido.id_venta or "").strip()
 
     if pack_id:
-        intentos.append(f"/messages/packs/{pack_id}/sellers/{seller_id}")
+        intentos.append(f"/messages/packs/{pack_id}/sellers/{seller_id}?tag=post_sale")
     if order_id:
-        intentos.append(f"/messages/orders/{order_id}/sellers/{seller_id}")
+        intentos.append(f"/messages/orders/{order_id}/sellers/{seller_id}?tag=post_sale")
 
     if not intentos:
         raise ValueError("El pedido no tiene ID de venta ni pack ID de Mercado Libre.")
