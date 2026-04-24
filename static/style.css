@@ -1330,3 +1330,71 @@ tr.fila-amarillo td .btn-accion-rapida {
         min-width: 1080px;
     }
 }
+
+/* Mensaje APB para chat de Mercado Libre */
+.apb-ml-box-compacto {
+    padding: 16px 20px;
+}
+
+.apb-ml-faltantes-linea {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.apb-ml-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.apb-ml-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.apb-ml-mensaje-box {
+    margin-top: 8px;
+}
+
+.apb-ml-mensaje-header {
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #123047;
+}
+
+.apb-ml-mensaje {
+    width: 100%;
+    min-height: 92px;
+    resize: vertical;
+    padding: 9px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.35;
+    background: #fff;
+}
+
+.apb-ml-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.apb-copy-feedback {
+    font-size: 13px;
+    font-weight: 700;
+    color: #124E64;
+}

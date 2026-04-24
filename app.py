@@ -1935,35 +1935,18 @@ def generar_mensaje_contacto_ml(pedido):
     if not pedido or not es_ml_acordas_entrega(pedido):
         return ""
 
-    nombre_base = (pedido.ml_billing_nombre or pedido.cliente or "").strip()
-    if parece_nickname_ml(nombre_base, pedido.ml_buyer_nickname):
-        nombre_saludo = ""
-    else:
-        nombre_saludo = " " + nombre_base.split()[0]
-
-    lineas = [
-        f"Hola{nombre_saludo}! Gracias por tu compra en Fierro Argento.",
-        "Para coordinar la entrega, por favor confirmame los datos de entrega y un número de contacto.",
-    ]
-
-    referencias = []
-    if pedido.ml_billing_nombre:
-        referencias.append(f"Nombre: {pedido.ml_billing_nombre}")
-    if pedido.ml_billing_documento:
-        referencias.append(f"Documento: {pedido.ml_billing_documento}")
-    if pedido.ml_billing_direccion:
-        referencias.append(f"Dirección de referencia: {pedido.ml_billing_direccion}")
-
-    if referencias:
-        lineas.append("Tengo como referencia: " + " | ".join(referencias))
-
-    lineas.append("Muchas gracias!")
-
-    mensaje = "\n".join(lineas).strip()
-    if len(mensaje) > 500:
-        mensaje = mensaje[:497] + "..."
-    return mensaje
-
+    return (
+        "Hola, desde Fierro 100% Argento agradecemos tu compra!\\n"
+        "Tu compra tiene envío gratis, pero al ser un producto que no está dentro del sistema de Mercado Envíos, "
+        "necesitamos coordinar los datos para encargarnos del despacho y que llegue correctamente a destino.\\n"
+        "Para esto necesitamos que nos confirmes los datos de entrega:\\n"
+        "- Nombre y apellido de quien recibe la compra\\n"
+        "- Documento\\n"
+        "- Domicilio completo\\n"
+        "- Teléfono de contacto\\n"
+        "- Email\\n"
+        "Muchas gracias! Quedamos atentos a tu respuesta para continuar con el despacho de tu compra."
+    )
 
 def ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info=None):
     buyer = order.get("buyer") or {}
@@ -2508,6 +2491,12 @@ def inicio():
 
     ok_feedback = (request.args.get("ok") or "").strip()
 
+    if es_ml_acordas_entrega(pedido):
+        mensaje_actualizado = generar_mensaje_contacto_ml(pedido)
+        if pedido.ml_mensaje_contacto != mensaje_actualizado:
+            pedido.ml_mensaje_contacto = mensaje_actualizado
+            db.session.commit()
+
     return render_template(
         "index.html",
         pedidos=pedidos,
@@ -2563,6 +2552,12 @@ def admin_integraciones():
     cuenta_ml = cuenta_ml_actual()
     faltantes = ml_config_faltante()
     ok_feedback = (request.args.get("ok") or "").strip()
+
+    if es_ml_acordas_entrega(pedido):
+        mensaje_actualizado = generar_mensaje_contacto_ml(pedido)
+        if pedido.ml_mensaje_contacto != mensaje_actualizado:
+            pedido.ml_mensaje_contacto = mensaje_actualizado
+            db.session.commit()
     error = (request.args.get("error") or "").strip()
 
     return render_template(
@@ -3107,6 +3102,12 @@ def detalle_pedido(id):
         db.session.commit()
 
     ok_feedback = (request.args.get("ok") or "").strip()
+
+    if es_ml_acordas_entrega(pedido):
+        mensaje_actualizado = generar_mensaje_contacto_ml(pedido)
+        if pedido.ml_mensaje_contacto != mensaje_actualizado:
+            pedido.ml_mensaje_contacto = mensaje_actualizado
+            db.session.commit()
 
     return render_template(
         "detalle_pedido.html",

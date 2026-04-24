@@ -215,38 +215,35 @@
 
     {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" %}
     {% set faltantes_apb = ml_datos_apb_pedido(pedido) %}
-    <div class="detalle-box detalle-box-full apb-ml-box">
-        <h3>Control APB Mercado Libre - Acordás la Entrega</h3>
-
+    <div class="detalle-box detalle-box-full apb-ml-box apb-ml-box-compacto">
         {% if faltantes_apb %}
-            <p><strong>Estado APB:</strong> requiere completar datos antes de avanzar.</p>
-            {% for faltante in faltantes_apb %}
-                <span class="apb-ml-badge alerta">Falta {{ faltante }}</span>
-            {% endfor %}
+            <div class="apb-ml-faltantes-linea">
+                <strong>Te falta cargar estos datos:</strong>
+                <div class="apb-ml-badges">
+                    {% for faltante in faltantes_apb %}
+                        <span class="apb-ml-badge alerta">Falta {{ faltante }}</span>
+                    {% endfor %}
+                </div>
+            </div>
         {% else %}
-            <p><strong>Estado APB:</strong> datos mínimos completos.</p>
-            <span class="apb-ml-badge">OK para operar</span>
+            <div class="apb-ml-faltantes-linea">
+                <strong>Datos mínimos completos para coordinar Acordás.</strong>
+                <div class="apb-ml-badges">
+                    <span class="apb-ml-badge">OK para operar</span>
+                </div>
+            </div>
         {% endif %}
 
-        <div style="margin-top: 12px;">
-            <p><strong>Nick ML:</strong> {{ pedido.ml_buyer_nickname or "-" }}</p>
-            <p><strong>Nombre fiscal ML:</strong> {{ pedido.ml_billing_nombre or "-" }}</p>
-            <p><strong>DNI/CUIT fiscal ML:</strong> {{ pedido.ml_billing_documento or "-" }}</p>
-            <p><strong>Dirección fiscal / referencia ML:</strong> {{ pedido.ml_billing_direccion or "-" }}</p>
-        </div>
-
         {% if pedido.ml_mensaje_contacto or faltantes_apb %}
-        <div style="margin-top: 14px;">
-            <h4>Mensaje prearmado para chat ML</h4>
-            <textarea id="mensaje-ml-apb" class="apb-ml-mensaje" readonly>{{ pedido.ml_mensaje_contacto or generar_mensaje_contacto_ml(pedido) }}</textarea>
+        <div class="apb-ml-mensaje-box">
+            <div class="apb-ml-mensaje-header">Mensaje prearmado para chat ML</div>
+            <textarea id="mensaje-ml-apb" class="apb-ml-mensaje" readonly>{{ generar_mensaje_contacto_ml(pedido) }}</textarea>
             <div class="apb-ml-actions">
                 <button type="button" class="btn btn-confirmar" onclick="copiarMensajeMLAPB()">Copiar mensaje</button>
                 {% if ml_link_detalle_venta(pedido) %}
                 <a href="{{ ml_link_detalle_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secundario">Abrir venta en ML</a>
                 {% endif %}
-                {% if puede_editar_pedido(pedido) %}
-                <a href="{{ url_for('editar_pedido', id=pedido.id, paso=1) }}" class="btn btn-secundario">Completar datos</a>
-                {% endif %}
+                <span id="mensaje-ml-copiado" class="apb-copy-feedback"></span>
             </div>
         </div>
         {% endif %}
