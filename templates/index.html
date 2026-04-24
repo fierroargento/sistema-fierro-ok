@@ -44,9 +44,6 @@
                 <th>Tipo ML</th>
                 <th>Hace cuánto</th>
                 <th>Acción sugerida</th>
-                {% if rol_actual == 'admin' %}
-                <th>Acción rápida</th>
-                {% endif %}
                 <th></th>
             </tr>
         </thead>
@@ -77,17 +74,6 @@
                         {{ accion_sugerida_pedido(p) or 'Sin acción' }}
                     </span>
                 </td>
-                {% if rol_actual == 'admin' %}
-                <td>
-                    {% if accion %}
-                        <a href="{{ accion.url }}" class="{{ accion.clases }}" {% if accion.target %}target="{{ accion.target }}"{% endif %}>
-                            {{ accion.texto }}
-                        </a>
-                    {% else %}
-                        <span class="accion-listado">Sin acción</span>
-                    {% endif %}
-                </td>
-                {% endif %}
                 <td class="col-acciones">
                     <a href="{{ url_for('detalle_pedido', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
                 {% if rol_actual in ['despacho', 'carga'] %}
@@ -100,7 +86,7 @@
             </tr>
             {% else %}
             <tr id="fila_sin_pedidos">
-                <td colspan="{% if rol_actual == 'admin' %}9{% else %}8{% endif %}">No hay pedidos para este operador.</td>
+                <td colspan="8">No hay pedidos para este operador.</td>
             </tr>
             {% endfor %}
         </tbody>

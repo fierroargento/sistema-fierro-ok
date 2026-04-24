@@ -1265,3 +1265,68 @@ tr.fila-amarillo td .btn-accion-rapida {
     padding: 0;
     line-height: 1;
 }
+
+
+/* =========================================================
+   Ajuste listado principal - admin sin acción rápida extra
+   ========================================================= */
+.listado-card {
+    overflow-x: auto;
+}
+
+.tabla-pedidos {
+    table-layout: fixed;
+}
+
+.tabla-pedidos th,
+.tabla-pedidos td {
+    overflow-wrap: anywhere;
+}
+
+.tabla-pedidos th:nth-child(1),
+.tabla-pedidos td:nth-child(1) { width: 48px; }
+.tabla-pedidos th:nth-child(2),
+.tabla-pedidos td:nth-child(2) { width: 210px; }
+.tabla-pedidos th:nth-child(3),
+.tabla-pedidos td:nth-child(3) { width: 160px; }
+.tabla-pedidos th:nth-child(4),
+.tabla-pedidos td:nth-child(4) { width: 110px; }
+.tabla-pedidos th:nth-child(5),
+.tabla-pedidos td:nth-child(5) { width: 170px; }
+.tabla-pedidos th:nth-child(6),
+.tabla-pedidos td:nth-child(6) {
+    width: 112px;
+    min-width: 112px;
+    text-align: center;
+    white-space: nowrap;
+}
+.tabla-pedidos th:nth-child(7),
+.tabla-pedidos td:nth-child(7) {
+    width: 170px;
+    min-width: 170px;
+    text-align: left;
+}
+.tabla-pedidos th:nth-child(8),
+.tabla-pedidos td:nth-child(8) {
+    width: 150px;
+    min-width: 150px;
+    text-align: center;
+}
+
+.tabla-pedidos td:nth-child(8) .btn {
+    margin: 0 auto;
+    min-width: 120px;
+}
+
+.tabla-pedidos th:nth-child(9),
+.tabla-pedidos td:nth-child(9),
+.tabla-pedidos th:nth-child(10),
+.tabla-pedidos td:nth-child(10) {
+    width: auto;
+}
+
+@media (max-width: 1200px) {
+    .tabla-pedidos {
+        min-width: 1080px;
+    }
+}
