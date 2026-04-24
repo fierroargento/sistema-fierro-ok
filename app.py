@@ -1289,6 +1289,13 @@ def puede_ver_historico():
     return rol_actual() in ["admin", "carga"]
 
 
+
+def etiqueta_es_archivo_local(etiqueta_archivo):
+    archivo = os.path.basename(str(etiqueta_archivo or ""))
+    if not archivo:
+        return False
+    return os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], archivo))
+
 def puede_imprimir_pedido(pedido):
     rol = rol_actual()
 
@@ -1528,6 +1535,8 @@ def ml_guardar_etiqueta_pdf(shipping_id):
     if not shipping_id:
         return None
 
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
     nombre_archivo = secure_filename(f"ml_{shipping_id}.pdf")
     ruta_pdf = os.path.join(app.config["UPLOAD_FOLDER"], nombre_archivo)
 
@@ -1550,7 +1559,9 @@ def ml_guardar_etiqueta_pdf(shipping_id):
             if contenido and (contenido[:4] == b"%PDF" or "pdf" in str(content_type).lower()):
                 with open(ruta_pdf, "wb") as salida:
                     salida.write(contenido)
-                return nombre_archivo
+
+                if os.path.exists(ruta_pdf) and os.path.getsize(ruta_pdf) > 0:
+                    return nombre_archivo
 
             try:
                 data = json.loads(contenido.decode("utf-8"))
@@ -1558,7 +1569,7 @@ def ml_guardar_etiqueta_pdf(shipping_id):
                 if results and results[0].get("url"):
                     nombre_descargado = asegurar_pdf_local_desde_url(results[0].get("url"), prefijo="ml")
                     if nombre_descargado:
-                        return nombre_descargado
+                        return os.path.basename(str(nombre_descargado))
             except Exception:
                 pass
 
@@ -1704,7 +1715,7 @@ def ml_aplicar_datos_envio(pedido, order, shipment):
         if not pedido.etiqueta_archivo:
             nombre_pdf = ml_guardar_etiqueta_pdf(pedido.ml_shipping_id)
             if nombre_pdf:
-                pedido.etiqueta_archivo = nombre_pdf
+                pedido.etiqueta_archivo = os.path.basename(str(nombre_pdf))
 
 
 def ml_pedido_existente_por_order_id(order_id):
@@ -2251,6 +2262,32 @@ def ver_etiqueta(nombre_archivo):
     return send_from_directory(app.config["UPLOAD_FOLDER"], nombre_archivo)
 
 
+
+@app.route("/pedido/<int:pedido_id>/<path:nombre_archivo>")
+@login_required
+def ver_archivo_pedido_compat(pedido_id, nombre_archivo):
+    # Compatibilidad con links antiguos tipo /pedido/106/ml_xxx.pdf
+    pedido = Pedido.query.get_or_404(pedido_id)
+
+    if not pedido.etiqueta_archivo:
+        return "Etiqueta no disponible", 404
+
+    archivo_guardado = os.path.basename(str(pedido.etiqueta_archivo))
+
+    # Si el link pidió otro nombre, igual entregamos la etiqueta real del pedido.
+    # Esto evita Not Found por URLs viejas o rutas relativas.
+    ruta = os.path.join(app.config["UPLOAD_FOLDER"], archivo_guardado)
+    if not os.path.exists(ruta):
+        # Último intento: si por alguna razón está en etiqueta_archivo con ruta completa.
+        if os.path.exists(str(pedido.etiqueta_archivo)):
+            return send_from_directory(
+                os.path.dirname(str(pedido.etiqueta_archivo)),
+                os.path.basename(str(pedido.etiqueta_archivo))
+            )
+        return "Etiqueta no encontrada en el servidor", 404
+
+    return send_from_directory(app.config["UPLOAD_FOLDER"], archivo_guardado)
+
 @app.route("/pedido/<int:id>/lanzar-impresion")
 @login_required
 def lanzar_impresion(id):
@@ -2322,7 +2359,7 @@ def imprimir_etiqueta(id):
         return render_template(
             "detalle_pedido.html",
             pedido=pedido,
-            error="La etiqueta no está en Cloudinary. Volvé a cargarla.",
+            error="La etiqueta no está disponible en el servidor. Volvé a sincronizar ML.",
             accion_sugerida=accion_sugerida_pedido(pedido),
             texto_boton=texto_boton_estado(pedido),
             hay_autorizado=hay_autorizado,
