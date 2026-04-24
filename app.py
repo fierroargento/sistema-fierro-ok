@@ -1556,12 +1556,6 @@ def ml_obtener_etiqueta_url(shipping_id):
         print("No se pudo obtener etiqueta ML:", e)
     return None
 
-    try:
-        return ml_api_get(f"/shipments/{shipping_id}")
-    except Exception as e:
-        print("No se pudo consultar shipment ML:", e)
-        return {}
-
 
 def ml_nombre_cliente(order, shipment=None):
     shipment = shipment or {}
@@ -1591,11 +1585,94 @@ def ml_nombre_cliente(order, shipment=None):
 
 
 def ml_mapear_tipo(order, shipment):
+    shipping = order.get("shipping") or {}
+    mode = str((shipping.get("mode") or shipment.get("mode") or "")).lower().strip()
+    logistic_type = str((shipment.get("logistic_type") or shipping.get("logistic_type") or "")).lower().strip()
+
+    if mode == "custom":
+        return "Acordás la Entrega"
+
+    if mode in ["me1", "me2", "fulfillment", "cross_docking", "drop_off"]:
+        return "Mercado Envíos"
+
+    if logistic_type in ["fulfillment", "cross_docking", "drop_off", "xd_drop_off", "self_service"]:
+        return "Mercado Envíos"
+
+    return "Mercado Envíos" if shipping.get("id") else "Acordás la Entrega"
 
 
-def ml_es_envio_full(order, shipment):
-    no_operable, motivo = ml_logistica_no_operable(order, shipment)
-    return no_operable and motivo == "Mercado Envíos Full"
+def ml_mapear_tipo_entrega(order, shipment):
+    shipping_option = shipment.get("shipping_option") or {}
+    delivery_type = str((shipping_option.get("delivery_type") or "")).lower().strip()
+    receiver_address = shipment.get("receiver_address") or {}
+
+    if delivery_type == "pickup":
+        return "Sucursal"
+
+    if receiver_address.get("address_line"):
+        return "Domicilio"
+
+    return ""
+
+
+def ml_aplicar_datos_envio(pedido, order, shipment):
+    shipping = order.get("shipping") or {}
+    receiver_address = shipment.get("receiver_address") or {}
+    city = receiver_address.get("city") or {}
+    state = receiver_address.get("state") or {}
+
+    pedido.ml_shipping_id = str(shipping.get("id") or shipment.get("id") or pedido.ml_shipping_id or "").strip()
+    pedido.ml_logistic_type = str(shipment.get("logistic_type") or shipping.get("logistic_type") or pedido.ml_logistic_type or "").strip()
+    pedido.ml_shipping_mode = str(shipment.get("mode") or shipping.get("mode") or pedido.ml_shipping_mode or "").strip()
+
+    pedido.ml_tipo = ml_mapear_tipo(order, shipment)
+    pedido.tipo_entrega = ml_mapear_tipo_entrega(order, shipment)
+
+    pedido.seguimiento = (
+        shipment.get("tracking_number")
+        or shipment.get("tracking_method")
+        or pedido.seguimiento
+    )
+
+    if pedido.ml_tipo == "Mercado Envíos":
+        pedido.empresa_envio = "Mercado Envíos"
+
+    pedido.direccion = receiver_address.get("address_line") or pedido.direccion
+    pedido.codigo_postal = receiver_address.get("zip_code") or pedido.codigo_postal
+    pedido.localidad = city.get("name") or pedido.localidad
+    pedido.provincia = state.get("name") or pedido.provincia
+    pedido.sucursal_nombre = receiver_address.get("agency_name") or pedido.sucursal_nombre
+    pedido.ml_shipping_status = shipment.get("status") or shipping.get("status") or pedido.ml_shipping_status
+
+    if pedido.ml_tipo == "Mercado Envíos" and pedido.ml_shipping_id:
+        if not pedido.etiqueta_archivo:
+            url_etiqueta = ml_obtener_etiqueta_url(pedido.ml_shipping_id)
+            if url_etiqueta:
+                nombre_pdf = asegurar_pdf_local_desde_url(url_etiqueta, prefijo="ml")
+                if nombre_pdf:
+                    pedido.etiqueta_archivo = nombre_pdf
+
+
+def ml_pedido_existente_por_order_id(order_id):
+    if not order_id:
+        return None
+
+    pedido = (
+        Pedido.query
+        .filter_by(canal="Mercado Libre", id_venta=order_id)
+        .order_by(Pedido.id.asc())
+        .first()
+    )
+
+    if pedido:
+        return pedido
+
+    return (
+        Pedido.query
+        .filter_by(id_venta=order_id)
+        .order_by(Pedido.id.asc())
+        .first()
+    )
 
 
 def ml_logistica_no_operable(order, shipment):
@@ -1623,12 +1700,19 @@ def ml_logistica_no_operable(order, shipment):
 
     if (
         "self_service" in valores_normalizados
+        or "self_service" in tags_normalizados
         or "flex" in valores_normalizados
         or "flex" in tags_normalizados
+        or "mercado_envios_flex" in tags_normalizados
     ):
         return True, "Mercado Envíos Flex"
 
     return False, ""
+
+
+def ml_es_envio_full(order, shipment):
+    no_operable, motivo = ml_logistica_no_operable(order, shipment)
+    return no_operable and motivo == "Mercado Envíos Full"
 
 
 def ml_order_debe_omitirse(order, shipment=None):
