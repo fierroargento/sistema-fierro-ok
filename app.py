@@ -14,7 +14,7 @@ from functools import wraps
 
 from flask import Flask, request, redirect, render_template, url_for, jsonify, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text, inspect
+from sqlalchemy import text, inspect, or_
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -2321,7 +2321,13 @@ def ml_upsert_pedido_desde_order(order):
 def ml_borrar_pedidos_ml_cargando_importados():
     pedidos = (
         Pedido.query
-        .filter_by(canal="Mercado Libre", origen="mercadolibre", estado="Cargando Pedido")
+        .filter(
+            Pedido.estado == "Cargando Pedido",
+            or_(
+                Pedido.origen == "mercadolibre",
+                Pedido.canal == "Mercado Libre"
+            )
+        )
         .order_by(Pedido.id.asc())
         .all()
     )
@@ -2684,8 +2690,12 @@ def reset_total_mercadolibre():
     try:
         pedidos = (
             Pedido.query
-            .filter(Pedido.canal == "Mercado Libre")
-            .filter(Pedido.origen == "mercadolibre")
+            .filter(
+                or_(
+                    Pedido.origen == "mercadolibre",
+                    Pedido.canal == "Mercado Libre"
+                )
+            )
             .all()
         )
         eliminados = len(pedidos)
@@ -2712,8 +2722,12 @@ def reset_ml_directo():
     try:
         pedidos = (
             Pedido.query
-            .filter(Pedido.canal == "Mercado Libre")
-            .filter(Pedido.origen == "mercadolibre")
+            .filter(
+                or_(
+                    Pedido.origen == "mercadolibre",
+                    Pedido.canal == "Mercado Libre"
+                )
+            )
             .all()
         )
         eliminados = len(pedidos)
