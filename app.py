@@ -1936,16 +1936,11 @@ def generar_mensaje_contacto_ml(pedido):
         return ""
 
     return (
-        "Hola, desde Fierro 100% Argento agradecemos tu compra!\n"
-        "Tu compra tiene envío gratis, pero al ser un producto que no está dentro del sistema de Mercado Envíos, "
-        "necesitamos coordinar los datos para encargarnos del despacho y que llegue correctamente a destino.\n"
-        "Para esto necesitamos que nos confirmes los datos de entrega:\n"
-        "- Nombre y apellido de quien recibe la compra\n"
-        "- Documento\n"
-        "- Domicilio completo\n"
-        "- Teléfono de contacto\n"
-        "- Email\n"
-        "Muchas gracias! Quedamos atentos a tu respuesta para continuar con el despacho de tu compra."
+        "Hola! Gracias por tu compra en Fierro 100% Argento.\n"
+        "Tu producto tiene envío gratis. Como esta publicación se coordina por Acordás la entrega, "
+        "necesitamos que nos confirmes estos datos para despacharlo correctamente:\n"
+        "Nombre y apellido, DNI/CUIT, domicilio completo o sucursal de entrega, teléfono y email.\n"
+        "Quedamos atentos para avanzar con el envío. Muchas gracias!"
     )
 
 def ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info=None):
