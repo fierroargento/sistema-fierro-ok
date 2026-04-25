@@ -2044,6 +2044,44 @@ def ml_link_chat_venta(pedido):
         return ""
     return f"https://www.mercadolibre.com.ar/ventas/{pedido.id_venta}/mensajes"
 
+
+def ml_mensaje_thread_habilitado(pedido):
+    """
+    Verifica si ML permite enviar mensajes por API para este pedido.
+    Si no esta habilitado, el flujo debe hacer fallback a ML web.
+    """
+    if not pedido:
+        return False
+
+    estados_bloqueados = {"payment_in_process", "payment_required", "cancelled"}
+    estado_ml = str(getattr(pedido, "ml_order_status", "") or "").strip().lower()
+
+    # Atajo local: si ML todavia no acredito pago o esta cancelado, no intentar API.
+    if estado_ml in estados_bloqueados:
+        return False
+
+    pack_id = str(getattr(pedido, "ml_pack_id", "") or getattr(pedido, "id_venta", "") or "").strip()
+    if not pack_id:
+        return False
+
+    cuenta = MercadoLibreCuenta.query.first()
+    seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+    if not seller_id:
+        raise ValueError("No hay cuenta de Mercado Libre conectada.")
+
+    try:
+        ml_api_get(
+            f"/messages/packs/{pack_id}/sellers/{seller_id}",
+            params={"tag": "post_sale"},
+        )
+        return True
+    except HTTPError as e:
+        detalle = e.read().decode("utf-8", errors="ignore")
+        print(f"[ML-MENSAJES-SONDA] Pedido {pedido.id} | status={estado_ml} | HTTP {e.code} | {detalle}")
+        if e.code in (403, 404):
+            return estado_ml == "confirmed" and e.code == 404
+        raise
+
 def generar_mensaje_contacto_ml_api(pedido):
     """Primer contacto seguro para API ML: no pide datos personales ni de entrega."""
     if not pedido or not es_ml_acordas_entrega(pedido):
@@ -2066,6 +2104,9 @@ def ml_enviar_mensaje_acordas(pedido, texto):
     texto = str(texto or "").strip()
     if not texto:
         raise ValueError("No hay mensaje para enviar.")
+
+    if not ml_mensaje_thread_habilitado(pedido):
+        raise ValueError("__FALLBACK_A_WEB__")
 
     cuenta = MercadoLibreCuenta.query.first()
     seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
@@ -3256,6 +3297,14 @@ def enviar_mensaje_ml_acordas(id):
         return redirect(url_for("detalle_pedido", id=pedido.id, ok="Mensaje enviado a Mercado Libre."))
     except Exception as e:
         db.session.rollback()
+
+        if "__FALLBACK_A_WEB__" in str(e):
+            print(f"[ML-FALLBACK] Pedido {pedido.id} | order_status={pedido.ml_order_status} | abriendo ML web")
+            url_ml = ml_link_chat_venta(pedido)
+            if url_ml:
+                return redirect(url_ml)
+            return redirect(url_for("detalle_pedido", id=pedido.id, ok="ML todavia no habilita el chat por API. Usa Abrir venta en ML."))
+
         return render_template(
             "detalle_pedido.html",
             pedido=pedido,
