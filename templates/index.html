@@ -37,7 +37,7 @@
     <table class="tabla-pedidos">
         <thead>
             <tr>
-                <th>Contacto</th>
+                <th class="th-contacto"></th>
                 <th>Cliente</th>
                 <th>ID Venta</th>
                 <th>Canal</th>
@@ -54,9 +54,9 @@
             <tr class="fila-{{ semaforo_pedido(p) }}" data-semaforo="{{ semaforo_pedido(p) }}" data-estado="{{ (p.estado or '')|lower }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Con demora de entrega', 'Verificar llegada a destino', 'Listo para retirar', 'No entregado', 'Entregado', 'Finalizado'] else 'si' }}">
                 <td class="col-contacto">
                     {% if p.contacto_iniciado %}
-                    <span class="contacto-badge" title="Cliente contactado">💬</span>
+                    <span class="contacto-badge" title="Chat iniciado">💬</span>
                     {% else %}
-                    <span class="contacto-pendiente" title="Sin contacto iniciado">-</span>
+                    <span class="contacto-pendiente" title="Sin contacto iniciado"></span>
                     {% endif %}
                 </td>
                 <td><strong>{{ (p.cliente or "-")|upper }}</strong></td>

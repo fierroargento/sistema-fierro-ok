@@ -196,7 +196,15 @@
         <div class="detalle-box">
             <h3>Venta</h3>
             <p><strong>Canal:</strong> {{ pedido.canal or "-" }}</p>
-            <p><strong>ID venta:</strong> {{ pedido.id_venta or "-" }}</p>
+            <p class="ml-id-row">
+                <strong>ID venta:</strong> {{ pedido.id_venta or "-" }}
+                {% if pedido.canal == "Mercado Libre" and pedido.id_venta %}
+                <span class="ml-mini-actions" aria-label="Accesos rápidos Mercado Libre">
+                    <a href="{{ ml_link_detalle_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="ml-mini-link" title="Abrir detalle de venta en Mercado Libre">↗</a>
+                    <a href="{{ ml_link_chat_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="ml-mini-link ml-mini-chat" title="Abrir chat de la venta en Mercado Libre">💬</a>
+                </span>
+                {% endif %}
+            </p>
             <p><strong>Tipo ML:</strong> {{ pedido.ml_tipo or "-" }}</p>
             <p><strong>Seguimiento:</strong> {{ pedido.seguimiento or "-" }}</p>
             {% if pedido.canal == "Mayorista" %}
