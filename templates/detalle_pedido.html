@@ -232,15 +232,15 @@
                 <strong>Seguimiento:</strong> {{ pedido.seguimiento or "-" }}
                 {% set tracking_info = tracking_info_pedido(pedido) %}
                 {% if tracking_info %}
-                    {% if tracking_info.copiar %}
-                    <button type="button" class="tracking-mini-link" title="{{ tracking_info.titulo }}" onclick="abrirTrackingPedido({{ tracking_info.url|tojson }}, {{ tracking_info.seguimiento|tojson }})" aria-label="{{ tracking_info.titulo }}">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7.5 12 3l9 4.5-9 4.5L3 7.5Z"></path><path d="M3 7.5V16l9 5 9-5V7.5"></path><path d="M12 12v9"></path><path d="M15.5 12.5H21"></path><path d="M18.7 9.8 21.4 12.5 18.7 15.2"></path></svg>
-                    </button>
-                    {% else %}
-                    <a href="{{ tracking_info.url }}" target="_blank" rel="noopener noreferrer" class="tracking-mini-link" title="{{ tracking_info.titulo }}" aria-label="{{ tracking_info.titulo }}">
+                    <a href="{{ tracking_info.url }}"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="tracking-mini-link"
+                       title="{{ tracking_info.titulo }}"
+                       aria-label="{{ tracking_info.titulo }}"
+                       {% if tracking_info.copiar %}onclick="copiarTrackingPedido({{ tracking_info.seguimiento|tojson }})"{% endif %}>
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7.5 12 3l9 4.5-9 4.5L3 7.5Z"></path><path d="M3 7.5V16l9 5 9-5V7.5"></path><path d="M12 12v9"></path><path d="M15.5 12.5H21"></path><path d="M18.7 9.8 21.4 12.5 18.7 15.2"></path></svg>
                     </a>
-                    {% endif %}
                 {% endif %}
             </p>
             {% if pedido.canal == "Mayorista" %}
@@ -518,25 +518,21 @@ window.addEventListener("load", function () {
 
 
 <script>
-function abrirTrackingPedido(url, seguimiento) {
-    // Abrimos la pestaña inmediatamente desde el click para que el navegador no bloquee el popup.
-    const nuevaPestana = window.open("about:blank", "_blank", "noopener,noreferrer");
-    const abrirDestino = () => {
-        if (nuevaPestana) {
-            nuevaPestana.location.href = url;
-        } else {
-            window.location.href = url;
-        }
-    };
-
-    if (seguimiento && navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(seguimiento).finally(abrirDestino);
-        return;
+function copiarTrackingPedido(seguimiento) {
+    if (!seguimiento) {
+        return true;
     }
 
     try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(seguimiento);
+            return true;
+        }
+    } catch (e) {}
+
+    try {
         const temp = document.createElement("textarea");
-        temp.value = seguimiento || "";
+        temp.value = seguimiento;
         temp.setAttribute("readonly", "");
         temp.style.position = "fixed";
         temp.style.left = "-9999px";
@@ -546,7 +542,7 @@ function abrirTrackingPedido(url, seguimiento) {
         document.body.removeChild(temp);
     } catch (e) {}
 
-    abrirDestino();
+    return true;
 }
 </script>
 
