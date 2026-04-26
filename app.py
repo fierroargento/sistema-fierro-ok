@@ -2792,13 +2792,6 @@ def admin_integraciones():
     ok_feedback = (request.args.get("ok") or "").strip()
     error = (request.args.get("error") or "").strip()
 
-    if es_ml_acordas_entrega(pedido):
-        mensaje_actualizado = generar_mensaje_contacto_ml(pedido)
-        if pedido.ml_mensaje_contacto != mensaje_actualizado:
-            pedido.ml_mensaje_contacto = mensaje_actualizado
-            db.session.commit()
-    error = (request.args.get("error") or "").strip()
-
     return render_template(
         "admin_integraciones.html",
         cuenta_ml=cuenta_ml,
