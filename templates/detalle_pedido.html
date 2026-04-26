@@ -550,8 +550,36 @@ function abrirTrackingConCopia(event, url, seguimiento) {
         event.preventDefault();
     }
 
-    copiarTrackingPedido(seguimiento);
-    window.open(url, "_blank", "noopener,noreferrer");
+    const textoSeguimiento = String(seguimiento || "").trim();
+
+    // Abrimos la pestaña inmediatamente desde el click del usuario para evitar bloqueo de popups.
+    const ventanaTracking = window.open("about:blank", "_blank");
+
+    const abrirTracking = function () {
+        if (ventanaTracking) {
+            ventanaTracking.location.href = url;
+        } else {
+            window.open(url, "_blank");
+        }
+    };
+
+    if (!textoSeguimiento) {
+        abrirTracking();
+        return false;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+        navigator.clipboard.writeText(textoSeguimiento)
+            .then(abrirTracking)
+            .catch(function () {
+                copiarTrackingPedido(textoSeguimiento);
+                abrirTracking();
+            });
+    } else {
+        copiarTrackingPedido(textoSeguimiento);
+        abrirTracking();
+    }
+
     return false;
 }
 </script>
