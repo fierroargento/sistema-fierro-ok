@@ -206,7 +206,21 @@
                 {% endif %}
             </p>
             <p><strong>Tipo ML:</strong> {{ pedido.ml_tipo or "-" }}</p>
-            <p><strong>Seguimiento:</strong> {{ pedido.seguimiento or "-" }}</p>
+            <p class="tracking-row">
+                <strong>Seguimiento:</strong> {{ pedido.seguimiento or "-" }}
+                {% set tracking_info = tracking_info_pedido(pedido) %}
+                {% if tracking_info %}
+                    {% if tracking_info.copiar %}
+                    <button type="button" class="tracking-mini-link" title="{{ tracking_info.titulo }}" onclick="abrirTrackingPedido({{ tracking_info.url|tojson }}, {{ tracking_info.seguimiento|tojson }})" aria-label="{{ tracking_info.titulo }}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7.5 12 3l9 4.5-9 4.5L3 7.5Z"></path><path d="M3 7.5V16l9 5 9-5V7.5"></path><path d="M12 12v9"></path><path d="M15.5 12.5H21"></path><path d="M18.7 9.8 21.4 12.5 18.7 15.2"></path></svg>
+                    </button>
+                    {% else %}
+                    <a href="{{ tracking_info.url }}" target="_blank" rel="noopener noreferrer" class="tracking-mini-link" title="{{ tracking_info.titulo }}" aria-label="{{ tracking_info.titulo }}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7.5 12 3l9 4.5-9 4.5L3 7.5Z"></path><path d="M3 7.5V16l9 5 9-5V7.5"></path><path d="M12 12v9"></path><path d="M15.5 12.5H21"></path><path d="M18.7 9.8 21.4 12.5 18.7 15.2"></path></svg>
+                    </a>
+                    {% endif %}
+                {% endif %}
+            </p>
             {% if pedido.canal == "Mayorista" %}
             <p><strong>Comprobante DUX:</strong>
                 {% if pedido.comprobante_dux_archivo %}
@@ -478,6 +492,29 @@ window.addEventListener("load", function () {
     abrirChatMLFallbackAPB();
 });
 {% endif %}
+</script>
+
+
+<script>
+function abrirTrackingPedido(url, seguimiento) {
+    const abrir = () => window.open(url, "_blank", "noopener,noreferrer");
+    if (seguimiento && navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(seguimiento).finally(abrir);
+        return;
+    }
+    try {
+        const temp = document.createElement("textarea");
+        temp.value = seguimiento || "";
+        temp.setAttribute("readonly", "");
+        temp.style.position = "fixed";
+        temp.style.left = "-9999px";
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand("copy");
+        document.body.removeChild(temp);
+    } catch (e) {}
+    abrir();
+}
 </script>
 
 {% endblock %}

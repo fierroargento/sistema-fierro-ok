@@ -2039,6 +2039,36 @@ def ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info=None):
     pedido.ml_mensaje_contacto = generar_mensaje_contacto_ml(pedido) if faltantes else ""
 
 
+def tracking_info_pedido(pedido):
+    """Devuelve acceso rapido al seguimiento del pedido."""
+    if not pedido:
+        return None
+
+    seguimiento = str(getattr(pedido, "seguimiento", None) or "").strip()
+    if not seguimiento:
+        return None
+
+    transporte = str(getattr(pedido, "empresa_envio", None) or "").strip().lower()
+    tipo_ml = str(getattr(pedido, "ml_tipo", None) or "").strip().lower()
+
+    if "andreani" in transporte:
+        return {"url": f"https://www.andreani.com/envio/{seguimiento}", "copiar": False, "seguimiento": seguimiento, "titulo": "Abrir seguimiento Andreani"}
+
+    if "via cargo" in transporte or "vía cargo" in transporte:
+        return {"url": f"https://viacargo.com.ar/seguimiento-de-envio/{seguimiento}/", "copiar": False, "seguimiento": seguimiento, "titulo": "Abrir seguimiento Via Cargo"}
+
+    if "correo" in transporte:
+        if "mercado envios" in tipo_ml or "mercado envíos" in tipo_ml:
+            url = "https://www.correoargentino.com.ar/formularios/mercadolibre"
+            titulo = "Copiar seguimiento y abrir Correo Argentino Mercado Libre"
+        else:
+            url = "https://www.correoargentino.com.ar/formularios/e-commerce"
+            titulo = "Copiar seguimiento y abrir Correo Argentino e-commerce"
+        return {"url": url, "copiar": True, "seguimiento": seguimiento, "titulo": titulo}
+
+    return None
+
+
 def ml_link_detalle_venta(pedido):
     if not pedido or pedido.canal != "Mercado Libre" or not pedido.id_venta:
         return ""
@@ -2599,6 +2629,7 @@ def inyectar_contexto_global():
         "ml_datos_apb_pedido": ml_datos_apb_pedido,
         "ml_link_detalle_venta": ml_link_detalle_venta,
         "ml_link_chat_venta": ml_link_chat_venta,
+        "tracking_info_pedido": tracking_info_pedido,
         "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,
     }
 

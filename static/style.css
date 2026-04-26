@@ -1494,3 +1494,49 @@ tr.fila-amarillo td .btn-accion-rapida {
 .ml-mini-chat {
     font-size: 14px;
 }
+
+
+.tracking-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+
+.tracking-mini-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    border: 1px solid #0f3f52;
+    background: #124E64;
+    color: #ffffff !important;
+    text-decoration: none;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: 0 2px 5px rgba(18, 78, 100, 0.24);
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tracking-mini-link svg {
+    width: 17px;
+    height: 17px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.tracking-mini-link:hover {
+    background: #0B3A4A;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 9px rgba(18, 78, 100, 0.28);
+}
+
+.tracking-mini-link:focus-visible {
+    outline: 3px solid rgba(18, 78, 100, 0.25);
+    outline-offset: 2px;
+}
