@@ -1180,7 +1180,7 @@ def alertas_operativas():
                 reclamos_sin_revision += 1
 
     ml_me_sin_etiqueta = int(session.get("ml_me_sin_etiqueta_count") or 0)
-    if ml_me_sin_etiqueta and rol in ["carga", "despacho", "admin"]:
+    if ml_me_sin_etiqueta and rol in ["carga", "admin"]:
         alertas.append({
             "tipo": "amarilla",
             "texto": f"{ml_me_sin_etiqueta} venta(s) de Mercado Envíos sin etiqueta no ingresaron a Fierro",
@@ -2442,6 +2442,59 @@ def ml_envio_ya_despachado(order, shipment=None):
     }
     estados.discard("")
     return bool(estados.intersection({"shipped", "delivered", "not_delivered", "cancelled", "returned"}))
+
+
+def ml_validar_orden_operable_antes_de_despacho(pedido):
+    """
+    Revalida en vivo contra Mercado Libre antes de embalar o despachar.
+    Evita operar pedidos que se cancelaron o cambiaron de estado en ML
+    entre la ultima sincronizacion y la accion del operador.
+    """
+    if not pedido or pedido.canal != "Mercado Libre" or not pedido.id_venta:
+        return True, ""
+
+    try:
+        order = ml_obtener_order(pedido.id_venta)
+        if not order:
+            return True, ""
+
+        estado_order = str(order.get("status") or "").lower().strip()
+        pedido.ml_order_status = estado_order or pedido.ml_order_status
+
+        shipping = order.get("shipping") or {}
+        shipping_id = str(shipping.get("id") or pedido.ml_shipping_id or "").strip()
+        shipment = ml_obtener_shipment(shipping_id) if shipping_id else {}
+
+        estado_shipping = str((shipment or {}).get("status") or shipping.get("status") or "").lower().strip()
+        if estado_shipping:
+            pedido.ml_shipping_status = estado_shipping
+        if shipping_id:
+            pedido.ml_shipping_id = shipping_id
+        pedido.ultima_sync_ml = datetime.utcnow()
+
+        estados_order_bloqueados = {"cancelled", "invalid"}
+        estados_shipping_bloqueados = {"cancelled", "not_delivered", "returned"}
+        estados_shipping_ya_operados = {"shipped", "delivered"}
+
+        if estado_order in estados_order_bloqueados:
+            db.session.commit()
+            return False, f"Mercado Libre informa que la venta esta {estado_order}. No corresponde embalar ni despachar."
+
+        if estado_shipping in estados_shipping_bloqueados:
+            db.session.commit()
+            return False, f"Mercado Libre informa que el envio esta {estado_shipping}. No corresponde embalar ni despachar."
+
+        if pedido.ml_tipo == "Mercado Envíos" and estado_shipping in estados_shipping_ya_operados:
+            db.session.commit()
+            return False, f"Mercado Libre informa que el envio ya figura {estado_shipping}. Revisar la venta antes de operar."
+
+        db.session.commit()
+        return True, ""
+
+    except Exception as e:
+        db.session.rollback()
+        print("No se pudo revalidar orden ML antes de embalar/despachar:", e)
+        return True, ""
 
 
 def ml_preparar_etiqueta_mercado_envios(order, shipment=None):
@@ -3980,6 +4033,11 @@ def avanzar_pedido(id):
         )
 
     nuevo = siguiente_estado(pedido.estado)
+
+    if nuevo in ["Embalado", "Despachado"] and pedido.canal == "Mercado Libre":
+        orden_ok, mensaje_ml = ml_validar_orden_operable_antes_de_despacho(pedido)
+        if not orden_ok:
+            return redirect(url_for("detalle_pedido", id=pedido.id, error=mensaje_ml))
 
     if nuevo:
         aplicar_estado_y_fechas(pedido, nuevo)

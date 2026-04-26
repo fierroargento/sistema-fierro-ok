@@ -191,6 +191,7 @@
             <p><strong>DNI:</strong> {{ pedido.dni or "-" }}</p>
             <p><strong>Teléfono:</strong> {{ pedido.telefono or "-" }}</p>
             <p><strong>Mail:</strong> {{ pedido.mail or "-" }}</p>
+            {% if rol_actual != "despacho" %}
             <p class="cliente-contact-row">
                 <strong>Chat ML:</strong>
                 {% if pedido.canal == "Mercado Libre" and pedido.id_venta %}
@@ -212,6 +213,7 @@
                     -
                 {% endif %}
             </p>
+            {% endif %}
         </div>
 
         <div class="detalle-box">
@@ -228,6 +230,7 @@
                 {% endif %}
             </p>
             <p><strong>Tipo ML:</strong> {{ pedido.ml_tipo or "-" }}</p>
+            {% if rol_actual != "despacho" %}
             <p class="tracking-row">
                 <strong>Seguimiento:</strong> {{ pedido.seguimiento or "-" }}
                 {% set tracking_info = tracking_info_pedido(pedido) %}
@@ -243,6 +246,7 @@
                     </a>
                 {% endif %}
             </p>
+            {% endif %}
             {% if pedido.canal == "Mayorista" %}
             <p><strong>Comprobante DUX:</strong>
                 {% if pedido.comprobante_dux_archivo %}
