@@ -52,6 +52,9 @@
             <div class="alerta alerta-{{ alerta.tipo }} alerta-popup">
                 <button type="button" class="alerta-cerrar" onclick="this.parentElement.style.display='none'">×</button>
                 <span>{{ alerta.texto }}</span>
+                {% if alerta.url %}
+                <a href="{{ alerta.url }}" target="_blank" class="alerta-accion-mini">{{ alerta.boton or 'Abrir' }}</a>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

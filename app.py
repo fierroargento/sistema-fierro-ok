@@ -1179,6 +1179,15 @@ def alertas_operativas():
             if ref_reclamo and (ahora - ref_reclamo).total_seconds() >= 24 * 3600:
                 reclamos_sin_revision += 1
 
+    ml_me_sin_etiqueta = int(session.get("ml_me_sin_etiqueta_count") or 0)
+    if ml_me_sin_etiqueta and rol in ["carga", "despacho", "admin"]:
+        alertas.append({
+            "tipo": "amarilla",
+            "texto": f"{ml_me_sin_etiqueta} venta(s) de Mercado Envíos sin etiqueta no ingresaron a Fierro",
+            "url": "https://www.mercadolibre.com.ar/ventas/omni/listado",
+            "boton": "Ver en ML",
+        })
+
     if rol in ["despacho", "admin"]:
         if sin_despachar:
             alertas.append({"tipo": "roja", "texto": f"{sin_despachar} pedidos sin despacho desde hace más de 24 hs"})
@@ -2420,6 +2429,33 @@ def ml_es_envio_full(order, shipment):
     return no_operable and motivo == "Mercado Envíos Full"
 
 
+def ml_es_mercado_envios_order(order, shipment=None):
+    return ml_mapear_tipo(order or {}, shipment or {}) == "Mercado Envíos"
+
+
+def ml_envio_ya_despachado(order, shipment=None):
+    shipment = shipment or {}
+    shipping = (order or {}).get("shipping") or {}
+    estados = {
+        str(shipment.get("status") or "").lower().strip(),
+        str(shipping.get("status") or "").lower().strip(),
+    }
+    estados.discard("")
+    return bool(estados.intersection({"shipped", "delivered", "not_delivered", "cancelled", "returned"}))
+
+
+def ml_preparar_etiqueta_mercado_envios(order, shipment=None):
+    shipping = (order or {}).get("shipping") or {}
+    shipment = shipment or {}
+    shipping_id = str(shipping.get("id") or shipment.get("id") or "").strip()
+    if not shipping_id:
+        return ""
+    nombre_pdf = ml_guardar_etiqueta_pdf(shipping_id)
+    if not nombre_pdf:
+        return ""
+    return os.path.basename(str(nombre_pdf))
+
+
 def ml_order_debe_omitirse(order, shipment=None):
     order_id = str(order.get("id") or "").strip()
     if not order_id:
@@ -2472,6 +2508,21 @@ def ml_upsert_pedido_desde_order(order):
             return None, False, f"{motivo_omision} - pedido importado eliminado"
         return None, False, motivo_omision
 
+    etiqueta_ml_preparada = ""
+    if ml_es_mercado_envios_order(order, shipment):
+        if ml_envio_ya_despachado(order, shipment):
+            pedido_existente = ml_pedido_existente_por_order_id(order_id)
+            if ml_borrar_pedido_importado_si_corresponde(pedido_existente):
+                return None, False, "Mercado Envíos ya enviado - pedido importado eliminado"
+            return None, False, "Mercado Envíos ya enviado"
+
+        etiqueta_ml_preparada = ml_preparar_etiqueta_mercado_envios(order, shipment)
+        if not etiqueta_ml_preparada:
+            pedido_existente = ml_pedido_existente_por_order_id(order_id)
+            if ml_borrar_pedido_importado_si_corresponde(pedido_existente):
+                return None, False, "__ML_ME_SIN_ETIQUETA__ - pedido importado eliminado"
+            return None, False, "__ML_ME_SIN_ETIQUETA__"
+
     billing_info = ml_obtener_billing_info(order_id)
 
     pedido = ml_pedido_existente_por_order_id(order_id)
@@ -2497,6 +2548,8 @@ def ml_upsert_pedido_desde_order(order):
     pedido.ml_pack_id = str(order.get("pack_id") or "").strip() or pedido.ml_pack_id
     pedido.ml_order_status = order.get("status") or pedido.ml_order_status
     pedido.ultima_sync_ml = datetime.utcnow()
+    if etiqueta_ml_preparada:
+        pedido.etiqueta_archivo = etiqueta_ml_preparada
 
     ml_aplicar_datos_envio(pedido, order, shipment)
     ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info)
@@ -2601,6 +2654,8 @@ def ml_sync_manual(limit=20):
     actualizados = 0
     omitidos = 0
     errores = list(detalles_eliminados)
+    mercado_envios_sin_etiqueta = 0
+    mercado_envios_sin_etiqueta_ids = []
 
     for order in orders:
         order_id = str(order.get("id") or "").strip() or "sin_id"
@@ -2608,7 +2663,11 @@ def ml_sync_manual(limit=20):
             pedido, creado, motivo_omision = ml_upsert_pedido_desde_order(order)
             if not pedido:
                 omitidos += 1
-                if motivo_omision:
+                if motivo_omision and "__ML_ME_SIN_ETIQUETA__" in motivo_omision:
+                    mercado_envios_sin_etiqueta += 1
+                    mercado_envios_sin_etiqueta_ids.append(order_id)
+                    errores.append(f"{order_id}: omitido (Mercado Envíos sin etiqueta)")
+                elif motivo_omision:
                     errores.append(f"{order_id}: omitido ({motivo_omision})")
                 continue
 
@@ -2628,6 +2687,10 @@ def ml_sync_manual(limit=20):
         detalle += " | Detalle: " + " ; ".join(errores[:5])
 
     cuenta.last_sync_detail = detalle
+
+    session["ml_me_sin_etiqueta_count"] = mercado_envios_sin_etiqueta
+    session["ml_me_sin_etiqueta_ids"] = mercado_envios_sin_etiqueta_ids[:10]
+
     db.session.commit()
 
     return {
@@ -2637,6 +2700,7 @@ def ml_sync_manual(limit=20):
         "omitidos": omitidos,
         "eliminados": eliminados_existentes,
         "errores": errores,
+        "me_sin_etiqueta": mercado_envios_sin_etiqueta,
     }
 
 
@@ -2878,7 +2942,8 @@ def sync_mercadolibre():
             f"Nuevos: {resultado['creados']} | "
             f"Actualizados: {resultado['actualizados']} | "
             f"Omitidos: {resultado['omitidos']} | "
-            f"Eliminados: {resultado['eliminados']}"
+            f"Eliminados: {resultado['eliminados']} | "
+            f"ME sin etiqueta: {resultado.get('me_sin_etiqueta', 0)}"
         )
         return redirect(url_for("admin_integraciones", ok=mensaje))
     except Exception as e:

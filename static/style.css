@@ -1603,3 +1603,23 @@ tr.fila-amarillo td .btn-accion-rapida {
 .mini-action-whatsapp:hover {
     background: #048747;
 }
+
+.alerta-accion-mini {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(31, 41, 55, 0.92);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.alerta-accion-mini:hover {
+    filter: brightness(1.08);
+    text-decoration: none;
+}
