@@ -3330,7 +3330,7 @@ def enviar_mensaje_ml_acordas(id):
         pedido.ml_mensaje_contacto = texto_visible
         marcar_contacto_iniciado_pedido(pedido)
         db.session.commit()
-        return redirect(url_for("detalle_pedido", id=pedido.id, ok="Mensaje enviado a Mercado Libre."))
+        return redirect(url_for("inicio"))
     except Exception as e:
         db.session.rollback()
 

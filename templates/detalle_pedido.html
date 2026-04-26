@@ -241,7 +241,7 @@
     </div>
 
 
-    {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" %}
+    {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" and not pedido.contacto_iniciado %}
     {% set ml_order_status_actual = (pedido.ml_order_status or "")|lower %}
     {% set abrir_chat_directo_ml = pedido.estado == "Cargando Pedido" or ml_order_status_actual in ["payment_in_process", "payment_required", "cancelled"] %}
     <div class="detalle-box detalle-box-full apb-ml-box apb-ml-box-compacto">
@@ -442,6 +442,9 @@ function abrirChatMLDirectoAPB() {
     copiarMensajeMLAPB();
     marcarContactoIniciadoMLAPB();
     window.open(urlChat, "_blank", "noopener,noreferrer");
+    setTimeout(function () {
+        window.location.href = {{ url_for('inicio')|tojson }};
+    }, 250);
 
     const feedback = document.getElementById("mensaje-ml-copiado");
     if (feedback) {

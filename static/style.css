@@ -1424,3 +1424,25 @@ tr.fila-amarillo td .btn-accion-rapida {
     font-weight: 700;
     color: #124E64;
 }
+
+.col-contacto {
+    width: 70px;
+    text-align: center;
+}
+
+.contacto-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: #EAF7FF;
+    border: 1px solid #9BD7F5;
+    font-size: 18px;
+}
+
+.contacto-pendiente {
+    color: #9CA3AF;
+    font-weight: 800;
+}
