@@ -2648,6 +2648,7 @@ def inicio():
     pedidos.sort(key=orden_inicio_pedido)
 
     ok_feedback = (request.args.get("ok") or "").strip()
+    error = (request.args.get("error") or "").strip()
 
     if es_ml_acordas_entrega(pedido):
         mensaje_actualizado = generar_mensaje_contacto_ml(pedido)
@@ -2710,6 +2711,7 @@ def admin_integraciones():
     cuenta_ml = cuenta_ml_actual()
     faltantes = ml_config_faltante()
     ok_feedback = (request.args.get("ok") or "").strip()
+    error = (request.args.get("error") or "").strip()
 
     if es_ml_acordas_entrega(pedido):
         mensaje_actualizado = generar_mensaje_contacto_ml(pedido)
@@ -3260,6 +3262,7 @@ def detalle_pedido(id):
         db.session.commit()
 
     ok_feedback = (request.args.get("ok") or "").strip()
+    error = (request.args.get("error") or "").strip()
 
     if es_ml_acordas_entrega(pedido):
         mensaje_actualizado = generar_mensaje_contacto_ml(pedido)
@@ -3270,7 +3273,7 @@ def detalle_pedido(id):
     return render_template(
         "detalle_pedido.html",
         pedido=pedido,
-        error="",
+        error=error,
         ok_feedback=ok_feedback,
         accion_sugerida=accion_sugerida_pedido(pedido),
         texto_boton=texto_boton_estado(pedido),
@@ -3299,23 +3302,18 @@ def enviar_mensaje_ml_acordas(id):
         db.session.rollback()
 
         if "__FALLBACK_A_WEB__" in str(e):
-            print(f"[ML-FALLBACK] Pedido {pedido.id} | order_status={pedido.ml_order_status} | abriendo ML web")
-            url_ml = ml_link_chat_venta(pedido)
-            if url_ml:
-                return redirect(url_ml)
-            return redirect(url_for("detalle_pedido", id=pedido.id, ok="ML todavia no habilita el chat por API. Usa Abrir venta en ML."))
+            print(f"[ML-FALLBACK] Pedido {pedido.id} | order_status={pedido.ml_order_status} | ML no habilita envio por API")
+            return redirect(url_for(
+                "detalle_pedido",
+                id=pedido.id,
+                ok="ML no habilito el envio automatico para este pedido. Usa Copiar mensaje y Abrir venta en ML."
+            ))
 
-        return render_template(
-            "detalle_pedido.html",
-            pedido=pedido,
-            error=f"No se pudo enviar el mensaje a Mercado Libre: {e}",
-            ok_feedback="",
-            accion_sugerida=accion_sugerida_pedido(pedido),
-            texto_boton=texto_boton_estado(pedido),
-            hay_autorizado=hay_autorizado,
-            puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-            whatsapp_url=whatsapp_link_pedido(pedido),
-        )
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=f"No se pudo enviar el mensaje a Mercado Libre: {e}"
+        ))
 @app.route("/pedido/<int:id>/editar", methods=["GET", "POST"])
 @login_required
 def editar_pedido(id):

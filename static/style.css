@@ -37,6 +37,17 @@ body {
     line-height: 1.35;
 }
 
+.ok-feedback {
+    background: #fff3cd;
+    color: #7a4b00;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.35;
+    border: 1px solid #facc15;
+}
+
 a {
     color: inherit;
 }
