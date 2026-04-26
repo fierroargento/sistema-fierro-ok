@@ -519,26 +519,37 @@ window.addEventListener("load", function () {
 
 <script>
 function copiarTrackingPedido(seguimiento) {
-    if (!seguimiento) {
-        return true;
+    const textoSeguimiento = String(seguimiento || "").trim();
+    if (!textoSeguimiento) {
+        return false;
     }
+
+    let copiado = false;
 
     try {
         const temp = document.createElement("textarea");
-        temp.value = seguimiento;
+        temp.value = textoSeguimiento;
         temp.setAttribute("readonly", "");
         temp.style.position = "fixed";
-        temp.style.left = "-9999px";
+        temp.style.top = "0";
+        temp.style.left = "0";
+        temp.style.width = "1px";
+        temp.style.height = "1px";
+        temp.style.opacity = "0";
+        temp.style.zIndex = "-1";
         document.body.appendChild(temp);
         temp.focus();
         temp.select();
-        document.execCommand("copy");
+        temp.setSelectionRange(0, temp.value.length);
+        copiado = document.execCommand("copy");
         document.body.removeChild(temp);
-    } catch (e) {}
+    } catch (e) {
+        copiado = false;
+    }
 
     try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(seguimiento).catch(function () {});
+        if (!copiado && navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+            navigator.clipboard.writeText(textoSeguimiento).catch(function () {});
         }
     } catch (e) {}
 
@@ -550,36 +561,8 @@ function abrirTrackingConCopia(event, url, seguimiento) {
         event.preventDefault();
     }
 
-    const textoSeguimiento = String(seguimiento || "").trim();
-
-    // Abrimos la pestaña inmediatamente desde el click del usuario para evitar bloqueo de popups.
-    const ventanaTracking = window.open("about:blank", "_blank");
-
-    const abrirTracking = function () {
-        if (ventanaTracking) {
-            ventanaTracking.location.href = url;
-        } else {
-            window.open(url, "_blank");
-        }
-    };
-
-    if (!textoSeguimiento) {
-        abrirTracking();
-        return false;
-    }
-
-    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
-        navigator.clipboard.writeText(textoSeguimiento)
-            .then(abrirTracking)
-            .catch(function () {
-                copiarTrackingPedido(textoSeguimiento);
-                abrirTracking();
-            });
-    } else {
-        copiarTrackingPedido(textoSeguimiento);
-        abrirTracking();
-    }
-
+    copiarTrackingPedido(seguimiento);
+    window.open(url, "_blank", "noopener,noreferrer");
     return false;
 }
 </script>
