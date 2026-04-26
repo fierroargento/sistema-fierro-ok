@@ -191,6 +191,27 @@
             <p><strong>DNI:</strong> {{ pedido.dni or "-" }}</p>
             <p><strong>Teléfono:</strong> {{ pedido.telefono or "-" }}</p>
             <p><strong>Mail:</strong> {{ pedido.mail or "-" }}</p>
+            <p class="cliente-contact-row">
+                <strong>Chat ML:</strong>
+                {% if pedido.canal == "Mercado Libre" and pedido.id_venta %}
+                    <a href="{{ ml_link_chat_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="mini-action-link mini-action-chat" title="Abrir chat de la venta en Mercado Libre" aria-label="Abrir chat de la venta en Mercado Libre">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 6.5A3.5 3.5 0 0 1 8.5 3h7A3.5 3.5 0 0 1 19 6.5v5A3.5 3.5 0 0 1 15.5 15H11l-4.5 3v-3A3.5 3.5 0 0 1 3 11.5v-5Z"></path><path d="M14.5 8h4.8"></path><path d="M17.1 5.4 19.8 8l-2.7 2.6"></path></svg>
+                    </a>
+                {% else %}
+                    -
+                {% endif %}
+            </p>
+            <p class="cliente-contact-row">
+                <strong>Chat WhatsApp:</strong>
+                {% set whatsapp_url_cliente = whatsapp_link_pedido(pedido) %}
+                {% if whatsapp_url_cliente %}
+                    <a href="{{ whatsapp_url_cliente }}" target="_blank" rel="noopener noreferrer" class="mini-action-link mini-action-whatsapp" title="Abrir chat de WhatsApp" aria-label="Abrir chat de WhatsApp">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5.1 18.9 6 15.6A7.7 7.7 0 1 1 8.4 18l-3.3.9Z"></path><path d="M9.2 8.6c.2-.5.4-.5.7-.5h.5c.2 0 .4.1.5.4l.7 1.6c.1.3 0 .5-.1.7l-.4.5c.8 1.3 1.8 2.2 3.1 2.8l.6-.6c.2-.2.4-.2.7-.1l1.5.7c.3.1.4.3.4.6v.4c0 .4-.2.7-.6.9-.5.3-1.2.4-2.1.2-2.3-.5-5.1-2.7-6.1-5.1-.4-.9-.3-1.7.1-2.5Z"></path><path d="M15.4 6.8h4.2"></path><path d="M17.4 4.8l2.4 2-2.4 2"></path></svg>
+                    </a>
+                {% else %}
+                    -
+                {% endif %}
+            </p>
         </div>
 
         <div class="detalle-box">
@@ -199,9 +220,10 @@
             <p class="ml-id-row">
                 <strong>ID venta:</strong> {{ pedido.id_venta or "-" }}
                 {% if pedido.canal == "Mercado Libre" and pedido.id_venta %}
-                <span class="ml-mini-actions" aria-label="Accesos rápidos Mercado Libre">
-                    <a href="{{ ml_link_detalle_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="ml-mini-link" title="Abrir detalle de venta en Mercado Libre">↗</a>
-                    <a href="{{ ml_link_chat_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="ml-mini-link ml-mini-chat" title="Abrir chat de la venta en Mercado Libre">💬</a>
+                <span class="ml-mini-actions" aria-label="Acceso rápido Mercado Libre">
+                    <a href="{{ ml_link_detalle_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="mini-action-link mini-action-neutral" title="Abrir detalle de venta en Mercado Libre" aria-label="Abrir detalle de venta en Mercado Libre">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 7H6.5A2.5 2.5 0 0 0 4 9.5v8A2.5 2.5 0 0 0 6.5 20h8a2.5 2.5 0 0 0 2.5-2.5V16"></path><path d="M13 4h7v7"></path><path d="M11 13 20 4"></path></svg>
+                    </a>
                 </span>
                 {% endif %}
             </p>
@@ -497,11 +519,21 @@ window.addEventListener("load", function () {
 
 <script>
 function abrirTrackingPedido(url, seguimiento) {
-    const abrir = () => window.open(url, "_blank", "noopener,noreferrer");
+    // Abrimos la pestaña inmediatamente desde el click para que el navegador no bloquee el popup.
+    const nuevaPestana = window.open("about:blank", "_blank", "noopener,noreferrer");
+    const abrirDestino = () => {
+        if (nuevaPestana) {
+            nuevaPestana.location.href = url;
+        } else {
+            window.location.href = url;
+        }
+    };
+
     if (seguimiento && navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(seguimiento).finally(abrir);
+        navigator.clipboard.writeText(seguimiento).finally(abrirDestino);
         return;
     }
+
     try {
         const temp = document.createElement("textarea");
         temp.value = seguimiento || "";
@@ -513,7 +545,8 @@ function abrirTrackingPedido(url, seguimiento) {
         document.execCommand("copy");
         document.body.removeChild(temp);
     } catch (e) {}
-    abrir();
+
+    abrirDestino();
 }
 </script>
 

@@ -1540,3 +1540,66 @@ tr.fila-amarillo td .btn-accion-rapida {
     outline: 3px solid rgba(18, 78, 100, 0.25);
     outline-offset: 2px;
 }
+
+/* Accesos rápidos compactos en Detalle */
+.cliente-contact-row,
+.ml-id-row,
+.tracking-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+
+.mini-action-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    color: #ffffff !important;
+    text-decoration: none;
+    border: 1px solid rgba(15, 63, 82, 0.35);
+    box-shadow: 0 2px 5px rgba(15, 23, 42, 0.20);
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mini-action-link svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.mini-action-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 9px rgba(15, 23, 42, 0.24);
+}
+
+.mini-action-link:focus-visible {
+    outline: 3px solid rgba(18, 78, 100, 0.25);
+    outline-offset: 2px;
+}
+
+.mini-action-neutral,
+.mini-action-chat {
+    background: #6B7280;
+}
+
+.mini-action-neutral:hover,
+.mini-action-chat:hover {
+    background: #124E64;
+}
+
+.mini-action-whatsapp {
+    background: #05A857;
+    border-color: rgba(5, 168, 87, 0.45);
+}
+
+.mini-action-whatsapp:hover {
+    background: #048747;
+}
