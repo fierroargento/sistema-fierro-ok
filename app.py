@@ -2040,7 +2040,13 @@ def ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info=None):
 
 
 def tracking_info_pedido(pedido):
-    """Devuelve acceso rapido al seguimiento del pedido."""
+    """Devuelve acceso rapido al seguimiento del pedido.
+
+    Regla APB:
+    - Andreani y Via Cargo abren directo el seguimiento.
+    - Correo Argentino no tiene URL directa confiable: copia el seguimiento y abre el formulario correcto.
+    - Mercado Envios se trata como Correo ML aunque empresa_envio venga guardada como "Mercado Envios".
+    """
     if not pedido:
         return None
 
@@ -2051,20 +2057,46 @@ def tracking_info_pedido(pedido):
     transporte = str(getattr(pedido, "empresa_envio", None) or "").strip().lower()
     tipo_ml = str(getattr(pedido, "ml_tipo", None) or "").strip().lower()
 
+    es_mercado_envios = (
+        "mercado envios" in tipo_ml
+        or "mercado envíos" in tipo_ml
+        or "mercado envios" in transporte
+        or "mercado envíos" in transporte
+    )
+
+    # Mercado Envios usa el formulario especial de Correo Argentino ML,
+    # incluso cuando el campo transporte queda como "Mercado Envios".
+    if es_mercado_envios:
+        return {
+            "url": "https://www.correoargentino.com.ar/formularios/mercadolibre",
+            "copiar": True,
+            "seguimiento": seguimiento,
+            "titulo": "Copiar seguimiento y abrir Correo Argentino Mercado Libre",
+        }
+
     if "andreani" in transporte:
-        return {"url": f"https://www.andreani.com/envio/{seguimiento}", "copiar": False, "seguimiento": seguimiento, "titulo": "Abrir seguimiento Andreani"}
+        return {
+            "url": f"https://www.andreani.com/envio/{seguimiento}",
+            "copiar": False,
+            "seguimiento": seguimiento,
+            "titulo": "Abrir seguimiento Andreani",
+        }
 
     if "via cargo" in transporte or "vía cargo" in transporte:
-        return {"url": f"https://viacargo.com.ar/seguimiento-de-envio/{seguimiento}/", "copiar": False, "seguimiento": seguimiento, "titulo": "Abrir seguimiento Via Cargo"}
+        return {
+            "url": f"https://viacargo.com.ar/seguimiento-de-envio/{seguimiento}/",
+            "copiar": False,
+            "seguimiento": seguimiento,
+            "titulo": "Abrir seguimiento Via Cargo",
+        }
 
     if "correo" in transporte:
-        if "mercado envios" in tipo_ml or "mercado envíos" in tipo_ml:
-            url = "https://www.correoargentino.com.ar/formularios/mercadolibre"
-            titulo = "Copiar seguimiento y abrir Correo Argentino Mercado Libre"
-        else:
-            url = "https://www.correoargentino.com.ar/formularios/e-commerce"
-            titulo = "Copiar seguimiento y abrir Correo Argentino e-commerce"
-        return {"url": url, "copiar": True, "seguimiento": seguimiento, "titulo": titulo}
+        return {
+            "url": "https://www.correoargentino.com.ar/formularios/e-commerce",
+            "copiar": True,
+            "seguimiento": seguimiento,
+            "titulo": "Copiar seguimiento y abrir Correo Argentino e-commerce",
+        }
 
     return None
 
