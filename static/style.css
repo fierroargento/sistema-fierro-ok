@@ -1449,6 +1449,45 @@ tr.fila-amarillo td .btn-accion-rapida {
     line-height: 1;
 }
 
+
+.contacto-badge-alerta {
+    position: relative;
+    background: #7F1D1D !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(127, 29, 29, 0.30);
+}
+
+.contacto-badge-count,
+.mini-action-badge {
+    position: absolute;
+    top: -6px;
+    right: -7px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #DC2626;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.mini-action-alerta {
+    position: relative;
+    background: #7F1D1D !important;
+    border-color: #991B1B !important;
+}
+
+.mini-action-alerta:hover {
+    background: #991B1B !important;
+}
+
 .contacto-pendiente {
     display: inline-block;
     width: 30px;

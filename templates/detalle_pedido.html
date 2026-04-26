@@ -195,8 +195,11 @@
             <p class="cliente-contact-row">
                 <strong>Chat ML:</strong>
                 {% if pedido.canal == "Mercado Libre" and pedido.id_venta %}
-                    <a href="{{ ml_link_chat_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="mini-action-link mini-action-chat" title="Abrir chat de la venta en Mercado Libre" aria-label="Abrir chat de la venta en Mercado Libre">
+                    <a href="{{ ml_link_chat_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="mini-action-link mini-action-chat {% if ml_pedido_tiene_mensajes_pendientes(pedido) %}mini-action-alerta{% endif %}" title="{% if ml_pedido_tiene_mensajes_pendientes(pedido) %}Hay mensajes pendientes del comprador{% else %}Abrir chat de la venta en Mercado Libre{% endif %}" aria-label="Abrir chat de la venta en Mercado Libre">
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 6.5A3.5 3.5 0 0 1 8.5 3h7A3.5 3.5 0 0 1 19 6.5v5A3.5 3.5 0 0 1 15.5 15H11l-4.5 3v-3A3.5 3.5 0 0 1 3 11.5v-5Z"></path><path d="M14.5 8h4.8"></path><path d="M17.1 5.4 19.8 8l-2.7 2.6"></path></svg>
+                        {% if ml_pedido_tiene_mensajes_pendientes(pedido) %}
+                            <span class="mini-action-badge">{{ pedido.ml_mensajes_pendientes_count or 1 }}</span>
+                        {% endif %}
                     </a>
                 {% else %}
                     -

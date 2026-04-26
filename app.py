@@ -72,6 +72,9 @@ class Pedido(db.Model):
     ml_mensaje_contacto = db.Column(db.Text)
     contacto_iniciado = db.Column(db.Boolean, default=False)
     fecha_contacto = db.Column(db.DateTime)
+    ml_mensajes_pendientes = db.Column(db.Boolean, default=False)
+    ml_mensajes_pendientes_count = db.Column(db.Integer, default=0)
+    ultima_sync_mensajes_ml = db.Column(db.DateTime)
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -264,6 +267,9 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ml_mensaje_contacto", "TEXT")
     asegurar_columna_si_no_existe("contacto_iniciado", "BOOLEAN DEFAULT FALSE")
     asegurar_columna_si_no_existe("fecha_contacto", "TIMESTAMP")
+    asegurar_columna_si_no_existe("ml_mensajes_pendientes", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("ml_mensajes_pendientes_count", "INTEGER DEFAULT 0")
+    asegurar_columna_si_no_existe("ultima_sync_mensajes_ml", "TIMESTAMP")
 
 
 def productos_desde_excel(archivo_excel):
@@ -2132,6 +2138,75 @@ def ml_link_chat_venta(pedido):
         "&callbackUrl=https%3A%2F%2Fwww.mercadolibre.com.ar%2Fventas%2Fomni%2Flistado"
     )
 
+
+def ml_extraer_pack_id_de_resource(resource):
+    """Extrae el ID de pack desde recursos tipo /packs/{id}/sellers/{seller_id}."""
+    resource = str(resource or "").strip()
+    match = re.search(r"/packs/([^/]+)/sellers/", resource)
+    if not match:
+        return ""
+    return str(match.group(1) or "").strip()
+
+
+def ml_sync_mensajes_pendientes_pedidos():
+    """
+    Sincroniza mensajes pendientes de leer de ML sin abrir el thread.
+    IMPORTANTE: no usa GET /messages/packs porque eso puede marcar como leído.
+    Usa /messages/unread?role=seller&tag=post_sale.
+    """
+    cuenta = cuenta_ml_actual()
+    if not cuenta:
+        return 0
+
+    try:
+        data = ml_api_get("/messages/unread", params={"role": "seller", "tag": "post_sale"})
+    except Exception as e:
+        print("[ML-MENSAJES] No se pudieron sincronizar mensajes pendientes:", e)
+        return 0
+
+    pendientes_por_pack = {}
+    for item in (data or {}).get("results") or []:
+        pack_id = ml_extraer_pack_id_de_resource(item.get("resource"))
+        if not pack_id:
+            continue
+        try:
+            count = int(item.get("count") or 0)
+        except Exception:
+            count = 0
+        if count > 0:
+            pendientes_por_pack[pack_id] = count
+
+    pedidos_ml = Pedido.query.filter(Pedido.canal == "Mercado Libre").all()
+    total_pendientes = 0
+    ahora = datetime.utcnow()
+
+    for pedido in pedidos_ml:
+        ids_posibles = {
+            str(getattr(pedido, "ml_pack_id", "") or "").strip(),
+            str(getattr(pedido, "id_venta", "") or "").strip(),
+        }
+        ids_posibles.discard("")
+        count = 0
+        for posible_id in ids_posibles:
+            count = max(count, int(pendientes_por_pack.get(posible_id) or 0))
+
+        pedido.ml_mensajes_pendientes = count > 0
+        pedido.ml_mensajes_pendientes_count = count
+        pedido.ultima_sync_mensajes_ml = ahora
+        total_pendientes += count
+
+    return total_pendientes
+
+
+def ml_pedido_tiene_mensajes_pendientes(pedido):
+    if not pedido:
+        return False
+    try:
+        return bool(pedido.ml_mensajes_pendientes) or int(pedido.ml_mensajes_pendientes_count or 0) > 0
+    except Exception:
+        return bool(pedido.ml_mensajes_pendientes)
+
+
 def ml_mensaje_thread_habilitado(pedido):
     """
     Verifica si ML permite enviar mensajes por API para este pedido.
@@ -2732,10 +2807,12 @@ def ml_sync_manual(limit=20):
             omitidos += 1
             errores.append(f"{order_id}: {e}")
 
+    mensajes_pendientes = ml_sync_mensajes_pendientes_pedidos()
+
     cuenta.last_sync_at = datetime.utcnow()
     cuenta.last_sync_status = "ok" if not errores else "parcial"
 
-    detalle = f"Pedidos leídos: {len(orders)} | Nuevos: {creados} | Actualizados: {actualizados} | Omitidos: {omitidos} | Eliminados no operables: {eliminados_existentes}"
+    detalle = f"Pedidos leídos: {len(orders)} | Nuevos: {creados} | Actualizados: {actualizados} | Omitidos: {omitidos} | Eliminados no operables: {eliminados_existentes} | Mensajes ML pendientes: {mensajes_pendientes}"
     if errores:
         detalle += " | Detalle: " + " ; ".join(errores[:5])
 
@@ -2783,6 +2860,7 @@ def inyectar_contexto_global():
         "ml_datos_apb_pedido": ml_datos_apb_pedido,
         "ml_link_detalle_venta": ml_link_detalle_venta,
         "ml_link_chat_venta": ml_link_chat_venta,
+        "ml_pedido_tiene_mensajes_pendientes": ml_pedido_tiene_mensajes_pendientes,
         "tracking_info_pedido": tracking_info_pedido,
         "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,
     }
