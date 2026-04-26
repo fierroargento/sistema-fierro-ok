@@ -70,6 +70,8 @@ class Pedido(db.Model):
     ml_billing_direccion = db.Column(db.String(300))
     ml_campos_faltantes = db.Column(db.Text)
     ml_mensaje_contacto = db.Column(db.Text)
+    contacto_iniciado = db.Column(db.Boolean, default=False)
+    fecha_contacto = db.Column(db.DateTime)
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -260,6 +262,8 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ml_billing_direccion", "VARCHAR(300)")
     asegurar_columna_si_no_existe("ml_campos_faltantes", "TEXT")
     asegurar_columna_si_no_existe("ml_mensaje_contacto", "TEXT")
+    asegurar_columna_si_no_existe("contacto_iniciado", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("fecha_contacto", "TIMESTAMP")
 
 
 def productos_desde_excel(archivo_excel):
@@ -825,6 +829,8 @@ def accion_sugerida_pedido(pedido):
             return "Falta adjuntar etiqueta"
 
         if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" and not pedido.empresa_envio:
+            if not getattr(pedido, "contacto_iniciado", False):
+                return "Contactar cliente"
             return "Falta elegir transporte"
 
         if pedido.canal == "Tienda Nube" and not pedido.empresa_envio:
@@ -3288,6 +3294,27 @@ def detalle_pedido(id):
     )
 
 
+def marcar_contacto_iniciado_pedido(pedido):
+    if not pedido:
+        return
+    pedido.contacto_iniciado = True
+    if not pedido.fecha_contacto:
+        pedido.fecha_contacto = datetime.utcnow()
+
+
+@app.route("/pedido/<int:id>/marcar-contacto-ml", methods=["POST"])
+@login_required
+def marcar_contacto_ml(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido):
+        return jsonify({"ok": False}), 403
+
+    marcar_contacto_iniciado_pedido(pedido)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
 @app.route("/pedido/<int:id>/enviar-mensaje-ml", methods=["POST"])
 @login_required
 def enviar_mensaje_ml_acordas(id):
@@ -3301,12 +3328,15 @@ def enviar_mensaje_ml_acordas(id):
         texto_visible = generar_mensaje_contacto_ml(pedido)
         ml_enviar_mensaje_acordas(pedido, texto_api)
         pedido.ml_mensaje_contacto = texto_visible
+        marcar_contacto_iniciado_pedido(pedido)
         db.session.commit()
         return redirect(url_for("detalle_pedido", id=pedido.id, ok="Mensaje enviado a Mercado Libre."))
     except Exception as e:
         db.session.rollback()
 
         if "__FALLBACK_A_WEB__" in str(e):
+            marcar_contacto_iniciado_pedido(pedido)
+            db.session.commit()
             print(f"[ML-FALLBACK] Pedido {pedido.id} | order_status={pedido.ml_order_status} | ML no habilita envio por API")
             return redirect(url_for(
                 "detalle_pedido",

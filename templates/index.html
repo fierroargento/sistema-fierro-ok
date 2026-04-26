@@ -53,7 +53,7 @@
             {% set accion = accion_principal_pedido(p, 'inicio') %}
             <tr class="fila-{{ semaforo_pedido(p) }}" data-semaforo="{{ semaforo_pedido(p) }}" data-estado="{{ (p.estado or '')|lower }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Con demora de entrega', 'Verificar llegada a destino', 'Listo para retirar', 'No entregado', 'Entregado', 'Finalizado'] else 'si' }}">
                 <td>{{ p.id }}</td>
-                <td><strong>{{ (p.cliente or "-")|upper }}</strong></td>
+                <td><strong>{{ (p.cliente or "-")|upper }}</strong>{% if p.contacto_iniciado %}<span title="Cliente contactado" style="margin-left:6px;">💬</span>{% endif %}</td>
                 <td>
                     <span>{{ p.id_venta or "-" }}</span>
                     {% if p.id_venta %}
