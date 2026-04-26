@@ -238,7 +238,7 @@
                        class="tracking-mini-link"
                        title="{{ tracking_info.titulo }}"
                        aria-label="{{ tracking_info.titulo }}"
-                       {% if tracking_info.copiar %}onclick="return abrirTrackingConCopia(event, this.href, {{ tracking_info.seguimiento|tojson }})"{% endif %}>
+                       {% if tracking_info.copiar %}data-seguimiento="{{ tracking_info.seguimiento }}" onclick="return abrirTrackingConCopia(event, this)"{% endif %}>
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7.5 12 3l9 4.5-9 4.5L3 7.5Z"></path><path d="M3 7.5V16l9 5 9-5V7.5"></path><path d="M12 12v9"></path><path d="M15.5 12.5H21"></path><path d="M18.7 9.8 21.4 12.5 18.7 15.2"></path></svg>
                     </a>
                 {% endif %}
@@ -518,51 +518,84 @@ window.addEventListener("load", function () {
 
 
 <script>
-function copiarTrackingPedido(seguimiento) {
-    const textoSeguimiento = String(seguimiento || "").trim();
-    if (!textoSeguimiento) {
+function copiarTextoTrackingSync(textoSeguimiento) {
+    const texto = String(textoSeguimiento || "").trim();
+    if (!texto) {
         return false;
     }
 
     let copiado = false;
+    const temp = document.createElement("textarea");
 
     try {
-        const temp = document.createElement("textarea");
-        temp.value = textoSeguimiento;
-        temp.setAttribute("readonly", "");
+        temp.value = texto;
+        temp.setAttribute("readonly", "readonly");
+        temp.setAttribute("aria-hidden", "true");
         temp.style.position = "fixed";
+        temp.style.left = "-9999px";
         temp.style.top = "0";
-        temp.style.left = "0";
         temp.style.width = "1px";
         temp.style.height = "1px";
         temp.style.opacity = "0";
-        temp.style.zIndex = "-1";
+
         document.body.appendChild(temp);
-        temp.focus();
+        temp.focus({ preventScroll: true });
         temp.select();
         temp.setSelectionRange(0, temp.value.length);
+
         copiado = document.execCommand("copy");
-        document.body.removeChild(temp);
     } catch (e) {
         copiado = false;
+    } finally {
+        if (temp.parentNode) {
+            temp.parentNode.removeChild(temp);
+        }
     }
 
-    try {
-        if (!copiado && navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
-            navigator.clipboard.writeText(textoSeguimiento).catch(function () {});
-        }
-    } catch (e) {}
-
-    return true;
+    return copiado;
 }
 
-function abrirTrackingConCopia(event, url, seguimiento) {
+function abrirTrackingConCopia(event, enlace) {
     if (event) {
         event.preventDefault();
+        event.stopPropagation();
     }
 
-    copiarTrackingPedido(seguimiento);
-    window.open(url, "_blank", "noopener,noreferrer");
+    const url = enlace.getAttribute("href");
+    const seguimiento = String(enlace.getAttribute("data-seguimiento") || "").trim();
+
+    if (!url) {
+        return false;
+    }
+
+    // Primero copiamos dentro del click. Despues abrimos la pagina.
+    // Si el metodo sincronico falla, abrimos una pestaña en blanco dentro del click
+    // y completamos la copia con Clipboard API antes de navegarla.
+    const copiadoSync = copiarTextoTrackingSync(seguimiento);
+
+    if (copiadoSync) {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return false;
+    }
+
+    const pestaña = window.open("about:blank", "_blank");
+
+    const finalizarApertura = function () {
+        if (pestaña) {
+            pestaña.location.href = url;
+        } else {
+            window.open(url, "_blank", "noopener,noreferrer");
+        }
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+        navigator.clipboard.writeText(seguimiento)
+            .then(finalizarApertura)
+            .catch(finalizarApertura);
+    } else {
+        finalizarApertura();
+    }
+
     return false;
 }
 </script>
