@@ -418,6 +418,24 @@ function copiarMensajeMLAPB() {
 function confirmarEnvioMensajeMLAPB() {
     return confirm("¿Enviar este mensaje al chat de Mercado Libre?");
 }
+
+function abrirChatMLFallbackAPB() {
+    const urlChat = {{ (ml_link_chat_venta(pedido) or "")|tojson }};
+    if (!urlChat) {
+        return;
+    }
+
+    copiarMensajeMLAPB();
+    setTimeout(function () {
+        window.open(urlChat, "_blank", "noopener,noreferrer");
+    }, 250);
+}
+
+{% if request.args.get("fallback_ml_chat") == "1" %}
+window.addEventListener("load", function () {
+    abrirChatMLFallbackAPB();
+});
+{% endif %}
 </script>
 
 {% endblock %}

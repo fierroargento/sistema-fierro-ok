@@ -2042,7 +2042,12 @@ def ml_link_detalle_venta(pedido):
 def ml_link_chat_venta(pedido):
     if not pedido or pedido.canal != "Mercado Libre" or not pedido.id_venta:
         return ""
-    return f"https://www.mercadolibre.com.ar/ventas/{pedido.id_venta}/mensajes"
+
+    id_venta = str(pedido.id_venta or "").strip()
+    if not id_venta:
+        return ""
+
+    return f"https://www.mercadolibre.com.ar/ventas/nueva/mensajeria/{id_venta}?source=ml"
 
 
 def ml_mensaje_thread_habilitado(pedido):
@@ -3306,7 +3311,8 @@ def enviar_mensaje_ml_acordas(id):
             return redirect(url_for(
                 "detalle_pedido",
                 id=pedido.id,
-                ok="ML no habilito el envio automatico para este pedido. Usa Copiar mensaje y Abrir venta en ML."
+                ok="ML no habilito el envio automatico. Copiamos el mensaje y abrimos el chat de la venta en Mercado Libre.",
+                fallback_ml_chat="1"
             ))
 
         return redirect(url_for(
