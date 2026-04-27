@@ -2,6 +2,8 @@ import os
 import re
 import json
 import hashlib
+import hmac
+import base64
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse, urlencode
@@ -57,6 +59,24 @@ class Pedido(db.Model):
     ml_logistic_type = db.Column(db.String(50))
     ml_shipping_mode = db.Column(db.String(50))
     ultima_sync_ml = db.Column(db.DateTime)
+
+    # =====================
+    # TIENDA NUBE
+    # =====================
+    tn_order_id = db.Column(db.String(50), index=True)
+    tn_order_number = db.Column(db.String(50))
+    tn_order_status = db.Column(db.String(50))
+    tn_payment_status = db.Column(db.String(50))
+    tn_paid_at = db.Column(db.DateTime)
+    tn_cancelled_at = db.Column(db.DateTime)
+    tn_fulfillment_id = db.Column(db.String(50))
+    tn_fulfillment_status = db.Column(db.String(80))
+    tn_shipping_type = db.Column(db.String(80))
+    tn_shipping_carrier = db.Column(db.String(100))
+    tn_shipping_option = db.Column(db.String(200))
+    tn_tracking_number = db.Column(db.String(100))
+    tn_tracking_url = db.Column(db.String(300))
+    ultima_sync_tn = db.Column(db.DateTime)
 
     # =====================
     # APB MERCADO LIBRE
@@ -199,6 +219,27 @@ class WebhookML(db.Model):
     ok = db.Column(db.Boolean, default=False)
     detalle = db.Column(db.Text)
 
+
+class TiendaNubeCuenta(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    store_id = db.Column(db.String(50))
+    estado_conexion = db.Column(db.String(30), default="configurada")
+    last_sync_at = db.Column(db.DateTime)
+    last_sync_status = db.Column(db.String(30))
+    last_sync_detail = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class TiendaNubeWebhookLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    event = db.Column(db.String(120))
+    tn_order_id = db.Column(db.String(50))
+    payload = db.Column(db.Text)
+    fecha = db.Column(db.DateTime, default=datetime.utcnow)
+    procesado = db.Column(db.Boolean, default=False)
+    error = db.Column(db.Text)
+
 def asegurar_columna_si_no_existe(nombre_columna, definicion_sql):
     inspector = inspect(db.engine)
     columnas = [col["name"] for col in inspector.get_columns("pedido")]
@@ -298,6 +339,23 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ml_claim_status", "VARCHAR(50)")
     asegurar_columna_si_no_existe("ml_claim_reason", "VARCHAR(200)")
     asegurar_columna_si_no_existe("ultima_sync_claim_ml", "TIMESTAMP")
+
+
+def asegurar_columnas_integracion_tn():
+    asegurar_columna_si_no_existe("tn_order_id", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("tn_order_number", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("tn_order_status", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("tn_payment_status", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("tn_paid_at", "TIMESTAMP")
+    asegurar_columna_si_no_existe("tn_cancelled_at", "TIMESTAMP")
+    asegurar_columna_si_no_existe("tn_fulfillment_id", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("tn_fulfillment_status", "VARCHAR(80)")
+    asegurar_columna_si_no_existe("tn_shipping_type", "VARCHAR(80)")
+    asegurar_columna_si_no_existe("tn_shipping_carrier", "VARCHAR(100)")
+    asegurar_columna_si_no_existe("tn_shipping_option", "VARCHAR(200)")
+    asegurar_columna_si_no_existe("tn_tracking_number", "VARCHAR(100)")
+    asegurar_columna_si_no_existe("tn_tracking_url", "VARCHAR(300)")
+    asegurar_columna_si_no_existe("ultima_sync_tn", "TIMESTAMP")
 
 
 def productos_desde_excel(archivo_excel):
@@ -1518,6 +1576,303 @@ def items_a_texto(pedido):
 
 def puede_administrar_integraciones():
     return rol_actual() == "admin"
+
+
+def tn_store_id():
+    return (os.getenv("TN_STORE_ID") or "").strip()
+
+
+def tn_access_token():
+    return (os.getenv("TN_ACCESS_TOKEN") or "").strip()
+
+
+def tn_app_secret():
+    return (os.getenv("TN_APP_SECRET") or "").strip()
+
+
+def tn_config_faltante():
+    faltantes = []
+    if not tn_store_id():
+        faltantes.append("TN_STORE_ID")
+    if not tn_access_token():
+        faltantes.append("TN_ACCESS_TOKEN")
+    return faltantes
+
+
+def cuenta_tn_actual():
+    cuenta = TiendaNubeCuenta.query.order_by(TiendaNubeCuenta.id.asc()).first()
+    if not cuenta and tn_store_id():
+        cuenta = TiendaNubeCuenta(store_id=tn_store_id(), estado_conexion="configurada")
+        db.session.add(cuenta)
+        db.session.commit()
+    return cuenta
+
+
+def tn_http_json(method, path, data=None, params=None):
+    if tn_config_faltante():
+        raise ValueError(f"Faltan variables TN: {', '.join(tn_config_faltante())}")
+
+    params = params or {}
+    query = urlencode(params)
+    url = f"https://api.tiendanube.com/v1/{tn_store_id()}{path}"
+    if query:
+        url = f"{url}?{query}"
+
+    body = None
+    if data is not None:
+        body = json.dumps(data).encode("utf-8")
+
+    req = Request(url, data=body, method=method.upper())
+    req.add_header("Authentication", f"bearer {tn_access_token()}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Accept", "application/json")
+    req.add_header("User-Agent", "Sistema Fierro APB (contacto: fierroargento)")
+
+    try:
+        with urlopen(req, timeout=15) as response:
+            raw = response.read().decode("utf-8")
+            return json.loads(raw) if raw.strip() else {}
+    except HTTPError as e:
+        body_error = e.read().decode("utf-8", errors="ignore")
+        raise ValueError(f"TN API {e.code}: {body_error[:500]}")
+    except URLError as e:
+        raise ValueError(f"TN conexión fallida: {e.reason}")
+
+
+def tn_parse_datetime(valor):
+    if not valor:
+        return None
+    try:
+        limpio = str(valor).replace("Z", "+00:00")
+        return datetime.fromisoformat(limpio).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def tn_texto_multilenguaje(valor):
+    if isinstance(valor, dict):
+        return valor.get("es") or valor.get("pt") or valor.get("en") or next(iter(valor.values()), "")
+    return valor or ""
+
+
+def tn_extraer_order_id(payload):
+    if not payload:
+        return None
+    for key in ("id", "order_id"):
+        if payload.get(key):
+            return str(payload.get(key))
+    resource = str(payload.get("resource") or "")
+    match = re.search(r"/orders/(\d+)", resource)
+    if match:
+        return match.group(1)
+    return None
+
+
+def tn_webhook_firma_valida(raw_body):
+    secret = tn_app_secret()
+    if not secret:
+        return True
+
+    firma_recibida = (
+        request.headers.get("X-Linkedstore-Hmac-SHA256")
+        or request.headers.get("X-TiendaNube-Hmac-SHA256")
+        or request.headers.get("X-Hmac-Sha256")
+        or ""
+    ).strip()
+    if not firma_recibida:
+        return False
+
+    digest = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).digest()
+    firma_base64 = base64.b64encode(digest).decode("utf-8")
+    firma_hex = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(firma_recibida, firma_base64) or hmac.compare_digest(firma_recibida, firma_hex)
+
+
+def tn_direccion_desde_order(order):
+    shipping = order.get("shipping_address") or {}
+    direccion_partes = []
+    calle = shipping.get("address") or shipping.get("street") or order.get("billing_address") or ""
+    numero = shipping.get("number") or order.get("billing_number") or ""
+    piso = shipping.get("floor") or order.get("billing_floor") or ""
+    if calle:
+        direccion_partes.append(str(calle))
+    if numero:
+        direccion_partes.append(str(numero))
+    if piso:
+        direccion_partes.append(f"Piso/Depto: {piso}")
+
+    return {
+        "direccion": " ".join(direccion_partes).strip(),
+        "codigo_postal": str(shipping.get("zipcode") or order.get("billing_zipcode") or "").strip(),
+        "localidad": str(shipping.get("city") or shipping.get("locality") or order.get("billing_city") or order.get("billing_locality") or "").strip(),
+        "provincia": str(shipping.get("province") or order.get("billing_province") or "").strip(),
+    }
+
+
+def tn_mapear_envio(order):
+    shipping_option = order.get("shipping_option") or ""
+    shipping_carrier = order.get("shipping_carrier_name") or order.get("shipping_carrier") or ""
+    shipping_type = order.get("shipping_type") or order.get("shipping_pickup_type") or ""
+
+    shipping_data = order.get("shipping") if isinstance(order.get("shipping"), dict) else {}
+    if shipping_data:
+        shipping_option = shipping_option or shipping_data.get("option") or shipping_data.get("name") or ""
+        shipping_carrier = shipping_carrier or shipping_data.get("carrier") or shipping_data.get("carrier_name") or ""
+        shipping_type = shipping_type or shipping_data.get("type") or ""
+
+    texto_envio = " ".join([str(shipping_option), str(shipping_carrier), str(shipping_type)]).lower()
+    empresa = ""
+    if "andreani" in texto_envio:
+        empresa = "Andreani"
+    elif "correo" in texto_envio:
+        empresa = "Correo Argentino"
+    elif "via cargo" in texto_envio or "vía cargo" in texto_envio or "viacargo" in texto_envio:
+        empresa = "Vía Cargo"
+
+    tipo_entrega = "Domicilio"
+    if "sucursal" in texto_envio or "pickup" in texto_envio or "retiro" in texto_envio:
+        tipo_entrega = "Sucursal"
+
+    return shipping_type, shipping_carrier, shipping_option, empresa, tipo_entrega
+
+
+def tn_estado_apb(order):
+    status = str(order.get("status") or "").lower()
+    payment_status = str(order.get("payment_status") or order.get("financial_status") or "").lower()
+    observaciones = []
+
+    if status in ("cancelled", "canceled", "voided") or order.get("cancelled_at"):
+        observaciones.append("NO DESPACHAR - Pedido cancelado en Tienda Nube.")
+    if payment_status and payment_status not in ("paid", "authorized", "approved"):
+        observaciones.append(f"NO DESPACHAR - Pago TN en estado: {payment_status}.")
+
+    return "Cargando Pedido", " ".join(observaciones)
+
+
+def tn_guardar_items(pedido, order):
+    productos = order.get("products") or []
+    PedidoItem.query.filter_by(pedido_id=pedido.id).delete()
+    for producto in productos:
+        sku = str(producto.get("sku") or producto.get("barcode") or "").strip()
+        nombre = tn_texto_multilenguaje(producto.get("name")) or producto.get("product_name") or "Producto TN"
+        try:
+            cantidad = int(float(producto.get("quantity") or 1))
+        except Exception:
+            cantidad = 1
+        db.session.add(PedidoItem(
+            pedido_id=pedido.id,
+            sku=sku,
+            descripcion=str(nombre)[:200],
+            cantidad=cantidad,
+        ))
+
+
+def tn_importar_o_actualizar_pedido(order):
+    tn_id = str(order.get("id") or "").strip()
+    if not tn_id:
+        return None, "omitido_sin_id"
+
+    pedido = Pedido.query.filter_by(tn_order_id=tn_id).first()
+    creado = False
+    if not pedido:
+        pedido = Pedido(
+            origen="tiendanube",
+            canal="Tienda Nube",
+            id_venta=tn_id,
+            tn_order_id=tn_id,
+            estado="Cargando Pedido",
+            cliente="Cliente TN",
+        )
+        db.session.add(pedido)
+        db.session.flush()
+        creado = True
+
+    customer = order.get("customer") or {}
+    direccion = tn_direccion_desde_order(order)
+    shipping_type, shipping_carrier, shipping_option, empresa, tipo_entrega = tn_mapear_envio(order)
+    estado_sugerido, observacion_apb = tn_estado_apb(order)
+
+    nombre_cliente = (
+        order.get("contact_name")
+        or customer.get("name")
+        or order.get("billing_name")
+        or pedido.cliente
+        or "Cliente TN"
+    )
+    pedido.cliente = str(nombre_cliente).strip()[:120] or "Cliente TN"
+    pedido.mail = (order.get("contact_email") or customer.get("email") or pedido.mail or "")[:120]
+    pedido.telefono = str(order.get("contact_phone") or customer.get("phone") or order.get("billing_phone") or pedido.telefono or "")[:30]
+    pedido.dni = str(order.get("contact_identification") or customer.get("identification") or order.get("billing_document") or pedido.dni or "")[:20]
+
+    pedido.origen = "tiendanube"
+    pedido.canal = "Tienda Nube"
+    pedido.id_venta = tn_id
+    pedido.tn_order_id = tn_id
+    pedido.tn_order_number = str(order.get("number") or order.get("order_number") or "")[:50]
+    pedido.tn_order_status = str(order.get("status") or "")[:50]
+    pedido.tn_payment_status = str(order.get("payment_status") or order.get("financial_status") or "")[:50]
+    pedido.tn_paid_at = tn_parse_datetime(order.get("paid_at"))
+    pedido.tn_cancelled_at = tn_parse_datetime(order.get("cancelled_at"))
+    pedido.tn_shipping_type = str(shipping_type or "")[:80]
+    pedido.tn_shipping_carrier = str(shipping_carrier or "")[:100]
+    pedido.tn_shipping_option = str(shipping_option or "")[:200]
+    pedido.empresa_envio = empresa or pedido.empresa_envio
+    pedido.tipo_entrega = tipo_entrega or pedido.tipo_entrega
+    pedido.direccion = direccion["direccion"][:200] or pedido.direccion
+    pedido.codigo_postal = direccion["codigo_postal"][:10] or pedido.codigo_postal
+    pedido.localidad = direccion["localidad"][:100] or pedido.localidad
+    pedido.provincia = direccion["provincia"][:100] or pedido.provincia
+    pedido.ultima_sync_tn = datetime.utcnow()
+
+    if creado or pedido.estado == "Cargando Pedido":
+        pedido.estado = estado_sugerido
+
+    notas = []
+    if observacion_apb:
+        notas.append(observacion_apb)
+    if order.get("note"):
+        notas.append(f"Nota cliente TN: {order.get('note')}")
+    if order.get("owner_note"):
+        notas.append(f"Nota interna TN: {order.get('owner_note')}")
+    if notas:
+        pedido.observaciones = " ".join(notas)[:300]
+
+    tn_guardar_items(pedido, order)
+    return pedido, "creado" if creado else "actualizado"
+
+
+def tn_importar_pedido_por_id(order_id):
+    order = tn_http_json("GET", f"/orders/{order_id}")
+    pedido, accion = tn_importar_o_actualizar_pedido(order)
+    db.session.commit()
+    return pedido, accion
+
+
+def tn_sync_manual(limit=50):
+    limit = max(1, min(int(limit or 50), 100))
+    orders = tn_http_json("GET", "/orders", params={"per_page": limit})
+    if not isinstance(orders, list):
+        orders = []
+
+    resultado = {"leidos": len(orders), "creados": 0, "actualizados": 0, "omitidos": 0}
+    for order in orders:
+        _, accion = tn_importar_o_actualizar_pedido(order)
+        if accion == "creado":
+            resultado["creados"] += 1
+        elif accion == "actualizado":
+            resultado["actualizados"] += 1
+        else:
+            resultado["omitidos"] += 1
+
+    cuenta = cuenta_tn_actual()
+    if cuenta:
+        cuenta.store_id = tn_store_id()
+        cuenta.estado_conexion = "configurada"
+        cuenta.last_sync_at = datetime.utcnow()
+        cuenta.last_sync_status = "ok"
+        cuenta.last_sync_detail = json.dumps(resultado, ensure_ascii=False)
+    db.session.commit()
+    return resultado
 
 
 def cuenta_ml_actual():
@@ -3897,6 +4252,9 @@ def admin_integraciones():
 
     cuenta_ml = cuenta_ml_actual()
     faltantes = ml_config_faltante()
+    cuenta_tn = cuenta_tn_actual()
+    faltantes_tn = tn_config_faltante()
+    ultimos_logs_tn = TiendaNubeWebhookLog.query.order_by(TiendaNubeWebhookLog.fecha.desc()).limit(10).all()
     ok_feedback = (request.args.get("ok") or "").strip()
     error = (request.args.get("error") or "").strip()
 
@@ -3904,9 +4262,163 @@ def admin_integraciones():
         "admin_integraciones.html",
         cuenta_ml=cuenta_ml,
         faltantes=faltantes,
+        cuenta_tn=cuenta_tn,
+        faltantes_tn=faltantes_tn,
+        ultimos_logs_tn=ultimos_logs_tn,
         ok_feedback=ok_feedback,
         error=error,
     )
+
+
+@app.route("/webhook/tiendanube", methods=["POST"])
+def webhook_tiendanube():
+    raw_body = request.get_data() or b""
+    data = None
+    log_id = None
+    try:
+        if not tn_webhook_firma_valida(raw_body):
+            log = TiendaNubeWebhookLog(
+                event=request.headers.get("X-Event", "firma_invalida"),
+                tn_order_id=None,
+                payload=raw_body.decode("utf-8", errors="ignore")[:5000],
+                procesado=False,
+                error="Firma HMAC inválida"
+            )
+            db.session.add(log)
+            db.session.commit()
+            return "Firma inválida", 401
+
+        data = request.get_json(silent=True) or {}
+        event = (
+            request.headers.get("X-Event")
+            or request.headers.get("X-TiendaNube-Topic")
+            or data.get("event")
+            or data.get("topic")
+            or "unknown"
+        )
+        tn_order_id = tn_extraer_order_id(data)
+
+        log = TiendaNubeWebhookLog(
+            event=event,
+            tn_order_id=tn_order_id,
+            payload=json.dumps(data, ensure_ascii=False),
+            procesado=False,
+        )
+        db.session.add(log)
+        db.session.commit()
+        log_id = log.id
+
+        if tn_order_id and str(event).startswith("order/"):
+            try:
+                tn_importar_pedido_por_id(tn_order_id)
+                log = TiendaNubeWebhookLog.query.get(log_id)
+                if log:
+                    log.procesado = True
+                    log.error = None
+                    db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                log = TiendaNubeWebhookLog.query.get(log_id)
+                if log:
+                    log.procesado = False
+                    log.error = str(e)
+                    db.session.commit()
+
+        return "OK", 200
+    except Exception as e:
+        db.session.rollback()
+        try:
+            log = TiendaNubeWebhookLog(
+                event=request.headers.get("X-Event", "error"),
+                tn_order_id=tn_extraer_order_id(data or {}) if isinstance(data, dict) else None,
+                payload=raw_body.decode("utf-8", errors="ignore")[:5000],
+                procesado=False,
+                error=str(e),
+            )
+            db.session.add(log)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return f"Error: {str(e)}", 500
+
+
+@app.route("/admin/integraciones/tiendanube/test", methods=["POST"])
+@login_required
+def test_tiendanube():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+    faltantes = tn_config_faltante()
+    if faltantes:
+        return redirect(url_for("admin_integraciones", error=f"Faltan variables TN: {', '.join(faltantes)}"))
+    try:
+        orders = tn_http_json("GET", "/orders", params={"per_page": 1})
+        cuenta = cuenta_tn_actual()
+        if cuenta:
+            cuenta.store_id = tn_store_id()
+            cuenta.estado_conexion = "conectada"
+            cuenta.last_sync_at = datetime.utcnow()
+            cuenta.last_sync_status = "test_ok"
+            cuenta.last_sync_detail = "Conexión TN OK"
+            db.session.commit()
+        cantidad = len(orders) if isinstance(orders, list) else 0
+        return redirect(url_for("admin_integraciones", ok=f"Conexión Tienda Nube OK. Pedidos leídos de prueba: {cantidad}."))
+    except Exception as e:
+        cuenta = cuenta_tn_actual()
+        if cuenta:
+            cuenta.estado_conexion = "error"
+            cuenta.last_sync_at = datetime.utcnow()
+            cuenta.last_sync_status = "test_error"
+            cuenta.last_sync_detail = str(e)
+            db.session.commit()
+        return redirect(url_for("admin_integraciones", error=f"Falló test Tienda Nube: {e}"))
+
+
+@app.route("/admin/integraciones/tiendanube/sync", methods=["POST"])
+@login_required
+def sync_tiendanube():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+    faltantes = tn_config_faltante()
+    if faltantes:
+        return redirect(url_for("admin_integraciones", error=f"Faltan variables TN: {', '.join(faltantes)}"))
+    try:
+        resultado = tn_sync_manual(limit=50)
+        mensaje = (
+            f"Sync TN OK. Leídos: {resultado['leidos']} | "
+            f"Nuevos: {resultado['creados']} | "
+            f"Actualizados: {resultado['actualizados']} | "
+            f"Omitidos: {resultado['omitidos']}"
+        )
+        return redirect(url_for("admin_integraciones", ok=mensaje))
+    except Exception as e:
+        db.session.rollback()
+        cuenta = cuenta_tn_actual()
+        if cuenta:
+            cuenta.last_sync_at = datetime.utcnow()
+            cuenta.last_sync_status = "error"
+            cuenta.last_sync_detail = str(e)
+            db.session.commit()
+        return redirect(url_for("admin_integraciones", error=f"Falló sincronización Tienda Nube: {e}"))
+
+
+@app.route("/admin/integraciones/tiendanube/reset-prueba", methods=["POST"])
+@login_required
+def reset_prueba_tiendanube():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+    try:
+        pedidos = Pedido.query.filter(
+            Pedido.origen == "tiendanube",
+            Pedido.estado == "Cargando Pedido"
+        ).all()
+        eliminados = len(pedidos)
+        for pedido in pedidos:
+            db.session.delete(pedido)
+        db.session.commit()
+        return redirect(url_for("admin_integraciones", ok=f"Pedidos TN de prueba eliminados: {eliminados}."))
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for("admin_integraciones", error=f"No se pudieron borrar pedidos TN de prueba: {e}"))
 
 
 @app.route("/admin/integraciones/mercadolibre/conectar")
@@ -5193,3 +5705,4 @@ with app.app_context():
     
     asegurar_columnas_extra()
     asegurar_columnas_integracion_ml()
+    asegurar_columnas_integracion_tn()

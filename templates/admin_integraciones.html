@@ -4,6 +4,7 @@
     <h1>Integraciones</h1>
     <p>Base inicial para vincular Mercado Libre y traer pedidos al flujo Fierro.</p>
 
+    {% if ok_feedback %}<div class="alerta alerta-ok">{{ ok_feedback }}</div>{% endif %}
     {% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
 
     <div class="card" style="margin-top:16px;">
@@ -75,5 +76,96 @@
             </ul>
         </div>
     </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Tienda Nube</h2>
+        <p>Fase inicial segura: conexión, logs de webhook y sincronización manual. No toca Mercado Libre.</p>
+
+        {% if faltantes_tn %}
+        <div class="alerta alerta-error">
+            Faltan variables de entorno TN: <strong>{{ faltantes_tn|join(', ') }}</strong>
+        </div>
+        {% endif %}
+
+        <table class="tabla">
+            <tbody>
+                <tr>
+                    <th style="width:240px;">Estado conexión</th>
+                    <td>{{ cuenta_tn.estado_conexion if cuenta_tn else 'sin configurar' }}</td>
+                </tr>
+                <tr>
+                    <th>Store ID TN</th>
+                    <td>{{ cuenta_tn.store_id if cuenta_tn and cuenta_tn.store_id else '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Última sync/test</th>
+                    <td>{{ cuenta_tn.last_sync_at.strftime('%d/%m/%Y %H:%M') if cuenta_tn and cuenta_tn.last_sync_at else '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Detalle última sync</th>
+                    <td>{{ cuenta_tn.last_sync_detail if cuenta_tn and cuenta_tn.last_sync_detail else '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Webhook URL</th>
+                    <td><code>{{ request.url_root.rstrip('/') }}/webhook/tiendanube</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="acciones" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+            {% if not faltantes_tn %}
+            <form method="post" action="{{ url_for('test_tiendanube') }}">
+                <button type="submit" class="boton-accion">Test conexión TN</button>
+            </form>
+            <form method="post" action="{{ url_for('sync_tiendanube') }}">
+                <button type="submit" class="boton-accion">Sincronizar pedidos TN</button>
+            </form>
+            <form method="post" action="{{ url_for('reset_prueba_tiendanube') }}" onsubmit="return confirm('Esto elimina SOLO pedidos importados de Tienda Nube que siguen en Cargando Pedido. No toca pedidos avanzados ni finalizados. ¿Seguimos?');">
+                <button type="submit" class="boton-cancelar">Borrar pedidos TN de prueba</button>
+            </form>
+            {% endif %}
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+            <h3>Regla APB de esta fase</h3>
+            <ul>
+                <li>TN entra como canal separado: <strong>Tienda Nube</strong>.</li>
+                <li>Los pedidos nuevos entran en <strong>Cargando Pedido</strong>.</li>
+                <li>Si TN informa pago pendiente o pedido cancelado, queda marcado en observaciones con <strong>NO DESPACHAR</strong>.</li>
+                <li>Los webhooks se guardan en log y se procesan de forma idempotente.</li>
+            </ul>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+            <h3>Últimos webhooks TN</h3>
+            {% if ultimos_logs_tn %}
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Evento</th>
+                        <th>Pedido TN</th>
+                        <th>Procesado</th>
+                        <th>Error</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in ultimos_logs_tn %}
+                    <tr>
+                        <td>{{ log.fecha.strftime('%d/%m/%Y %H:%M') if log.fecha else '-' }}</td>
+                        <td>{{ log.event or '-' }}</td>
+                        <td>{{ log.tn_order_id or '-' }}</td>
+                        <td>{{ 'Sí' if log.procesado else 'No' }}</td>
+                        <td>{{ log.error or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>Todavía no hay webhooks recibidos.</p>
+            {% endif %}
+        </div>
+    </div>
+
 </div>
 {% endblock %}
