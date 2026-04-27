@@ -2285,14 +2285,23 @@ def ml_resolver_ids_desde_recurso_mensaje(resource):
     if not resource.startswith("/"):
         return set()
 
-    try:
-        detalle = ml_api_get(resource)
-        ids = ml_extraer_ids_mensaje_ml(detalle)
-        print("[ML-MENSAJE-DETALLE] resource=", resource, "ids=", sorted(ids))
-        return ids
-    except Exception as e:
-        print("[ML-MENSAJE-DETALLE] No se pudo resolver", resource, e)
-        return set()
+    intentos = [(resource, {})]
+    # En algunas cuentas, el detalle del mensaje postventa necesita tag=post_sale.
+    if "/messages" in resource:
+        intentos.append((resource, {"tag": "post_sale"}))
+        intentos.append((resource, {"role": "seller", "tag": "post_sale"}))
+
+    for path, params in intentos:
+        try:
+            detalle = ml_api_get(path, params=params)
+            ids = ml_extraer_ids_mensaje_ml(detalle)
+            print("[ML-MENSAJE-DETALLE] resource=", path, params, "ids=", sorted(ids))
+            if ids:
+                return ids
+        except Exception as e:
+            print("[ML-MENSAJE-DETALLE] No se pudo resolver", path, params, e)
+
+    return set()
 
 
 def ml_obtener_ids_mensajes_pendientes():
@@ -2349,9 +2358,107 @@ def ml_obtener_ids_mensajes_pendientes():
     return pendientes_por_id
 
 
+def ml_extraer_lista_mensajes_ml(data):
+    """Extrae mensajes desde varias estructuras posibles de la API de ML."""
+    mensajes = []
+
+    def caminar(valor):
+        if isinstance(valor, dict):
+            for clave in ("messages", "results", "items"):
+                posible = valor.get(clave)
+                if isinstance(posible, list):
+                    for item in posible:
+                        if isinstance(item, dict) and (
+                            "from" in item or "sender" in item or "text" in item or "message" in item or "status" in item
+                        ):
+                            mensajes.append(item)
+            for v in valor.values():
+                caminar(v)
+        elif isinstance(valor, list):
+            for v in valor:
+                caminar(v)
+
+    caminar(data)
+
+    unicos = []
+    vistos = set()
+    for m in mensajes:
+        mid = str(m.get("id") or m.get("message_id") or "").strip()
+        clave = mid or str(m)[:300]
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        unicos.append(m)
+    return unicos
+
+
+def ml_mensaje_es_del_comprador(m, seller_id=""):
+    """Determina si un mensaje vino del comprador."""
+    if not isinstance(m, dict):
+        return False
+
+    from_data = m.get("from") or m.get("sender") or m.get("user") or {}
+    if not isinstance(from_data, dict):
+        from_data = {}
+
+    user_type = str(
+        from_data.get("user_type")
+        or from_data.get("role")
+        or from_data.get("type")
+        or m.get("from_user_type")
+        or ""
+    ).lower().strip()
+
+    if user_type in {"buyer", "comprador"}:
+        return True
+    if user_type in {"seller", "vendedor", "operator", "admin"}:
+        return False
+
+    sender_id = str(
+        from_data.get("id")
+        or from_data.get("user_id")
+        or m.get("from_id")
+        or ""
+    ).strip()
+
+    return bool(sender_id and seller_id and sender_id != str(seller_id))
+
+
+def ml_mensaje_esta_pendiente(m):
+    """Detecta si el mensaje requiere atención sin marcarlo como leído."""
+    if not isinstance(m, dict):
+        return False
+
+    status = str(
+        m.get("status")
+        or m.get("message_status")
+        or m.get("read_status")
+        or ""
+    ).lower().strip()
+
+    if status in {"unread", "new", "pending", "not_read", "unanswered"}:
+        return True
+    if status in {"read", "answered", "closed"}:
+        return False
+
+    for clave in ("read", "is_read", "answered", "is_answered"):
+        if clave in m:
+            valor = m.get(clave)
+            if clave in {"read", "is_read"} and valor is False:
+                return True
+            if clave in {"answered", "is_answered"} and valor is False:
+                return True
+
+    date_data = m.get("message_date") or m.get("date") or {}
+    if isinstance(date_data, dict) and "read" in date_data and not date_data.get("read"):
+        return True
+
+    return False
+
+
 def ml_sync_mensajes_pack(pack_id, pedido=None):
     """
-    Consulta el thread de mensajes postventa de un pack ML y detecta
+    Consulta el thread de mensajes postventa de un pack/order ML y detecta
     mensajes sin leer del comprador. No marca mensajes como leidos.
     Devuelve (tiene_pendientes: bool, count: int).
     """
@@ -2359,70 +2466,50 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
     if not pack_id:
         return False, 0
 
-    try:
-        data = ml_api_get(f"/messages/packs/{pack_id}", params={"role": "seller", "limit": 20})
+    cuenta = MercadoLibreCuenta.query.first()
+    seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
 
-        mensajes = []
-        if isinstance(data, dict):
-            mensajes = (
-                data.get("messages")
-                or data.get("results")
-                or data.get("items")
-                or ((data.get("conversation") or {}).get("messages") if isinstance(data.get("conversation"), dict) else None)
-                or []
-            )
-        elif isinstance(data, list):
-            mensajes = data
+    intentos = []
+    if seller_id:
+        intentos.append((f"/messages/packs/{pack_id}/sellers/{seller_id}", {"tag": "post_sale", "limit": 50}))
+        intentos.append((f"/messages/packs/{pack_id}/sellers/{seller_id}", {"limit": 50}))
+    intentos.append((f"/messages/packs/{pack_id}", {"role": "seller", "tag": "post_sale", "limit": 50}))
+    intentos.append((f"/messages/packs/{pack_id}", {"role": "seller", "limit": 50}))
 
-        if not isinstance(mensajes, list):
-            mensajes = []
+    ultimo_error = None
+    mensajes = []
+    endpoint_ok = ""
 
-        pendientes = []
-        for m in mensajes:
-            if not isinstance(m, dict):
-                continue
+    for path, params in intentos:
+        try:
+            data = ml_api_get(path, params=params)
+            mensajes = ml_extraer_lista_mensajes_ml(data)
+            endpoint_ok = f"{path} {params}"
+            print(f"[ML-MSGS-PACK] OK {endpoint_ok} mensajes={len(mensajes)}")
+            if mensajes:
+                break
+        except Exception as e:
+            ultimo_error = e
+            print(f"[ML-MSGS-PACK] Fallo {path} {params}: {e}")
+            continue
 
-            from_data = m.get("from") or m.get("sender") or {}
-            user_type = str(
-                from_data.get("user_type")
-                or from_data.get("role")
-                or from_data.get("type")
-                or ""
-            ).lower().strip()
+    pendientes = []
+    for m in mensajes:
+        if ml_mensaje_es_del_comprador(m, seller_id=seller_id) and ml_mensaje_esta_pendiente(m):
+            pendientes.append(m)
 
-            sender_id = str(from_data.get("id") or from_data.get("user_id") or "").strip()
-            cuenta = MercadoLibreCuenta.query.first()
-            seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+    count = len(pendientes)
+    if pedido is not None:
+        pedido.ml_mensajes_pendientes = count > 0
+        pedido.ml_mensajes_pendientes_count = count
+        pedido.ultima_sync_mensajes_ml = datetime.utcnow()
 
-            # Si ML no manda user_type, inferimos comprador si el emisor no es el seller conectado.
-            es_comprador = (user_type == "buyer") or (sender_id and seller_id and sender_id != seller_id)
+    if not endpoint_ok and ultimo_error:
+        print(f"[ML-MSGS-PACK] Error consultando pack/order {pack_id}: {ultimo_error}")
+    else:
+        print(f"[ML-MSGS-PACK] pack/order={pack_id} endpoint={endpoint_ok} pendientes={count}")
 
-            status = str(m.get("status") or m.get("message_status") or "").lower().strip()
-            read_flag = m.get("read")
-            date_data = m.get("message_date") or m.get("date") or {}
-            read_date = date_data.get("read") if isinstance(date_data, dict) else None
-
-            esta_pendiente = (
-                status in {"unread", "new", "pending"}
-                or read_flag is False
-                or read_date in [None, "", "null"]
-            )
-
-            if es_comprador and esta_pendiente:
-                pendientes.append(m)
-
-        count = len(pendientes)
-        if pedido is not None:
-            pedido.ml_mensajes_pendientes = count > 0
-            pedido.ml_mensajes_pendientes_count = count
-            pedido.ultima_sync_mensajes_ml = datetime.utcnow()
-
-        print(f"[ML-MSGS-PACK] pack={pack_id} mensajes={len(mensajes)} pendientes={count}")
-        return count > 0, count
-
-    except Exception as e:
-        print(f"[ML-MSGS-PACK] Error consultando pack {pack_id}: {e}")
-        return False, 0
+    return count > 0, count
 
 
 def ml_sync_mensajes_pendientes_pedidos():
