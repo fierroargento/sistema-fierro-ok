@@ -2461,6 +2461,113 @@ def ml_mensaje_esta_pendiente(m):
     return False
 
 
+
+def ml_fecha_mensaje_valor(m):
+    """Devuelve una fecha comparable del mensaje ML si existe."""
+    if not isinstance(m, dict):
+        return ""
+    candidatos = [m.get("date_created"), m.get("created_at"), m.get("date"), m.get("message_date")]
+    for c in candidatos:
+        if isinstance(c, dict):
+            for k in ("created", "date", "sent", "received", "read"):
+                if c.get(k):
+                    return str(c.get(k))
+        elif c:
+            return str(c)
+    return ""
+
+
+def ml_hay_mensaje_pendiente_en_thread(mensajes, seller_id=""):
+    """
+    Regla APB para postventa:
+    1) Si ML informa unread/pending del comprador, hay pendiente.
+    2) Si ML no informa estado, pero el ultimo mensaje del thread es del comprador,
+       tambien lo tratamos como pendiente.
+    """
+    if not mensajes:
+        return False, 0
+
+    pendientes_explicitos = [
+        m for m in mensajes
+        if ml_mensaje_es_del_comprador(m, seller_id=seller_id) and ml_mensaje_esta_pendiente(m)
+    ]
+    if pendientes_explicitos:
+        return True, len(pendientes_explicitos)
+
+    ordenados = list(mensajes)
+    try:
+        ordenados.sort(key=ml_fecha_mensaje_valor)
+    except Exception:
+        pass
+
+    ultimo = ordenados[-1] if ordenados else None
+    if ultimo and ml_mensaje_es_del_comprador(ultimo, seller_id=seller_id):
+        return True, 1
+
+    return False, 0
+
+
+def ml_obtener_ids_chat_pedido(pedido):
+    """
+    Devuelve IDs candidatos para consultar el chat ML. Prioriza pack_id real.
+    Si falta ml_pack_id, intenta refrescar /orders/{id_venta} y guardarlo.
+    """
+    ids = []
+    if not pedido:
+        return ids
+
+    def agregar(v):
+        v = str(v or "").strip()
+        if v and v not in ids:
+            ids.append(v)
+
+    agregar(getattr(pedido, "ml_pack_id", ""))
+    order_id = str(getattr(pedido, "id_venta", "") or "").strip()
+    agregar(order_id)
+
+    pack_actual = str(getattr(pedido, "ml_pack_id", "") or "").strip()
+    if order_id and (not pack_actual or pack_actual == order_id):
+        try:
+            order = ml_api_get(f"/orders/{order_id}")
+            pack_api = str((order or {}).get("pack_id") or "").strip()
+            if pack_api:
+                agregar(pack_api)
+                if pack_api != pack_actual:
+                    pedido.ml_pack_id = pack_api
+        except Exception as e:
+            print(f"[ML-MSGS-PACKID] No se pudo resolver pack_id para pedido #{getattr(pedido, 'id', '?')} order={order_id}: {e}")
+
+    return ids
+
+
+def ml_sync_mensajes_pedido(pedido):
+    """Sincroniza mensajes de UN pedido probando pack_id real + order_id como fallback."""
+    if not pedido:
+        return False, 0
+
+    ids_chat = ml_obtener_ids_chat_pedido(pedido)
+    if not ids_chat:
+        pedido.ml_mensajes_pendientes = False
+        pedido.ml_mensajes_pendientes_count = 0
+        pedido.ultima_sync_mensajes_ml = datetime.utcnow()
+        return False, 0
+
+    for id_chat in ids_chat:
+        tiene, count = ml_sync_mensajes_pack(id_chat, pedido=None)
+        if tiene or count > 0:
+            pedido.ml_mensajes_pendientes = True
+            pedido.ml_mensajes_pendientes_count = count or 1
+            pedido.ultima_sync_mensajes_ml = datetime.utcnow()
+            print(f"[ML-MSGS-PEDIDO] pedido #{pedido.id} id_chat={id_chat} pendientes={count}")
+            return True, count or 1
+
+    pedido.ml_mensajes_pendientes = False
+    pedido.ml_mensajes_pendientes_count = 0
+    pedido.ultima_sync_mensajes_ml = datetime.utcnow()
+    print(f"[ML-MSGS-PEDIDO] pedido #{pedido.id} sin pendientes. ids_chat={ids_chat}")
+    return False, 0
+
+
 def ml_sync_mensajes_pack(pack_id, pedido=None):
     """
     Consulta el thread de mensajes postventa de un pack/order ML y detecta
@@ -2498,14 +2605,10 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
             print(f"[ML-MSGS-PACK] Fallo {path} {params}: {e}")
             continue
 
-    pendientes = []
-    for m in mensajes:
-        if ml_mensaje_es_del_comprador(m, seller_id=seller_id) and ml_mensaje_esta_pendiente(m):
-            pendientes.append(m)
+    tiene_pendiente, count = ml_hay_mensaje_pendiente_en_thread(mensajes, seller_id=seller_id)
 
-    count = len(pendientes)
     if pedido is not None:
-        pedido.ml_mensajes_pendientes = count > 0
+        pedido.ml_mensajes_pendientes = tiene_pendiente
         pedido.ml_mensajes_pendientes_count = count
         pedido.ultima_sync_mensajes_ml = datetime.utcnow()
 
@@ -2514,7 +2617,7 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
     else:
         print(f"[ML-MSGS-PACK] pack/order={pack_id} endpoint={endpoint_ok} pendientes={count}")
 
-    return count > 0, count
+    return tiene_pendiente, count
 
 
 def ml_sync_mensajes_pendientes_pedidos():
@@ -2550,14 +2653,14 @@ def ml_sync_mensajes_pendientes_pedidos():
     total_pendientes = 0
 
     for pedido in pedidos_ml:
-        pack_id = str(getattr(pedido, "ml_pack_id", "") or "").strip()
-        if not pack_id:
-            pack_id = str(getattr(pedido, "id_venta", "") or "").strip()
-        if not pack_id:
-            continue
-
-        tiene, count = ml_sync_mensajes_pack(pack_id, pedido=pedido)
+        tiene, count = ml_sync_mensajes_pedido(pedido)
         total_pendientes += int(count or 0)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ML-MSGS-SYNC] Error guardando mensajes pendientes: {e}")
 
     return total_pendientes
 
@@ -3596,7 +3699,7 @@ def webhook_mercadolibre():
                     .first()
                 )
                 if pedido:
-                    tiene, count = ml_sync_mensajes_pack(pack_id, pedido=pedido)
+                    tiene, count = ml_sync_mensajes_pedido(pedido)
                     db.session.commit()
                     print(f"[WEBHOOK ML] Mensaje pack={pack_id} -> pedido #{pedido.id} pendientes={count}")
                 else:
@@ -4241,10 +4344,8 @@ def detalle_pedido(id):
     if pedido.canal == "Mercado Libre":
         hubo_cambios_ml = False
         try:
-            pack_id_detalle = str(getattr(pedido, "ml_pack_id", "") or getattr(pedido, "id_venta", "") or "").strip()
-            if pack_id_detalle:
-                ml_sync_mensajes_pack(pack_id_detalle, pedido=pedido)
-                hubo_cambios_ml = True
+            ml_sync_mensajes_pedido(pedido)
+            hubo_cambios_ml = True
         except Exception as e:
             print(f"[ML-DETALLE] No se pudo sincronizar mensajes pedido #{pedido.id}: {e}")
 
@@ -4284,6 +4385,26 @@ def marcar_contacto_iniciado_pedido(pedido):
     pedido.contacto_iniciado = True
     if not pedido.fecha_contacto:
         pedido.fecha_contacto = datetime.utcnow()
+
+
+@app.route("/pedido/<int:id>/sync-mensajes-ml", methods=["POST"])
+@login_required
+def sync_mensajes_ml_pedido_admin(id):
+    pedido = Pedido.query.get_or_404(id)
+    if not puede_ver_pedido(pedido):
+        return redirect(url_for("inicio"))
+    if pedido.canal != "Mercado Libre":
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No es un pedido de Mercado Libre."))
+
+    try:
+        tiene, count = ml_sync_mensajes_pedido(pedido)
+        db.session.commit()
+        ok = f"Mensajes ML sincronizados: {count} pendiente(s)." if tiene else "Mensajes ML sincronizados: sin pendientes detectados."
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok=ok))
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ML-MSGS-MANUAL] Error pedido #{pedido.id}: {e}")
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo sincronizar mensajes ML: {e}"))
 
 
 @app.route("/pedido/<int:id>/eliminar", methods=["POST"])
