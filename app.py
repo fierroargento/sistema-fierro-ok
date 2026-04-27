@@ -1690,19 +1690,46 @@ def ml_obtener_usuario_actual():
     return ml_api_get("/users/me")
 
 
-def ml_obtener_orders_recientes(cuenta, limit=20):
+def ml_obtener_orders_recientes(cuenta, limit=None, horas=48, max_paginas=20):
+    """
+    Trae órdenes operativas recientes de ML con paginación por ventana de tiempo.
+    Evita depender de un límite fijo que puede quedar tapado por ventas Full/omitidas.
+    """
     if not cuenta or not cuenta.user_id_ml:
         raise ValueError("La cuenta de Mercado Libre no tiene user_id asociado.")
 
-    data = ml_api_get(
-        "/orders/search",
-        params={
-            "seller": cuenta.user_id_ml,
-            "sort": "date_desc",
-            "limit": limit,
-        },
-    )
-    return data.get("results") or []
+    hasta = datetime.utcnow()
+    desde = hasta - timedelta(hours=horas)
+    limit = 50
+    offset = 0
+    orders = []
+
+    for _ in range(max_paginas):
+        data = ml_api_get(
+            "/orders/search",
+            params={
+                "seller": cuenta.user_id_ml,
+                "sort": "date_desc",
+                "limit": limit,
+                "offset": offset,
+                "order.date_created.from": desde.strftime("%Y-%m-%dT%H:%M:%S.000-00:00"),
+                "order.date_created.to": hasta.strftime("%Y-%m-%dT%H:%M:%S.999-00:00"),
+            },
+        )
+
+        resultados = data.get("results") or []
+        if not resultados:
+            break
+
+        orders.extend(resultados)
+
+        paging = data.get("paging") or {}
+        total = int(paging.get("total") or 0)
+        offset += limit
+        if offset >= total:
+            break
+
+    return orders
 
 def ml_obtener_order(order_id):
     order_id = str(order_id or "").strip()
@@ -2141,9 +2168,8 @@ def ml_link_chat_venta(pedido):
 
 def ml_extraer_ids_mensaje_ml(obj):
     """
-    Extrae IDs relacionados al mensaje pendiente de ML de forma robusta.
+    Extrae IDs relacionados a mensajes ML de forma robusta.
     Contempla pack_id, order_id y recursos tipo /packs/{id} o /orders/{id}.
-    No usa GET al thread para no marcar mensajes como leídos.
     """
     ids = set()
 
@@ -2151,7 +2177,6 @@ def ml_extraer_ids_mensaje_ml(obj):
         valor = str(valor or "").strip()
         if not valor:
             return
-        # IDs de ML suelen ser largos. Evitamos capturar flags/códigos cortos.
         if re.fullmatch(r"\d{8,}", valor):
             ids.add(valor)
 
@@ -2172,11 +2197,9 @@ def ml_extraer_ids_mensaje_ml(obj):
         if not texto:
             return
 
-        # Campos explícitos.
         if any(x in clave_l for x in ["pack", "order"]):
             agregar(texto)
 
-        # Recursos/URLs posibles.
         for patron in [
             r"/packs/([^/?#]+)",
             r"/orders/([^/?#]+)",
@@ -2190,12 +2213,113 @@ def ml_extraer_ids_mensaje_ml(obj):
     return ids
 
 
+def ml_marcar_mensajes_pendientes_por_ids(ids, count=1, commit=False):
+    """Marca pedidos con mensajes pendientes usando id_venta o ml_pack_id."""
+    ids_limpios = {str(x or "").strip() for x in (ids or []) if str(x or "").strip()}
+    if not ids_limpios:
+        return 0
+
+    pedidos = Pedido.query.filter(Pedido.canal == "Mercado Libre").all()
+    ahora = datetime.utcnow()
+    marcados = 0
+
+    for pedido in pedidos:
+        ids_pedido = {
+            str(getattr(pedido, "id_venta", "") or "").strip(),
+            str(getattr(pedido, "ml_pack_id", "") or "").strip(),
+        }
+        ids_pedido.discard("")
+
+        if ids_pedido.intersection(ids_limpios):
+            pedido.ml_mensajes_pendientes = True
+            pedido.ml_mensajes_pendientes_count = max(int(pedido.ml_mensajes_pendientes_count or 0), int(count or 1))
+            pedido.ultima_sync_mensajes_ml = ahora
+            marcados += 1
+
+    if commit and marcados:
+        db.session.commit()
+
+    return marcados
+
+
+def ml_resolver_ids_desde_recurso_mensaje(resource):
+    """Intenta resolver pack/order IDs desde el recurso de mensaje que manda ML."""
+    resource = str(resource or "").strip()
+    if not resource:
+        return set()
+
+    ids = ml_extraer_ids_mensaje_ml({"resource": resource})
+    if ids:
+        return ids
+
+    if not resource.startswith("/"):
+        return set()
+
+    try:
+        detalle = ml_api_get(resource)
+        ids = ml_extraer_ids_mensaje_ml(detalle)
+        print("[ML-MENSAJE-DETALLE] resource=", resource, "ids=", sorted(ids))
+        return ids
+    except Exception as e:
+        print("[ML-MENSAJE-DETALLE] No se pudo resolver", resource, e)
+        return set()
+
+
+def ml_obtener_ids_mensajes_pendientes():
+    """
+    Obtiene IDs con mensajes pendientes sin abrir el chat del pedido.
+    Usa varios endpoints/formas porque ML cambia la estructura según flujo/cuenta.
+    """
+    pendientes_por_id = {}
+
+    endpoints = [
+        ("/messages/unread", {"role": "seller"}),
+        ("/messages/unread", {"role": "seller", "tag": "post_sale"}),
+        ("/messages/search", {"role": "seller", "limit": 50}),
+    ]
+
+    for path, params in endpoints:
+        try:
+            data = ml_api_get(path, params=params)
+            print(f"[ML-MENSAJES] OK {path} {params}")
+        except Exception as e:
+            print(f"[ML-MENSAJES] No se pudo consultar {path} {params}: {e}")
+            continue
+
+        resultados = (data or {}).get("results") if isinstance(data, dict) else data
+        if isinstance(resultados, dict):
+            resultados = resultados.get("results") or resultados.get("items") or []
+        if not isinstance(resultados, list):
+            resultados = []
+
+        for item in resultados:
+            # En search puede venir status/read distinto. Si hay status y NO es unread, salteamos.
+            estado_msg = str((item or {}).get("status") or (item or {}).get("message_status") or "").lower()
+            if estado_msg and estado_msg not in {"unread", "new", "pending"}:
+                continue
+
+            try:
+                count = int((item or {}).get("count") or (item or {}).get("unread") or 1)
+            except Exception:
+                count = 1
+            if count <= 0:
+                continue
+
+            ids_item = ml_extraer_ids_mensaje_ml(item)
+
+            # Si ML solo devuelve resource del mensaje, resolvemos el detalle puntual.
+            if not ids_item:
+                resource = (item or {}).get("resource") or (item or {}).get("message_id") or ""
+                if resource and str(resource).startswith("/messages"):
+                    ids_item = ml_resolver_ids_desde_recurso_mensaje(resource)
+
+            for id_ref in ids_item:
+                pendientes_por_id[id_ref] = max(int(pendientes_por_id.get(id_ref) or 0), count)
+
+    return pendientes_por_id
+
+
 def ml_sync_mensajes_pendientes_pedidos():
-    """
-    Sincroniza mensajes pendientes de leer de ML sin abrir el thread.
-    IMPORTANTE: no usa GET /messages/packs porque eso puede marcar como leído.
-    Usa /messages/unread?role=seller&tag=post_sale y vincula por pack_id u order_id.
-    """
     cuenta = cuenta_ml_actual()
     if not cuenta:
         return 0
@@ -2203,30 +2327,7 @@ def ml_sync_mensajes_pendientes_pedidos():
     pedidos_ml = Pedido.query.filter(Pedido.canal == "Mercado Libre").all()
     ahora = datetime.utcnow()
 
-    # Default seguro: si la sync falla, no tocamos los flags existentes.
-    try:
-        data = ml_api_get("/messages/unread", params={"role": "seller", "tag": "post_sale"})
-    except Exception as e:
-        print("[ML-MENSAJES] No se pudieron sincronizar mensajes pendientes:", e)
-        return 0
-
-    pendientes_por_id = {}
-    resultados = (data or {}).get("results") if isinstance(data, dict) else data
-    if isinstance(resultados, dict):
-        resultados = resultados.get("results") or resultados.get("items") or []
-    if not isinstance(resultados, list):
-        resultados = []
-
-    for item in resultados:
-        ids_item = ml_extraer_ids_mensaje_ml(item)
-        try:
-            count = int((item or {}).get("count") or (item or {}).get("unread") or 1)
-        except Exception:
-            count = 1
-        if count <= 0:
-            continue
-        for id_ref in ids_item:
-            pendientes_por_id[id_ref] = max(int(pendientes_por_id.get(id_ref) or 0), count)
+    pendientes_por_id = ml_obtener_ids_mensajes_pendientes()
 
     total_pendientes = 0
     ids_conocidos = []
@@ -2250,13 +2351,11 @@ def ml_sync_mensajes_pendientes_pedidos():
         if count > 0:
             ids_conocidos.extend(list(ids_posibles))
 
-    # Log corto para diagnosticar diferencias pack_id / id_venta sin romper operación.
     if pendientes_por_id:
         print("[ML-MENSAJES] IDs con pendientes ML:", sorted(pendientes_por_id.keys()))
         print("[ML-MENSAJES] IDs vinculados a pedidos Fierro:", sorted(set(ids_conocidos)))
 
     return total_pendientes
-
 
 def ml_pedido_tiene_mensajes_pendientes(pedido):
     if not pedido:
@@ -2998,6 +3097,45 @@ def inicio():
 @login_required
 def ayuda():
     return render_template("ayuda.html")
+
+@app.route("/webhook/mercadolibre", methods=["GET", "POST"])
+def webhook_mercadolibre():
+    """
+    Webhook ML. No requiere login porque lo llama Mercado Libre.
+    Para mensajes: marca el pedido con badge pendiente sin esperar la sync manual/cron.
+    """
+    if request.method == "GET":
+        return "OK", 200
+
+    try:
+        data = request.get_json(silent=True) or {}
+        print("[WEBHOOK ML]", data)
+
+        topic = str(data.get("topic") or data.get("type") or "").lower()
+        resource = str(data.get("resource") or "").strip()
+
+        if "message" in topic or "/messages" in resource:
+            ids = ml_extraer_ids_mensaje_ml(data)
+            if not ids and resource:
+                ids = ml_resolver_ids_desde_recurso_mensaje(resource)
+
+            marcados = ml_marcar_mensajes_pendientes_por_ids(ids, count=1, commit=True)
+
+            # Fallback seguro: si el webhook no trae IDs claros, intentamos sync de mensajes.
+            if marcados == 0:
+                total = ml_sync_mensajes_pendientes_pedidos()
+                db.session.commit()
+                print(f"[WEBHOOK ML] Mensaje sin match directo. Sync mensajes total={total}")
+            else:
+                print(f"[WEBHOOK ML] Mensaje vinculado a {marcados} pedido(s). IDs={sorted(ids)}")
+
+        return "OK", 200
+
+    except Exception as e:
+        db.session.rollback()
+        print("[WEBHOOK ML ERROR]", e)
+        # ML espera 200 para no insistir infinitamente; logueamos pero no rompemos.
+        return "OK", 200
 
 
 @app.route("/admin/productos", methods=["GET", "POST"])
