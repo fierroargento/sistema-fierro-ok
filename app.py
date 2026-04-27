@@ -2187,7 +2187,8 @@ def ml_link_chat_venta(pedido):
 def ml_extraer_ids_mensaje_ml(obj):
     """
     Extrae IDs relacionados a mensajes ML de forma robusta.
-    Contempla pack_id, order_id y recursos tipo /packs/{id} o /orders/{id}.
+    Contempla pack_id, order_id, recursos /packs/{id}/orders/{id}
+    y el formato frecuente de ML message_resources: [{id, name: packs/orders}].
     """
     ids = set()
 
@@ -2202,6 +2203,17 @@ def ml_extraer_ids_mensaje_ml(obj):
         clave_l = str(clave or "").lower()
 
         if isinstance(valor, dict):
+            nombre_recurso = str(
+                valor.get("name")
+                or valor.get("resource")
+                or valor.get("resource_type")
+                or valor.get("type")
+                or ""
+            ).lower()
+            id_recurso = valor.get("id") or valor.get("resource_id") or valor.get("pack_id") or valor.get("order_id")
+            if any(x in nombre_recurso for x in ["pack", "order"]):
+                agregar(id_recurso)
+
             for k, v in valor.items():
                 recorrer(v, k)
             return
@@ -2349,9 +2361,16 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
 
     try:
         data = ml_api_get(f"/messages/packs/{pack_id}", params={"role": "seller", "limit": 20})
+
         mensajes = []
         if isinstance(data, dict):
-            mensajes = data.get("messages") or data.get("results") or []
+            mensajes = (
+                data.get("messages")
+                or data.get("results")
+                or data.get("items")
+                or ((data.get("conversation") or {}).get("messages") if isinstance(data.get("conversation"), dict) else None)
+                or []
+            )
         elif isinstance(data, list):
             mensajes = data
 
@@ -2362,10 +2381,34 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
         for m in mensajes:
             if not isinstance(m, dict):
                 continue
-            from_data = m.get("from") or {}
-            user_type = str(from_data.get("user_type") or from_data.get("role") or "").lower().strip()
+
+            from_data = m.get("from") or m.get("sender") or {}
+            user_type = str(
+                from_data.get("user_type")
+                or from_data.get("role")
+                or from_data.get("type")
+                or ""
+            ).lower().strip()
+
+            sender_id = str(from_data.get("id") or from_data.get("user_id") or "").strip()
+            cuenta = MercadoLibreCuenta.query.first()
+            seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+
+            # Si ML no manda user_type, inferimos comprador si el emisor no es el seller conectado.
+            es_comprador = (user_type == "buyer") or (sender_id and seller_id and sender_id != seller_id)
+
             status = str(m.get("status") or m.get("message_status") or "").lower().strip()
-            if user_type == "buyer" and status in {"unread", "new", "pending"}:
+            read_flag = m.get("read")
+            date_data = m.get("message_date") or m.get("date") or {}
+            read_date = date_data.get("read") if isinstance(date_data, dict) else None
+
+            esta_pendiente = (
+                status in {"unread", "new", "pending"}
+                or read_flag is False
+                or read_date in [None, "", "null"]
+            )
+
+            if es_comprador and esta_pendiente:
                 pendientes.append(m)
 
         count = len(pendientes)
@@ -2374,6 +2417,7 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
             pedido.ml_mensajes_pendientes_count = count
             pedido.ultima_sync_mensajes_ml = datetime.utcnow()
 
+        print(f"[ML-MSGS-PACK] pack={pack_id} mensajes={len(mensajes)} pendientes={count}")
         return count > 0, count
 
     except Exception as e:
@@ -4098,6 +4142,35 @@ def detalle_pedido(id):
         if pedido.ml_mensaje_contacto != mensaje_actualizado:
             pedido.ml_mensaje_contacto = mensaje_actualizado
             db.session.commit()
+
+    # Refuerzo APB: al abrir el detalle de un pedido ML, actualizamos avisos visibles
+    # de reclamos y mensajes sin depender exclusivamente del webhook.
+    if pedido.canal == "Mercado Libre":
+        hubo_cambios_ml = False
+        try:
+            pack_id_detalle = str(getattr(pedido, "ml_pack_id", "") or getattr(pedido, "id_venta", "") or "").strip()
+            if pack_id_detalle:
+                ml_sync_mensajes_pack(pack_id_detalle, pedido=pedido)
+                hubo_cambios_ml = True
+        except Exception as e:
+            print(f"[ML-DETALLE] No se pudo sincronizar mensajes pedido #{pedido.id}: {e}")
+
+        try:
+            order_id_detalle = str(getattr(pedido, "id_venta", "") or "").strip()
+            pack_id_detalle = str(getattr(pedido, "ml_pack_id", "") or "").strip()
+            if order_id_detalle or pack_id_detalle:
+                claim_live = ml_obtener_claim_de_order(order_id_detalle, pack_id_detalle)
+                ml_marcar_claim_en_pedido(pedido, claim_live)
+                hubo_cambios_ml = True
+        except Exception as e:
+            print(f"[ML-DETALLE] No se pudo sincronizar claim pedido #{pedido.id}: {e}")
+
+        if hubo_cambios_ml:
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                print(f"[ML-DETALLE] Error guardando sync ML pedido #{pedido.id}: {e}")
 
     return render_template(
         "detalle_pedido.html",

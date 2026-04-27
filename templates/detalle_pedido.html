@@ -132,6 +132,18 @@
     background: #FFB86A;
 }
 
+.apb-ml-badge.reclamo {
+    background: #b71c1c;
+    color: #ffffff;
+}
+
+.detalle-alertas-ml {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .apb-ml-mensaje {
     width: 100%;
     height: 86px;
@@ -181,6 +193,21 @@
 
     {% if ok_feedback %}
     <div class="ok-feedback">{{ ok_feedback|safe }}</div>
+    {% endif %}
+
+    {% if pedido.canal == "Mercado Libre" and (pedido.ml_claim_abierto or ml_pedido_tiene_mensajes_pendientes(pedido)) %}
+    <div class="detalle-alertas-ml">
+        {% if pedido.ml_claim_abierto %}
+        <span class="apb-ml-badge reclamo">
+            ⚠️ Reclamo activo ML{% if pedido.ml_claim_status %}: {{ pedido.ml_claim_status }}{% endif %}
+        </span>
+        {% endif %}
+        {% if ml_pedido_tiene_mensajes_pendientes(pedido) %}
+        <span class="apb-ml-badge alerta">
+            💬 Mensajes pendientes{% if pedido.ml_mensajes_pendientes_count %}: {{ pedido.ml_mensajes_pendientes_count }}{% endif %}
+        </span>
+        {% endif %}
+    </div>
     {% endif %}
 
     <div class="detalle-grid-resumen">
