@@ -3093,12 +3093,76 @@ def inicio():
         ok_feedback=ok_feedback
     )
 
+
+def ml_sync_pedido_por_order_id_webhook(order_id):
+    """Sincroniza una orden puntual recibida por webhook ML sin esperar la sync general."""
+    order_id = str(order_id or "").strip()
+    if not order_id:
+        return False
+    try:
+        order = ml_obtener_order(order_id)
+        if not order:
+            print(f"[WEBHOOK ML] Order vacia o no encontrada: {order_id}")
+            return False
+        pedido, creado, motivo = ml_upsert_pedido_desde_order(order)
+        db.session.commit()
+        if pedido:
+            print(f"[WEBHOOK ML] Order sincronizada {order_id}. pedido_id={pedido.id} creado={creado} motivo={motivo}")
+        else:
+            print(f"[WEBHOOK ML] Order omitida {order_id}. motivo={motivo}")
+        return True
+    except Exception as e:
+        db.session.rollback()
+        print(f"[WEBHOOK ML] No se pudo sincronizar order {order_id}: {e}")
+        return False
+
+
+def ml_sync_shipment_por_id_webhook(shipment_id):
+    """Actualiza datos ML básicos del pedido asociado a un shipment recibido por webhook."""
+    shipment_id = str(shipment_id or "").strip()
+    if not shipment_id:
+        return False
+    try:
+        shipment = ml_obtener_shipment(shipment_id)
+        if not shipment:
+            print(f"[WEBHOOK ML] Shipment vacio o no encontrado: {shipment_id}")
+            return False
+        pedido = (Pedido.query.filter_by(canal="Mercado Libre", ml_shipping_id=shipment_id).order_by(Pedido.id.asc()).first())
+        if pedido:
+            pedido.ml_shipping_status = str(shipment.get("status") or pedido.ml_shipping_status or "").strip()
+            pedido.ml_logistic_type = str(shipment.get("logistic_type") or pedido.ml_logistic_type or "").strip()
+            pedido.ml_shipping_mode = str(shipment.get("mode") or pedido.ml_shipping_mode or "").strip()
+            pedido.ultima_sync_ml = datetime.utcnow()
+            db.session.commit()
+            print(f"[WEBHOOK ML] Shipment actualizado {shipment_id}. pedido_id={pedido.id}")
+            return True
+        print(f"[WEBHOOK ML] Shipment {shipment_id} sin pedido vinculado en Fierro")
+        return False
+    except Exception as e:
+        db.session.rollback()
+        print(f"[WEBHOOK ML] No se pudo sincronizar shipment {shipment_id}: {e}")
+        return False
+
+
+def ml_marcar_reclamo_webhook(resource):
+    resource = str(resource or "").strip()
+    claim_id = ""
+    match = re.search(r"/claims/([^/?#]+)", resource)
+    if match:
+        claim_id = match.group(1)
+    if not claim_id:
+        print(f"[WEBHOOK ML] Claim recibido sin claim_id claro. resource={resource}")
+        return False
+    print(f"[WEBHOOK ML] Claim recibido claim_id={claim_id}. Pendiente mapear a pedido si ML devuelve order_id.")
+    return True
+
 @app.route("/ayuda")
 @login_required
 def ayuda():
     return render_template("ayuda.html")
 
 @app.route("/webhook/mercadolibre", methods=["GET", "POST"])
+@app.route("/admin/integraciones/mercadolibre/webhook", methods=["GET", "POST"])
 def webhook_mercadolibre():
     """
     Webhook ML. No requiere login porque lo llama Mercado Libre.
@@ -3128,6 +3192,23 @@ def webhook_mercadolibre():
                 print(f"[WEBHOOK ML] Mensaje sin match directo. Sync mensajes total={total}")
             else:
                 print(f"[WEBHOOK ML] Mensaje vinculado a {marcados} pedido(s). IDs={sorted(ids)}")
+
+        elif "order" in topic or "/orders/" in resource:
+            order_id = ""
+            match = re.search(r"/orders/([^/?#]+)", resource)
+            if match:
+                order_id = match.group(1)
+            ml_sync_pedido_por_order_id_webhook(order_id)
+
+        elif "shipment" in topic or "/shipments/" in resource:
+            shipment_id = ""
+            match = re.search(r"/shipments/([^/?#]+)", resource)
+            if match:
+                shipment_id = match.group(1)
+            ml_sync_shipment_por_id_webhook(shipment_id)
+
+        elif "claim" in topic or "/claims/" in resource:
+            ml_marcar_reclamo_webhook(resource)
 
         return "OK", 200
 
