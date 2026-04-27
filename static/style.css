@@ -1674,3 +1674,23 @@ tr.fila-amarillo td .btn-accion-rapida {
 tr.fila-con-reclamo {
     background-color: #fff5f5 !important;
 }
+
+/* Botón APB para eliminar pedidos basura - solo Admin */
+.form-eliminar-pedido {
+    margin: 0;
+}
+
+.btn-danger,
+button.btn-danger,
+a.btn-danger {
+    background: #b71c1c;
+    color: #ffffff;
+    border: 1px solid #7f0000;
+}
+
+.btn-danger:hover,
+button.btn-danger:hover,
+a.btn-danger:hover {
+    background: #8f1414;
+    color: #ffffff;
+}

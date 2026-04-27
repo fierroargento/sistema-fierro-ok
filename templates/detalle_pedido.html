@@ -410,6 +410,12 @@
     <div class="detalle-acciones">
         <a href="{{ url_for('inicio') }}" class="btn btn-secundario btn-volver">Volver</a>
 
+        {% if puede_eliminar_pedido(pedido) %}
+        <form method="POST" action="{{ url_for('eliminar_pedido', id=pedido.id) }}" class="form-eliminar-pedido" onsubmit="return confirm('ATENCIÓN: vas a eliminar definitivamente el pedido #{{ pedido.id }} de Fierro. No se toca Mercado Libre. ¿Confirmás?');">
+            <button type="submit" class="btn btn-danger">Eliminar pedido</button>
+        </form>
+        {% endif %}
+
         {% if accion %}
             {% if accion.tipo == "imprimir_etiqueta" %}
                 <a href="{{ accion.url }}" class="{{ accion.clases }}" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">

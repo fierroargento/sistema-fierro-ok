@@ -1387,6 +1387,11 @@ def puede_editar_pedido(pedido):
     return False
 
 
+def puede_eliminar_pedido(pedido):
+    # APB: solo Admin puede borrar pedidos, sin importar estado/canal/instancia.
+    return rol_actual() == "admin"
+
+
 def puede_crear_pedido():
     return rol_actual() in ["admin", "carga"]
 
@@ -3333,6 +3338,7 @@ def inyectar_contexto_global():
         "puede_administrar_integraciones": puede_administrar_integraciones,
         "cuenta_ml_actual": cuenta_ml_actual,
         "puede_editar_pedido": puede_editar_pedido,
+        "puede_eliminar_pedido": puede_eliminar_pedido,
         "puede_ver_pedido": puede_ver_pedido,
         "puede_imprimir_pedido": puede_imprimir_pedido,
         "puede_contactar_cliente": puede_contactar_cliente,
@@ -4278,6 +4284,24 @@ def marcar_contacto_iniciado_pedido(pedido):
     pedido.contacto_iniciado = True
     if not pedido.fecha_contacto:
         pedido.fecha_contacto = datetime.utcnow()
+
+
+@app.route("/pedido/<int:id>/eliminar", methods=["POST"])
+@login_required
+def eliminar_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_eliminar_pedido(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="Solo Admin puede eliminar pedidos."))
+
+    pedido_numero = pedido.id
+    try:
+        db.session.delete(pedido)
+        db.session.commit()
+        return redirect(url_for("inicio", ok=f"Pedido #{pedido_numero} eliminado correctamente."))
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for("detalle_pedido", id=id, error=f"No se pudo eliminar el pedido: {e}"))
 
 
 @app.route("/pedido/<int:id>/marcar-contacto-ml", methods=["POST"])
