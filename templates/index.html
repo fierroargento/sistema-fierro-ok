@@ -56,14 +56,17 @@
                     {% if ml_pedido_tiene_claim(p) %}
                     <span class="contacto-badge contacto-badge-reclamo" title="Reclamo activo en Mercado Libre: NO DESPACHAR">⚠️</span>
                     {% endif %}
-                    {% if ml_pedido_tiene_mensajes_pendientes(p) %}
-                    <span class="contacto-badge contacto-badge-alerta" title="Hay mensajes pendientes del comprador">
-                        💬<span class="contacto-badge-count">{{ p.ml_mensajes_pendientes_count or 1 }}</span>
-                    </span>
-                    {% elif ml_pedido_tiene_chat_iniciado(p) %}
-                    <span class="contacto-badge contacto-badge-ok" title="Chat iniciado / contacto inicial enviado">💬</span>
-                    {% else %}
-                    <span class="contacto-pendiente" title="Sin contacto iniciado"></span>
+
+                    {% if rol_actual in ['carga', 'admin'] %}
+                        {% if ml_pedido_tiene_mensajes_pendientes(p) %}
+                        <span class="contacto-badge contacto-badge-alerta" title="Hay mensajes pendientes del comprador">
+                            💬<span class="contacto-badge-count">{{ p.ml_mensajes_pendientes_count or 1 }}</span>
+                        </span>
+                        {% elif ml_pedido_tiene_chat_iniciado(p) %}
+                        <span class="contacto-badge contacto-badge-ok" title="Chat iniciado / contacto inicial enviado">💬</span>
+                        {% else %}
+                        <span class="contacto-pendiente" title="Sin contacto iniciado"></span>
+                        {% endif %}
                     {% endif %}
                 </td>
                 <td><strong>{{ (p.cliente or "-")|upper }}</strong></td>

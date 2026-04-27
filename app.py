@@ -3,7 +3,7 @@ import re
 import json
 import hashlib
 from urllib.request import urlopen, Request
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse, urlencode
 import pandas as pd
 import numpy as np
@@ -1558,12 +1558,17 @@ def ml_http_json(method, url, data=None, headers=None):
     for key, value in headers.items():
         req.add_header(key, value)
 
-    with urlopen(req) as response:
-        raw = response.read().decode("utf-8")
-        if not raw.strip():
-            return {}
-        return json.loads(raw)
-
+    try:
+        with urlopen(req, timeout=10) as response:
+            raw = response.read().decode("utf-8")
+            if not raw.strip():
+                return {}
+            return json.loads(raw)
+    except HTTPError as e:
+        body_error = e.read().decode("utf-8", errors="ignore")
+        raise ValueError(f"ML API {e.code}: {body_error[:200]}")
+    except URLError as e:
+        raise ValueError(f"ML conexión fallida: {e.reason}")
 
 def ml_exchange_code_for_token(code):
     payload = {
@@ -3130,6 +3135,12 @@ def ml_sync_claims_pedidos_operativos():
         ml_marcar_claim_en_pedido(pedido, claim)
         if claim:
             marcados += 1
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ML-CLAIMS-SYNC] Error commit: {e}")
 
     return marcados
 
