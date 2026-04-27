@@ -348,7 +348,7 @@
         </div>
     </div>
     {% endif %}
-    {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" and pedido.contacto_iniciado %}
+    {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" and pedido.contacto_iniciado and not ml_pedido_tiene_mensajes_pendientes(pedido) %}
     <div class="detalle-box detalle-box-full apb-contactado-box">
         <strong>✔ Contacto inicial ya realizado.</strong>
         {% if pedido.fecha_contacto %}
