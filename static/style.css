@@ -1457,6 +1457,11 @@ tr.fila-amarillo td .btn-accion-rapida {
     box-shadow: 0 2px 8px rgba(127, 29, 29, 0.30);
 }
 
+.contacto-badge-ok {
+    background: #124E64 !important;
+    color: #ffffff !important;
+}
+
 .contacto-badge-count,
 .mini-action-badge {
     position: absolute;
@@ -1693,4 +1698,14 @@ button.btn-danger:hover,
 a.btn-danger:hover {
     background: #8f1414;
     color: #ffffff;
+}
+
+.apb-contactado-box {
+  border-left: 4px solid #05DF72;
+  background: #f1fff7;
+  color: #0f5132;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
 }

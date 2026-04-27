@@ -2433,6 +2433,27 @@ def ml_mensaje_es_del_comprador(m, seller_id=""):
     return bool(sender_id and seller_id and sender_id != str(seller_id))
 
 
+def ml_mensaje_es_del_vendedor(m, seller_id=""):
+    """Determina si un mensaje vino del vendedor/cuenta Fierro."""
+    if not isinstance(m, dict):
+        return False
+    seller_id = str(seller_id or "").strip()
+    posibles_from = [m.get("from"), m.get("sender"), m.get("author")]
+    for f in posibles_from:
+        if isinstance(f, dict):
+            user_type = str(f.get("user_type") or f.get("type") or f.get("role") or "").lower()
+            if user_type in {"seller", "vendor"}:
+                return True
+            fid = str(f.get("id") or f.get("user_id") or "").strip()
+            if seller_id and fid and fid == seller_id:
+                return True
+    for key in ["from_user_id", "sender_id", "user_id"]:
+        val = str(m.get(key) or "").strip()
+        if seller_id and val and val == seller_id:
+            return True
+    return False
+
+
 def ml_mensaje_esta_pendiente(m):
     """Detecta si el mensaje requiere atención sin marcarlo como leído."""
     if not isinstance(m, dict):
@@ -2557,7 +2578,7 @@ def ml_sync_mensajes_pedido(pedido):
         return False, 0
 
     for id_chat in ids_chat:
-        tiene, count = ml_sync_mensajes_pack(id_chat, pedido=None)
+        tiene, count = ml_sync_mensajes_pack(id_chat, pedido=pedido)
         if tiene or count > 0:
             pedido.ml_mensajes_pendientes = True
             pedido.ml_mensajes_pendientes_count = count or 1
@@ -2615,6 +2636,12 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
         pedido.ml_mensajes_pendientes = tiene_pendiente
         pedido.ml_mensajes_pendientes_count = count
         pedido.ultima_sync_mensajes_ml = datetime.utcnow()
+        # APB: el globo de chat iniciado no depende de que el último mensaje sea del cliente.
+        try:
+            if mensajes and any(ml_mensaje_es_del_vendedor(m, seller_id=seller_id) for m in mensajes):
+                marcar_contacto_iniciado_pedido(pedido)
+        except Exception as e:
+            print(f"[ML-MSGS-CONTACTO] No se pudo marcar contacto iniciado pedido #{getattr(pedido, 'id', '?')}: {e}")
 
     if not endpoint_ok and ultimo_error:
         print(f"[ML-MSGS-PACK] Error consultando pack/order {pack_id}: {ultimo_error}")
@@ -2676,6 +2703,21 @@ def ml_pedido_tiene_mensajes_pendientes(pedido):
         return bool(pedido.ml_mensajes_pendientes) or int(pedido.ml_mensajes_pendientes_count or 0) > 0
     except Exception:
         return bool(pedido.ml_mensajes_pendientes)
+
+
+def ml_pedido_tiene_chat_iniciado(pedido):
+    """Señal visual APB de chat iniciado; no depende de mensaje pendiente."""
+    if not pedido:
+        return False
+    try:
+        return bool(
+            getattr(pedido, "contacto_iniciado", False)
+            or getattr(pedido, "fecha_contacto", None)
+            or str(getattr(pedido, "ml_mensaje_contacto", "") or "").strip()
+            or ml_pedido_tiene_mensajes_pendientes(pedido)
+        )
+    except Exception:
+        return bool(getattr(pedido, "contacto_iniciado", False))
 
 
 def ml_mensaje_thread_habilitado(pedido):
@@ -3461,6 +3503,7 @@ def inyectar_contexto_global():
         "ml_link_detalle_venta": ml_link_detalle_venta,
         "ml_link_chat_venta": ml_link_chat_venta,
         "ml_pedido_tiene_mensajes_pendientes": ml_pedido_tiene_mensajes_pendientes,
+        "ml_pedido_tiene_chat_iniciado": ml_pedido_tiene_chat_iniciado,
         "ml_pedido_tiene_claim": ml_pedido_tiene_claim,
         "tracking_info_pedido": tracking_info_pedido,
         "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,

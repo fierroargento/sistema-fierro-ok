@@ -170,7 +170,7 @@
 
     <div class="detalle-header">
         <div>
-            <h2>Pedido #{{ pedido.id }}{% if pedido.contacto_iniciado %}<span title="Cliente contactado" style="margin-left:8px; font-size:18px;">💬</span>{% endif %}</h2>
+            <h2>Pedido #{{ pedido.id }}{% if ml_pedido_tiene_chat_iniciado(pedido) %}<span title="Chat iniciado / contacto inicial enviado" style="margin-left:8px; font-size:18px;">💬</span>{% endif %}</h2>
             <p class="detalle-sub">{{ (pedido.cliente or "-")|upper }} | {{ pedido.canal or "-" }}</p>
         </div>
 
@@ -330,7 +330,7 @@
     {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" and not pedido.contacto_iniciado %}
     {% set ml_order_status_actual = (pedido.ml_order_status or "")|lower %}
     {% set abrir_chat_directo_ml = pedido.estado == "Cargando Pedido" or ml_order_status_actual in ["payment_in_process", "payment_required", "cancelled"] %}
-    <div class="detalle-box detalle-box-full apb-ml-box apb-ml-box-compacto">
+    <div id="bloque-contacto-inicial-ml" class="detalle-box detalle-box-full apb-ml-box apb-ml-box-compacto">
         <div class="apb-ml-mensaje-box">
             <textarea id="mensaje-ml-apb" class="apb-ml-mensaje" readonly>{{ generar_mensaje_contacto_ml(pedido) }}</textarea>
             <div class="apb-ml-actions">
@@ -339,7 +339,7 @@
                     <button type="submit" class="btn btn-confirmar">Enviar mensaje ML</button>
                 </form>
                 {% endif %}
-                <button type="button" class="btn btn-secundario apb-btn-secundario" onclick="copiarMensajeMLAPB()">Copiar mensaje</button>
+                <button type="button" class="btn btn-secundario apb-btn-secundario" onclick="copiarMensajeMLAPB(true)">Copiar mensaje</button>
                 {% if ml_link_detalle_venta(pedido) %}
                 <a href="{{ ml_link_detalle_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secundario apb-btn-secundario">Abrir venta en ML</a>
                 {% endif %}
@@ -348,6 +348,15 @@
         </div>
     </div>
     {% endif %}
+    {% if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" and pedido.contacto_iniciado %}
+    <div class="detalle-box detalle-box-full apb-contactado-box">
+        <strong>✔ Contacto inicial ya realizado.</strong>
+        {% if pedido.fecha_contacto %}
+        <span>Fecha: {{ pedido.fecha_contacto.strftime("%d/%m/%Y %H:%M") }}</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if rol_actual == "admin" %}
     <details class="detalle-box detalle-box-full" style="margin-top: 18px;">
         <summary style="cursor: pointer; font-weight: 700;">Fechas del pedido</summary>
@@ -487,7 +496,14 @@ function abrirWhatsappYRecargar(urlWhatsapp, urlRecarga) {
     return false;
 }
 
-function copiarMensajeMLAPB() {
+function ocultarBloqueContactoInicialMLAPB() {
+    const bloque = document.getElementById("bloque-contacto-inicial-ml");
+    if (bloque) {
+        bloque.style.display = "none";
+    }
+}
+
+function copiarMensajeMLAPB(marcarContacto) {
     const textarea = document.getElementById("mensaje-ml-apb");
     if (!textarea) {
         return;
@@ -502,10 +518,15 @@ function copiarMensajeMLAPB() {
         document.execCommand("copy");
     }
 
+    if (marcarContacto) {
+        marcarContactoIniciadoMLAPB();
+        ocultarBloqueContactoInicialMLAPB();
+    }
+
     const feedback = document.getElementById("mensaje-ml-copiado");
     if (feedback) {
-        feedback.textContent = "Mensaje copiado";
-        setTimeout(function () { feedback.textContent = ""; }, 1800);
+        feedback.textContent = marcarContacto ? "Mensaje copiado. Contacto inicial marcado." : "Mensaje copiado";
+        setTimeout(function () { feedback.textContent = ""; }, 2200);
     }
 }
 
@@ -531,8 +552,9 @@ function abrirChatMLDirectoAPB() {
         return false;
     }
 
-    copiarMensajeMLAPB();
+    copiarMensajeMLAPB(false);
     marcarContactoIniciadoMLAPB();
+    ocultarBloqueContactoInicialMLAPB();
     window.open(urlChat, "_blank", "noopener,noreferrer");
     setTimeout(function () {
         window.location.href = {{ url_for('inicio')|tojson }};
