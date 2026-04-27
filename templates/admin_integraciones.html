@@ -120,6 +120,9 @@
             <form method="post" action="{{ url_for('sync_tiendanube') }}">
                 <button type="submit" class="boton-accion">Sincronizar pedidos TN</button>
             </form>
+            <form method="post" action="{{ url_for('registrar_webhooks_tiendanube') }}">
+                <button type="submit" class="boton-accion">Registrar webhooks TN</button>
+            </form>
             <form method="post" action="{{ url_for('reset_prueba_tiendanube') }}" onsubmit="return confirm('Esto elimina SOLO pedidos importados de Tienda Nube que siguen en Cargando Pedido. No toca pedidos avanzados ni finalizados. ¿Seguimos?');">
                 <button type="submit" class="boton-cancelar">Borrar pedidos TN de prueba</button>
             </form>
@@ -130,6 +133,7 @@
             <h3>Regla APB de esta fase</h3>
             <ul>
                 <li>TN entra como canal separado: <strong>Tienda Nube</strong>.</li>
+                <li>El sync y los webhooks solo importan pedidos <strong>pagados</strong> y <strong>no enviados</strong>.</li>
                 <li>Los pedidos nuevos entran en <strong>Cargando Pedido</strong>.</li>
                 <li>Si TN informa pago pendiente o pedido cancelado, queda marcado en observaciones con <strong>NO DESPACHAR</strong>.</li>
                 <li>Los webhooks se guardan en log y se procesan de forma idempotente.</li>

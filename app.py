@@ -1289,9 +1289,7 @@ def alertas_operativas():
             alertas.append({"tipo": "roja", "texto": f"{sin_despachar} pedidos sin despacho desde hace más de 24 hs"})
 
     if rol in ["carga", "admin"]:
-        if sin_carga:
-            alertas.append({"tipo": "amarilla", "texto": f"{sin_carga} pedidos con carga incompleta desde hace más de 4 hs"})
-
+        # APB: se elimina la alerta global de carga incompleta porque molesta y no aporta prioridad real.
         if seguimiento:
             alertas.append({"tipo": "amarilla", "texto": f"{seguimiento} pedidos para seguimiento logístico (72 hs)"})
 
@@ -1767,12 +1765,71 @@ def tn_guardar_items(pedido, order):
         ))
 
 
+def tn_pago_confirmado(order):
+    payment_status = str(order.get("payment_status") or order.get("financial_status") or "").lower().strip()
+    return payment_status in ("paid", "approved", "authorized")
+
+
+def tn_pedido_ya_enviado(order):
+    status = str(order.get("status") or "").lower().strip()
+    fulfillment_status = str(
+        order.get("fulfillment_status")
+        or order.get("shipping_status")
+        or ""
+    ).lower()
+
+    shipping_status = ""
+    shipping_data = order.get("shipping") if isinstance(order.get("shipping"), dict) else {}
+    if shipping_data:
+        shipping_status = str(
+            shipping_data.get("status")
+            or shipping_data.get("fulfillment_status")
+            or shipping_data.get("shipment_status")
+            or ""
+        ).lower()
+
+    texto = " ".join([status, fulfillment_status, shipping_status])
+    indicadores_enviado = [
+        "fulfilled", "delivered", "shipped", "sent", "closed", "completed", "entregado", "enviado", "despachado"
+    ]
+    return any(indicador in texto for indicador in indicadores_enviado)
+
+
+def tn_pedido_cancelado(order):
+    status = str(order.get("status") or "").lower().strip()
+    return bool(status in ("cancelled", "canceled", "voided") or order.get("cancelled_at"))
+
+
+def tn_pedido_apto_para_fierro(order):
+    if not order:
+        return False, "pedido vacío"
+
+    if tn_pedido_cancelado(order):
+        return False, "pedido cancelado"
+
+    if not tn_pago_confirmado(order):
+        estado_pago = str(order.get("payment_status") or order.get("financial_status") or "sin estado")
+        return False, f"pago no confirmado: {estado_pago}"
+
+    if tn_pedido_ya_enviado(order):
+        return False, "pedido ya enviado/entregado"
+
+    return True, "ok"
+
+
 def tn_importar_o_actualizar_pedido(order):
     tn_id = str(order.get("id") or "").strip()
     if not tn_id:
         return None, "omitido_sin_id"
 
+    apto, motivo_omision = tn_pedido_apto_para_fierro(order)
     pedido = Pedido.query.filter_by(tn_order_id=tn_id).first()
+
+    # APB TN: solo ingresan/actualizan pedidos pagados y no enviados.
+    # Si un pedido ya existe, no lo borramos por eventos posteriores.
+    if not apto:
+        return pedido, f"omitido_{motivo_omision}"
+
     creado = False
     if not pedido:
         pedido = Pedido(
@@ -1873,6 +1930,29 @@ def tn_sync_manual(limit=50):
         cuenta.last_sync_detail = json.dumps(resultado, ensure_ascii=False)
     db.session.commit()
     return resultado
+
+
+def tn_registrar_webhooks_sistema_fierro():
+    webhook_url = request.url_root.rstrip("/") + "/webhook/tiendanube"
+    eventos = ["order/created", "order/paid", "order/cancelled"]
+    resultados = []
+
+    for evento in eventos:
+        try:
+            respuesta = tn_http_json("POST", "/webhooks", data={"event": evento, "url": webhook_url})
+            resultados.append({"event": evento, "ok": True, "detalle": respuesta})
+        except Exception as e:
+            resultados.append({"event": evento, "ok": False, "detalle": str(e)})
+
+    cuenta = cuenta_tn_actual()
+    if cuenta:
+        cuenta.store_id = tn_store_id()
+        cuenta.last_sync_at = datetime.utcnow()
+        cuenta.last_sync_status = "webhooks_configurados"
+        cuenta.last_sync_detail = json.dumps(resultados, ensure_ascii=False)[:1000]
+        db.session.commit()
+
+    return resultados
 
 
 def cuenta_ml_actual():
@@ -4399,6 +4479,24 @@ def sync_tiendanube():
             cuenta.last_sync_detail = str(e)
             db.session.commit()
         return redirect(url_for("admin_integraciones", error=f"Falló sincronización Tienda Nube: {e}"))
+
+
+@app.route("/admin/integraciones/tiendanube/registrar-webhooks", methods=["POST"])
+@login_required
+def registrar_webhooks_tiendanube():
+    if not puede_administrar_integraciones():
+        return redirect(url_for("inicio"))
+    faltantes = tn_config_faltante()
+    if faltantes:
+        return redirect(url_for("admin_integraciones", error=f"Faltan variables TN: {', '.join(faltantes)}"))
+    try:
+        resultados = tn_registrar_webhooks_sistema_fierro()
+        ok_count = sum(1 for r in resultados if r.get("ok"))
+        mensaje = f"Webhooks TN solicitados. Creados OK: {ok_count}/{len(resultados)}. Si alguno ya existía, TN puede devolver advertencia sin afectar."
+        return redirect(url_for("admin_integraciones", ok=mensaje))
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for("admin_integraciones", error=f"No se pudieron registrar webhooks TN: {e}"))
 
 
 @app.route("/admin/integraciones/tiendanube/reset-prueba", methods=["POST"])
