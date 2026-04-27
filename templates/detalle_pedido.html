@@ -211,11 +211,18 @@
     {% endif %}
 
     {% if pedido.canal == "Mercado Libre" and rol_actual in ["admin", "carga"] %}
-    <form method="POST" action="{{ url_for('sync_mensajes_ml_pedido_admin', id=pedido.id) }}" style="margin: 8px 0 14px 0; display:inline-block;">
-        <button type="submit" class="btn btn-secundario" style="padding: 7px 12px; font-size: 0.82rem;">
-            🔄 Revisar mensajes ML
-        </button>
-    </form>
+    <div style="margin: 8px 0 14px 0; display:flex; gap:8px; flex-wrap:wrap;">
+        <form method="POST" action="{{ url_for('sync_mensajes_ml_pedido_admin', id=pedido.id) }}" style="display:inline-block;">
+            <button type="submit" class="btn btn-secundario" style="padding: 7px 12px; font-size: 0.82rem;">
+                🔄 Revisar mensajes ML
+            </button>
+        </form>
+        <form method="POST" action="{{ url_for('resync_ml_pedido', id=pedido.id) }}" style="display:inline-block;">
+            <button type="submit" class="btn btn-secundario" style="padding: 7px 12px; font-size: 0.82rem;">
+                🔄 Re-sincronizar ML
+            </button>
+        </form>
+    </div>
     {% endif %}
 
     <div class="detalle-grid-resumen">

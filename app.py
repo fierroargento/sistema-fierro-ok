@@ -189,6 +189,16 @@ class MercadoLibreCuenta(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+
+class WebhookML(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    topic = db.Column(db.String(80))
+    resource = db.Column(db.String(300))
+    payload = db.Column(db.Text)
+    fecha = db.Column(db.DateTime, default=datetime.utcnow)
+    ok = db.Column(db.Boolean, default=False)
+    detalle = db.Column(db.Text)
+
 def asegurar_columna_si_no_existe(nombre_columna, definicion_sql):
     inspector = inspect(db.engine)
     columnas = [col["name"] for col in inspector.get_columns("pedido")]
@@ -3728,22 +3738,57 @@ def ml_marcar_reclamo_webhook(resource):
 def ayuda():
     return render_template("ayuda.html")
 
+
+def ml_crear_log_webhook(topic, resource, data):
+    try:
+        log = WebhookML(
+            topic=str(topic or "")[:80],
+            resource=str(resource or "")[:300],
+            payload=json.dumps(data or {}, ensure_ascii=False)[:5000],
+            ok=False,
+        )
+        db.session.add(log)
+        db.session.commit()
+        return log.id
+    except Exception as e:
+        db.session.rollback()
+        print(f"[WEBHOOK ML LOG] No se pudo crear log: {e}")
+        return None
+
+
+def ml_cerrar_log_webhook(log_id, ok=True, detalle=""):
+    if not log_id:
+        return
+    try:
+        log = WebhookML.query.get(log_id)
+        if log:
+            log.ok = bool(ok)
+            log.detalle = str(detalle or "")[:1000]
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"[WEBHOOK ML LOG] No se pudo cerrar log #{log_id}: {e}")
+
+
 @app.route("/webhook/mercadolibre", methods=["GET", "POST"])
 @app.route("/admin/integraciones/mercadolibre/webhook", methods=["GET", "POST"])
 def webhook_mercadolibre():
     """
     Webhook ML. No requiere login porque lo llama Mercado Libre.
-    Para mensajes: marca el pedido con badge pendiente sin esperar la sync manual/cron.
+    Regla APB: siempre responde 200, pero deja log del evento y del resultado.
     """
     if request.method == "GET":
         return "OK", 200
 
+    log_id = None
     try:
         data = request.get_json(silent=True) or {}
         print("[WEBHOOK ML]", data)
 
         topic = str(data.get("topic") or data.get("type") or "").lower()
         resource = str(data.get("resource") or "").strip()
+        log_id = ml_crear_log_webhook(topic, resource, data)
+        detalle_log = "sin accion"
 
         if "message" in topic or "/messages" in resource:
             pack_id = ""
@@ -3763,8 +3808,10 @@ def webhook_mercadolibre():
                 if pedido:
                     tiene, count = ml_sync_mensajes_pedido(pedido)
                     db.session.commit()
+                    detalle_log = f"mensaje pack={pack_id} pedido={pedido.id} pendientes={count}"
                     print(f"[WEBHOOK ML] Mensaje pack={pack_id} -> pedido #{pedido.id} pendientes={count}")
                 else:
+                    detalle_log = f"mensaje pack={pack_id} sin pedido vinculado"
                     print(f"[WEBHOOK ML] Mensaje pack={pack_id} sin pedido vinculado")
             else:
                 ids = ml_extraer_ids_mensaje_ml(data)
@@ -3773,12 +3820,13 @@ def webhook_mercadolibre():
 
                 marcados = ml_marcar_mensajes_pendientes_por_ids(ids, count=1, commit=True)
 
-                # Fallback seguro: si el webhook no trae IDs claros, intentamos sync por pack en pedidos operativos.
                 if marcados == 0:
                     total = ml_sync_mensajes_pendientes_pedidos()
                     db.session.commit()
+                    detalle_log = f"mensaje sin match directo; sync total={total}"
                     print(f"[WEBHOOK ML] Mensaje sin match directo. Sync mensajes total={total}")
                 else:
+                    detalle_log = f"mensaje vinculado a {marcados} pedido(s): {sorted(ids)}"
                     print(f"[WEBHOOK ML] Mensaje vinculado a {marcados} pedido(s). IDs={sorted(ids)}")
 
         elif "order" in topic or "/orders/" in resource:
@@ -3786,24 +3834,28 @@ def webhook_mercadolibre():
             match = re.search(r"/orders/([^/?#]+)", resource)
             if match:
                 order_id = match.group(1)
-            ml_sync_pedido_por_order_id_webhook(order_id)
+            ok_order = ml_sync_pedido_por_order_id_webhook(order_id)
+            detalle_log = f"order {order_id} ok={ok_order}"
 
         elif "shipment" in topic or "/shipments/" in resource:
             shipment_id = ""
             match = re.search(r"/shipments/([^/?#]+)", resource)
             if match:
                 shipment_id = match.group(1)
-            ml_sync_shipment_por_id_webhook(shipment_id)
+            ok_ship = ml_sync_shipment_por_id_webhook(shipment_id)
+            detalle_log = f"shipment {shipment_id} ok={ok_ship}"
 
         elif "claim" in topic or "/claims/" in resource:
-            ml_marcar_reclamo_webhook(resource)
+            ok_claim = ml_marcar_reclamo_webhook(resource)
+            detalle_log = f"claim resource={resource} ok={ok_claim}"
 
+        ml_cerrar_log_webhook(log_id, ok=True, detalle=detalle_log)
         return "OK", 200
 
     except Exception as e:
         db.session.rollback()
         print("[WEBHOOK ML ERROR]", e)
-        # ML espera 200 para no insistir infinitamente; logueamos pero no rompemos.
+        ml_cerrar_log_webhook(log_id, ok=False, detalle=str(e))
         return "OK", 200
 
 
@@ -4459,6 +4511,46 @@ def marcar_contacto_iniciado_pedido(pedido):
     pedido.contacto_iniciado = True
     if not pedido.fecha_contacto:
         pedido.fecha_contacto = datetime.utcnow()
+
+
+@app.route("/pedido/<int:id>/resync-ml", methods=["POST"])
+@login_required
+def resync_ml_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+
+    if pedido.canal != "Mercado Libre":
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No es un pedido de Mercado Libre."))
+
+    try:
+        detalles = []
+        order_id = str(getattr(pedido, "id_venta", "") or "").strip()
+        if order_id:
+            order = ml_obtener_order(order_id)
+            if order:
+                pedido_actualizado, creado, motivo = ml_upsert_pedido_desde_order(order)
+                if pedido_actualizado:
+                    pedido = pedido_actualizado
+                    detalles.append("orden")
+                elif motivo:
+                    detalles.append(f"orden omitida: {motivo}")
+
+        tiene_msgs, count_msgs = ml_sync_mensajes_pedido(pedido)
+        detalles.append(f"mensajes={count_msgs}")
+
+        claim = ml_obtener_claim_de_order(pedido.id_venta, pedido.ml_pack_id)
+        ml_marcar_claim_en_pedido(pedido, claim)
+        detalles.append("reclamo=activo" if claim else "reclamo=sin activo")
+
+        db.session.commit()
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok="ML re-sincronizado: " + " | ".join(detalles)))
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ML-RESYNC] Error pedido #{pedido.id}: {e}")
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo re-sincronizar ML: {e}"))
 
 
 @app.route("/pedido/<int:id>/sync-mensajes-ml", methods=["POST"])
