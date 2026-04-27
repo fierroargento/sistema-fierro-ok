@@ -2710,17 +2710,12 @@ def ml_pedido_tiene_mensajes_pendientes(pedido):
 
 def ml_pedido_tiene_chat_iniciado(pedido):
     """Señal visual APB de contacto inicial realizado.
-    No depende de mensajes pendientes ni del texto prearmado guardado.
+    Solo depende del flag explícito del operador: no inferir por fecha_contacto
+    para evitar globos falsos por datos viejos o correcciones parciales.
     """
     if not pedido:
         return False
-    try:
-        return bool(
-            getattr(pedido, "contacto_iniciado", False)
-            or getattr(pedido, "fecha_contacto", None)
-        )
-    except Exception:
-        return bool(getattr(pedido, "contacto_iniciado", False))
+    return bool(getattr(pedido, "contacto_iniciado", False))
 
 
 def fecha_argentina(fecha):

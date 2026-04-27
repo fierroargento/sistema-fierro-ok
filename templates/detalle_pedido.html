@@ -367,11 +367,11 @@
         <summary style="cursor: pointer; font-weight: 700;">Fechas del pedido</summary>
         <table class="tabla-items" style="margin-top: 12px;">
             <tbody>
-                <tr><td><strong>Creado</strong></td><td>{{ pedido.fecha_creacion.strftime("%d/%m/%Y %H:%M") if pedido.fecha_creacion else "-" }}</td></tr>
-                <tr><td><strong>Etiqueta impresa</strong></td><td>{{ pedido.fecha_etiqueta_impresa.strftime("%d/%m/%Y %H:%M") if pedido.fecha_etiqueta_impresa else "-" }}</td></tr>
-                <tr><td><strong>Embalado</strong></td><td>{{ pedido.fecha_embalado.strftime("%d/%m/%Y %H:%M") if pedido.fecha_embalado else "-" }}</td></tr>
-                <tr><td><strong>Despachado</strong></td><td>{{ pedido.fecha_despachado.strftime("%d/%m/%Y %H:%M") if pedido.fecha_despachado else "-" }}</td></tr>
-                <tr><td><strong>Entregado</strong></td><td>{{ pedido.fecha_entregado.strftime("%d/%m/%Y %H:%M") if pedido.fecha_entregado else "-" }}</td></tr>
+                <tr><td><strong>Creado</strong></td><td>{{ fecha_argentina(pedido.fecha_creacion).strftime("%d/%m/%Y %H:%M") if pedido.fecha_creacion else "-" }}</td></tr>
+                <tr><td><strong>Etiqueta impresa</strong></td><td>{{ fecha_argentina(pedido.fecha_etiqueta_impresa).strftime("%d/%m/%Y %H:%M") if pedido.fecha_etiqueta_impresa else "-" }}</td></tr>
+                <tr><td><strong>Embalado</strong></td><td>{{ fecha_argentina(pedido.fecha_embalado).strftime("%d/%m/%Y %H:%M") if pedido.fecha_embalado else "-" }}</td></tr>
+                <tr><td><strong>Despachado</strong></td><td>{{ fecha_argentina(pedido.fecha_despachado).strftime("%d/%m/%Y %H:%M") if pedido.fecha_despachado else "-" }}</td></tr>
+                <tr><td><strong>Entregado</strong></td><td>{{ fecha_argentina(pedido.fecha_entregado).strftime("%d/%m/%Y %H:%M") if pedido.fecha_entregado else "-" }}</td></tr>
             </tbody>
         </table>
     </details>
@@ -386,7 +386,7 @@
 
 <p><strong>Fecha reclamo:</strong> 
     {% if pedido.fecha_hora_reclamo %}
-        {{ pedido.fecha_hora_reclamo.strftime('%d/%m/%Y %H:%M') }}
+        {{ fecha_argentina(pedido.fecha_hora_reclamo).strftime('%d/%m/%Y %H:%M') }}
     {% else %}
         -
     {% endif %}
@@ -394,7 +394,7 @@
 
 <p><strong>Última revisión:</strong> 
     {% if pedido.ultima_revision_reclamo %}
-        {{ pedido.ultima_revision_reclamo.strftime('%d/%m/%Y %H:%M') }}
+        {{ fecha_argentina(pedido.ultima_revision_reclamo).strftime('%d/%m/%Y %H:%M') }}
     {% else %}
         -
     {% endif %}
