@@ -2641,12 +2641,10 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
         pedido.ml_mensajes_pendientes = tiene_pendiente
         pedido.ml_mensajes_pendientes_count = count
         pedido.ultima_sync_mensajes_ml = datetime.utcnow()
-        # APB: el globo de chat iniciado no depende de que el último mensaje sea del cliente.
-        try:
-            if mensajes and any(ml_mensaje_es_del_vendedor(m, seller_id=seller_id) for m in mensajes):
-                marcar_contacto_iniciado_pedido(pedido)
-        except Exception as e:
-            print(f"[ML-MSGS-CONTACTO] No se pudo marcar contacto iniciado pedido #{getattr(pedido, 'id', '?')}: {e}")
+        # APB: NO marcar contacto iniciado por leer mensajes de ML.
+        # El contacto inicial solo se marca por accion explicita del operador:
+        # Enviar mensaje ML / Copiar mensaje.
+
 
     if not endpoint_ok and ultimo_error:
         print(f"[ML-MSGS-PACK] Error consultando pack/order {pack_id}: {ultimo_error}")
@@ -2711,18 +2709,28 @@ def ml_pedido_tiene_mensajes_pendientes(pedido):
 
 
 def ml_pedido_tiene_chat_iniciado(pedido):
-    """Señal visual APB de chat iniciado; no depende de mensaje pendiente."""
+    """Señal visual APB de contacto inicial realizado.
+    No depende de mensajes pendientes ni del texto prearmado guardado.
+    """
     if not pedido:
         return False
     try:
         return bool(
             getattr(pedido, "contacto_iniciado", False)
             or getattr(pedido, "fecha_contacto", None)
-            or str(getattr(pedido, "ml_mensaje_contacto", "") or "").strip()
-            or ml_pedido_tiene_mensajes_pendientes(pedido)
         )
     except Exception:
         return bool(getattr(pedido, "contacto_iniciado", False))
+
+
+def fecha_argentina(fecha):
+    """Muestra timestamps internos UTC en horario Argentina para la UI."""
+    if not fecha:
+        return None
+    try:
+        return fecha - timedelta(hours=3)
+    except Exception:
+        return fecha
 
 
 def ml_mensaje_thread_habilitado(pedido):
@@ -3516,6 +3524,7 @@ def inyectar_contexto_global():
         "ml_pedido_tiene_mensajes_pendientes": ml_pedido_tiene_mensajes_pendientes,
         "ml_pedido_tiene_chat_iniciado": ml_pedido_tiene_chat_iniciado,
         "ml_pedido_tiene_claim": ml_pedido_tiene_claim,
+        "fecha_argentina": fecha_argentina,
         "tracking_info_pedido": tracking_info_pedido,
         "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,
     }
@@ -4507,6 +4516,22 @@ def marcar_contacto_ml(id):
     db.session.commit()
     return jsonify({"ok": True})
 
+
+
+
+@app.route("/pedido/<int:id>/desmarcar-contacto-ml", methods=["POST"])
+@login_required
+def desmarcar_contacto_ml(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+
+    pedido.contacto_iniciado = False
+    pedido.fecha_contacto = None
+    pedido.ml_mensaje_contacto = ""
+    db.session.commit()
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok="Contacto inicial corregido. El pedido vuelve a quedar pendiente de contacto."))
 
 @app.route("/pedido/<int:id>/enviar-mensaje-ml", methods=["POST"])
 @login_required
