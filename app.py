@@ -2139,46 +2139,97 @@ def ml_link_chat_venta(pedido):
     )
 
 
-def ml_extraer_pack_id_de_resource(resource):
-    """Extrae el ID de pack desde recursos tipo /packs/{id}/sellers/{seller_id}."""
-    resource = str(resource or "").strip()
-    match = re.search(r"/packs/([^/]+)/sellers/", resource)
-    if not match:
-        return ""
-    return str(match.group(1) or "").strip()
+def ml_extraer_ids_mensaje_ml(obj):
+    """
+    Extrae IDs relacionados al mensaje pendiente de ML de forma robusta.
+    Contempla pack_id, order_id y recursos tipo /packs/{id} o /orders/{id}.
+    No usa GET al thread para no marcar mensajes como leídos.
+    """
+    ids = set()
+
+    def agregar(valor):
+        valor = str(valor or "").strip()
+        if not valor:
+            return
+        # IDs de ML suelen ser largos. Evitamos capturar flags/códigos cortos.
+        if re.fullmatch(r"\d{8,}", valor):
+            ids.add(valor)
+
+    def recorrer(valor, clave=""):
+        clave_l = str(clave or "").lower()
+
+        if isinstance(valor, dict):
+            for k, v in valor.items():
+                recorrer(v, k)
+            return
+
+        if isinstance(valor, list):
+            for v in valor:
+                recorrer(v, clave_l)
+            return
+
+        texto = str(valor or "").strip()
+        if not texto:
+            return
+
+        # Campos explícitos.
+        if any(x in clave_l for x in ["pack", "order"]):
+            agregar(texto)
+
+        # Recursos/URLs posibles.
+        for patron in [
+            r"/packs/([^/?#]+)",
+            r"/orders/([^/?#]+)",
+            r"pack_id[=:]([^&/?#]+)",
+            r"order_id[=:]([^&/?#]+)",
+        ]:
+            for match in re.finditer(patron, texto):
+                agregar(match.group(1))
+
+    recorrer(obj)
+    return ids
 
 
 def ml_sync_mensajes_pendientes_pedidos():
     """
     Sincroniza mensajes pendientes de leer de ML sin abrir el thread.
     IMPORTANTE: no usa GET /messages/packs porque eso puede marcar como leído.
-    Usa /messages/unread?role=seller&tag=post_sale.
+    Usa /messages/unread?role=seller&tag=post_sale y vincula por pack_id u order_id.
     """
     cuenta = cuenta_ml_actual()
     if not cuenta:
         return 0
 
+    pedidos_ml = Pedido.query.filter(Pedido.canal == "Mercado Libre").all()
+    ahora = datetime.utcnow()
+
+    # Default seguro: si la sync falla, no tocamos los flags existentes.
     try:
         data = ml_api_get("/messages/unread", params={"role": "seller", "tag": "post_sale"})
     except Exception as e:
         print("[ML-MENSAJES] No se pudieron sincronizar mensajes pendientes:", e)
         return 0
 
-    pendientes_por_pack = {}
-    for item in (data or {}).get("results") or []:
-        pack_id = ml_extraer_pack_id_de_resource(item.get("resource"))
-        if not pack_id:
-            continue
-        try:
-            count = int(item.get("count") or 0)
-        except Exception:
-            count = 0
-        if count > 0:
-            pendientes_por_pack[pack_id] = count
+    pendientes_por_id = {}
+    resultados = (data or {}).get("results") if isinstance(data, dict) else data
+    if isinstance(resultados, dict):
+        resultados = resultados.get("results") or resultados.get("items") or []
+    if not isinstance(resultados, list):
+        resultados = []
 
-    pedidos_ml = Pedido.query.filter(Pedido.canal == "Mercado Libre").all()
+    for item in resultados:
+        ids_item = ml_extraer_ids_mensaje_ml(item)
+        try:
+            count = int((item or {}).get("count") or (item or {}).get("unread") or 1)
+        except Exception:
+            count = 1
+        if count <= 0:
+            continue
+        for id_ref in ids_item:
+            pendientes_por_id[id_ref] = max(int(pendientes_por_id.get(id_ref) or 0), count)
+
     total_pendientes = 0
-    ahora = datetime.utcnow()
+    ids_conocidos = []
 
     for pedido in pedidos_ml:
         ids_posibles = {
@@ -2186,14 +2237,23 @@ def ml_sync_mensajes_pendientes_pedidos():
             str(getattr(pedido, "id_venta", "") or "").strip(),
         }
         ids_posibles.discard("")
+
         count = 0
         for posible_id in ids_posibles:
-            count = max(count, int(pendientes_por_pack.get(posible_id) or 0))
+            count = max(count, int(pendientes_por_id.get(posible_id) or 0))
 
         pedido.ml_mensajes_pendientes = count > 0
         pedido.ml_mensajes_pendientes_count = count
         pedido.ultima_sync_mensajes_ml = ahora
         total_pendientes += count
+
+        if count > 0:
+            ids_conocidos.extend(list(ids_posibles))
+
+    # Log corto para diagnosticar diferencias pack_id / id_venta sin romper operación.
+    if pendientes_por_id:
+        print("[ML-MENSAJES] IDs con pendientes ML:", sorted(pendientes_por_id.keys()))
+        print("[ML-MENSAJES] IDs vinculados a pedidos Fierro:", sorted(set(ids_conocidos)))
 
     return total_pendientes
 
