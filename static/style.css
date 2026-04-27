@@ -1662,3 +1662,15 @@ tr.fila-amarillo td .btn-accion-rapida {
     filter: brightness(1.08);
     text-decoration: none;
 }
+
+/* APB ML: mensajes y reclamos */
+.contacto-badge-reclamo {
+    background: #b71c1c;
+    color: #fff;
+    border: 1px solid #7f0000;
+    margin-right: 4px;
+}
+
+tr.fila-con-reclamo {
+    background-color: #fff5f5 !important;
+}

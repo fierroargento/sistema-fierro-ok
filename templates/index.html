@@ -51,8 +51,11 @@
         <tbody id="tabla_pedidos_body">
             {% for p in pedidos %}
             {% set accion = accion_principal_pedido(p, 'inicio') %}
-            <tr class="fila-{{ semaforo_pedido(p) }}" data-semaforo="{{ semaforo_pedido(p) }}" data-estado="{{ (p.estado or '')|lower }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Con demora de entrega', 'Verificar llegada a destino', 'Listo para retirar', 'No entregado', 'Entregado', 'Finalizado'] else 'si' }}">
+            <tr class="fila-{{ semaforo_pedido(p) }} {% if ml_pedido_tiene_claim(p) %}fila-con-reclamo{% endif %}" data-semaforo="{{ semaforo_pedido(p) }}" data-estado="{{ (p.estado or '')|lower }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Con demora de entrega', 'Verificar llegada a destino', 'Listo para retirar', 'No entregado', 'Entregado', 'Finalizado'] else 'si' }}">
                 <td class="col-contacto">
+                    {% if rol_actual in ['carga', 'admin'] and ml_pedido_tiene_claim(p) %}
+                    <span class="contacto-badge contacto-badge-reclamo" title="Reclamo activo en Mercado Libre">⚠️</span>
+                    {% endif %}
                     {% if rol_actual in ['carga', 'admin'] and ml_pedido_tiene_mensajes_pendientes(p) %}
                     <span class="contacto-badge contacto-badge-alerta" title="Hay mensajes pendientes del comprador">
                         💬<span class="contacto-badge-count">{{ p.ml_mensajes_pendientes_count or 1 }}</span>

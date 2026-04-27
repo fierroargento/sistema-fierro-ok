@@ -76,6 +76,15 @@ class Pedido(db.Model):
     ml_mensajes_pendientes_count = db.Column(db.Integer, default=0)
     ultima_sync_mensajes_ml = db.Column(db.DateTime)
 
+    # =====================
+    # APB RECLAMOS ML
+    # =====================
+    ml_claim_id = db.Column(db.String(50))
+    ml_claim_abierto = db.Column(db.Boolean, default=False)
+    ml_claim_status = db.Column(db.String(50))
+    ml_claim_reason = db.Column(db.String(200))
+    ultima_sync_claim_ml = db.Column(db.DateTime)
+
     id = db.Column(db.Integer, primary_key=True)
 
     cliente = db.Column(db.String(120), nullable=False)
@@ -270,6 +279,15 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ml_mensajes_pendientes", "BOOLEAN DEFAULT FALSE")
     asegurar_columna_si_no_existe("ml_mensajes_pendientes_count", "INTEGER DEFAULT 0")
     asegurar_columna_si_no_existe("ultima_sync_mensajes_ml", "TIMESTAMP")
+
+    # =====================
+    # APB RECLAMOS ML
+    # =====================
+    asegurar_columna_si_no_existe("ml_claim_id", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("ml_claim_abierto", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("ml_claim_status", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("ml_claim_reason", "VARCHAR(200)")
+    asegurar_columna_si_no_existe("ultima_sync_claim_ml", "TIMESTAMP")
 
 
 def productos_desde_excel(archivo_excel):
@@ -2319,43 +2337,94 @@ def ml_obtener_ids_mensajes_pendientes():
     return pendientes_por_id
 
 
+def ml_sync_mensajes_pack(pack_id, pedido=None):
+    """
+    Consulta el thread de mensajes postventa de un pack ML y detecta
+    mensajes sin leer del comprador. No marca mensajes como leidos.
+    Devuelve (tiene_pendientes: bool, count: int).
+    """
+    pack_id = str(pack_id or "").strip()
+    if not pack_id:
+        return False, 0
+
+    try:
+        data = ml_api_get(f"/messages/packs/{pack_id}", params={"role": "seller", "limit": 20})
+        mensajes = []
+        if isinstance(data, dict):
+            mensajes = data.get("messages") or data.get("results") or []
+        elif isinstance(data, list):
+            mensajes = data
+
+        if not isinstance(mensajes, list):
+            mensajes = []
+
+        pendientes = []
+        for m in mensajes:
+            if not isinstance(m, dict):
+                continue
+            from_data = m.get("from") or {}
+            user_type = str(from_data.get("user_type") or from_data.get("role") or "").lower().strip()
+            status = str(m.get("status") or m.get("message_status") or "").lower().strip()
+            if user_type == "buyer" and status in {"unread", "new", "pending"}:
+                pendientes.append(m)
+
+        count = len(pendientes)
+        if pedido is not None:
+            pedido.ml_mensajes_pendientes = count > 0
+            pedido.ml_mensajes_pendientes_count = count
+            pedido.ultima_sync_mensajes_ml = datetime.utcnow()
+
+        return count > 0, count
+
+    except Exception as e:
+        print(f"[ML-MSGS-PACK] Error consultando pack {pack_id}: {e}")
+        return False, 0
+
+
 def ml_sync_mensajes_pendientes_pedidos():
+    """
+    Sync mejorada para mensajes postventa:
+    en vez de depender de /messages/unread, consulta por pack_id/order_id
+    en pedidos ML operativos. Es respaldo del webhook.
+    """
     cuenta = cuenta_ml_actual()
     if not cuenta:
         return 0
 
-    pedidos_ml = Pedido.query.filter(Pedido.canal == "Mercado Libre").all()
-    ahora = datetime.utcnow()
+    estados_operativos = [
+        "Cargando Pedido",
+        "Etiqueta Lista",
+        "Etiqueta Impresa",
+        "Embalado",
+        "Despachado",
+        "Verificar llegada a destino",
+        "Listo para retirar",
+        "Con demora de entrega",
+        "Con reclamo en transporte",
+        "Con reclamo por demora",
+        "No Entregado",
+        "No entregado",
+    ]
 
-    pendientes_por_id = ml_obtener_ids_mensajes_pendientes()
+    pedidos_ml = Pedido.query.filter(
+        Pedido.canal == "Mercado Libre",
+        Pedido.estado.in_(estados_operativos)
+    ).all()
 
     total_pendientes = 0
-    ids_conocidos = []
 
     for pedido in pedidos_ml:
-        ids_posibles = {
-            str(getattr(pedido, "ml_pack_id", "") or "").strip(),
-            str(getattr(pedido, "id_venta", "") or "").strip(),
-        }
-        ids_posibles.discard("")
+        pack_id = str(getattr(pedido, "ml_pack_id", "") or "").strip()
+        if not pack_id:
+            pack_id = str(getattr(pedido, "id_venta", "") or "").strip()
+        if not pack_id:
+            continue
 
-        count = 0
-        for posible_id in ids_posibles:
-            count = max(count, int(pendientes_por_id.get(posible_id) or 0))
-
-        pedido.ml_mensajes_pendientes = count > 0
-        pedido.ml_mensajes_pendientes_count = count
-        pedido.ultima_sync_mensajes_ml = ahora
-        total_pendientes += count
-
-        if count > 0:
-            ids_conocidos.extend(list(ids_posibles))
-
-    if pendientes_por_id:
-        print("[ML-MENSAJES] IDs con pendientes ML:", sorted(pendientes_por_id.keys()))
-        print("[ML-MENSAJES] IDs vinculados a pedidos Fierro:", sorted(set(ids_conocidos)))
+        tiene, count = ml_sync_mensajes_pack(pack_id, pedido=pedido)
+        total_pendientes += int(count or 0)
 
     return total_pendientes
+
 
 def ml_pedido_tiene_mensajes_pendientes(pedido):
     if not pedido:
@@ -2678,6 +2747,112 @@ def ml_envio_ya_despachado(order, shipment=None):
     return bool(estados.intersection({"shipped", "delivered", "not_delivered", "cancelled", "returned"}))
 
 
+CLAIM_ESTADOS_BLOQUEANTES = {"opened", "under_review", "mediating", "claim_opened"}
+
+
+def ml_obtener_claim_de_order(order_id, pack_id=None):
+    """
+    Busca un reclamo activo para una order/pack en Mercado Libre.
+    Devuelve el claim dict o None.
+    """
+    order_id = str(order_id or "").strip()
+    pack_id = str(pack_id or "").strip()
+
+    consultas = []
+    if order_id:
+        consultas.append({"order_id": order_id, "role": "seller", "limit": 5})
+        consultas.append({"resource_id": order_id, "role": "seller", "limit": 5})
+    if pack_id and pack_id != order_id:
+        consultas.append({"resource_id": pack_id, "role": "seller", "limit": 5})
+
+    for params in consultas:
+        try:
+            data = ml_api_get("/post-purchase/v1/claims/search", params=params)
+            claims = []
+            if isinstance(data, dict):
+                claims = data.get("data") or data.get("results") or data.get("claims") or []
+            elif isinstance(data, list):
+                claims = data
+
+            if not isinstance(claims, list):
+                claims = []
+
+            for claim in claims:
+                status = str((claim or {}).get("status") or "").lower().strip()
+                if status in CLAIM_ESTADOS_BLOQUEANTES:
+                    return claim
+
+        except Exception as e:
+            print(f"[ML-CLAIMS] Error buscando claim params={params}: {e}")
+
+    return None
+
+
+def ml_marcar_claim_en_pedido(pedido, claim):
+    """Guarda o limpia datos del reclamo ML en el pedido."""
+    if not pedido:
+        return
+
+    if claim:
+        pedido.ml_claim_id = str(claim.get("id") or claim.get("claim_id") or "").strip()
+        pedido.ml_claim_abierto = True
+        pedido.ml_claim_status = str(claim.get("status") or "").lower().strip()
+        pedido.ml_claim_reason = str(claim.get("reason_id") or claim.get("type") or claim.get("stage") or "").strip()
+    else:
+        pedido.ml_claim_abierto = False
+        pedido.ml_claim_status = ""
+        pedido.ml_claim_reason = ""
+
+    pedido.ultima_sync_claim_ml = datetime.utcnow()
+
+
+def ml_sync_claims_pedidos_operativos():
+    """
+    Consulta claims para pedidos ML operativos.
+    Respaldo para cuando el webhook no trae/impacta el evento.
+    """
+    cuenta = cuenta_ml_actual()
+    if not cuenta:
+        return 0
+
+    estados_operativos = [
+        "Cargando Pedido",
+        "Etiqueta Lista",
+        "Etiqueta Impresa",
+        "Embalado",
+        "Despachado",
+        "Verificar llegada a destino",
+        "Listo para retirar",
+        "Con demora de entrega",
+        "Con reclamo en transporte",
+        "Con reclamo por demora",
+    ]
+
+    pedidos = Pedido.query.filter(
+        Pedido.canal == "Mercado Libre",
+        Pedido.estado.in_(estados_operativos)
+    ).all()
+
+    marcados = 0
+
+    for pedido in pedidos:
+        order_id = str(getattr(pedido, "id_venta", "") or "").strip()
+        pack_id = str(getattr(pedido, "ml_pack_id", "") or "").strip()
+        if not order_id and not pack_id:
+            continue
+
+        claim = ml_obtener_claim_de_order(order_id, pack_id)
+        ml_marcar_claim_en_pedido(pedido, claim)
+        if claim:
+            marcados += 1
+
+    return marcados
+
+
+def ml_pedido_tiene_claim(pedido):
+    return bool(pedido and getattr(pedido, "ml_claim_abierto", False))
+
+
 def ml_validar_orden_operable_antes_de_despacho(pedido):
     """
     Revalida en vivo contra Mercado Libre antes de embalar o despachar.
@@ -2721,6 +2896,25 @@ def ml_validar_orden_operable_antes_de_despacho(pedido):
         if pedido.ml_tipo == "Mercado Envíos" and estado_shipping in estados_shipping_ya_operados:
             db.session.commit()
             return False, f"Mercado Libre informa que el envio ya figura {estado_shipping}. Revisar la venta antes de operar."
+
+        # --- APB: bloquear operación si ML tiene reclamo activo ---
+        if getattr(pedido, "ml_claim_abierto", False):
+            db.session.commit()
+            return False, (
+                f"Este pedido tiene un reclamo activo en Mercado Libre "
+                f"(ID: {pedido.ml_claim_id or 'sin ID'}). "
+                "No corresponde embalar ni despachar. Atender el reclamo primero."
+            )
+
+        claim_live = ml_obtener_claim_de_order(pedido.id_venta, getattr(pedido, "ml_pack_id", "") or "")
+        if claim_live:
+            ml_marcar_claim_en_pedido(pedido, claim_live)
+            db.session.commit()
+            return False, (
+                f"Mercado Libre reporta un reclamo activo "
+                f"({claim_live.get('reason_id') or claim_live.get('type') or 'sin motivo informado'}). "
+                "No corresponde embalar ni despachar. Atender el reclamo primero."
+            )
 
         db.session.commit()
         return True, ""
@@ -2967,11 +3161,12 @@ def ml_sync_manual(limit=20):
             errores.append(f"{order_id}: {e}")
 
     mensajes_pendientes = ml_sync_mensajes_pendientes_pedidos()
+    claims_marcados = ml_sync_claims_pedidos_operativos()
 
     cuenta.last_sync_at = datetime.utcnow()
     cuenta.last_sync_status = "ok" if not errores else "parcial"
 
-    detalle = f"Pedidos leídos: {len(orders)} | Nuevos: {creados} | Actualizados: {actualizados} | Omitidos: {omitidos} | Eliminados no operables: {eliminados_existentes} | Mensajes ML pendientes: {mensajes_pendientes}"
+    detalle = f"Pedidos leídos: {len(orders)} | Nuevos: {creados} | Actualizados: {actualizados} | Omitidos: {omitidos} | Eliminados no operables: {eliminados_existentes} | Mensajes ML pendientes: {mensajes_pendientes} | Reclamos ML detectados: {claims_marcados}"
     if errores:
         detalle += " | Detalle: " + " ; ".join(errores[:5])
 
@@ -2988,6 +3183,8 @@ def ml_sync_manual(limit=20):
         "actualizados": actualizados,
         "omitidos": omitidos,
         "eliminados": eliminados_existentes,
+        "mensajes_pendientes": mensajes_pendientes,
+        "claims_marcados": claims_marcados,
         "errores": errores,
         "me_sin_etiqueta": mercado_envios_sin_etiqueta,
     }
@@ -3020,6 +3217,7 @@ def inyectar_contexto_global():
         "ml_link_detalle_venta": ml_link_detalle_venta,
         "ml_link_chat_venta": ml_link_chat_venta,
         "ml_pedido_tiene_mensajes_pendientes": ml_pedido_tiene_mensajes_pendientes,
+        "ml_pedido_tiene_claim": ml_pedido_tiene_claim,
         "tracking_info_pedido": tracking_info_pedido,
         "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,
     }
@@ -3145,16 +3343,83 @@ def ml_sync_shipment_por_id_webhook(shipment_id):
 
 
 def ml_marcar_reclamo_webhook(resource):
+    """Procesa claims recibidos por webhook ML y los vincula a pedidos Fierro."""
     resource = str(resource or "").strip()
     claim_id = ""
+
     match = re.search(r"/claims/([^/?#]+)", resource)
     if match:
         claim_id = match.group(1)
+
     if not claim_id:
         print(f"[WEBHOOK ML] Claim recibido sin claim_id claro. resource={resource}")
         return False
-    print(f"[WEBHOOK ML] Claim recibido claim_id={claim_id}. Pendiente mapear a pedido si ML devuelve order_id.")
-    return True
+
+    try:
+        claim = ml_api_get(f"/post-purchase/v1/claims/{claim_id}")
+        if not claim:
+            print(f"[WEBHOOK ML] Claim {claim_id} no encontrado en API")
+            return False
+
+        status = str(claim.get("status") or "").lower().strip()
+        resource_id = str(
+            claim.get("resource_id")
+            or claim.get("resource")
+            or claim.get("pack_id")
+            or ""
+        ).strip()
+        order_id = str(claim.get("order_id") or "").strip()
+
+        # Algunas respuestas pueden traer order dentro de resource/order.
+        resource_obj = claim.get("resource") if isinstance(claim.get("resource"), dict) else {}
+        if not order_id and resource_obj:
+            order_id = str(resource_obj.get("id") or resource_obj.get("order_id") or "").strip()
+        if not resource_id and resource_obj:
+            resource_id = str(resource_obj.get("id") or "").strip()
+
+        pedido = None
+        for buscar_id in [resource_id, order_id]:
+            buscar_id = str(buscar_id or "").strip()
+            if not buscar_id:
+                continue
+
+            pedido = (
+                Pedido.query.filter(Pedido.canal == "Mercado Libre")
+                .filter(or_(
+                    Pedido.ml_pack_id == buscar_id,
+                    Pedido.id_venta == buscar_id,
+                ))
+                .first()
+            )
+            if pedido:
+                break
+
+        # Último respaldo: si el claim no trajo order claro, consultar búsqueda por claim no sirve;
+        # dejamos log exacto para poder mapear el shape real que devuelva ML.
+        if not pedido:
+            print(
+                f"[WEBHOOK ML] Claim {claim_id} sin pedido vinculado. "
+                f"status={status} resource_id={resource_id} order_id={order_id} claim={claim}"
+            )
+            return False
+
+        if status in CLAIM_ESTADOS_BLOQUEANTES:
+            ml_marcar_claim_en_pedido(pedido, claim)
+        else:
+            ml_marcar_claim_en_pedido(pedido, None)
+
+        db.session.commit()
+        print(
+            f"[WEBHOOK ML] Claim {claim_id} -> pedido #{pedido.id} "
+            f"status={status} abierto={pedido.ml_claim_abierto}"
+        )
+        return True
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[WEBHOOK ML] Error procesando claim {claim_id}: {e}")
+        return False
+
 
 @app.route("/ayuda")
 @login_required
@@ -3179,19 +3444,40 @@ def webhook_mercadolibre():
         resource = str(data.get("resource") or "").strip()
 
         if "message" in topic or "/messages" in resource:
-            ids = ml_extraer_ids_mensaje_ml(data)
-            if not ids and resource:
-                ids = ml_resolver_ids_desde_recurso_mensaje(resource)
+            pack_id = ""
+            match_pack = re.search(r"/packs/([^/?#]+)", resource)
+            if match_pack:
+                pack_id = match_pack.group(1)
 
-            marcados = ml_marcar_mensajes_pendientes_por_ids(ids, count=1, commit=True)
-
-            # Fallback seguro: si el webhook no trae IDs claros, intentamos sync de mensajes.
-            if marcados == 0:
-                total = ml_sync_mensajes_pendientes_pedidos()
-                db.session.commit()
-                print(f"[WEBHOOK ML] Mensaje sin match directo. Sync mensajes total={total}")
+            if pack_id:
+                pedido = (
+                    Pedido.query.filter(Pedido.canal == "Mercado Libre")
+                    .filter(or_(
+                        Pedido.ml_pack_id == pack_id,
+                        Pedido.id_venta == pack_id,
+                    ))
+                    .first()
+                )
+                if pedido:
+                    tiene, count = ml_sync_mensajes_pack(pack_id, pedido=pedido)
+                    db.session.commit()
+                    print(f"[WEBHOOK ML] Mensaje pack={pack_id} -> pedido #{pedido.id} pendientes={count}")
+                else:
+                    print(f"[WEBHOOK ML] Mensaje pack={pack_id} sin pedido vinculado")
             else:
-                print(f"[WEBHOOK ML] Mensaje vinculado a {marcados} pedido(s). IDs={sorted(ids)}")
+                ids = ml_extraer_ids_mensaje_ml(data)
+                if not ids and resource:
+                    ids = ml_resolver_ids_desde_recurso_mensaje(resource)
+
+                marcados = ml_marcar_mensajes_pendientes_por_ids(ids, count=1, commit=True)
+
+                # Fallback seguro: si el webhook no trae IDs claros, intentamos sync por pack en pedidos operativos.
+                if marcados == 0:
+                    total = ml_sync_mensajes_pendientes_pedidos()
+                    db.session.commit()
+                    print(f"[WEBHOOK ML] Mensaje sin match directo. Sync mensajes total={total}")
+                else:
+                    print(f"[WEBHOOK ML] Mensaje vinculado a {marcados} pedido(s). IDs={sorted(ids)}")
 
         elif "order" in topic or "/orders/" in resource:
             order_id = ""
@@ -3353,6 +3639,8 @@ def sync_mercadolibre():
             f"Actualizados: {resultado['actualizados']} | "
             f"Omitidos: {resultado['omitidos']} | "
             f"Eliminados: {resultado['eliminados']} | "
+            f"Mensajes: {resultado.get('mensajes_pendientes', 0)} | "
+            f"Reclamos: {resultado.get('claims_marcados', 0)} | "
             f"ME sin etiqueta: {resultado.get('me_sin_etiqueta', 0)}"
         )
         return redirect(url_for("admin_integraciones", ok=mensaje))
