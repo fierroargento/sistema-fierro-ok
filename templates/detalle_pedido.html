@@ -199,7 +199,7 @@
     <div class="detalle-alertas-ml">
         {% if pedido.ml_claim_abierto %}
         <span class="apb-ml-badge reclamo">
-            ⚠️ Reclamo activo ML{% if pedido.ml_claim_status %}: {{ pedido.ml_claim_status }}{% endif %}
+            ⚠️ Reclamo activo en ML: NO DESPACHAR
         </span>
         {% endif %}
         {% if ml_pedido_tiene_mensajes_pendientes(pedido) %}
