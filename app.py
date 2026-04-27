@@ -839,6 +839,10 @@ def texto_feedback_estado(estado):
 
 
 def accion_sugerida_pedido(pedido):
+    # APB: si Mercado Libre tiene reclamo activo, esta es siempre la prioridad visual/operativa.
+    if pedido.canal == "Mercado Libre" and getattr(pedido, "ml_claim_abierto", False):
+        return "⚠️ Atender reclamo ML"
+
     if pedido.estado == "Cargando Pedido":
         if not pedido.cliente:
             return "Falta cargar cliente"
@@ -4339,23 +4343,35 @@ def detalle_pedido(id):
             pedido.ml_mensaje_contacto = mensaje_actualizado
             db.session.commit()
 
-    # Refuerzo APB: al abrir el detalle de un pedido ML, actualizamos avisos visibles
-    # de reclamos y mensajes sin depender exclusivamente del webhook.
+    # Refuerzo APB con throttle: al abrir detalle NO castigamos la API de ML en cada carga.
+    # Mensajes: refresca cada 5 min. Reclamos: refresca cada 10 min.
     if pedido.canal == "Mercado Libre":
         hubo_cambios_ml = False
+        ahora_ml_detalle = datetime.utcnow()
+
         try:
-            ml_sync_mensajes_pedido(pedido)
-            hubo_cambios_ml = True
+            ultima_msgs = getattr(pedido, "ultima_sync_mensajes_ml", None)
+            debe_sync_msgs = (not ultima_msgs) or ((ahora_ml_detalle - ultima_msgs).total_seconds() > 5 * 60)
+            if debe_sync_msgs:
+                ml_sync_mensajes_pedido(pedido)
+                hubo_cambios_ml = True
+            else:
+                print(f"[ML-DETALLE] Mensajes pedido #{pedido.id}: se usa cache reciente")
         except Exception as e:
             print(f"[ML-DETALLE] No se pudo sincronizar mensajes pedido #{pedido.id}: {e}")
 
         try:
-            order_id_detalle = str(getattr(pedido, "id_venta", "") or "").strip()
-            pack_id_detalle = str(getattr(pedido, "ml_pack_id", "") or "").strip()
-            if order_id_detalle or pack_id_detalle:
-                claim_live = ml_obtener_claim_de_order(order_id_detalle, pack_id_detalle)
-                ml_marcar_claim_en_pedido(pedido, claim_live)
-                hubo_cambios_ml = True
+            ultima_claim = getattr(pedido, "ultima_sync_claim_ml", None)
+            debe_sync_claim = (not ultima_claim) or ((ahora_ml_detalle - ultima_claim).total_seconds() > 10 * 60)
+            if debe_sync_claim:
+                order_id_detalle = str(getattr(pedido, "id_venta", "") or "").strip()
+                pack_id_detalle = str(getattr(pedido, "ml_pack_id", "") or "").strip()
+                if order_id_detalle or pack_id_detalle:
+                    claim_live = ml_obtener_claim_de_order(order_id_detalle, pack_id_detalle)
+                    ml_marcar_claim_en_pedido(pedido, claim_live)
+                    hubo_cambios_ml = True
+            else:
+                print(f"[ML-DETALLE] Claim pedido #{pedido.id}: se usa cache reciente")
         except Exception as e:
             print(f"[ML-DETALLE] No se pudo sincronizar claim pedido #{pedido.id}: {e}")
 
