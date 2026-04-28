@@ -1059,11 +1059,29 @@ def primer_paso_pendiente_carga(pedido):
         if not pedido.id_venta or not pedido.ml_tipo:
             return 2
 
-    # Paso 3: Envío
+    # Paso 3: Envío / datos logísticos / etiqueta.
+    # APB: si falta transporte, tipo de entrega, datos de entrega o etiqueta,
+    # Completar carga debe caer directo en el módulo de envío, no en Cliente.
     if requiere_contacto_cliente(pedido):
         return 3
 
+    if not pedido.empresa_envio:
+        return 3
+
     if pedido.empresa_envio and not pedido.tipo_entrega:
+        return 3
+
+    if pedido.tipo_entrega == "Domicilio":
+        if not pedido.direccion or not pedido.localidad or not pedido.provincia or not pedido.codigo_postal:
+            return 3
+
+    if pedido.tipo_entrega == "Sucursal":
+        if not pedido.sucursal_nombre or not pedido.direccion or not pedido.localidad or not pedido.provincia:
+            return 3
+        if hay_autorizado(pedido) and (not pedido.autorizado_nombre or not pedido.autorizado_dni or not pedido.autorizado_telefono):
+            return 3
+
+    if pedido.empresa_envio in ["Andreani", "Correo Argentino"] and not pedido.etiqueta_archivo:
         return 3
 
     # Paso 4: Productos
@@ -1071,7 +1089,6 @@ def primer_paso_pendiente_carga(pedido):
         return 4
 
     return 1
-
 
 
 def accion_principal_pedido(pedido, origen="inicio"):
@@ -2091,13 +2108,18 @@ def tn_tipo_envio_visual(pedido):
     return pedido.empresa_envio or pedido.tn_shipping_option or "Pendiente"
 
 
+def tn_admin_base_url():
+    base = (os.getenv("TN_ADMIN_BASE_URL") or "https://fierro100argento.mitiendanube.com").strip()
+    return base.rstrip("/")
+
+
 def link_detalle_venta(pedido):
     if not pedido or not pedido.id_venta:
         return ""
     if pedido.canal == "Mercado Libre":
         return ml_link_detalle_venta(pedido)
     if pedido.canal == "Tienda Nube":
-        return f"https://www.tiendanube.com/admin/orders/{pedido.id_venta}"
+        return f"{tn_admin_base_url()}/admin/orders/{pedido.id_venta}"
     return ""
 
 
@@ -4301,6 +4323,7 @@ def inyectar_contexto_global():
         "tracking_info_pedido": tracking_info_pedido,
         "link_detalle_venta": link_detalle_venta,
         "tn_tipo_envio_visual": tn_tipo_envio_visual,
+        "tn_admin_base_url": tn_admin_base_url,
         "tn_pedido_bloqueado_cancelado": tn_pedido_bloqueado_cancelado,
         "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,
     }
@@ -5649,6 +5672,30 @@ def sync_mensajes_ml_pedido_admin(id):
         db.session.rollback()
         print(f"[ML-MSGS-MANUAL] Error pedido #{pedido.id}: {e}")
         return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo sincronizar mensajes ML: {e}"))
+
+
+@app.route("/pedido/<int:id>/resync-tn", methods=["POST"])
+@login_required
+def resync_tn_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+    if not puede_editar_pedido(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+    if pedido.canal != "Tienda Nube" or not pedido.tn_order_id:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No es un pedido de Tienda Nube."))
+
+    try:
+        _, accion = tn_importar_pedido_por_id(pedido.tn_order_id)
+        registrar_auditoria(
+            accion="Re-sincronizó pedido Tienda Nube",
+            entidad="pedido",
+            entidad_id=str(pedido.id),
+            detalle=f"Pedido TN {pedido.tn_order_id}. Resultado: {accion}",
+        )
+        db.session.commit()
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok=f"Pedido TN re-sincronizado ({accion})."))
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo re-sincronizar TN: {e}"))
 
 
 @app.route("/pedido/<int:id>/eliminar", methods=["POST"])

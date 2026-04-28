@@ -1752,3 +1752,26 @@ a.btn-danger:hover {
     color: #4d5a66;
     border: 1px solid #d4dbe4;
 }
+
+/* Edición rápida inline en resumen de pedido */
+.inline-edit-link {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0B4A5A;
+    text-decoration: underline;
+    vertical-align: baseline;
+}
+.inline-resync-form {
+    display: inline-block;
+    margin: 0 0 0 8px;
+    padding: 0;
+}
+.inline-button-link {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0;
+}
