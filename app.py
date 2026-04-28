@@ -5924,7 +5924,9 @@ def actualizar_andreani_pedido(id):
     if not (pedido.seguimiento or "").strip():
         return redirect(url_for("detalle_pedido", id=pedido.id, error="El pedido no tiene seguimiento Andreani cargado."))
     if not andreani_configurada():
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="Andreani no configurado. Cargá ANDREANI_CLIENT_ID, ANDREANI_CLIENT_SECRET y ANDREANI_BASE_URL en Render."))
+        # Andreani puede quedar instalado antes de cargar credenciales.
+        # No lo tratamos como error operativo ni mostramos banner rojo.
+        return redirect(url_for("detalle_pedido", id=pedido.id))
 
     try:
         resultado = andreani_trazas_envio(pedido.seguimiento)
@@ -6552,9 +6554,12 @@ def avanzar_pedido(id):
 
     mensaje_ok = texto_feedback_estado(pedido.estado)
 
+    # Si queda Embalado, mantener al operador dentro del detalle
+    # para continuar directo con el despacho. Aplica también a admin.
+    if pedido.estado == "Embalado":
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje_ok))
+
     if rol_actual() == "despacho":
-        if pedido.estado == "Embalado":
-            return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje_ok))
         return redirect(url_for("inicio", ok=mensaje_ok))
 
     if rol_actual() == "carga":
