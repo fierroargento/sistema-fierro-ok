@@ -170,7 +170,7 @@
 
     <div class="detalle-header">
         <div>
-            <h2>Pedido #{{ pedido.id }}{% if ml_pedido_tiene_chat_iniciado(pedido) %}<span title="Chat iniciado / contacto inicial enviado" style="margin-left:8px; font-size:18px;">💬</span>{% endif %}</h2>
+            <h2>Pedido #{{ pedido.id }}{% if pedido.canal == "Mercado Libre" and ml_pedido_tiene_chat_iniciado(pedido) %}<span title="Chat iniciado / contacto inicial enviado" style="margin-left:8px; font-size:18px;">💬</span>{% endif %}</h2>
             <p class="detalle-sub">{{ (pedido.cliente or "-")|upper }} | {{ pedido.canal or "-" }}</p>
         </div>
 
@@ -389,6 +389,32 @@
                 <tr><td><strong>Embalado</strong></td><td>{{ fecha_argentina(pedido.fecha_embalado).strftime("%d/%m/%Y %H:%M") if pedido.fecha_embalado else "-" }}</td></tr>
                 <tr><td><strong>Despachado</strong></td><td>{{ fecha_argentina(pedido.fecha_despachado).strftime("%d/%m/%Y %H:%M") if pedido.fecha_despachado else "-" }}</td></tr>
                 <tr><td><strong>Entregado</strong></td><td>{{ fecha_argentina(pedido.fecha_entregado).strftime("%d/%m/%Y %H:%M") if pedido.fecha_entregado else "-" }}</td></tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top:18px;">Historial de acciones</h3>
+        <table class="tabla-items" style="margin-top: 8px;">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Rol</th>
+                    <th>Acción</th>
+                    <th>Detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in auditorias_pedido %}
+                <tr>
+                    <td>{{ fecha_argentina(a.fecha).strftime("%d/%m/%Y %H:%M") if a.fecha else "-" }}</td>
+                    <td><strong>{{ a.nombre or a.username or "sistema" }}</strong></td>
+                    <td>{{ a.rol or "-" }}</td>
+                    <td>{{ a.accion }}</td>
+                    <td>{{ a.detalle or "-" }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">Todavía no hay acciones registradas para este pedido.</td></tr>
+                {% endfor %}
             </tbody>
         </table>
     </details>

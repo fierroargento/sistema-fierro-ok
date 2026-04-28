@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="panel-card">
+    <div class="page-header">
+        <div>
+            <h1>Auditoría</h1>
+            <p>Últimas acciones registradas del sistema.</p>
+        </div>
+    </div>
+
+    <div class="detalle-box detalle-box-full">
+        <table class="tabla-items">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Rol</th>
+                    <th>Acción</th>
+                    <th>Entidad</th>
+                    <th>Detalle</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in auditorias %}
+                <tr>
+                    <td>{{ fecha_argentina(a.fecha).strftime("%d/%m/%Y %H:%M") if a.fecha else "-" }}</td>
+                    <td><strong>{{ a.nombre or a.username or "sistema" }}</strong></td>
+                    <td>{{ a.rol or "-" }}</td>
+                    <td>{{ a.accion }}</td>
+                    <td>{{ (a.entidad or "-") ~ (" #" ~ a.entidad_id if a.entidad_id else "") }}</td>
+                    <td>{{ a.detalle or "-" }}</td>
+                    <td>{{ a.ip or "-" }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">Todavía no hay acciones registradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

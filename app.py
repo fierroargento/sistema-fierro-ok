@@ -19,6 +19,7 @@ from flask import Flask, request, redirect, render_template, url_for, jsonify, s
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text, inspect, or_
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 cloudinary.config(
@@ -43,11 +44,40 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 db = SQLAlchemy(app)
 
-USUARIOS = {
-    "admin": {"password": "admin123", "rol": "admin", "nombre": "Administrador"},
-    "carga": {"password": "carga123", "rol": "carga", "nombre": "Operador de Carga"},
-    "despacho": {"password": "despacho123", "rol": "despacho", "nombre": "Embalaje y Despacho"},
-}
+ROLES_SISTEMA = ["admin", "carga", "despacho"]
+
+
+
+class UsuarioSistema(db.Model):
+    __tablename__ = "usuario_sistema"
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    nombre = db.Column(db.String(120), nullable=False)
+    rol = db.Column(db.String(30), nullable=False, default="carga")
+    activo = db.Column(db.Boolean, default=True)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    creado_por = db.Column(db.String(80))
+    actualizado_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Auditoria(db.Model):
+    __tablename__ = "auditoria"
+
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer)
+    username = db.Column(db.String(80))
+    nombre = db.Column(db.String(120))
+    rol = db.Column(db.String(30))
+    accion = db.Column(db.String(120), nullable=False)
+    entidad = db.Column(db.String(80))
+    entidad_id = db.Column(db.String(80))
+    detalle = db.Column(db.Text)
+    fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    ip = db.Column(db.String(80))
+    metodo = db.Column(db.String(10))
+    path = db.Column(db.String(300))
 
 
 class Pedido(db.Model):
@@ -1368,17 +1398,38 @@ def es_guardado_parcial_acordas():
     )
 
 def usuario_actual():
+    user_id = session.get("user_id")
     username = session.get("username")
-    if not username:
+
+    usuario = None
+    if user_id:
+        usuario = UsuarioSistema.query.get(user_id)
+    elif username:
+        usuario = UsuarioSistema.query.filter_by(username=username).first()
+        if usuario:
+            session["user_id"] = usuario.id
+
+    if not usuario or not usuario.activo:
         return None
-    return USUARIOS.get(username)
+    return usuario
 
 
 def rol_actual():
     usuario = usuario_actual()
     if not usuario:
         return ""
-    return usuario["rol"]
+    return usuario.rol
+
+
+def admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not usuario_actual():
+            return redirect(url_for("login"))
+        if rol_actual() != "admin":
+            return redirect(url_for("inicio", error="No tenés permisos para esta acción."))
+        return fn(*args, **kwargs)
+    return wrapper
 
 
 def login_required(fn):
@@ -1388,6 +1439,92 @@ def login_required(fn):
             return redirect(url_for("login"))
         return fn(*args, **kwargs)
     return wrapper
+
+
+def registrar_auditoria(accion, entidad=None, entidad_id=None, detalle=None, usuario=None):
+    try:
+        usuario = usuario or usuario_actual()
+        aud = Auditoria(
+            usuario_id=getattr(usuario, "id", None) if usuario else None,
+            username=getattr(usuario, "username", None) if usuario else (session.get("username") or "sistema"),
+            nombre=getattr(usuario, "nombre", None) if usuario else None,
+            rol=getattr(usuario, "rol", None) if usuario else None,
+            accion=str(accion or "acción")[:120],
+            entidad=str(entidad or "")[:80] if entidad else None,
+            entidad_id=str(entidad_id or "")[:80] if entidad_id is not None else None,
+            detalle=str(detalle or "")[:2000] if detalle else None,
+            ip=(request.headers.get("X-Forwarded-For") or request.remote_addr or "")[:80] if request else None,
+            metodo=(request.method or "")[:10] if request else None,
+            path=(request.path or "")[:300] if request else None,
+        )
+        db.session.add(aud)
+        db.session.commit()
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        print("[AUDITORIA] No se pudo registrar:", e)
+
+
+ACCIONES_GET_AUDITADAS = {
+    "avanzar_pedido", "lanzar_impresion", "imprimir_etiqueta", "imprimir_etiqueta_interna",
+    "confirmar_entrega", "cerrar_ml", "test_tienda_nube", "sync_tienda_nube",
+    "registrar_webhooks_tienda_nube", "borrar_pedidos_tn_prueba", "ml_sync_manual",
+    "ml_borrar_prueba", "ml_reset_total", "ml_desconectar",
+}
+
+
+def es_accion_auditable():
+    endpoint = request.endpoint or ""
+    if endpoint in ["static", "login"]:
+        return False
+    if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+        return True
+    return endpoint in ACCIONES_GET_AUDITADAS
+
+
+@app.after_request
+def auditar_acciones(response):
+    try:
+        if response.status_code >= 400:
+            return response
+        if not usuario_actual():
+            return response
+        if not es_accion_auditable():
+            return response
+
+        endpoint = request.endpoint or "acción"
+        entidad = None
+        entidad_id = None
+        if request.view_args and "id" in request.view_args:
+            entidad = "pedido"
+            entidad_id = request.view_args.get("id")
+        elif "pedido_id" in request.form:
+            entidad = "pedido"
+            entidad_id = request.form.get("pedido_id")
+
+        acciones_legibles = {
+            "avanzar_pedido": "Avanzó estado del pedido",
+            "lanzar_impresion": "Lanzó impresión de etiqueta",
+            "imprimir_etiqueta": "Imprimió etiqueta",
+            "imprimir_etiqueta_interna": "Imprimió etiqueta interna",
+            "confirmar_entrega": "Avisó / confirmó entrega",
+            "cerrar_ml": "Cerró aviso Mercado Libre",
+            "sync_tienda_nube": "Sincronizó Tienda Nube",
+            "registrar_webhooks_tienda_nube": "Registró webhooks Tienda Nube",
+            "borrar_pedidos_tn_prueba": "Borró pedidos TN de prueba",
+            "ml_sync_manual": "Sincronizó Mercado Libre",
+            "ml_borrar_prueba": "Borró pedidos ML de prueba",
+            "ml_reset_total": "Reset total Mercado Libre",
+            "ml_desconectar": "Desconectó Mercado Libre",
+        }
+        accion = acciones_legibles.get(endpoint, endpoint.replace("_", " ").capitalize())
+        detalle = f"{request.method} {request.path}"
+        registrar_auditoria(accion, entidad=entidad, entidad_id=entidad_id, detalle=detalle)
+    except Exception as e:
+        print("[AUDITORIA] Error after_request:", e)
+    return response
 
 
 def estados_visibles_inicio():
@@ -4153,6 +4290,7 @@ def inyectar_contexto_global():
         "alertas_operativas": alertas_operativas,
         "semaforo_pedido": semaforo_pedido,
         "accion_principal_pedido": accion_principal_pedido,
+        "primer_paso_pendiente_carga": primer_paso_pendiente_carga,
         "ml_datos_apb_pedido": ml_datos_apb_pedido,
         "ml_link_detalle_venta": ml_link_detalle_venta,
         "ml_link_chat_venta": ml_link_chat_venta,
@@ -4178,13 +4316,29 @@ def login():
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         password = request.form.get("password") or ""
+        usuario = UsuarioSistema.query.filter_by(username=username).first()
 
-        usuario = USUARIOS.get(username)
-
-        if not usuario or usuario["password"] != password:
+        if not usuario or not usuario.activo or not check_password_hash(usuario.password_hash, password):
             error = "Usuario o contraseña incorrectos."
+            try:
+                aud = Auditoria(
+                    username=username or "sin_usuario",
+                    accion="Login fallido",
+                    entidad="usuario",
+                    entidad_id=username or "",
+                    detalle="Intento de ingreso rechazado",
+                    ip=(request.headers.get("X-Forwarded-For") or request.remote_addr or "")[:80],
+                    metodo=request.method,
+                    path=request.path,
+                )
+                db.session.add(aud)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
         else:
-            session["username"] = username
+            session["user_id"] = usuario.id
+            session["username"] = usuario.username
+            registrar_auditoria("Login correcto", entidad="usuario", entidad_id=usuario.id, detalle=f"Ingreso de {usuario.username}", usuario=usuario)
             return redirect(url_for("inicio"))
 
     return render_template("login.html", error=error)
@@ -4520,6 +4674,112 @@ def admin_productos():
         total_productos=total_productos,
         ultimos=ultimos
     )
+
+
+@app.route("/admin/usuarios")
+@login_required
+def admin_usuarios():
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    usuarios = UsuarioSistema.query.order_by(UsuarioSistema.activo.desc(), UsuarioSistema.rol.asc(), UsuarioSistema.username.asc()).all()
+    return render_template(
+        "admin_usuarios.html",
+        usuarios=usuarios,
+        roles=ROLES_SISTEMA,
+        ok_feedback=(request.args.get("ok") or "").strip(),
+        error=(request.args.get("error") or "").strip(),
+    )
+
+
+@app.route("/admin/usuarios/nuevo", methods=["POST"])
+@login_required
+def admin_usuario_nuevo():
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    username = (request.form.get("username") or "").strip()
+    nombre = (request.form.get("nombre") or "").strip()
+    rol = (request.form.get("rol") or "carga").strip()
+    password = request.form.get("password") or ""
+
+    if not username or not nombre or not password:
+        return redirect(url_for("admin_usuarios", error="Completá usuario, nombre y contraseña."))
+    if rol not in ROLES_SISTEMA:
+        return redirect(url_for("admin_usuarios", error="Rol inválido."))
+    if UsuarioSistema.query.filter_by(username=username).first():
+        return redirect(url_for("admin_usuarios", error="Ese usuario ya existe."))
+
+    creador = usuario_actual()
+    usuario = UsuarioSistema(
+        username=username,
+        nombre=nombre,
+        rol=rol,
+        password_hash=generate_password_hash(password),
+        activo=True,
+        creado_por=creador.username if creador else "admin",
+    )
+    db.session.add(usuario)
+    db.session.commit()
+    registrar_auditoria("Creó usuario", entidad="usuario", entidad_id=usuario.id, detalle=f"Usuario {username} / rol {rol}")
+    return redirect(url_for("admin_usuarios", ok="Usuario creado correctamente."))
+
+
+@app.route("/admin/usuarios/<int:id>/editar", methods=["POST"])
+@login_required
+def admin_usuario_editar(id):
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    usuario = UsuarioSistema.query.get_or_404(id)
+    nombre = (request.form.get("nombre") or "").strip()
+    rol = (request.form.get("rol") or "").strip()
+    password = request.form.get("password") or ""
+
+    if not nombre:
+        return redirect(url_for("admin_usuarios", error="El nombre no puede quedar vacío."))
+    if rol not in ROLES_SISTEMA:
+        return redirect(url_for("admin_usuarios", error="Rol inválido."))
+
+    antes = f"nombre={usuario.nombre}, rol={usuario.rol}, activo={usuario.activo}"
+    usuario.nombre = nombre
+    usuario.rol = rol
+    if password:
+        usuario.password_hash = generate_password_hash(password)
+        detalle_pass = " Contraseña actualizada."
+    else:
+        detalle_pass = ""
+    db.session.commit()
+    registrar_auditoria("Editó usuario", entidad="usuario", entidad_id=usuario.id, detalle=f"Antes: {antes}. Ahora: nombre={nombre}, rol={rol}.{detalle_pass}")
+    return redirect(url_for("admin_usuarios", ok="Usuario actualizado correctamente."))
+
+
+@app.route("/admin/usuarios/<int:id>/toggle", methods=["POST"])
+@login_required
+def admin_usuario_toggle(id):
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    usuario = UsuarioSistema.query.get_or_404(id)
+    actual = usuario_actual()
+    if actual and usuario.id == actual.id and usuario.activo:
+        return redirect(url_for("admin_usuarios", error="No podés desactivar tu propio usuario."))
+
+    usuario.activo = not usuario.activo
+    db.session.commit()
+    estado = "activado" if usuario.activo else "desactivado"
+    registrar_auditoria("Activó/desactivó usuario", entidad="usuario", entidad_id=usuario.id, detalle=f"Usuario {usuario.username} {estado}")
+    return redirect(url_for("admin_usuarios", ok=f"Usuario {estado} correctamente."))
+
+
+@app.route("/admin/auditoria")
+@login_required
+def admin_auditoria():
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    auditorias = Auditoria.query.order_by(Auditoria.fecha.desc()).limit(300).all()
+    return render_template("admin_auditoria.html", auditorias=auditorias, ok_feedback="", error="")
 
 
 @app.route("/admin/integraciones")
@@ -4936,6 +5196,11 @@ def ver_etiqueta(nombre_archivo):
 @app.route("/pedido/<path:nombre_archivo>")
 @login_required
 def ver_archivo_pedido_sin_id_compat(nombre_archivo):
+    # APB: si por precedencia de rutas entra un ID numérico acá, redirigimos al detalle real.
+    # Evita que /pedido/243 sea tratado como archivo.
+    if str(nombre_archivo or "").strip().isdigit():
+        return redirect(url_for("detalle_pedido", id=int(str(nombre_archivo).strip())))
+
     # Compatibilidad con links relativos viejos tipo /pedido/ml_xxx.pdf.
     # Busca el pedido que tenga ese nombre de etiqueta y redirige al link seguro con ID.
     archivo = os.path.basename(str(nombre_archivo or ""))
@@ -5300,6 +5565,10 @@ def detalle_pedido(id):
                 db.session.rollback()
                 print(f"[ML-DETALLE] Error guardando sync ML pedido #{pedido.id}: {e}")
 
+    auditorias_pedido = []
+    if rol_actual() == "admin":
+        auditorias_pedido = Auditoria.query.filter_by(entidad="pedido", entidad_id=str(pedido.id)).order_by(Auditoria.fecha.desc()).limit(50).all()
+
     return render_template(
         "detalle_pedido.html",
         pedido=pedido,
@@ -5309,7 +5578,8 @@ def detalle_pedido(id):
         texto_boton=texto_boton_estado(pedido),
         hay_autorizado=hay_autorizado,
         puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-        whatsapp_url=whatsapp_link_pedido(pedido)
+        whatsapp_url=whatsapp_link_pedido(pedido),
+        auditorias_pedido=auditorias_pedido
     )
 
 
@@ -5996,9 +6266,33 @@ def avanzar_pedido(id):
     return redirect(url_for("inicio", ok=mensaje_ok))
 
 
+
+def asegurar_usuarios_iniciales():
+    if UsuarioSistema.query.count() > 0:
+        return
+
+    usuarios_base = [
+        ("admin", "admin123", "admin", "Administrador"),
+        ("carga", "carga123", "carga", "Operador de Carga"),
+        ("despacho", "despacho123", "despacho", "Embalaje y Despacho"),
+    ]
+    for username, password, rol, nombre in usuarios_base:
+        db.session.add(UsuarioSistema(
+            username=username,
+            password_hash=generate_password_hash(password),
+            rol=rol,
+            nombre=nombre,
+            activo=True,
+            creado_por="sistema",
+        ))
+    db.session.commit()
+
+
+
 with app.app_context():
     db.create_all()
     
     asegurar_columnas_extra()
     asegurar_columnas_integracion_ml()
     asegurar_columnas_integracion_tn()
+    asegurar_usuarios_iniciales()

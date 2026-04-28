@@ -1709,3 +1709,46 @@ a.btn-danger:hover {
   align-items: center;
   flex-wrap: wrap;
 }
+
+/* Seguridad / usuarios */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+.form-grid label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+.form-grid input,
+.form-grid select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccd5df;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    background: #fff;
+}
+.form-grid-compact {
+    grid-template-columns: minmax(150px, 1fr) minmax(120px, 150px) minmax(180px, 1fr) auto;
+    gap: 8px;
+}
+.badge-estado {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 0.8rem;
+}
+.badge-verde {
+    background: #dff9eb;
+    color: #086a3a;
+    border: 1px solid #9ee6c0;
+}
+.badge-gris {
+    background: #eef1f5;
+    color: #4d5a66;
+    border: 1px solid #d4dbe4;
+}
