@@ -598,7 +598,11 @@ def whatsapp_link_pedido(pedido):
     if not numero:
         return ""
 
-    mensaje = f"Hola {pedido.cliente or ''}, te escribimos de Fierro por tu pedido #{pedido.id}."
+    mensaje = (
+        "Hola! 👋 Soy Ezequiel de Fierro 100% Argento.\n\n"
+        "Gracias por tu compra 🙌\n"
+        "Te escribo por acá para avanzar con el despacho 👍"
+    )
     from urllib.parse import quote
     return f"https://wa.me/{numero}?text={quote(mensaje)}"
 
@@ -628,14 +632,109 @@ def whatsapp_link_confirmar_entrega(pedido):
     if not numero:
         return ""
 
+    sucursal = (pedido.sucursal_nombre or pedido.direccion or "a confirmar").strip()
+    seguimiento = (pedido.seguimiento or pedido.tn_tracking_number or "no disponible").strip()
+
     mensaje = (
-        f"Hola {pedido.cliente or ''}, te escribimos de Fierro por tu pedido #{pedido.id}. "
-        f"Tu compra ya está disponible para retirar en sucursal. "
-        f"Cuando la retires, por favor avisame así cerramos la entrega. ¡Gracias!"
+        f"Hola {pedido.cliente or ''}, te escribimos de Fierro por tu pedido #{pedido.id}.\n\n"
+        "Tu compra ya está disponible para retirar en sucursal 📦\n\n"
+        f"📍 Sucursal: {sucursal}\n"
+        f"🔎 Seguimiento: {seguimiento}\n\n"
+        "⚠️ Tenés 5 días para retirarlo antes de que vuelva a origen.\n\n"
+        "Cuando lo retires, por favor avisame así cerramos la entrega 👍"
     )
 
     from urllib.parse import quote
     return f"https://wa.me/{numero}?text={quote(mensaje)}"
+
+
+def whatsapp_link_despachado(pedido):
+    numero = normalizar_telefono(pedido.telefono)
+    if not numero:
+        return ""
+
+    tracking_info = tracking_info_pedido(pedido)
+    seguimiento = (
+        getattr(pedido, "seguimiento", None)
+        or getattr(pedido, "tn_tracking_number", None)
+        or (tracking_info or {}).get("seguimiento")
+        or "no disponible"
+    )
+    link_tracking = (tracking_info or {}).get("url") or ""
+
+    mensaje = (
+        "Hola! 🙌\n\n"
+        "Tu pedido ya fue despachado 🚚\n\n"
+        f"🔎 Seguimiento: {seguimiento}\n"
+        "📦 Podés seguirlo acá:\n"
+        f"{link_tracking}\n\n"
+        "Cualquier duda estoy por acá 👍"
+    )
+
+    from urllib.parse import quote
+    return f"https://wa.me/{numero}?text={quote(mensaje)}"
+
+
+def pedido_tiene_parrilla(pedido):
+    for item in (pedido.items or []):
+        texto = f"{item.sku or ''} {item.descripcion or ''}".lower()
+        if "parrilla" in texto:
+            return True
+    return False
+
+
+def whatsapp_link_postventa(pedido):
+    numero = normalizar_telefono(pedido.telefono)
+    if not numero:
+        return ""
+
+    if pedido_tiene_parrilla(pedido):
+        mensaje = (
+            "Buenas! 👋\n\n"
+            "Vimos que ya recibiste tu parrilla 🙌\n"
+            "Esperamos haber cumplido con tus expectativas, ¡gracias por confiar en nosotros!\n\n"
+            "Te dejamos algunos tips para que te dure muchos años 🔥:\n\n"
+            "• Evitá “quemarla” a fuego directo, ese calor puede doblar las varillas.\n"
+            "• Limpiala con un cepillo mientras está caliente, justo después de usarla.\n"
+            "• Usá la grasa del asado para pasarle y “curarla”; ayuda a evitar el óxido.\n"
+            "• Si queda al aire libre, podés pasarle aceite comestible con una esponja.\n\n"
+            "Si tenés alguna duda con el uso, escribinos 👍\n\n"
+            "Gracias nuevamente 💪\n"
+            "Y si querés, seguinos en Instagram para ver lo nuevo que vamos sumando 👇\n"
+            "https://www.instagram.com/fierroargento"
+        )
+    else:
+        mensaje = (
+            "Buenas! 👋\n\n"
+            "Vimos que ya recibiste tu compra 🙌\n"
+            "Esperamos haber cumplido con tus expectativas, ¡gracias por confiar en nosotros!\n\n"
+            "Si tenés alguna duda con el producto, escribinos y te ayudamos 👍\n\n"
+            "Gracias nuevamente 💪\n"
+            "Y si querés, seguinos en Instagram para ver lo nuevo que vamos sumando 👇\n"
+            "https://www.instagram.com/fierroargento"
+        )
+
+    from urllib.parse import quote
+    return f"https://wa.me/{numero}?text={quote(mensaje)}"
+
+
+def puede_avisar_despacho_whatsapp(pedido):
+    return bool(
+        pedido
+        and pedido.estado == "Despachado"
+        and pedido.canal == "Mercado Libre"
+        and pedido.ml_tipo == "Acordás la Entrega"
+        and normalizar_telefono(pedido.telefono)
+        and tracking_info_pedido(pedido)
+    )
+
+
+def puede_enviar_postventa_whatsapp(pedido):
+    return bool(
+        pedido
+        and pedido.estado == "Entregado"
+        and normalizar_telefono(pedido.telefono)
+    )
 
 def es_mercado_envios(pedido):
     return pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos"
@@ -4516,6 +4615,11 @@ def inyectar_contexto_global():
         "puede_imprimir_pedido": puede_imprimir_pedido,
         "puede_contactar_cliente": puede_contactar_cliente,
         "whatsapp_link_pedido": whatsapp_link_pedido,
+        "whatsapp_link_despachado": whatsapp_link_despachado,
+        "whatsapp_link_confirmar_entrega": whatsapp_link_confirmar_entrega,
+        "whatsapp_link_postventa": whatsapp_link_postventa,
+        "puede_avisar_despacho_whatsapp": puede_avisar_despacho_whatsapp,
+        "puede_enviar_postventa_whatsapp": puede_enviar_postventa_whatsapp,
         "requiere_contacto_cliente": requiere_contacto_cliente,
         "requiere_cargar_seguimiento": requiere_cargar_seguimiento,
         "tiempo_transcurrido": tiempo_transcurrido,
@@ -6199,6 +6303,42 @@ def editar_pedido(id):
         items_texto=items_a_texto(pedido),
         error=""
     )
+
+@app.route("/pedido/<int:id>/avisar-despacho-whatsapp")
+@login_required
+def avisar_despacho_whatsapp(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido):
+        return redirect(url_for("inicio"))
+
+    if not puede_avisar_despacho_whatsapp(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    whatsapp_url = whatsapp_link_despachado(pedido)
+    if whatsapp_url:
+        return redirect(whatsapp_url)
+
+    return redirect(url_for("detalle_pedido", id=pedido.id))
+
+
+@app.route("/pedido/<int:id>/postventa-whatsapp")
+@login_required
+def postventa_whatsapp(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido):
+        return redirect(url_for("inicio"))
+
+    if not puede_enviar_postventa_whatsapp(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    whatsapp_url = whatsapp_link_postventa(pedido)
+    if whatsapp_url:
+        return redirect(whatsapp_url)
+
+    return redirect(url_for("detalle_pedido", id=pedido.id))
+
 
 @app.route("/pedido/<int:id>/confirmar-entrega")
 @login_required

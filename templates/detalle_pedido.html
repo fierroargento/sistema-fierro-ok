@@ -534,6 +534,18 @@
             {% endif %}
         {% endif %}
 
+        {% if puede_avisar_despacho_whatsapp(pedido) %}
+        <a href="{{ url_for('avisar_despacho_whatsapp', id=pedido.id) }}" class="btn btn-secundario" onclick="return abrirWhatsappYRecargar(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
+            Avisar cliente despacho
+        </a>
+        {% endif %}
+
+        {% if puede_enviar_postventa_whatsapp(pedido) %}
+        <a href="{{ url_for('postventa_whatsapp', id=pedido.id) }}" class="btn btn-secundario" onclick="return abrirWhatsappYRecargar(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
+            Mensaje postventa
+        </a>
+        {% endif %}
+
         {% if puede_editar_pedido(pedido) and pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Con reclamo en transporte', 'Con demora de entrega'] %}
         <a href="{{ url_for('editar_pedido', id=pedido.id, modo='reclamos') }}" class="btn btn-secundario">
             {% if pedido.numero_reclamo or pedido.observacion_reclamo or pedido.motivo_no_entregado %}
