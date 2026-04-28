@@ -1993,45 +1993,82 @@ def tn_pedido_cancelado(order):
 
 
 def tn_extraer_tracking(order):
-    """Extrae tracking TN de forma defensiva. TN puede devolverlo en distintos nodos."""
+    """Extrae tracking TN de forma defensiva y evita confundirlo con numero de orden.
+
+    Caso real detectado: Tienda Nube puede traer campos genericos como `number`
+    dentro de shipping/fulfillment. Ese `number` puede ser el numero de pedido o
+    paquete (ej. 319) y NO el seguimiento real. Por eso solo aceptamos claves
+    explicitamente relacionadas con tracking/seguimiento y descartamos valores
+    iguales al id/numero de orden o demasiado cortos.
+    """
     candidatos = []
 
-    def agregar_desde_dict(d):
-        if not isinstance(d, dict):
-            return
-        numero = (
-            d.get("tracking_number")
-            or d.get("tracking_code")
-            or d.get("tracking")
-            or d.get("tracking_id")
-            or d.get("number")
-            or ""
-        )
-        url = (
-            d.get("tracking_url")
-            or d.get("tracking_link")
-            or d.get("tracking_page")
-            or d.get("url")
-            or ""
-        )
+    order_id = str(order.get("id") or "").strip()
+    order_number = str(order.get("number") or order.get("order_number") or "").strip()
+
+    claves_numero = {
+        "tracking_number", "tracking_code", "tracking", "tracking_id",
+        "shipping_tracking_number", "shipping_tracking_code", "shipping_tracking",
+        "shipment_tracking_number", "shipment_tracking_code",
+        "tracking_codes", "tracking_numbers", "code_tracking",
+        "codigo_seguimiento", "numero_seguimiento", "nro_seguimiento",
+    }
+    claves_url = {
+        "tracking_url", "tracking_link", "tracking_page", "tracking_url_public",
+        "shipping_tracking_url", "shipment_tracking_url",
+    }
+
+    def valor_valido(numero):
+        numero = str(numero or "").strip()
+        if not numero:
+            return ""
+        if numero in {order_id, order_number}:
+            return ""
+        if numero.isdigit() and len(numero) < 8:
+            return ""
+        return numero
+
+    def agregar(numero="", url=""):
+        numero = valor_valido(numero)
+        url = str(url or "").strip()
         if numero or url:
-            candidatos.append((str(numero or "").strip(), str(url or "").strip()))
+            candidatos.append((numero, url))
 
-    agregar_desde_dict(order)
-    agregar_desde_dict(order.get("shipping") if isinstance(order.get("shipping"), dict) else {})
-    agregar_desde_dict(order.get("fulfillment") if isinstance(order.get("fulfillment"), dict) else {})
+    def recorrer(obj):
+        if isinstance(obj, dict):
+            numero = ""
+            url = ""
+            for k, v in obj.items():
+                kl = str(k).lower().strip()
+                if kl in claves_numero:
+                    if isinstance(v, list):
+                        for item in v:
+                            agregar(item, "")
+                    elif isinstance(v, dict):
+                        recorrer(v)
+                    else:
+                        numero = numero or str(v or "").strip()
+                elif kl in claves_url:
+                    url = url or str(v or "").strip()
+            agregar(numero, url)
+            for v in obj.values():
+                if isinstance(v, (dict, list)):
+                    recorrer(v)
+        elif isinstance(obj, list):
+            for item in obj:
+                recorrer(item)
 
-    for key in ("fulfillments", "fulfillment_orders", "shipments"):
-        lista = order.get(key)
-        if isinstance(lista, list):
-            for item in lista:
-                agregar_desde_dict(item)
+    recorrer(order)
+
+    con_numero = [(n, u) for n, u in candidatos if n]
+    if con_numero:
+        con_numero.sort(key=lambda par: (len(par[0]), any(c.isalpha() for c in par[0])), reverse=True)
+        return con_numero[0]
 
     for numero, url in candidatos:
-        if numero or url:
+        if url:
             return numero, url
     return "", ""
-
 
 def tn_marcar_cancelado_existente(pedido, order):
     if not pedido:

@@ -225,6 +225,16 @@
     </div>
     {% endif %}
 
+    {% if pedido.canal == "Tienda Nube" and rol_actual in ["admin", "carga"] %}
+    <div style="margin: 8px 0 14px 0; display:flex; gap:8px; flex-wrap:wrap;">
+        <form method="POST" action="{{ url_for('resync_tn_pedido', id=pedido.id) }}" style="display:inline-block;">
+            <button type="submit" class="btn btn-secundario" style="padding: 7px 12px; font-size: 0.82rem;">
+                🔄 Re-sincronizar TNube
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
     <div class="detalle-grid-resumen">
 
         <div class="detalle-box">
@@ -299,11 +309,6 @@
                        {% if tracking_info.copiar %}data-seguimiento="{{ tracking_info.seguimiento }}" onclick="return abrirTrackingConCopia(event, this)"{% endif %}>
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7.5 12 3l9 4.5-9 4.5L3 7.5Z"></path><path d="M3 7.5V16l9 5 9-5V7.5"></path><path d="M12 12v9"></path><path d="M15.5 12.5H21"></path><path d="M18.7 9.8 21.4 12.5 18.7 15.2"></path></svg>
                     </a>
-                {% endif %}
-                {% if pedido.canal == "Tienda Nube" and puede_editar_pedido(pedido) %}
-                    <form method="POST" action="{{ url_for('resync_tn_pedido', id=pedido.id) }}" class="inline-resync-form">
-                        <button type="submit" class="inline-edit-link inline-button-link">re-sync</button>
-                    </form>
                 {% endif %}
             </p>
             {% endif %}
