@@ -232,6 +232,19 @@
     </div>
     {% endif %}
 
+    {% if es_andreani_pedido(pedido) and pedido.seguimiento and rol_actual in ["admin", "carga"] %}
+    <div style="margin: 8px 0 14px 0; display:flex; gap:8px; flex-wrap:wrap;">
+        <form method="POST" action="{{ url_for('actualizar_andreani_pedido', id=pedido.id) }}" style="display:inline-block;">
+            <button type="submit" class="btn btn-secundario" style="padding: 7px 12px; font-size: 0.82rem;">
+                🔄 Actualizar estado Andreani
+            </button>
+        </form>
+        {% if not andreani_configurada() %}
+        <span style="font-size:0.82rem; color:#8a5a00; align-self:center;">Andreani sin credenciales configuradas</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="detalle-grid-resumen">
 
         <div class="detalle-box">
@@ -308,6 +321,19 @@
                     </a>
                 {% endif %}
             </p>
+            {% endif %}
+            {% if es_andreani_pedido(pedido) %}
+                {% set alerta_andreani = andreani_alerta_pedido(pedido) %}
+                <div style="margin-top:8px; padding:8px 10px; border-radius:10px; background:#f8fafc; border:1px solid #e5e7eb; font-size:0.86rem;">
+                    <p style="margin:0 0 4px 0;"><strong>Estado Andreani:</strong> {{ pedido.andreani_estado or "Sin sincronizar" }}</p>
+                    <p style="margin:0 0 4px 0;"><strong>Última sync Andreani:</strong> {{ fecha_argentina(pedido.andreani_ultima_sync) if pedido.andreani_ultima_sync else "-" }}</p>
+                    {% if andreani_texto_ultimo_evento(pedido) %}
+                    <p style="margin:0 0 4px 0;"><strong>Último evento:</strong> {{ andreani_texto_ultimo_evento(pedido) }}</p>
+                    {% endif %}
+                    {% if alerta_andreani %}
+                    <p style="margin:4px 0 0 0; font-weight:700; color:{% if alerta_andreani.tipo == 'roja' %}#b91c1c{% elif alerta_andreani.tipo == 'verde' %}#15803d{% else %}#a16207{% endif %};">{{ alerta_andreani.texto }}</p>
+                    {% endif %}
+                </div>
             {% endif %}
             {% if pedido.canal == "Mayorista" %}
             <p><strong>Comprobante DUX:</strong>

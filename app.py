@@ -20,6 +20,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text, inspect, or_
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+from services.andreani import andreani_configurada, andreani_trazas_envio, resumen_evento_andreani
 
 app = Flask(__name__)
 cloudinary.config(
@@ -161,6 +162,9 @@ class Pedido(db.Model):
     autorizado_telefono = db.Column(db.String(30))
 
     seguimiento = db.Column(db.String(100))
+    andreani_estado = db.Column(db.String(200))
+    andreani_ultima_sync = db.Column(db.DateTime)
+    andreani_eventos_json = db.Column(db.Text)
     etiqueta_archivo = db.Column(db.String(255))
     estado = db.Column(db.String(50), default="Cargando Pedido")
 
@@ -289,6 +293,9 @@ def asegurar_columna_item_si_no_existe(nombre_columna, definicion_sql):
 
 def asegurar_columnas_extra():
     asegurar_columna_si_no_existe("etiqueta_archivo", "VARCHAR(255)")
+    asegurar_columna_si_no_existe("andreani_estado", "VARCHAR(200)")
+    asegurar_columna_si_no_existe("andreani_ultima_sync", "TIMESTAMP")
+    asegurar_columna_si_no_existe("andreani_eventos_json", "TEXT")
     asegurar_columna_si_no_existe("sucursal_nombre", "VARCHAR(150)")
     asegurar_columna_si_no_existe("autorizado_nombre", "VARCHAR(120)")
     asegurar_columna_si_no_existe("autorizado_dni", "VARCHAR(20)")
@@ -1321,6 +1328,7 @@ def alertas_operativas():
     sin_despachar = 0
     sin_carga = 0
     seguimiento = 0
+    andreani_alertas = 0
     reclamos_sin_revision = 0
 
     for pedido in pedidos:
@@ -1337,6 +1345,10 @@ def alertas_operativas():
             ref = pedido.fecha_despachado or fecha_referencia_estado(pedido)
             if ref and (ahora - ref).total_seconds() >= 72 * 3600:
                 seguimiento += 1
+
+        if es_andreani_pedido(pedido) and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado"]:
+            if andreani_alerta_pedido(pedido):
+                andreani_alertas += 1
 
         if pedido.estado == "Con reclamo en transporte":
             ref_reclamo = pedido.ultima_revision_reclamo or pedido.fecha_hora_reclamo
@@ -1360,6 +1372,9 @@ def alertas_operativas():
         # APB: se elimina la alerta global de carga incompleta porque molesta y no aporta prioridad real.
         if seguimiento:
             alertas.append({"tipo": "amarilla", "texto": f"{seguimiento} pedidos para seguimiento logístico (72 hs)"})
+
+        if andreani_alertas:
+            alertas.append({"tipo": "amarilla", "texto": f"{andreani_alertas} pedidos Andreani requieren revisión de tracking"})
 
         if reclamos_sin_revision:
             alertas.append({"tipo": "roja", "texto": f"{reclamos_sin_revision} pedidos con reclamo sin revisar desde hace más de 24 hs"})
@@ -3028,6 +3043,77 @@ def ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info=None):
     pedido.ml_mensaje_contacto = generar_mensaje_contacto_ml(pedido) if faltantes else ""
 
 
+
+def es_andreani_pedido(pedido):
+    transporte = str(getattr(pedido, "empresa_envio", "") or "").strip().lower()
+    return "andreani" in transporte
+
+
+def andreani_eventos_pedido(pedido):
+    raw = str(getattr(pedido, "andreani_eventos_json", "") or "").strip()
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            eventos = data.get("eventos") or []
+        else:
+            eventos = data
+        return eventos if isinstance(eventos, list) else []
+    except Exception:
+        return []
+
+
+def andreani_ultimo_evento_pedido(pedido):
+    eventos = andreani_eventos_pedido(pedido)
+    eventos_validos = [e for e in eventos if isinstance(e, dict)]
+    if not eventos_validos:
+        return None
+    def clave(ev):
+        return str(ev.get("Fecha") or ev.get("fecha") or ev.get("fechaEstado") or "")
+    return sorted(eventos_validos, key=clave)[-1]
+
+
+def andreani_texto_ultimo_evento(pedido):
+    evento = andreani_ultimo_evento_pedido(pedido)
+    if not evento:
+        return ""
+    return resumen_evento_andreani(evento)
+
+
+def andreani_fecha_ultimo_evento(pedido):
+    evento = andreani_ultimo_evento_pedido(pedido)
+    if not isinstance(evento, dict):
+        return None
+    valor = str(evento.get("Fecha") or evento.get("fecha") or evento.get("fechaEstado") or "").strip()
+    if not valor:
+        return None
+    try:
+        return datetime.fromisoformat(valor.replace("Z", "+00:00").replace("+00:00", ""))
+    except Exception:
+        return None
+
+
+def andreani_alerta_pedido(pedido):
+    if not pedido or not es_andreani_pedido(pedido):
+        return None
+    texto = " ".join([
+        str(getattr(pedido, "andreani_estado", "") or ""),
+        andreani_texto_ultimo_evento(pedido),
+    ]).lower()
+    if any(x in texto for x in ["no entreg", "fallid", "rechaz", "devol", "incid", "siniestr"]):
+        return {"tipo": "roja", "texto": "Andreani informa incidencia/no entrega. Revisar y gestionar."}
+    if "entreg" in texto and "no entreg" not in texto:
+        return {"tipo": "verde", "texto": "Andreani informa entregado. Confirmar y marcar Entregado si corresponde."}
+    fecha = andreani_fecha_ultimo_evento(pedido) or getattr(pedido, "andreani_ultima_sync", None)
+    if fecha:
+        horas = (datetime.utcnow() - fecha).total_seconds() / 3600
+        if horas >= 96:
+            return {"tipo": "roja", "texto": "Andreani sin movimientos recientes hace más de 96 hs."}
+        if horas >= 72:
+            return {"tipo": "amarilla", "texto": "Andreani sin movimientos recientes hace más de 72 hs."}
+    return None
+
 def tracking_info_pedido(pedido):
     """Devuelve acceso rapido al seguimiento del pedido.
 
@@ -4450,6 +4536,10 @@ def inyectar_contexto_global():
         "tn_tipo_envio_visual": tn_tipo_envio_visual,
         "tn_admin_base_url": tn_admin_base_url,
         "tn_pedido_bloqueado_cancelado": tn_pedido_bloqueado_cancelado,
+        "es_andreani_pedido": es_andreani_pedido,
+        "andreani_configurada": andreani_configurada,
+        "andreani_texto_ultimo_evento": andreani_texto_ultimo_evento,
+        "andreani_alerta_pedido": andreani_alerta_pedido,
         "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,
     }
 
@@ -5821,6 +5911,41 @@ def resync_tn_pedido(id):
     except Exception as e:
         db.session.rollback()
         return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo re-sincronizar TN: {e}"))
+
+
+@app.route("/pedido/<int:id>/actualizar-andreani", methods=["POST"])
+@login_required
+def actualizar_andreani_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+    if rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+    if not es_andreani_pedido(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="El pedido no es de Andreani."))
+    if not (pedido.seguimiento or "").strip():
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="El pedido no tiene seguimiento Andreani cargado."))
+    if not andreani_configurada():
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="Andreani no configurado. Cargá ANDREANI_CLIENT_ID, ANDREANI_CLIENT_SECRET y ANDREANI_BASE_URL en Render."))
+
+    try:
+        resultado = andreani_trazas_envio(pedido.seguimiento)
+        eventos = resultado.get("eventos") or []
+        ultimo = resultado.get("ultimo_evento") or {}
+        pedido.andreani_estado = resumen_evento_andreani(ultimo)[:200] if ultimo else "Sin eventos"
+        pedido.andreani_eventos_json = json.dumps({"eventos": eventos}, ensure_ascii=False, default=str)
+        pedido.andreani_ultima_sync = datetime.utcnow()
+        registrar_auditoria(
+            accion="Actualizó estado Andreani",
+            entidad="pedido",
+            entidad_id=str(pedido.id),
+            detalle=f"Seguimiento {pedido.seguimiento}. Estado: {pedido.andreani_estado}",
+        )
+        db.session.commit()
+        alerta = andreani_alerta_pedido(pedido)
+        extra = f" {alerta['texto']}" if alerta else ""
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok=f"Andreani actualizado: {pedido.andreani_estado}.{extra}"))
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo actualizar Andreani: {e}"))
 
 
 @app.route("/pedido/<int:id>/eliminar", methods=["POST"])
