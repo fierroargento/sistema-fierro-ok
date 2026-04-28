@@ -596,7 +596,7 @@ def normalizar_telefono(raw):
 def generar_link_whatsapp(numero, mensaje):
     """Genera links de WhatsApp con codificación UTF-8 segura.
 
-    Centralizamos el armado del link para evitar caracteres rotos en emojis,
+    Centralizamos el armado del link para evitar caracteres rotos,
     acentos y saltos de línea.
     """
     from urllib.parse import urlencode, quote
@@ -614,9 +614,9 @@ def whatsapp_link_pedido(pedido):
         return ""
 
     mensaje = (
-        "Hola! 👋 Soy Ezequiel de Fierro 100% Argento.\n\n"
-        "Gracias por tu compra 🙌\n"
-        "Te escribo por acá para avanzar con el despacho 👍"
+        "Hola! Soy Ezequiel de Fierro 100% Argento.\n\n"
+        "Gracias por tu compra.\n"
+        "Te escribo por acá para avanzar con el despacho."
     )
     return generar_link_whatsapp(numero, mensaje)
 
@@ -651,11 +651,11 @@ def whatsapp_link_confirmar_entrega(pedido):
 
     mensaje = (
         f"Hola {pedido.cliente or ''}, te escribimos de Fierro por tu pedido #{pedido.id}.\n\n"
-        "Tu compra ya está disponible para retirar en sucursal 📦\n\n"
-        f"📍 Sucursal: {sucursal}\n"
-        f"🔎 Seguimiento: {seguimiento}\n\n"
-        "⚠️ Tenés 5 días para retirarlo antes de que vuelva a origen.\n\n"
-        "Cuando lo retires, por favor avisame así cerramos la entrega 👍"
+        "Tu compra ya está disponible para retirar en sucursal.\n\n"
+        f"Sucursal: {sucursal}\n"
+        f"Seguimiento: {seguimiento}\n\n"
+        "Tenés 5 días para retirarlo antes de que vuelva a origen.\n\n"
+        "Cuando lo retires, por favor avisame así cerramos la entrega."
     )
 
     return generar_link_whatsapp(numero, mensaje)
@@ -676,12 +676,12 @@ def whatsapp_link_despachado(pedido):
     link_tracking = (tracking_info or {}).get("url") or ""
 
     mensaje = (
-        "Hola! 🙌\n\n"
-        "Tu pedido ya fue despachado 🚚\n\n"
-        f"🔎 Seguimiento: {seguimiento}\n"
-        "📦 Podés seguirlo acá:\n"
+        "Hola!\n\n"
+        "Tu pedido ya fue despachado.\n\n"
+        f"Seguimiento: {seguimiento}\n"
+        "Podés seguirlo acá:\n"
         f"{link_tracking}\n\n"
-        "Cualquier duda estoy por acá 👍"
+        "Cualquier duda estoy por acá."
     )
 
     return generar_link_whatsapp(numero, mensaje)
@@ -702,27 +702,27 @@ def whatsapp_link_postventa(pedido):
 
     if pedido_tiene_parrilla(pedido):
         mensaje = (
-            "Buenas! 👋\n\n"
-            "Vimos que ya recibiste tu parrilla 🙌\n"
+            "Buenas!\n\n"
+            "Vimos que ya recibiste tu parrilla.\n"
             "Esperamos haber cumplido con tus expectativas, ¡gracias por confiar en nosotros!\n\n"
-            "Te dejamos algunos tips para que te dure muchos años 🔥:\n\n"
+            "Te dejamos algunos tips para que te dure muchos años:\n\n"
             "• Evitá “quemarla” a fuego directo, ese calor puede doblar las varillas.\n"
             "• Limpiala con un cepillo mientras está caliente, justo después de usarla.\n"
             "• Usá la grasa del asado para pasarle y “curarla”; ayuda a evitar el óxido.\n"
             "• Si queda al aire libre, podés pasarle aceite comestible con una esponja.\n\n"
-            "Si tenés alguna duda con el uso, escribinos 👍\n\n"
-            "Gracias nuevamente 💪\n"
-            "Y si querés, seguinos en Instagram para ver lo nuevo que vamos sumando 👇\n"
+            "Si tenés alguna duda con el uso, escribinos.\n\n"
+            "Gracias nuevamente.\n"
+            "Y si querés, seguinos en Instagram para ver lo nuevo que vamos sumando:\n"
             "https://www.instagram.com/fierroargento"
         )
     else:
         mensaje = (
-            "Buenas! 👋\n\n"
-            "Vimos que ya recibiste tu compra 🙌\n"
+            "Buenas!\n\n"
+            "Vimos que ya recibiste tu compra.\n"
             "Esperamos haber cumplido con tus expectativas, ¡gracias por confiar en nosotros!\n\n"
-            "Si tenés alguna duda con el producto, escribinos y te ayudamos 👍\n\n"
-            "Gracias nuevamente 💪\n"
-            "Y si querés, seguinos en Instagram para ver lo nuevo que vamos sumando 👇\n"
+            "Si tenés alguna duda con el producto, escribinos y te ayudamos.\n\n"
+            "Gracias nuevamente.\n"
+            "Y si querés, seguinos en Instagram para ver lo nuevo que vamos sumando:\n"
             "https://www.instagram.com/fierroargento"
         )
 
