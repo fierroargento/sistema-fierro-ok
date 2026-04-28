@@ -758,6 +758,9 @@ def aplicar_estado_y_fechas(pedido, nuevo_estado):
 def motor_bloqueo(pedido):
     errores = []
 
+    if tn_pedido_bloqueado_cancelado(pedido):
+        errores.append("NO DESPACHAR - Pedido cancelado en Tienda Nube.")
+
     if not pedido.cliente:
         errores.append("Falta cliente.")
 
@@ -911,6 +914,9 @@ def accion_sugerida_pedido(pedido):
     if pedido.canal == "Mercado Libre" and getattr(pedido, "ml_claim_abierto", False):
         return "⚠️ Atender reclamo ML"
 
+    if tn_pedido_bloqueado_cancelado(pedido):
+        return "⚠️ NO DESPACHAR - Cancelado TN"
+
     if pedido.estado == "Cargando Pedido":
         if not pedido.cliente:
             return "Falta cargar cliente"
@@ -931,6 +937,9 @@ def accion_sugerida_pedido(pedido):
 
         if pedido.canal == "Tienda Nube" and not pedido.empresa_envio:
             return "Falta elegir transporte"
+
+        if pedido.canal == "Tienda Nube" and pedido.empresa_envio in ["Andreani", "Correo Argentino"] and (not pedido.etiqueta_archivo or not pedido.seguimiento):
+            return "Completar carga"
 
         if pedido.empresa_envio and not pedido.tipo_entrega:
             return "Falta elegir tipo de entrega"
@@ -1041,6 +1050,18 @@ def accion_principal_pedido(pedido, origen="inicio"):
 
     clase_base = "btn btn-accion-rapida"
     clase_confirmar = "btn btn-accion-rapida btn-confirmar"
+
+    if tn_pedido_bloqueado_cancelado(pedido):
+        return None
+
+    if tn_necesita_completar_carga(pedido):
+        return {
+            "tipo": "completar_carga",
+            "texto": "Completar carga",
+            "url": url_for("editar_pedido", id=pedido.id, paso=primer_paso_pendiente_carga(pedido)),
+            "clases": clase_confirmar,
+            "target": "",
+        }
 
     if requiere_contacto_cliente(pedido):
         return {
@@ -1175,8 +1196,8 @@ def semaforo_pedido(pedido):
 
     ahora = datetime.utcnow()
 
-    # RECLAMOS ML SIEMPRE CRÍTICOS
-    if pedido.estado == "Reclamar a Mercado Libre":
+    # RECLAMOS / BLOQUEOS SIEMPRE CRÍTICOS
+    if pedido.estado == "Reclamar a Mercado Libre" or tn_pedido_bloqueado_cancelado(pedido):
         return "rojo"
     # ---------------------------
     # PEDIDOS DESPACHADOS (seguimiento)
@@ -1817,6 +1838,140 @@ def tn_pedido_cancelado(order):
     return bool(status in ("cancelled", "canceled", "voided") or order.get("cancelled_at"))
 
 
+def tn_extraer_tracking(order):
+    """Extrae tracking TN de forma defensiva. TN puede devolverlo en distintos nodos."""
+    candidatos = []
+
+    def agregar_desde_dict(d):
+        if not isinstance(d, dict):
+            return
+        numero = (
+            d.get("tracking_number")
+            or d.get("tracking_code")
+            or d.get("tracking")
+            or d.get("tracking_id")
+            or d.get("number")
+            or ""
+        )
+        url = (
+            d.get("tracking_url")
+            or d.get("tracking_link")
+            or d.get("tracking_page")
+            or d.get("url")
+            or ""
+        )
+        if numero or url:
+            candidatos.append((str(numero or "").strip(), str(url or "").strip()))
+
+    agregar_desde_dict(order)
+    agregar_desde_dict(order.get("shipping") if isinstance(order.get("shipping"), dict) else {})
+    agregar_desde_dict(order.get("fulfillment") if isinstance(order.get("fulfillment"), dict) else {})
+
+    for key in ("fulfillments", "fulfillment_orders", "shipments"):
+        lista = order.get(key)
+        if isinstance(lista, list):
+            for item in lista:
+                agregar_desde_dict(item)
+
+    for numero, url in candidatos:
+        if numero or url:
+            return numero, url
+    return "", ""
+
+
+def tn_marcar_cancelado_existente(pedido, order):
+    if not pedido:
+        return None
+    pedido.tn_order_status = str(order.get("status") or pedido.tn_order_status or "cancelled")[:50]
+    pedido.tn_payment_status = str(order.get("payment_status") or order.get("financial_status") or pedido.tn_payment_status or "")[:50]
+    pedido.tn_cancelled_at = tn_parse_datetime(order.get("cancelled_at")) or pedido.tn_cancelled_at or datetime.utcnow()
+    pedido.ultima_sync_tn = datetime.utcnow()
+    aviso = "NO DESPACHAR - Pedido cancelado en Tienda Nube."
+    obs = str(pedido.observaciones or "")
+    if aviso not in obs:
+        pedido.observaciones = (f"{aviso} {obs}".strip())[:300]
+    # Lo dejamos en Cargando Pedido para que sea visible para Carga/Admin y bloqueado por motor_bloqueo.
+    if pedido.estado not in ["Finalizado", "Entregado"]:
+        pedido.estado = "Cargando Pedido"
+    return pedido
+
+
+def tn_actualizar_enviado_existente(pedido, order):
+    if not pedido:
+        return None
+    numero, url_tracking = tn_extraer_tracking(order)
+    pedido.tn_order_status = str(order.get("status") or pedido.tn_order_status or "")[:50]
+    pedido.tn_payment_status = str(order.get("payment_status") or order.get("financial_status") or pedido.tn_payment_status or "")[:50]
+    pedido.tn_fulfillment_status = str(order.get("fulfillment_status") or order.get("shipping_status") or pedido.tn_fulfillment_status or "")[:80]
+    if numero:
+        pedido.tn_tracking_number = numero[:100]
+        pedido.seguimiento = pedido.seguimiento or numero[:100]
+    if url_tracking:
+        pedido.tn_tracking_url = url_tracking[:300]
+    pedido.ultima_sync_tn = datetime.utcnow()
+
+    if pedido.estado not in ["Entregado", "Finalizado", "No entregado", "Reclamar a Mercado Libre"]:
+        if not pedido.fecha_despachado:
+            pedido.fecha_despachado = datetime.utcnow()
+        pedido.estado = "Verificar llegada a destino" if (pedido.seguimiento or pedido.tn_tracking_url) else "Despachado"
+    return pedido
+
+
+def tn_pedido_bloqueado_cancelado(pedido):
+    return bool(
+        pedido
+        and pedido.canal == "Tienda Nube"
+        and (
+            str(pedido.tn_order_status or "").lower() in ["cancelled", "canceled", "voided"]
+            or "NO DESPACHAR - Pedido cancelado en Tienda Nube" in str(pedido.observaciones or "")
+        )
+    )
+
+
+def tn_tipo_envio_visual(pedido):
+    if not pedido or pedido.canal != "Tienda Nube":
+        return ""
+    texto = " ".join([
+        str(pedido.tn_shipping_option or ""),
+        str(pedido.tn_shipping_carrier or ""),
+        str(pedido.tn_shipping_type or ""),
+        str(pedido.empresa_envio or ""),
+    ]).lower()
+    if (
+        "contact" in texto
+        or "contactar" in texto
+        or "contactamos" in texto
+        or "te vamos a contactar" in texto
+        or "coordin" in texto
+        or "acord" in texto
+        or "personalizado" in texto
+        or "via cargo" in texto
+        or "vía cargo" in texto
+    ):
+        return "Acordás la Entrega"
+    if pedido.empresa_envio in ["Andreani", "Correo Argentino"]:
+        return pedido.empresa_envio
+    return pedido.empresa_envio or pedido.tn_shipping_option or "Pendiente"
+
+
+def link_detalle_venta(pedido):
+    if not pedido or not pedido.id_venta:
+        return ""
+    if pedido.canal == "Mercado Libre":
+        return ml_link_detalle_venta(pedido)
+    if pedido.canal == "Tienda Nube":
+        return f"https://www.tiendanube.com/admin/orders/{pedido.id_venta}"
+    return ""
+
+
+def tn_necesita_completar_carga(pedido):
+    if not pedido or pedido.canal != "Tienda Nube" or pedido.estado != "Cargando Pedido":
+        return False
+    if tn_pedido_bloqueado_cancelado(pedido):
+        return False
+    return bool(motor_bloqueo(pedido)) or not puede_imprimir_pedido(pedido)
+
+
 def tn_pedido_apto_para_fierro(order):
     if not order:
         return False, "pedido vacío"
@@ -1842,9 +1997,17 @@ def tn_importar_o_actualizar_pedido(order):
     apto, motivo_omision = tn_pedido_apto_para_fierro(order)
     pedido = Pedido.query.filter_by(tn_order_id=tn_id).first()
 
-    # APB TN: solo ingresan/actualizan pedidos pagados y no enviados.
-    # Si un pedido ya existe, no lo borramos por eventos posteriores.
+    # APB TN:
+    # - Pedido nuevo cancelado/enviado/no pago: no ingresa.
+    # - Pedido existente cancelado: se bloquea con NO DESPACHAR.
+    # - Pedido existente enviado: se actualiza seguimiento/estado operativo.
     if not apto:
+        if pedido and tn_pedido_cancelado(order):
+            tn_marcar_cancelado_existente(pedido, order)
+            return pedido, "actualizado_cancelado_no_despachar"
+        if pedido and tn_pedido_ya_enviado(order):
+            tn_actualizar_enviado_existente(pedido, order)
+            return pedido, "actualizado_enviado"
         return pedido, f"omitido_{motivo_omision}"
 
     creado = False
@@ -1890,6 +2053,12 @@ def tn_importar_o_actualizar_pedido(order):
     pedido.tn_shipping_type = str(shipping_type or "")[:80]
     pedido.tn_shipping_carrier = str(shipping_carrier or "")[:100]
     pedido.tn_shipping_option = str(shipping_option or "")[:200]
+    numero_tracking, url_tracking = tn_extraer_tracking(order)
+    if numero_tracking:
+        pedido.tn_tracking_number = numero_tracking[:100]
+        pedido.seguimiento = pedido.seguimiento or numero_tracking[:100]
+    if url_tracking:
+        pedido.tn_tracking_url = url_tracking[:300]
     pedido.empresa_envio = empresa or pedido.empresa_envio
     pedido.tipo_entrega = tipo_entrega or pedido.tipo_entrega
     pedido.direccion = direccion["direccion"][:200] or pedido.direccion
@@ -1951,7 +2120,7 @@ def tn_sync_manual(limit=50):
 
 def tn_registrar_webhooks_sistema_fierro():
     webhook_url = request.url_root.rstrip("/") + "/webhook/tiendanube"
-    eventos = ["order/created", "order/paid", "order/cancelled"]
+    eventos = ["order/created", "order/paid", "order/cancelled", "order/fulfilled", "fulfillment_order/status_updated", "fulfillment_order/tracking_event_created", "fulfillment_order/tracking_event_updated"]
     resultados = []
 
     for evento in eventos:
@@ -2586,9 +2755,18 @@ def tracking_info_pedido(pedido):
     if not pedido:
         return None
 
-    seguimiento = str(getattr(pedido, "seguimiento", None) or "").strip()
-    if not seguimiento:
+    seguimiento = str(getattr(pedido, "seguimiento", None) or getattr(pedido, "tn_tracking_number", None) or "").strip()
+    tn_url = str(getattr(pedido, "tn_tracking_url", None) or "").strip()
+    if not seguimiento and not tn_url:
         return None
+
+    if tn_url:
+        return {
+            "url": tn_url,
+            "copiar": False,
+            "seguimiento": seguimiento,
+            "titulo": "Abrir seguimiento de Tienda Nube",
+        }
 
     transporte = str(getattr(pedido, "empresa_envio", None) or "").strip().lower()
     tipo_ml = str(getattr(pedido, "ml_tipo", None) or "").strip().lower()
@@ -3983,6 +4161,9 @@ def inyectar_contexto_global():
         "ml_pedido_tiene_claim": ml_pedido_tiene_claim,
         "fecha_argentina": fecha_argentina,
         "tracking_info_pedido": tracking_info_pedido,
+        "link_detalle_venta": link_detalle_venta,
+        "tn_tipo_envio_visual": tn_tipo_envio_visual,
+        "tn_pedido_bloqueado_cancelado": tn_pedido_bloqueado_cancelado,
         "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,
     }
 

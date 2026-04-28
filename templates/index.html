@@ -71,7 +71,12 @@
                 </td>
                 <td><strong>{{ (p.cliente or "-")|upper }}</strong></td>
                 <td>
+                    {% set link_venta = link_detalle_venta(p) %}
+                    {% if link_venta %}
+                    <a href="{{ link_venta }}" target="_blank" rel="noopener noreferrer">{{ p.id_venta or "-" }}</a>
+                    {% else %}
                     <span>{{ p.id_venta or "-" }}</span>
+                    {% endif %}
                     {% if p.id_venta %}
                     <button type="button" class="btn-copiar-mini" onclick="copiarTexto('{{ p.id_venta }}')">📋</button>
                     {% endif %}
@@ -83,8 +88,9 @@
                         {{ p.ml_tipo or "-" }}
                     </span>
                     {% elif p.canal == "Tienda Nube" %}
-                    <span class="tipo-ml-listado tipo-ml-sin-tipo">
-                        {{ p.empresa_envio or p.tn_shipping_option or "Pendiente" }}
+                    {% set tipo_tn = tn_tipo_envio_visual(p) %}
+                    <span class="tipo-ml-listado tipo-ml-{{ (tipo_tn or 'sin-tipo') | lower | replace(' ', '-') }}">
+                        {{ tipo_tn or "Pendiente" }}
                     </span>
                     {% else %}
                     <span class="tipo-ml-listado tipo-ml-sin-tipo">{{ p.empresa_envio or "-" }}</span>
