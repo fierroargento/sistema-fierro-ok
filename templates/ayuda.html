@@ -1,39 +1,209 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-   <h1>Ayuda APB</h1>
+    <h1>Ayuda APB - Sistema Fierro</h1>
+    <p><strong>Objetivo:</strong> usar el sistema como tablero operativo unico para que cada pedido tenga un responsable, una accion clara y el menor margen posible de error.</p>
 
-<h2>Carga</h2>
-<p><strong>Alta de pedido</strong></p>
-<p>1. Entrá a <strong>Nuevo Pedido</strong>.</p>
-<p>2. Completá los datos de <strong>Cliente</strong>.</p>
-<p>3. Completá los datos de <strong>Venta</strong>.</p>
-<p>4. Completá los datos de <strong>Envío</strong>.</p>
-<p>5. Cargá los <strong>Productos</strong>.</p>
-<p>6. Guardá el pedido.</p>
+    <hr>
 
-<p><strong>Seguimiento después de despachado</strong></p>
-<p>1. Revisá el tablero y seguí la <strong>Acción sugerida</strong>.</p>
-<p>2. Si el pedido requiere confirmación de entrega al cliente, usá el botón correspondiente.</p>
-<p>3. Si el pedido de Mercado Libre / Acordás la Entrega ya fue recibido por el cliente, usá <strong>Ya avisé Mercado Libre</strong>.</p>
-<p>4. El pedido recién se considera cerrado cuando termina su flujo final.</p>
+    <h2>1. Regla general APB</h2>
+    <p><strong>No improvisar fuera del flujo.</strong> Si el sistema muestra una accion sugerida, esa es la proxima accion correcta.</p>
+    <p><strong>No saltear estados.</strong> Cada estado existe para dejar registro operativo y evitar olvidos.</p>
+    <p><strong>No despachar si hay alerta critica.</strong> Si aparece reclamo activo, cancelacion, bloqueo o falta de datos, primero se resuelve eso.</p>
+    <p><strong>WhatsApp se usa en momentos clave:</strong> contacto inicial, aviso de despacho, aviso de retiro disponible, problemas/demoras y postventa.</p>
 
-<h2>Despacho</h2>
-<p>1. Revisá los pedidos del tablero de despacho.</p>
-<p>2. Imprimí la etiqueta si corresponde.</p>
-<p>3. Prepará y embalá el pedido.</p>
-<p>4. Despachá el pedido.</p>
-<p>5. No cargues seguimiento salvo que el flujo real del canal lo pida.</p>
+    <hr>
 
-<h2>Mercado Libre - Acordás la Entrega</h2>
-<p>1. Cuando el pedido ya fue entregado al cliente, el sistema puede dejarlo en estado <strong>Entregado</strong>.</p>
-<p>2. En ese punto todavía puede faltar la acción final: <strong>avisar a Mercado Libre</strong>.</p>
-<p>3. Usá el botón <strong>Ya avisé Mercado Libre</strong> para cerrar correctamente ese tramo del flujo.</p>
+    <h2>2. Roles de trabajo</h2>
 
-<h2>Productos</h2>
-<p>El administrador puede actualizar el padrón desde el menú <strong>Productos</strong> subiendo un Excel con:</p>
-<p>• primera columna: <strong>SKU</strong></p>
-<p>• segunda columna: <strong>Descripción</strong></p>
-<p>La carga reemplaza el padrón actual.</p>
+    <h3>Carga</h3>
+    <p>Responsable de completar datos, revisar pedidos, contactar clientes, controlar seguimiento, reclamos y cierre final.</p>
+    <p><strong>Debe mirar principalmente:</strong> pedidos en Cargando Pedido, Despachado, Verificar llegada a destino, No entregado, Reclamos y Entregado pendiente de cierre.</p>
+
+    <h3>Despacho</h3>
+    <p>Responsable de imprimir, preparar, embalar y despachar.</p>
+    <p><strong>Debe mirar principalmente:</strong> Etiqueta Lista, Etiqueta Impresa y Embalado.</p>
+
+    <h3>Admin</h3>
+    <p>Puede operar todos los pasos, corregir datos, revisar integraciones, auditoria, usuarios y productos.</p>
+
+    <hr>
+
+    <h2>3. Flujo principal de estados</h2>
+
+    <h3>1) Cargando Pedido</h3>
+    <p><strong>Que significa:</strong> el pedido todavia necesita revision o datos antes de pasar a preparacion.</p>
+    <p><strong>Acciones posibles:</strong> Completar carga, Contactar cliente, Enviar mensaje ML o imprimir etiqueta si el flujo ya lo permite.</p>
+    <p><strong>Regla APB:</strong> no avanzar si faltan datos obligatorios. El sistema debe llevar al primer paso pendiente.</p>
+
+    <h3>2) Etiqueta Lista</h3>
+    <p><strong>Que significa:</strong> el pedido ya esta listo para imprimir etiqueta.</p>
+    <p><strong>Accion:</strong> Imprimir etiqueta.</p>
+    <p><strong>Regla APB:</strong> imprimir abre el flujo de impresion sin cerrar el trabajo del operador.</p>
+
+    <h3>3) Etiqueta Impresa</h3>
+    <p><strong>Que significa:</strong> la etiqueta ya fue impresa y el pedido pasa a preparacion fisica.</p>
+    <p><strong>Accion:</strong> Marcar embalado.</p>
+
+    <h3>4) Embalado</h3>
+    <p><strong>Que significa:</strong> el pedido ya esta preparado y listo para salir.</p>
+    <p><strong>Accion:</strong> Marcar despachado.</p>
+    <p><strong>Regla APB:</strong> al marcar embalado o despachado el operador debe quedar dentro del detalle para continuar el proceso.</p>
+
+    <h3>5) Despachado</h3>
+    <p><strong>Que significa:</strong> el pedido ya salio fisicamente.</p>
+    <p><strong>Acciones:</strong> Avisar cliente despacho, cargar reclamo si corresponde, controlar seguimiento o marcar entregado si aplica.</p>
+    <p><strong>Regla APB para Acordas la Entrega:</strong> siempre avisar al cliente con numero de seguimiento y link dinamico del transporte.</p>
+
+    <h3>6) Verificar llegada a destino</h3>
+    <p><strong>Que significa:</strong> es el punto operativo usado para controlar llegada a destino. En envios a sucursal, en la practica equivale a retiro disponible/listo para retirar.</p>
+    <p><strong>Accion para sucursal:</strong> Avisar al Cliente.</p>
+    <p><strong>Mensaje:</strong> informa sucursal, seguimiento y recordatorio de 5 dias para retirar antes de volver a origen.</p>
+    <p><strong>Regla APB:</strong> no marcar entregado si antes no se aviso al cliente cuando corresponde retiro en sucursal.</p>
+
+    <h3>7) Listo para retirar</h3>
+    <p><strong>Que significa:</strong> el cliente ya fue avisado de que puede retirar.</p>
+    <p><strong>Accion:</strong> Marcar entregado cuando el cliente confirme retiro o se verifique la entrega.</p>
+
+    <h3>8) Entregado</h3>
+    <p><strong>Que significa:</strong> el cliente recibio o retiro el pedido.</p>
+    <p><strong>Acciones:</strong> Mensaje postventa y, si es Mercado Libre Acordas la Entrega, Ya avise Mercado Libre.</p>
+    <p><strong>Regla APB:</strong> en parrillas se envia mensaje especial con tips de uso/cuidado. En el resto de productos se envia mensaje general de postventa.</p>
+
+    <h3>9) Finalizado</h3>
+    <p><strong>Que significa:</strong> el pedido ya no requiere accion operativa.</p>
+
+    <hr>
+
+    <h2>4. Estados especiales</h2>
+
+    <h3>Con demora de entrega</h3>
+    <p><strong>Que significa:</strong> el pedido supero tiempos esperados o requiere control de demora.</p>
+    <p><strong>Acciones:</strong> revisar tracking, contactar transporte/cliente y cargar reclamo de envio si corresponde.</p>
+
+    <h3>Con reclamo en transporte</h3>
+    <p><strong>Que significa:</strong> ya existe reclamo de envio cargado.</p>
+    <p><strong>Acciones:</strong> revisar evolucion, actualizar observaciones y marcar revisado cuando corresponda.</p>
+
+    <h3>No entregado</h3>
+    <p><strong>Que significa:</strong> la entrega fallo o el paquete vuelve/no llego al cliente.</p>
+    <p><strong>Accion:</strong> Gestionar devolucion.</p>
+    <p><strong>Regla APB:</strong> no cerrar directo. Primero registrar devolucion, estado de productos y resolver reclamo si aplica.</p>
+
+    <h3>Reclamar a Mercado Libre</h3>
+    <p><strong>Que significa:</strong> hay una devolucion o problema que requiere gestion especifica con Mercado Libre.</p>
+    <p><strong>Accion:</strong> Gestionar reclamo Meli.</p>
+
+    <hr>
+
+    <h2>5. Mercado Libre</h2>
+
+    <h3>Mercado Envios</h3>
+    <p>Se trabaja con la logica propia de etiqueta y seguimiento de Mercado Libre.</p>
+    <p><strong>Regla APB:</strong> si hay reclamo activo en ML, aparece alerta de NO DESPACHAR. Primero se atiende el reclamo.</p>
+
+    <h3>Acordas la Entrega - Domicilio</h3>
+    <p>El sistema requiere completar datos y seguimiento segun transporte.</p>
+    <p><strong>Despachado:</strong> se debe avisar al cliente con seguimiento y link dinamico.</p>
+    <p><strong>Entregado:</strong> al confirmar entrega, si corresponde, usar Ya avise Mercado Libre.</p>
+
+    <h3>Acordas la Entrega - Sucursal</h3>
+    <p><strong>Flujo operativo despues de despachado:</strong></p>
+    <p>Despachado -> Verificar llegada a destino -> Listo para retirar -> Entregado -> Finalizado.</p>
+    <p><strong>Regla APB:</strong> cuando llega a sucursal, avisar al cliente con sucursal, seguimiento y advertencia de 5 dias.</p>
+    <p><strong>Cierre:</strong> despues de entregado, si corresponde, usar Ya avise Mercado Libre.</p>
+
+    <hr>
+
+    <h2>6. Tienda Nube</h2>
+    <p>El sistema sincroniza pedidos y permite re-sync desde el detalle cuando hace falta.</p>
+    <p><strong>Link TN:</strong> desde el detalle se puede abrir la venta en Tienda Nube.</p>
+    <p><strong>Tracking TN:</strong> usar el seguimiento/link que el sistema muestra en el resumen. No inventar links manuales.</p>
+    <p><strong>Regla APB:</strong> si el pedido de TN aparece cancelado/bloqueado, no despachar.</p>
+
+    <hr>
+
+    <h2>7. Transportes</h2>
+
+    <h3>Andreani</h3>
+    <p>El sistema ya identifica pedidos Andreani y muestra bloque de estado Andreani.</p>
+    <p><strong>Si no hay credenciales:</strong> debe quedar como Andreani sin credenciales configuradas y no romper la operacion.</p>
+    <p><strong>Cuando haya credenciales:</strong> se podra actualizar estado Andreani desde el detalle.</p>
+
+    <h3>Correo Argentino</h3>
+    <p>Requiere etiqueta y seguimiento cuando el flujo lo pide.</p>
+    <p>Usar siempre el link de tracking que arma el sistema.</p>
+
+    <h3>Via Cargo</h3>
+    <p>Puede no tener seguimiento antes del despacho. El seguimiento suele aparecer despues.</p>
+    <p><strong>Regla APB:</strong> no exigir seguimiento antes de despachar si el flujo real de Via Cargo no lo permite.</p>
+
+    <hr>
+
+    <h2>8. Mensajes de WhatsApp</h2>
+
+    <h3>Contacto inicial</h3>
+    <p>Se usa para abrir conversacion por WhatsApp cuando ya corresponde continuar fuera de ML.</p>
+    <p><em>Hola! Soy Ezequiel de Fierro 100% Argento. Gracias por tu compra. Te escribo por aca para avanzar con el despacho.</em></p>
+
+    <h3>Aviso de despacho</h3>
+    <p>Obligatorio para Acordas la Entrega.</p>
+    <p>Incluye seguimiento y link dinamico del transporte.</p>
+
+    <h3>Aviso de retiro disponible</h3>
+    <p>Se usa en Verificar llegada a destino / sucursal.</p>
+    <p>Incluye sucursal, seguimiento y aviso de 5 dias antes de volver a origen.</p>
+
+    <h3>Postventa</h3>
+    <p><strong>Parrillas:</strong> mensaje especial con tips de cuidado, limpieza y curado.</p>
+    <p><strong>Otros productos:</strong> mensaje general de agradecimiento, ayuda y enlace a Instagram.</p>
+    <p><strong>Regla APB:</strong> el sistema codifica los links de WhatsApp para que emojis, saltos de linea y acentos salgan correctamente.</p>
+
+    <hr>
+
+    <h2>9. Reclamos y devoluciones</h2>
+    <p><strong>Reclamos de envio:</strong> se cargan desde el detalle del pedido en estados posteriores al despacho.</p>
+    <p><strong>Revisado hoy:</strong> usarlo cuando se hizo seguimiento real del reclamo.</p>
+    <p><strong>No entregado:</strong> usar Gestionar devolucion. Registrar que volvio, en que estado volvio cada producto y si corresponde reclamo con Mercado Libre.</p>
+    <p><strong>Mercado Libre con producto dañado:</strong> no cerrar como finalizado hasta gestionar el reclamo Meli.</p>
+
+    <hr>
+
+    <h2>10. Semaforo y tablero</h2>
+    <p><strong>Verde:</strong> dentro de tiempo normal.</p>
+    <p><strong>Amarillo:</strong> requiere atencion.</p>
+    <p><strong>Rojo:</strong> prioridad operativa.</p>
+    <p><strong>Filtro por color/KPI:</strong> usarlo para atacar primero lo urgente.</p>
+    <p><strong>Regla APB:</strong> el tablero no es para mirar todo; es para trabajar la prioridad que corresponde al rol.</p>
+
+    <hr>
+
+    <h2>11. Productos</h2>
+    <p>El administrador puede actualizar el padron desde el menu <strong>Productos</strong> subiendo un Excel con:</p>
+    <p>- primera columna: <strong>SKU</strong></p>
+    <p>- segunda columna: <strong>Descripcion</strong></p>
+    <p>La carga reemplaza el padron actual.</p>
+
+    <hr>
+
+    <h2>12. Checklist rapido por operador</h2>
+
+    <h3>Carga</h3>
+    <p>1. Revisar pedidos con datos pendientes.</p>
+    <p>2. Contactar cliente si el sistema lo indica.</p>
+    <p>3. Controlar despachados, llegadas a destino, reclamos y no entregados.</p>
+    <p>4. En Acordas, avisar ML cuando corresponda.</p>
+
+    <h3>Despacho</h3>
+    <p>1. Imprimir etiqueta.</p>
+    <p>2. Embalar.</p>
+    <p>3. Despachar.</p>
+    <p>4. No resolver reclamos ni inventar datos de seguimiento.</p>
+
+    <h3>Admin</h3>
+    <p>1. Revisar integraciones.</p>
+    <p>2. Revisar auditoria si hay dudas.</p>
+    <p>3. Corregir pedidos bloqueados o mal cargados.</p>
+    <p>4. Mantener productos y usuarios actualizados.</p>
 </div>
 {% endblock %}
