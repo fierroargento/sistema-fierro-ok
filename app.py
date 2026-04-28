@@ -593,6 +593,21 @@ def normalizar_telefono(raw):
     return "549" + solo_digitos
 
 
+def generar_link_whatsapp(numero, mensaje):
+    """Genera links de WhatsApp con codificación UTF-8 segura.
+
+    Centralizamos el armado del link para evitar caracteres rotos en emojis,
+    acentos y saltos de línea.
+    """
+    from urllib.parse import urlencode, quote
+
+    if not numero or not mensaje:
+        return ""
+
+    query = urlencode({"text": mensaje}, quote_via=quote, encoding="utf-8", errors="strict")
+    return f"https://wa.me/{numero}?{query}"
+
+
 def whatsapp_link_pedido(pedido):
     numero = normalizar_telefono(pedido.telefono)
     if not numero:
@@ -603,8 +618,7 @@ def whatsapp_link_pedido(pedido):
         "Gracias por tu compra 🙌\n"
         "Te escribo por acá para avanzar con el despacho 👍"
     )
-    from urllib.parse import quote
-    return f"https://wa.me/{numero}?text={quote(mensaje)}"
+    return generar_link_whatsapp(numero, mensaje)
 
 def requiere_seguimiento_retiro(pedido):
     return bool(
@@ -644,8 +658,7 @@ def whatsapp_link_confirmar_entrega(pedido):
         "Cuando lo retires, por favor avisame así cerramos la entrega 👍"
     )
 
-    from urllib.parse import quote
-    return f"https://wa.me/{numero}?text={quote(mensaje)}"
+    return generar_link_whatsapp(numero, mensaje)
 
 
 def whatsapp_link_despachado(pedido):
@@ -671,8 +684,7 @@ def whatsapp_link_despachado(pedido):
         "Cualquier duda estoy por acá 👍"
     )
 
-    from urllib.parse import quote
-    return f"https://wa.me/{numero}?text={quote(mensaje)}"
+    return generar_link_whatsapp(numero, mensaje)
 
 
 def pedido_tiene_parrilla(pedido):
@@ -714,8 +726,7 @@ def whatsapp_link_postventa(pedido):
             "https://www.instagram.com/fierroargento"
         )
 
-    from urllib.parse import quote
-    return f"https://wa.me/{numero}?text={quote(mensaje)}"
+    return generar_link_whatsapp(numero, mensaje)
 
 
 def puede_avisar_despacho_whatsapp(pedido):
