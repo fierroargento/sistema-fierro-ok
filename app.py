@@ -751,7 +751,7 @@ def aplicar_estado_y_fechas(pedido, nuevo_estado):
     elif nuevo_estado == "Entregado":
         pedido.fecha_entregado = ahora
 
-        if usa_flujo_etiqueta_directa(pedido) or es_tnube_via_cargo(pedido) or es_mayorista_via_cargo(pedido):
+        if pedido.canal == "Tienda Nube" or usa_flujo_etiqueta_directa(pedido) or es_tnube_via_cargo(pedido) or es_mayorista_via_cargo(pedido):
             pedido.estado = "Finalizado"
 
 
@@ -1767,16 +1767,25 @@ def tn_guardar_items(pedido, order):
 
 def tn_pago_confirmado(order):
     payment_status = str(order.get("payment_status") or order.get("financial_status") or "").lower().strip()
-    return payment_status in ("paid", "approved", "authorized")
+    return payment_status in ("paid", "approved", "authorized", "received", "recibido")
 
 
 def tn_pedido_ya_enviado(order):
-    status = str(order.get("status") or "").lower().strip()
+    """Devuelve True solo si TN ya considera el pedido enviado/cumplido.
+
+    APB TN:
+    - Por empaquetar => entra
+    - Por enviar => entra
+    - Enviada => no entra
+
+    Importante: en Tienda Nube un pedido pagado puede venir con status=closed,
+    por eso NO usamos closed como indicador de enviado.
+    """
     fulfillment_status = str(
         order.get("fulfillment_status")
         or order.get("shipping_status")
         or ""
-    ).lower()
+    ).lower().strip()
 
     shipping_status = ""
     shipping_data = order.get("shipping") if isinstance(order.get("shipping"), dict) else {}
@@ -1786,11 +1795,19 @@ def tn_pedido_ya_enviado(order):
             or shipping_data.get("fulfillment_status")
             or shipping_data.get("shipment_status")
             or ""
-        ).lower()
+        ).lower().strip()
 
-    texto = " ".join([status, fulfillment_status, shipping_status])
+    estados_enviados = {
+        "fulfilled", "delivered", "shipped", "completed",
+        "enviada", "enviado", "despachado", "despachada", "entregado", "entregada",
+    }
+    if fulfillment_status in estados_enviados or shipping_status in estados_enviados:
+        return True
+
+    texto = " ".join([fulfillment_status, shipping_status])
     indicadores_enviado = [
-        "fulfilled", "delivered", "shipped", "sent", "closed", "completed", "entregado", "enviado", "despachado"
+        "fulfilled", "delivered", "shipped", "completed",
+        "enviada", "enviado", "despachado", "despachada", "entregado", "entregada",
     ]
     return any(indicador in texto for indicador in indicadores_enviado)
 

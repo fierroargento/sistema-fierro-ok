@@ -41,7 +41,7 @@
                 <th>Cliente</th>
                 <th>ID Venta</th>
                 <th>Canal</th>
-                <th>Tipo ML</th>
+                <th>Tipo envío</th>
                 <th>Hace cuánto</th>
                 <th>Acción sugerida</th>
                 <th></th>
@@ -78,9 +78,17 @@
                 </td>
                 <td>{{ p.canal or "-" }}</td>
                 <td>
+                    {% if p.canal == "Mercado Libre" %}
                     <span class="tipo-ml-listado tipo-ml-{{ (p.ml_tipo or 'sin-tipo') | lower | replace(' ', '-') }}">
                         {{ p.ml_tipo or "-" }}
                     </span>
+                    {% elif p.canal == "Tienda Nube" %}
+                    <span class="tipo-ml-listado tipo-ml-sin-tipo">
+                        {{ p.empresa_envio or p.tn_shipping_option or "Pendiente" }}
+                    </span>
+                    {% else %}
+                    <span class="tipo-ml-listado tipo-ml-sin-tipo">{{ p.empresa_envio or "-" }}</span>
+                    {% endif %}
                 </td>
                 <td class="col-antiguedad">
                     {{ tiempo_transcurrido(fecha_referencia_estado(p)) }}

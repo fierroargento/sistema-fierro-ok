@@ -99,7 +99,7 @@
                 </tr>
                 <tr>
                     <th>Última sync/test</th>
-                    <td>{{ cuenta_tn.last_sync_at.strftime('%d/%m/%Y %H:%M') if cuenta_tn and cuenta_tn.last_sync_at else '-' }}</td>
+                    <td>{{ fecha_argentina(cuenta_tn.last_sync_at).strftime('%d/%m/%Y %H:%M') if cuenta_tn and cuenta_tn.last_sync_at else '-' }}</td>
                 </tr>
                 <tr>
                     <th>Detalle última sync</th>
@@ -156,7 +156,7 @@
                 <tbody>
                     {% for log in ultimos_logs_tn %}
                     <tr>
-                        <td>{{ log.fecha.strftime('%d/%m/%Y %H:%M') if log.fecha else '-' }}</td>
+                        <td>{{ fecha_argentina(log.fecha).strftime('%d/%m/%Y %H:%M') if log.fecha else '-' }}</td>
                         <td>{{ log.event or '-' }}</td>
                         <td>{{ log.tn_order_id or '-' }}</td>
                         <td>{{ 'Sí' if log.procesado else 'No' }}</td>

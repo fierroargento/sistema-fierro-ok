@@ -274,7 +274,13 @@
                 </span>
                 {% endif %}
             </p>
+            {% if pedido.canal == "Mercado Libre" %}
             <p><strong>Tipo ML:</strong> {{ pedido.ml_tipo or "-" }}</p>
+            {% elif pedido.canal == "Tienda Nube" %}
+            <p><strong>Estado TN:</strong> {{ pedido.tn_order_status or "-" }}</p>
+            <p><strong>Pago TN:</strong> {{ pedido.tn_payment_status or "-" }}</p>
+            <p><strong>Envío TN:</strong> {{ pedido.tn_shipping_option or pedido.tn_shipping_carrier or "-" }}</p>
+            {% endif %}
             {% if rol_actual != "despacho" %}
             <p class="tracking-row">
                 <strong>Seguimiento:</strong> {{ pedido.seguimiento or "-" }}
