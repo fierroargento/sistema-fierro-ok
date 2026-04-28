@@ -2036,6 +2036,21 @@ def tn_extraer_tracking(order):
 
     def recorrer(obj):
         if isinstance(obj, dict):
+            tracking_info = obj.get("tracking_info")
+            if isinstance(tracking_info, dict):
+                agregar(tracking_info.get("code"), tracking_info.get("url"))
+
+            tracking_history = obj.get("tracking_info_history") or []
+            if isinstance(tracking_history, list):
+                for hist in tracking_history:
+                    if isinstance(hist, dict):
+                        to_info = hist.get("to_tracking_info")
+                        from_info = hist.get("from_tracking_info")
+                        if isinstance(to_info, dict):
+                            agregar(to_info.get("code"), to_info.get("url"))
+                        if isinstance(from_info, dict):
+                            agregar(from_info.get("code"), from_info.get("url"))
+
             numero = ""
             url = ""
             for k, v in obj.items():
@@ -2070,6 +2085,67 @@ def tn_extraer_tracking(order):
             return numero, url
     return "", ""
 
+
+
+def tn_tracking_sospechoso(valor):
+    valor = str(valor or "").strip()
+    if not valor:
+        return True
+    if valor.isdigit() and len(valor) < 8:
+        return True
+    return False
+
+
+def tn_enriquecer_order_con_fulfillment(order_id):
+    order_id = str(order_id or "").strip()
+    if not order_id:
+        return {}
+    try:
+        order = tn_http_json("GET", f"/orders/{order_id}", params={"aggregates": "fulfillment_orders"})
+    except Exception:
+        order = tn_http_json("GET", f"/orders/{order_id}")
+    if not isinstance(order, dict):
+        return {}
+
+    fulfillment_orders = []
+    existentes = order.get("fulfillment_orders") or []
+    if isinstance(existentes, list):
+        fulfillment_orders.extend([x for x in existentes if isinstance(x, dict)])
+
+    try:
+        respuesta = tn_http_json("GET", f"/orders/{order_id}/fulfillment-orders")
+        if isinstance(respuesta, list):
+            fulfillment_orders.extend([x for x in respuesta if isinstance(x, dict)])
+    except Exception as e:
+        print(f"[TN] No se pudieron leer fulfillment-orders de {order_id}: {e}")
+
+    enriquecidos = []
+    vistos = set()
+    for fulfillment in fulfillment_orders:
+        fid = str(fulfillment.get("id") or fulfillment.get("fulfillment_id") or "").strip()
+        clave = fid or json.dumps(fulfillment, sort_keys=True, default=str)[:80]
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        detalle = fulfillment
+        if fid:
+            try:
+                detalle_full = tn_http_json("GET", f"/orders/{order_id}/fulfillment-orders/{fid}")
+                if isinstance(detalle_full, dict):
+                    detalle = detalle_full
+            except Exception as e:
+                print(f"[TN] No se pudo leer fulfillment {fid} de {order_id}: {e}")
+            try:
+                eventos = tn_http_json("GET", f"/orders/{order_id}/fulfillment-orders/{fid}/tracking-events")
+                if isinstance(eventos, list):
+                    detalle["_tracking_events_api"] = eventos
+            except Exception as e:
+                print(f"[TN] No se pudieron leer tracking-events {fid} de {order_id}: {e}")
+        enriquecidos.append(detalle)
+    if enriquecidos:
+        order["_fulfillment_orders_api"] = enriquecidos
+    return order
+
 def tn_marcar_cancelado_existente(pedido, order):
     if not pedido:
         return None
@@ -2096,7 +2172,10 @@ def tn_actualizar_enviado_existente(pedido, order):
     pedido.tn_fulfillment_status = str(order.get("fulfillment_status") or order.get("shipping_status") or pedido.tn_fulfillment_status or "")[:80]
     if numero:
         pedido.tn_tracking_number = numero[:100]
-        pedido.seguimiento = pedido.seguimiento or numero[:100]
+        pedido.seguimiento = numero[:100]
+    elif tn_tracking_sospechoso(pedido.seguimiento):
+        pedido.tn_tracking_number = None
+        pedido.seguimiento = None
     if url_tracking:
         pedido.tn_tracking_url = url_tracking[:300]
     pedido.ultima_sync_tn = datetime.utcnow()
@@ -2252,7 +2331,10 @@ def tn_importar_o_actualizar_pedido(order):
     numero_tracking, url_tracking = tn_extraer_tracking(order)
     if numero_tracking:
         pedido.tn_tracking_number = numero_tracking[:100]
-        pedido.seguimiento = pedido.seguimiento or numero_tracking[:100]
+        pedido.seguimiento = numero_tracking[:100]
+    elif tn_tracking_sospechoso(pedido.seguimiento):
+        pedido.tn_tracking_number = None
+        pedido.seguimiento = None
     if url_tracking:
         pedido.tn_tracking_url = url_tracking[:300]
     pedido.empresa_envio = empresa or pedido.empresa_envio
@@ -2281,7 +2363,7 @@ def tn_importar_o_actualizar_pedido(order):
 
 
 def tn_importar_pedido_por_id(order_id):
-    order = tn_http_json("GET", f"/orders/{order_id}")
+    order = tn_enriquecer_order_con_fulfillment(order_id)
     pedido, accion = tn_importar_o_actualizar_pedido(order)
     db.session.commit()
     return pedido, accion
@@ -2295,6 +2377,12 @@ def tn_sync_manual(limit=50):
 
     resultado = {"leidos": len(orders), "creados": 0, "actualizados": 0, "omitidos": 0}
     for order in orders:
+        order_id = str(order.get("id") or "").strip() if isinstance(order, dict) else ""
+        if order_id:
+            try:
+                order = tn_enriquecer_order_con_fulfillment(order_id)
+            except Exception as e:
+                print(f"[TN] Sync manual: no se pudo enriquecer orden {order_id}: {e}")
         _, accion = tn_importar_o_actualizar_pedido(order)
         if accion == "creado":
             resultado["creados"] += 1

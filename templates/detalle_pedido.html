@@ -191,9 +191,6 @@
     <div class="error">{{ error|safe }}</div>
     {% endif %}
 
-    {% if ok_feedback %}
-    <div class="ok-feedback">{{ ok_feedback|safe }}</div>
-    {% endif %}
 
     {% if pedido.canal == "Mercado Libre" and (pedido.ml_claim_abierto or ml_pedido_tiene_mensajes_pendientes(pedido)) %}
     <div class="detalle-alertas-ml">
@@ -492,13 +489,6 @@
         <form method="POST" action="{{ url_for('eliminar_pedido', id=pedido.id) }}" class="form-eliminar-pedido" onsubmit="return confirm('ATENCIÓN: vas a eliminar definitivamente el pedido #{{ pedido.id }} de Fierro. No se toca Mercado Libre. ¿Confirmás?');">
             <button type="submit" class="btn btn-danger">Eliminar pedido</button>
         </form>
-        {% endif %}
-
-        {% set tracking_info = tracking_info_pedido(pedido) %}
-        {% if tracking_info %}
-            <a href="{{ tracking_info.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-secundario" {% if tracking_info.copiar %}data-seguimiento="{{ tracking_info.seguimiento }}" onclick="return abrirTrackingConCopia(event, this)"{% endif %}>
-                Ver seguimiento
-            </a>
         {% endif %}
 
 
