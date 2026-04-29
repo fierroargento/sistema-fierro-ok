@@ -6107,7 +6107,33 @@ def actualizar_tracking_externo_pedido(id):
     url = tracking_info.get("url") or ""
     seguimiento = tracking_info.get("seguimiento") or pedido.seguimiento or pedido.tn_tracking_number or ""
 
-    # Correo no tiene URL directa estable en el flujo actual.
+    # CORREO ARGENTINO REAL
+    if es_correo_argentino_pedido(pedido):
+
+        es_ml = pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos"
+
+        estado_ext = consultar_correo_formulario(seguimiento, es_ml)
+
+        pedido.tracking_ultima_sync = datetime.utcnow()
+        pedido.tracking_transportista = "Correo Argentino"
+
+        if estado_ext:
+            estado = estado_ext.lower()
+            pedido.tracking_estado_externo = estado_ext
+            pedido.tracking_error = None
+
+            if "entregado" in estado:
+                pedido.estado = "Entregado"
+
+            elif "sucursal" in estado or "espera" in estado:
+                pedido.estado = "Verificar llegada a destino"
+
+            elif "intento" in estado:
+                pedido.estado = "No entregado"
+
+        else:
+            pedido.tracking_error = "No se pudo leer tracking automáticamente"
+
     # Intentamos por función aislada; si no hay endpoint usable, guarda error controlado.
     try:
         if tracking_info.get("copiar"):
