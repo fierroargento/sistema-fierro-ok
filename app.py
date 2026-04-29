@@ -6097,52 +6097,26 @@ def actualizar_tracking_externo_pedido(id):
         return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
 
     if not puede_actualizar_tracking_externo(pedido):
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="Este pedido no tiene tracking externo actualizable."))
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok="Este pedido no tiene tracking externo actualizable."))
 
     tracking_info = tracking_info_pedido(pedido)
     if not tracking_info:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No hay link de seguimiento disponible."))
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok="No hay link de seguimiento disponible."))
 
     transporte = pedido.empresa_envio or ("Correo Argentino" if es_correo_argentino_pedido(pedido) else "")
     url = tracking_info.get("url") or ""
     seguimiento = tracking_info.get("seguimiento") or pedido.seguimiento or pedido.tn_tracking_number or ""
 
-    # CORREO ARGENTINO REAL
-    if es_correo_argentino_pedido(pedido):
-
-        es_ml = pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos"
-
-        estado_ext = consultar_correo_formulario(seguimiento, es_ml)
-
-        pedido.tracking_ultima_sync = datetime.utcnow()
-        pedido.tracking_transportista = "Correo Argentino"
-
-        if estado_ext:
-            estado = estado_ext.lower()
-            pedido.tracking_estado_externo = estado_ext
-            pedido.tracking_error = None
-
-            if "entregado" in estado:
-                pedido.estado = "Entregado"
-
-            elif "sucursal" in estado or "espera" in estado:
-                pedido.estado = "Verificar llegada a destino"
-
-            elif "intento" in estado:
-                pedido.estado = "No entregado"
-
-        else:
-            pedido.tracking_error = "No se pudo leer tracking automáticamente"
-
-    # Intentamos por función aislada; si no hay endpoint usable, guarda error controlado.
     try:
-        if tracking_info.get("copiar"):
+        if es_correo_argentino_pedido(pedido):
             resultado = consultar_correo_formulario(
                 seguimiento,
-                mercado_envios=("mercado" in str(getattr(pedido, "ml_tipo", "") or "").lower())
+                mercado_envios=(pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos")
             )
+            transporte = "Correo Argentino"
         else:
             resultado = consultar_tracking_url(url, transporte=transporte, seguimiento=seguimiento)
+
         estado = (resultado.get("estado") or "").strip() or "Sin estado detectado"
         clasificacion = interpretar_estado_logistico(estado, transporte=transporte)
 
@@ -6165,14 +6139,20 @@ def actualizar_tracking_externo_pedido(id):
         db.session.commit()
 
         if resultado.get("error"):
-            return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo leer el tracking automáticamente: {resultado.get('error')}"))
+            return redirect(url_for("detalle_pedido", id=pedido.id, ok="Tracking consultado. No se detectó un estado automático seguro."))
 
         extra = f" Pedido actualizado a {nuevo_estado}." if nuevo_estado else " No se cambió el estado interno."
         return redirect(url_for("detalle_pedido", id=pedido.id, ok=f"Tracking actualizado: {estado}.{extra}"))
 
     except Exception as e:
         db.session.rollback()
-        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo actualizar tracking: {e}"))
+        try:
+            pedido.tracking_error = str(e)
+            pedido.tracking_ultima_sync = datetime.utcnow()
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok="No se pudo actualizar el tracking automáticamente."))
 
 
 @app.route("/pedido/<int:id>/actualizar-andreani", methods=["POST"])

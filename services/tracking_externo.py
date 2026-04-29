@@ -238,17 +238,70 @@ def consultar_tracking_url(url, transporte="", seguimiento=""):
 
 
 def consultar_correo_formulario(seguimiento, mercado_envios=False):
-    """Intento seguro para Correo Argentino.
+    """Consulta real segura de Correo Argentino.
 
-    Correo no expone una URL directa estable como Andreani/Vía Cargo en el flujo
-    actual. Se deja preparado y aislado: si más adelante encontramos el endpoint
-    exacto del formulario, se reemplaza acá sin tocar app.py.
+    Usa el endpoint interno que utiliza la web de Correo:
+    - action=mercadolibre para Mercado Envíos
+    - action=ecommerce para Acordás / e-commerce
+
+    Modo APB:
+    - si lee un estado claro, lo devuelve;
+    - si falla o la respuesta cambia, devuelve error controlado;
+    - nunca lanza excepción hacia el sistema principal.
     """
+    seguimiento = str(seguimiento or "").strip()
     if not seguimiento:
         return {"estado": "", "error": "No hay seguimiento"}
 
-    tipo = "Mercado Libre" if mercado_envios else "e-commerce"
+    url = "https://www.correoargentino.com.ar/sites/all/modules/custom/ca_forms/api/wsFacade.php"
+    action = "mercadolibre" if mercado_envios else "ecommerce"
+
+    data = urlencode({"action": action, "id": seguimiento}).encode("utf-8")
+    req = Request(
+        url,
+        data=data,
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "text/html, */*; q=0.01",
+            "Accept-Language": "es-AR,es;q=0.9",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Origin": "https://www.correoargentino.com.ar",
+            "Referer": "https://www.correoargentino.com.ar/formularios/mercadolibre" if mercado_envios else "https://www.correoargentino.com.ar/formularios/e-commerce",
+            "X-Requested-With": "XMLHttpRequest",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(req, timeout=15) as resp:
+            raw = resp.read(800000).decode("utf-8", errors="ignore")
+    except HTTPError as e:
+        return {"estado": "", "error": f"HTTP {e.code}"}
+    except URLError as e:
+        return {"estado": "", "error": f"Error de conexión: {e.reason}"}
+    except Exception as e:
+        return {"estado": "", "error": str(e)}
+
+    texto = _limpiar_texto_html(raw)
+    estado = _extraer_estado_por_patrones(texto, transporte="Correo Argentino")
+
+    if not estado:
+        return {
+            "estado": "Sin estado detectado",
+            "error": "No se detectó un estado logístico claro en Correo",
+            "texto_muestra": texto[:1200],
+        }
+
+    clasificacion = interpretar_estado_logistico(estado, transporte="Correo Argentino")
+    if clasificacion == "desconocido":
+        return {
+            "estado": estado,
+            "error": "Estado detectado, pero sin mapeo seguro",
+            "texto_muestra": texto[:1200],
+        }
+
     return {
-        "estado": "Consulta automática pendiente",
-        "error": f"Correo Argentino {tipo} usa formulario sin URL directa estable. Usar Ver seguimiento.",
+        "estado": estado,
+        "error": None,
+        "texto_muestra": texto[:1200],
     }
