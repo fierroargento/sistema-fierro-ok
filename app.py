@@ -21,6 +21,7 @@ from sqlalchemy import text, inspect, or_
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from services.andreani import andreani_configurada, andreani_trazas_envio, resumen_evento_andreani
+from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico, consultar_correo_formulario
 
 app = Flask(__name__)
 cloudinary.config(
@@ -165,6 +166,11 @@ class Pedido(db.Model):
     andreani_estado = db.Column(db.String(200))
     andreani_ultima_sync = db.Column(db.DateTime)
     andreani_eventos_json = db.Column(db.Text)
+    tracking_estado_externo = db.Column(db.String(300))
+    tracking_ultima_sync = db.Column(db.DateTime)
+    tracking_error = db.Column(db.Text)
+    tracking_transportista = db.Column(db.String(80))
+    tracking_url_consultada = db.Column(db.String(500))
     etiqueta_archivo = db.Column(db.String(255))
     estado = db.Column(db.String(50), default="Cargando Pedido")
 
@@ -296,6 +302,11 @@ def asegurar_columnas_extra():
     asegurar_columna_si_no_existe("andreani_estado", "VARCHAR(200)")
     asegurar_columna_si_no_existe("andreani_ultima_sync", "TIMESTAMP")
     asegurar_columna_si_no_existe("andreani_eventos_json", "TEXT")
+    asegurar_columna_si_no_existe("tracking_estado_externo", "VARCHAR(300)")
+    asegurar_columna_si_no_existe("tracking_ultima_sync", "TIMESTAMP")
+    asegurar_columna_si_no_existe("tracking_error", "TEXT")
+    asegurar_columna_si_no_existe("tracking_transportista", "VARCHAR(80)")
+    asegurar_columna_si_no_existe("tracking_url_consultada", "VARCHAR(500)")
     asegurar_columna_si_no_existe("sucursal_nombre", "VARCHAR(150)")
     asegurar_columna_si_no_existe("autorizado_nombre", "VARCHAR(120)")
     asegurar_columna_si_no_existe("autorizado_dni", "VARCHAR(20)")
@@ -646,13 +657,20 @@ def whatsapp_link_confirmar_entrega(pedido):
     if not numero:
         return ""
 
-    sucursal = (pedido.sucursal_nombre or pedido.direccion or "a confirmar").strip()
+    sucursal = (pedido.sucursal_nombre or "a confirmar").strip()
+    direccion_partes = [
+        (pedido.direccion or "").strip(),
+        (pedido.localidad or "").strip(),
+        (pedido.provincia or "").strip(),
+    ]
+    direccion_sucursal = ", ".join([parte for parte in direccion_partes if parte]) or "a confirmar"
     seguimiento = (pedido.seguimiento or pedido.tn_tracking_number or "no disponible").strip()
 
     mensaje = (
         f"Hola {pedido.cliente or ''}, te escribimos de Fierro por tu pedido #{pedido.id}.\n\n"
         "Tu compra ya está disponible para retirar en sucursal.\n\n"
         f"Sucursal: {sucursal}\n"
+        f"Dirección sucursal: {direccion_sucursal}\n"
         f"Seguimiento: {seguimiento}\n\n"
         "Tenés 5 días para retirarlo antes de que vuelva a origen.\n\n"
         "Cuando lo retires, por favor avisame así cerramos la entrega."
@@ -3159,6 +3177,44 @@ def es_andreani_pedido(pedido):
     return "andreani" in transporte
 
 
+def es_via_cargo_pedido(pedido):
+    transporte = str(getattr(pedido, "empresa_envio", "") or "").strip().lower()
+    return "vía cargo" in transporte or "via cargo" in transporte
+
+
+def es_correo_argentino_pedido(pedido):
+    transporte = str(getattr(pedido, "empresa_envio", "") or "").strip().lower()
+    tipo_ml = str(getattr(pedido, "ml_tipo", "") or "").strip().lower()
+    return "correo" in transporte or "mercado envios" in tipo_ml or "mercado envíos" in tipo_ml
+
+
+def puede_actualizar_tracking_externo(pedido):
+    if not pedido or rol_actual() not in ["admin", "carga"]:
+        return False
+    seguimiento = str(getattr(pedido, "seguimiento", None) or getattr(pedido, "tn_tracking_number", None) or "").strip()
+    if not seguimiento:
+        return False
+    if pedido.estado in ["Finalizado"]:
+        return False
+    return es_andreani_pedido(pedido) or es_via_cargo_pedido(pedido) or es_correo_argentino_pedido(pedido)
+
+
+def aplicar_estado_tracking_seguro(pedido, clasificacion):
+    """Autoavanza solo cuando el estado logístico es claro."""
+    if not pedido or not clasificacion:
+        return None
+    if pedido.estado in ["Finalizado", "No entregado", "Reclamar a Mercado Libre"]:
+        return None
+    if clasificacion == "entregado" and pedido.estado not in ["Entregado", "Finalizado"]:
+        pedido.estado = "Entregado"
+        pedido.fecha_entregado = pedido.fecha_entregado or datetime.utcnow()
+        return "Entregado"
+    if clasificacion == "sucursal" and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte"]:
+        pedido.estado = "Verificar llegada a destino"
+        return "Verificar llegada a destino"
+    return None
+
+
 def andreani_eventos_pedido(pedido):
     raw = str(getattr(pedido, "andreani_eventos_json", "") or "").strip()
     if not raw:
@@ -4652,6 +4708,9 @@ def inyectar_contexto_global():
         "tn_admin_base_url": tn_admin_base_url,
         "tn_pedido_bloqueado_cancelado": tn_pedido_bloqueado_cancelado,
         "es_andreani_pedido": es_andreani_pedido,
+        "es_via_cargo_pedido": es_via_cargo_pedido,
+        "es_correo_argentino_pedido": es_correo_argentino_pedido,
+        "puede_actualizar_tracking_externo": puede_actualizar_tracking_externo,
         "andreani_configurada": andreani_configurada,
         "andreani_texto_ultimo_evento": andreani_texto_ultimo_evento,
         "andreani_alerta_pedido": andreani_alerta_pedido,
@@ -6026,6 +6085,68 @@ def resync_tn_pedido(id):
     except Exception as e:
         db.session.rollback()
         return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo re-sincronizar TN: {e}"))
+
+
+
+@app.route("/pedido/<int:id>/actualizar-tracking-externo", methods=["POST"])
+@login_required
+def actualizar_tracking_externo_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+
+    if not puede_actualizar_tracking_externo(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="Este pedido no tiene tracking externo actualizable."))
+
+    tracking_info = tracking_info_pedido(pedido)
+    if not tracking_info:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No hay link de seguimiento disponible."))
+
+    transporte = pedido.empresa_envio or ("Correo Argentino" if es_correo_argentino_pedido(pedido) else "")
+    url = tracking_info.get("url") or ""
+    seguimiento = tracking_info.get("seguimiento") or pedido.seguimiento or pedido.tn_tracking_number or ""
+
+    # Correo no tiene URL directa estable en el flujo actual.
+    # Intentamos por función aislada; si no hay endpoint usable, guarda error controlado.
+    try:
+        if tracking_info.get("copiar"):
+            resultado = consultar_correo_formulario(
+                seguimiento,
+                mercado_envios=("mercado" in str(getattr(pedido, "ml_tipo", "") or "").lower())
+            )
+        else:
+            resultado = consultar_tracking_url(url, transporte=transporte, seguimiento=seguimiento)
+        estado = (resultado.get("estado") or "").strip() or "Sin estado detectado"
+        clasificacion = interpretar_estado_logistico(estado, transporte=transporte)
+
+        pedido.tracking_transportista = transporte[:80] if transporte else None
+        pedido.tracking_url_consultada = url[:500] if url else None
+        pedido.tracking_estado_externo = estado[:300]
+        pedido.tracking_ultima_sync = datetime.utcnow()
+        pedido.tracking_error = resultado.get("error")
+
+        nuevo_estado = None
+        if not resultado.get("error"):
+            nuevo_estado = aplicar_estado_tracking_seguro(pedido, clasificacion)
+
+        registrar_auditoria(
+            accion="Actualizó tracking externo",
+            entidad="pedido",
+            entidad_id=str(pedido.id),
+            detalle=f"{transporte} {seguimiento}. Estado externo: {estado}. Estado Fierro: {nuevo_estado or pedido.estado}",
+        )
+        db.session.commit()
+
+        if resultado.get("error"):
+            return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo leer el tracking automáticamente: {resultado.get('error')}"))
+
+        extra = f" Pedido actualizado a {nuevo_estado}." if nuevo_estado else " No se cambió el estado interno."
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok=f"Tracking actualizado: {estado}.{extra}"))
+
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo actualizar tracking: {e}"))
 
 
 @app.route("/pedido/<int:id>/actualizar-andreani", methods=["POST"])
