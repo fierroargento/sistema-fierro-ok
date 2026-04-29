@@ -208,15 +208,10 @@
     {% endif %}
 
     {% if pedido.canal == "Mercado Libre" and rol_actual in ["admin", "carga"] %}
-    <div style="margin: 8px 0 14px 0; display:flex; gap:8px; flex-wrap:wrap;">
-        <form method="POST" action="{{ url_for('sync_mensajes_ml_pedido_admin', id=pedido.id) }}" style="display:inline-block;">
-            <button type="submit" class="btn btn-secundario" style="padding: 7px 12px; font-size: 0.82rem;">
-                🔄 Revisar mensajes ML
-            </button>
-        </form>
+    <div style="margin: 6px 0 10px 0; display:flex; gap:6px; flex-wrap:wrap;">
         <form method="POST" action="{{ url_for('resync_ml_pedido', id=pedido.id) }}" style="display:inline-block;">
-            <button type="submit" class="btn btn-secundario" style="padding: 7px 12px; font-size: 0.82rem;">
-                🔄 Re-sincronizar ML
+            <button type="submit" class="btn btn-secundario" style="padding: 4px 8px; font-size: 0.72rem; opacity:0.85;">
+                Re-sincronizar ML
             </button>
         </form>
     </div>
@@ -229,21 +224,6 @@
                 🔄 Re-sincronizar TNube
             </button>
         </form>
-    </div>
-    {% endif %}
-
-    {% if puede_actualizar_tracking_externo(pedido) and rol_actual in ["admin", "carga"] %}
-    <div style="margin: 8px 0 14px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-        <form method="POST" action="{{ url_for('actualizar_tracking_externo_pedido', id=pedido.id) }}" style="display:inline-block;">
-            <button type="submit" class="btn btn-secundario" style="padding: 7px 12px; font-size: 0.82rem;">
-                Actualizar tracking
-            </button>
-        </form>
-        {% if es_correo_argentino_pedido(pedido) %}
-        <span style="font-size:0.82rem; color:#8a5a00; align-self:center;">Correo usa formulario: si no puede leer automático, queda indicado sin romper el flujo.</span>
-        {% elif es_andreani_pedido(pedido) and not andreani_configurada() %}
-        <span style="font-size:0.82rem; color:#64748b; align-self:center;">Andreani sin API: se intenta lectura web pública.</span>
-        {% endif %}
     </div>
     {% endif %}
 
@@ -324,16 +304,12 @@
                 {% endif %}
             </p>
             {% endif %}
-            {% if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado", "Finalizado"] %}
+            {% if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado", "Finalizado"] and pedido.tracking_estado_externo %}
+                <p style="margin:4px 0; font-size:13px;">
+                    <strong>Estado de Envío:</strong> {{ pedido.tracking_estado_externo }}
+                </p>
+            {% endif %}
 
-                <div class="tracking-box">
-                    <div><strong>Estado transportista:</strong> {{ pedido.tracking_estado_externo or "Sin datos" }}</div>
-                    <div><strong>Transportista:</strong> {{ pedido.tracking_transportista or "-" }}</div>
-                    <div><strong>Última consulta:</strong> {{ pedido.tracking_ultima_sync or "-" }}</div>
-                </div>
-
-                {% endif %}
-            
             {% if es_andreani_pedido(pedido) %}
                 {% set alerta_andreani = andreani_alerta_pedido(pedido) %}
                 <div style="margin-top:8px; padding:8px 10px; border-radius:10px; background:#f8fafc; border:1px solid #e5e7eb; font-size:0.86rem;">
