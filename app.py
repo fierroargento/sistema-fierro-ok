@@ -1272,11 +1272,11 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "target": "",
         }
 
-    if pedido.estado == "Entregado" and rol in ["carga", "admin"] and pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
+    if pedido.estado == "Entregado" and rol in ["carga", "admin"]:
         return {
-            "tipo": "cerrar_ml",
-            "texto": "Ya avisé Mercado Libre",
-            "url": url_for("cerrar_ml", id=pedido.id),
+            "tipo": "cerrar_pedido",
+            "texto": "Cerrar pedido",
+            "url": url_for("cerrar_pedido", id=pedido.id),
             "clases": clase_confirmar,
             "target": "",
         }
@@ -6371,25 +6371,98 @@ def confirmar_entrega(id):
 
     return redirect(url_for("detalle_pedido", id=pedido.id, ok=texto_feedback_estado("Listo para retirar")))
 
-@app.route("/pedido/<int:id>/cerrar-ml")
+def checklist_cierre_pedido(pedido):
+    """Checklist APB para cerrar pedidos entregados sin saltear pasos críticos."""
+    items = []
+
+    items.append({
+        "clave": "postventa_confirmada",
+        "texto": "Mensaje postventa enviado o contacto final verificado.",
+        "obligatorio": True,
+        "detalle": "Usar primero el botón Mensaje postventa cuando corresponda. Si no hay teléfono, verificar contacto por el canal original.",
+    })
+
+    if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
+        items.append({
+            "clave": "ml_confirmado",
+            "texto": "Entrega confirmada / avisada en Mercado Libre.",
+            "obligatorio": True,
+            "detalle": "Este paso evita que el pedido quede abierto o con pago pendiente en ML.",
+        })
+
+    if pedido.tipo_entrega == "Sucursal":
+        items.append({
+            "clave": "retiro_confirmado",
+            "texto": "Cliente retiró el pedido en sucursal.",
+            "obligatorio": True,
+            "detalle": "No cerrar si solo fue avisado; cerrar cuando el retiro esté confirmado.",
+        })
+
+    return items
+
+
+@app.route("/pedido/<int:id>/cerrar")
 @login_required
-def cerrar_ml(id):
+def cerrar_pedido(id):
     pedido = Pedido.query.get_or_404(id)
 
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
 
-    if not (
-        pedido.estado == "Entregado"
-        and pedido.canal == "Mercado Libre"
-        and pedido.ml_tipo == "Acordás la Entrega"
-    ):
+    if pedido.estado != "Entregado":
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="El pedido solo puede cerrarse desde estado Entregado."))
+
+    bloqueos = []
+    if getattr(pedido, "ml_claim_abierto", False):
+        bloqueos.append("Hay un reclamo activo en Mercado Libre. Resolver el reclamo antes de cerrar.")
+
+    return render_template(
+        "cerrar_pedido.html",
+        pedido=pedido,
+        checklist=checklist_cierre_pedido(pedido),
+        bloqueos=bloqueos,
+    )
+
+
+@app.route("/pedido/<int:id>/cerrar/confirmar", methods=["POST"])
+@login_required
+def confirmar_cierre_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
+
+    if pedido.estado != "Entregado":
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="El pedido solo puede cerrarse desde estado Entregado."))
+
+    if getattr(pedido, "ml_claim_abierto", False):
+        return redirect(url_for("cerrar_pedido", id=pedido.id, error="Hay un reclamo activo en Mercado Libre."))
+
+    faltantes = []
+    for item in checklist_cierre_pedido(pedido):
+        if item.get("obligatorio") and request.form.get(item["clave"]) != "1":
+            faltantes.append(item["texto"])
+
+    if faltantes:
+        return render_template(
+            "cerrar_pedido.html",
+            pedido=pedido,
+            checklist=checklist_cierre_pedido(pedido),
+            bloqueos=[],
+            error="Faltan confirmar pasos obligatorios: " + " / ".join(faltantes),
+        )
 
     pedido.estado = "Finalizado"
     db.session.commit()
 
     return redirect(url_for("detalle_pedido", id=pedido.id, ok=texto_feedback_estado("Finalizado")))
+
+
+@app.route("/pedido/<int:id>/cerrar-ml")
+@login_required
+def cerrar_ml(id):
+    # Compatibilidad con enlaces anteriores: ahora el cierre pasa por checklist APB.
+    return redirect(url_for("cerrar_pedido", id=id))
 
 @app.route("/pedido/<int:id>/marcar-no-entregado")
 @login_required

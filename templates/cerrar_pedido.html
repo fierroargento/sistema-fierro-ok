@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card detalle-card">
+    <div class="detalle-header">
+        <div>
+            <h2>Cerrar pedido #{{ pedido.id }}</h2>
+            <div class="detalle-sub">Checklist final APB antes de pasar el pedido a Finalizado.</div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alerta alerta-roja" style="margin-bottom: 16px;">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    {% if bloqueos %}
+    <div class="detalle-box" style="border-left: 6px solid #dc2626; margin-bottom: 16px;">
+        <h3>No se puede cerrar todavía</h3>
+        {% for bloqueo in bloqueos %}
+        <p><strong>{{ bloqueo }}</strong></p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="detalle-grid-resumen">
+        <div class="detalle-box">
+            <h3>Resumen</h3>
+            <p><strong>Cliente:</strong> {{ pedido.cliente }}</p>
+            <p><strong>Canal:</strong> {{ pedido.canal }}</p>
+            <p><strong>Tipo ML:</strong> {{ pedido.ml_tipo or '-' }}</p>
+            <p><strong>Entrega:</strong> {{ pedido.tipo_entrega or '-' }}</p>
+            <p><strong>Estado actual:</strong> {{ pedido.estado }}</p>
+        </div>
+
+        <div class="detalle-box">
+            <h3>Regla APB</h3>
+            <p>Este cierre no debe usarse para adelantar pasos. Confirmá solamente lo que ya fue hecho en la operación real.</p>
+            <p>Si falta avisar al cliente, confirmar Mercado Libre o verificar retiro, volvé al detalle y hacelo antes de cerrar.</p>
+        </div>
+    </div>
+
+    <div class="detalle-box detalle-box-full" style="margin-top: 16px;">
+        <h3>Checklist obligatorio</h3>
+
+        <form method="POST" action="{{ url_for('confirmar_cierre_pedido', id=pedido.id) }}">
+            {% for item in checklist %}
+            <label style="display: block; margin: 12px 0; padding: 12px; border: 1px solid #d8dee6; border-radius: 10px; background: #f8fafc;">
+                <input type="checkbox" name="{{ item.clave }}" value="1" style="width: auto; margin-right: 8px;">
+                <strong>{{ item.texto }}</strong>
+                {% if item.detalle %}
+                <br><span style="color: #64748b; margin-left: 26px; display: inline-block; margin-top: 4px;">{{ item.detalle }}</span>
+                {% endif %}
+            </label>
+            {% endfor %}
+
+            <div class="detalle-acciones">
+                <a href="{{ url_for('detalle_pedido', id=pedido.id) }}" class="btn btn-secundario btn-volver">Volver</a>
+                {% if not bloqueos %}
+                <button type="submit" class="btn btn-confirmar">Confirmar cierre</button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
