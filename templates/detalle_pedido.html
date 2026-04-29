@@ -324,16 +324,16 @@
                 {% endif %}
             </p>
             {% endif %}
-            {% if pedido.tracking_estado_externo or pedido.tracking_error %}
-                <div style="margin-top:8px; padding:8px 10px; border-radius:10px; background:#f8fafc; border:1px solid #e5e7eb; font-size:0.86rem;">
-                    <p style="margin:0 0 4px 0;"><strong>Estado transportista:</strong> {{ pedido.tracking_estado_externo or "Sin sincronizar" }}</p>
-                    <p style="margin:0 0 4px 0;"><strong>Transportista:</strong> {{ pedido.tracking_transportista or pedido.empresa_envio or "-" }}</p>
-                    <p style="margin:0 0 4px 0;"><strong>Última consulta:</strong> {{ fecha_argentina(pedido.tracking_ultima_sync) if pedido.tracking_ultima_sync else "-" }}</p>
-                    {% if pedido.tracking_error %}
-                    <p style="margin:4px 0 0 0; font-weight:700; color:#a16207;">{{ pedido.tracking_error }}</p>
-                    {% endif %}
+            {% if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado", "Finalizado"] %}
+
+                <div class="tracking-box">
+                    <div><strong>Estado transportista:</strong> {{ pedido.tracking_estado_externo or "Sin datos" }}</div>
+                    <div><strong>Transportista:</strong> {{ pedido.tracking_transportista or "-" }}</div>
+                    <div><strong>Última consulta:</strong> {{ pedido.tracking_ultima_sync or "-" }}</div>
                 </div>
-            {% endif %}
+
+                {% endif %}
+            
             {% if es_andreani_pedido(pedido) %}
                 {% set alerta_andreani = andreani_alerta_pedido(pedido) %}
                 <div style="margin-top:8px; padding:8px 10px; border-radius:10px; background:#f8fafc; border:1px solid #e5e7eb; font-size:0.86rem;">
