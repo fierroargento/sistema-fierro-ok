@@ -5959,8 +5959,9 @@ def imprimir_etiqueta(id):
             "imprimir_etiqueta_mobile.html",
             pedido=pedido,
             url_archivo=url_archivo,
-            url_original=url_original,
+            url_original=None,
             extension=extension,
+            preset_etiqueta=preset_etiqueta,
             volver_url=url_for("despacho_mobile", ok="Etiqueta impresa correctamente.")
         )
 

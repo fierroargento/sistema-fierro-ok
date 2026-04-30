@@ -1,85 +1,299 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Imprimir etiqueta - Pedido #{{ pedido.id }}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f4f7f8;
-            color: #0f172a;
-        }
-        .mobile-print-wrap {
-            max-width: 720px;
-            margin: 0 auto;
-            padding: 18px;
-        }
-        .box {
-            background: #ffffff;
-            border: 1px solid #dbe4e8;
-            border-radius: 18px;
-            padding: 18px;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-        }
-        h1 {
-            margin: 0 0 8px;
-            color: #124E64;
-            font-size: 24px;
-        }
-        p {
-            font-size: 16px;
-            line-height: 1.4;
-            color: #475569;
-        }
-        .btn {
-            display: block;
-            width: 100%;
-            text-align: center;
-            border-radius: 16px;
-            padding: 18px 12px;
+<meta charset="UTF-8">
+<title>Imprimir etiqueta - Pedido #{{ pedido.id }}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    @page {
+        size: A4;
+        margin: 0;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    :root {
+        --label-row: 58%;
+        --items-row: 42%;
+        --img-width: auto;
+        --img-height: 100%;
+        --img-left: 50%;
+        --img-top: 0%;
+        --img-transform: translate(-50%, 0) scale(1.82);
+        --img-origin: top center;
+    }
+
+    body.preset-correo,
+    body.preset-mercado,
+    body.preset-andreani {
+        --label-row: 64%;
+        --items-row: 36%;
+        --img-width: auto;
+        --img-height: 100%;
+        --img-left: 50%;
+        --img-top: 0%;
+        --img-transform: translate(-50%, 0);
+        --img-origin: top center;
+    }
+
+    html, body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background: #f4f7f8;
+        color: #1f2937;
+    }
+
+    .mobile-panel {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 18px;
+    }
+
+    .box {
+        background: #ffffff;
+        border: 1px solid #dbe4e8;
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    .box h1 {
+        margin: 0 0 8px;
+        color: #124E64;
+        font-size: 26px;
+    }
+
+    .box p {
+        font-size: 16px;
+        line-height: 1.4;
+        color: #475569;
+    }
+
+    .btn {
+        display: block;
+        width: 100%;
+        text-align: center;
+        border-radius: 16px;
+        padding: 18px 12px;
+        margin-top: 14px;
+        font-size: 18px;
+        font-weight: 900;
+        text-decoration: none;
+        border: 0;
+        box-sizing: border-box;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        background: #124E64;
+        color: #ffffff;
+    }
+
+    .btn-secondary {
+        background: #e5e7eb;
+        color: #0f172a;
+    }
+
+    .print-sheet-wrap {
+        width: 210mm;
+        min-height: 297mm;
+        background: #ffffff;
+        margin: 16px auto;
+        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.14);
+        transform-origin: top left;
+    }
+
+    .hoja {
+        width: 210mm;
+        height: 297mm;
+        background: white;
+        display: grid;
+        grid-template-rows: var(--label-row) var(--items-row);
+    }
+
+    .bloque-etiqueta {
+        border-bottom: 2px solid #000;
+        overflow: hidden;
+        position: relative;
+        background: white;
+    }
+
+    .etiqueta-frame {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        position: relative;
+        background: white;
+    }
+
+    .etiqueta-frame img {
+        display: block;
+        border: none;
+        background: white;
+        position: absolute;
+        top: var(--img-top);
+        left: var(--img-left);
+        width: var(--img-width);
+        height: var(--img-height);
+        max-width: none;
+        max-height: none;
+        transform: var(--img-transform);
+        transform-origin: var(--img-origin);
+    }
+
+    .bloque-items {
+        padding: 7mm 8mm 6mm 8mm;
+        overflow: hidden;
+    }
+
+    .items-titulo {
+        font-size: 16px;
+        font-weight: 900;
+        margin-bottom: 8px;
+        letter-spacing: 0.2px;
+    }
+
+    .tabla-items {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .tabla-items th {
+        text-align: left;
+        font-size: 13px;
+        font-weight: 900;
+        padding: 6px 6px 7px 6px;
+        border-bottom: 2px solid #000;
+    }
+
+    .tabla-items td {
+        font-size: 14px;
+        padding: 7px 6px;
+        vertical-align: top;
+        border-bottom: 1px solid #d1d5db;
+        word-wrap: break-word;
+    }
+
+    .col-cantidad {
+        width: 27%;
+        font-weight: 900;
+    }
+
+    .col-sku {
+        width: 23%;
+        font-weight: 900;
+    }
+
+    .col-desc {
+        width: 50%;
+    }
+
+    .cantidad-texto {
+        font-weight: 900;
+        font-size: 15px;
+        white-space: nowrap;
+    }
+
+    .sin-items {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 8px;
+    }
+
+    @media screen and (max-width: 900px) {
+        .print-sheet-wrap {
+            transform: scale(0.44);
+            margin-left: 8px;
             margin-top: 14px;
-            font-size: 18px;
-            font-weight: 900;
-            text-decoration: none;
-            border: 0;
-            box-sizing: border-box;
+            margin-bottom: -150mm;
         }
-        .btn-primary { background: #124E64; color: #ffffff; }
-        .btn-secondary { background: #e5e7eb; color: #0f172a; }
-        .mini {
-            font-size: 13px;
-            margin-top: 12px;
+    }
+
+    @media print {
+        html, body {
+            width: 210mm;
+            height: 297mm;
+            background: white;
         }
-    </style>
+
+        .mobile-panel {
+            display: none !important;
+        }
+
+        .print-sheet-wrap {
+            display: block !important;
+            width: 210mm;
+            height: 297mm;
+            min-height: 297mm;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        .hoja {
+            width: 210mm;
+            height: 297mm;
+        }
+    }
+</style>
 </head>
-<body>
-    <div class="mobile-print-wrap">
+<body class="preset-{{ preset_etiqueta }}">
+    <div class="mobile-panel">
         <div class="box">
             <h1>Pedido #{{ pedido.id }}</h1>
             <p>La etiqueta quedó marcada como impresa.</p>
-            <p>No mostramos vista previa en celular para evitar errores. Abrí la etiqueta y luego volvé a Despacho.</p>
+            <p>Abajo está la etiqueta final con el detalle de productos. Tocá imprimir para mandar exactamente esa hoja.</p>
 
-            <a class="btn btn-primary" href="{{ url_original or url_archivo }}" target="_blank" rel="noopener noreferrer">
-                Abrir etiqueta
-            </a>
+            <button class="btn btn-primary" onclick="window.print()">Imprimir etiqueta completa</button>
 
-            <a class="btn btn-secondary" href="{{ volver_url }}">
-                Volver a Despacho</a>
-<button class="btn btn-primary" onclick="window.print()">Imprimir</button>
-            </a>
+            <a class="btn btn-secondary" href="{{ volver_url }}">Volver a Despacho</a>
 
-            <p class="mini">Después de imprimir, volvé a Despacho y seguí con “Marcar embalado”.</p>
+            <p style="font-size:13px;margin-top:14px;">Después de imprimir, volvé a Despacho y seguí con “Marcar embalado”.</p>
         </div>
     </div>
 
-    <script>
-        window.addEventListener("load", function () {
-            setTimeout(function () {
-                try { window.open("{{ url_original or url_archivo }}", "_blank"); } catch (e) {}
-            }, 500);
-        });
-    </script>
+    <div class="print-sheet-wrap">
+        <div class="hoja">
+            <div class="bloque-etiqueta">
+                <div class="etiqueta-frame">
+                    <img src="{{ url_archivo }}" alt="Etiqueta">
+                </div>
+            </div>
+
+            <div class="bloque-items">
+                <div class="items-titulo">ITEMS DEL PEDIDO</div>
+
+                {% if pedido.items %}
+                <table class="tabla-items">
+                    <thead>
+                        <tr>
+                            <th class="col-cantidad">CANTIDAD</th>
+                            <th class="col-sku">SKU</th>
+                            <th class="col-desc">DESCRIPCIÓN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in pedido.items %}
+                        <tr>
+                            <td class="col-cantidad">
+                                <span class="cantidad-texto">CANTIDAD X {{ item.cantidad }}</span>
+                            </td>
+                            <td class="col-sku">{{ item.sku }}</td>
+                            <td class="col-desc">{{ item.descripcion }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="sin-items">No hay items cargados en este pedido.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </body>
 </html>
