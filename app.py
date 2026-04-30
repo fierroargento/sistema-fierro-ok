@@ -40,7 +40,10 @@ else:
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "fierro-apb-roles-v1")
+_secret_key = os.getenv("SECRET_KEY", "")
+if not _secret_key:
+    raise RuntimeError("SECRET_KEY no está configurada. Definila en las variables de entorno.")
+app.config["SECRET_KEY"] = _secret_key
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
@@ -1479,7 +1482,20 @@ def alertas_operativas():
     alertas = []
     rol = rol_actual()
 
-    pedidos = Pedido.query.all()
+    estados_activos = [
+        "Cargando Pedido",
+        "Etiqueta Lista",
+        "Etiqueta Impresa",
+        "Embalado",
+        "Despachado",
+        "Con demora de entrega",
+        "Con reclamo en transporte",
+        "Verificar llegada a destino",
+        "Listo para retirar",
+        "No entregado",
+        "Reclamar a Mercado Libre",
+    ]
+    pedidos = Pedido.query.filter(Pedido.estado.in_(estados_activos)).all()
 
     sin_despachar = 0
     sin_carga = 0
@@ -4849,7 +4865,7 @@ def logout():
 @app.route("/")
 @login_required
 def inicio():
-    if rol_actual() == "despacho" and es_dispositivo_movil():
+    if rol_actual() == "despacho" and (es_dispositivo_movil() or request.args.get("mobile")):
         return redirect(url_for("despacho_mobile"))
 
     pedidos = Pedido.query.all()
@@ -5817,11 +5833,23 @@ def imprimir_etiqueta(id):
     if pedido.empresa_envio == "Vía Cargo" and not es_mercado_envios(pedido):
         aplicar_estado_y_fechas(pedido, "Etiqueta Impresa")
         db.session.commit()
+        if origen == "mobile" and rol_actual() == "despacho":
+            return render_template(
+                "imprimir_etiqueta_interna_mobile.html",
+                pedido=pedido,
+                hay_autorizado=hay_autorizado,
+                volver_url=url_for("despacho_mobile", ok="Etiqueta impresa correctamente.")
+            )
+
         return render_template(
             "imprimir_etiqueta_interna.html",
             pedido=pedido,
             hay_autorizado=hay_autorizado,
-            volver_url=(url_for("detalle_pedido", id=pedido.id) if origen == "detalle" else url_for("inicio"))
+            volver_url=(
+                url_for("detalle_pedido", id=pedido.id) if origen == "detalle"
+                else url_for("despacho_mobile", ok="Etiqueta impresa correctamente.") if origen == "mobile"
+                else url_for("inicio")
+            )
         )
 
     if es_mercado_envios(pedido):

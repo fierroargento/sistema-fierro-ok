@@ -142,7 +142,13 @@
 
 <div class="mobile-despacho-wrap">
     <div class="mobile-header">
-        <h1>Despacho</h1>
+        <h1>Despacho
+            {% if pedidos %}
+            <span style="font-size:14px;font-weight:400;color:#64748b;margin-left:8px;">
+                ({{ pedidos|length }} pendiente{{ 's' if pedidos|length != 1 else '' }})
+            </span>
+            {% endif %}
+        </h1>
         <p>Imprimir, embalar y despachar. Sin mensajes, sin tracking, sin edición.</p>
     </div>
 
@@ -191,13 +197,4 @@
     </div>
 </div>
 
-<script>
-(function () {
-    setInterval(function () {
-        if (!document.hidden) {
-            window.location.reload();
-        }
-    }, 25000);
-})();
-</script>
 {% endblock %}
