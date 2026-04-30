@@ -1278,10 +1278,15 @@ def accion_principal_pedido(pedido, origen="inicio"):
         }
 
     if puede_imprimir_pedido(pedido):
+        url_impresion = (
+            url_for("imprimir_etiqueta", id=pedido.id, origen="mobile")
+            if origen == "mobile"
+            else url_for("lanzar_impresion", id=pedido.id, origen=origen)
+        )
         return {
             "tipo": "imprimir_etiqueta",
             "texto": "Imprimir etiqueta",
-            "url": url_for("lanzar_impresion", id=pedido.id, origen=origen),
+            "url": url_impresion,
             "clases": "btn btn-accion-rapida btn-confirmar" if es_inicio else "btn btn-accion-rapida btn-confirmar",
             "target": "_blank" if es_inicio else "",
         }
@@ -5783,6 +5788,9 @@ def lanzar_impresion(id):
 
     origen = (request.args.get("origen") or "").strip()
 
+    if origen == "mobile":
+        return redirect(url_for("imprimir_etiqueta", id=pedido.id, origen="mobile"))
+
     if origen == "detalle":
         volver_url = url_for("detalle_pedido", id=pedido.id)
     else:
@@ -5903,6 +5911,16 @@ def imprimir_etiqueta(id):
 
     aplicar_estado_y_fechas(pedido, "Etiqueta Impresa")
     db.session.commit()
+
+    if origen == "mobile" and rol_actual() == "despacho":
+        return render_template(
+            "imprimir_etiqueta_mobile.html",
+            pedido=pedido,
+            url_archivo=url_archivo,
+            url_original=url_original,
+            extension=extension,
+            volver_url=url_for("despacho_mobile", ok="Etiqueta impresa correctamente.")
+        )
 
     return render_template(
         "imprimir_etiqueta.html",
@@ -7050,6 +7068,9 @@ def avanzar_pedido(id):
         db.session.commit()
 
     mensaje_ok = texto_feedback_estado(pedido.estado)
+
+    if rol_actual() == "despacho" and es_dispositivo_movil():
+        return redirect(url_for("despacho_mobile", ok=mensaje_ok))
 
     # Si queda Embalado, mantener al operador dentro del detalle
     # para continuar directo con el despacho. Aplica también a admin.

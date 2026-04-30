@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Imprimir etiqueta - Pedido #{{ pedido.id }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f7f8;
+            color: #0f172a;
+        }
+
+        .mobile-print-wrap {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 18px;
+        }
+
+        .box {
+            background: #ffffff;
+            border: 1px solid #dbe4e8;
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            color: #124E64;
+            font-size: 24px;
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 1.4;
+            color: #475569;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            text-align: center;
+            border-radius: 16px;
+            padding: 18px 12px;
+            margin-top: 14px;
+            font-size: 18px;
+            font-weight: 900;
+            text-decoration: none;
+            border: 0;
+            box-sizing: border-box;
+        }
+
+        .btn-primary {
+            background: #124E64;
+            color: #ffffff;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #0f172a;
+        }
+
+        .mini {
+            font-size: 13px;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-print-wrap">
+        <div class="box">
+            <h1>Pedido #{{ pedido.id }}</h1>
+            <p>La etiqueta quedó marcada como impresa.</p>
+            <p>Si el celular no abrió el cuadro de impresión automáticamente, tocá el botón de abajo.</p>
+
+            <a class="btn btn-primary" href="{{ url_archivo }}" target="_blank" rel="noopener noreferrer">
+                Abrir etiqueta para imprimir
+            </a>
+
+            <a class="btn btn-secondary" href="{{ volver_url }}">
+                Volver a Despacho
+            </a>
+
+            <p class="mini">Después de imprimir, volvé a Despacho y seguí con “Marcar embalado”.</p>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener("load", function () {
+            try {
+                window.open("{{ url_archivo }}", "_blank");
+            } catch (e) {}
+            setTimeout(function () {
+                window.location.href = "{{ volver_url }}";
+            }, 1800);
+        });
+    </script>
+</body>
+</html>

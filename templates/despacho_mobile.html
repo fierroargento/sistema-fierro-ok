@@ -146,6 +146,12 @@
         <p>Imprimir, embalar y despachar. Sin mensajes, sin tracking, sin edición.</p>
     </div>
 
+    {% if ok_feedback %}
+        <div style="background:#dcfce7;border:1px solid #86efac;color:#166534;border-radius:14px;padding:12px;margin:12px 0;font-weight:800;">
+            {{ ok_feedback }}
+        </div>
+    {% endif %}
+
     {% if pedidos %}
         {% for pedido in pedidos %}
             {% set accion = accion_principal_pedido(pedido, 'mobile') %}
