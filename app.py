@@ -171,6 +171,7 @@ class Pedido(db.Model):
     tracking_error = db.Column(db.Text)
     tracking_transportista = db.Column(db.String(80))
     tracking_url_consultada = db.Column(db.String(500))
+    comprobante_dux_archivo = db.Column(db.String(255))
     etiqueta_archivo = db.Column(db.String(255))
     estado = db.Column(db.String(50), default="Cargando Pedido")
 
@@ -307,6 +308,7 @@ def asegurar_columnas_extra():
     asegurar_columna_si_no_existe("tracking_error", "TEXT")
     asegurar_columna_si_no_existe("tracking_transportista", "VARCHAR(80)")
     asegurar_columna_si_no_existe("tracking_url_consultada", "VARCHAR(500)")
+    asegurar_columna_si_no_existe("comprobante_dux_archivo", "VARCHAR(255)")
     asegurar_columna_si_no_existe("sucursal_nombre", "VARCHAR(150)")
     asegurar_columna_si_no_existe("autorizado_nombre", "VARCHAR(120)")
     asegurar_columna_si_no_existe("autorizado_dni", "VARCHAR(20)")
@@ -451,6 +453,27 @@ def guardar_etiqueta_subida(archivo):
         }
     except Exception as e:
         print("Error subiendo a Cloudinary:", e)
+        return {"url": "", "public_id": ""}
+
+
+def guardar_comprobante_dux_subido(archivo):
+    if not archivo or not archivo.filename:
+        return {"url": "", "public_id": ""}
+
+    try:
+        resultado = cloudinary.uploader.upload(
+            archivo,
+            resource_type="auto",
+            use_filename=True,
+            unique_filename=True,
+            overwrite=False
+        )
+        return {
+            "url": resultado.get("secure_url", ""),
+            "public_id": resultado.get("public_id", "")
+        }
+    except Exception as e:
+        print("Error subiendo comprobante DUX a Cloudinary:", e)
         return {"url": "", "public_id": ""}
 
 
@@ -1581,6 +1604,11 @@ def rol_actual():
     return usuario.rol
 
 
+def es_dispositivo_movil():
+    ua = (request.headers.get("User-Agent") or "").lower()
+    return any(x in ua for x in ["mobile", "android", "iphone", "ipad", "ipod"])
+
+
 def admin_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
@@ -1888,6 +1916,57 @@ def items_a_texto(pedido):
     for item in pedido.items:
         lineas.append(f"{item.sku}|{item.descripcion}|{item.cantidad}")
     return "\n".join(lineas)
+
+
+def _clave_item_control(sku, descripcion):
+    sku_norm = str(sku or "").strip().lower()
+    desc_norm = re.sub(r"\s+", " ", str(descripcion or "").strip().lower())
+    return f"{sku_norm}|{desc_norm}"
+
+
+def resumen_items_desde_texto(items_texto):
+    resumen = {}
+    for linea in str(items_texto or "").splitlines():
+        if not linea.strip():
+            continue
+        partes = [p.strip() for p in linea.split("|")]
+        if len(partes) < 3:
+            continue
+        sku, descripcion, cantidad_raw = partes[0], partes[1], partes[2]
+        try:
+            cantidad = int(float(str(cantidad_raw).replace(",", ".")))
+        except Exception:
+            cantidad = 0
+        clave = _clave_item_control(sku, descripcion)
+        resumen[clave] = resumen.get(clave, 0) + max(cantidad, 0)
+    return resumen
+
+
+def resumen_items_actuales_pedido(pedido):
+    resumen = {}
+    for item in (pedido.items or []):
+        clave = _clave_item_control(item.sku, item.descripcion)
+        resumen[clave] = resumen.get(clave, 0) + int(item.cantidad or 0)
+    return resumen
+
+
+def hay_productos_agregados(items_antes, items_despues):
+    for clave, cantidad_nueva in (items_despues or {}).items():
+        if int(cantidad_nueva or 0) > int((items_antes or {}).get(clave, 0) or 0):
+            return True
+    return False
+
+
+def requiere_comprobante_dux_por_agregado(pedido, canal, ml_tipo, items_texto_nuevo):
+    return bool(
+        pedido
+        and canal == "Mercado Libre"
+        and ml_tipo == "Acordás la Entrega"
+        and hay_productos_agregados(
+            resumen_items_actuales_pedido(pedido),
+            resumen_items_desde_texto(items_texto_nuevo)
+        )
+    )
 
 
 def puede_administrar_integraciones():
@@ -4765,6 +4844,9 @@ def logout():
 @app.route("/")
 @login_required
 def inicio():
+    if rol_actual() == "despacho" and es_dispositivo_movil():
+        return redirect(url_for("despacho_mobile"))
+
     pedidos = Pedido.query.all()
 
     cambios = False
@@ -4800,6 +4882,24 @@ def inicio():
         texto_boton_estado=texto_boton_estado,
         puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
         ok_feedback=ok_feedback
+    )
+
+
+@app.route("/despacho-mobile")
+@login_required
+def despacho_mobile():
+    if rol_actual() != "despacho":
+        return redirect(url_for("inicio"))
+
+    pedidos = Pedido.query.filter(Pedido.estado.in_(["Etiqueta Lista", "Etiqueta Impresa", "Embalado"])).all()
+    pedidos.sort(key=orden_inicio_pedido)
+
+    return render_template(
+        "despacho_mobile.html",
+        pedidos=pedidos,
+        accion_principal_pedido=accion_principal_pedido,
+        accion_sugerida_pedido=accion_sugerida_pedido,
+        ok_feedback=(request.args.get("ok") or "").strip(),
     )
 
 
@@ -6329,6 +6429,13 @@ def editar_pedido(id):
             subida = guardar_etiqueta_subida(archivo_etiqueta)
             etiqueta_actual = subida.get("url", "")
 
+        comprobante_dux_actual = request.form.get("comprobante_dux_existente", "").strip()
+        archivo_comprobante_dux = request.files.get("comprobante_dux")
+
+        if archivo_comprobante_dux and archivo_comprobante_dux.filename:
+            subida_dux = guardar_comprobante_dux_subido(archivo_comprobante_dux)
+            comprobante_dux_actual = subida_dux.get("url", "")
+
         canal = request.form.get("canal")
         ml_tipo = request.form.get("ml_tipo")
 
@@ -6378,6 +6485,7 @@ def editar_pedido(id):
         seguimiento_valor = (request.form.get("seguimiento") or request.form.get("seguimiento_envio") or "").strip()
         pedido.seguimiento = seguimiento_valor
         pedido.etiqueta_archivo = etiqueta_actual
+        pedido.comprobante_dux_archivo = comprobante_dux_actual
 
         if es_guardado_parcial_acordas():
             db.session.commit()
@@ -6389,7 +6497,44 @@ def editar_pedido(id):
 
             return redirect(url_for("inicio"))
 
-        cargar_items_desde_texto(pedido, request.form.get("items_texto", ""))
+        items_texto_nuevo = request.form.get("items_texto", "")
+
+        if requiere_comprobante_dux_por_agregado(pedido, canal, ml_tipo, items_texto_nuevo) and not comprobante_dux_actual:
+            pedido_temporal = {
+                "id": pedido.id,
+                "cliente": request.form.get("cliente", ""),
+                "dni": request.form.get("dni", ""),
+                "telefono": normalizar_telefono(request.form.get("telefono", "")),
+                "mail": request.form.get("mail", ""),
+                "canal": canal or "",
+                "id_venta": request.form.get("id_venta", ""),
+                "ml_tipo": ml_tipo or "",
+                "empresa_envio": empresa_envio or "",
+                "tipo_entrega": tipo_entrega or "",
+                "direccion": direccion or "",
+                "codigo_postal": codigo_postal or "",
+                "localidad": localidad or "",
+                "provincia": provincia or "",
+                "observaciones": observaciones or "",
+                "sucursal_nombre": sucursal_nombre or "",
+                "autorizado_nombre": autorizado_nombre or "",
+                "autorizado_dni": autorizado_dni or "",
+                "autorizado_telefono": autorizado_telefono or "",
+                "seguimiento": seguimiento_valor,
+                "etiqueta_archivo": etiqueta_actual,
+                "comprobante_dux_archivo": comprobante_dux_actual,
+                "estado": pedido.estado
+            }
+
+            db.session.rollback()
+            return render_template(
+                "editar_pedido.html",
+                pedido=pedido_temporal,
+                items_texto=items_texto_nuevo,
+                error="Agregaste productos extra a una compra de Mercado Libre / Acordás la Entrega. Para continuar, subí el comprobante DUX correspondiente."
+            )
+
+        cargar_items_desde_texto(pedido, items_texto_nuevo)
         actualizar_estado_automatico(pedido)
 
         errores = motor_bloqueo(pedido)
@@ -6419,6 +6564,7 @@ def editar_pedido(id):
                 "autorizado_telefono": autorizado_telefono or "",
                 "seguimiento": seguimiento_valor,
                 "etiqueta_archivo": etiqueta_actual,
+                "comprobante_dux_archivo": comprobante_dux_actual,
                 "estado": pedido.estado
             }
 

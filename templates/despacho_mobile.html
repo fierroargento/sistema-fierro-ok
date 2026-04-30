@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+@media (max-width: 900px) {
+    body { background: #f4f7f8; }
+    .layout { display: block; }
+    .sidebar { display: none !important; }
+    .main { width: 100%; padding: 10px; box-sizing: border-box; }
+}
+
+.mobile-despacho-wrap {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #f4f7f8;
+    padding: 10px 0 8px;
+    border-bottom: 1px solid #dbe4e8;
+}
+
+.mobile-header h1 {
+    margin: 0;
+    font-size: 22px;
+    color: #124E64;
+}
+
+.mobile-header p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.mobile-pedido-card {
+    background: #ffffff;
+    border: 1px solid #dbe4e8;
+    border-radius: 18px;
+    padding: 14px;
+    margin: 12px 0;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.mobile-pedido-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.mobile-pedido-id {
+    font-size: 22px;
+    font-weight: 900;
+    color: #124E64;
+}
+
+.mobile-estado {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #A4F4CF;
+    color: #124E64;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.mobile-cliente {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    font-weight: 800;
+}
+
+.mobile-items {
+    margin: 8px 0 14px;
+    padding: 10px;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+}
+
+.mobile-item {
+    padding: 7px 0;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 15px;
+    line-height: 1.25;
+}
+
+.mobile-item:last-child { border-bottom: none; }
+
+.mobile-item strong {
+    color: #124E64;
+}
+
+.mobile-action {
+    display: block;
+    width: 100%;
+    text-align: center;
+    border-radius: 16px;
+    padding: 17px 12px;
+    font-size: 18px;
+    font-weight: 900;
+    text-decoration: none;
+    background: #124E64;
+    color: #ffffff;
+    box-sizing: border-box;
+}
+
+.mobile-action:active {
+    transform: scale(0.99);
+}
+
+.mobile-empty {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 18px;
+    color: #64748b;
+    text-align: center;
+    margin-top: 18px;
+}
+
+.mobile-footer-actions {
+    margin: 18px 0 8px;
+    display: flex;
+    justify-content: center;
+}
+
+.mobile-footer-actions a {
+    color: #124E64;
+    font-weight: 800;
+    text-decoration: none;
+}
+</style>
+
+<div class="mobile-despacho-wrap">
+    <div class="mobile-header">
+        <h1>Despacho</h1>
+        <p>Imprimir, embalar y despachar. Sin mensajes, sin tracking, sin edición.</p>
+    </div>
+
+    {% if pedidos %}
+        {% for pedido in pedidos %}
+            {% set accion = accion_principal_pedido(pedido, 'mobile') %}
+            <div class="mobile-pedido-card">
+                <div class="mobile-pedido-top">
+                    <div class="mobile-pedido-id">#{{ pedido.id }}</div>
+                    <div class="mobile-estado">{{ pedido.estado }}</div>
+                </div>
+
+                <div class="mobile-cliente">{{ pedido.cliente or '-' }}</div>
+
+                <div class="mobile-items">
+                    {% for item in pedido.items %}
+                        <div class="mobile-item">
+                            <strong>{{ item.cantidad or 0 }}x</strong>
+                            {{ item.descripcion or item.sku or 'Producto sin descripción' }}
+                            {% if item.sku %}<br><small>SKU: {{ item.sku }}</small>{% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% if accion %}
+                    <a class="mobile-action" href="{{ accion.url }}" {% if accion.target %}target="{{ accion.target }}"{% endif %}>
+                        {{ accion.texto }}
+                    </a>
+                {% else %}
+                    <div class="mobile-empty">Sin acción pendiente.</div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="mobile-empty">No hay pedidos pendientes para despacho.</div>
+    {% endif %}
+
+    <div class="mobile-footer-actions">
+        <a href="{{ url_for('logout') }}">Cerrar sesión</a>
+    </div>
+</div>
+
+<script>
+(function () {
+    setInterval(function () {
+        if (!document.hidden) {
+            window.location.reload();
+        }
+    }, 25000);
+})();
+</script>
+{% endblock %}

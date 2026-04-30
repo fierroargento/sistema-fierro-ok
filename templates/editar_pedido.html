@@ -241,7 +241,11 @@
                 </div>
 
                 <div id="bloque_comprobante_dux" style="display:none;">
+                    <label for="comprobante_dux">Comprobante de venta DUX</label>
                     <input type="file" name="comprobante_dux" id="comprobante_dux" accept=".pdf,.png,.jpg,.jpeg,.webp">
+                    <small style="display:block; margin-top:6px; color:#64748b; line-height:1.35;">
+                        Obligatorio si se agregan productos extra a una compra de Mercado Libre / Acordás la Entrega.
+                    </small>
                     {% if pedido.comprobante_dux_archivo %}
                     <div class="archivo-actual">
                         Comprobante DUX actual: {{ pedido.comprobante_dux_archivo }}
@@ -843,7 +847,7 @@ function actualizar() {
         }
     }
 
-    if (canal.value === "Mayorista" && bloqueComprobanteDux) {
+    if ((canal.value === "Mayorista" || (canal.value === "Mercado Libre" && ml.value === "Acordás la Entrega")) && bloqueComprobanteDux) {
         bloqueComprobanteDux.style.display = "block";
     }
 
