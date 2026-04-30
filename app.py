@@ -1629,6 +1629,10 @@ def es_dispositivo_movil():
     ua = (request.headers.get("User-Agent") or "").lower()
     return any(x in ua for x in ["mobile", "android", "iphone", "ipad", "ipod"])
 
+def es_despacho_mobile():
+    return rol_actual() == "despacho" and es_dispositivo_movil()
+
+
 
 def admin_required(fn):
     @wraps(fn)
@@ -5797,6 +5801,8 @@ def lanzar_impresion(id):
     pedido = Pedido.query.get_or_404(id)
 
     if not puede_imprimir_pedido(pedido):
+        if rol_actual() == "despacho" and es_dispositivo_movil():
+            return redirect(url_for("despacho_mobile", ok="Este pedido no tiene etiqueta disponible para imprimir."))
         return redirect(url_for("inicio"))
 
     actualizar_estado_automatico(pedido)
@@ -5826,6 +5832,8 @@ def imprimir_etiqueta(id):
     origen = (request.args.get("origen") or "").strip()
 
     if not puede_imprimir_pedido(pedido):
+        if rol_actual() == "despacho" and es_dispositivo_movil():
+            return redirect(url_for("despacho_mobile", ok="Este pedido no tiene etiqueta disponible para imprimir."))
         return redirect(url_for("inicio"))
 
     actualizar_estado_automatico(pedido)
@@ -5861,6 +5869,8 @@ def imprimir_etiqueta(id):
 
         if not etiqueta_ok:
             db.session.commit()
+            if origen == "mobile" and rol_actual() == "despacho":
+                return redirect(url_for("despacho_mobile", ok="La etiqueta de Mercado Envíos todavía no está disponible. Probá de nuevo en unos minutos."))
             return render_template(
                 "detalle_pedido.html",
                 pedido=pedido,
@@ -5874,6 +5884,8 @@ def imprimir_etiqueta(id):
             )
 
     if not pedido.etiqueta_archivo:
+        if origen == "mobile" and rol_actual() == "despacho":
+            return redirect(url_for("despacho_mobile", ok="No hay etiqueta adjunta para imprimir."))
         return render_template(
             "detalle_pedido.html",
             pedido=pedido,
@@ -5917,6 +5929,8 @@ def imprimir_etiqueta(id):
         ruta_local = os.path.join(app.config["UPLOAD_FOLDER"], archivo_local)
 
         if not os.path.exists(ruta_local):
+            if origen == "mobile" and rol_actual() == "despacho":
+                return redirect(url_for("despacho_mobile", ok="La etiqueta no está disponible. Probá de nuevo en unos minutos."))
             return render_template(
                 "detalle_pedido.html",
                 pedido=pedido,
@@ -6066,6 +6080,9 @@ def nuevo_pedido():
 @login_required
 def detalle_pedido(id):
     pedido = Pedido.query.get_or_404(id)
+    if rol_actual() == "despacho" and es_dispositivo_movil():
+        return redirect(url_for("despacho_mobile"))
+
 
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
@@ -7072,6 +7089,8 @@ def avanzar_pedido(id):
     puede_avanzar, errores = puede_avanzar_pedido(pedido)
 
     if not puede_avanzar:
+        if rol_actual() == "despacho" and es_dispositivo_movil():
+            return redirect(url_for("despacho_mobile", ok="No se pudo avanzar: " + " / ".join(errores)))
         return render_template(
             "detalle_pedido.html",
             pedido=pedido,
@@ -7089,6 +7108,8 @@ def avanzar_pedido(id):
     if nuevo in ["Embalado", "Despachado"] and pedido.canal == "Mercado Libre":
         orden_ok, mensaje_ml = ml_validar_orden_operable_antes_de_despacho(pedido)
         if not orden_ok:
+            if rol_actual() == "despacho" and es_dispositivo_movil():
+                return redirect(url_for("despacho_mobile", ok=mensaje_ml))
             return redirect(url_for("detalle_pedido", id=pedido.id, error=mensaje_ml))
 
     if nuevo:
