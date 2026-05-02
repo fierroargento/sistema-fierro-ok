@@ -4046,6 +4046,70 @@ En resumen, indicá claramente si aplica alguno de estos casos: datos en Mercado
         return {"ok": False, "estado": "error", "error": str(e)[:500]}
 
 
+
+def capitalizar_texto_fierro(valor):
+    """Capitaliza nombres/localidades/direcciones sin ponerse exquisito."""
+    texto = str(valor or "").strip()
+    if not texto:
+        return ""
+
+    texto = re.sub(r"\s+", " ", texto)
+    minusculas = {"de", "del", "la", "las", "los", "y", "e"}
+    siglas = {"dni", "cp"}
+
+    partes = []
+    for palabra in texto.split(" "):
+        limpia = palabra.strip()
+        if not limpia:
+            continue
+        base = re.sub(r"[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]", "", limpia).lower()
+        if base in siglas:
+            partes.append(limpia.upper())
+        elif base in minusculas:
+            partes.append(limpia.lower())
+        else:
+            partes.append("-".join([x[:1].upper() + x[1:].lower() if x else x for x in limpia.split("-")]))
+    return " ".join(partes).strip()
+
+
+def normalizar_direccion_fierro(valor):
+    texto = str(valor or "").strip()
+    if not texto:
+        return ""
+    texto = re.sub(r"\s+", " ", texto)
+    reemplazos = [
+        (r"\bav\.?\b", "Av."),
+        (r"\bavenida\b", "Av."),
+        (r"\bcalle\b", "Calle"),
+        (r"\bnro\.?\b", "N°"),
+        (r"\bnº\b", "N°"),
+        (r"\bnumero\b", "N°"),
+        (r"\bpiso\b", "Piso"),
+        (r"\bdpto\.?\b", "Dpto."),
+        (r"\bdepartamento\b", "Dpto."),
+    ]
+    # Capitalización general primero, luego normalizamos abreviaturas comunes.
+    texto = capitalizar_texto_fierro(texto)
+    for patron, rep in reemplazos:
+        texto = re.sub(patron, rep, texto, flags=re.IGNORECASE)
+    return texto.strip()
+
+
+def normalizar_datos_ia_fierro(datos):
+    if not isinstance(datos, dict):
+        return {}
+    normalizados = dict(datos)
+    for campo in ["nombre", "apellido", "localidad"]:
+        if normalizados.get(campo):
+            normalizados[campo] = capitalizar_texto_fierro(normalizados.get(campo))
+    if normalizados.get("direccion"):
+        normalizados["direccion"] = normalizar_direccion_fierro(normalizados.get("direccion"))
+    if normalizados.get("dni"):
+        normalizados["dni"] = ia_dni_valido(normalizados.get("dni")) or str(normalizados.get("dni") or "").strip()
+    if normalizados.get("codigo_postal"):
+        normalizados["codigo_postal"] = str(normalizados.get("codigo_postal") or "").strip().upper()
+    return normalizados
+
 def ia_campo_vacio(valor):
     return not str(valor or "").strip()
 
@@ -4071,6 +4135,8 @@ def ia_autocompletar_pedido_con_datos(pedido, datos):
         return []
 
     completados = []
+
+    datos = normalizar_datos_ia_fierro(datos)
 
     nombre = str(datos.get("nombre") or "").strip()
     apellido = str(datos.get("apellido") or "").strip()
@@ -4122,7 +4188,7 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
         pedido.ia_error = (resultado.get("error") if isinstance(resultado, dict) else "Error IA") or "Error IA"
         return
 
-    datos = resultado.get("datos") or {}
+    datos = normalizar_datos_ia_fierro(resultado.get("datos") or {})
     completados = ia_autocompletar_pedido_con_datos(pedido, datos)
     faltantes = resultado.get("faltantes") or []
     requiere_operador = bool(resultado.get("requiere_operador"))
@@ -4166,7 +4232,59 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
 
     resultado = ia_analizar_datos_cliente_ml_acordas(texto, ia_datos_previos_pedido(pedido))
     ia_guardar_resultado_recolector(pedido, texto, resultado)
+    if resultado and resultado.get("ok"):
+        ia_auto_responder_post_analisis(pedido)
     return resultado
+
+
+def ia_auto_responder_post_analisis(pedido):
+    """
+    Fase 5: respuesta automática controlada.
+    - Si faltan datos: pide SOLO faltantes.
+    - Si requiere operador: envía CTA claro y frena la automatización.
+    - Si datos completos: no responde.
+    No cambia estados del pedido.
+    Se puede apagar con IA_AUTO_RESPUESTA=0.
+    """
+    if os.getenv("IA_AUTO_RESPUESTA", "1").strip().lower() in ["0", "false", "no", "off"]:
+        return False, "apagada"
+    if not pedido or not es_ml_acordas_entrega(pedido):
+        return False, "no_aplica"
+    if not getattr(pedido, "contacto_iniciado", False):
+        return False, "sin_contacto"
+    if str(getattr(pedido, "ia_recolector_estado", "") or "") == "error":
+        return False, "error_ia"
+
+    texto = ""
+    if getattr(pedido, "ia_requiere_operador", False) or pedido.ia_recolector_estado == "requiere_operador":
+        texto = ia_generar_cta_operador_pedido(pedido)
+    else:
+        faltantes = ia_faltantes_pedido(pedido)
+        if not faltantes:
+            return False, "datos_completos"
+        texto = ia_generar_respuesta_faltantes_pedido(pedido)
+
+    texto = str(texto or "").strip()
+    if not texto:
+        return False, "sin_texto"
+
+    if ia_respuesta_faltantes_ya_enviada(pedido, texto):
+        return False, "duplicada"
+
+    try:
+        ml_enviar_mensaje_acordas(pedido, texto)
+        pedido.ia_respuesta_sugerida = texto
+        pedido.ia_respuesta_enviada_hash = ia_hash_texto(texto)
+        pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
+        pedido.ml_mensajes_pendientes = False
+        pedido.ml_mensajes_pendientes_count = 0
+        pedido.ia_resumen = ((pedido.ia_resumen or "") + " | IA respondió automáticamente").strip(" |")
+        print(f"[IA-AUTO-RESPUESTA] OK pedido #{pedido.id}: {texto[:120]}")
+        return True, "enviada"
+    except Exception as e:
+        pedido.ia_error = f"No se pudo enviar respuesta automática IA: {str(e)[:400]}"
+        print(f"[IA-AUTO-RESPUESTA] Error pedido #{getattr(pedido, 'id', '?')}: {e}")
+        return False, "error_envio"
 
 def ml_hay_mensaje_pendiente_en_thread(mensajes, seller_id=""):
     """
@@ -7068,7 +7186,7 @@ def ia_analizar_respuesta_pedido(id):
     if not resultado.get("ok"):
         return redirect(url_for("detalle_pedido", id=pedido.id, error=f"IA no disponible: {resultado.get('error', 'error desconocido')}"))
 
-    return redirect(url_for("detalle_pedido", id=pedido.id, ok="IA analizó la última respuesta, autocompletó campos vacíos disponibles y no envió ningún mensaje automático."))
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok="IA analizó la última respuesta, autocompletó campos vacíos y aplicó respuesta automática si correspondía."))
 
 
 @app.route("/pedido/<int:id>/ia-enviar-respuesta-faltantes", methods=["POST"])

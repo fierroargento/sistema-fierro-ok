@@ -413,11 +413,11 @@
         <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;">
             <div>
                 <h3 style="margin:0 0 6px 0;">IA Recolector</h3>
-                <p style="margin:0; font-size:0.88rem; color:#475569;">Fase 4.5: analiza, autocompleta, mejora respuestas difíciles y muestra CTA si requiere operador. No cambia estados.</p>
+                <p style="margin:0; font-size:0.88rem; color:#475569;">Fase 5: analiza, autocompleta y responde automáticamente cuando faltan datos. No cambia estados.</p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
                 <form method="POST" action="{{ url_for('ia_analizar_respuesta_pedido', id=pedido.id) }}" style="margin:0;">
-                    <button type="submit" class="btn btn-secundario" style="padding:8px 12px; font-size:0.82rem;">Analizar y autocompletar IA</button>
+                    <button type="submit" class="btn btn-secundario" style="padding:8px 12px; font-size:0.82rem;">Analizar IA ahora</button>
                 </form>
                 {% if ia_respuesta_sugerida and not ia_respuesta_faltantes_ya_enviada(pedido, ia_respuesta_sugerida) %}
                 <form method="POST" action="{{ url_for('ia_enviar_respuesta_faltantes_pedido', id=pedido.id) }}" style="margin:0;" onsubmit="return confirm('¿Enviar esta respuesta IA al comprador por Mercado Libre?');">
@@ -467,7 +467,7 @@
         {% endif %}
         {% if ia_respuesta_sugerida %}
             <div style="margin-top:12px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:12px; background:#f8fafc; font-size:0.88rem; white-space:pre-line;">
-                <strong>Respuesta IA sugerida:</strong>
+                <strong>Última respuesta IA:</strong>
 {{ ia_respuesta_sugerida }}
             </div>
             {% if ia_respuesta_faltantes_ya_enviada(pedido, ia_respuesta_sugerida) %}
@@ -476,7 +476,7 @@
         {% endif %}
         {% if ia_cta_operador %}
             <div style="margin-top:12px; padding:10px 12px; border:1px solid #fecaca; border-radius:12px; background:#fff7f7; font-size:0.88rem; white-space:pre-line;">
-                <strong>CTA sugerido para operador:</strong>
+                <strong>CTA IA para operador:</strong>
 {{ ia_cta_operador }}
             </div>
         {% endif %}
