@@ -5391,7 +5391,7 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
 
     datos = ia_datos_detectados_pedido(pedido)
     nombre = str(datos.get("nombre") or "").strip()
-    saludo = f"Gracias, {nombre}." if nombre else "Gracias."
+    saludo = f"Gracias, {nombre} 😊" if nombre else "Gracias 😊"
     lineas = [f"- {ia_etiqueta_faltante(c)}" for c in faltantes]
     bloque_faltantes = "\n".join(lineas)
 
@@ -5400,6 +5400,7 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
     partes = []
 
     # Caso especial: solo explicar lo de Mercado Libre si el análisis lo marcó explícitamente.
+    # No usar esta explicación cuando el comprador simplemente pasó datos incompletos.
     resumen_ml_explicito = any(k in resumen for k in [
         "datos en mercado libre",
         "datos están en mercado libre",
@@ -5421,8 +5422,35 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
     if any(k in resumen for k in ["costo de envío", "costo de envio", "cuánto sale", "cuanto sale", "sale el envío", "sale el envio"]):
         partes.append("El envío es sin cargo.")
 
-    if any(k in resumen for k in ["demora", "cuándo llega", "cuando llega", "cuándo lo envían", "cuando lo envian", "fecha de envío", "fecha de envio"]):
-        partes.append("La demora habitual es de entre 3 y 5 días hábiles a partir del despacho.")
+    # Diferenciar intención:
+    # - "cuándo lo envían / despachan" => falta acción de Fierro; empujar a completar datos.
+    # - "cuánto tarda / demora" => informar plazo habitual desde el despacho.
+    pregunta_cuando_sale = any(k in resumen for k in [
+        "cuándo lo envían", "cuando lo envian",
+        "cuándo envían", "cuando envian",
+        "cuándo lo mandan", "cuando lo mandan",
+        "cuándo despachan", "cuando despachan",
+        "cuando la despachan", "cuándo la despachan",
+        "cuando la envias", "cuándo la envias",
+        "cuando la envían", "cuándo la envían",
+        "cuando lo envias", "cuándo lo envias",
+        "fecha de envío", "fecha de envio",
+        "cuando sale", "cuándo sale",
+    ])
+
+    pregunta_cuanto_tarda = any(k in resumen for k in [
+        "cuánto tarda", "cuanto tarda",
+        "cuánto demora", "cuanto demora",
+        "demora", "tiempo de entrega",
+        "cuándo llega", "cuando llega",
+        "cuando me llega", "cuándo me llega",
+    ])
+
+    if pregunta_cuando_sale:
+        partes.append("Lo despachamos apenas nos confirmes estos datos.")
+
+    if pregunta_cuanto_tarda:
+        partes.append("Una vez despachado, suele tardar entre 3 y 5 días hábiles.")
 
     if any(k in resumen for k in ["ya los pasé", "ya los pase", "ya pasó", "ya paso"]):
         partes.append("Puede ser que haya llegado parte de la información, pero todavía nos faltan estos datos para completar el envío.")
@@ -5441,7 +5469,7 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
         )
     else:
         texto = (
-            saludo.replace(".", " 😊")
+            saludo
             + "\n\nPara avanzar con el envío nos falta:\n\n"
             + bloque_faltantes
             + "\n\nCon eso ya lo despachamos."
