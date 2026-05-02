@@ -408,11 +408,12 @@
     {% set ia_datos = ia_datos_detectados_pedido(pedido) %}
     {% set ia_faltantes = ia_faltantes_pedido(pedido) %}
     {% set ia_respuesta_sugerida = ia_generar_respuesta_faltantes_pedido(pedido) %}
+    {% set ia_cta_operador = ia_generar_cta_operador_pedido(pedido) %}
     <div class="detalle-box detalle-box-full" style="margin-top:16px; border-left:5px solid #124E64;">
         <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;">
             <div>
                 <h3 style="margin:0 0 6px 0;">IA Recolector</h3>
-                <p style="margin:0; font-size:0.88rem; color:#475569;">Fase 4: analiza la respuesta, autocompleta campos vacíos y permite enviar pedido de faltantes con confirmación. No cambia estados.</p>
+                <p style="margin:0; font-size:0.88rem; color:#475569;">Fase 4.5: analiza, autocompleta, mejora respuestas difíciles y muestra CTA si requiere operador. No cambia estados.</p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
                 <form method="POST" action="{{ url_for('ia_analizar_respuesta_pedido', id=pedido.id) }}" style="margin:0;">
@@ -472,6 +473,12 @@
             {% if ia_respuesta_faltantes_ya_enviada(pedido, ia_respuesta_sugerida) %}
                 <p style="margin:8px 0 0 0; color:#64748b; font-size:0.82rem;">Esta respuesta ya fue enviada después del último análisis.</p>
             {% endif %}
+        {% endif %}
+        {% if ia_cta_operador %}
+            <div style="margin-top:12px; padding:10px 12px; border:1px solid #fecaca; border-radius:12px; background:#fff7f7; font-size:0.88rem; white-space:pre-line;">
+                <strong>CTA sugerido para operador:</strong>
+{{ ia_cta_operador }}
+            </div>
         {% endif %}
         {% if pedido.ia_resumen %}
             <p style="margin:8px 0 0 0; font-size:0.88rem;"><strong>Resumen IA:</strong> {{ pedido.ia_resumen }}</p>

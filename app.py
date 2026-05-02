@@ -3930,14 +3930,14 @@ def ia_analizar_datos_cliente_ml_acordas(texto_cliente, datos_previos=None):
     datos_previos = datos_previos or {}
     campos = ["nombre", "apellido", "dni", "telefono", "direccion", "localidad", "codigo_postal"]
 
-    prompt = """
+    prompt = '''
 Sos el recolector de datos de Fierro 100% Argento para pedidos de Mercado Libre / Acordás la Entrega.
 
-Objetivo único: analizar la respuesta del comprador y extraer datos para coordinar el envío.
+OBJETIVO PRINCIPAL:
+Analizar la respuesta del comprador, extraer datos para coordinar el envío y clasificar la intención del mensaje.
 No inventes datos. Si no estás seguro, dejá el campo vacío y ponelo como faltante.
-No prometas fechas, costos ni transporte. No resuelvas reclamos.
 
-Campos obligatorios:
+DATOS OBLIGATORIOS:
 - nombre
 - apellido
 - dni
@@ -3946,11 +3946,30 @@ Campos obligatorios:
 - localidad
 - codigo_postal
 
+REGLAS DE NEGOCIO ML / ACORDÁS:
+1. En esta modalidad no vemos siempre todos los datos completos que el comprador cargó en Mercado Libre. Si el comprador dice "están en Mercado Libre", "son los mismos de la compra", "ya figuran", "están en mis datos" o similar, NO lo marques como conflicto: resumí que reclama que los datos ya están en ML y mantené los faltantes.
+2. El envío es sin cargo. Si pregunta cuánto sale el envío, resumí que pregunta por costo de envío.
+3. La demora habitual es de entre 3 y 5 días hábiles a partir del despacho. Si pregunta cuánto demora o cuándo llega, resumí que pregunta por demora.
+4. Si pregunta por qué pedimos los datos, resumí que pide explicación sobre los datos.
+5. Si dice "ya los pasé", verificá contra datos_previos + mensaje nuevo. Si siguen faltando datos, mantené solo los faltantes reales.
+6. Si falta código postal pero hay localidad clara, mantené codigo_postal como faltante salvo que el comprador lo haya escrito explícitamente.
+7. Si el comprador solo quiere que lo llamen o pasar WhatsApp, extraé el teléfono si está, pero seguí marcando los datos faltantes.
+
+ESCALAR A OPERADOR:
+Marcá requiere_operador=true SOLO si detectás intención de cancelar, reclamo/problema, enojo fuerte, insultos, cambio de modalidad de entrega/retiro, problema con el producto o una pregunta que no se pueda responder con estas reglas. En esos casos, el resumen debe incluir un llamado a la acción claro para el operador.
+
+NO HACER:
+- No prometas fechas exactas.
+- No elijas transporte.
+- No confirmes despacho.
+- No resuelvas reclamos.
+- No cambies estados.
+
 Datos ya conocidos del pedido, si existen:
 {datos_previos}
 
 Mensaje nuevo del comprador:
-\"\"\"{texto_cliente}\"\"\"
+"""{texto_cliente}"""
 
 Respondé SOLO JSON válido con esta estructura exacta:
 {{
@@ -3971,8 +3990,8 @@ Respondé SOLO JSON válido con esta estructura exacta:
   "confianza": "baja|media|alta"
 }}
 
-Casos para requiere_operador=true: quiere cancelar, pide hablar con alguien, conflicto/reclamo, cambio raro de compra, insultos, no entiende después de pedir datos, retiro en persona no previsto, pregunta que no sea solo completar datos.
-""".format(
+En resumen, indicá claramente si aplica alguno de estos casos: datos en Mercado Libre, ya los pasé, pregunta por demora, pregunta por costo de envío, pregunta por qué pedimos datos, quiere llamada/WhatsApp, requiere operador.
+'''.format(
         datos_previos=json.dumps(datos_previos, ensure_ascii=False),
         texto_cliente=str(texto_cliente or "").strip(),
     )
@@ -5242,7 +5261,7 @@ def ia_etiqueta_faltante(campo):
 
 
 def ia_generar_respuesta_faltantes_pedido(pedido):
-    """Fase 3 segura: genera texto para pedir faltantes. No envía nada por sí sola."""
+    """Fase 4.5 segura: genera texto humano para pedir faltantes. No envía nada por sí sola."""
     if not pedido or not es_ml_acordas_entrega(pedido):
         return ""
     if getattr(pedido, "ia_requiere_operador", False) or pedido.ia_recolector_estado == "requiere_operador":
@@ -5256,17 +5275,67 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
     nombre = str(datos.get("nombre") or "").strip()
     saludo = f"Gracias, {nombre}." if nombre else "Gracias."
     lineas = [f"- {ia_etiqueta_faltante(c)}" for c in faltantes]
+    bloque_faltantes = "\n".join(lineas)
 
-    texto = (
-        f"{saludo} Para poder completar el envío nos falta que nos confirmes:\n\n"
-        + "\n".join(lineas)
-        + "\n\nQuedamos atentos para avanzar con el despacho."
-    )
+    resumen = str(getattr(pedido, "ia_resumen", "") or "").lower()
+
+    partes = []
+
+    # Casos difíciles comunes en ML / Acordás.
+    if any(k in resumen for k in ["datos en mercado libre", "datos ya están", "ya figuran", "mis datos", "descripción", "descripcion", "cuenta"]):
+        partes.append(
+            "En esta modalidad de Mercado Libre (Acordás la entrega), los datos cargados en la compra no nos aparecen completos para coordinar el envío."
+        )
+
+    if any(k in resumen for k in ["por qué", "por que", "pide explicación", "pide explicacion", "por qué pedimos", "por que pedimos"]):
+        partes.append("Te pedimos estos datos para poder coordinar correctamente el envío y evitar errores en la entrega.")
+
+    if any(k in resumen for k in ["costo de envío", "costo de envio", "cuánto sale", "cuanto sale", "sale el envío", "sale el envio"]):
+        partes.append("El envío es sin cargo.")
+
+    if any(k in resumen for k in ["demora", "cuándo llega", "cuando llega", "cuándo lo envían", "cuando lo envian", "fecha de envío", "fecha de envio"]):
+        partes.append("La demora habitual es de entre 3 y 5 días hábiles a partir del despacho.")
+
+    if any(k in resumen for k in ["ya los pasé", "ya los pase", "ya pasó", "ya paso"]):
+        partes.append("Puede ser que haya llegado parte de la información, pero todavía nos faltan estos datos para completar el envío.")
+
+    if any(k in resumen for k in ["llamada", "llamar", "whatsapp", "teléfono", "telefono"]):
+        partes.append("Por este medio podemos coordinar más rápido y dejar toda la información asentada en la compra.")
+
+    if partes:
+        texto = saludo + "\n\n" + "\n\n".join(partes) + "\n\nPara poder avanzar, nos faltaría que nos confirmes:\n\n" + bloque_faltantes + "\n\nQuedamos atentos para avanzar con el despacho."
+    else:
+        texto = (
+            f"{saludo} Para poder completar el envío nos falta que nos confirmes:\n\n"
+            + bloque_faltantes
+            + "\n\nQuedamos atentos para avanzar con el despacho."
+        )
 
     # ML postventa suele ser sensible a mensajes largos. Lo mantenemos compacto y APB.
-    if len(texto) > 348:
-        texto = texto[:345] + "..."
+    if len(texto) > 650:
+        texto = texto[:647] + "..."
     return texto
+
+
+def ia_generar_cta_operador_pedido(pedido):
+    """Genera una sugerencia con CTA cuando la IA decide que requiere operador. No envía nada automáticamente."""
+    if not pedido or not es_ml_acordas_entrega(pedido):
+        return ""
+    if not (getattr(pedido, "ia_requiere_operador", False) or pedido.ia_recolector_estado == "requiere_operador"):
+        return ""
+
+    resumen = str(getattr(pedido, "ia_resumen", "") or "").lower()
+
+    if "cancel" in resumen:
+        return "Entendemos. Para poder gestionarlo correctamente, confirmá por este medio si querés cancelar la compra y lo revisa un operador a la brevedad."
+
+    if any(k in resumen for k in ["retiro", "retirar", "cambio de modalidad", "cambiar modalidad"]):
+        return "Perfecto. Para coordinar ese cambio necesitamos revisarlo manualmente. Confirmá si querés retirar personalmente o indicá cómo preferís recibirlo, y un operador lo revisa."
+
+    if any(k in resumen for k in ["enojo", "insulto", "conflicto", "reclamo", "problema"]):
+        return "Entendemos tu situación y queremos ayudarte. Un operador va a revisar el caso. Si podés, dejanos más detalle de lo ocurrido para resolverlo más rápido."
+
+    return "Para darte una respuesta correcta necesitamos revisarlo manualmente. Un operador va a tomar el caso. Si podés, dejanos más detalles así avanzamos más rápido."
 
 
 def ia_respuesta_faltantes_ya_enviada(pedido, texto):
@@ -5335,6 +5404,7 @@ def inyectar_contexto_global():
         "ia_datos_detectados_pedido": ia_datos_detectados_pedido,
         "ia_faltantes_pedido": ia_faltantes_pedido,
         "ia_generar_respuesta_faltantes_pedido": ia_generar_respuesta_faltantes_pedido,
+        "ia_generar_cta_operador_pedido": ia_generar_cta_operador_pedido,
         "ia_respuesta_faltantes_ya_enviada": ia_respuesta_faltantes_ya_enviada,
     }
 
