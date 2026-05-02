@@ -132,7 +132,7 @@ class Pedido(db.Model):
     ultima_sync_mensajes_ml = db.Column(db.DateTime)
 
     # =====================
-    # IA RECOLECTOR ML / ACORDÁS (FASE 2 - SOLO ANÁLISIS)
+    # IA RECOLECTOR ML / ACORDÁS (FASE 4 - ANÁLISIS + AUTOCOMPLETADO SEGURO)
     # =====================
     ia_recolector_estado = db.Column(db.String(40))
     ia_datos_detectados = db.Column(db.Text)
@@ -401,7 +401,7 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ultima_sync_mensajes_ml", "TIMESTAMP")
 
     # =====================
-    # IA RECOLECTOR ML / ACORDÁS (FASE 2 - SOLO ANÁLISIS)
+    # IA RECOLECTOR ML / ACORDÁS (FASE 4 - ANÁLISIS + AUTOCOMPLETADO SEGURO)
     # =====================
     asegurar_columna_si_no_existe("ia_recolector_estado", "VARCHAR(40)")
     asegurar_columna_si_no_existe("ia_datos_detectados", "TEXT")
@@ -4027,6 +4027,70 @@ Casos para requiere_operador=true: quiere cancelar, pide hablar con alguien, con
         return {"ok": False, "estado": "error", "error": str(e)[:500]}
 
 
+def ia_campo_vacio(valor):
+    return not str(valor or "").strip()
+
+
+def ia_dni_valido(valor):
+    limpio = re.sub(r"\D+", "", str(valor or ""))
+    return limpio if 7 <= len(limpio) <= 11 else ""
+
+
+def ia_cp_valido(valor):
+    limpio = str(valor or "").strip()
+    # Acepta CP numérico argentino y también formatos alfanuméricos, sin ser demasiado agresivo.
+    return limpio if 3 <= len(limpio) <= 12 else ""
+
+
+def ia_autocompletar_pedido_con_datos(pedido, datos):
+    """
+    Fase 4 segura: usa datos detectados por IA para completar la carga.
+    Regla APB: solo completa campos vacíos. No pisa datos ya cargados manualmente,
+    salvo cliente cuando todavía parece nick de Mercado Libre. No cambia estados.
+    """
+    if not pedido or not isinstance(datos, dict):
+        return []
+
+    completados = []
+
+    nombre = str(datos.get("nombre") or "").strip()
+    apellido = str(datos.get("apellido") or "").strip()
+    nombre_completo = " ".join([x for x in [nombre, apellido] if x]).strip()
+
+    cliente_actual = str(getattr(pedido, "cliente", "") or "").strip()
+    puede_reemplazar_cliente = ia_campo_vacio(cliente_actual) or parece_nickname_ml(cliente_actual, getattr(pedido, "ml_buyer_nickname", ""))
+    if nombre_completo and puede_reemplazar_cliente:
+        pedido.cliente = nombre_completo
+        completados.append("cliente")
+
+    dni = ia_dni_valido(datos.get("dni"))
+    if dni and ia_campo_vacio(getattr(pedido, "dni", "")):
+        pedido.dni = dni
+        completados.append("dni")
+
+    telefono = normalizar_telefono(datos.get("telefono"))
+    if telefono and ia_campo_vacio(getattr(pedido, "telefono", "")):
+        pedido.telefono = telefono
+        completados.append("telefono")
+
+    direccion = str(datos.get("direccion") or "").strip()
+    if direccion and ia_campo_vacio(getattr(pedido, "direccion", "")):
+        pedido.direccion = direccion
+        completados.append("direccion")
+
+    localidad = str(datos.get("localidad") or "").strip()
+    if localidad and ia_campo_vacio(getattr(pedido, "localidad", "")):
+        pedido.localidad = localidad
+        completados.append("localidad")
+
+    codigo_postal = ia_cp_valido(datos.get("codigo_postal"))
+    if codigo_postal and ia_campo_vacio(getattr(pedido, "codigo_postal", "")):
+        pedido.codigo_postal = codigo_postal
+        completados.append("codigo_postal")
+
+    return completados
+
+
 def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
     if not pedido:
         return
@@ -4040,6 +4104,7 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
         return
 
     datos = resultado.get("datos") or {}
+    completados = ia_autocompletar_pedido_con_datos(pedido, datos)
     faltantes = resultado.get("faltantes") or []
     requiere_operador = bool(resultado.get("requiere_operador"))
 
@@ -4053,12 +4118,16 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
     pedido.ia_recolector_estado = estado
     pedido.ia_datos_detectados = json.dumps(datos, ensure_ascii=False)
     pedido.ia_faltantes = json.dumps(faltantes, ensure_ascii=False)
-    pedido.ia_resumen = str(resultado.get("resumen") or "").strip()
+    resumen = str(resultado.get("resumen") or "").strip()
+    if completados:
+        extra = "IA autocompletó: " + ", ".join(completados)
+        resumen = (resumen + " | " + extra).strip(" |") if resumen else extra
+    pedido.ia_resumen = resumen
     pedido.ia_requiere_operador = requiere_operador
 
 
 def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=False):
-    """Analiza último mensaje del comprador si corresponde. No envía nada al cliente."""
+    """Analiza último mensaje del comprador si corresponde. Autocompleta campos vacíos. No envía nada al cliente."""
     if not pedido or not es_ml_acordas_entrega(pedido):
         return None
     if not getattr(pedido, "contacto_iniciado", False):
@@ -6929,7 +6998,7 @@ def ia_analizar_respuesta_pedido(id):
     if not resultado.get("ok"):
         return redirect(url_for("detalle_pedido", id=pedido.id, error=f"IA no disponible: {resultado.get('error', 'error desconocido')}"))
 
-    return redirect(url_for("detalle_pedido", id=pedido.id, ok="IA analizó la última respuesta del comprador. No se envió ningún mensaje automático."))
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok="IA analizó la última respuesta, autocompletó campos vacíos disponibles y no envió ningún mensaje automático."))
 
 
 @app.route("/pedido/<int:id>/ia-enviar-respuesta-faltantes", methods=["POST"])
