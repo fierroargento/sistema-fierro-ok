@@ -4107,6 +4107,45 @@ def ml_enviar_mensaje_acordas(pedido, texto):
             print("No se pudo enviar mensaje ML por", path, e)
 
     raise ValueError(str(ultimo_error or "No se pudo enviar el mensaje a Mercado Libre."))
+
+
+def ml_auto_enviar_contacto_inicial_acordas(pedido):
+    """
+    Fase 1 IA/APB: primer contacto automatico para ML / Acordas.
+    Usa la plantilla existente del sistema, incluida la diferenciacion por producto.
+    No cambia estados y no marca contacto iniciado si Mercado Libre rechaza el envio.
+    """
+    if not pedido or not es_ml_acordas_entrega(pedido):
+        return False, "no_aplica"
+
+    if bool(getattr(pedido, "contacto_iniciado", False)):
+        return False, "ya_iniciado"
+
+    texto = generar_mensaje_contacto_ml(pedido)
+    if not texto:
+        return False, "sin_mensaje"
+
+    try:
+        ml_enviar_mensaje_acordas(pedido, texto)
+        pedido.ml_mensaje_contacto = texto
+        marcar_contacto_iniciado_pedido(pedido)
+        print(f"[ML-AUTO-CONTACTO] OK pedido #{pedido.id} order={pedido.id_venta} pack={pedido.ml_pack_id}")
+        try:
+            registrar_auditoria(
+                accion="Envió contacto inicial ML automático",
+                entidad="pedido",
+                entidad_id=str(pedido.id),
+                detalle=f"Mercado Libre / Acordás. Mensaje: {texto[:500]}",
+            )
+        except Exception as audit_error:
+            print(f"[ML-AUTO-CONTACTO] No se pudo auditar pedido #{pedido.id}: {audit_error}")
+        return True, "enviado"
+    except Exception as e:
+        # APB: si ML rechaza o no habilita el thread, no rompemos la importacion ni marcamos contacto iniciado.
+        print(f"[ML-AUTO-CONTACTO] NO ENVIADO pedido #{getattr(pedido, 'id', '')} order={getattr(pedido, 'id_venta', '')}: {e}")
+        return False, str(e)
+
+
 def ml_obtener_etiqueta_url(shipping_id):
     # Compatibilidad: mantiene el nombre viejo, pero ahora descarga y devuelve el archivo local.
     return ml_guardar_etiqueta_pdf(shipping_id)
@@ -4646,6 +4685,15 @@ def ml_upsert_pedido_desde_order(order):
 
     if not creado and estado_anterior != pedido.estado and estado_anterior != "Cargando Pedido":
         pedido.estado = estado_anterior
+
+    # APB 2.0 Fase 1:
+    # Al crear un pedido nuevo de Mercado Libre / Acordás la Entrega,
+    # intentar enviar automaticamente el primer mensaje de contacto existente.
+    # Si ML lo rechaza, no se rompe la importacion y el pedido queda pendiente para accion manual.
+    if creado and es_ml_acordas_entrega(pedido) and not getattr(pedido, "contacto_iniciado", False):
+        enviado_auto, motivo_auto = ml_auto_enviar_contacto_inicial_acordas(pedido)
+        if not enviado_auto:
+            print(f"[ML-AUTO-CONTACTO] Pedido #{getattr(pedido, 'id', '')} queda pendiente. Motivo: {motivo_auto}")
 
     return pedido, creado, ""
 
@@ -6412,9 +6460,9 @@ def enviar_mensaje_ml_acordas(id):
         return redirect(url_for("inicio"))
 
     try:
-        texto_api = generar_mensaje_contacto_ml_api(pedido)
+        # Usar la misma plantilla existente que ve el operador, incluida la diferenciacion por producto.
         texto_visible = generar_mensaje_contacto_ml(pedido)
-        ml_enviar_mensaje_acordas(pedido, texto_api)
+        ml_enviar_mensaje_acordas(pedido, texto_visible)
         pedido.ml_mensaje_contacto = texto_visible
         marcar_contacto_iniciado_pedido(pedido)
         db.session.commit()
