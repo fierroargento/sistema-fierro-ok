@@ -5421,12 +5421,20 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
         partes.append("Por este medio podemos coordinar más rápido y dejar toda la información asentada en la compra.")
 
     if partes:
-        texto = saludo + "\n\n" + "\n\n".join(partes) + "\n\nPara poder avanzar, nos faltaría que nos confirmes:\n\n" + bloque_faltantes + "\n\nQuedamos atentos para avanzar con el despacho."
+        texto = (
+            saludo
+            + "\n\n"
+            + "\n\n".join(partes)
+            + "\n\nPara avanzar con el envío nos falta:\n\n"
+            + bloque_faltantes
+            + "\n\nCon eso ya lo despachamos."
+        )
     else:
         texto = (
-            f"{saludo} Para poder completar el envío nos falta que nos confirmes:\n\n"
+            saludo.replace(".", " 😊")
+            + "\n\nPara avanzar con el envío nos falta:\n\n"
             + bloque_faltantes
-            + "\n\nQuedamos atentos para avanzar con el despacho."
+            + "\n\nCon eso ya lo despachamos."
         )
 
     # ML postventa suele ser sensible a mensajes largos. Lo mantenemos compacto y APB.
