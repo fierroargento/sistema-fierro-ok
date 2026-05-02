@@ -5399,8 +5399,18 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
 
     partes = []
 
-    # Casos difíciles comunes en ML / Acordás.
-    if any(k in resumen for k in ["datos en mercado libre", "datos ya están", "ya figuran", "mis datos", "descripción", "descripcion", "cuenta"]):
+    # Caso especial: solo explicar lo de Mercado Libre si el análisis lo marcó explícitamente.
+    resumen_ml_explicito = any(k in resumen for k in [
+        "datos en mercado libre",
+        "datos están en mercado libre",
+        "datos estan en mercado libre",
+        "datos ya están en mercado libre",
+        "datos ya estan en mercado libre",
+        "son los mismos de la compra",
+        "datos de mi cuenta",
+    ])
+
+    if resumen_ml_explicito:
         partes.append(
             "En esta modalidad de Mercado Libre (Acordás la entrega), los datos cargados en la compra no nos aparecen completos para coordinar el envío."
         )
