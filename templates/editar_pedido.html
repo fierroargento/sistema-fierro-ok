@@ -239,19 +239,6 @@
                     </div>
                     {% endif %}
                 </div>
-
-                <div id="bloque_comprobante_dux" style="display:none;">
-                    <label for="comprobante_dux">Comprobante de venta DUX</label>
-                    <input type="file" name="comprobante_dux" id="comprobante_dux" accept=".pdf,.png,.jpg,.jpeg,.webp">
-                    <small style="display:block; margin-top:6px; color:#64748b; line-height:1.35;">
-                        Obligatorio si se agregan productos extra a una compra de Mercado Libre / Acordás la Entrega.
-                    </small>
-                    {% if pedido.comprobante_dux_archivo %}
-                    <div class="archivo-actual">
-                        Comprobante DUX actual: {{ pedido.comprobante_dux_archivo }}
-                    </div>
-                    {% endif %}
-                </div>
             </div>
 
             <div class="wizard-step" data-step="3">
@@ -329,6 +316,19 @@
                 </table>
 
                 <input type="hidden" name="items_texto" id="items_texto" value="{{ items_texto or '' }}">
+
+                <div id="bloque_comprobante_dux" style="display:none;">
+                    <label for="comprobante_dux">Comprobante de venta DUX</label>
+                    <input type="file" name="comprobante_dux" id="comprobante_dux" accept=".pdf,.png,.jpg,.jpeg,.webp">
+                    <small style="display:block; margin-top:6px; color:#64748b; line-height:1.35;">
+                        Obligatorio si se agregan productos extra a una compra de Mercado Libre / Acordás la Entrega.
+                    </small>
+                    {% if pedido.comprobante_dux_archivo %}
+                    <div class="archivo-actual">
+                        Comprobante DUX actual: {{ pedido.comprobante_dux_archivo }}
+                    </div>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="wizard-buttons">
@@ -646,10 +646,6 @@ function validarPaso() {
         if (!canalValor) agregarError("Elegí el canal de venta del pedido.", "#canal");
         if (!idVenta) agregarError("Completá el ID de venta.", '[name="id_venta"]');
 
-        if (canalValor === "Mayorista") {
-            const tieneComprobanteDux = (comprobanteDuxInput && comprobanteDuxInput.files.length > 0) || (comprobanteDuxExistente && comprobanteDuxExistente.value.trim() !== "");
-            if (!tieneComprobanteDux) agregarError("Adjuntá el comprobante de venta de DUX para continuar con el pedido mayorista.", "#comprobante_dux");
-        }
 
         if (canalValor === "Mercado Libre") {
             if (!mlValor) agregarError("Elegí si el pedido de Mercado Libre va por Mercado Envíos o Acordás la Entrega.", "#ml_tipo");
@@ -748,6 +744,13 @@ function validarPaso() {
         if (itemsAgregados.length === 0) {
             agregarError("Agregá al menos un producto antes de guardar el pedido.", ".agregar-item-box");
         agregarError("Revisá la tabla de productos antes de guardar.", ".tabla-items");
+        }
+
+        if (document.getElementById("canal").value === "Mayorista") {
+            const comprobanteDux = document.getElementById("comprobante_dux");
+            const comprobanteDuxExistente = document.getElementById("comprobante_dux_existente");
+            const tieneComprobanteDux = (comprobanteDux && comprobanteDux.files.length > 0) || (comprobanteDuxExistente && comprobanteDuxExistente.value.trim() !== "");
+            if (!tieneComprobanteDux) agregarError("Adjuntá el comprobante de venta de DUX en Productos antes de guardar el pedido mayorista.", "#comprobante_dux");
         }
 
         itemsAgregados.forEach((item, index) => {
