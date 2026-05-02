@@ -407,15 +407,23 @@
     {% if rol_actual in ["admin", "carga"] and pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" and pedido.contacto_iniciado %}
     {% set ia_datos = ia_datos_detectados_pedido(pedido) %}
     {% set ia_faltantes = ia_faltantes_pedido(pedido) %}
+    {% set ia_respuesta_sugerida = ia_generar_respuesta_faltantes_pedido(pedido) %}
     <div class="detalle-box detalle-box-full" style="margin-top:16px; border-left:5px solid #124E64;">
         <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;">
             <div>
                 <h3 style="margin:0 0 6px 0;">IA Recolector</h3>
-                <p style="margin:0; font-size:0.88rem; color:#475569;">Fase 2: analiza la respuesta del comprador. No responde sola y no cambia estados.</p>
+                <p style="margin:0; font-size:0.88rem; color:#475569;">Fase 3: analiza la respuesta y permite enviar pedido de faltantes con confirmación. No cambia estados.</p>
             </div>
-            <form method="POST" action="{{ url_for('ia_analizar_respuesta_pedido', id=pedido.id) }}" style="margin:0;">
-                <button type="submit" class="btn btn-secundario" style="padding:8px 12px; font-size:0.82rem;">Analizar última respuesta IA</button>
-            </form>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+                <form method="POST" action="{{ url_for('ia_analizar_respuesta_pedido', id=pedido.id) }}" style="margin:0;">
+                    <button type="submit" class="btn btn-secundario" style="padding:8px 12px; font-size:0.82rem;">Analizar última respuesta IA</button>
+                </form>
+                {% if ia_respuesta_sugerida and not ia_respuesta_faltantes_ya_enviada(pedido, ia_respuesta_sugerida) %}
+                <form method="POST" action="{{ url_for('ia_enviar_respuesta_faltantes_pedido', id=pedido.id) }}" style="margin:0;" onsubmit="return confirm('¿Enviar esta respuesta IA al comprador por Mercado Libre?');">
+                    <button type="submit" class="btn btn-primario" style="padding:8px 12px; font-size:0.82rem;">Enviar faltantes con IA</button>
+                </form>
+                {% endif %}
+            </div>
         </div>
 
         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
@@ -455,6 +463,15 @@
 
         {% if ia_faltantes %}
             <p style="margin:12px 0 0 0; font-size:0.88rem;"><strong>Faltantes:</strong> {{ ia_faltantes|join(', ') }}</p>
+        {% endif %}
+        {% if ia_respuesta_sugerida %}
+            <div style="margin-top:12px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:12px; background:#f8fafc; font-size:0.88rem; white-space:pre-line;">
+                <strong>Respuesta IA sugerida:</strong>
+{{ ia_respuesta_sugerida }}
+            </div>
+            {% if ia_respuesta_faltantes_ya_enviada(pedido, ia_respuesta_sugerida) %}
+                <p style="margin:8px 0 0 0; color:#64748b; font-size:0.82rem;">Esta respuesta ya fue enviada después del último análisis.</p>
+            {% endif %}
         {% endif %}
         {% if pedido.ia_resumen %}
             <p style="margin:8px 0 0 0; font-size:0.88rem;"><strong>Resumen IA:</strong> {{ pedido.ia_resumen }}</p>

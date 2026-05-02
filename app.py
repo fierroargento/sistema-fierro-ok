@@ -142,6 +142,10 @@ class Pedido(db.Model):
     ia_ultimo_mensaje_hash = db.Column(db.String(80))
     ia_ultimo_analisis = db.Column(db.DateTime)
     ia_error = db.Column(db.Text)
+    # IA RECOLECTOR ML / ACORDÁS (FASE 3 - RESPUESTA ASISTIDA)
+    ia_respuesta_sugerida = db.Column(db.Text)
+    ia_respuesta_enviada_hash = db.Column(db.String(80))
+    ia_ultima_respuesta_enviada = db.Column(db.DateTime)
 
     # =====================
     # APB RECLAMOS ML
@@ -407,6 +411,10 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ia_ultimo_mensaje_hash", "VARCHAR(80)")
     asegurar_columna_si_no_existe("ia_ultimo_analisis", "TIMESTAMP")
     asegurar_columna_si_no_existe("ia_error", "TEXT")
+    # IA RECOLECTOR ML / ACORDÁS (FASE 3 - RESPUESTA ASISTIDA)
+    asegurar_columna_si_no_existe("ia_respuesta_sugerida", "TEXT")
+    asegurar_columna_si_no_existe("ia_respuesta_enviada_hash", "VARCHAR(80)")
+    asegurar_columna_si_no_existe("ia_ultima_respuesta_enviada", "TIMESTAMP")
 
     # =====================
     # APB RECLAMOS ML
@@ -5151,6 +5159,60 @@ def ia_faltantes_pedido(pedido):
     return data if isinstance(data, list) else []
 
 
+def ia_etiqueta_faltante(campo):
+    mapa = {
+        "nombre": "Nombre",
+        "apellido": "Apellido",
+        "dni": "DNI",
+        "telefono": "Teléfono",
+        "direccion": "Dirección completa",
+        "localidad": "Localidad",
+        "codigo_postal": "Código postal",
+    }
+    return mapa.get(str(campo or "").strip(), str(campo or "").replace("_", " ").capitalize())
+
+
+def ia_generar_respuesta_faltantes_pedido(pedido):
+    """Fase 3 segura: genera texto para pedir faltantes. No envía nada por sí sola."""
+    if not pedido or not es_ml_acordas_entrega(pedido):
+        return ""
+    if getattr(pedido, "ia_requiere_operador", False) or pedido.ia_recolector_estado == "requiere_operador":
+        return ""
+
+    faltantes = ia_faltantes_pedido(pedido)
+    if not faltantes:
+        return ""
+
+    datos = ia_datos_detectados_pedido(pedido)
+    nombre = str(datos.get("nombre") or "").strip()
+    saludo = f"Gracias, {nombre}." if nombre else "Gracias."
+    lineas = [f"- {ia_etiqueta_faltante(c)}" for c in faltantes]
+
+    texto = (
+        f"{saludo} Para poder completar el envío nos falta que nos confirmes:\n\n"
+        + "\n".join(lineas)
+        + "\n\nQuedamos atentos para avanzar con el despacho."
+    )
+
+    # ML postventa suele ser sensible a mensajes largos. Lo mantenemos compacto y APB.
+    if len(texto) > 348:
+        texto = texto[:345] + "..."
+    return texto
+
+
+def ia_respuesta_faltantes_ya_enviada(pedido, texto):
+    if not pedido or not texto:
+        return False
+    ultima_enviada = getattr(pedido, "ia_ultima_respuesta_enviada", None)
+    ultimo_analisis = getattr(pedido, "ia_ultimo_analisis", None)
+    if not ultima_enviada:
+        return False
+    # Si hubo nuevo análisis después del último envío, se permite responder de nuevo.
+    if ultimo_analisis and ultima_enviada < ultimo_analisis:
+        return False
+    return str(getattr(pedido, "ia_respuesta_enviada_hash", "") or "") == ia_hash_texto(texto)
+
+
 @app.context_processor
 def inyectar_contexto_global():
     return {
@@ -5203,6 +5265,8 @@ def inyectar_contexto_global():
         "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,
         "ia_datos_detectados_pedido": ia_datos_detectados_pedido,
         "ia_faltantes_pedido": ia_faltantes_pedido,
+        "ia_generar_respuesta_faltantes_pedido": ia_generar_respuesta_faltantes_pedido,
+        "ia_respuesta_faltantes_ya_enviada": ia_respuesta_faltantes_ya_enviada,
     }
 
 
@@ -6866,6 +6930,48 @@ def ia_analizar_respuesta_pedido(id):
         return redirect(url_for("detalle_pedido", id=pedido.id, error=f"IA no disponible: {resultado.get('error', 'error desconocido')}"))
 
     return redirect(url_for("detalle_pedido", id=pedido.id, ok="IA analizó la última respuesta del comprador. No se envió ningún mensaje automático."))
+
+
+@app.route("/pedido/<int:id>/ia-enviar-respuesta-faltantes", methods=["POST"])
+@login_required
+def ia_enviar_respuesta_faltantes_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+
+    if not es_ml_acordas_entrega(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="La IA recolector solo aplica a Mercado Libre / Acordás la Entrega."))
+
+    if not getattr(pedido, "contacto_iniciado", False):
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="Primero debe existir contacto inicial enviado."))
+
+    if getattr(pedido, "ia_requiere_operador", False) or pedido.ia_recolector_estado == "requiere_operador":
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="La IA marcó que requiere operador. No se envía respuesta automática."))
+
+    faltantes = ia_faltantes_pedido(pedido)
+    if not faltantes:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No hay datos faltantes para pedir."))
+
+    texto = ia_generar_respuesta_faltantes_pedido(pedido)
+    if not texto:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No se pudo generar respuesta IA."))
+
+    if ia_respuesta_faltantes_ya_enviada(pedido, texto):
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="Esta respuesta IA ya fue enviada después del último análisis. Esperá una nueva respuesta del comprador."))
+
+    try:
+        ml_enviar_mensaje_acordas(pedido, texto)
+        pedido.ia_respuesta_sugerida = texto
+        pedido.ia_respuesta_enviada_hash = ia_hash_texto(texto)
+        pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
+        pedido.ml_mensajes_pendientes = False
+        pedido.ml_mensajes_pendientes_count = 0
+        db.session.commit()
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok="Respuesta IA enviada a Mercado Libre pidiendo solo los datos faltantes."))
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo enviar respuesta IA a Mercado Libre: {e}"))
 
 
 @app.route("/pedido/<int:id>/editar", methods=["GET", "POST"])
