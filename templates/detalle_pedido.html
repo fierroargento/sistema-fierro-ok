@@ -403,6 +403,65 @@
     </div>
     {% endif %}
 
+
+    {% if rol_actual in ["admin", "carga"] and pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega" and pedido.contacto_iniciado %}
+    {% set ia_datos = ia_datos_detectados_pedido(pedido) %}
+    {% set ia_faltantes = ia_faltantes_pedido(pedido) %}
+    <div class="detalle-box detalle-box-full" style="margin-top:16px; border-left:5px solid #124E64;">
+        <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+            <div>
+                <h3 style="margin:0 0 6px 0;">IA Recolector</h3>
+                <p style="margin:0; font-size:0.88rem; color:#475569;">Fase 2: analiza la respuesta del comprador. No responde sola y no cambia estados.</p>
+            </div>
+            <form method="POST" action="{{ url_for('ia_analizar_respuesta_pedido', id=pedido.id) }}" style="margin:0;">
+                <button type="submit" class="btn btn-secundario" style="padding:8px 12px; font-size:0.82rem;">Analizar última respuesta IA</button>
+            </form>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            {% if pedido.ia_recolector_estado == "datos_completos" %}
+                <span style="padding:5px 9px; border-radius:999px; background:#dcfce7; color:#166534; font-weight:700; font-size:0.78rem;">Datos completos</span>
+            {% elif pedido.ia_recolector_estado == "requiere_operador" or pedido.ia_requiere_operador %}
+                <span style="padding:5px 9px; border-radius:999px; background:#fee2e2; color:#991b1b; font-weight:700; font-size:0.78rem;">Requiere operador</span>
+            {% elif pedido.ia_recolector_estado == "juntando_datos" %}
+                <span style="padding:5px 9px; border-radius:999px; background:#fef3c7; color:#92400e; font-weight:700; font-size:0.78rem;">Juntando datos</span>
+            {% elif pedido.ia_recolector_estado == "sin_configurar" %}
+                <span style="padding:5px 9px; border-radius:999px; background:#e0f2fe; color:#075985; font-weight:700; font-size:0.78rem;">IA sin configurar</span>
+            {% elif pedido.ia_recolector_estado == "error" %}
+                <span style="padding:5px 9px; border-radius:999px; background:#fee2e2; color:#991b1b; font-weight:700; font-size:0.78rem;">Error IA</span>
+            {% else %}
+                <span style="padding:5px 9px; border-radius:999px; background:#e5e7eb; color:#374151; font-weight:700; font-size:0.78rem;">Sin análisis todavía</span>
+            {% endif %}
+            {% if pedido.ia_ultimo_analisis %}
+                <span style="font-size:0.8rem; color:#64748b;">Último análisis: {{ fecha_argentina(pedido.ia_ultimo_analisis).strftime("%d/%m/%Y %H:%M") }}</span>
+            {% endif %}
+        </div>
+
+        {% if pedido.ia_error %}
+            <p style="margin:10px 0 0 0; color:#991b1b; font-size:0.86rem;"><strong>IA:</strong> {{ pedido.ia_error }}</p>
+        {% endif %}
+
+        {% if ia_datos %}
+        <div style="margin-top:12px; display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:8px; font-size:0.88rem;">
+            <p style="margin:0;"><strong>Nombre:</strong> {{ ia_datos.get('nombre') or '-' }}</p>
+            <p style="margin:0;"><strong>Apellido:</strong> {{ ia_datos.get('apellido') or '-' }}</p>
+            <p style="margin:0;"><strong>DNI:</strong> {{ ia_datos.get('dni') or '-' }}</p>
+            <p style="margin:0;"><strong>Teléfono:</strong> {{ ia_datos.get('telefono') or '-' }}</p>
+            <p style="margin:0;"><strong>Dirección:</strong> {{ ia_datos.get('direccion') or '-' }}</p>
+            <p style="margin:0;"><strong>Localidad:</strong> {{ ia_datos.get('localidad') or '-' }}</p>
+            <p style="margin:0;"><strong>CP:</strong> {{ ia_datos.get('codigo_postal') or '-' }}</p>
+        </div>
+        {% endif %}
+
+        {% if ia_faltantes %}
+            <p style="margin:12px 0 0 0; font-size:0.88rem;"><strong>Faltantes:</strong> {{ ia_faltantes|join(', ') }}</p>
+        {% endif %}
+        {% if pedido.ia_resumen %}
+            <p style="margin:8px 0 0 0; font-size:0.88rem;"><strong>Resumen IA:</strong> {{ pedido.ia_resumen }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if rol_actual == "admin" %}
     <details class="detalle-box detalle-box-full" style="margin-top: 18px;">
         <summary style="cursor: pointer; font-weight: 700;">Fechas del pedido</summary>

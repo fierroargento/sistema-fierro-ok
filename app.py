@@ -132,6 +132,18 @@ class Pedido(db.Model):
     ultima_sync_mensajes_ml = db.Column(db.DateTime)
 
     # =====================
+    # IA RECOLECTOR ML / ACORDÁS (FASE 2 - SOLO ANÁLISIS)
+    # =====================
+    ia_recolector_estado = db.Column(db.String(40))
+    ia_datos_detectados = db.Column(db.Text)
+    ia_faltantes = db.Column(db.Text)
+    ia_resumen = db.Column(db.Text)
+    ia_requiere_operador = db.Column(db.Boolean, default=False)
+    ia_ultimo_mensaje_hash = db.Column(db.String(80))
+    ia_ultimo_analisis = db.Column(db.DateTime)
+    ia_error = db.Column(db.Text)
+
+    # =====================
     # APB RECLAMOS ML
     # =====================
     ml_claim_id = db.Column(db.String(50))
@@ -383,6 +395,18 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ml_mensajes_pendientes", "BOOLEAN DEFAULT FALSE")
     asegurar_columna_si_no_existe("ml_mensajes_pendientes_count", "INTEGER DEFAULT 0")
     asegurar_columna_si_no_existe("ultima_sync_mensajes_ml", "TIMESTAMP")
+
+    # =====================
+    # IA RECOLECTOR ML / ACORDÁS (FASE 2 - SOLO ANÁLISIS)
+    # =====================
+    asegurar_columna_si_no_existe("ia_recolector_estado", "VARCHAR(40)")
+    asegurar_columna_si_no_existe("ia_datos_detectados", "TEXT")
+    asegurar_columna_si_no_existe("ia_faltantes", "TEXT")
+    asegurar_columna_si_no_existe("ia_resumen", "TEXT")
+    asegurar_columna_si_no_existe("ia_requiere_operador", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("ia_ultimo_mensaje_hash", "VARCHAR(80)")
+    asegurar_columna_si_no_existe("ia_ultimo_analisis", "TIMESTAMP")
+    asegurar_columna_si_no_existe("ia_error", "TEXT")
 
     # =====================
     # APB RECLAMOS ML
@@ -3787,6 +3811,267 @@ def ml_fecha_mensaje_valor(m):
     return ""
 
 
+def ml_texto_mensaje_ml(m):
+    """Extrae texto visible de un mensaje ML sin marcarlo como leído."""
+    if not isinstance(m, dict):
+        return ""
+
+    candidatos = [
+        m.get("text"),
+        m.get("message"),
+        m.get("body"),
+        m.get("plain"),
+        m.get("content"),
+    ]
+
+    for valor in candidatos:
+        if isinstance(valor, str) and valor.strip():
+            return valor.strip()
+        if isinstance(valor, dict):
+            for key in ["plain", "text", "message", "body", "content"]:
+                sub = valor.get(key)
+                if isinstance(sub, str) and sub.strip():
+                    return sub.strip()
+
+    attachments = m.get("attachments") or []
+    if attachments:
+        return "[El comprador envió un adjunto o imagen]"
+
+    return ""
+
+
+def ml_ultimo_mensaje_comprador(mensajes, seller_id=""):
+    """Devuelve el último mensaje de comprador con texto útil."""
+    if not mensajes:
+        return None
+    candidatos = [
+        m for m in mensajes
+        if ml_mensaje_es_del_comprador(m, seller_id=seller_id) and ml_texto_mensaje_ml(m)
+    ]
+    if not candidatos:
+        return None
+    try:
+        candidatos.sort(key=ml_fecha_mensaje_valor)
+    except Exception:
+        pass
+    return candidatos[-1]
+
+
+def ia_hash_texto(texto):
+    return hashlib.sha256(str(texto or "").encode("utf-8", errors="ignore")).hexdigest()
+
+
+def ia_json_loads_seguro(texto):
+    texto = str(texto or "").strip()
+    if not texto:
+        return {}
+    try:
+        return json.loads(texto)
+    except Exception:
+        pass
+    ini = texto.find("{")
+    fin = texto.rfind("}")
+    if ini >= 0 and fin > ini:
+        try:
+            return json.loads(texto[ini:fin + 1])
+        except Exception:
+            return {}
+    return {}
+
+
+def ia_datos_previos_pedido(pedido):
+    datos = {}
+    if not pedido:
+        return datos
+    try:
+        if pedido.ia_datos_detectados:
+            datos.update(ia_json_loads_seguro(pedido.ia_datos_detectados))
+    except Exception:
+        pass
+
+    if (pedido.cliente or "").strip() and not parece_nickname_ml(pedido.cliente, pedido.ml_buyer_nickname):
+        partes = (pedido.cliente or "").strip().split()
+        if len(partes) >= 1:
+            datos.setdefault("nombre", partes[0])
+        if len(partes) >= 2:
+            datos.setdefault("apellido", " ".join(partes[1:]))
+    if (pedido.dni or "").strip():
+        datos.setdefault("dni", pedido.dni.strip())
+    if (pedido.telefono or "").strip():
+        datos.setdefault("telefono", pedido.telefono.strip())
+    if (pedido.direccion or "").strip():
+        datos.setdefault("direccion", pedido.direccion.strip())
+    if (pedido.localidad or "").strip():
+        datos.setdefault("localidad", pedido.localidad.strip())
+    if (pedido.codigo_postal or "").strip():
+        datos.setdefault("codigo_postal", pedido.codigo_postal.strip())
+    return datos
+
+
+def ia_analizar_datos_cliente_ml_acordas(texto_cliente, datos_previos=None):
+    """Llama a OpenAI para extraer datos. Fase 2: NO responde al cliente."""
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        return {
+            "ok": False,
+            "error": "OPENAI_API_KEY no está configurada",
+            "estado": "sin_configurar",
+        }
+
+    modelo = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    datos_previos = datos_previos or {}
+    campos = ["nombre", "apellido", "dni", "telefono", "direccion", "localidad", "codigo_postal"]
+
+    prompt = """
+Sos el recolector de datos de Fierro 100% Argento para pedidos de Mercado Libre / Acordás la Entrega.
+
+Objetivo único: analizar la respuesta del comprador y extraer datos para coordinar el envío.
+No inventes datos. Si no estás seguro, dejá el campo vacío y ponelo como faltante.
+No prometas fechas, costos ni transporte. No resuelvas reclamos.
+
+Campos obligatorios:
+- nombre
+- apellido
+- dni
+- telefono
+- direccion
+- localidad
+- codigo_postal
+
+Datos ya conocidos del pedido, si existen:
+{datos_previos}
+
+Mensaje nuevo del comprador:
+\"\"\"{texto_cliente}\"\"\"
+
+Respondé SOLO JSON válido con esta estructura exacta:
+{{
+  "datos": {{
+    "nombre": "",
+    "apellido": "",
+    "dni": "",
+    "telefono": "",
+    "direccion": "",
+    "localidad": "",
+    "codigo_postal": ""
+  }},
+  "faltantes": [],
+  "datos_completos": false,
+  "requiere_operador": false,
+  "motivo_operador": "",
+  "resumen": "",
+  "confianza": "baja|media|alta"
+}}
+
+Casos para requiere_operador=true: quiere cancelar, pide hablar con alguien, conflicto/reclamo, cambio raro de compra, insultos, no entiende después de pedir datos, retiro en persona no previsto, pregunta que no sea solo completar datos.
+""".format(
+        datos_previos=json.dumps(datos_previos, ensure_ascii=False),
+        texto_cliente=str(texto_cliente or "").strip(),
+    )
+
+    payload = {
+        "model": modelo,
+        "messages": [
+            {"role": "system", "content": "Respondés únicamente JSON válido. Sos preciso, conservador y APB."},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0,
+    }
+
+    req = Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(req, timeout=25) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+        data = json.loads(raw)
+        contenido = data["choices"][0]["message"]["content"]
+        resultado = ia_json_loads_seguro(contenido)
+        if not resultado:
+            raise ValueError("La IA no devolvió JSON válido")
+
+        datos = resultado.get("datos") or {}
+        fusionados = dict(datos_previos)
+        for c in campos:
+            valor = str(datos.get(c) or "").strip()
+            if valor:
+                fusionados[c] = valor
+            else:
+                fusionados.setdefault(c, "")
+
+        faltantes = [c for c in campos if not str(fusionados.get(c) or "").strip()]
+        resultado["datos"] = {c: str(fusionados.get(c) or "").strip() for c in campos}
+        resultado["faltantes"] = faltantes
+        resultado["datos_completos"] = len(faltantes) == 0
+        resultado["ok"] = True
+        return resultado
+    except HTTPError as e:
+        detalle = e.read().decode("utf-8", errors="replace") if hasattr(e, "read") else str(e)
+        return {"ok": False, "estado": "error", "error": f"OpenAI HTTP {e.code}: {detalle[:500]}"}
+    except Exception as e:
+        return {"ok": False, "estado": "error", "error": str(e)[:500]}
+
+
+def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
+    if not pedido:
+        return
+    pedido.ia_ultimo_mensaje_hash = ia_hash_texto(texto_cliente)
+    pedido.ia_ultimo_analisis = datetime.utcnow()
+    pedido.ia_error = ""
+
+    if not resultado or not resultado.get("ok"):
+        pedido.ia_recolector_estado = resultado.get("estado") if isinstance(resultado, dict) else "error"
+        pedido.ia_error = (resultado.get("error") if isinstance(resultado, dict) else "Error IA") or "Error IA"
+        return
+
+    datos = resultado.get("datos") or {}
+    faltantes = resultado.get("faltantes") or []
+    requiere_operador = bool(resultado.get("requiere_operador"))
+
+    if requiere_operador:
+        estado = "requiere_operador"
+    elif not faltantes:
+        estado = "datos_completos"
+    else:
+        estado = "juntando_datos"
+
+    pedido.ia_recolector_estado = estado
+    pedido.ia_datos_detectados = json.dumps(datos, ensure_ascii=False)
+    pedido.ia_faltantes = json.dumps(faltantes, ensure_ascii=False)
+    pedido.ia_resumen = str(resultado.get("resumen") or "").strip()
+    pedido.ia_requiere_operador = requiere_operador
+
+
+def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=False):
+    """Analiza último mensaje del comprador si corresponde. No envía nada al cliente."""
+    if not pedido or not es_ml_acordas_entrega(pedido):
+        return None
+    if not getattr(pedido, "contacto_iniciado", False):
+        return None
+
+    ultimo = ml_ultimo_mensaje_comprador(mensajes, seller_id=seller_id)
+    if not ultimo:
+        return None
+
+    texto = ml_texto_mensaje_ml(ultimo)
+    if not texto:
+        return None
+
+    h = ia_hash_texto(texto)
+    if not forzar and h == str(getattr(pedido, "ia_ultimo_mensaje_hash", "") or ""):
+        return None
+
+    resultado = ia_analizar_datos_cliente_ml_acordas(texto, ia_datos_previos_pedido(pedido))
+    ia_guardar_resultado_recolector(pedido, texto, resultado)
+    return resultado
+
 def ml_hay_mensaje_pendiente_en_thread(mensajes, seller_id=""):
     """
     Regla APB para postventa:
@@ -3878,6 +4163,32 @@ def ml_sync_mensajes_pedido(pedido):
     return False, 0
 
 
+def ml_obtener_mensajes_pack_para_ia(pack_id, seller_id=""):
+    """Obtiene mensajes del thread ML para análisis IA sin marcar como leídos."""
+    pack_id = str(pack_id or "").strip()
+    if not pack_id:
+        return []
+
+    seller_id = str(seller_id or "").strip()
+    intentos = []
+    if seller_id:
+        intentos.append((f"/messages/packs/{pack_id}/sellers/{seller_id}", {"tag": "post_sale", "limit": 50}))
+        intentos.append((f"/messages/packs/{pack_id}/sellers/{seller_id}", {"limit": 50}))
+    intentos.append((f"/messages/packs/{pack_id}", {"role": "seller", "tag": "post_sale", "limit": 50}))
+    intentos.append((f"/messages/packs/{pack_id}", {"role": "seller", "limit": 50}))
+
+    for path, params in intentos:
+        try:
+            data = ml_api_get(path, params=params)
+            mensajes = ml_extraer_lista_mensajes_ml(data)
+            if mensajes:
+                return mensajes
+        except Exception as e:
+            print(f"[IA-RECOLECTOR] Fallo leyendo mensajes {path} {params}: {e}")
+            continue
+    return []
+
+
 def ml_sync_mensajes_pack(pack_id, pedido=None):
     """
     Consulta el thread de mensajes postventa de un pack/order ML y detecta
@@ -3924,6 +4235,15 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
         # APB: NO marcar contacto iniciado por leer mensajes de ML.
         # El contacto inicial solo se marca por accion explicita del operador:
         # Enviar mensaje ML / Copiar mensaje.
+
+        # IA Fase 2: si ya se mandó el contacto inicial y llegó respuesta del comprador,
+        # analizar datos detectados. NO responde al cliente ni cambia estados.
+        try:
+            ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id=seller_id, forzar=False)
+        except Exception as e:
+            pedido.ia_recolector_estado = "error"
+            pedido.ia_error = str(e)[:500]
+            print(f"[IA-RECOLECTOR] Error analizando pedido {pedido.id}: {e}")
 
 
     if not endpoint_ok and ultimo_error:
@@ -4817,6 +5137,20 @@ def ml_sync_manual(limit=20):
     }
 
 
+def ia_datos_detectados_pedido(pedido):
+    if not pedido or not getattr(pedido, "ia_datos_detectados", None):
+        return {}
+    data = ia_json_loads_seguro(pedido.ia_datos_detectados)
+    return data if isinstance(data, dict) else {}
+
+
+def ia_faltantes_pedido(pedido):
+    if not pedido or not getattr(pedido, "ia_faltantes", None):
+        return []
+    data = ia_json_loads_seguro(pedido.ia_faltantes)
+    return data if isinstance(data, list) else []
+
+
 @app.context_processor
 def inyectar_contexto_global():
     return {
@@ -4867,6 +5201,8 @@ def inyectar_contexto_global():
         "andreani_texto_ultimo_evento": andreani_texto_ultimo_evento,
         "andreani_alerta_pedido": andreani_alerta_pedido,
         "generar_mensaje_contacto_ml": generar_mensaje_contacto_ml,
+        "ia_datos_detectados_pedido": ia_datos_detectados_pedido,
+        "ia_faltantes_pedido": ia_faltantes_pedido,
     }
 
 
@@ -6486,6 +6822,52 @@ def enviar_mensaje_ml_acordas(id):
             id=pedido.id,
             error=f"No se pudo enviar el mensaje a Mercado Libre: {e}"
         ))
+@app.route("/pedido/<int:id>/ia-analizar-respuesta", methods=["POST"])
+@login_required
+def ia_analizar_respuesta_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+
+    if not es_ml_acordas_entrega(pedido):
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="La IA recolector solo aplica a Mercado Libre / Acordás la Entrega."))
+
+    if not getattr(pedido, "contacto_iniciado", False):
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="Primero debe existir contacto inicial enviado."))
+
+    cuenta = MercadoLibreCuenta.query.first()
+    seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+    ids_chat = []
+    for posible in [getattr(pedido, "ml_pack_id", None), getattr(pedido, "id_venta", None)]:
+        posible = str(posible or "").strip()
+        if posible and posible not in ids_chat:
+            ids_chat.append(posible)
+
+    mensajes = []
+    for id_chat in ids_chat:
+        mensajes = ml_obtener_mensajes_pack_para_ia(id_chat, seller_id=seller_id)
+        if mensajes:
+            break
+
+    if not mensajes:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No se pudieron leer mensajes del comprador para analizar."))
+
+    resultado = ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id=seller_id, forzar=True)
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo guardar el análisis IA: {e}"))
+
+    if not resultado:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No hay mensaje nuevo del comprador para analizar."))
+    if not resultado.get("ok"):
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"IA no disponible: {resultado.get('error', 'error desconocido')}"))
+
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok="IA analizó la última respuesta del comprador. No se envió ningún mensaje automático."))
+
+
 @app.route("/pedido/<int:id>/editar", methods=["GET", "POST"])
 @login_required
 def editar_pedido(id):
