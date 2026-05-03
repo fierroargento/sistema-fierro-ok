@@ -646,9 +646,15 @@ def normalizar_telefono(raw):
 import json
 
 def sugerir_sucursales(pedido):
-    if not getattr(pedido, "localidad", None) or not getattr(pedido, "provincia", None):
-        return None
-    if getattr(pedido, "sucursal_nombre", None):
+    loc = (pedido.localidad or "").lower()
+    prov = (pedido.provincia or "").lower()
+
+    # parche CABA / Capital
+    if loc in ["caba", "capital federal", "buenos aires"]:
+    prov = "buenos aires"
+
+    if not loc:
+    return None    if getattr(pedido, "sucursal_nombre", None):
         return None
     try:
         with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
