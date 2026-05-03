@@ -4495,6 +4495,9 @@ def ia_auto_responder_post_analisis(pedido):
 
         if not faltantes:
             # Datos del cliente completos. Si es Via Cargo y falta sucursal, sugerir opciones.
+            es_via_cargo = (pedido.empresa_envio or "").strip().lower() in ["vía cargo", "via cargo", "viacargo"]
+            if not es_via_cargo:
+                return False, "datos_completos"
             msg_sucursales = sugerir_sucursales(pedido)
             if msg_sucursales:
                 try:
