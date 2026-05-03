@@ -4450,6 +4450,11 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         pedido.direccion = suc.get("direccion")
         pedido.localidad = suc.get("localidad")
         pedido.provincia = suc.get("provincia")
+        # Autocompletar transporte y tipo de entrega según regla de negocio
+        if not (pedido.empresa_envio or "").strip():
+            pedido.empresa_envio = "Vía Cargo"
+        if not (pedido.tipo_entrega or "").strip():
+            pedido.tipo_entrega = "Sucursal"
         try:
             db.session.commit()
         except:
@@ -4494,9 +4499,11 @@ def ia_auto_responder_post_analisis(pedido):
         faltantes = ia_faltantes_pedido(pedido)
 
         if not faltantes:
-            # Datos del cliente completos. Si es Via Cargo y falta sucursal, sugerir opciones.
-            es_via_cargo = (pedido.empresa_envio or "").strip().lower() in ["vía cargo", "via cargo", "viacargo"]
-            if not es_via_cargo:
+            # Datos del cliente completos.
+            # ML Acordás la Entrega que NO es plegable PP6040 → siempre Via Cargo sucursal.
+            # Si falta elegir sucursal, mandar opciones al cliente.
+            es_via_cargo_acordas = es_ml_acordas_entrega(pedido) and not pedido_es_plegable_pp6040(pedido)
+            if not es_via_cargo_acordas:
                 return False, "datos_completos"
             msg_sucursales = sugerir_sucursales(pedido)
             if msg_sucursales:
