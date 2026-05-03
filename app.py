@@ -640,85 +640,6 @@ def hay_reclamo_generado(pedido):
 
 def normalizar_telefono(raw):
     telefono = "" if raw is None else str(raw).strip()
-# =========================
-# VIA CARGO SIMPLE
-# =========================
-
-def sugerir_sucursales(pedido):
-    # si ya eligió sucursal → no sugerir
-    if getattr(pedido, "sucursal_nombre", None):
-        return None
-
-    loc = (pedido.localidad or "").lower()
-    prov = (pedido.provincia or "").lower()
-
-    # normalización CABA
-    if loc in ["caba", "capital federal", "buenos aires"]:
-        prov = "buenos aires"
-
-    if not loc:
-        return None
-
-    try:
-        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except:
-        return None
-
-    sucs = [
-        s for s in data
-        if loc in (s.get("localidad", "").lower())
-        and prov in (s.get("provincia", "").lower())
-    ]
-
-    if not sucs:
-        return None
-
-    sucs = sucs[:3]
-
-    lista = ""
-    for i, s in enumerate(sucs, 1):
-        nombre = s.get("nombre") or "Sucursal"
-        direccion = s.get("direccion") or ""
-        lista += f"{i}) {nombre}\n{direccion}\n\n"
-
-    return (
-        "Genial 👍\n\n"
-        "Te paso sucursales cercanas:\n\n"
-        f"{lista}"
-        "Decime cuál preferís y despachamos 🚀"
-    )
-
-
-def detectar_sucursal(pedido, mensaje):
-    try:
-        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except:
-        return None
-
-    texto = (mensaje or "").lower()
-
-    for s in data:
-        nombre = (s.get("nombre") or "").lower()
-        if nombre and nombre in texto:
-            return s
-
-    return None
-
-def detectar_sucursal(pedido, mensaje):
-    try:
-        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except:
-        return None
-    texto = (mensaje or "").lower()
-    for s in data:
-        nombre = (s.get("nombre") or "").lower()
-        if nombre and nombre in texto:
-            return s
-    return None
-
 
     if not telefono:
         return ""
@@ -740,6 +661,91 @@ def detectar_sucursal(pedido, mensaje):
 
     return "549" + solo_digitos
 
+
+# =========================
+# VIA CARGO SIMPLE
+# =========================
+
+def sugerir_sucursales(pedido):
+    if getattr(pedido, "sucursal_nombre", None):
+        return None
+
+    loc = (pedido.localidad or "").lower().strip()
+    prov = (pedido.provincia or "").lower().strip()
+
+    if loc in ["caba", "capital federal", "ciudad autonoma de buenos aires", "ciudad autónoma de buenos aires"]:
+        loc = "capital federal"
+        prov = "capital federal"
+
+    if not loc:
+        return None
+
+    try:
+        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        print("[VIA CARGO] No se pudo leer via_cargo_sucursales.json:", e)
+        return None
+
+    sucs = []
+
+    for s in data:
+        s_localidad = (s.get("localidad") or "").lower()
+        s_provincia = (s.get("provincia") or "").lower()
+
+        if loc in s_localidad:
+            if prov:
+                if prov in s_provincia:
+                    sucs.append(s)
+            else:
+                sucs.append(s)
+
+    if not sucs and loc == "capital federal":
+        sucs = [
+            s for s in data
+            if "capital federal" in ((s.get("provincia") or "").lower())
+        ]
+
+    if not sucs:
+        return None
+
+    sucs = sucs[:3]
+
+    lista = ""
+    for i, s in enumerate(sucs, 1):
+        nombre = s.get("nombre") or "Sucursal"
+        direccion = s.get("direccion") or ""
+        lista += f"{i}) {nombre}\n{direccion}\n\n"
+
+    return (
+        "Genial 👍\n\n"
+        "Te paso sucursales cercanas para que elijas:\n\n"
+        f"{lista}"
+        "Decime cuál preferís y despachamos 🚀"
+    )
+
+
+def detectar_sucursal(pedido, mensaje):
+    try:
+        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        print("[VIA CARGO] No se pudo leer via_cargo_sucursales.json:", e)
+        return None
+
+    texto = (mensaje or "").lower()
+
+    for s in data:
+        nombre = (s.get("nombre") or "").lower()
+        direccion = (s.get("direccion") or "").lower()
+
+        if nombre and nombre in texto:
+            return s
+
+        if direccion and direccion in texto:
+            return s
+
+    return None
 
 def generar_link_whatsapp(numero, mensaje):
     """Genera links de WhatsApp con codificación UTF-8 segura.
@@ -4352,20 +4358,31 @@ def ia_auto_responder_post_analisis(pedido):
         texto = ia_generar_cta_operador_pedido(pedido)
     else:
         faltantes = ia_faltantes_pedido(pedido)
-        if not faltantes:
-            return False, "datos_completos"
 
-        # VIA CARGO AUTOMATICO
+        # VIA CARGO AUTOMATICO:
+        # Si ya tiene datos del cliente pero falta elegir sucursal, manda opciones.
         msg_sucursales = sugerir_sucursales(pedido)
         if msg_sucursales:
             try:
                 ml_enviar_mensaje_acordas(pedido, msg_sucursales)
                 pedido.ia_respuesta_sugerida = msg_sucursales
+                pedido.ia_respuesta_enviada_hash = ia_hash_texto(msg_sucursales)
                 pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
+                pedido.ml_mensajes_pendientes = False
+                pedido.ml_mensajes_pendientes_count = 0
                 db.session.commit()
-            except:
-                pass
-            return False, "sucursales_enviadas"
+            except Exception as e:
+                print("[VIA CARGO] No se pudo enviar sugerencia de sucursales:", e)
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+                return False, "error_sucursales"
+
+            return True, "sucursales_enviadas"
+
+        if not faltantes:
+            return False, "datos_completos"
 
         texto = ia_generar_respuesta_faltantes_pedido(pedido)
 
