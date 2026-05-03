@@ -662,22 +662,151 @@ def normalizar_telefono(raw):
     return "549" + solo_digitos
 
 
+
 # =========================
-# VIA CARGO SIMPLE
+# VIA CARGO - SUCURSALES CERCANAS
 # =========================
 
+# Coordenadas centroide de barrios CABA (fallback si no hay CP ni dirección)
+_BARRIOS_CABA_COORDS = {
+    "agronomia": (-34.5958, -58.4950), "almagro": (-34.6097, -58.4196),
+    "balvanera": (-34.6126, -58.4023), "barracas": (-34.6476, -58.3889),
+    "barrio norte": (-34.5876, -58.3930), "belgrano": (-34.5623, -58.4581),
+    "boca": (-34.6361, -58.3632), "la boca": (-34.6361, -58.3632),
+    "boedo": (-34.6289, -58.4109), "caballito": (-34.6155, -58.4399),
+    "chacarita": (-34.5861, -58.4588), "coghlan": (-34.5666, -58.4781),
+    "colegiales": (-34.5736, -58.4476), "constitucion": (-34.6269, -58.3838),
+    "flores": (-34.6302, -58.4681), "floresta": (-34.6219, -58.4952),
+    "la paternal": (-34.5956, -58.4804), "paternal": (-34.5956, -58.4804),
+    "liniers": (-34.6413, -58.5261), "mataderos": (-34.6618, -58.5103),
+    "microcentro": (-34.6063, -58.3745), "monserrat": (-34.6156, -58.3798),
+    "monte castro": (-34.6136, -58.5094), "nueva pompeya": (-34.6567, -58.4085),
+    "nuñez": (-34.5476, -58.4614), "once": (-34.6126, -58.4023),
+    "palermo": (-34.5885, -58.4328), "parque avellaneda": (-34.6526, -58.4750),
+    "parque chacabuco": (-34.6422, -58.4410), "parque patricios": (-34.6425, -58.3991),
+    "puerto madero": (-34.6158, -58.3637), "puente saavedra": (-34.5476, -58.4883),
+    "recoleta": (-34.5876, -58.3930), "retiro": (-34.5909, -58.3749),
+    "saavedra": (-34.5538, -58.4883), "san cristobal": (-34.6236, -58.3978),
+    "san nicolas": (-34.6033, -58.3801), "san telmo": (-34.6233, -58.3722),
+    "tribunales": (-34.6013, -58.3876), "velez sarsfield": (-34.6393, -58.5168),
+    "versalles": (-34.6334, -58.5250), "villa crespo": (-34.5969, -58.4480),
+    "villa del parque": (-34.5996, -58.4944), "villa devoto": (-34.6050, -58.5099),
+    "villa lugano": (-34.6844, -58.4752), "villa luro": (-34.6324, -58.5068),
+    "villa ortuzar": (-34.5796, -58.4680), "villa pueyrredon": (-34.5853, -58.5036),
+    "villa real": (-34.6246, -58.5250), "villa riachuelo": (-34.6879, -58.4601),
+    "villa soldati": (-34.6796, -58.4524), "villa urquiza": (-34.5796, -58.4912),
+}
+
+_CABA_CENTROIDE = (-34.6037, -58.3816)
+
+
+def _distancia_km(lat1, lng1, lat2, lng2):
+    import math
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng/2)**2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _obtener_coords_cliente(codigo_postal, direccion, localidad, provincia):
+    """
+    Obtiene lat/lng del cliente para ordenar sucursales por distancia.
+    Estrategia en orden de prioridad:
+      1. CP del cliente -> buscar sucursal con CP más cercano y usar sus coords
+      2. Nominatim con dirección completa (timeout 3s)
+      3. Nominatim con solo localidad/barrio
+      4. Diccionario interno de barrios CABA
+      5. Centroide de CABA como último recurso
+    Devuelve (lat, lng, metodo)
+    """
+    import urllib.request
+    import urllib.parse
+    import json as _json
+
+    es_caba = any(x in (provincia or "").lower()
+                  for x in ["capital federal", "caba", "ciudad autonoma", "ciudad autónoma"])
+
+    # 1) CP: el más confiable, sin llamadas externas
+    cp_str = str(codigo_postal or "").strip()
+    if cp_str and cp_str.isdigit():
+        cp_int = int(cp_str)
+        try:
+            with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
+                data_suc = _json.load(f)
+            pool = [s for s in data_suc if s.get("cp") and s.get("lat") and s.get("lng")]
+            if es_caba:
+                pool_caba = [s for s in pool if "capital federal" in (s.get("provincia") or "").lower()]
+                pool = pool_caba or pool
+            if pool:
+                ref = min(pool, key=lambda s: abs(int(s["cp"]) - cp_int))
+                return float(ref["lat"]), float(ref["lng"]), "cp"
+        except Exception as e:
+            print("[VIA CARGO] Error buscando CP de referencia:", e)
+
+    # 2 y 3) Nominatim
+    headers = {"User-Agent": "fierro-sistema/1.0"}
+
+    def nominatim(q):
+        try:
+            params = urllib.parse.urlencode({"q": q, "format": "json", "limit": 1, "countrycodes": "ar"})
+            url = f"https://nominatim.openstreetmap.org/search?{params}"
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=3) as r:
+                res = _json.loads(r.read())
+                if res:
+                    return float(res[0]["lat"]), float(res[0]["lon"])
+        except Exception as e:
+            print(f"[NOMINATIM] Error '{{q}}':", e)
+        return None
+
+    sufijo_caba = "Ciudad Autónoma de Buenos Aires, Argentina"
+    sufijo_gen = f"{localidad or ''}, Argentina"
+
+    if direccion and localidad:
+        coords = nominatim(f"{direccion}, {sufijo_caba if es_caba else sufijo_gen}")
+        if coords:
+            return coords[0], coords[1], "nominatim_direccion"
+
+    if localidad:
+        coords = nominatim(f"{localidad}, {sufijo_caba if es_caba else 'Argentina'}")
+        if coords:
+            return coords[0], coords[1], "nominatim_localidad"
+
+    # 4) Diccionario de barrios CABA
+    if es_caba and localidad:
+        loc_norm = (localidad or "").lower().strip()
+        for barrio, coords in _BARRIOS_CABA_COORDS.items():
+            if barrio in loc_norm or loc_norm in barrio:
+                return coords[0], coords[1], "diccionario_barrio"
+
+    # 5) Centroide CABA
+    if es_caba:
+        return _CABA_CENTROIDE[0], _CABA_CENTROIDE[1], "centroide_caba"
+
+    return None, None, "sin_coords"
+
+
 def sugerir_sucursales(pedido):
+    """
+    Devuelve un mensaje con las 3 sucursales Via Cargo más cercanas al cliente,
+    ordenadas por distancia usando CP, Nominatim o barrio como referencia.
+    Devuelve None si ya eligió sucursal, si no hay datos de ubicación, o si no hay sucursales.
+    """
     if getattr(pedido, "sucursal_nombre", None):
         return None
 
     loc = (pedido.localidad or "").lower().strip()
     prov = (pedido.provincia or "").lower().strip()
+    direccion = (pedido.direccion or "").strip()
+    cp = str(pedido.codigo_postal or "").strip()
 
-    if loc in ["caba", "capital federal", "ciudad autonoma de buenos aires", "ciudad autónoma de buenos aires"]:
-        loc = "capital federal"
-        prov = "capital federal"
+    es_caba = loc in ["caba", "capital federal", "ciudad autonoma de buenos aires",
+                      "ciudad autónoma de buenos aires"] or \
+              any(x in prov for x in ["capital federal", "caba", "ciudad autonoma", "ciudad autónoma"])
 
-    if not loc:
+    # Necesitamos al menos localidad o CP para ubicar al cliente
+    if not loc and not cp and not es_caba:
         return None
 
     try:
@@ -687,35 +816,40 @@ def sugerir_sucursales(pedido):
         print("[VIA CARGO] No se pudo leer via_cargo_sucursales.json:", e)
         return None
 
-    sucs = []
-
-    for s in data:
-        s_localidad = (s.get("localidad") or "").lower()
-        s_provincia = (s.get("provincia") or "").lower()
-
-        if loc in s_localidad:
-            if prov:
-                if prov in s_provincia:
-                    sucs.append(s)
-            else:
-                sucs.append(s)
-
-    if not sucs and loc == "capital federal":
-        sucs = [
+    # Filtrar candidatas por zona
+    if es_caba:
+        candidatas = [s for s in data if "capital federal" in (s.get("provincia") or "").lower()]
+    else:
+        candidatas = [
             s for s in data
-            if "capital federal" in ((s.get("provincia") or "").lower())
+            if loc and loc in (s.get("localidad") or "").lower()
+            and prov in (s.get("provincia") or "").lower()
         ]
+        # Si no matchea exacto, ampliar a toda la provincia
+        if not candidatas and prov:
+            candidatas = [s for s in data if prov in (s.get("provincia") or "").lower()]
 
-    if not sucs:
+    if not candidatas:
         return None
 
-    sucs = sucs[:3]
+    # Ordenar por distancia
+    candidatas_con_coords = [s for s in candidatas if s.get("lat") and s.get("lng")]
+    if candidatas_con_coords:
+        lat_cli, lng_cli, metodo = _obtener_coords_cliente(cp, direccion, pedido.localidad, pedido.provincia)
+        print(f"[VIA CARGO] Ubicación cliente: método={metodo} lat={lat_cli} lng={lng_cli} cp={cp}")
+        if lat_cli and lng_cli:
+            candidatas_con_coords.sort(
+                key=lambda s: _distancia_km(lat_cli, lng_cli, float(s["lat"]), float(s["lng"]))
+            )
+            candidatas = candidatas_con_coords
+
+    sucs = candidatas[:3]
 
     lista = ""
     for i, s in enumerate(sucs, 1):
         nombre = s.get("nombre") or "Sucursal"
-        direccion = s.get("direccion") or ""
-        lista += f"{i}) {nombre}\n{direccion}\n\n"
+        dir_suc = s.get("direccion") or ""
+        lista += f"{i}) {nombre}\n{dir_suc}\n\n"
 
     return (
         "Genial 👍\n\n"
@@ -4359,29 +4493,27 @@ def ia_auto_responder_post_analisis(pedido):
     else:
         faltantes = ia_faltantes_pedido(pedido)
 
-        # VIA CARGO AUTOMATICO:
-        # Si ya tiene datos del cliente pero falta elegir sucursal, manda opciones.
-        msg_sucursales = sugerir_sucursales(pedido)
-        if msg_sucursales:
-            try:
-                ml_enviar_mensaje_acordas(pedido, msg_sucursales)
-                pedido.ia_respuesta_sugerida = msg_sucursales
-                pedido.ia_respuesta_enviada_hash = ia_hash_texto(msg_sucursales)
-                pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
-                pedido.ml_mensajes_pendientes = False
-                pedido.ml_mensajes_pendientes_count = 0
-                db.session.commit()
-            except Exception as e:
-                print("[VIA CARGO] No se pudo enviar sugerencia de sucursales:", e)
-                try:
-                    db.session.rollback()
-                except Exception:
-                    pass
-                return False, "error_sucursales"
-
-            return True, "sucursales_enviadas"
-
         if not faltantes:
+            # Datos del cliente completos. Si es Via Cargo y falta sucursal, sugerir opciones.
+            msg_sucursales = sugerir_sucursales(pedido)
+            if msg_sucursales:
+                try:
+                    ml_enviar_mensaje_acordas(pedido, msg_sucursales)
+                    pedido.ia_respuesta_sugerida = msg_sucursales
+                    pedido.ia_respuesta_enviada_hash = ia_hash_texto(msg_sucursales)
+                    pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
+                    pedido.ml_mensajes_pendientes = False
+                    pedido.ml_mensajes_pendientes_count = 0
+                    db.session.commit()
+                except Exception as e:
+                    print("[VIA CARGO] No se pudo enviar sugerencia de sucursales:", e)
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
+                    return False, "error_sucursales"
+                return True, "sucursales_enviadas"
+            # No es Via Cargo o ya tiene sucursal: no hay nada más que hacer
             return False, "datos_completos"
 
         texto = ia_generar_respuesta_faltantes_pedido(pedido)
