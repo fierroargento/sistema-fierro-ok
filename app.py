@@ -5390,17 +5390,16 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
         return ""
 
     datos = ia_datos_detectados_pedido(pedido)
-    nombre = str(datos.get("nombre") or "").strip()
-    saludo = f"Gracias, {nombre} 😊" if nombre else "Gracias 😊"
+    nombre_raw = str(datos.get("nombre") or "").strip()
+    nombre_corto = nombre_raw.split()[0] if nombre_raw else ""
+    saludo = f"Gracias, {nombre_corto} 😊" if nombre_corto else "Gracias 😊"
     lineas = [f"- {ia_etiqueta_faltante(c)}" for c in faltantes]
     bloque_faltantes = "\n".join(lineas)
 
     resumen = str(getattr(pedido, "ia_resumen", "") or "").lower()
 
-    partes = []
-
-    # Caso especial: solo explicar lo de Mercado Libre si el análisis lo marcó explícitamente.
-    # No usar esta explicación cuando el comprador simplemente pasó datos incompletos.
+    # Detectores de intención. Importante: usamos frases específicas para no disparar textos largos
+    # cuando el comprador simplemente manda datos incompletos.
     resumen_ml_explicito = any(k in resumen for k in [
         "datos en mercado libre",
         "datos están en mercado libre",
@@ -5411,16 +5410,15 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
         "datos de mi cuenta",
     ])
 
-    if resumen_ml_explicito:
-        partes.append(
-            "En esta modalidad de Mercado Libre (Acordás la entrega), los datos cargados en la compra no nos aparecen completos para coordinar el envío."
-        )
+    pregunta_por_que = any(k in resumen for k in [
+        "por qué", "por que", "pide explicación", "pide explicacion",
+        "por qué pedimos", "por que pedimos", "por qué piden", "por que piden"
+    ])
 
-    if any(k in resumen for k in ["por qué", "por que", "pide explicación", "pide explicacion", "por qué pedimos", "por que pedimos"]):
-        partes.append("Te pedimos estos datos para poder coordinar correctamente el envío y evitar errores en la entrega.")
-
-    if any(k in resumen for k in ["costo de envío", "costo de envio", "cuánto sale", "cuanto sale", "sale el envío", "sale el envio"]):
-        partes.append("El envío es sin cargo.")
+    pregunta_costo_envio = any(k in resumen for k in [
+        "costo de envío", "costo de envio", "cuánto sale", "cuanto sale",
+        "sale el envío", "sale el envio", "valor del envío", "valor del envio"
+    ])
 
     # Diferenciar intención:
     # - "cuándo lo envían / despachan" => falta acción de Fierro; empujar a completar datos.
@@ -5446,17 +5444,69 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
         "cuando me llega", "cuándo me llega",
     ])
 
+    cliente_dice_ya_los_pase = any(k in resumen for k in [
+        "ya los pasé", "ya los pase", "ya pasó", "ya paso", "ya envié", "ya envie"
+    ])
+
+    # Solo si el cliente pide explícitamente llamada/WhatsApp. No usar "telefono" solo,
+    # porque muchas veces aparece en el resumen simplemente porque el comprador pasó su teléfono.
+    pide_llamada_o_whatsapp = any(k in resumen for k in [
+        "llamada", "llamar", "llamame", "llámame", "hablar por whatsapp",
+        "te paso mi whatsapp", "por whatsapp", "mandame whatsapp", "mandame un whatsapp"
+    ])
+
+    hay_contexto_especial = any([
+        resumen_ml_explicito,
+        pregunta_por_que,
+        pregunta_costo_envio,
+        pregunta_cuando_sale,
+        pregunta_cuanto_tarda,
+        cliente_dice_ya_los_pase,
+        pide_llamada_o_whatsapp,
+    ])
+
+    # Caso muy común: el comprador colaboró y solo quedó 1 dato pendiente.
+    # Respuesta ultra corta y humana, sin explicación extra.
+    if len(faltantes) == 1 and not hay_contexto_especial:
+        etiqueta = ia_etiqueta_faltante(faltantes[0]).strip().lower()
+        articulo = "el"
+        if etiqueta in ["localidad", "dirección", "direccion"]:
+            articulo = "la"
+        elif etiqueta.startswith("código") or etiqueta.startswith("codigo"):
+            articulo = "el"
+        elif etiqueta.startswith("teléfono") or etiqueta.startswith("telefono"):
+            articulo = "el"
+        elif etiqueta.startswith("dni") or etiqueta.startswith("documento"):
+            articulo = "el"
+
+        if nombre_corto:
+            return f"Excelente, gracias {nombre_corto} 😊\n\nSolo me falta {articulo} {etiqueta} para completar los datos."
+        return f"Excelente, gracias 😊\n\nSolo me falta {articulo} {etiqueta} para completar los datos."
+
+    partes = []
+
+    if resumen_ml_explicito:
+        partes.append(
+            "En esta modalidad de Mercado Libre (Acordás la entrega), los datos cargados en la compra no nos aparecen completos para coordinar el envío."
+        )
+
+    if pregunta_por_que:
+        partes.append("Te pedimos estos datos para coordinar bien el envío y evitar errores en la entrega.")
+
+    if pregunta_costo_envio:
+        partes.append("El envío es sin cargo.")
+
     if pregunta_cuando_sale:
         partes.append("Lo despachamos apenas nos confirmes estos datos.")
 
     if pregunta_cuanto_tarda:
         partes.append("Una vez despachado, suele tardar entre 3 y 5 días hábiles.")
 
-    if any(k in resumen for k in ["ya los pasé", "ya los pase", "ya pasó", "ya paso"]):
-        partes.append("Puede ser que haya llegado parte de la información, pero todavía nos faltan estos datos para completar el envío.")
+    if cliente_dice_ya_los_pase:
+        partes.append("Puede ser que haya llegado parte de la información, pero todavía falta completar estos datos.")
 
-    if any(k in resumen for k in ["llamada", "llamar", "whatsapp", "teléfono", "telefono"]):
-        partes.append("Por este medio podemos coordinar más rápido y dejar toda la información asentada en la compra.")
+    if pide_llamada_o_whatsapp:
+        partes.append("Por este medio podemos coordinar más rápido y dejar la información asentada en la compra.")
 
     if partes:
         texto = (
@@ -5479,7 +5529,6 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
     if len(texto) > 650:
         texto = texto[:647] + "..."
     return texto
-
 
 def ia_generar_cta_operador_pedido(pedido):
     """Genera una sugerencia con CTA cuando la IA decide que requiere operador. No envía nada automáticamente."""
