@@ -674,7 +674,8 @@ def detectar_sucursal(pedido, mensaje):
         return None
     texto = (mensaje or "").lower()
     for s in data:
-        if s.get("nombre","").lower() in texto:
+        nombre = (s.get("nombre") or "").lower()
+        if nombre and nombre in texto:
             return s
     return None
 
