@@ -1,0 +1,5722 @@
+[
+  {
+    "id": 34,
+    "nombre": "Agencia Moreno",
+    "direccion": "Colectora Gaona Nro. 5949",
+    "localidad": "Moreno",
+    "provincia": "Buenos Aires",
+    "cp": 1744,
+    "lat": "-34.634733000",
+    "lng": "-58.787091100"
+  },
+  {
+    "id": 61,
+    "nombre": "Agencia Terminal de Esquel Local 18",
+    "direccion": "Av. Alvear Nro. 1871 Local 18",
+    "localidad": "Esquel",
+    "provincia": "Chubut",
+    "cp": 9200,
+    "lat": "-42.906260000",
+    "lng": "-71.313060000"
+  },
+  {
+    "id": 70,
+    "nombre": "Agencia Bariloche Onelli",
+    "direccion": "Onelli Nro. 369",
+    "localidad": "Bariloche",
+    "provincia": "Rio Negro",
+    "cp": 8400,
+    "lat": "-41.136429000",
+    "lng": "-71.297492000"
+  },
+  {
+    "id": 76,
+    "nombre": "Terminal Rio Colorado - Boleteria 1",
+    "direccion": "Ingeniero Andersen  450 e/Mariano Moreno ",
+    "localidad": "Rio Colorado",
+    "provincia": "Rio Negro",
+    "cp": 8138,
+    "lat": "-38.991680000",
+    "lng": "-64.105740000"
+  },
+  {
+    "id": 79,
+    "nombre": "Terminal de General Roca Locales 2-3-4-17-19",
+    "direccion": "Sarmiento Nro.371",
+    "localidad": "General Roca",
+    "provincia": "Rio Negro",
+    "cp": 8332,
+    "lat": "-39.035567000",
+    "lng": "-67.556146000"
+  },
+  {
+    "id": 102,
+    "nombre": "Agencia Aristóbulo del Valle",
+    "direccion": "Atilio Errecaborde 843",
+    "localidad": "Aristobulo del Valle",
+    "provincia": "Misiones",
+    "cp": 3364,
+    "lat": "-27.099618800",
+    "lng": "-54.891830200"
+  },
+  {
+    "id": 104,
+    "nombre": "Terminal de Azul - Local 1",
+    "direccion": "Mitre Nro. 1003 - Local Nro 1",
+    "localidad": "Azul",
+    "provincia": "Buenos Aires",
+    "cp": 7300,
+    "lat": "-36.783151000",
+    "lng": "-59.851506000"
+  },
+  {
+    "id": 110,
+    "nombre": "Haedo Calvin (Rivadavia 15980)",
+    "direccion": "19 de Noviembre Nro.32",
+    "localidad": "Haedo",
+    "provincia": "Buenos Aires",
+    "cp": 1706,
+    "lat": "-34.644720000",
+    "lng": "-58.589848000"
+  },
+  {
+    "id": 112,
+    "nombre": "Agencia Quilmes",
+    "direccion": "Av.Calchaqui Nro.1564",
+    "localidad": "Quilmes",
+    "provincia": "Buenos Aires",
+    "cp": 1878,
+    "lat": "-34.742202200",
+    "lng": "-58.290278000"
+  },
+  {
+    "id": 113,
+    "nombre": "Agencia Apostoles",
+    "direccion": "Av. Demetrio Hreñuk Nro.646",
+    "localidad": "Apostoles",
+    "provincia": "Misiones",
+    "cp": 3350,
+    "lat": "-27.913884600",
+    "lng": "-55.739221700"
+  },
+  {
+    "id": 122,
+    "nombre": "Agencia Longchamps - Local 2",
+    "direccion": "Emilio Burgwardt 1048 Local 2",
+    "localidad": "Longchamps",
+    "provincia": "Buenos Aires",
+    "cp": 1854,
+    "lat": "-34.860600000",
+    "lng": "-58.382912000"
+  },
+  {
+    "id": 127,
+    "nombre": "Agencia Jose C. Paz",
+    "direccion": "Av. Hipolito Yrigoyen Nro.1479",
+    "localidad": "Jose Clemente Paz",
+    "provincia": "Buenos Aires",
+    "cp": 1660,
+    "lat": "-34.517582000",
+    "lng": "-58.748335000"
+  },
+  {
+    "id": 130,
+    "nombre": "Agencia Campo Grande",
+    "direccion": "Av Los Cafetales Nro.141",
+    "localidad": "Campo Grande",
+    "provincia": "Misiones",
+    "cp": 3362,
+    "lat": "-27.206181000",
+    "lng": "-54.978767900"
+  },
+  {
+    "id": 216,
+    "nombre": "Agencia Munro - Local 11",
+    "direccion": "Av. Velez Sarsfield Nro. 4751 - Local 11 ",
+    "localidad": "Munro",
+    "provincia": "Buenos Aires",
+    "cp": 1605,
+    "lat": "-34.530928300",
+    "lng": "-58.525169200"
+  },
+  {
+    "id": 223,
+    "nombre": "Terminal de Tres Arroyos - Local 10",
+    "direccion": "Av. San Martín Nro .1043",
+    "localidad": "Tres Arroyos",
+    "provincia": "Buenos Aires",
+    "cp": 7500,
+    "lat": "-38.369011100",
+    "lng": "-60.286055900"
+  },
+  {
+    "id": 328,
+    "nombre": "Agencia San Justo",
+    "direccion": "Monsenor Bufano Nro 3457",
+    "localidad": "San Justo",
+    "provincia": "Buenos Aires",
+    "cp": 1754,
+    "lat": "-34.685628900",
+    "lng": "-58.562238200"
+  },
+  {
+    "id": 331,
+    "nombre": "Terminal de Punta Alta Local 4",
+    "direccion": "Avellaneda Nro.660 Terminal de Omnibus",
+    "localidad": "Punta Alta",
+    "provincia": "Buenos Aires",
+    "cp": 8109,
+    "lat": "-38.877049000",
+    "lng": "-62.070873000"
+  },
+  {
+    "id": 359,
+    "nombre": "Agencia Allen",
+    "direccion": "Av. Roca Nto 300 esquina Don Bosco",
+    "localidad": "Allen",
+    "provincia": "Rio Negro",
+    "cp": 8328,
+    "lat": "-38.979750000",
+    "lng": "-67.830350000"
+  },
+  {
+    "id": 453,
+    "nombre": "Agencia Via Cargo San Antonio Oeste",
+    "direccion": "Sarmiento Nro. 10",
+    "localidad": "San Antonio Oeste",
+    "provincia": "Rio Negro",
+    "cp": 8520,
+    "lat": "-40.728180000",
+    "lng": "-64.942340000"
+  },
+  {
+    "id": 595,
+    "nombre": "Terminal de Colonia 25 de Mayo - Local 1",
+    "direccion": "Eduardo Castex y Gral. Pico S/N - Local 1",
+    "localidad": "25 de Mayo",
+    "provincia": "La Pampa",
+    "cp": 8201,
+    "lat": "-37.768915500",
+    "lng": "-67.717340200"
+  },
+  {
+    "id": 809,
+    "nombre": "Agencia Lujan",
+    "direccion": "Av. Carlos Pellegrini Nro.1516 ",
+    "localidad": "Lujan",
+    "provincia": "Buenos Aires",
+    "cp": 6700,
+    "lat": "-34.564677200",
+    "lng": "-59.098612700"
+  },
+  {
+    "id": 1801,
+    "nombre": "Agencia Concordia",
+    "direccion": "Hipolito Yrigoyen Nro 1352",
+    "localidad": "Concordia",
+    "provincia": "Entre Rios",
+    "cp": 3200,
+    "lat": "-31.384878000",
+    "lng": "-58.015201600"
+  },
+  {
+    "id": 2292,
+    "nombre": "Agencia Via Cargo Juan Bautista Alberdi",
+    "direccion": "Catamarca Nro.55",
+    "localidad": "Juan Bautista Alberdi (tuc)",
+    "provincia": "Tucuman",
+    "cp": 4158,
+    "lat": "-27.588465000",
+    "lng": "-65.619598000"
+  },
+  {
+    "id": 2295,
+    "nombre": "Agencia Villa Maipu",
+    "direccion": "Av. Illia Nro.2217",
+    "localidad": "San Martin",
+    "provincia": "Buenos Aires",
+    "cp": 1650,
+    "lat": "-34.580968200",
+    "lng": "-58.532868700"
+  },
+  {
+    "id": 2298,
+    "nombre": "Agencia Via Cargo Circunvalacion - Cordoba",
+    "direccion": "Av. Circunvalación Nro.3815",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.377199200",
+    "lng": "-64.126297000"
+  },
+  {
+    "id": 2309,
+    "nombre": "Via Cargo Loreto",
+    "direccion": "Eduardo Miguel y Sayago",
+    "localidad": "Loreto",
+    "provincia": "Santiago del Estero",
+    "cp": 4208,
+    "lat": "-28.303573600",
+    "lng": "-64.187750800"
+  },
+  {
+    "id": 2311,
+    "nombre": "Agencia Via Cargo Tandil",
+    "direccion": "Av. Monsenor de Andrea 31",
+    "localidad": "Tandil",
+    "provincia": "Buenos Aires",
+    "cp": 7000,
+    "lat": "-37.325981600",
+    "lng": "-59.149933100"
+  },
+  {
+    "id": 2312,
+    "nombre": "Agencia Puerto Piray - Misiones",
+    "direccion": "Calle 2 de Abril S/N Barrio Carlos Negrotti",
+    "localidad": "Puerto Piray",
+    "provincia": "Misiones",
+    "cp": 3381,
+    "lat": "-26.471111300",
+    "lng": "-54.717556000"
+  },
+  {
+    "id": 2313,
+    "nombre": "Terminal de Realico Boleteria 7",
+    "direccion": "Av. Indios Pampa y colectora Ruta Nac. 35",
+    "localidad": "Realico",
+    "provincia": "La Pampa",
+    "cp": 6200,
+    "lat": "-35.041311700",
+    "lng": "-64.262993100"
+  },
+  {
+    "id": 2336,
+    "nombre": "Agencia San Antonio de Padua",
+    "direccion": "Av. Rivadavia Nro.23684",
+    "localidad": "San Antonio de Padua",
+    "provincia": "Buenos Aires",
+    "cp": 1718,
+    "lat": "-34.665409100",
+    "lng": "-58.695861500"
+  },
+  {
+    "id": 2337,
+    "nombre": "Terminal de Taco Pozo",
+    "direccion": "25 de Mayo entre Sarmiento y Belgrano",
+    "localidad": "Taco Pozo CHC",
+    "provincia": "Chaco",
+    "cp": 3714,
+    "lat": "-25.613051500",
+    "lng": "-63.267395500"
+  },
+  {
+    "id": 2339,
+    "nombre": "Agencia San Isidro",
+    "direccion": "Av. Centenario Nro. 810",
+    "localidad": "San Isidro",
+    "provincia": "Buenos Aires",
+    "cp": 1642,
+    "lat": "-34.467790000",
+    "lng": "-58.518070000"
+  },
+  {
+    "id": 2345,
+    "nombre": "Agencia San Pedro",
+    "direccion": "Carlos Pellegrini 2485",
+    "localidad": "San Pedro (Bue)",
+    "provincia": "Buenos Aires",
+    "cp": 2930,
+    "lat": "-33.689436600",
+    "lng": "-59.676670700"
+  },
+  {
+    "id": 2346,
+    "nombre": "Agencia Villa Soldati",
+    "direccion": "Av. Lafuente Nro.3102",
+    "localidad": "Villa Soldati",
+    "provincia": "Capital Federal",
+    "cp": 1437,
+    "lat": "-34.661790000",
+    "lng": "-58.439260000"
+  },
+  {
+    "id": 2352,
+    "nombre": "Terminal de Monte Maiz - Local 1",
+    "direccion": "Cordoba Nro.1300",
+    "localidad": "Monte Maiz",
+    "provincia": "Cordoba",
+    "cp": 2659,
+    "lat": "-33.206899400",
+    "lng": "-62.601024000"
+  },
+  {
+    "id": 2353,
+    "nombre": "Agencia Boedo",
+    "direccion": "Av. Boedo Nro.603",
+    "localidad": "Boedo",
+    "provincia": "Capital Federal",
+    "cp": 1206,
+    "lat": "-34.619948000",
+    "lng": "-58.418941000"
+  },
+  {
+    "id": 2364,
+    "nombre": "Agencia San Miguel de Tucuman - Alberdi",
+    "direccion": "Juan Bautista Alberdi Nro.160",
+    "localidad": "San Miguel de Tucuman",
+    "provincia": "Tucuman",
+    "cp": 4000,
+    "lat": "-26.831230700",
+    "lng": "-65.216967300"
+  },
+  {
+    "id": 2365,
+    "nombre": "Agencia Mar del Plata - Fortunato de la Plaza 3436",
+    "direccion": "Fortunato de la Plaza 3436",
+    "localidad": "Mar del Plata - Fortunato",
+    "provincia": "Buenos Aires",
+    "cp": 7600,
+    "lat": "-38.052806640",
+    "lng": "-57.561251660"
+  },
+  {
+    "id": 2372,
+    "nombre": "Agencia Gobernador Crespo",
+    "direccion": "Moreno 692",
+    "localidad": "Gobernador Crespo",
+    "provincia": "Santa Fe",
+    "cp": 3044,
+    "lat": "-30.360588100",
+    "lng": "-60.405238200"
+  },
+  {
+    "id": 2374,
+    "nombre": "Agencia Monte Grande Norte",
+    "direccion": "Av. Luciano Valette 435",
+    "localidad": "Monte Grande",
+    "provincia": "Buenos Aires",
+    "cp": 1842,
+    "lat": "-34.800867700",
+    "lng": "-58.474622200"
+  },
+  {
+    "id": 2376,
+    "nombre": "Agencia Ciudadela",
+    "direccion": "Av. Gaona Nro.4120",
+    "localidad": "Ciudadela",
+    "provincia": "Buenos Aires",
+    "cp": 1702,
+    "lat": "-34.634830000",
+    "lng": "-58.544370000"
+  },
+  {
+    "id": 2394,
+    "nombre": "Agencia Pergamino",
+    "direccion": "Av. Illia Nro.2325",
+    "localidad": "Pergamino",
+    "provincia": "Buenos Aires",
+    "cp": 2700,
+    "lat": "-33.908272900",
+    "lng": "-60.588773600"
+  },
+  {
+    "id": 2396,
+    "nombre": "Agencia Cordoba - Av. Ricardo Luti",
+    "direccion": "Av. Ricardo Luti Nro.1266",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.432141900",
+    "lng": "-64.169568200"
+  },
+  {
+    "id": 2431,
+    "nombre": "Terminal de Oran - Local 23",
+    "direccion": "Av. Gral. San Martin y 9 de Julio ",
+    "localidad": "Oran",
+    "provincia": "Salta",
+    "cp": 4530,
+    "lat": "-23.128430700",
+    "lng": "-64.328484200"
+  },
+  {
+    "id": 2438,
+    "nombre": "Agencia Pinamar",
+    "direccion": "Ruta 11 KM 397 ",
+    "localidad": "Pinamar",
+    "provincia": "Buenos Aires",
+    "cp": 7167,
+    "lat": "-37.133635900",
+    "lng": "-56.909768200"
+  },
+  {
+    "id": 2445,
+    "nombre": "Agencia Merlo",
+    "direccion": "Av.Pres.Juan Domingo Peron Nro.25558",
+    "localidad": "Merlo",
+    "provincia": "Buenos Aires",
+    "cp": 1722,
+    "lat": "-34.665442900",
+    "lng": "-58.726854000"
+  },
+  {
+    "id": 2502,
+    "nombre": "Terminal de Termas de Río Hondo - Local 1-2-3-4",
+    "direccion": "Las Heras y 12 de Octubre,terminal de ómnibus.",
+    "localidad": "Termas de Rio Hondo",
+    "provincia": "Santiago del Estero",
+    "cp": 4220,
+    "lat": "-27.491580000",
+    "lng": "-64.865380000"
+  },
+  {
+    "id": 2504,
+    "nombre": "Terminal Almafuerte - Boleteria 3",
+    "direccion": "Av. Gral. San Martín Nro 650, Local 3",
+    "localidad": "Almafuerte",
+    "provincia": "Cordoba",
+    "cp": 5854,
+    "lat": "-32.191466000",
+    "lng": "-64.255884000"
+  },
+  {
+    "id": 2530,
+    "nombre": "Agencia Luis Piedra Buena",
+    "direccion": "Gobernador Moyano Oeste Nro.346",
+    "localidad": "Piedra Buena",
+    "provincia": "Santa Cruz",
+    "cp": 9303,
+    "lat": "-49.979752000",
+    "lng": "-68.916076000"
+  },
+  {
+    "id": 2548,
+    "nombre": "Agencia Burzaco",
+    "direccion": "Av. Espora Nro. 3842",
+    "localidad": "Burzaco",
+    "provincia": "Buenos Aires",
+    "cp": 1852,
+    "lat": "-34.832989000",
+    "lng": "-58.385702000"
+  },
+  {
+    "id": 2550,
+    "nombre": "Agencia San Francisco Solano",
+    "direccion": "Av. Lacaze Nro. 6578",
+    "localidad": "Solano",
+    "provincia": "Buenos Aires",
+    "cp": 1881,
+    "lat": "-34.791481800",
+    "lng": "-58.311641900"
+  },
+  {
+    "id": 2552,
+    "nombre": "Agencia Villa Lugano",
+    "direccion": "Cañada de Gomez Nro.5018",
+    "localidad": "Villa Lugano",
+    "provincia": "Capital Federal",
+    "cp": 1439,
+    "lat": "-34.687407600",
+    "lng": "-58.472234900"
+  },
+  {
+    "id": 2564,
+    "nombre": "Agencia Villa Maria - Cordoba",
+    "direccion": "Av. Pres. Juan Domingo Perón 2651",
+    "localidad": "Villa Maria",
+    "provincia": "Cordoba",
+    "cp": 5900,
+    "lat": "-32.422458300",
+    "lng": "-63.212078300"
+  },
+  {
+    "id": 2573,
+    "nombre": "Terminal de Metan Boleteria 8",
+    "direccion": "Mitre Nro.15 y Sirio Libanes",
+    "localidad": "Metan",
+    "provincia": "Salta",
+    "cp": 4440,
+    "lat": "-25.495591600",
+    "lng": "-64.975052500"
+  },
+  {
+    "id": 2661,
+    "nombre": "Agencia El Calafate",
+    "direccion": "Armando Tola Nro.118",
+    "localidad": "El Calafate",
+    "provincia": "Santa Cruz",
+    "cp": 9405,
+    "lat": "-50.339921300",
+    "lng": "-72.246568800"
+  },
+  {
+    "id": 2677,
+    "nombre": "Agencia Bell Ville",
+    "direccion": "Ruta Nacional Nº 9 M 502 ",
+    "localidad": "Bell Ville",
+    "provincia": "Cordoba",
+    "cp": 2550,
+    "lat": "-32.610692340",
+    "lng": "-62.697526880"
+  },
+  {
+    "id": 2716,
+    "nombre": "Agencia San Fernando del Valle - Catamarca",
+    "direccion": "Av. Guemes 1705",
+    "localidad": "Catamarca",
+    "provincia": "Catamarca",
+    "cp": 4700,
+    "lat": "-28.477239500",
+    "lng": "-65.804565000"
+  },
+  {
+    "id": 2740,
+    "nombre": "Agencia Centenario",
+    "direccion": "Av. Ingeniero Ballester Nro 55",
+    "localidad": "Centenario",
+    "provincia": "Neuquen",
+    "cp": 8309,
+    "lat": "-38.826406300",
+    "lng": "-68.120731300"
+  },
+  {
+    "id": 2788,
+    "nombre": "Agencia San Justo",
+    "direccion": "Av Dr Arturo Illia Nro 2582",
+    "localidad": "San Justo",
+    "provincia": "Buenos Aires",
+    "cp": 1754,
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": 2811,
+    "nombre": "Agencia Sierra Grande",
+    "direccion": "Calle 102 Mza Nro.760 Lote 2 (8532)",
+    "localidad": "Sierra Grande",
+    "provincia": "Rio Negro",
+    "cp": 8532,
+    "lat": "-41.608617600",
+    "lng": "-65.353814700"
+  },
+  {
+    "id": 2934,
+    "nombre": "Agencia Via Cargo Villa Tesei",
+    "direccion": "Reyes Catolicos Nro.246",
+    "localidad": "Villa Tesei",
+    "provincia": "Buenos Aires",
+    "cp": 1689,
+    "lat": "-34.631169000",
+    "lng": "-58.629437000"
+  },
+  {
+    "id": 3169,
+    "nombre": "Via Cargo Villa La Angostura ",
+    "direccion": "Fucsias Nro.717",
+    "localidad": "Villa La Angostura",
+    "provincia": "Neuquen",
+    "cp": 8407,
+    "lat": "-40.761347000",
+    "lng": "-71.635393000"
+  },
+  {
+    "id": 3488,
+    "nombre": "Via Cargo Plottier",
+    "direccion": "Buenos Aires Sur Nro.888",
+    "localidad": "Plottier",
+    "provincia": "Neuquen",
+    "cp": 8316,
+    "lat": "-38.956230000",
+    "lng": "-68.217560000"
+  },
+  {
+    "id": 3502,
+    "nombre": "Agencia Via Cargo Posadas",
+    "direccion": "Av. Republica Oriental del Uruguay Nro.5261",
+    "localidad": "Posadas",
+    "provincia": "Misiones",
+    "cp": 3300,
+    "lat": "-27.396388000",
+    "lng": "-55.901799000"
+  },
+  {
+    "id": 3551,
+    "nombre": "Agencia San Javier - Misiones",
+    "direccion": "Teofilo Garcia Nro.435",
+    "localidad": "San Javier",
+    "provincia": "Misiones",
+    "cp": 3357,
+    "lat": "-27.871941150",
+    "lng": "-55.133834730"
+  },
+  {
+    "id": 3568,
+    "nombre": "Agencia General Pinedo",
+    "direccion": "Calle Nro 2 entre 11 y 13",
+    "localidad": "General Pinedo",
+    "provincia": "Chaco",
+    "cp": 3732,
+    "lat": "-27.325409400",
+    "lng": "-61.281012600"
+  },
+  {
+    "id": 3588,
+    "nombre": "Agencia Via Cargo Quitilipi",
+    "direccion": "Mendoza 350",
+    "localidad": "Quitilipi",
+    "provincia": "Chaco",
+    "cp": 3530,
+    "lat": "-26.871915100",
+    "lng": "-60.216928900"
+  },
+  {
+    "id": 3592,
+    "nombre": "Terminal de Charata - Local 9",
+    "direccion": "Moreno e Ituzaingo",
+    "localidad": "Charata",
+    "provincia": "Chaco",
+    "cp": 3730,
+    "lat": "-27.220695000",
+    "lng": "-61.192153000"
+  },
+  {
+    "id": 3595,
+    "nombre": "Agencia Luis Guillon ",
+    "direccion": "Boulevard Bs.As 1935",
+    "localidad": "Lavallol",
+    "provincia": "Buenos Aires",
+    "cp": 1838,
+    "lat": "-34.806725400",
+    "lng": "-58.441843700"
+  },
+  {
+    "id": 3611,
+    "nombre": "Terminal  de Omnibus El Colorado ",
+    "direccion": "Av. Nestor Kirchner Nro.1150 Esq. Nicolas Barrios",
+    "localidad": "El Colorado",
+    "provincia": "Formosa",
+    "cp": 3603,
+    "lat": "-26.310494000",
+    "lng": "-59.360839000"
+  },
+  {
+    "id": 3612,
+    "nombre": "Agencia Pirane",
+    "direccion": "Av. Pringles Nro.1125",
+    "localidad": "Pirane",
+    "provincia": "Formosa",
+    "cp": 3606,
+    "lat": "-25.739521100",
+    "lng": "-59.109034500"
+  },
+  {
+    "id": 3629,
+    "nombre": "Agencia Las Breñas",
+    "direccion": "Mariano Moreno 822",
+    "localidad": "Las Breñas",
+    "provincia": "Chaco",
+    "cp": 3722,
+    "lat": "-27.086594600",
+    "lng": "-61.082652400"
+  },
+  {
+    "id": 3644,
+    "nombre": "Agencia Clorinda",
+    "direccion": "Av. 25 De Mayo 1872",
+    "localidad": "Clorinda",
+    "provincia": "Formosa",
+    "cp": 3610,
+    "lat": "-25.295570000",
+    "lng": "-57.712200000"
+  },
+  {
+    "id": 3709,
+    "nombre": "Terminal de Campo Largo - Boleteria 5",
+    "direccion": "Acceso Vladimiro Dworak y San Martín",
+    "localidad": "Campo Largo",
+    "provincia": "Chaco",
+    "cp": 3716,
+    "lat": "-26.799877000",
+    "lng": "-60.837776000"
+  },
+  {
+    "id": 3748,
+    "nombre": "Encomiendas Río Cuarto",
+    "direccion": "Av. Sabattini 2430",
+    "localidad": "Rio Cuarto",
+    "provincia": "Cordoba",
+    "cp": 5800,
+    "lat": "-33.141634800",
+    "lng": "-64.357737800"
+  },
+  {
+    "id": 3754,
+    "nombre": "Agencia Wanda",
+    "direccion": "Ruta 19 Acceso a Wanda",
+    "localidad": "Wanda",
+    "provincia": "Misiones",
+    "cp": 3376,
+    "lat": "-25.970013500",
+    "lng": "-54.578181400"
+  },
+  {
+    "id": 3779,
+    "nombre": "Agencia Ramos Mejia",
+    "direccion": "Av.Rivadavia Nro.13720  PB L 1",
+    "localidad": "Ramos Mejia",
+    "provincia": "Buenos Aires",
+    "cp": 1704,
+    "lat": "-34.640047000",
+    "lng": "-58.560486000"
+  },
+  {
+    "id": 3787,
+    "nombre": "Agencia Santa Fé",
+    "direccion": "Gdor. Crespo Nro.2250",
+    "localidad": "Santa Fe",
+    "provincia": "Santa Fe",
+    "cp": 3000,
+    "lat": "-31.641948700",
+    "lng": "-60.703735700"
+  },
+  {
+    "id": 3840,
+    "nombre": "Agencia San Miguel",
+    "direccion": "Av. Dr. Ricardo Balbin Nro 139",
+    "localidad": "San Miguel",
+    "provincia": "Buenos Aires",
+    "cp": 1663,
+    "lat": "-34.533555000",
+    "lng": "-58.702616000"
+  },
+  {
+    "id": 4107,
+    "nombre": "Terminal de San Miguel de Tucuman - Local 514 y 515",
+    "direccion": "Av. Brigido Teran Nro.250",
+    "localidad": "San Miguel de Tucuman",
+    "provincia": "Tucuman",
+    "cp": 4000,
+    "lat": "-26.836585100",
+    "lng": "-65.195460000"
+  },
+  {
+    "id": 4228,
+    "nombre": "Terminal de Virasoro",
+    "direccion": "Alecrin S/N y Ruta 14",
+    "localidad": "Virasoro",
+    "provincia": "Corrientes",
+    "cp": 3342,
+    "lat": "-28.060021000",
+    "lng": "-56.015070000"
+  },
+  {
+    "id": 4253,
+    "nombre": "Agencia Lago Puelo",
+    "direccion": "Av. Los Notros entre calles Amancay y la Margarita",
+    "localidad": "Lago Puelo",
+    "provincia": "Chubut",
+    "cp": 8431,
+    "lat": "-42.063639400",
+    "lng": "-71.599700800"
+  },
+  {
+    "id": 4410,
+    "nombre": "Agencia La Banda",
+    "direccion": "Quintana Nro.771",
+    "localidad": "La Banda",
+    "provincia": "Santiago del Estero",
+    "cp": 4300,
+    "lat": "-27.741136100",
+    "lng": "-64.244625200"
+  },
+  {
+    "id": 4541,
+    "nombre": "Terminal de Gualeguaychu - Local 1 y 2",
+    "direccion": "Bv. Gral. Artigas Nro 2013 Local 1 y 2",
+    "localidad": "Gualeguaychu",
+    "provincia": "Entre Rios",
+    "cp": 2820,
+    "lat": "-33.020956700",
+    "lng": "-58.533986200"
+  },
+  {
+    "id": 4799,
+    "nombre": "Agencia San Miguel de Tucuman",
+    "direccion": "Chacabuco Nro 9",
+    "localidad": "San Miguel de Tucuman",
+    "provincia": "Tucuman",
+    "cp": 4000,
+    "lat": "-26.830379000",
+    "lng": "-65.208046000"
+  },
+  {
+    "id": 4901,
+    "nombre": "Terminal de Puerto Madryn - Local 12 13-14-34",
+    "direccion": "Dr. Avila S/N - Local 13-14 - Terminal de Omnibus",
+    "localidad": "Puerto Madryn",
+    "provincia": "Chubut",
+    "cp": 9120,
+    "lat": "-42.765010000",
+    "lng": "-65.040760000"
+  },
+  {
+    "id": 4968,
+    "nombre": "Terminal de San Pedro Jujuy - Local 9",
+    "direccion": "Los Claveles 80 entre Soria y Las Dalias - Local 9",
+    "localidad": "San Pedro de Jujuy",
+    "provincia": "Jujuy",
+    "cp": 4500,
+    "lat": "-24.227565000",
+    "lng": "-64.870383000"
+  },
+  {
+    "id": 4970,
+    "nombre": "Agencia Santo Tomé - Corrientes",
+    "direccion": "Av. Gervasio Artigas 764",
+    "localidad": "Santo Tome",
+    "provincia": "Corrientes",
+    "cp": 3340,
+    "lat": "-28.560959300",
+    "lng": "-56.045096700"
+  },
+  {
+    "id": 5016,
+    "nombre": "Terminal Rio Gallegos Bol. Nro. 7",
+    "direccion": "Eva Peron Nro.1451 Local 7 ",
+    "localidad": "Rio Gallegos",
+    "provincia": "Santa Cruz",
+    "cp": 9400,
+    "lat": "-51.627700000",
+    "lng": "-69.247700000"
+  },
+  {
+    "id": 5066,
+    "nombre": "Agencia Tigre Trans",
+    "direccion": "Av. Italia 1650",
+    "localidad": "Tigre",
+    "provincia": "Buenos Aires",
+    "cp": 1648,
+    "lat": "-34.422408800",
+    "lng": "-58.579421500"
+  },
+  {
+    "id": 5103,
+    "nombre": "Via Cargo Mar del Plata ",
+    "direccion": "Av. Luro Nro.4876",
+    "localidad": "Mar del Plata",
+    "provincia": "Buenos Aires",
+    "cp": 7600,
+    "lat": "-37.987000000",
+    "lng": "-57.569170000"
+  },
+  {
+    "id": 5136,
+    "nombre": "Agencia Concepcion del Uruguay",
+    "direccion": "Isaías Torres 26",
+    "localidad": "Concepcion del Uruguay",
+    "provincia": "Entre Rios",
+    "cp": 3260,
+    "lat": "-32.482270700",
+    "lng": "-58.246181100"
+  },
+  {
+    "id": 5238,
+    "nombre": "Terminal de Choele Choel - Boleteria 1",
+    "direccion": "John Kennedy Nro.910",
+    "localidad": "Choele Choel",
+    "provincia": "Rio Negro",
+    "cp": 8360,
+    "lat": "-39.290020000",
+    "lng": "-65.656650000"
+  },
+  {
+    "id": 5245,
+    "nombre": "Terminal de Palpala - Local 6",
+    "direccion": "Alfonso Vera 1350",
+    "localidad": "Palpala",
+    "provincia": "Jujuy",
+    "cp": 4612,
+    "lat": "-24.267447800",
+    "lng": "-65.210941300"
+  },
+  {
+    "id": 5246,
+    "nombre": "Terminal Rawson - Local 6 y 7",
+    "direccion": "Maestro Martíni Nro 500 Local 5",
+    "localidad": "Rawson",
+    "provincia": "Chubut",
+    "cp": 9103,
+    "lat": "-43.304040000",
+    "lng": "-65.097630000"
+  },
+  {
+    "id": 5297,
+    "nombre": "Agencia Balvanera",
+    "direccion": "Tucuman 2223",
+    "localidad": "Balvanera",
+    "provincia": "Capital Federal",
+    "cp": 1023,
+    "lat": "-34.602129900",
+    "lng": "-58.401410500"
+  },
+  {
+    "id": 5371,
+    "nombre": "Terminal Cinco Saltos Local Nro. 1",
+    "direccion": "Ruta N.151 Km 12 - Loc. 1 - Terminal de Omnibus",
+    "localidad": "Cinco Saltos",
+    "provincia": "Rio Negro",
+    "cp": 8303,
+    "lat": "-38.833500000",
+    "lng": "-68.073390000"
+  },
+  {
+    "id": 5381,
+    "nombre": "Terminal de General Guemes - Local 3",
+    "direccion": "Jujuy y 9 de Julio - Terminal",
+    "localidad": "General Guemes",
+    "provincia": "Salta",
+    "cp": 4430,
+    "lat": "-24.667934000",
+    "lng": "-65.051876000"
+  },
+  {
+    "id": 5393,
+    "nombre": "Agencia Miramar",
+    "direccion": "calle 17 Nº1990 entre calle 38 y 40",
+    "localidad": "Miramar",
+    "provincia": "Buenos Aires",
+    "cp": 7606,
+    "lat": "-38.263781000",
+    "lng": "-57.843144000"
+  },
+  {
+    "id": 5411,
+    "nombre": "Agencia Via Cargo - Junin de los Andes ",
+    "direccion": "Padre Milanesio 115",
+    "localidad": "Junin de los Andes",
+    "provincia": "Neuquen",
+    "cp": 8371,
+    "lat": "-39.946649500",
+    "lng": "-71.068568500"
+  },
+  {
+    "id": 5429,
+    "nombre": "Agencia Pico Truncado ",
+    "direccion": "25 de Mayo Nro.151",
+    "localidad": "Pico Truncado",
+    "provincia": "Santa Cruz",
+    "cp": 9015,
+    "lat": "-46.794783600",
+    "lng": "-67.963286100"
+  },
+  {
+    "id": 5444,
+    "nombre": "Agencia Ituzaingo",
+    "direccion": "Av. Rivadavia Nro.21614",
+    "localidad": "Ituzaingo (BUE)",
+    "provincia": "Buenos Aires",
+    "cp": 1714,
+    "lat": "-34.659346600",
+    "lng": "-58.664454300"
+  },
+  {
+    "id": 5530,
+    "nombre": "Agencia Via Cargo Chajarí ",
+    "direccion": "Pasaje Gran Malvina S/N",
+    "localidad": "Chajari",
+    "provincia": "Entre Rios",
+    "cp": 3228,
+    "lat": "-30.755658200",
+    "lng": "-57.990507200"
+  },
+  {
+    "id": 5543,
+    "nombre": "Agencia Gral. San Martin",
+    "direccion": "Av. San Martin Nro.137",
+    "localidad": "General Jose de San Martin",
+    "provincia": "Chaco",
+    "cp": 3509,
+    "lat": "-26.535185600",
+    "lng": "-59.348910900"
+  },
+  {
+    "id": 5565,
+    "nombre": "Terminal de San Ignacio - Boleteria 6 y 7",
+    "direccion": "Ruta Nacional Nro.12",
+    "localidad": "San Ignacio",
+    "provincia": "Misiones",
+    "cp": 3322,
+    "lat": "-27.259880800",
+    "lng": "-55.531847400"
+  },
+  {
+    "id": 5568,
+    "nombre": "Terminal de Santa Clara del Mar - Local 5",
+    "direccion": "Av. del Arroyo Nro 100",
+    "localidad": "Santa Clara del Mar",
+    "provincia": "Buenos Aires",
+    "cp": 7609,
+    "lat": "-37.845995000",
+    "lng": "-57.506998000"
+  },
+  {
+    "id": 5583,
+    "nombre": "Agencia Chos Malal",
+    "direccion": "Calle 25 de Mayo Nro.1118",
+    "localidad": "Chos Malal",
+    "provincia": "Neuquen",
+    "cp": 8353,
+    "lat": "-37.383228600",
+    "lng": "-70.269654500"
+  },
+  {
+    "id": 5593,
+    "nombre": "Terminal de San Clemente - Local 6",
+    "direccion": "CALLE NAVAL 80 SIN NUMERO",
+    "localidad": "San Clemente del Tuyu",
+    "provincia": "Buenos Aires",
+    "cp": 7105,
+    "lat": "-36.383723000",
+    "lng": "-56.726901000"
+  },
+  {
+    "id": 5612,
+    "nombre": "Terminal de San Bernardo - Local 7 y 8",
+    "direccion": "Av. San Bernardo Nro.1100",
+    "localidad": "San Bernardo",
+    "provincia": "Buenos Aires",
+    "cp": 6476,
+    "lat": "-36.686728800",
+    "lng": "-56.689000200"
+  },
+  {
+    "id": 5620,
+    "nombre": "Agencia Rafael Castillo",
+    "direccion": "Av.Carlos Casares 558",
+    "localidad": "Rafael Castillo",
+    "provincia": "Buenos Aires",
+    "cp": 1755,
+    "lat": "-34.696554900",
+    "lng": "-58.627012000"
+  },
+  {
+    "id": 5638,
+    "nombre": "Agencia Monte Grande Centro",
+    "direccion": "Bv. Buenos Aires Nro.572/574",
+    "localidad": "Monte Grande",
+    "provincia": "Buenos Aires",
+    "cp": 1842,
+    "lat": "-34.815440600",
+    "lng": "-58.458936200"
+  },
+  {
+    "id": 5692,
+    "nombre": "Via Cargo Zapala",
+    "direccion": "Av. 12 de Julio Nro.755",
+    "localidad": "Zapala",
+    "provincia": "Neuquen",
+    "cp": 8340,
+    "lat": "-38.894775000",
+    "lng": "-70.079843000"
+  },
+  {
+    "id": 5703,
+    "nombre": "Agencia Eldorado",
+    "direccion": "Av. Hipolito Irigoyen Nro.1686",
+    "localidad": "Eldorado",
+    "provincia": "Misiones",
+    "cp": 3380,
+    "lat": "-26.414515800",
+    "lng": "-54.615659700"
+  },
+  {
+    "id": 5727,
+    "nombre": "Terminal  de Puerto Esperanza - Local 2",
+    "direccion": "Av. 20 de Junio y Uruguay",
+    "localidad": "Puerto Esperanza",
+    "provincia": "Misiones",
+    "cp": 3378,
+    "lat": "-26.022055900",
+    "lng": "-54.604570000"
+  },
+  {
+    "id": 5731,
+    "nombre": "Agencia Ingeniero Huergo",
+    "direccion": "Av. Juan Domingo Perón Nro.255",
+    "localidad": "Ingeniero Huergo",
+    "provincia": "Rio Negro",
+    "cp": 8334,
+    "lat": "-39.075158900",
+    "lng": "-67.245961500"
+  },
+  {
+    "id": 5733,
+    "nombre": "Terminal de Santa Teresita Boleteria 32",
+    "direccion": "Calle 16 Nº 740 e/34 y 35",
+    "localidad": "Santa Teresita",
+    "provincia": "Buenos Aires",
+    "cp": 7107,
+    "lat": "-36.544051200",
+    "lng": "-56.690392900"
+  },
+  {
+    "id": 5737,
+    "nombre": "Terminal de Mar del Tuyú - Local 1",
+    "direccion": "Calle 7 e/80 y 81 N° 8001",
+    "localidad": "Mar del Tuyu",
+    "provincia": "Buenos Aires",
+    "cp": 7108,
+    "lat": "-36.560594300",
+    "lng": "-56.699751200"
+  },
+  {
+    "id": 5739,
+    "nombre": "Terminal de Las Toninas - Local 9",
+    "direccion": "Calle 21 Nº 1460",
+    "localidad": "Las Toninas",
+    "provincia": "Buenos Aires",
+    "cp": 7106,
+    "lat": "-36.488314000",
+    "lng": "-56.703715000"
+  },
+  {
+    "id": 5742,
+    "nombre": "Agencia Olivos - Makro Local 5",
+    "direccion": "Esteban Echeverria Nro.2870 L5",
+    "localidad": "Olivos",
+    "provincia": "Buenos Aires",
+    "cp": 1636,
+    "lat": "-34.521939800",
+    "lng": "-58.513625300"
+  },
+  {
+    "id": 5786,
+    "nombre": "Terminal Chimpay - Local 1 y 2",
+    "direccion": "Hernalz y Los Ipes",
+    "localidad": "Chimpay",
+    "provincia": "Rio Negro",
+    "cp": 8364,
+    "lat": "-39.161990000",
+    "lng": "-66.152410000"
+  },
+  {
+    "id": 5788,
+    "nombre": "Agencia Palermo",
+    "direccion": "Guemes Nro.4326",
+    "localidad": "Palermo",
+    "provincia": "Capital Federal",
+    "cp": 1425,
+    "lat": "-34.583225900",
+    "lng": "-58.421544000"
+  },
+  {
+    "id": 5890,
+    "nombre": "Agencia Villa Carlos Paz",
+    "direccion": "Av. San Martin 1810 Esq. Gobernador Alcorta",
+    "localidad": "Villa Carlos Paz",
+    "provincia": "Cordoba",
+    "cp": 5152,
+    "lat": "-31.407581600",
+    "lng": "-64.477756000"
+  },
+  {
+    "id": 5925,
+    "nombre": "Agencia Villa Devoto",
+    "direccion": "Av. Lopez Vega 2814",
+    "localidad": "Villa Devoto",
+    "provincia": "Capital Federal",
+    "cp": 1419,
+    "lat": "-34.605501000",
+    "lng": "-58.522051000"
+  },
+  {
+    "id": 5943,
+    "nombre": "Agencia Via Cargo Oran",
+    "direccion": "Av. de los constituyentes 1389",
+    "localidad": "Oran",
+    "provincia": "Salta",
+    "cp": 4530,
+    "lat": "-23.154834600",
+    "lng": "-64.321736800"
+  },
+  {
+    "id": 5945,
+    "nombre": null,
+    "direccion": "Las Toscas y Calle 102",
+    "localidad": "Las Toscas",
+    "provincia": "Santa Fe",
+    "cp": 3586,
+    "lat": "-28.348012000",
+    "lng": "-59.264430000"
+  },
+  {
+    "id": 6011,
+    "nombre": "Agencia Ituzaingo - Corrientes",
+    "direccion": "Av. Centenario Nro.2142 Acceso Ituzaingo",
+    "localidad": "Ituzaingo",
+    "provincia": "Corrientes",
+    "cp": 3302,
+    "lat": "-27.594367600",
+    "lng": "-56.679775900"
+  },
+  {
+    "id": 6053,
+    "nombre": "Terminal de Rosario de la Frontera - Local 1",
+    "direccion": "Av. Palau y Ruta Nac. N° 9",
+    "localidad": "Rosario de la Frontera",
+    "provincia": "Salta",
+    "cp": 4190,
+    "lat": "-25.800734100",
+    "lng": "-64.955440000"
+  },
+  {
+    "id": 6058,
+    "nombre": "Terminal de La Falda - Local 6",
+    "direccion": "Av. Buenos Aires Nro 24",
+    "localidad": "La Falda",
+    "provincia": "Cordoba",
+    "cp": 5172,
+    "lat": "-31.089758400",
+    "lng": "-64.487044900"
+  },
+  {
+    "id": 6085,
+    "nombre": "Agencia Famailla",
+    "direccion": "Av. San Martin Nro.151",
+    "localidad": "Famailla",
+    "provincia": "Tucuman",
+    "cp": 4132,
+    "lat": "-27.052377700",
+    "lng": "-65.403592400"
+  },
+  {
+    "id": 6115,
+    "nombre": "Agencia El Hoyo",
+    "direccion": "Ruta 40 km 1901 - local 3",
+    "localidad": "El Hoyo",
+    "provincia": "Chubut",
+    "cp": 8432,
+    "lat": "-42.067973000",
+    "lng": "-71.516427000"
+  },
+  {
+    "id": 6173,
+    "nombre": "Agencia Caleta Olivia",
+    "direccion": "Jose Fuch Nro.465 Barrio 26 de Junio",
+    "localidad": "Caleta Olivia",
+    "provincia": "Santa Cruz",
+    "cp": 9011,
+    "lat": "-46.443179000",
+    "lng": "-67.528720000"
+  },
+  {
+    "id": 6206,
+    "nombre": "Agencia Via Cargo Puerto San Julian ",
+    "direccion": "Berutti Nro.1048",
+    "localidad": "Puerto San Julian",
+    "provincia": "Santa Cruz",
+    "cp": 9310,
+    "lat": "-49.306698800",
+    "lng": "-67.734586400"
+  },
+  {
+    "id": 6216,
+    "nombre": "Agencia Colonia Catriel",
+    "direccion": "Cordoba 493",
+    "localidad": "Colonia Catriel",
+    "provincia": "Rio Negro",
+    "cp": 8307,
+    "lat": "-37.882662200",
+    "lng": "-67.807759300"
+  },
+  {
+    "id": 6227,
+    "nombre": "Agencia Perico",
+    "direccion": "Av. Jujuy 599 Barrio San Martin",
+    "localidad": "Perico",
+    "provincia": "Jujuy",
+    "cp": 4608,
+    "lat": "-24.387459100",
+    "lng": "-65.115913300"
+  },
+  {
+    "id": 6230,
+    "nombre": "Terminal Villa Ocampo Boleteria 2 y 4",
+    "direccion": "BV Gral Obligado Nro 1150",
+    "localidad": "Villa Ocampo",
+    "provincia": "Santa Fe",
+    "cp": 3580,
+    "lat": "-28.490891700",
+    "lng": "-59.347386700"
+  },
+  {
+    "id": 6234,
+    "nombre": "Agencia Trenque Lauquen",
+    "direccion": "Simini 1070",
+    "localidad": "Trenque Lauquen",
+    "provincia": "Buenos Aires",
+    "cp": 6400,
+    "lat": "-35.980042400",
+    "lng": "-62.746629400"
+  },
+  {
+    "id": 6239,
+    "nombre": "Agencia General Acha",
+    "direccion": "Ruta 152 Km 28.5",
+    "localidad": "General Acha",
+    "provincia": "La Pampa",
+    "cp": 8200,
+    "lat": "-37.364022600",
+    "lng": "-64.573928600"
+  },
+  {
+    "id": 6240,
+    "nombre": "Agencia Cordoba - Via Cargo OP",
+    "direccion": "Octavio Pinto 3126 ",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.384564400",
+    "lng": "-64.222975100"
+  },
+  {
+    "id": 6252,
+    "nombre": "Agencia González Catán",
+    "direccion": "Int. Federico Russo Nro.4418",
+    "localidad": "Gonzalez Catan",
+    "provincia": "Buenos Aires",
+    "cp": 1758,
+    "lat": "-34.750147400",
+    "lng": "-58.619786100"
+  },
+  {
+    "id": 6258,
+    "nombre": "Agencia Paraná",
+    "direccion": "San Nicolas Nro.703",
+    "localidad": "Parana",
+    "provincia": "Entre Rios",
+    "cp": 3100,
+    "lat": "-31.742374600",
+    "lng": "-60.509715900"
+  },
+  {
+    "id": 6262,
+    "nombre": "Agencia Jesus Maria",
+    "direccion": "Belgrano Nro.580 - Terminal local 3 y 4",
+    "localidad": "Jesus Maria",
+    "provincia": "Cordoba",
+    "cp": 5220,
+    "lat": "-30.979373800",
+    "lng": "-64.093733100"
+  },
+  {
+    "id": 6271,
+    "nombre": "Terminal de La Noria - Boleteria 15",
+    "direccion": "Camino Pres.Juan Domingo Peron Nro.5490",
+    "localidad": "Puente La Noria",
+    "provincia": "Buenos Aires",
+    "cp": 1832,
+    "lat": "-34.706176300",
+    "lng": "-58.454657900"
+  },
+  {
+    "id": 6273,
+    "nombre": "Agencia Villa Pehuenia",
+    "direccion": "Lote 6 Mza B",
+    "localidad": "Villa Pehuenia",
+    "provincia": "Neuquen",
+    "cp": 8346,
+    "lat": "-38.879673200",
+    "lng": "-71.187208300"
+  },
+  {
+    "id": 6274,
+    "nombre": "Terminal de Omnibus El Bolson",
+    "direccion": "Gral. Dorrego 155",
+    "localidad": "El Bolson",
+    "provincia": "Rio Negro",
+    "cp": 8430,
+    "lat": "-41.962573500",
+    "lng": "-71.543206100"
+  },
+  {
+    "id": 6275,
+    "nombre": "Via Cargo - Terminal Tandil - Local 1 al 6",
+    "direccion": "Buzon 400 ",
+    "localidad": "Tandil",
+    "provincia": "Buenos Aires",
+    "cp": 7000,
+    "lat": "-37.321197000",
+    "lng": "-59.117534000"
+  },
+  {
+    "id": 6276,
+    "nombre": "Terminal de Resistencia - Local 85 a 89",
+    "direccion": "Av. Mac Lean Nro.2347",
+    "localidad": "Resistencia",
+    "provincia": "Chaco",
+    "cp": 3500,
+    "lat": "-27.455788500",
+    "lng": "-59.022451100"
+  },
+  {
+    "id": 6277,
+    "nombre": "Terminal de Villa Regina - Local 4",
+    "direccion": "Mitre y Las Heras",
+    "localidad": "Villa Regina",
+    "provincia": "Rio Negro",
+    "cp": 8336,
+    "lat": "-39.092317200",
+    "lng": "-67.083973200"
+  },
+  {
+    "id": 6293,
+    "nombre": "Agencia CÓRDOBA - Sarmiento",
+    "direccion": "Sarmiento Nro. 362",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.411572900",
+    "lng": "-64.176940600"
+  },
+  {
+    "id": 6307,
+    "nombre": "Via Cargo Leandro N. Alem",
+    "direccion": "Ruta Nacional 14 KM 850",
+    "localidad": "Leandro N Alem",
+    "provincia": "Misiones",
+    "cp": 3315,
+    "lat": "-27.616176300",
+    "lng": "-55.306048100"
+  },
+  {
+    "id": 6314,
+    "nombre": "Agencia Martinez",
+    "direccion": "Av. Sir Alexander Fleming Nro.1166",
+    "localidad": "Martinez",
+    "provincia": "Buenos Aires",
+    "cp": 1639,
+    "lat": "-34.492236800",
+    "lng": "-58.525572000"
+  },
+  {
+    "id": 6315,
+    "nombre": "Agencia Villa Luro",
+    "direccion": "Juan B. Justo 8380 ",
+    "localidad": "Villa Luro",
+    "provincia": "Capital Federal",
+    "cp": 1407,
+    "lat": "-34.634380000",
+    "lng": "-58.506180000"
+  },
+  {
+    "id": 6320,
+    "nombre": "Agencia San Rafael",
+    "direccion": "Av. Alberdi Nro.1085",
+    "localidad": "San Rafael",
+    "provincia": "Mendoza",
+    "cp": 5600,
+    "lat": "-34.631099000",
+    "lng": "-68.321933900"
+  },
+  {
+    "id": 6323,
+    "nombre": "Terminal 2 de Mayo - Misiones",
+    "direccion": "Calle 25 de Mayo SN Terminal de Omnibus Local 3",
+    "localidad": "2 de Mayo",
+    "provincia": "Misiones",
+    "cp": 3337,
+    "lat": "-27.036283800",
+    "lng": "-54.675559300"
+  },
+  {
+    "id": 6326,
+    "nombre": "Agencia Via Cargo Liniers",
+    "direccion": "Montiel Nro.230",
+    "localidad": "Liniers",
+    "provincia": "Capital Federal",
+    "cp": 1408,
+    "lat": "-34.641760000",
+    "lng": "-58.526040000"
+  },
+  {
+    "id": 6328,
+    "nombre": "Terminal de Monteros - Boleteria 9",
+    "direccion": "Diego de Villaroel Nro.101",
+    "localidad": "Monteros",
+    "provincia": "Tucuman",
+    "cp": 4142,
+    "lat": "-27.170492100",
+    "lng": "-65.494399000"
+  },
+  {
+    "id": 6329,
+    "nombre": "Terminal Piedra del Aguila Bol. Nro. 1",
+    "direccion": "Gral. Winter Nro.15 - Terminal de Omnibus",
+    "localidad": "Piedra del Aguila",
+    "provincia": "Neuquen",
+    "cp": 8315,
+    "lat": "-40.051010000",
+    "lng": "-70.078930000"
+  },
+  {
+    "id": 6330,
+    "nombre": "Terminal de Concepcion - Local 7",
+    "direccion": "Raul Alfonsin Nro.1445",
+    "localidad": "Concepcion de Tucuman",
+    "provincia": "Tucuman",
+    "cp": 4146,
+    "lat": "-27.353314800",
+    "lng": "-65.598285000"
+  },
+  {
+    "id": 6333,
+    "nombre": "Terminal de Alvear ",
+    "direccion": "Ruta Nacional 14",
+    "localidad": "Alvear",
+    "provincia": "Corrientes",
+    "cp": 3344,
+    "lat": "-29.086731700",
+    "lng": "-56.554823700"
+  },
+  {
+    "id": 6340,
+    "nombre": "Agencia Rincon de los Sauces",
+    "direccion": "Belgrano 793",
+    "localidad": "Rincon de los Sauces",
+    "provincia": "Neuquen",
+    "cp": 8319,
+    "lat": "-37.395033400",
+    "lng": "-68.921571100"
+  },
+  {
+    "id": 6389,
+    "nombre": "Terminal de Frias - Boleteria 5",
+    "direccion": "Nicaragua Nro.200 - Terminal Bol. 5",
+    "localidad": "Frias",
+    "provincia": "Santiago del Estero",
+    "cp": 4230,
+    "lat": "-28.637553800",
+    "lng": "-65.128760500"
+  },
+  {
+    "id": 6403,
+    "nombre": "Via Cargo Montecarlo",
+    "direccion": "Dr. Daru S/N",
+    "localidad": "Montecarlo",
+    "provincia": "Misiones",
+    "cp": 3384,
+    "lat": "-26.572683200",
+    "lng": "-54.737499800"
+  },
+  {
+    "id": 6410,
+    "nombre": "Terminal de Sarmiento - Boleteria 4",
+    "direccion": "12 de octubre y Av.San Martin",
+    "localidad": "Sarmiento",
+    "provincia": "Chubut",
+    "cp": 9020,
+    "lat": "-45.582063000",
+    "lng": "-69.069063000"
+  },
+  {
+    "id": 6415,
+    "nombre": "Terminal de 9 de Julio - Local 9 y 10",
+    "direccion": "Mendoza Nro.331 e/Robio y avellaneda",
+    "localidad": "9 de Julio",
+    "provincia": "Buenos Aires",
+    "cp": 6500,
+    "lat": "-35.451848500",
+    "lng": "-60.881763600"
+  },
+  {
+    "id": 6417,
+    "nombre": "Agencia Viedma",
+    "direccion": "BOULEVARD SUSSINI 152",
+    "localidad": "Viedma",
+    "provincia": "Rio Negro",
+    "cp": 8500,
+    "lat": "-40.815622000",
+    "lng": "-62.999727000"
+  },
+  {
+    "id": 6418,
+    "nombre": "Agencia Rio Gallegos",
+    "direccion": "Rawson 454",
+    "localidad": "Rio Gallegos",
+    "provincia": "Santa Cruz",
+    "cp": 9400,
+    "lat": "-51.614835500",
+    "lng": "-69.216224300"
+  },
+  {
+    "id": 6422,
+    "nombre": "Terminal Picun Leufu Bol. Nro.3",
+    "direccion": "Colectora Ramon Arias y Salvatori",
+    "localidad": "Picun Leufu",
+    "provincia": "Neuquen",
+    "cp": 8313,
+    "lat": "-39.513520000",
+    "lng": "-69.292340000"
+  },
+  {
+    "id": 6426,
+    "nombre": "Agencia Boulogne",
+    "direccion": "Pichincha Nro. 69",
+    "localidad": "Boulogne",
+    "provincia": "Buenos Aires",
+    "cp": 1609,
+    "lat": "-34.498706200",
+    "lng": "-58.555093700"
+  },
+  {
+    "id": 6433,
+    "nombre": "Agencia Comodoro Rivadavia",
+    "direccion": "Pablo Ortega Nro 2651",
+    "localidad": "Comodoro Rivadavia",
+    "provincia": "Chubut",
+    "cp": 9000,
+    "lat": "-45.885013600",
+    "lng": "-67.513375700"
+  },
+  {
+    "id": 6463,
+    "nombre": "Agencia Jardin America",
+    "direccion": "Caracas y Av. Paraná Nº601 ",
+    "localidad": "Jardin America",
+    "provincia": "Misiones",
+    "cp": 3328,
+    "lat": "-27.045632000",
+    "lng": "-55.243135100"
+  },
+  {
+    "id": 6466,
+    "nombre": "Terminal de Mar de Ajo Boleteria 13 ",
+    "direccion": "Av.Pueyrredon Nro.1920",
+    "localidad": "Mar de Ajo",
+    "provincia": "Buenos Aires",
+    "cp": 7109,
+    "lat": "-36.738181600",
+    "lng": "-56.679761300"
+  },
+  {
+    "id": 6475,
+    "nombre": "Terminal de Recreo Local 7 y 8",
+    "direccion": "Boulevar Nestor Kirchner",
+    "localidad": "Recreo",
+    "provincia": "Catamarca",
+    "cp": 5260,
+    "lat": "-29.272916100",
+    "lng": "-65.064171700"
+  },
+  {
+    "id": 6481,
+    "nombre": "Agencia Ezeiza",
+    "direccion": "Conquista del Desierto Nro.546",
+    "localidad": "Ezeiza",
+    "provincia": "Buenos Aires",
+    "cp": 1804,
+    "lat": "-34.856425500",
+    "lng": "-58.525191300"
+  },
+  {
+    "id": 6491,
+    "nombre": "Agencia Corrientes Solo Venta",
+    "direccion": "Nicaragua Nro.3126",
+    "localidad": "Corrientes",
+    "provincia": "Corrientes",
+    "cp": 3400,
+    "lat": "-27.498827000",
+    "lng": "-58.814421000"
+  },
+  {
+    "id": 6492,
+    "nombre": "Agencia Colegiales",
+    "direccion": "Santos Dumont 3469",
+    "localidad": "Colegiales",
+    "provincia": "Capital Federal",
+    "cp": 1426,
+    "lat": "-34.582601400",
+    "lng": "-58.449961200"
+  },
+  {
+    "id": 6493,
+    "nombre": "Terminal de Colon - Boleteria 2 y 3",
+    "direccion": "Sourigues Nro. 449",
+    "localidad": "Colon (ENT)",
+    "provincia": "Entre Rios",
+    "cp": 3280,
+    "lat": "-32.224932800",
+    "lng": "-58.144714200"
+  },
+  {
+    "id": 6497,
+    "nombre": "Agencia Boulogne",
+    "direccion": "Av. Avelino Rolon Nº214",
+    "localidad": "Boulogne",
+    "provincia": "Buenos Aires",
+    "cp": 1609,
+    "lat": "-34.495554900",
+    "lng": "-58.552221000"
+  },
+  {
+    "id": 6499,
+    "nombre": "Agencia Via Cargo Bernardo de Irigoyen",
+    "direccion": "Florentino Ameguino S/N",
+    "localidad": "Bernardo de Irigoyen",
+    "provincia": "Misiones",
+    "cp": 3366,
+    "lat": "-26.255886000",
+    "lng": "-53.644886000"
+  },
+  {
+    "id": 6509,
+    "nombre": "Terminal de Mercedes Corrientes - Boleteria 26",
+    "direccion": "San Martin y J.A Ferreyra",
+    "localidad": "Mercedes",
+    "provincia": "Corrientes",
+    "cp": 3470,
+    "lat": "-29.181699500",
+    "lng": "-58.087561900"
+  },
+  {
+    "id": 6510,
+    "nombre": "Terminal Formosa Boleteria 5",
+    "direccion": "Av. Gutnisky Nro.2615",
+    "localidad": "Formosa",
+    "provincia": "Formosa",
+    "cp": 3600,
+    "lat": "-26.190695200",
+    "lng": "-58.196588700"
+  },
+  {
+    "id": 6520,
+    "nombre": "Terminal de Villa Gesell - Local 13",
+    "direccion": "Pase 143 y Av. Circunvalacion",
+    "localidad": "Villa Gesell",
+    "provincia": "Buenos Aires",
+    "cp": 7165,
+    "lat": "-37.286126200",
+    "lng": "-56.995023100"
+  },
+  {
+    "id": 6536,
+    "nombre": "Via Cargo Terminal de Mar del Plata Local 98",
+    "direccion": "San Juan Nro.1521",
+    "localidad": "Mar del Plata",
+    "provincia": "Buenos Aires",
+    "cp": 7600,
+    "lat": "-37.988321100",
+    "lng": "-57.565439600"
+  },
+  {
+    "id": 6541,
+    "nombre": "Agencia Villa Luzuriaga",
+    "direccion": "Triunvirato Nro.2496",
+    "localidad": "Villa Luzuriaga",
+    "provincia": "Buenos Aires",
+    "cp": 1753,
+    "lat": "-34.660289300",
+    "lng": "-58.584513200"
+  },
+  {
+    "id": 6552,
+    "nombre": "Terminal de La Cruz - Boleteria 4",
+    "direccion": "Av. Juan Branchi y Cedelonio Ojeda",
+    "localidad": "La Cruz",
+    "provincia": "Corrientes",
+    "cp": 3346,
+    "lat": "-29.178320500",
+    "lng": "-56.637833100"
+  },
+  {
+    "id": 6554,
+    "nombre": "Agencia San Fernando",
+    "direccion": "Almirante Brown Nº 701",
+    "localidad": "San Fernando",
+    "provincia": "Buenos Aires",
+    "cp": 1646,
+    "lat": "-34.435501600",
+    "lng": "-58.568508300"
+  },
+  {
+    "id": 6557,
+    "nombre": "Agencia Salta",
+    "direccion": "Av. Hipolito Irigoyen 651",
+    "localidad": "Salta",
+    "provincia": "Salta",
+    "cp": 4400,
+    "lat": "-24.798773600",
+    "lng": "-65.397791500"
+  },
+  {
+    "id": 6562,
+    "nombre": "Agencia Ayacucho - Local 1",
+    "direccion": "Av. Dindart Nro.501",
+    "localidad": "Ayacucho",
+    "provincia": "Buenos Aires",
+    "cp": 7150,
+    "lat": "-37.161093900",
+    "lng": "-58.486132900"
+  },
+  {
+    "id": 6565,
+    "nombre": "Terminal de Balcarce - Local 4",
+    "direccion": "Av. San Martin 3646 Esquina 139",
+    "localidad": "Balcarce",
+    "provincia": "Buenos Aires",
+    "cp": 7620,
+    "lat": "-37.829273700",
+    "lng": "-58.237504400"
+  },
+  {
+    "id": 6567,
+    "nombre": "Agencia Benito Juarez",
+    "direccion": "Av.Salenave y San Martin",
+    "localidad": "Benito Juarez",
+    "provincia": "Buenos Aires",
+    "cp": 7020,
+    "lat": "-37.674471400",
+    "lng": "-59.806150700"
+  },
+  {
+    "id": 6568,
+    "nombre": "Terminal de Claromeco - Boleteria 3 y 4",
+    "direccion": "Av. 26 Esq. 23 - Local Nº3y4",
+    "localidad": "Claromeco",
+    "provincia": "Buenos Aires",
+    "cp": 7505,
+    "lat": "-38.852313000",
+    "lng": "-60.071671000"
+  },
+  {
+    "id": 6578,
+    "nombre": "Terminal de Las Flores - Local 17",
+    "direccion": "Alem Nro. 500",
+    "localidad": "Las Flores",
+    "provincia": "Buenos Aires",
+    "cp": 7200,
+    "lat": "-36.017271000",
+    "lng": "-59.101748500"
+  },
+  {
+    "id": 6587,
+    "nombre": "Agencia Rauch",
+    "direccion": "Av. San Martin Nro.647",
+    "localidad": "Rauch",
+    "provincia": "Buenos Aires",
+    "cp": 7203,
+    "lat": "-36.774252100",
+    "lng": "-59.089370900"
+  },
+  {
+    "id": 6597,
+    "nombre": "Terminal de Forres",
+    "direccion": "Av. San Martin S/N",
+    "localidad": "Forres",
+    "provincia": "Santiago del Estero",
+    "cp": 4312,
+    "lat": "-27.872137400",
+    "lng": "-63.978779200"
+  },
+  {
+    "id": 6625,
+    "nombre": "Agencia Belgrano",
+    "direccion": "José Hernández y Moldes 1698",
+    "localidad": "Belgrano",
+    "provincia": "Capital Federal",
+    "cp": 1428,
+    "lat": "-34.567322600",
+    "lng": "-58.458920300"
+  },
+  {
+    "id": 6635,
+    "nombre": "Agencia Las Heras",
+    "direccion": "Ruta 43 Manzana 282 Parcela 22",
+    "localidad": "Las Heras",
+    "provincia": "Santa Cruz",
+    "cp": 9017,
+    "lat": "-46.554965700",
+    "lng": "-68.919485700"
+  },
+  {
+    "id": 6644,
+    "nombre": "Via Cargo La Rioja",
+    "direccion": "Av. Angel Vicente Peñaloza Nº650",
+    "localidad": "La Rioja",
+    "provincia": "La Rioja",
+    "cp": 5300,
+    "lat": "-29.405081800",
+    "lng": "-66.848514100"
+  },
+  {
+    "id": 6651,
+    "nombre": "Terminal de Paso de los Libres - Local 18",
+    "direccion": "San Martin 2082",
+    "localidad": "Paso de Los Libres",
+    "provincia": "Corrientes",
+    "cp": 3230,
+    "lat": "-29.716753000",
+    "lng": "-57.083332000"
+  },
+  {
+    "id": 6660,
+    "nombre": "Agencia Moron",
+    "direccion": "Av. Rivadavia Nro. 17270",
+    "localidad": "Moron",
+    "provincia": "Buenos Aires",
+    "cp": 1708,
+    "lat": "-34.647615000",
+    "lng": "-58.607268000"
+  },
+  {
+    "id": 6662,
+    "nombre": "Terminal de Las Grutas - Local 1",
+    "direccion": "Banco Lobos Nro.800 ",
+    "localidad": "Las Grutas",
+    "provincia": "Rio Negro",
+    "cp": 8521,
+    "lat": "-40.791270000",
+    "lng": "-65.071450000"
+  },
+  {
+    "id": 6666,
+    "nombre": "Agencia Senillosa",
+    "direccion": "Bº San Jose - Corrientes y Las Heras 678",
+    "localidad": "Senillosa",
+    "provincia": "Neuquen",
+    "cp": 8320,
+    "lat": "-39.013046000",
+    "lng": "-68.434851000"
+  },
+  {
+    "id": 6675,
+    "nombre": "Terminal de Omnibus Bragado - Boleteria Nro.3",
+    "direccion": "12 de Octubre Nro.1080",
+    "localidad": "Bragado",
+    "provincia": "Buenos Aires",
+    "cp": 6640,
+    "lat": "-35.112598600",
+    "lng": "-60.490404400"
+  },
+  {
+    "id": 6678,
+    "nombre": "Agencia Caseros",
+    "direccion": "Rauch Nro.1945",
+    "localidad": "Caseros",
+    "provincia": "Buenos Aires",
+    "cp": 1678,
+    "lat": "-34.599615700",
+    "lng": "-58.562837900"
+  },
+  {
+    "id": 6679,
+    "nombre": "Agencia Castelar",
+    "direccion": "Av. Santa Rosa Nro.2173",
+    "localidad": "Castelar",
+    "provincia": "Buenos Aires",
+    "cp": 1710,
+    "lat": "-34.635781000",
+    "lng": "-58.654260000"
+  },
+  {
+    "id": 6682,
+    "nombre": "Agencia Del Viso - Colectora Panamericana Ramal Pilar",
+    "direccion": "Av. 12 de Octubre esq. Misiones",
+    "localidad": "Del Viso",
+    "provincia": "Buenos Aires",
+    "cp": 1669,
+    "lat": "-34.442127700",
+    "lng": "-58.778321700"
+  },
+  {
+    "id": 6686,
+    "nombre": "Agencia General Pacheco - Local 2",
+    "direccion": "Av.Hipolito Yrigoyen 2338 Local 2",
+    "localidad": "General Pacheco",
+    "provincia": "Buenos Aires",
+    "cp": 1617,
+    "lat": "-34.472233000",
+    "lng": "-58.653335000"
+  },
+  {
+    "id": 6688,
+    "nombre": "Agencia Hurlingham",
+    "direccion": "Av. Gdor. Vergara Nro.3801",
+    "localidad": "Hurlingham",
+    "provincia": "Buenos Aires",
+    "cp": 1686,
+    "lat": "-34.597774000",
+    "lng": "-58.635864600"
+  },
+  {
+    "id": 6689,
+    "nombre": "Agencia La Plata",
+    "direccion": "Calle 40 Nro.370 entre Calle 2 y 3",
+    "localidad": "La Plata",
+    "provincia": "Buenos Aires",
+    "cp": 1900,
+    "lat": "-34.902847000",
+    "lng": "-57.954937000"
+  },
+  {
+    "id": 6691,
+    "nombre": "ENC Junin",
+    "direccion": "Rene Favaloro 927",
+    "localidad": "Junin",
+    "provincia": "Buenos Aires",
+    "cp": 6000,
+    "lat": "-34.589496800",
+    "lng": "-60.951904300"
+  },
+  {
+    "id": 6693,
+    "nombre": "Agencia Lanus - Remedios de Escalada",
+    "direccion": "Remedios de Escalada de San Martin Nro.2202",
+    "localidad": "Lanus",
+    "provincia": "Buenos Aires",
+    "cp": 1824,
+    "lat": "-34.678914700",
+    "lng": "-58.405612800"
+  },
+  {
+    "id": 6700,
+    "nombre": "Agencia Florida",
+    "direccion": "Blas Parera Nro.1489",
+    "localidad": "Florida",
+    "provincia": "Buenos Aires",
+    "cp": 1602,
+    "lat": "-34.533392800",
+    "lng": "-58.502864800"
+  },
+  {
+    "id": 6704,
+    "nombre": "Agencia Moreno",
+    "direccion": "Avenida del Libertador Nro.7459",
+    "localidad": "Moreno",
+    "provincia": "Buenos Aires",
+    "cp": 1744,
+    "lat": "-34.585241500",
+    "lng": "-58.749093200"
+  },
+  {
+    "id": 6707,
+    "nombre": "Agencia Necochea",
+    "direccion": "Av. Jesuita Cardiel y Ruta 86",
+    "localidad": "Necochea",
+    "provincia": "Buenos Aires",
+    "cp": 7632,
+    "lat": "-38.547147400",
+    "lng": "-58.729903400"
+  },
+  {
+    "id": 6708,
+    "nombre": "Via Cargo Pablo Nogués",
+    "direccion": "Ejercito del Norte Nro.66",
+    "localidad": "Pablo Nogues",
+    "provincia": "Buenos Aires",
+    "cp": 1616,
+    "lat": "-34.500049000",
+    "lng": "-58.712563000"
+  },
+  {
+    "id": 6711,
+    "nombre": "Agencia Puente La Noria",
+    "direccion": "Av. Presidente Perón Nº5426",
+    "localidad": "Puente La Noria",
+    "provincia": "Buenos Aires",
+    "cp": 1832,
+    "lat": "-34.708313000",
+    "lng": "-58.459877000"
+  },
+  {
+    "id": 6715,
+    "nombre": "Agencia Quilmes",
+    "direccion": "Avenida Brandsen Nro.355",
+    "localidad": "Quilmes",
+    "provincia": "Buenos Aires",
+    "cp": 1878,
+    "lat": "-34.725413000",
+    "lng": "-58.250746900"
+  },
+  {
+    "id": 6716,
+    "nombre": "Agencia Ramallo",
+    "direccion": "Avenida San Martin Nro.1572",
+    "localidad": "Ramallo",
+    "provincia": "Buenos Aires",
+    "cp": 2915,
+    "lat": "-33.489062000",
+    "lng": "-60.010410000"
+  },
+  {
+    "id": 6720,
+    "nombre": "Agencia San Martin",
+    "direccion": "Avenida Presidente Perón 3725",
+    "localidad": "San Martin",
+    "provincia": "Buenos Aires",
+    "cp": 1650,
+    "lat": "-34.572284200",
+    "lng": "-58.543781100"
+  },
+  {
+    "id": 6724,
+    "nombre": "Agencia Villa Martelli",
+    "direccion": "Carlos F. Melo Nro.3984",
+    "localidad": "Villa Martelli",
+    "provincia": "Buenos Aires",
+    "cp": 1603,
+    "lat": "-34.543567900",
+    "lng": "-58.509855000"
+  },
+  {
+    "id": 6726,
+    "nombre": "Agencia Avellaneda",
+    "direccion": "Av. Hipolito Yrigoyen Nro. 460 ",
+    "localidad": "Avellaneda",
+    "provincia": "Buenos Aires",
+    "cp": 1870,
+    "lat": "-34.662299400",
+    "lng": "-58.375815800"
+  },
+  {
+    "id": 6729,
+    "nombre": "Agencia Once",
+    "direccion": "Valentín Gómez Nro.3002 ",
+    "localidad": "ONCE",
+    "provincia": "Capital Federal",
+    "cp": 1024,
+    "lat": "-34.605546800",
+    "lng": "-58.408463800"
+  },
+  {
+    "id": 6731,
+    "nombre": "Agencia Barracas",
+    "direccion": "Av. Regimiento Patricios Nro.501",
+    "localidad": "Barracas",
+    "provincia": "Capital Federal",
+    "cp": 1269,
+    "lat": "-34.634677600",
+    "lng": "-58.372815000"
+  },
+  {
+    "id": 6732,
+    "nombre": "Agencia Caballito",
+    "direccion": "Neuquén Nro. 1043",
+    "localidad": "Caballito",
+    "provincia": "Capital Federal",
+    "cp": 1414,
+    "lat": "-34.615845800",
+    "lng": "-58.447390900"
+  },
+  {
+    "id": 6734,
+    "nombre": "Agencia Via Cargo Constitucion",
+    "direccion": "Av. Entre Rios 2005",
+    "localidad": "Constitucion",
+    "provincia": "Capital Federal",
+    "cp": 1068,
+    "lat": "-34.631706200",
+    "lng": "-58.390581600"
+  },
+  {
+    "id": 6735,
+    "nombre": "Agencia Flores",
+    "direccion": "Felipe Vallese Nro.2987",
+    "localidad": "Flores",
+    "provincia": "Capital Federal",
+    "cp": 1406,
+    "lat": "-34.623554400",
+    "lng": "-58.474480800"
+  },
+  {
+    "id": 6737,
+    "nombre": "Agencia Mataderos",
+    "direccion": "Av. Eva Peron Nro.5125",
+    "localidad": "Mataderos - OSIMI",
+    "provincia": "Capital Federal",
+    "cp": 1441,
+    "lat": "-34.658978900",
+    "lng": "-58.480707000"
+  },
+  {
+    "id": 6738,
+    "nombre": "Agencia Mataderos",
+    "direccion": "Av.Eva Perón Nro.5999",
+    "localidad": "Mataderos",
+    "provincia": "Buenos Aires",
+    "cp": 1440,
+    "lat": "-34.664199700",
+    "lng": "-58.489950300"
+  },
+  {
+    "id": 6739,
+    "nombre": "Agencia Microcentro",
+    "direccion": "Tucuman 401 esquina Reconquista",
+    "localidad": "Microcentro",
+    "provincia": "Capital Federal",
+    "cp": 1005,
+    "lat": "-34.600705000",
+    "lng": "-58.372813000"
+  },
+  {
+    "id": 6740,
+    "nombre": "Agencia Nueva Pompeya",
+    "direccion": "Av. Chiclana Nro.4229",
+    "localidad": "Nueva Pompeya",
+    "provincia": "Capital Federal",
+    "cp": 1437,
+    "lat": "-34.642086000",
+    "lng": "-58.422229000"
+  },
+  {
+    "id": 6741,
+    "nombre": "Agencia Parque Chacabuco",
+    "direccion": "Av. Asamblea Nro.301",
+    "localidad": "Parque Chacabuco",
+    "provincia": "Capital Federal",
+    "cp": 1424,
+    "lat": "-34.632012900",
+    "lng": "-58.429727000"
+  },
+  {
+    "id": 6743,
+    "nombre": "Agencia Parque Patricios",
+    "direccion": "Av. Juan de Garay Nro.3081",
+    "localidad": "Parque Patricios",
+    "provincia": "Capital Federal",
+    "cp": 1255,
+    "lat": "-34.629265400",
+    "lng": "-58.408024600"
+  },
+  {
+    "id": 6744,
+    "nombre": "Agencia La Paternal",
+    "direccion": "Warnes Nro.1501",
+    "localidad": "Paternal",
+    "provincia": "Capital Federal",
+    "cp": 1416,
+    "lat": "-34.597548800",
+    "lng": "-58.457024200"
+  },
+  {
+    "id": 6745,
+    "nombre": "Agencia Puente Saavedra",
+    "direccion": "Avenida Cabildo Nro.5000",
+    "localidad": "Puente Saavedra",
+    "provincia": "Capital Federal",
+    "cp": 1420,
+    "lat": "-34.539633300",
+    "lng": "-58.475808800"
+  },
+  {
+    "id": 6746,
+    "nombre": "Agencia Retiro - Deposito 43 al 45",
+    "direccion": "Av. Antártida Argentina, calle 10 ",
+    "localidad": "Retiro",
+    "provincia": "Capital Federal",
+    "cp": 1001,
+    "lat": "-34.586707500",
+    "lng": "-58.374364400"
+  },
+  {
+    "id": 6747,
+    "nombre": "Terminal de Retiro - Deposito 48",
+    "direccion": "Av. Antártida Argentina, calle 10 ",
+    "localidad": "Retiro",
+    "provincia": "Capital Federal",
+    "cp": 1001,
+    "lat": "-34.586707500",
+    "lng": "-58.374364400"
+  },
+  {
+    "id": 6748,
+    "nombre": "Agencia Retiro - Deposito 524",
+    "direccion": "Ramos Mejia 1680 Loc.524 Puente 5",
+    "localidad": "Retiro",
+    "provincia": "Capital Federal",
+    "cp": 1001,
+    "lat": "-34.586707500",
+    "lng": "-58.374364400"
+  },
+  {
+    "id": 6749,
+    "nombre": "Via Cargo Retiro - Deposito 60",
+    "direccion": "Av. Antártida Argentina, Calle 10 Puente 3 Dep 60 ",
+    "localidad": "Retiro",
+    "provincia": "Capital Federal",
+    "cp": 1001,
+    "lat": "-34.586707500",
+    "lng": "-58.374364400"
+  },
+  {
+    "id": 6751,
+    "nombre": "Agencia Villa Pueyrredon",
+    "direccion": "Avenida Albarellos Nro.2830",
+    "localidad": "Villa Pueyrredon",
+    "provincia": "Capital Federal",
+    "cp": 1419,
+    "lat": "-34.577181000",
+    "lng": "-58.509183700"
+  },
+  {
+    "id": 6755,
+    "nombre": "Agencia Retiro - Local 13 y 14",
+    "direccion": "Av Ramos Mejia 1680 Local 13 y 14",
+    "localidad": "Retiro",
+    "provincia": "Capital Federal",
+    "cp": 1001,
+    "lat": "-34.586707500",
+    "lng": "-58.374364400"
+  },
+  {
+    "id": 6758,
+    "nombre": null,
+    "direccion": "Av. Antártida Argentina, Calle 10 - Pte 3 Local 11",
+    "localidad": "Retiro",
+    "provincia": "Capital Federal",
+    "cp": 1001,
+    "lat": "-34.586707500",
+    "lng": "-58.374364400"
+  },
+  {
+    "id": 6759,
+    "nombre": null,
+    "direccion": "Antártida Argentina y Calle 10 ",
+    "localidad": "Retiro",
+    "provincia": "Capital Federal",
+    "cp": 1001,
+    "lat": "-34.586707500",
+    "lng": "-58.374364400"
+  },
+  {
+    "id": 6762,
+    "nombre": "Agencia Tribunales",
+    "direccion": "Paraná Nro.657",
+    "localidad": "Tribunales",
+    "provincia": "Capital Federal",
+    "cp": 1003,
+    "lat": "-34.601059000",
+    "lng": "-58.388088000"
+  },
+  {
+    "id": 6763,
+    "nombre": "Agencia Villa del Parque",
+    "direccion": "Av. Alvarez Jonte Nº3051",
+    "localidad": "Villa del Parque",
+    "provincia": "Capital Federal",
+    "cp": 1417,
+    "lat": "-34.609129000",
+    "lng": "-58.485822000"
+  },
+  {
+    "id": 6764,
+    "nombre": "Agencia Villa Urquiza ",
+    "direccion": "Av. de los Constituyentes Nro.4400",
+    "localidad": "Villa Urquiza",
+    "provincia": "Capital Federal",
+    "cp": 1431,
+    "lat": "-34.582986800",
+    "lng": "-58.490941300"
+  },
+  {
+    "id": 6766,
+    "nombre": "Terminal Via Cargo Liniers",
+    "direccion": "Av. Gral. Paz Nro.10882",
+    "localidad": "Liniers",
+    "provincia": "Capital Federal",
+    "cp": 1408,
+    "lat": "-34.642677600",
+    "lng": "-58.528912700"
+  },
+  {
+    "id": 6768,
+    "nombre": "Agencia Cruz del Eje",
+    "direccion": "Av. Eva Peron Nro.1040",
+    "localidad": "Cruz del Eje",
+    "provincia": "Cordoba",
+    "cp": 5280,
+    "lat": "-30.733418000",
+    "lng": "-64.792024000"
+  },
+  {
+    "id": 6771,
+    "nombre": "Agencia Cordoba - Av. Donato Alvarez",
+    "direccion": "Av. Donato Alvarez Nro.7825",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.331706300",
+    "lng": "-64.263592600"
+  },
+  {
+    "id": 6772,
+    "nombre": "Agencia Cordoba - Bv. Las Heras",
+    "direccion": "Boulevard Las Heras Nro.726",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.405448900",
+    "lng": "-64.190335300"
+  },
+  {
+    "id": 6774,
+    "nombre": "Agencia Cordoba - Bulnes",
+    "direccion": "Bulnes Nro  3494 esq Tula Cervin",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.391837000",
+    "lng": "-64.144410000"
+  },
+  {
+    "id": 6775,
+    "nombre": "Agencia Cordoba- Velez Sarsfield",
+    "direccion": "Velez Sarsfield Nro.1580",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.433697300",
+    "lng": "-64.194548400"
+  },
+  {
+    "id": 6776,
+    "nombre": "Agencia Cordoba - Entre Rios",
+    "direccion": "Entre Rios Nro.2926",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.424624900",
+    "lng": "-64.146627300"
+  },
+  {
+    "id": 6779,
+    "nombre": "Terminal Cordoba Local 49 B",
+    "direccion": "Bv. Juan Domingo Perón 380 - Local 49",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.422778000",
+    "lng": "-64.175278000"
+  },
+  {
+    "id": 6781,
+    "nombre": "Terminal de Cosquin Local 18",
+    "direccion": "Salta esquina Presidente Peron",
+    "localidad": "Cosquin",
+    "provincia": "Cordoba",
+    "cp": 5166,
+    "lat": "-31.243967700",
+    "lng": "-64.466920200"
+  },
+  {
+    "id": 6782,
+    "nombre": "Terminal de Trelew - Local 1 y 2",
+    "direccion": "Urquiza 150 ",
+    "localidad": "Trelew",
+    "provincia": "Chubut",
+    "cp": 9100,
+    "lat": "-43.248660000",
+    "lng": "-65.302600000"
+  },
+  {
+    "id": 6786,
+    "nombre": "Agencia Machagai",
+    "direccion": "Ruta 16 Km 135 Parcela 147",
+    "localidad": "Machagai",
+    "provincia": "Chaco",
+    "cp": 3534,
+    "lat": "-26.940436500",
+    "lng": "-60.058681300"
+  },
+  {
+    "id": 6787,
+    "nombre": "Agencia Formosa",
+    "direccion": "Av. Italia Nro.1856",
+    "localidad": "Formosa",
+    "provincia": "Formosa",
+    "cp": 3600,
+    "lat": "-26.171863700",
+    "lng": "-58.194589100"
+  },
+  {
+    "id": 6788,
+    "nombre": "Via Cargo San Salvador de Jujuy - Local E15 Y E16",
+    "direccion": "Nueva Terminal - Ruta 9 cruce Ruta 66",
+    "localidad": "San Salvador de Jujuy",
+    "provincia": "Jujuy",
+    "cp": 4607,
+    "lat": "-24.216538600",
+    "lng": "-65.275274900"
+  },
+  {
+    "id": 6789,
+    "nombre": "Agencia Santa Rosa",
+    "direccion": "Av. Circunvalacion Santiago Marzo Nro.761",
+    "localidad": "SANTA ROSA",
+    "provincia": "La Pampa",
+    "cp": 6300,
+    "lat": "-36.612925800",
+    "lng": "-64.272586100"
+  },
+  {
+    "id": 6790,
+    "nombre": "Agencia Mendoza",
+    "direccion": "Bandera de Los Andes Nro.424",
+    "localidad": "Mendoza",
+    "provincia": "Mendoza",
+    "cp": 5500,
+    "lat": "-32.893896500",
+    "lng": "-68.829509700"
+  },
+  {
+    "id": 6791,
+    "nombre": "Agencia San Martin (Mendoza)",
+    "direccion": "Boulogne Sur Mer 326",
+    "localidad": "Libertador Gral San Martin",
+    "provincia": "Mendoza",
+    "cp": 5570,
+    "lat": "-33.082169650",
+    "lng": "-68.477977400"
+  },
+  {
+    "id": 6792,
+    "nombre": "Agencia Tunuyan",
+    "direccion": "Manuel Belgrano Nro.96",
+    "localidad": "Tunuyan",
+    "provincia": "Mendoza",
+    "cp": 5560,
+    "lat": "-33.581862400",
+    "lng": "-69.017052900"
+  },
+  {
+    "id": 6793,
+    "nombre": "Agencia El Soberbio",
+    "direccion": "Juan Domingo Peron Nro.117",
+    "localidad": "El Soberbio",
+    "provincia": "Misiones",
+    "cp": 3365,
+    "lat": "-27.294403000",
+    "lng": "-54.227733100"
+  },
+  {
+    "id": 6795,
+    "nombre": "Agencia Obera",
+    "direccion": "Apóstoles Sur 1770",
+    "localidad": "Obera",
+    "provincia": "Misiones",
+    "cp": 3360,
+    "lat": "-27.504118200",
+    "lng": "-55.122946500"
+  },
+  {
+    "id": 6799,
+    "nombre": "Agencia Puerto Iguazu",
+    "direccion": "Hipolito Yrigoyen 446 esquina el Uru",
+    "localidad": "Puerto Iguazu",
+    "provincia": "Misiones",
+    "cp": 3370,
+    "lat": "-25.594282000",
+    "lng": "-54.565814000"
+  },
+  {
+    "id": 6801,
+    "nombre": "Agencia Puerto Rico",
+    "direccion": "Juan XXIII Nro 1047 Esq. Canada",
+    "localidad": "Puerto Rico",
+    "provincia": "Misiones",
+    "cp": 3334,
+    "lat": "-26.820451000",
+    "lng": "-55.016923000"
+  },
+  {
+    "id": 6804,
+    "nombre": "Terminal de Neuquen - Local  24, 25 y 26",
+    "direccion": "Solalique y Planas",
+    "localidad": "NEUQUEN - TERMINAL - HASTA 25KG",
+    "provincia": "Neuquen",
+    "cp": 8302,
+    "lat": "-38.957762000",
+    "lng": "-68.105591000"
+  },
+  {
+    "id": 6805,
+    "nombre": "Agencia Neuquen",
+    "direccion": "Felix San Martin y Santa Cruz",
+    "localidad": "Neuquen",
+    "provincia": "Neuquen",
+    "cp": 8302,
+    "lat": "-38.959299000",
+    "lng": "-68.053518300"
+  },
+  {
+    "id": 6806,
+    "nombre": "Agencia Via Cargo - San Martin de los Andes",
+    "direccion": "Ramayon 640",
+    "localidad": "San Martin de los Andes",
+    "provincia": "Neuquen",
+    "cp": 8370,
+    "lat": "-40.153049000",
+    "lng": "-71.345412000"
+  },
+  {
+    "id": 6808,
+    "nombre": null,
+    "direccion": "",
+    "localidad": "Resguardo",
+    "provincia": "Buenos Aires",
+    "cp": 9999,
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": 6809,
+    "nombre": "Agencia Bariloche",
+    "direccion": "Serigos Nro. 1840",
+    "localidad": "Bariloche",
+    "provincia": "Rio Negro",
+    "cp": 8400,
+    "lat": "-41.131820000",
+    "lng": "-71.284140000"
+  },
+  {
+    "id": 6811,
+    "nombre": "Agencia Cipolletti",
+    "direccion": "Gral Pacheco 390",
+    "localidad": "Cipolletti",
+    "provincia": "Rio Negro",
+    "cp": 8324,
+    "lat": "-38.942300000",
+    "lng": "-68.007850000"
+  },
+  {
+    "id": 6812,
+    "nombre": "Agencia San Luis",
+    "direccion": "Av. Sarmiento 314 esquina Juan Gilberto Funes",
+    "localidad": "San Luis",
+    "provincia": "San Luis",
+    "cp": 5700,
+    "lat": "-33.304425000",
+    "lng": "-66.320966000"
+  },
+  {
+    "id": 6815,
+    "nombre": "Agencia Via Cargo San Juan",
+    "direccion": "Libertador San Martin 656 (Este)",
+    "localidad": "San Juan",
+    "provincia": "San Juan",
+    "cp": 5400,
+    "lat": "-31.533390000",
+    "lng": "-68.516899000"
+  },
+  {
+    "id": 6817,
+    "nombre": "Agencia Tartagal",
+    "direccion": "Avenida Alberdi 1047",
+    "localidad": "Tartagal",
+    "provincia": "Salta",
+    "cp": 4560,
+    "lat": "-22.516795900",
+    "lng": "-63.795025600"
+  },
+  {
+    "id": 6818,
+    "nombre": "Agencia Rafaela - Santa Fe",
+    "direccion": "Avenida Zobolli Nº716 - Ruta Nacional 34",
+    "localidad": "Rafaela",
+    "provincia": "Santa Fe",
+    "cp": 2300,
+    "lat": "-31.243881200",
+    "lng": "-61.504756900"
+  },
+  {
+    "id": 6820,
+    "nombre": "Via Cargo Rosario",
+    "direccion": "Blvd. Oroño Nro.3041",
+    "localidad": "Rosario Sur - Hasta 40 kg",
+    "provincia": "Santa Fe",
+    "cp": 2001,
+    "lat": "-32.969820000",
+    "lng": "-60.659430000"
+  },
+  {
+    "id": 6822,
+    "nombre": "Via Cargo Rosario Domicilios",
+    "direccion": "Blvd. Oroño Nro.3041",
+    "localidad": "Rosario",
+    "provincia": "Santa Fe",
+    "cp": 2000,
+    "lat": "-32.969820000",
+    "lng": "-60.659430000"
+  },
+  {
+    "id": 6824,
+    "nombre": "Agencia Tucuman",
+    "direccion": "Avenida Ejercito del Norte 480",
+    "localidad": "San Miguel de Tucuman",
+    "provincia": "Tucuman",
+    "cp": 4000,
+    "lat": "-26.818568700",
+    "lng": "-65.231101800"
+  },
+  {
+    "id": 6828,
+    "nombre": "Agencia Alvear (Mendoza)",
+    "direccion": "Intendente Morales Nro 57 ",
+    "localidad": "General Alvear",
+    "provincia": "Mendoza",
+    "cp": 5620,
+    "lat": "-34.979168100",
+    "lng": "-67.692917200"
+  },
+  {
+    "id": 6830,
+    "nombre": "Agencia Villa Minetti",
+    "direccion": "San Martin Nro.865",
+    "localidad": "Villa Minetti",
+    "provincia": "Santa Fe",
+    "cp": 3061,
+    "lat": "-28.623301000",
+    "lng": "-61.623650000"
+  },
+  {
+    "id": 6834,
+    "nombre": "Agencia Bahia Blanca - Luis Maria Drago",
+    "direccion": "Luis Maria Drago 2802 ",
+    "localidad": "Bahia Blanca",
+    "provincia": "Buenos Aires",
+    "cp": 8000,
+    "lat": "-38.743185800",
+    "lng": "-62.236519800"
+  },
+  {
+    "id": 6835,
+    "nombre": "Agencia Via Cargo Cutral Co ",
+    "direccion": "Las Heras 1425",
+    "localidad": "Cutral Co",
+    "provincia": "Neuquen",
+    "cp": 8322,
+    "lat": "-38.930442900",
+    "lng": "-69.212074100"
+  },
+  {
+    "id": 6838,
+    "nombre": null,
+    "direccion": "Av. Republica Argentina Nro.1072",
+    "localidad": "Puerto Iguazu",
+    "provincia": "Misiones",
+    "cp": 3370,
+    "lat": "-25.616051400",
+    "lng": "-54.577113800"
+  },
+  {
+    "id": 6839,
+    "nombre": "Agencia Villa Mercedes",
+    "direccion": "Av. 25 de Mayo 2448",
+    "localidad": "Villa Mercedes",
+    "provincia": "San Luis",
+    "cp": 5730,
+    "lat": "-33.647070000",
+    "lng": "-65.460770000"
+  },
+  {
+    "id": 6843,
+    "nombre": "Via Cargo Isidro Casanova",
+    "direccion": "Av.Juan Manuel de Rosas Nro.6740",
+    "localidad": "Isidro Casanova",
+    "provincia": "Buenos Aires",
+    "cp": 1765,
+    "lat": "-34.702463000",
+    "lng": "-58.581151000"
+  },
+  {
+    "id": 6848,
+    "nombre": "Agencia Mendoza",
+    "direccion": "Juan B. Alberdi Nro.143",
+    "localidad": "Mendoza",
+    "provincia": "Mendoza",
+    "cp": 5500,
+    "lat": "-32.879867200",
+    "lng": "-68.834477400"
+  },
+  {
+    "id": 6853,
+    "nombre": "Terminal de Laboulaye - Local 3",
+    "direccion": "España Nro.542 Local 3",
+    "localidad": "Laboulaye",
+    "provincia": "Cordoba",
+    "cp": 6120,
+    "lat": "-34.134550000",
+    "lng": "-63.390011000"
+  },
+  {
+    "id": 6871,
+    "nombre": "Terminal de Caleta Olivia - Local 6",
+    "direccion": "Av. de los inmigrantes Nro. 350 - Local 8",
+    "localidad": "Caleta Olivia",
+    "provincia": "Santa Cruz",
+    "cp": 9011,
+    "lat": "-46.438890000",
+    "lng": "-67.540850000"
+  },
+  {
+    "id": 6878,
+    "nombre": "Terminal de Lamarque",
+    "direccion": "Italia 421",
+    "localidad": "Lamarque",
+    "provincia": "Rio Negro",
+    "cp": 8363,
+    "lat": "-39.414537000",
+    "lng": "-65.695087000"
+  },
+  {
+    "id": 6880,
+    "nombre": "Agencia Villa Sarmiento",
+    "direccion": "Av. Diaz Velez 1196",
+    "localidad": "Villa Sarmiento",
+    "provincia": "Buenos Aires",
+    "cp": 1707,
+    "lat": "-34.627261000",
+    "lng": "-58.564903000"
+  },
+  {
+    "id": 6892,
+    "nombre": "Agencia Wilde - Local 2",
+    "direccion": "Av. Mitre 5914 Local 2",
+    "localidad": "Wilde",
+    "provincia": "Buenos Aires",
+    "cp": 1875,
+    "lat": "-34.700568000",
+    "lng": "-58.321816000"
+  },
+  {
+    "id": 6894,
+    "nombre": "Agencia Gral. Villegas",
+    "direccion": "Fasciolo Nro.53",
+    "localidad": "General Villegas",
+    "provincia": "Buenos Aires",
+    "cp": 6230,
+    "lat": "-35.027268700",
+    "lng": "-63.011355800"
+  },
+  {
+    "id": 6896,
+    "nombre": "Terminal de San Carlos de Bolivar - Boleteria 3",
+    "direccion": "Av. Fabres Garcia 754",
+    "localidad": "Bolivar",
+    "provincia": "Buenos Aires",
+    "cp": 6550,
+    "lat": "-36.236482800",
+    "lng": "-61.121811100"
+  },
+  {
+    "id": 6897,
+    "nombre": "Agencia Pehuajó",
+    "direccion": "Dean Funes Nro.260",
+    "localidad": "Pehuajo",
+    "provincia": "Buenos Aires",
+    "cp": 6450,
+    "lat": "-35.800325200",
+    "lng": "-61.896428500"
+  },
+  {
+    "id": 6899,
+    "nombre": "Terminal General Conesa Bol. Nro. 2",
+    "direccion": "Belgrano y Moreno Nro.8530",
+    "localidad": "General Conesa",
+    "provincia": "Rio Negro",
+    "cp": 8503,
+    "lat": "-40.109160000",
+    "lng": "-64.453530000"
+  },
+  {
+    "id": 6900,
+    "nombre": "Terminal Aluminé Bol. Nro. 3 y 4",
+    "direccion": "Av. 4 de Caballeria Nro. 155",
+    "localidad": "Alumine",
+    "provincia": "Neuquen",
+    "cp": 8345,
+    "lat": "-39.239580000",
+    "lng": "-70.915370000"
+  },
+  {
+    "id": 6902,
+    "nombre": "Agencia Cañuelas",
+    "direccion": "Brandsen Nro. 814",
+    "localidad": "Cañuelas",
+    "provincia": "Buenos Aires",
+    "cp": 1814,
+    "lat": "-35.055012100",
+    "lng": "-58.763012100"
+  },
+  {
+    "id": 6903,
+    "nombre": "Agencia Paternal",
+    "direccion": "Dr. Luis Belaustegui Nro.1864",
+    "localidad": "Paternal",
+    "provincia": "Capital Federal",
+    "cp": 1416,
+    "lat": "-34.609362000",
+    "lng": "-58.463664000"
+  },
+  {
+    "id": 6905,
+    "nombre": "Terminal de Epuyen Local 1",
+    "direccion": "Ruta Nacional N° 40 - km 1872 ",
+    "localidad": "Epuyen",
+    "provincia": "Chubut",
+    "cp": 9211,
+    "lat": "-42.231014300",
+    "lng": "-71.355457300"
+  },
+  {
+    "id": 6909,
+    "nombre": "Terminal de Salvador Mazza - Local 15",
+    "direccion": "Av. 9 de Julio y Jose Hernandez",
+    "localidad": "Salvador Mazza",
+    "provincia": "Salta",
+    "cp": 4568,
+    "lat": "-22.053298000",
+    "lng": "-63.700814000"
+  },
+  {
+    "id": 6911,
+    "nombre": "Agencia Gral. Pico - La Pampa",
+    "direccion": "Calle 24 entre 37 y 39 Nro.1771",
+    "localidad": "General Pico",
+    "provincia": "La Pampa",
+    "cp": 6360,
+    "lat": "-35.667422000",
+    "lng": "-63.742653500"
+  },
+  {
+    "id": 6912,
+    "nombre": "Agencia Escobar",
+    "direccion": "Av. San Martin Nro.408",
+    "localidad": "Escobar",
+    "provincia": "Buenos Aires",
+    "cp": 1625,
+    "lat": "-34.340367000",
+    "lng": "-58.784462000"
+  },
+  {
+    "id": 6913,
+    "nombre": "Agencia Monte Castro",
+    "direccion": "Sanabria Nro.2138",
+    "localidad": "Monte Castro",
+    "provincia": "Capital Federal",
+    "cp": 1417,
+    "lat": "-34.616796000",
+    "lng": "-58.501227000"
+  },
+  {
+    "id": 6914,
+    "nombre": "Terminal de San Pedro - Boleteria 3",
+    "direccion": "Ruta Nacional 14 KM 1047",
+    "localidad": "San Pedro",
+    "provincia": "Misiones",
+    "cp": 3352,
+    "lat": "-26.616642600",
+    "lng": "-54.113336400"
+  },
+  {
+    "id": 6916,
+    "nombre": "Terminal de Capiovi - Local 2",
+    "direccion": "Ruta Nac.12 Nro.85",
+    "localidad": "Capiovi",
+    "provincia": "Misiones",
+    "cp": 3332,
+    "lat": "-26.926639700",
+    "lng": "-55.059919600"
+  },
+  {
+    "id": 6917,
+    "nombre": "Agencia Añelo",
+    "direccion": "Av. San Martin y Chaco (La Meseta)",
+    "localidad": "Añelo",
+    "provincia": "Neuquen",
+    "cp": 8312,
+    "lat": "-38.345095900",
+    "lng": "-68.785025100"
+  },
+  {
+    "id": 6922,
+    "nombre": "Agencia Temperley",
+    "direccion": "Av. Eva Peron Nro.975",
+    "localidad": "Temperley",
+    "provincia": "Buenos Aires",
+    "cp": 1834,
+    "lat": "-34.773495000",
+    "lng": "-58.384858600"
+  },
+  {
+    "id": 6931,
+    "nombre": "Agencia Mar del Plata - Fitte",
+    "direccion": "Fitte Nro.221",
+    "localidad": "Mar del Plata - Gaucho",
+    "provincia": "Buenos Aires",
+    "cp": 7600,
+    "lat": "-37.999941000",
+    "lng": "-57.600449000"
+  },
+  {
+    "id": 6939,
+    "nombre": "Agencia Olavarria",
+    "direccion": "Av. Pringles 4549",
+    "localidad": "Olavarria",
+    "provincia": "Buenos Aires",
+    "cp": 7400,
+    "lat": "-36.886051100",
+    "lng": "-60.305444700"
+  },
+  {
+    "id": 6940,
+    "nombre": "Agencia Colón",
+    "direccion": "Calle 47 Nro.1068",
+    "localidad": "Colon (BUE)",
+    "provincia": "Buenos Aires",
+    "cp": 2720,
+    "lat": "-33.890576000",
+    "lng": "-61.097263000"
+  },
+  {
+    "id": 6941,
+    "nombre": "Agencia Villa Cañas",
+    "direccion": "Calle 55 Nº671",
+    "localidad": "Villa Cañas",
+    "provincia": "Santa Fe",
+    "cp": 2607,
+    "lat": "-34.001966000",
+    "lng": "-61.607961000"
+  },
+  {
+    "id": 6942,
+    "nombre": "Via Cargo Basavilbaso",
+    "direccion": "Manzur Nro.610",
+    "localidad": "Basavilbaso",
+    "provincia": "Entre Rios",
+    "cp": 3170,
+    "lat": "-32.379140300",
+    "lng": "-58.871116800"
+  },
+  {
+    "id": 6943,
+    "nombre": "Agencia Nogoyá",
+    "direccion": "Federacion y Segui S/N",
+    "localidad": "Nogoya",
+    "provincia": "Entre Rios",
+    "cp": 3150,
+    "lat": "-32.394613800",
+    "lng": "-59.798803900"
+  },
+  {
+    "id": 6944,
+    "nombre": "Agencia Lobos",
+    "direccion": "Necochea Nro.1491",
+    "localidad": "Lobos",
+    "provincia": "Buenos Aires",
+    "cp": 7240,
+    "lat": "-35.187202900",
+    "lng": "-59.078655600"
+  },
+  {
+    "id": 6945,
+    "nombre": "Agencia San Antonio de Areco",
+    "direccion": "Ex Ruta 8 KM 113.500",
+    "localidad": "San Antonio de Areco",
+    "provincia": "Buenos Aires",
+    "cp": 2760,
+    "lat": "-34.244250000",
+    "lng": "-59.466936000"
+  },
+  {
+    "id": 6946,
+    "nombre": "Agencia General Deheza",
+    "direccion": "Buenos Aires Nro.250",
+    "localidad": "General Deheza",
+    "provincia": "Cordoba",
+    "cp": 5923,
+    "lat": "-32.755254000",
+    "lng": "-63.792375000"
+  },
+  {
+    "id": 6949,
+    "nombre": "Via Cargo Totoras",
+    "direccion": "Jose Moriena Nro.1535",
+    "localidad": "Totoras",
+    "provincia": "Santa Fe",
+    "cp": 2144,
+    "lat": "-32.577286700",
+    "lng": "-61.173952000"
+  },
+  {
+    "id": 6950,
+    "nombre": "Agencia Ceres - Santa Fe",
+    "direccion": "Bv. España 370",
+    "localidad": "Ceres",
+    "provincia": "Santa Fe",
+    "cp": 2340,
+    "lat": "-29.882003300",
+    "lng": "-61.942494400"
+  },
+  {
+    "id": 6951,
+    "nombre": "Agencia San Justo",
+    "direccion": "25 de Mayo Nº2671",
+    "localidad": "San Justo (STF)",
+    "provincia": "Santa Fe",
+    "cp": 3040,
+    "lat": "-30.791481500",
+    "lng": "-60.596137000"
+  },
+  {
+    "id": 6953,
+    "nombre": "Agencia Rojas",
+    "direccion": "Av. San Martin Nro.375",
+    "localidad": "Rojas",
+    "provincia": "Buenos Aires",
+    "cp": 2705,
+    "lat": "-34.192989100",
+    "lng": "-60.728811200"
+  },
+  {
+    "id": 6954,
+    "nombre": "Agencia de Cañada de Gomez ",
+    "direccion": "Blvd. Centenario 2255",
+    "localidad": "Cañada de Gomez",
+    "provincia": "Santa Fe",
+    "cp": 2500,
+    "lat": "-32.811212200",
+    "lng": "-61.414180100"
+  },
+  {
+    "id": 6955,
+    "nombre": "Agencia Marcos Juárez",
+    "direccion": "Azcuenaga Nro.898",
+    "localidad": "Marcos Juarez",
+    "provincia": "Cordoba",
+    "cp": 2580,
+    "lat": "-32.686536000",
+    "lng": "-62.111047000"
+  },
+  {
+    "id": 6956,
+    "nombre": "Agencia Leones",
+    "direccion": "Ruta 9 y Diogenes Hernandez ",
+    "localidad": "Leones",
+    "provincia": "Cordoba",
+    "cp": 2594,
+    "lat": "-32.654011000",
+    "lng": "-62.292752000"
+  },
+  {
+    "id": 6957,
+    "nombre": "Agencia Corral de Bustos - Local 2",
+    "direccion": "Av. Argentina Nro. 686",
+    "localidad": "Corral de Bustos",
+    "provincia": "Cordoba",
+    "cp": 2645,
+    "lat": "-33.279632000",
+    "lng": "-62.185701000"
+  },
+  {
+    "id": 6958,
+    "nombre": "Agencia Sunchales",
+    "direccion": "O. Leguizamon Nro.316",
+    "localidad": "Sunchales",
+    "provincia": "Santa Fe",
+    "cp": 2322,
+    "lat": "-30.940820000",
+    "lng": "-61.556240000"
+  },
+  {
+    "id": 6960,
+    "nombre": "Agencia Teodelina",
+    "direccion": "Ruta 94",
+    "localidad": "Teodelina",
+    "provincia": "Santa Fe",
+    "cp": 6009,
+    "lat": "-34.176628000",
+    "lng": "-61.516925000"
+  },
+  {
+    "id": 6963,
+    "nombre": "Agencia San Miguel del Monte",
+    "direccion": "Ruta nacional Nº3 Km 110",
+    "localidad": "San Miguel del Monte",
+    "provincia": "Buenos Aires",
+    "cp": 7220,
+    "lat": "-35.436533000",
+    "lng": "-58.817142000"
+  },
+  {
+    "id": 6964,
+    "nombre": "Terminal de Saladillo - Boleteria 2",
+    "direccion": "Estrada Nº3289",
+    "localidad": "SALADILLO (BUE)",
+    "provincia": "Buenos Aires",
+    "cp": 7260,
+    "lat": "-35.634848300",
+    "lng": "-59.777421100"
+  },
+  {
+    "id": 6966,
+    "nombre": "Terminal de Lincoln - Local 6",
+    "direccion": "Alvear 99-199",
+    "localidad": "Lincoln",
+    "provincia": "Buenos Aires",
+    "cp": 6070,
+    "lat": "-34.867553000",
+    "lng": "-61.526410000"
+  },
+  {
+    "id": 6968,
+    "nombre": "Via Cargo Chacabuco",
+    "direccion": "Remedios de Escalada de San Martin Nro 290",
+    "localidad": "Chacabuco",
+    "provincia": "Buenos Aires",
+    "cp": 6740,
+    "lat": "-34.635830000",
+    "lng": "-60.469680000"
+  },
+  {
+    "id": 6970,
+    "nombre": "Agencia Venado Tuerto",
+    "direccion": "Ayacucho Nº12",
+    "localidad": "Venado Tuerto",
+    "provincia": "Santa Fe",
+    "cp": 2600,
+    "lat": "-33.755689000",
+    "lng": "-61.967292000"
+  },
+  {
+    "id": 6971,
+    "nombre": "Via Cargo Santo Tome",
+    "direccion": "Candioti Nro.2123",
+    "localidad": "Santo Tome (SFE)",
+    "provincia": "Santa Fe",
+    "cp": 3016,
+    "lat": "-31.667921900",
+    "lng": "-60.754540800"
+  },
+  {
+    "id": 6973,
+    "nombre": "Via Cargo Salto",
+    "direccion": "Av. España Nro 716",
+    "localidad": "Salto",
+    "provincia": "Buenos Aires",
+    "cp": 2741,
+    "lat": "-34.299674000",
+    "lng": "-60.249190000"
+  },
+  {
+    "id": 6975,
+    "nombre": "Agencia La Paz",
+    "direccion": "Italia Nro.1330",
+    "localidad": "La Paz",
+    "provincia": "Entre Rios",
+    "cp": 3190,
+    "lat": "-30.741422000",
+    "lng": "-59.640324000"
+  },
+  {
+    "id": 6976,
+    "nombre": "Terminal de Omnibus de Alta Gracia Boleteria 2 y 3",
+    "direccion": "Av.Presidente Peron S/N Nº1977",
+    "localidad": "Alta Gracia",
+    "provincia": "Cordoba",
+    "cp": 5186,
+    "lat": "-31.654744000",
+    "lng": "-64.446498000"
+  },
+  {
+    "id": 6978,
+    "nombre": "Agencia Mercedes",
+    "direccion": "Calle 17 Nro.74 entre 4 y 6",
+    "localidad": "Mercedes",
+    "provincia": "Buenos Aires",
+    "cp": 6600,
+    "lat": "-34.659973000",
+    "lng": "-59.428627400"
+  },
+  {
+    "id": 6981,
+    "nombre": "Agencia Diamante - Entre Rios",
+    "direccion": "25 de Mayo esquina Eva Peron",
+    "localidad": "Diamante",
+    "provincia": "Entre Rios",
+    "cp": 3105,
+    "lat": "-32.068127800",
+    "lng": "-60.638941300"
+  },
+  {
+    "id": 6984,
+    "nombre": "Agencia González Catán ",
+    "direccion": "Maestra Concepción Valle Nº525",
+    "localidad": "Gonzalez Catan",
+    "provincia": "Buenos Aires",
+    "cp": 1758,
+    "lat": "-34.768612400",
+    "lng": "-58.648370600"
+  },
+  {
+    "id": 6985,
+    "nombre": "Agencia Coghlan",
+    "direccion": "Av. Dr. Ricardo Balbin Nro.3179",
+    "localidad": "Cohglan",
+    "provincia": "Capital Federal",
+    "cp": 1430,
+    "lat": "-34.558274000",
+    "lng": "-58.475061000"
+  },
+  {
+    "id": 6987,
+    "nombre": "Agencia Villaguay",
+    "direccion": "Francisco Ramirez N°116",
+    "localidad": "Villaguay",
+    "provincia": "Entre Rios",
+    "cp": 3240,
+    "lat": "-31.858707300",
+    "lng": "-59.031821700"
+  },
+  {
+    "id": 6988,
+    "nombre": "Terminal de Gualeguay",
+    "direccion": "Av. Eva Peron Nº26",
+    "localidad": "Gualeguay",
+    "provincia": "Entre Rios",
+    "cp": 2840,
+    "lat": "-33.132546400",
+    "lng": "-59.315073000"
+  },
+  {
+    "id": 6992,
+    "nombre": "Agencias Curuzú Cuatiá",
+    "direccion": "Gobernador Gómez Nº794",
+    "localidad": "Curuzu Cuatia",
+    "provincia": "Corrientes",
+    "cp": 3460,
+    "lat": "-29.789696700",
+    "lng": "-58.052132600"
+  },
+  {
+    "id": 6993,
+    "nombre": "Agencia Roque Saenz Peña",
+    "direccion": "Av. Hipólito Yrigoyen 54 , entre Sarmiento y Saave",
+    "localidad": "Roque Saenz Peña",
+    "provincia": "Chaco",
+    "cp": 3700,
+    "lat": "-26.794553000",
+    "lng": "-60.436617000"
+  },
+  {
+    "id": 7006,
+    "nombre": "Agencia Moreno",
+    "direccion": "Bartolome Mitre Nº3108 Ex.1014",
+    "localidad": "Moreno",
+    "provincia": "Buenos Aires",
+    "cp": 1744,
+    "lat": "-34.648096000",
+    "lng": "-58.793270000"
+  },
+  {
+    "id": 7014,
+    "nombre": "Agencia Almagro",
+    "direccion": "Guardia Vieja Nro. 4558",
+    "localidad": "Almagro",
+    "provincia": "Capital Federal",
+    "cp": 1172,
+    "lat": "-34.599884500",
+    "lng": "-58.428849900"
+  },
+  {
+    "id": 7020,
+    "nombre": "Agencia Lomas de Zamora",
+    "direccion": "Manuel Castro Nro.61 Local 2",
+    "localidad": "Lomas de Zamora Centro - Hasta 25kg",
+    "provincia": "Buenos Aires",
+    "cp": 1828,
+    "lat": "-34.759468000",
+    "lng": "-58.403798000"
+  },
+  {
+    "id": 7021,
+    "nombre": "Agencia Gral. Rodríguez",
+    "direccion": "2 de Abril Nro.1205",
+    "localidad": "General Rodriguez",
+    "provincia": "Buenos Aires",
+    "cp": 1748,
+    "lat": "-34.608240000",
+    "lng": "-58.946310000"
+  },
+  {
+    "id": 7038,
+    "nombre": "Agencia Parque Avellaneda",
+    "direccion": "Av. Directorio Nro.3101",
+    "localidad": "Parque Avellaneda",
+    "provincia": "Capital Federal",
+    "cp": 1417,
+    "lat": "-34.636381600",
+    "lng": "-58.470285300"
+  },
+  {
+    "id": 7042,
+    "nombre": "Terminal de Carlos Casares - Local 4",
+    "direccion": "Pres. Juan Domingo Perón Nro.101",
+    "localidad": "Carlos Casares",
+    "provincia": "Buenos Aires",
+    "cp": 6530,
+    "lat": "-35.628749900",
+    "lng": "-61.359480100"
+  },
+  {
+    "id": 7050,
+    "nombre": "Terminal de Santa Sylvina -  Chaco",
+    "direccion": "25 de Mayo 1099",
+    "localidad": "Santa Sylvina",
+    "provincia": "Chaco",
+    "cp": 3541,
+    "lat": "-27.827976500",
+    "lng": "-61.137992100"
+  },
+  {
+    "id": 7051,
+    "nombre": "Agencia Dean Funes - Cordoba",
+    "direccion": "Lavalle Nro.144",
+    "localidad": "Dean Funes",
+    "provincia": "Cordoba",
+    "cp": 5200,
+    "lat": "-30.427049000",
+    "lng": "-64.349678700"
+  },
+  {
+    "id": 7054,
+    "nombre": "Agencia Mataderos Alberdi 6852",
+    "direccion": "Av. Juan Bautista Alberdi 6852",
+    "localidad": "Mataderos",
+    "provincia": "Buenos Aires",
+    "cp": 1440,
+    "lat": "-34.658082300",
+    "lng": "-58.510887500"
+  },
+  {
+    "id": 7055,
+    "nombre": "Agencia William Morris",
+    "direccion": "Arguibel Nro.3342",
+    "localidad": "William Morris",
+    "provincia": "Buenos Aires",
+    "cp": 1686,
+    "lat": "-34.578388000",
+    "lng": "-58.656570000"
+  },
+  {
+    "id": 7056,
+    "nombre": "Agencia Mar del Plata - Av. Juan B. Justo Nº987",
+    "direccion": "Av. Juan B. Justo Nro.987",
+    "localidad": "Mar del Plata - Puerto",
+    "provincia": "Buenos Aires",
+    "cp": 7600,
+    "lat": "-38.033584300",
+    "lng": "-57.551719900"
+  },
+  {
+    "id": 7067,
+    "nombre": "Agencia Morón",
+    "direccion": "Av. Hipolito Irigoyen Nro.717",
+    "localidad": "Moron",
+    "provincia": "Buenos Aires",
+    "cp": 1708,
+    "lat": "-34.660365400",
+    "lng": "-58.619082000"
+  },
+  {
+    "id": 8080,
+    "nombre": "Agencia Agronomia",
+    "direccion": "Av. Nazca Nro.3796",
+    "localidad": "Agronomia",
+    "provincia": "Capital Federal",
+    "cp": 1419,
+    "lat": "-34.592763000",
+    "lng": "-58.496301000"
+  },
+  {
+    "id": 8090,
+    "nombre": "Agencia Villa Angela",
+    "direccion": "San Martin Nro.980",
+    "localidad": "Villa Angela (CHC)",
+    "provincia": "Chaco",
+    "cp": 3540,
+    "lat": "-27.568747000",
+    "lng": "-60.710376300"
+  },
+  {
+    "id": 8094,
+    "nombre": "Agencia Villa Bosch",
+    "direccion": "Aurelio Montanelli Nro.1044",
+    "localidad": "Villa Bosch",
+    "provincia": "Buenos Aires",
+    "cp": 1682,
+    "lat": "-34.573849500",
+    "lng": "-58.592245900"
+  },
+  {
+    "id": 8096,
+    "nombre": "Agencia Cordoba",
+    "direccion": "Bv Guzman 75",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.417486600",
+    "lng": "-64.176201400"
+  },
+  {
+    "id": 8098,
+    "nombre": "Via Cargo Victoria",
+    "direccion": "Sarmiento 188",
+    "localidad": "Victoria",
+    "provincia": "Entre Rios",
+    "cp": 3153,
+    "lat": "-32.622308200",
+    "lng": "-60.137109900"
+  },
+  {
+    "id": 8099,
+    "nombre": "Via Cargo Muñiz",
+    "direccion": "Aconquija 9",
+    "localidad": "Muñiz",
+    "provincia": "Buenos Aires",
+    "cp": 1662,
+    "lat": "-34.553376400",
+    "lng": "-58.696838300"
+  },
+  {
+    "id": 8102,
+    "nombre": "Agencia Via Cargo Lomas del Mirador",
+    "direccion": "Av. San Martin Nro.4698",
+    "localidad": "Lomas del Mirador",
+    "provincia": "Buenos Aires",
+    "cp": 1752,
+    "lat": "-34.679873500",
+    "lng": "-58.521559700"
+  },
+  {
+    "id": 8103,
+    "nombre": "Agencia Zarate",
+    "direccion": "Conesa Nro.867 entre Av. Mitre e Hipolito Irigoyen",
+    "localidad": "Zarate",
+    "provincia": "Buenos Aires",
+    "cp": 2800,
+    "lat": "-34.104293300",
+    "lng": "-59.024699500"
+  },
+  {
+    "id": 8104,
+    "nombre": "Agencia Pilar",
+    "direccion": "Chacabuco Nro.458",
+    "localidad": "Pilar",
+    "provincia": "Buenos Aires",
+    "cp": 1630,
+    "lat": "-34.456549900",
+    "lng": "-58.909485500"
+  },
+  {
+    "id": 8106,
+    "nombre": "Agencia San Patricio del Chañar",
+    "direccion": "Mza 15 Lote 10 calle Chos Malal y Pasaje las Lajas",
+    "localidad": "San Patricio del Chañar",
+    "provincia": "Neuquen",
+    "cp": 8306,
+    "lat": "-38.628463200",
+    "lng": "-68.300726400"
+  },
+  {
+    "id": 8107,
+    "nombre": "Agencia San Lorenzo - Santa Fe",
+    "direccion": "Hipolito Irigoyen 2720 Esquina Bv. Oroño",
+    "localidad": "San Lorenzo",
+    "provincia": "Santa Fe",
+    "cp": 2200,
+    "lat": "-32.734840500",
+    "lng": "-60.738329300"
+  },
+  {
+    "id": 8108,
+    "nombre": "Agencia Florencio Varela Centro",
+    "direccion": "Av. Gral. Jose de San Martin  Nro.2147",
+    "localidad": "Florencio Varela",
+    "provincia": "Buenos Aires",
+    "cp": 1887,
+    "lat": "-34.798033000",
+    "lng": "-58.278809000"
+  },
+  {
+    "id": 8109,
+    "nombre": "Encomiendas Ortuzar",
+    "direccion": "Av. Alvarez Thomas Nro.1475",
+    "localidad": "Villa Ortuzar",
+    "provincia": "Capital Federal",
+    "cp": 1427,
+    "lat": "-34.578325500",
+    "lng": "-58.462922700"
+  },
+  {
+    "id": 8110,
+    "nombre": "Agencia Rio Ceballos",
+    "direccion": "Av. Remedios de Escalada Nro.1245",
+    "localidad": "Rio Ceballos",
+    "provincia": "Cordoba",
+    "cp": 5111,
+    "lat": "-31.177482500",
+    "lng": "-64.306069300"
+  },
+  {
+    "id": 8111,
+    "nombre": "Agencia Don Torcuato",
+    "direccion": "Av. Ángel Torcuato de Alvear 459 ",
+    "localidad": "Don Torcuato",
+    "provincia": "Buenos Aires",
+    "cp": 1611,
+    "lat": "-34.500173800",
+    "lng": "-58.642757900"
+  },
+  {
+    "id": 8112,
+    "nombre": "Agencia Tortuguitas",
+    "direccion": "Av. Presidente Arturo Umberto Illia Nº11680 (R8)",
+    "localidad": "Tortuguitas",
+    "provincia": "Buenos Aires",
+    "cp": 1667,
+    "lat": "-34.478857600",
+    "lng": "-58.780863900"
+  },
+  {
+    "id": 8113,
+    "nombre": "Agencia La Tablada",
+    "direccion": "Av. Crovara Nro 3026",
+    "localidad": "La Tablada",
+    "provincia": "Buenos Aires",
+    "cp": 1766,
+    "lat": "-34.691054200",
+    "lng": "-58.527307500"
+  },
+  {
+    "id": 8161,
+    "nombre": "Terminal de Bella Vista Local 7",
+    "direccion": "Libertad y 9 de Julio",
+    "localidad": "Bella Vista (CRT)",
+    "provincia": "Corrientes",
+    "cp": 3432,
+    "lat": "-28.521987000",
+    "lng": "-59.041579000"
+  },
+  {
+    "id": 8162,
+    "nombre": "Agencia Goya",
+    "direccion": "Av. Neustadt 291",
+    "localidad": "Goya (CRT)",
+    "provincia": "Corrientes",
+    "cp": 3450,
+    "lat": "-29.157686700",
+    "lng": "-59.259293900"
+  },
+  {
+    "id": 8163,
+    "nombre": "Via Cargo Ramos Mejia",
+    "direccion": "Av. Eva Peron Nro 32",
+    "localidad": "Ramos Mejia",
+    "provincia": "Buenos Aires",
+    "cp": 1704,
+    "lat": "-34.659710000",
+    "lng": "-58.543169000"
+  },
+  {
+    "id": 8164,
+    "nombre": "Agencia Via Cargo Cordoba - Alem",
+    "direccion": "Av. Leandro Alem Nro.939",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.392005000",
+    "lng": "-64.165504800"
+  },
+  {
+    "id": 8166,
+    "nombre": "Agencia Monte Caseros",
+    "direccion": "Colon y Tucuman S/N",
+    "localidad": "Monte Caseros",
+    "provincia": "Corrientes",
+    "cp": 3220,
+    "lat": "-30.251792300",
+    "lng": "-57.643035200"
+  },
+  {
+    "id": 8168,
+    "nombre": "Via Cargo Parque Avellaneda",
+    "direccion": "Av. Juan Bautista Alberdi Nro.4788",
+    "localidad": "Parque Avellaneda",
+    "provincia": "Capital Federal",
+    "cp": 1417,
+    "lat": "-34.643983000",
+    "lng": "-58.493350000"
+  },
+  {
+    "id": 8170,
+    "nombre": "Agencia Via Cargo Gaiman - Local 2",
+    "direccion": "Av. Eugenio Tello Nro.487",
+    "localidad": "Gaiman",
+    "provincia": "Chubut",
+    "cp": 9105,
+    "lat": "-43.290499000",
+    "lng": "-65.497264700"
+  },
+  {
+    "id": 8171,
+    "nombre": "Agencia Via Cargo Monserrat",
+    "direccion": "Av. Belgrano Nro.1129",
+    "localidad": "Monserrat",
+    "provincia": "Capital Federal",
+    "cp": 1077,
+    "lat": "-34.613187200",
+    "lng": "-58.382247700"
+  },
+  {
+    "id": 8172,
+    "nombre": "Agencia Benavidez",
+    "direccion": "Av. Alvear 2180 - Local 7",
+    "localidad": "Benavidez",
+    "provincia": "Buenos Aires",
+    "cp": 1621,
+    "lat": "-34.414637100",
+    "lng": "-58.694522700"
+  },
+  {
+    "id": 8173,
+    "nombre": "Agencia Parador Purmamarca - Local 14",
+    "direccion": "Belgrano S/N - Parador",
+    "localidad": "Purmamarca",
+    "provincia": "Jujuy",
+    "cp": 4618,
+    "lat": "-23.745017000",
+    "lng": "-65.499120000"
+  },
+  {
+    "id": 8174,
+    "nombre": "Agencia Humahuaca",
+    "direccion": "Av. Belgrano 326",
+    "localidad": "Humahuaca",
+    "provincia": "Jujuy",
+    "cp": 4630,
+    "lat": "-23.203299600",
+    "lng": "-65.349914300"
+  },
+  {
+    "id": 8175,
+    "nombre": "Agencia Tilcara",
+    "direccion": "Calle De Benedetti y Ambrosetti, B° Pueblo Nuevo",
+    "localidad": "Tilcara",
+    "provincia": "Jujuy",
+    "cp": 4624,
+    "lat": "-23.579555700",
+    "lng": "-65.397462600"
+  },
+  {
+    "id": 8176,
+    "nombre": "Agencia La Quiaca",
+    "direccion": "Balcarce 759, Barrio Norte",
+    "localidad": "La Quiaca",
+    "provincia": "Jujuy",
+    "cp": 4650,
+    "lat": "-22.099935000",
+    "lng": "-65.601957700"
+  },
+  {
+    "id": 8178,
+    "nombre": "Agencia La Calera",
+    "direccion": "Ruta E55 Nro.682",
+    "localidad": "La Calera",
+    "provincia": "Cordoba",
+    "cp": 5151,
+    "lat": "-31.349056500",
+    "lng": "-64.343627400"
+  },
+  {
+    "id": 8179,
+    "nombre": "Terminal de Coronel Dorrego",
+    "direccion": "Av. Santagada y 9 de Julio",
+    "localidad": "Coronel Dorrego",
+    "provincia": "Buenos Aires",
+    "cp": 8150,
+    "lat": "-38.720849300",
+    "lng": "-61.286430300"
+  },
+  {
+    "id": 8180,
+    "nombre": "Via Cargo Floresta",
+    "direccion": "San Nicolas 511",
+    "localidad": "Floresta",
+    "provincia": "Capital Federal",
+    "cp": 1407,
+    "lat": "-34.627087300",
+    "lng": "-58.480488500"
+  },
+  {
+    "id": 8182,
+    "nombre": "Agencia Alejandro Korn Expres",
+    "direccion": "Av. Hipolito Yrigoyen 29000 esquina Guatemala",
+    "localidad": "alejandro korn",
+    "provincia": "Buenos Aires",
+    "cp": 1864,
+    "lat": "-34.972304000",
+    "lng": "-58.381479100"
+  },
+  {
+    "id": 8183,
+    "nombre": "Agencia Via Cargo San Miguel",
+    "direccion": "Av. Dr. Ricardo Balbín Nro.702 esquina Urquiza",
+    "localidad": "San Miguel",
+    "provincia": "Buenos Aires",
+    "cp": 1663,
+    "lat": "-34.538432900",
+    "lng": "-58.707947000"
+  },
+  {
+    "id": 8184,
+    "nombre": "Via Cargo San Justo",
+    "direccion": "Av. Brigadier General Juan Manuel de Rosas 4474",
+    "localidad": "San Justo",
+    "provincia": "Buenos Aires",
+    "cp": 1754,
+    "lat": "-34.687224300",
+    "lng": "-58.565141300"
+  },
+  {
+    "id": 8193,
+    "nombre": "Agencia Florencio Varela -  Cruce",
+    "direccion": "Avenida 7 Nro.118",
+    "localidad": "Florencio Varela",
+    "provincia": "Buenos Aires",
+    "cp": 1887,
+    "lat": "-34.779766800",
+    "lng": "-58.260812200"
+  },
+  {
+    "id": 8194,
+    "nombre": "Agencia Campana",
+    "direccion": "Juan Bautista Alberdi Nro.1280",
+    "localidad": "Campana",
+    "provincia": "Buenos Aires",
+    "cp": 2804,
+    "lat": "-34.166455400",
+    "lng": "-58.972608000"
+  },
+  {
+    "id": 8195,
+    "nombre": "Via Cargo Malvinas Argentinas",
+    "direccion": "Av. San Martín Nro.1253",
+    "localidad": "Malvinas Argentinas",
+    "provincia": "Cordoba",
+    "cp": 5125,
+    "lat": "-31.386234500",
+    "lng": "-64.056591700"
+  },
+  {
+    "id": 8196,
+    "nombre": "Agencia Santa Lucia ",
+    "direccion": "Islas Malvinas Nro.738",
+    "localidad": "Santa Lucia(CRT)",
+    "provincia": "Corrientes",
+    "cp": 3440,
+    "lat": "-28.983787500",
+    "lng": "-59.108595900"
+  },
+  {
+    "id": 8197,
+    "nombre": "Agencia Berazategui",
+    "direccion": "Av. Presidente Nestor Kirchner Nro.1888",
+    "localidad": "Berazategui",
+    "provincia": "Buenos Aires",
+    "cp": 1880,
+    "lat": "-34.763475700",
+    "lng": "-58.200099400"
+  },
+  {
+    "id": 8201,
+    "nombre": "Agencia Rio Tercero",
+    "direccion": "Tristan Acuña Nro.395",
+    "localidad": "Rio Tercero",
+    "provincia": "Cordoba",
+    "cp": 5850,
+    "lat": "-32.172059900",
+    "lng": "-64.107436100"
+  },
+  {
+    "id": 8202,
+    "nombre": "Agencia El Palomar",
+    "direccion": "Yapeyú Nro.3288",
+    "localidad": "El Palomar",
+    "provincia": "Buenos Aires",
+    "cp": 1684,
+    "lat": "-34.607390000",
+    "lng": "-58.593509000"
+  },
+  {
+    "id": 8203,
+    "nombre": "Agencia Villa del Rosario",
+    "direccion": "Ruta Provincial N° 13 S/N",
+    "localidad": "Villa del Rosario",
+    "provincia": "Cordoba",
+    "cp": 5963,
+    "lat": "-31.562957000",
+    "lng": "-63.544737000"
+  },
+  {
+    "id": 8205,
+    "nombre": "Agencia Terminal de Esquina Ctes",
+    "direccion": "San Martin entre Constitucion y Sarmiento",
+    "localidad": "Esquina",
+    "provincia": "Corrientes",
+    "cp": 3196,
+    "lat": "-30.019741000",
+    "lng": "-59.531575000"
+  },
+  {
+    "id": 8206,
+    "nombre": "Agencia Dina Huapi",
+    "direccion": "Estados Unidos Nro.516",
+    "localidad": "Dina Huapi",
+    "provincia": "Rio Negro",
+    "cp": 8402,
+    "lat": "-41.074396500",
+    "lng": "-71.170689900"
+  },
+  {
+    "id": 8207,
+    "nombre": "Agencia Coronel Pringles",
+    "direccion": "Alem Nro.773",
+    "localidad": "Coronel Pringles",
+    "provincia": "Buenos Aires",
+    "cp": 7530,
+    "lat": "-37.988291900",
+    "lng": "-61.354357200"
+  },
+  {
+    "id": 8212,
+    "nombre": "Via Cargo Loma Hermosa",
+    "direccion": "Av. Eva Perón Nro.9560",
+    "localidad": "Loma Hermosa",
+    "provincia": "Buenos Aires",
+    "cp": 1657,
+    "lat": "-34.562951300",
+    "lng": "-58.610222400"
+  },
+  {
+    "id": 8226,
+    "nombre": "Agencia Bernal",
+    "direccion": "Avellaneda Nro.156",
+    "localidad": "Bernal",
+    "provincia": "Buenos Aires",
+    "cp": 1876,
+    "lat": "-34.711006700",
+    "lng": "-58.285218500"
+  },
+  {
+    "id": 8228,
+    "nombre": "Agencia Via cargo Esperanza",
+    "direccion": "Brigadier Lopez 182",
+    "localidad": "Esperanza",
+    "provincia": "Santa Fe",
+    "cp": 3080,
+    "lat": "-31.447314200",
+    "lng": "-60.910796500"
+  },
+  {
+    "id": 8229,
+    "nombre": "Via Cargo Velez Sarsfield",
+    "direccion": "Av. Juan B. Justo Nro.7395",
+    "localidad": "Velez Sarsfield",
+    "provincia": "Capital Federal",
+    "cp": 1285,
+    "lat": "-34.628949200",
+    "lng": "-58.494166000"
+  },
+  {
+    "id": 8230,
+    "nombre": "Agencia Parada Quilmes",
+    "direccion": "Av. Calchaqui Nro.1647",
+    "localidad": "Quilmes",
+    "provincia": "Buenos Aires",
+    "cp": 1878,
+    "lat": "-34.742780100",
+    "lng": "-58.289899600"
+  },
+  {
+    "id": 8232,
+    "nombre": "Agencia Villa Celina",
+    "direccion": "Coronel Dominguez 2312",
+    "localidad": "Villa Celina",
+    "provincia": "Buenos Aires",
+    "cp": 1772,
+    "lat": "-34.693913900",
+    "lng": "-58.486426800"
+  },
+  {
+    "id": 8235,
+    "nombre": "Agencia Yerba Buena",
+    "direccion": "Av Aconquija Nro.1870",
+    "localidad": "Yerba Buena",
+    "provincia": "Tucuman",
+    "cp": 4107,
+    "lat": "-26.812819200",
+    "lng": "-65.296534500"
+  },
+  {
+    "id": 8236,
+    "nombre": "Agencia Crespo - Entre Rios",
+    "direccion": "Los Constituyentes 290",
+    "localidad": "Crespo",
+    "provincia": "Entre Rios",
+    "cp": 3116,
+    "lat": "-32.038433100",
+    "lng": "-60.315509100"
+  },
+  {
+    "id": 8245,
+    "nombre": "Via Cargo Villa Madero",
+    "direccion": "Av. Velez Sarsfield Nro.390",
+    "localidad": "Villa Madero",
+    "provincia": "Buenos Aires",
+    "cp": 1751,
+    "lat": "-34.693760000",
+    "lng": "-58.501930000"
+  },
+  {
+    "id": 8250,
+    "nombre": "Vía Cargo Chilecito",
+    "direccion": "25 de Mayo 1014",
+    "localidad": "Chilecito",
+    "provincia": "La Rioja",
+    "cp": 5360,
+    "lat": "-29.175600000",
+    "lng": "-67.500400000"
+  },
+  {
+    "id": 8253,
+    "nombre": "Agencia Juan Jose Castelli ",
+    "direccion": "Av. San Martin esquina Nicolas Avellaneda",
+    "localidad": "Castelli",
+    "provincia": "Chaco",
+    "cp": 3705,
+    "lat": "-25.941580800",
+    "lng": "-60.609039800"
+  },
+  {
+    "id": 8258,
+    "nombre": "Agencia Laferrere",
+    "direccion": "Ezeiza 6155",
+    "localidad": "Gregorio de Laferrere",
+    "provincia": "Buenos Aires",
+    "cp": 1757,
+    "lat": "-34.747945900",
+    "lng": "-58.582959300"
+  },
+  {
+    "id": 8260,
+    "nombre": "Agencia  Lynch",
+    "direccion": "Alberdi Nro.454",
+    "localidad": "Villa Lynch",
+    "provincia": "Buenos Aires",
+    "cp": 1672,
+    "lat": "-34.589758900",
+    "lng": "-58.520932600"
+  },
+  {
+    "id": 8262,
+    "nombre": "Agencia  9 de Julio",
+    "direccion": "Ruta 17 Km 23",
+    "localidad": "9 de Julio",
+    "provincia": "Misiones",
+    "cp": 3363,
+    "lat": "-26.413484000",
+    "lng": "-54.511390000"
+  },
+  {
+    "id": 8266,
+    "nombre": "Agencia Cordoba - Fuerza Aerea",
+    "direccion": "Fuerza Aerea Nro3863 (Ruta 20)",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.432341900",
+    "lng": "-64.241536700"
+  },
+  {
+    "id": 8269,
+    "nombre": "Agencia Flores",
+    "direccion": "Bogota Nro.3605",
+    "localidad": "Flores",
+    "provincia": "Capital Federal",
+    "cp": 1406,
+    "lat": "-34.629619200",
+    "lng": "-58.479429900"
+  },
+  {
+    "id": 8270,
+    "nombre": "Terminal Comodoro Rivadavia Bol. Nro. 7 y 8",
+    "direccion": "Carlos Pellegrini Nro.730",
+    "localidad": "Comodoro Rivadavia - Centro h/ 10KG",
+    "provincia": "Chubut",
+    "cp": 9002,
+    "lat": "-45.863208000",
+    "lng": "-67.480740000"
+  },
+  {
+    "id": 8271,
+    "nombre": "Agencia Rada Tilly",
+    "direccion": "Av. Moyano Nro.2117",
+    "localidad": "Rada Tilly",
+    "provincia": "Chubut",
+    "cp": 9001,
+    "lat": "-45.923905300",
+    "lng": "-67.556584100"
+  },
+  {
+    "id": 8272,
+    "nombre": "Agencia Chivilcoy",
+    "direccion": "Av. Urquiza Nro.809",
+    "localidad": "Chivilcoy",
+    "provincia": "Buenos Aires",
+    "cp": 6620,
+    "lat": "-34.879926300",
+    "lng": "-60.013857500"
+  },
+  {
+    "id": 8274,
+    "nombre": "Agencia Rafael Calzada",
+    "direccion": "Av. San Martin Nro.2686",
+    "localidad": "Rafael Calzada",
+    "provincia": "Buenos Aires",
+    "cp": 1847,
+    "lat": "-34.796894100",
+    "lng": "-58.366357700"
+  },
+  {
+    "id": 8276,
+    "nombre": "Agencia Candelaria",
+    "direccion": "Colectora de Ruta 12 y Anastasio Cabrera",
+    "localidad": "Candelaria",
+    "provincia": "Misiones",
+    "cp": 3308,
+    "lat": "-27.470470300",
+    "lng": "-55.749273400"
+  },
+  {
+    "id": 8277,
+    "nombre": "Villa General Belgrano",
+    "direccion": "Velez Sarsfield esquina Laprida- Local 7",
+    "localidad": "Villa General Belgrano ",
+    "provincia": "Cordoba",
+    "cp": 5194,
+    "lat": "-31.973829000",
+    "lng": "-64.561973000"
+  },
+  {
+    "id": 8278,
+    "nombre": "Agencia Once ",
+    "direccion": "Moreno Nro.2823",
+    "localidad": "ONCE",
+    "provincia": "Capital Federal",
+    "cp": 1024,
+    "lat": "-34.613479100",
+    "lng": "-58.405585700"
+  },
+  {
+    "id": 8279,
+    "nombre": "Agencia Federacion",
+    "direccion": "Pedro Paez 374 casi Las Hortensias",
+    "localidad": "Federacion",
+    "provincia": "Entre Rios",
+    "cp": 3206,
+    "lat": "-30.991905400",
+    "lng": "-57.924343100"
+  },
+  {
+    "id": 8280,
+    "nombre": "Agencia Barrio Norte",
+    "direccion": "Juncal Nro.2746",
+    "localidad": "Barrio Norte",
+    "provincia": "Capital Federal",
+    "cp": 1014,
+    "lat": "-34.589295700",
+    "lng": "-58.404710300"
+  },
+  {
+    "id": 8283,
+    "nombre": "Agencia Virreyes",
+    "direccion": "Av. Avellaneda 2306",
+    "localidad": "Virreyes",
+    "provincia": "Buenos Aires",
+    "cp": 1645,
+    "lat": "-34.453452100",
+    "lng": "-58.557923600"
+  },
+  {
+    "id": 8285,
+    "nombre": "Agencia Las Varillas",
+    "direccion": "Sarmiento Nro.160",
+    "localidad": "Las Varillas",
+    "provincia": "Cordoba",
+    "cp": 5940,
+    "lat": "-31.870465500",
+    "lng": "-62.716771800"
+  },
+  {
+    "id": 8286,
+    "nombre": "Agencia Arroyito",
+    "direccion": "25 de Mayo Nro.935",
+    "localidad": "Arroyito (CBA)",
+    "provincia": "Cordoba",
+    "cp": 2434,
+    "lat": "-31.421257800",
+    "lng": "-63.051015000"
+  },
+  {
+    "id": 8287,
+    "nombre": "Agencia San Francisco Solano",
+    "direccion": "Av. 893 Nro.4140",
+    "localidad": "San Francisco Solano",
+    "provincia": "Buenos Aires",
+    "cp": 1881,
+    "lat": "-34.776440700",
+    "lng": "-58.309432100"
+  },
+  {
+    "id": 8291,
+    "nombre": "Agencia Canning",
+    "direccion": "Castex Nro.488",
+    "localidad": "Canning",
+    "provincia": "Buenos Aires",
+    "cp": 1801,
+    "lat": "-34.850413500",
+    "lng": "-58.504384500"
+  },
+  {
+    "id": 8293,
+    "nombre": "Agencia Caseros",
+    "direccion": "España Nro.2984",
+    "localidad": "Caseros",
+    "provincia": "Buenos Aires",
+    "cp": 1678,
+    "lat": "-34.612031800",
+    "lng": "-58.555272600"
+  },
+  {
+    "id": 8294,
+    "nombre": "Terminal de Perito Moreno - Local 6",
+    "direccion": "Cruce de Ruta Nro. 43 y Ruta Nacional 45",
+    "localidad": "Perito Moreno",
+    "provincia": "Santa Cruz",
+    "cp": 9040,
+    "lat": "-46.582446900",
+    "lng": "-70.928239000"
+  },
+  {
+    "id": 8305,
+    "nombre": "Terminal de Maipu Boleteria 4",
+    "direccion": "Madero y Ruta dos",
+    "localidad": "Maipu",
+    "provincia": "Buenos Aires",
+    "cp": 7160,
+    "lat": "-36.865634200",
+    "lng": "-57.875341500"
+  },
+  {
+    "id": 8306,
+    "nombre": "Agencia Via Cargo Villa Dolores",
+    "direccion": "Av. Belgrano Nro 1036",
+    "localidad": "Villa Dolores",
+    "provincia": "Cordoba",
+    "cp": 5870,
+    "lat": "-31.947474000",
+    "lng": "-65.175953700"
+  },
+  {
+    "id": 8308,
+    "nombre": "Agencia Villa Martelli",
+    "direccion": "Laprida Nro.4402",
+    "localidad": "Villa Martelli",
+    "provincia": "Buenos Aires",
+    "cp": 1603,
+    "lat": "-34.551165600",
+    "lng": "-58.513272200"
+  },
+  {
+    "id": 8312,
+    "nombre": "Via Cargo Moreno",
+    "direccion": "Av. Victorica Nro.244",
+    "localidad": "Moreno",
+    "provincia": "Buenos Aires",
+    "cp": 1744,
+    "lat": "-34.645676300",
+    "lng": "-58.796079600"
+  },
+  {
+    "id": 8313,
+    "nombre": "Agencia La Boca - Local 3",
+    "direccion": "Olavarria 757",
+    "localidad": "La Boca",
+    "provincia": "Capital Federal",
+    "cp": 1162,
+    "lat": "-34.638103900",
+    "lng": "-58.368485600"
+  },
+  {
+    "id": 8314,
+    "nombre": "Agencia Via Cargo San Vicente",
+    "direccion": "Ricardo Balbin Nro 1022",
+    "localidad": "San Vicente",
+    "provincia": "Misiones",
+    "cp": 3356,
+    "lat": "-26.992067800",
+    "lng": "-54.485289900"
+  },
+  {
+    "id": 8317,
+    "nombre": "Agencia Villa Devoto Point Servicios",
+    "direccion": "Nueva York Nro.4311",
+    "localidad": "Villa Devoto",
+    "provincia": "Capital Federal",
+    "cp": 1419,
+    "lat": "-34.602327700",
+    "lng": "-58.515275300"
+  },
+  {
+    "id": 8318,
+    "nombre": "Agencia Chacarita",
+    "direccion": "Av. Forest 336",
+    "localidad": "Chacarita",
+    "provincia": "Capital Federal",
+    "cp": 1427,
+    "lat": "-34.587943200",
+    "lng": "-58.454009100"
+  },
+  {
+    "id": 8320,
+    "nombre": "Agencia Rio Segundo ",
+    "direccion": "Ruta Nacional Nro.9 casa 844",
+    "localidad": "Rio Segundo",
+    "provincia": "Cordoba",
+    "cp": 5960,
+    "lat": "-31.649555400",
+    "lng": "-63.902590500"
+  },
+  {
+    "id": 8322,
+    "nombre": "Agencia Los Hornos",
+    "direccion": "Calle 66 Esquina 139",
+    "localidad": "Los Hornos",
+    "provincia": "Buenos Aires",
+    "cp": 1901,
+    "lat": "-34.956174100",
+    "lng": "-57.970616800"
+  },
+  {
+    "id": 8328,
+    "nombre": "Terminal de Capilla del Monte Boleteria 5",
+    "direccion": "Rivadavia 556",
+    "localidad": "Capilla del Monte",
+    "provincia": "Cordoba",
+    "cp": 5184,
+    "lat": "-30.859198900",
+    "lng": "-64.526028100"
+  },
+  {
+    "id": 8329,
+    "nombre": "Agencia Merlo - San Luis",
+    "direccion": "Ruta 5 y Juana Azurduy",
+    "localidad": "Merlo San Luis",
+    "provincia": "San Luis",
+    "cp": 5881,
+    "lat": "-32.348041200",
+    "lng": "-65.021972600"
+  },
+  {
+    "id": 8330,
+    "nombre": "Agencia Fernandez - Sgo. del Estero",
+    "direccion": "Av. San Martin Nro.240",
+    "localidad": "Fernandez",
+    "provincia": "Santiago del Estero",
+    "cp": 4322,
+    "lat": "-27.923976000",
+    "lng": "-63.895814000"
+  },
+  {
+    "id": 8341,
+    "nombre": "Agencia Aguray - Salta",
+    "direccion": "Roque Saenz Peña 281",
+    "localidad": "Aguaray",
+    "provincia": "Salta",
+    "cp": 4566,
+    "lat": "-22.243185000",
+    "lng": "-63.737402900"
+  },
+  {
+    "id": 8343,
+    "nombre": "Agencia Marcos Paz",
+    "direccion": "Av. Dr. Marcos Paz Nro.1562",
+    "localidad": "Marcos Paz",
+    "provincia": "Buenos Aires",
+    "cp": 1727,
+    "lat": "-34.780962800",
+    "lng": "-58.833052100"
+  },
+  {
+    "id": 8345,
+    "nombre": "Agencia Villa Urquiza ",
+    "direccion": "Av. Congreso Nro.5299",
+    "localidad": "Villa Urquiza",
+    "provincia": "Capital Federal",
+    "cp": 1431,
+    "lat": "-34.571002900",
+    "lng": "-58.492489900"
+  },
+  {
+    "id": 8347,
+    "nombre": "Agencia Gral. Mosconi - Salta",
+    "direccion": "Fray Mamerto Esquiu 84",
+    "localidad": "General Mosconi",
+    "provincia": "Salta",
+    "cp": 4562,
+    "lat": "-22.596204000",
+    "lng": "-63.809458700"
+  },
+  {
+    "id": 8350,
+    "nombre": "Agencia La Lucila",
+    "direccion": "Av. Maipu 3493",
+    "localidad": "La Lucila",
+    "provincia": "Buenos Aires",
+    "cp": 1636,
+    "lat": "-34.503662100",
+    "lng": "-58.496401500"
+  },
+  {
+    "id": 8353,
+    "nombre": "Agencia Garin - Local 5 - Cigliutti 123",
+    "direccion": "Cigliutti Nro.123",
+    "localidad": "Garin",
+    "provincia": "Buenos Aires",
+    "cp": 1619,
+    "lat": "-34.421973700",
+    "lng": "-58.737778400"
+  },
+  {
+    "id": 8354,
+    "nombre": "Agencia La Plata - Tolosa ",
+    "direccion": "Av. 13 Esquina 530",
+    "localidad": "Tolosa",
+    "provincia": "Buenos Aires",
+    "cp": 1906,
+    "lat": "-34.904649900",
+    "lng": "-57.979903600"
+  },
+  {
+    "id": 8355,
+    "nombre": "Agencia Via Cargo San Nicolas de los Arroyos",
+    "direccion": "Av. Savio 914",
+    "localidad": "San Nicolas de los Arroyos",
+    "provincia": "Buenos Aires",
+    "cp": 2900,
+    "lat": "-33.351110500",
+    "lng": "-60.200820800"
+  },
+  {
+    "id": 8356,
+    "nombre": "Terminal de Omnibus San Jose - Local 1",
+    "direccion": "Av. del Trabajo",
+    "localidad": "San Jose (MIS)",
+    "provincia": "Misiones",
+    "cp": 3307,
+    "lat": "-27.764420000",
+    "lng": "-55.788019700"
+  },
+  {
+    "id": 8357,
+    "nombre": "Logistica Warnes 648",
+    "direccion": "Av. Warnes 648",
+    "localidad": "Villa Crespo",
+    "provincia": "Capital Federal",
+    "cp": 1405,
+    "lat": "-34.601189000",
+    "lng": "-58.445412000"
+  },
+  {
+    "id": 8360,
+    "nombre": "Agencia Burzaco Centro",
+    "direccion": "Av. Hipolito Yrigoyen Nro.14947",
+    "localidad": "Burzaco",
+    "provincia": "Buenos Aires",
+    "cp": 1852,
+    "lat": "-34.827904600",
+    "lng": "-58.398563800"
+  },
+  {
+    "id": 8363,
+    "nombre": "Agencia Via Cargo Munro",
+    "direccion": "Av. Velez Sarsfield 4790",
+    "localidad": "Munro",
+    "provincia": "Buenos Aires",
+    "cp": 1605,
+    "lat": "-34.531054700",
+    "lng": "-58.525461900"
+  },
+  {
+    "id": 8364,
+    "nombre": "Agencia Via Cargo Colonia Caroya",
+    "direccion": "Av. San Martin Nro.1896",
+    "localidad": "Colonia Caroya",
+    "provincia": "Cordoba",
+    "cp": 5223,
+    "lat": "-31.005575600",
+    "lng": "-64.080086900"
+  },
+  {
+    "id": 8368,
+    "nombre": "Agencia Virrey del Pino",
+    "direccion": "Av. Montecarlo Nro.6",
+    "localidad": "Virrey del Pino",
+    "provincia": "Buenos Aires",
+    "cp": 1763,
+    "lat": "-34.839854300",
+    "lng": "-58.653274800"
+  },
+  {
+    "id": 8375,
+    "nombre": "Agencia Malargue",
+    "direccion": "Esquivel Aldao Nro.55",
+    "localidad": "Malargue",
+    "provincia": "Mendoza",
+    "cp": 5613,
+    "lat": "-35.471808400",
+    "lng": "-69.597181700"
+  },
+  {
+    "id": 8376,
+    "nombre": "Agencia Corrientes - Av. Independencia",
+    "direccion": "Av. Independencia 4306",
+    "localidad": "Corrientes",
+    "provincia": "Corrientes",
+    "cp": 3400,
+    "lat": "-27.481553500",
+    "lng": "-58.799026500"
+  },
+  {
+    "id": 8382,
+    "nombre": "Agencia Itati Corrientes",
+    "direccion": "Av. 25 de Mayo entre Manuel Belgrano y San Luis ",
+    "localidad": "Itati",
+    "provincia": "Corrientes",
+    "cp": 3414,
+    "lat": "-27.271606600",
+    "lng": "-58.245478300"
+  },
+  {
+    "id": 8383,
+    "nombre": "Agencia Turdera",
+    "direccion": "Hipolito Yrigoyen Nro.11316",
+    "localidad": "Turdera",
+    "provincia": "Buenos Aires",
+    "cp": 1833,
+    "lat": "-34.789579600",
+    "lng": "-58.410832800"
+  },
+  {
+    "id": 8384,
+    "nombre": "Agencia Lomas de Zamora - Av. Larroque",
+    "direccion": "Almafuerte 1279",
+    "localidad": "Lomas de Zamora",
+    "provincia": "Buenos Aires",
+    "cp": 1834,
+    "lat": "-34.743913400",
+    "lng": "-58.411785300"
+  },
+  {
+    "id": 8387,
+    "nombre": "Agencia Berrotaran",
+    "direccion": "Rogelio Martinez Nro.2066",
+    "localidad": "Berrotaran",
+    "provincia": "Cordoba",
+    "cp": 5817,
+    "lat": "-32.447724700",
+    "lng": "-64.407008300"
+  },
+  {
+    "id": 8389,
+    "nombre": "Via Cargo Ingeniero Maschwitz",
+    "direccion": "Colectora Este Nro 1517",
+    "localidad": "Ingeniero Maschwitz",
+    "provincia": "Buenos Aires",
+    "cp": 1623,
+    "lat": "-34.388215500",
+    "lng": "-58.744764600"
+  },
+  {
+    "id": 8390,
+    "nombre": "Agencia Firmat ",
+    "direccion": "Monteagudo 1270",
+    "localidad": "Firmat",
+    "provincia": "Santa Fe",
+    "cp": 2630,
+    "lat": "-33.470234000",
+    "lng": "-61.488773000"
+  },
+  {
+    "id": 8398,
+    "nombre": "Terminal de San Antonio - Local 1",
+    "direccion": "Ruta Nacional Nº101 km 32 ",
+    "localidad": "San Antonio (MIS)",
+    "provincia": "Misiones",
+    "cp": 3366,
+    "lat": "-26.060477000",
+    "lng": "-53.741805000"
+  },
+  {
+    "id": 8400,
+    "nombre": "Agencia Colonia Delicia",
+    "direccion": "Av. Jose Invernizzi",
+    "localidad": "Colonia Delicia ",
+    "provincia": "Misiones",
+    "cp": 3382,
+    "lat": "-26.236314800",
+    "lng": "-54.603527000"
+  },
+  {
+    "id": 8401,
+    "nombre": "Agencia Corrientes - Centro",
+    "direccion": "Mendoza Nro.1412",
+    "localidad": "CORRIENTES - CENTRO H/ 50 KG",
+    "provincia": "Corrientes",
+    "cp": 3402,
+    "lat": "-27.473444700",
+    "lng": "-58.838866800"
+  },
+  {
+    "id": 8402,
+    "nombre": "Agencia Villa Ballester",
+    "direccion": "Sargento Cabral Nro.2613",
+    "localidad": "Villa Ballester",
+    "provincia": "Buenos Aires",
+    "cp": 1653,
+    "lat": "-34.540771000",
+    "lng": "-58.563724300"
+  },
+  {
+    "id": 8403,
+    "nombre": "Terminal de Roque Saenz Peña - Local 22",
+    "direccion": "Calle 304 S/N",
+    "localidad": "Roque Saenz Peña",
+    "provincia": "Chaco",
+    "cp": 3700,
+    "lat": "-26.786842300",
+    "lng": "-60.430248200"
+  },
+  {
+    "id": 8412,
+    "nombre": "Agencia Tupungato - Mendoza",
+    "direccion": "Santiago de Liniers S/N",
+    "localidad": "Tupungato",
+    "provincia": "Mendoza",
+    "cp": 5561,
+    "lat": "-33.376415900",
+    "lng": "-69.151627300"
+  },
+  {
+    "id": 8413,
+    "nombre": "Agencia Rufino - Presidente Perón 511",
+    "direccion": "Presidente Perón 511",
+    "localidad": "Rufino",
+    "provincia": "Santa Fe",
+    "cp": 6100,
+    "lat": "-34.266867000",
+    "lng": "-62.702709800"
+  },
+  {
+    "id": 8415,
+    "nombre": "Agencia Saladas - Corrientes",
+    "direccion": "25 de Mayo Nro.1110",
+    "localidad": "Saladas(CRT)",
+    "provincia": "Corrientes",
+    "cp": 3420,
+    "lat": "-28.253796800",
+    "lng": "-58.625651200"
+  },
+  {
+    "id": 8419,
+    "nombre": "Agencia Morteros - Cordoba",
+    "direccion": "Bv. Juan Domingo Peron Nro.547",
+    "localidad": "Morteros (CBA)",
+    "provincia": "Cordoba",
+    "cp": 2421,
+    "lat": "-30.716472500",
+    "lng": "-62.010357900"
+  },
+  {
+    "id": 8420,
+    "nombre": "Terminal de Santa Rosa de Calamuchita - Local 8",
+    "direccion": "Av. Int. A. Llanos S/N",
+    "localidad": "Santa Rosa de Calamuchita",
+    "provincia": "Cordoba",
+    "cp": 5196,
+    "lat": "-32.073966200",
+    "lng": "-64.533649900"
+  },
+  {
+    "id": 8423,
+    "nombre": "Agencia Bella Vista ",
+    "direccion": "Av. Presidente Arturo Illia 1701",
+    "localidad": "Bella Vista",
+    "provincia": "Buenos Aires",
+    "cp": 1661,
+    "lat": "-34.548517000",
+    "lng": "-58.679868100"
+  },
+  {
+    "id": 8424,
+    "nombre": "Agencia Villa Ojo de Agua",
+    "direccion": "Juan Domingo Peron 662",
+    "localidad": "Villa Ojo de Agua",
+    "provincia": "Santiago del Estero",
+    "cp": 5250,
+    "lat": "-29.501279000",
+    "lng": "-63.691553500"
+  },
+  {
+    "id": 8425,
+    "nombre": "Agencia El Maiten - Local 1 - Chubut",
+    "direccion": "Berutti 470",
+    "localidad": "El Maiten",
+    "provincia": "Chubut",
+    "cp": 9210,
+    "lat": "-42.050512800",
+    "lng": "-71.187410400"
+  },
+  {
+    "id": 8426,
+    "nombre": "Terminal de Dolores - Local 3",
+    "direccion": "B. Robecco 202",
+    "localidad": "Dolores",
+    "provincia": "Buenos Aires",
+    "cp": 7100,
+    "lat": "-36.319796200",
+    "lng": "-57.695864800"
+  },
+  {
+    "id": 8427,
+    "nombre": "Agencia Tilisarao - San Luis",
+    "direccion": "Av. Centenario 700",
+    "localidad": "Tilisarao",
+    "provincia": "San Luis",
+    "cp": 5773,
+    "lat": "-32.736303300",
+    "lng": "-65.289131500"
+  },
+  {
+    "id": 8431,
+    "nombre": "Agencia Parque San Martin",
+    "direccion": "Echeverry 669",
+    "localidad": "Parque San Martin (Merlo)",
+    "provincia": "Buenos Aires",
+    "cp": 1721,
+    "lat": "-34.700860000",
+    "lng": "-58.747150000"
+  },
+  {
+    "id": 8435,
+    "nombre": "Agencia Garuhape - Misiones",
+    "direccion": "Av. Los Colonos Nº200",
+    "localidad": "Garuhape",
+    "provincia": "Misiones",
+    "cp": 3334,
+    "lat": "-26.822716300",
+    "lng": "-54.959209000"
+  },
+  {
+    "id": 8436,
+    "nombre": "Agencia Presidencia de la Plaza",
+    "direccion": "Ruta 16 km 115",
+    "localidad": "Presidencia de la Plaza",
+    "provincia": "Chaco",
+    "cp": 3536,
+    "lat": "-27.004474200",
+    "lng": "-59.857074100"
+  },
+  {
+    "id": 8442,
+    "nombre": "Agencia Bariloche - Terminal - Local 11 y 12",
+    "direccion": "12 de Octubre 2400",
+    "localidad": "Bariloche",
+    "provincia": "Rio Negro",
+    "cp": 8400,
+    "lat": "-41.130368900",
+    "lng": "-71.274544100"
+  },
+  {
+    "id": 8444,
+    "nombre": "Terminal de Pinamar - Local 6",
+    "direccion": "Calle Bunge y Jasón S/N",
+    "localidad": "Pinamar Terminal",
+    "provincia": "Buenos Aires",
+    "cp": 7167,
+    "lat": "-37.107226000",
+    "lng": "-56.879427800"
+  },
+  {
+    "id": 8445,
+    "nombre": "Agencia Via Cargo - Neuquen",
+    "direccion": "J. Julian Lastra y Pampa ",
+    "localidad": "Neuquen",
+    "provincia": "Neuquen",
+    "cp": 8300,
+    "lat": "-38.959744900",
+    "lng": "-68.064956600"
+  },
+  {
+    "id": 8449,
+    "nombre": "Agencia Santiago del Estero",
+    "direccion": "Independencia 1120",
+    "localidad": "Santiago del Estero",
+    "provincia": "Santiago del Estero",
+    "cp": 4200,
+    "lat": "-27.798262700",
+    "lng": "-64.248988900"
+  },
+  {
+    "id": 8452,
+    "nombre": "Terminal de San Martin de los Andes - Local 1 y 2",
+    "direccion": "Gral. Villegas 251 - Local 1 y 2",
+    "localidad": "San Martin de los Andes",
+    "provincia": "Neuquen",
+    "cp": 8370,
+    "lat": "-40.160620000",
+    "lng": "-71.357540000"
+  },
+  {
+    "id": 8453,
+    "nombre": "Agencia Lanus Este",
+    "direccion": "Gral. Madariaga 1715",
+    "localidad": "Lanus",
+    "provincia": "Buenos Aires",
+    "cp": 1824,
+    "lat": "-34.712479900",
+    "lng": "-58.378458100"
+  },
+  {
+    "id": 8457,
+    "nombre": "Terminal de San Jose de la Dormida",
+    "direccion": "Sarmiento S/N Aprox. 149",
+    "localidad": "San Jose de la Dormida",
+    "provincia": "Cordoba",
+    "cp": 5244,
+    "lat": "-30.358762400",
+    "lng": "-63.953498900"
+  },
+  {
+    "id": 8458,
+    "nombre": "Agencia Comandante Andresito",
+    "direccion": "Av. Uruguay y Ecuador S/N",
+    "localidad": "Comandante Andresito",
+    "provincia": "Misiones",
+    "cp": 3385,
+    "lat": "-25.672300000",
+    "lng": "-54.054000000"
+  },
+  {
+    "id": 8460,
+    "nombre": "Agencia San Martin ",
+    "direccion": "Moreno 3596",
+    "localidad": "San Martin",
+    "provincia": "Buenos Aires",
+    "cp": 1650,
+    "lat": "-34.577300000",
+    "lng": "-58.534860000"
+  },
+  {
+    "id": 8462,
+    "nombre": "Terminal de Santa Isabel - Local 6",
+    "direccion": "Ruta Nacional 143 S/N",
+    "localidad": "Santa Isabel",
+    "provincia": "La Pampa",
+    "cp": 6323,
+    "lat": "-36.233469000",
+    "lng": "-66.936103000"
+  },
+  {
+    "id": 8463,
+    "nombre": "Agencia Hudson - Buenos Aires",
+    "direccion": "Calle 53 Nro. 2088 Esquina 121",
+    "localidad": "Hudson(BUE)",
+    "provincia": "Buenos Aires",
+    "cp": 1885,
+    "lat": "-34.814893500",
+    "lng": "-58.194450500"
+  },
+  {
+    "id": 8464,
+    "nombre": "Agencia Coronel Suarez - Buenos Aires",
+    "direccion": "Dr. Arturo Illia Nro.1204",
+    "localidad": "CORONEL SUAREZ(BUE)",
+    "provincia": "Buenos Aires",
+    "cp": 7540,
+    "lat": "-37.475723000",
+    "lng": "-61.951623000"
+  },
+  {
+    "id": 8465,
+    "nombre": "Reconquista",
+    "direccion": "Patricio Diez Nro.1060",
+    "localidad": "Reconquista",
+    "provincia": "Santa Fe",
+    "cp": 3560,
+    "lat": "-29.143686400",
+    "lng": "-59.651864600"
+  },
+  {
+    "id": 8467,
+    "nombre": "Terminal de Villa de Soto - Local 2",
+    "direccion": "Jose Ignacio Peralta Nro.304",
+    "localidad": "Villa de Soto",
+    "provincia": "Cordoba",
+    "cp": 5284,
+    "lat": "-30.856125500",
+    "lng": "-64.988255800"
+  },
+  {
+    "id": 8469,
+    "nombre": "Terminal de Colon - Buenos Aires",
+    "direccion": "Boulevar 50 y Ruta 8",
+    "localidad": "Colon (BUE)",
+    "provincia": "Buenos Aires",
+    "cp": 2720,
+    "lat": "-33.905444600",
+    "lng": "-61.111378900"
+  },
+  {
+    "id": 8470,
+    "nombre": "Agencia Villa Cura Brochero",
+    "direccion": "Hipolito Irigoyen Nro.36",
+    "localidad": "Villa Cura Brochero",
+    "provincia": "Cordoba",
+    "cp": 5891,
+    "lat": "-31.705830900",
+    "lng": "-65.018503900"
+  },
+  {
+    "id": 8472,
+    "nombre": "Agencia Vicuña Mackenna ",
+    "direccion": "9 de Julio 363",
+    "localidad": "Vicuña Mackenna",
+    "provincia": "Cordoba",
+    "cp": 6140,
+    "lat": "-33.913407400",
+    "lng": "-64.390390000"
+  },
+  {
+    "id": 8473,
+    "nombre": "Terminal de Santiago del Estero - Local 32",
+    "direccion": "Chacabuco 355",
+    "localidad": "Santiago del Estero",
+    "provincia": "Santiago del Estero",
+    "cp": 4200,
+    "lat": "-27.780624200",
+    "lng": "-64.268087200"
+  },
+  {
+    "id": 8475,
+    "nombre": "Terminal de San Andres de Giles - Boleteria 1 y 2 - Local 4",
+    "direccion": "Av. Campora y Calle Pichetto",
+    "localidad": "San Andrés de Giles (BA)",
+    "provincia": "Buenos Aires",
+    "cp": 6720,
+    "lat": "-34.450421500",
+    "lng": "-59.452427400"
+  },
+  {
+    "id": 8476,
+    "nombre": "Terminal de Venado Tuerto - Local 2",
+    "direccion": "Quintana Nro.845",
+    "localidad": "Venado Tuerto",
+    "provincia": "Santa Fe",
+    "cp": 2600,
+    "lat": "-33.735967200",
+    "lng": "-61.975388300"
+  },
+  {
+    "id": 8477,
+    "nombre": "Terminal de Villa Dolores",
+    "direccion": "Luis Laje Nro.652-798",
+    "localidad": "Villa Dolores",
+    "provincia": "Cordoba",
+    "cp": 5870,
+    "lat": "-31.954308300",
+    "lng": "-65.187196100"
+  },
+  {
+    "id": 8478,
+    "nombre": "Agencia Arias ",
+    "direccion": "Av. San Martin Nro.1126",
+    "localidad": "Arias",
+    "provincia": "Cordoba",
+    "cp": 2624,
+    "lat": "-33.643427800",
+    "lng": "-62.406090500"
+  },
+  {
+    "id": 8481,
+    "nombre": "Terminal de Embalse - Local 11",
+    "direccion": "Hipólito Irigoyen Nº860 ",
+    "localidad": "Embalse",
+    "provincia": "Cordoba",
+    "cp": 5856,
+    "lat": "-32.195701900",
+    "lng": "-64.405082800"
+  },
+  {
+    "id": 8483,
+    "nombre": "Terminal de San Rafael Local 6",
+    "direccion": "Av. Gral. Paz y Granaderos",
+    "localidad": "San Rafael",
+    "provincia": "Mendoza",
+    "cp": 5600,
+    "lat": "-34.606173300",
+    "lng": "-68.329681200"
+  },
+  {
+    "id": 8484,
+    "nombre": "Terminal de Gral. Alvear - Local 5",
+    "direccion": "Intendente Morales Nro 57 ",
+    "localidad": "General Alvear (MDZ)",
+    "provincia": "Mendoza",
+    "cp": 5620,
+    "lat": "-34.875230000",
+    "lng": "-67.199250000"
+  },
+  {
+    "id": 8485,
+    "nombre": "Terminal de Villa Atuel - Local 1",
+    "direccion": "Godoy Cruz y 9 de Julio ",
+    "localidad": "Villa Atuel",
+    "provincia": "Mendoza",
+    "cp": 5622,
+    "lat": "-34.834055200",
+    "lng": "-67.925395600"
+  },
+  {
+    "id": 8486,
+    "nombre": "Agencia de San Carlos - Mendoza",
+    "direccion": "Ruta 40 y Bernardo Quiroga ",
+    "localidad": "San Carlos",
+    "provincia": "Mendoza",
+    "cp": 5569,
+    "lat": "-33.778255800",
+    "lng": "-69.060848000"
+  },
+  {
+    "id": 8496,
+    "nombre": "Agencia Fernandez Oro - Local 2",
+    "direccion": "Cipolletti Nro.1377 entre Uruguay y Chile",
+    "localidad": "Fernandez Oro",
+    "provincia": "Rio Negro",
+    "cp": 8325,
+    "lat": "-38.942703900",
+    "lng": "-67.990383600"
+  },
+  {
+    "id": 8497,
+    "nombre": "Agencia Rosario - SG",
+    "direccion": "Jujuy Nro. 3234",
+    "localidad": "Rosario",
+    "provincia": "Santa Fe",
+    "cp": 2000,
+    "lat": "-32.933013400",
+    "lng": "-60.665490200"
+  },
+  {
+    "id": 8498,
+    "nombre": "Agencia Garupa - Misiones",
+    "direccion": "Calle Guembe y Colectora (Aceso Sur)",
+    "localidad": "Garupa",
+    "provincia": "Misiones",
+    "cp": 3304,
+    "lat": "-27.451282600",
+    "lng": "-55.859842900"
+  },
+  {
+    "id": 8500,
+    "nombre": "Agencia Rio Primero - Cordoba",
+    "direccion": "San Martin Nro.242",
+    "localidad": "Rio Primero",
+    "provincia": "Cordoba",
+    "cp": 5127,
+    "lat": "-31.329717500",
+    "lng": "-63.623150200"
+  },
+  {
+    "id": 8501,
+    "nombre": "Agencia Justo Daract - San Luis",
+    "direccion": "Av. Hipolito Yrigoyen 829",
+    "localidad": "Justo Daract",
+    "provincia": "San Luis",
+    "cp": 5738,
+    "lat": "-33.861258300",
+    "lng": "-65.178431600"
+  },
+  {
+    "id": 8502,
+    "nombre": "Via Cargo San Salvador de Jujuy",
+    "direccion": "Cotagaita Esquina Guayaquil B° Coronel Arias ",
+    "localidad": "San Salvador de Jujuy",
+    "provincia": "Jujuy",
+    "cp": 4607,
+    "lat": "-24.211902400",
+    "lng": "-65.283873700"
+  },
+  {
+    "id": 8503,
+    "nombre": "Agencia Villa Allende - Cordoba",
+    "direccion": "Saavedra Nro.225",
+    "localidad": "Villa Allende",
+    "provincia": "Cordoba",
+    "cp": 5105,
+    "lat": "-31.293570400",
+    "lng": "-64.298387400"
+  },
+  {
+    "id": 8508,
+    "nombre": "Terminal de Serrezuela - Local 2",
+    "direccion": "Bernardo Calvo y Ruta 38",
+    "localidad": "Serrezuela",
+    "provincia": "Cordoba",
+    "cp": 5270,
+    "lat": "-30.637274900",
+    "lng": "-65.389051100"
+  },
+  {
+    "id": 8513,
+    "nombre": "TER Santa Ana - MISIONES",
+    "direccion": "Av. San Martin y Andres Guacurari MZ 120",
+    "localidad": "Santa Ana",
+    "provincia": "Misiones",
+    "cp": 3316,
+    "lat": "-27.369770000",
+    "lng": "-55.580880000"
+  },
+  {
+    "id": 8515,
+    "nombre": "Agencia 9 de Abril - Buenos Aires",
+    "direccion": "Camino de Cintura 6835 (Ruta 4)",
+    "localidad": "9 de Abril",
+    "provincia": "Buenos Aires",
+    "cp": 1776,
+    "lat": "-34.748455000",
+    "lng": "-58.492454500"
+  },
+  {
+    "id": 8516,
+    "nombre": "Agencia Villa del Totoral",
+    "direccion": "Puerto Rico Nro.180",
+    "localidad": "Villa del Totoral",
+    "provincia": "Cordoba",
+    "cp": 5236,
+    "lat": "-30.708489600",
+    "lng": "-64.060213600"
+  },
+  {
+    "id": 8518,
+    "nombre": "Terminal de Avia Terai - Chaco",
+    "direccion": "Calle 12 Esquina 13",
+    "localidad": "Avia Terai",
+    "provincia": "Chaco",
+    "cp": 3706,
+    "lat": "-26.685357300",
+    "lng": "-60.731190100"
+  },
+  {
+    "id": 8521,
+    "nombre": "Agencia Vera - Santa Fe",
+    "direccion": "Av. Arronga 1341",
+    "localidad": "Vera",
+    "provincia": "Santa Fe",
+    "cp": 3550,
+    "lat": "-29.470025000",
+    "lng": "-60.205085000"
+  },
+  {
+    "id": 8524,
+    "nombre": "Terminal de Omnibus Coronel Du Graty - Local 5 y 6",
+    "direccion": "Diagonal Sur Nº413",
+    "localidad": "Coronel Du Graty",
+    "provincia": "Chaco",
+    "cp": 3541,
+    "lat": "-27.686924000",
+    "lng": "-60.909891800"
+  },
+  {
+    "id": 8526,
+    "nombre": "Agencia Corrientes Aconcagua",
+    "direccion": "Aconcagua 2880",
+    "localidad": "Corrientes",
+    "provincia": "Corrientes",
+    "cp": 3400,
+    "lat": "-27.499458100",
+    "lng": "-58.820238200"
+  },
+  {
+    "id": 8527,
+    "nombre": "Terminal de Omnibus La Carlota - Boleteria 4",
+    "direccion": "José B. Lagos 550",
+    "localidad": "La Carlota",
+    "provincia": "Cordoba",
+    "cp": 2670,
+    "lat": "-33.412735000",
+    "lng": "-63.291409100"
+  },
+  {
+    "id": 8529,
+    "nombre": "Agencia Matheu",
+    "direccion": "Ruta 25 esquina Rivadavia",
+    "localidad": "Matheu",
+    "provincia": "Buenos Aires",
+    "cp": 1627,
+    "lat": "-34.386981400",
+    "lng": "-58.830998100"
+  },
+  {
+    "id": 8532,
+    "nombre": "Agencia Colon - Entre Rios",
+    "direccion": "San Martin 1150",
+    "localidad": "Colon (ENT)",
+    "provincia": "Entre Rios",
+    "cp": 3280,
+    "lat": "-32.230970200",
+    "lng": "-58.156493500"
+  },
+  {
+    "id": 8534,
+    "nombre": "Agencia Roque Perez - Colectora",
+    "direccion": "Ruta Nacional 205 KM 133.500 Colectora",
+    "localidad": "Roque Perez",
+    "provincia": "Buenos Aires",
+    "cp": 7245,
+    "lat": "-35.371975300",
+    "lng": "-59.360528500"
+  },
+  {
+    "id": 8538,
+    "nombre": "Agencia Via Cargo Boulogne - Av. Rolon",
+    "direccion": "Av. Avelino Rolon Nº983",
+    "localidad": "Boulogne",
+    "provincia": "Buenos Aires",
+    "cp": 1609,
+    "lat": "-34.499656000",
+    "lng": "-58.557765000"
+  },
+  {
+    "id": 8542,
+    "nombre": "Agencia Villa Constitucion",
+    "direccion": "Sarmiento 1004 Esquina Eva Peron",
+    "localidad": "Villa Constitucion",
+    "provincia": "Santa Fe",
+    "cp": 2919,
+    "lat": "-33.225345200",
+    "lng": "-60.332229900"
+  },
+  {
+    "id": 8543,
+    "nombre": "Reparto a domicilios - Campana",
+    "direccion": "Juan Bautista Alberdi 1280",
+    "localidad": "Campana",
+    "provincia": "Buenos Aires",
+    "cp": 2804,
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": 8544,
+    "nombre": "Terminal de Colonia Dora",
+    "direccion": "Corrientes y Suipacha",
+    "localidad": "Colonia Dora",
+    "provincia": "Santiago del Estero",
+    "cp": 4332,
+    "lat": "-28.602434000",
+    "lng": "-62.949604000"
+  },
+  {
+    "id": 8545,
+    "nombre": "Agencia Libertador General San Martín ",
+    "direccion": "Avenida 9 de Julio N° 352 B° Centro ",
+    "localidad": "Libertador General San Martin",
+    "provincia": "Jujuy",
+    "cp": 4512,
+    "lat": "-23.820192300",
+    "lng": "-64.798381800"
+  },
+  {
+    "id": 8547,
+    "nombre": "Agencia Empedrado - Corrientes",
+    "direccion": "Ruta Nac 12 y Piragini Niveyro Acceso Empedrado",
+    "localidad": "Empedrado",
+    "provincia": "Corrientes",
+    "cp": 3418,
+    "lat": "-27.942450400",
+    "lng": "-58.793837700"
+  },
+  {
+    "id": 8549,
+    "nombre": "Terminal de Monte Quemado - Local 5",
+    "direccion": "Av. las Heras entre luis Pasteur y Francisco de Ag",
+    "localidad": "Monte Quemado",
+    "provincia": "Santiago del Estero",
+    "cp": 3714,
+    "lat": "-25.810521800",
+    "lng": "-62.832559000"
+  },
+  {
+    "id": 8551,
+    "nombre": "Agencia La Punta - San Luis",
+    "direccion": "Mza 140 Lote 10 - Local 2",
+    "localidad": "La Punta",
+    "provincia": "San Luis",
+    "cp": 5710,
+    "lat": "-33.182833000",
+    "lng": "-66.313413000"
+  },
+  {
+    "id": 8552,
+    "nombre": "Agencia Luis Beltran - Rio Negro",
+    "direccion": "Av. Belgrano 767",
+    "localidad": "Luis Beltran",
+    "provincia": "Rio Negro",
+    "cp": 8361,
+    "lat": "-39.310853100",
+    "lng": "-65.756513100"
+  },
+  {
+    "id": 8553,
+    "nombre": "Agencia Via Cargo Haedo",
+    "direccion": "Av. Rivadavia 15636",
+    "localidad": "Haedo",
+    "provincia": "Buenos Aires",
+    "cp": 1706,
+    "lat": "-34.644186100",
+    "lng": "-58.589227600"
+  },
+  {
+    "id": 8555,
+    "nombre": "Agencia Caucete - San Juan",
+    "direccion": "Urquiza 597",
+    "localidad": "Caucete",
+    "provincia": "San Juan",
+    "cp": 5442,
+    "lat": "-31.653597400",
+    "lng": "-68.278591800"
+  },
+  {
+    "id": 8558,
+    "nombre": "Agencia Gobernador Roca - Misiones",
+    "direccion": "Av. San Martin S/N entre Casimiro y America",
+    "localidad": "Gobernador Roca",
+    "provincia": "Misiones",
+    "cp": 3324,
+    "lat": "-27.195752600",
+    "lng": "-55.478014300"
+  },
+  {
+    "id": 8560,
+    "nombre": "Agencia Parque Leloir",
+    "direccion": "Presidente Perón Nº8010",
+    "localidad": "Parque Leloir",
+    "provincia": "Buenos Aires",
+    "cp": 1713,
+    "lat": "-34.631036700",
+    "lng": "-58.680208500"
+  },
+  {
+    "id": 8568,
+    "nombre": "Agencia San Francisco - Cordoba",
+    "direccion": "Av. Rosario de Santa Fe 2155",
+    "localidad": "San Francisco",
+    "provincia": "Cordoba",
+    "cp": 2400,
+    "lat": "-31.415826000",
+    "lng": "-62.087042000"
+  },
+  {
+    "id": 8570,
+    "nombre": "Terminal de Despeñaderos - Local 4",
+    "direccion": "Av. Rodriguez Peña 250",
+    "localidad": "Despeñaderos",
+    "provincia": "Cordoba",
+    "cp": 5121,
+    "lat": "-31.814893000",
+    "lng": "-64.292490500"
+  },
+  {
+    "id": 8572,
+    "nombre": "Terminal de Hermoso Campo - Local 4",
+    "direccion": "Av. Leandro Alem ",
+    "localidad": "Hermoso Campo",
+    "provincia": "Chaco",
+    "cp": 3733,
+    "lat": "-27.608238500",
+    "lng": "-61.346586800"
+  },
+  {
+    "id": 8573,
+    "nombre": "Agencia Lanus Oeste",
+    "direccion": "Aristobulo del Valle 1594",
+    "localidad": "Lanus",
+    "provincia": "Buenos Aires",
+    "cp": 1824,
+    "lat": "-34.703539100",
+    "lng": "-58.414405400"
+  },
+  {
+    "id": 8574,
+    "nombre": "Agencia Paso del Rey",
+    "direccion": "Bartolome Mitre 401 esquina Asconape",
+    "localidad": "Paso del Rey",
+    "provincia": "Buenos Aires",
+    "cp": 1742,
+    "lat": "-34.657538900",
+    "lng": "-58.759670100"
+  },
+  {
+    "id": 8575,
+    "nombre": "Agencia Via Cargo Tandil - Espora",
+    "direccion": "Espora 1315",
+    "localidad": "Tandil",
+    "provincia": "Buenos Aires",
+    "cp": 7000,
+    "lat": "-37.312759400",
+    "lng": "-59.117598300"
+  },
+  {
+    "id": 8576,
+    "nombre": "Agencia Bariloche - Pioneros",
+    "direccion": "Avenida Pioneros 4100 del Barrio Melipal",
+    "localidad": "Bariloche",
+    "provincia": "Rio Negro",
+    "cp": 8400,
+    "lat": "-41.132139700",
+    "lng": "-71.360726900"
+  },
+  {
+    "id": 8578,
+    "nombre": "Agencia Via cargo - Posadas - San Martin",
+    "direccion": "Calle San Martin 1560",
+    "localidad": "Posadas",
+    "provincia": "Misiones",
+    "cp": 3300,
+    "lat": "-27.366322600",
+    "lng": "-55.890876530"
+  },
+  {
+    "id": 8582,
+    "nombre": "Via Cargo Oran - Segundo Sombras",
+    "direccion": "Segundo Sombras 1325",
+    "localidad": "Oran",
+    "provincia": "Salta",
+    "cp": 4530,
+    "lat": "-23.154327300",
+    "lng": "-64.318905200"
+  },
+  {
+    "id": 8583,
+    "nombre": "Agencia Cordoba - Gral. Paz",
+    "direccion": "Gral. Paz 3175",
+    "localidad": "Cordoba",
+    "provincia": "Cordoba",
+    "cp": 5000,
+    "lat": "-31.378548100",
+    "lng": "-64.177379300"
+  },
+  {
+    "id": 8584,
+    "nombre": "Agencia Sarandi",
+    "direccion": "Avenida Mitre 2881",
+    "localidad": "Sarandi",
+    "provincia": "Buenos Aires",
+    "cp": 1872,
+    "lat": "-34.679316100",
+    "lng": "-58.346200500"
+  },
+  {
+    "id": 8585,
+    "nombre": "Agencia Tristan Suarez - Sarmiento",
+    "direccion": "Sarmiento 360",
+    "localidad": "Tristan Suarez",
+    "provincia": "Buenos Aires",
+    "cp": 1806,
+    "lat": "-34.892110000",
+    "lng": "-58.570497000"
+  },
+  {
+    "id": 8586,
+    "nombre": "Agencia Merlo - Presidente Peron",
+    "direccion": "Presidente Peron 25300",
+    "localidad": "Merlo",
+    "provincia": "Buenos Aires",
+    "cp": 1722,
+    "lat": "-34.665464000",
+    "lng": "-58.723267400"
+  },
+  {
+    "id": 8587,
+    "nombre": "Terminal de Machachin - La Pampa",
+    "direccion": "Jujuy 375",
+    "localidad": "Macachin",
+    "provincia": "La Pampa",
+    "cp": 6307,
+    "lat": "-37.133848000",
+    "lng": "-63.666496200"
+  },
+  {
+    "id": 8588,
+    "nombre": "Terminal de Carhue",
+    "direccion": "Razquin Nº600",
+    "localidad": "Carhue (BA)",
+    "provincia": "Buenos Aires",
+    "cp": 6430,
+    "lat": "-37.180174000",
+    "lng": "-62.752160700"
+  },
+  {
+    "id": 8593,
+    "nombre": "Agencia Avellaneda - España 152",
+    "direccion": "España 152",
+    "localidad": "Avellaneda",
+    "provincia": "Buenos Aires",
+    "cp": 1870,
+    "lat": "-34.661888500",
+    "lng": "-58.369646900"
+  },
+  {
+    "id": 8596,
+    "nombre": "Terminal de Pichanal - Boleteria 5 y 8",
+    "direccion": "Barrio Islas Malvinas",
+    "localidad": "Pichanal",
+    "provincia": "Salta",
+    "cp": 4534,
+    "lat": "-23.313960000",
+    "lng": "-64.226156000"
+  },
+  {
+    "id": 8599,
+    "nombre": "Agencia Via Cargo Saladillo",
+    "direccion": "Av. Bozàn 2515",
+    "localidad": "SALADILLO (BUE)",
+    "provincia": "Buenos Aires",
+    "cp": 7260,
+    "lat": "-35.636514200",
+    "lng": "-59.770411500"
+  },
+  {
+    "id": 8601,
+    "nombre": "Agencia Via Cargo - San Jose - Entre Rios",
+    "direccion": "Dr. Luis Cettour Nº2169",
+    "localidad": "San Jose (ER)",
+    "provincia": "Entre Rios",
+    "cp": 3283,
+    "lat": "-32.207215200",
+    "lng": "-58.215132400"
+  },
+  {
+    "id": 8602,
+    "nombre": "Agencia Puerto Iguazu - Obispo Angelelli",
+    "direccion": "Obispo Angelelli entre Feliz Bogado y Tomas Rocamo",
+    "localidad": "Puerto Iguazu",
+    "provincia": "Misiones",
+    "cp": 3370,
+    "lat": "-25.615648300",
+    "lng": "-54.572113000"
+  },
+  {
+    "id": 8604,
+    "nombre": "Agencia Florencio Varela - Cruce 1",
+    "direccion": "Av. Calchaqui 482",
+    "localidad": "Florencio Varela",
+    "provincia": "Buenos Aires",
+    "cp": 1887,
+    "lat": "-34.778047500",
+    "lng": "-58.263511500"
+  },
+  {
+    "id": 8605,
+    "nombre": "Agencia Baradero",
+    "direccion": "San Martin 2998",
+    "localidad": "Baradero",
+    "provincia": "Buenos Aires",
+    "cp": 1663,
+    "lat": "-33.823623900",
+    "lng": "-59.516588400"
+  },
+  {
+    "id": 8606,
+    "nombre": "Agencia Guernica",
+    "direccion": "Av.  Hipólito Yrigoyen 23768",
+    "localidad": "Guernica",
+    "provincia": "Buenos Aires",
+    "cp": 1862,
+    "lat": "-34.915294800",
+    "lng": "-58.385444700"
+  },
+  {
+    "id": 8607,
+    "nombre": "Agencia San Fernando del Valle - Catamarca",
+    "direccion": "Av. Guemes 856",
+    "localidad": "Catamarca",
+    "provincia": "Catamarca",
+    "cp": 4700,
+    "lat": "-28.475701800",
+    "lng": "-65.777302400"
+  },
+  {
+    "id": 8609,
+    "nombre": "Terminal de Villa de las Rosas - Boleteria 1 y 4",
+    "direccion": "Av. San Martin 24",
+    "localidad": "Villa de Las Rosas",
+    "provincia": "Cordoba",
+    "cp": 5885,
+    "lat": "-31.946554800",
+    "lng": "-65.052846700"
+  },
+  {
+    "id": 8610,
+    "nombre": "Agencia Bahia Blanca - Donado",
+    "direccion": "Donado 320",
+    "localidad": "Bahia Blanca",
+    "provincia": "Buenos Aires",
+    "cp": 8000,
+    "lat": "-38.723707400",
+    "lng": "-62.271079500"
+  },
+  {
+    "id": 8613,
+    "nombre": "Agencia Mar del Plata - Constitucion",
+    "direccion": "Av. Constitucion 4545",
+    "localidad": "MAR DEL PLATA - CONSTITUCIÓN",
+    "provincia": "Buenos Aires",
+    "cp": 7600,
+    "lat": "-37.970332700",
+    "lng": "-57.544074100"
+  },
+  {
+    "id": 8615,
+    "nombre": "Agencia Sampacho - Cordoba",
+    "direccion": "General Paz 634",
+    "localidad": "Sampacho (CB)",
+    "provincia": "Cordoba",
+    "cp": 5829,
+    "lat": "-33.385008400",
+    "lng": "-64.723226800"
+  }
+]

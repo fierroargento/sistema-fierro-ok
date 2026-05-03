@@ -640,6 +640,44 @@ def hay_reclamo_generado(pedido):
 
 def normalizar_telefono(raw):
     telefono = "" if raw is None else str(raw).strip()
+# =========================
+# VIA CARGO SIMPLE
+# =========================
+import json
+
+def sugerir_sucursales(pedido):
+    if not getattr(pedido, "localidad", None) or not getattr(pedido, "provincia", None):
+        return None
+    if getattr(pedido, "sucursal_nombre", None):
+        return None
+    try:
+        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except:
+        return None
+    loc = (pedido.localidad or "").lower()
+    prov = (pedido.provincia or "").lower()
+    sucs = [s for s in data if loc in (s.get("localidad","").lower()) and prov in (s.get("provincia","").lower())]
+    if not sucs:
+        return None
+    sucs = sucs[:3]
+    lista = ""
+    for i, s in enumerate(sucs, 1):
+        lista += f"{i}) {s['nombre']}\n{s['direccion']}\n\n"
+    return f"Genial 👍\n\nTe paso sucursales cercanas:\n\n{lista}Decime cuál preferís y despachamos 🚀"
+
+def detectar_sucursal(pedido, mensaje):
+    try:
+        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except:
+        return None
+    texto = (mensaje or "").lower()
+    for s in data:
+        if s.get("nombre","").lower() in texto:
+            return s
+    return None
+
 
     if not telefono:
         return ""
@@ -4223,6 +4261,19 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         return None
 
     texto = ml_texto_mensaje_ml(ultimo)
+
+    # DETECTAR SUCURSAL
+    suc = detectar_sucursal(pedido, texto)
+    if suc and not getattr(pedido, "sucursal_nombre", None):
+        pedido.sucursal_nombre = suc.get("nombre")
+        pedido.direccion = suc.get("direccion")
+        pedido.localidad = suc.get("localidad")
+        pedido.provincia = suc.get("provincia")
+        try:
+            db.session.commit()
+        except:
+            pass
+
     if not texto:
         return None
 
@@ -4262,6 +4313,19 @@ def ia_auto_responder_post_analisis(pedido):
         faltantes = ia_faltantes_pedido(pedido)
         if not faltantes:
             return False, "datos_completos"
+
+        # VIA CARGO AUTOMATICO
+        msg_sucursales = sugerir_sucursales(pedido)
+        if msg_sucursales:
+            try:
+                ml_enviar_mensaje_acordas(pedido, msg_sucursales)
+                pedido.ia_respuesta_sugerida = msg_sucursales
+                pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
+                db.session.commit()
+            except:
+                pass
+            return False, "sucursales_enviadas"
+
         texto = ia_generar_respuesta_faltantes_pedido(pedido)
 
     texto = str(texto or "").strip()
