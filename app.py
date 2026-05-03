@@ -643,34 +643,68 @@ def normalizar_telefono(raw):
 # =========================
 # VIA CARGO SIMPLE
 # =========================
-import json
 
 def sugerir_sucursales(pedido):
+    # si ya eligió sucursal → no sugerir
+    if getattr(pedido, "sucursal_nombre", None):
+        return None
+
     loc = (pedido.localidad or "").lower()
     prov = (pedido.provincia or "").lower()
 
-    # parche CABA / Capital
+    # normalización CABA
     if loc in ["caba", "capital federal", "buenos aires"]:
         prov = "buenos aires"
 
     if not loc:
-    return None    if getattr(pedido, "sucursal_nombre", None):
         return None
+
     try:
         with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
             data = json.load(f)
     except:
         return None
-    loc = (pedido.localidad or "").lower()
-    prov = (pedido.provincia or "").lower()
-    sucs = [s for s in data if loc in (s.get("localidad","").lower()) and prov in (s.get("provincia","").lower())]
+
+    sucs = [
+        s for s in data
+        if loc in (s.get("localidad", "").lower())
+        and prov in (s.get("provincia", "").lower())
+    ]
+
     if not sucs:
         return None
+
     sucs = sucs[:3]
+
     lista = ""
     for i, s in enumerate(sucs, 1):
-        lista += f"{i}) {s['nombre']}\n{s['direccion']}\n\n"
-    return f"Genial 👍\n\nTe paso sucursales cercanas:\n\n{lista}Decime cuál preferís y despachamos 🚀"
+        nombre = s.get("nombre") or "Sucursal"
+        direccion = s.get("direccion") or ""
+        lista += f"{i}) {nombre}\n{direccion}\n\n"
+
+    return (
+        "Genial 👍\n\n"
+        "Te paso sucursales cercanas:\n\n"
+        f"{lista}"
+        "Decime cuál preferís y despachamos 🚀"
+    )
+
+
+def detectar_sucursal(pedido, mensaje):
+    try:
+        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except:
+        return None
+
+    texto = (mensaje or "").lower()
+
+    for s in data:
+        nombre = (s.get("nombre") or "").lower()
+        if nombre and nombre in texto:
+            return s
+
+    return None
 
 def detectar_sucursal(pedido, mensaje):
     try:
