@@ -651,7 +651,7 @@ def sugerir_sucursales(pedido):
 
     # parche CABA / Capital
     if loc in ["caba", "capital federal", "buenos aires"]:
-    prov = "buenos aires"
+        prov = "buenos aires"
 
     if not loc:
     return None    if getattr(pedido, "sucursal_nombre", None):
