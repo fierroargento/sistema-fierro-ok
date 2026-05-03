@@ -139,6 +139,11 @@ class Pedido(db.Model):
     ia_faltantes = db.Column(db.Text)
     ia_resumen = db.Column(db.Text)
     ia_requiere_operador = db.Column(db.Boolean, default=False)
+    # WhatsApp Bot
+    wa_estado            = db.Column(db.String(100))
+    wa_ultimo_contacto   = db.Column(db.DateTime)
+    wa_recordatorio_1    = db.Column(db.Boolean, default=False)
+    wa_recordatorio_2    = db.Column(db.Boolean, default=False)
     ia_ultimo_mensaje_hash = db.Column(db.String(80))
     ia_ultimo_analisis = db.Column(db.DateTime)
     ia_error = db.Column(db.Text)
@@ -408,6 +413,10 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ia_faltantes", "TEXT")
     asegurar_columna_si_no_existe("ia_resumen", "TEXT")
     asegurar_columna_si_no_existe("ia_requiere_operador", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("wa_estado", "VARCHAR(100)")
+    asegurar_columna_si_no_existe("wa_ultimo_contacto", "DATETIME")
+    asegurar_columna_si_no_existe("wa_recordatorio_1", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("wa_recordatorio_2", "BOOLEAN DEFAULT FALSE")
     asegurar_columna_si_no_existe("ia_ultimo_mensaje_hash", "VARCHAR(80)")
     asegurar_columna_si_no_existe("ia_ultimo_analisis", "TIMESTAMP")
     asegurar_columna_si_no_existe("ia_error", "TEXT")
@@ -805,8 +814,9 @@ def sugerir_sucursales(pedido):
                       "ciudad autónoma de buenos aires"] or \
               any(x in prov for x in ["capital federal", "caba", "ciudad autonoma", "ciudad autónoma"])
 
-    # Necesitamos al menos localidad o CP para ubicar al cliente
-    if not loc and not cp and not es_caba:
+    # APB: exigir CP válido antes de ofrecer sucursales
+    # Sin CP el ordenamiento por distancia no es confiable
+    if not cp or not cp.isdigit() or len(cp) < 4:
         return None
 
     try:
@@ -4504,6 +4514,27 @@ def ia_auto_responder_post_analisis(pedido):
             # Si falta elegir sucursal, mandar opciones al cliente.
             es_via_cargo_acordas = es_ml_acordas_entrega(pedido) and not pedido_es_plegable_pp6040(pedido)
             if not es_via_cargo_acordas:
+                # PP6040 (plegable) → cotizar y asignar transporte automáticamente
+                if pedido_es_plegable_pp6040(pedido):
+                    try:
+                        from modules.transportes import asignar_transporte_pedido
+                        ok, msg_transporte = asignar_transporte_pedido(pedido)
+                        if ok:
+                            print(f"[TRANSPORTES] Pedido #{pedido.id}: {msg_transporte}")
+                            # Avisar al operador que el transporte fue asignado
+                            pedido.ml_mensajes_pendientes = True
+                            resumen = (pedido.ia_resumen or "").strip()
+                            pedido.ia_resumen = f"{resumen} | {msg_transporte}".strip(" |")
+                            db.session.commit()
+                        else:
+                            # Sin cobertura → escalar al operador
+                            pedido.ml_mensajes_pendientes = True
+                            pedido.ia_requiere_operador = True
+                            resumen = (pedido.ia_resumen or "").strip()
+                            pedido.ia_resumen = f"{resumen} | Sin cobertura transportes CP {pedido.codigo_postal}".strip(" |")
+                            db.session.commit()
+                    except Exception as e:
+                        print(f"[TRANSPORTES] Error asignando transporte pedido #{pedido.id}:", e)
                 return False, "datos_completos"
             msg_sucursales = sugerir_sucursales(pedido)
             if msg_sucursales:
@@ -8289,6 +8320,39 @@ def avanzar_pedido(id):
 
 
 
+
+def ia_llamar_openai_chat(prompt, temperatura=0.4):
+    """
+    Llamada genérica a OpenAI para el bot de WhatsApp.
+    Devuelve el texto de respuesta o lanza excepción.
+    """
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY no configurada")
+
+    modelo = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    payload = {
+        "model": modelo,
+        "messages": [
+            {"role": "system", "content": "Sos el asistente de Fierro 100% Argento. Respondés en español rioplatense, de forma amable y breve."},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": temperatura,
+    }
+    req = Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with urlopen(req, timeout=20) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    return data["choices"][0]["message"]["content"].strip()
+
+
 def asegurar_usuarios_iniciales():
     if UsuarioSistema.query.count() > 0:
         return
@@ -8318,3 +8382,8 @@ with app.app_context():
     asegurar_columnas_integracion_ml()
     asegurar_columnas_integracion_tn()
     asegurar_usuarios_iniciales()
+
+    # ── Módulo WhatsApp Bot ──────────────────────────────────────────
+    # Para activar: configurar WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID
+    # y WHATSAPP_VERIFY_TOKEN en el .env y descomentar la línea siguiente:
+    # from modules.whatsapp import activar; activar(app)
