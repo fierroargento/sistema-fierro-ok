@@ -4586,54 +4586,56 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     texto = ml_texto_mensaje_ml(ultimo)
 
     # DETECTAR SUCURSAL
-    # Si el sistema ya ofreció sucursales y el cliente hace una consulta
-    # en lugar de elegir → escalar al operador para que lo resuelva
-    candidatas_ids_check = []
-    try:
-        candidatas_ids_check = json.loads(getattr(pedido, "ia_sucursales_ofrecidas", "") or "[]")
-    except Exception:
-        pass
-
-    if candidatas_ids_check and texto and _es_consulta_no_eleccion(texto.lower()):
+    # PP6040 va por Andreani/Correo a domicilio → nunca detectar sucursal Via Cargo
+    if not pedido_es_plegable_pp6040(pedido):
+        # Si el sistema ya ofreció sucursales y el cliente hace una consulta
+        # en lugar de elegir → escalar al operador para que lo resuelva
+        candidatas_ids_check = []
         try:
-            pedido.ml_mensajes_pendientes = True
-            pedido.ia_requiere_operador = True
-            resumen = (pedido.ia_resumen or "").strip()
-            pedido.ia_resumen = f"{resumen} | Cliente consultó sobre sucursal: {texto[:100]}".strip(" |")
-            db.session.commit()
-            print(f"[VIA CARGO] Pedido #{pedido.id} escalado: consulta de sucursal no resuelta")
-        except Exception as e:
-            print(f"[VIA CARGO] Error escalando consulta sucursal:", e)
-        return None
-
-    suc = detectar_sucursal(pedido, texto)
-    if suc and not getattr(pedido, "sucursal_nombre", None):
-        pedido.sucursal_nombre = suc.get("nombre")
-        pedido.direccion = suc.get("direccion")
-        pedido.localidad = suc.get("localidad")
-        pedido.provincia = suc.get("provincia")
-        # Autocompletar transporte y tipo de entrega según regla de negocio
-        if not (pedido.empresa_envio or "").strip():
-            pedido.empresa_envio = "Vía Cargo"
-        if not (pedido.tipo_entrega or "").strip():
-            pedido.tipo_entrega = "Sucursal"
-        try:
-            db.session.commit()
-        except:
+            candidatas_ids_check = json.loads(getattr(pedido, "ia_sucursales_ofrecidas", "") or "[]")
+        except Exception:
             pass
-        # Confirmar al cliente que la sucursal fue registrada y el despacho está en proceso
-        try:
-            nombre_cliente = (pedido.nombre or "").split()[0] or "Cliente"
-            msg_confirmacion = (
-                f"Muchas gracias {nombre_cliente}! 🙌\n\n"
-                f"Tu pedido ya está en proceso de despacho a:\n"
-                f"📍 {suc.get('nombre')}\n"
-                f"📌 {suc.get('direccion')}\n\n"
-                f"En breve te pasamos el número de seguimiento para que puedas rastrear tu envío 😊"
-            )
-            ml_enviar_mensaje_acordas(pedido, msg_confirmacion)
-        except Exception as e:
-            print(f"[VIA CARGO] No se pudo enviar confirmación de sucursal pedido #{pedido.id}:", e)
+
+        if candidatas_ids_check and texto and _es_consulta_no_eleccion(texto.lower()):
+            try:
+                pedido.ml_mensajes_pendientes = True
+                pedido.ia_requiere_operador = True
+                resumen = (pedido.ia_resumen or "").strip()
+                pedido.ia_resumen = f"{resumen} | Cliente consultó sobre sucursal: {texto[:100]}".strip(" |")
+                db.session.commit()
+                print(f"[VIA CARGO] Pedido #{pedido.id} escalado: consulta de sucursal no resuelta")
+            except Exception as e:
+                print(f"[VIA CARGO] Error escalando consulta sucursal:", e)
+            return None
+
+        suc = detectar_sucursal(pedido, texto)
+        if suc and not getattr(pedido, "sucursal_nombre", None):
+            pedido.sucursal_nombre = suc.get("nombre")
+            pedido.direccion = suc.get("direccion")
+            pedido.localidad = suc.get("localidad")
+            pedido.provincia = suc.get("provincia")
+            # Autocompletar transporte y tipo de entrega según regla de negocio
+            if not (pedido.empresa_envio or "").strip():
+                pedido.empresa_envio = "Vía Cargo"
+            if not (pedido.tipo_entrega or "").strip():
+                pedido.tipo_entrega = "Sucursal"
+            try:
+                db.session.commit()
+            except:
+                pass
+            # Confirmar al cliente que la sucursal fue registrada y el despacho está en proceso
+            try:
+                nombre_cliente = (pedido.nombre or "").split()[0] or "Cliente"
+                msg_confirmacion = (
+                    f"Muchas gracias {nombre_cliente}! 🙌\n\n"
+                    f"Tu pedido ya está en proceso de despacho a:\n"
+                    f"📍 {suc.get('nombre')}\n"
+                    f"📌 {suc.get('direccion')}\n\n"
+                    f"En breve te pasamos el número de seguimiento para que puedas rastrear tu envío 😊"
+                )
+                ml_enviar_mensaje_acordas(pedido, msg_confirmacion)
+            except Exception as e:
+                print(f"[VIA CARGO] No se pudo enviar confirmación de sucursal pedido #{pedido.id}:", e)
 
     if not texto:
         return None
