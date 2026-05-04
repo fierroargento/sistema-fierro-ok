@@ -149,6 +149,7 @@ class Pedido(db.Model):
     ia_error = db.Column(db.Text)
     # IA RECOLECTOR ML / ACORDÁS (FASE 3 - RESPUESTA ASISTIDA)
     ia_respuesta_sugerida = db.Column(db.Text)
+    ia_sucursales_ofrecidas = db.Column(db.Text)  # JSON con IDs de sucursales ofrecidas al cliente
     ia_respuesta_enviada_hash = db.Column(db.String(80))
     ia_ultima_respuesta_enviada = db.Column(db.DateTime)
 
@@ -414,7 +415,7 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ia_resumen", "TEXT")
     asegurar_columna_si_no_existe("ia_requiere_operador", "BOOLEAN DEFAULT FALSE")
     asegurar_columna_si_no_existe("wa_estado", "VARCHAR(100)")
-    asegurar_columna_si_no_existe("wa_ultimo_contacto", "DATETIME")
+    asegurar_columna_si_no_existe("wa_ultimo_contacto", "TIMESTAMP")
     asegurar_columna_si_no_existe("wa_recordatorio_1", "BOOLEAN DEFAULT FALSE")
     asegurar_columna_si_no_existe("wa_recordatorio_2", "BOOLEAN DEFAULT FALSE")
     asegurar_columna_si_no_existe("ia_ultimo_mensaje_hash", "VARCHAR(80)")
@@ -422,6 +423,7 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ia_error", "TEXT")
     # IA RECOLECTOR ML / ACORDÁS (FASE 3 - RESPUESTA ASISTIDA)
     asegurar_columna_si_no_existe("ia_respuesta_sugerida", "TEXT")
+    asegurar_columna_si_no_existe("ia_sucursales_ofrecidas", "TEXT")
     asegurar_columna_si_no_existe("ia_respuesta_enviada_hash", "VARCHAR(80)")
     asegurar_columna_si_no_existe("ia_ultima_respuesta_enviada", "TIMESTAMP")
 
@@ -855,6 +857,15 @@ def sugerir_sucursales(pedido):
 
     sucs = candidatas[:3]
 
+    # Guardar IDs de las candidatas ofrecidas para detectar la elección por número después
+    try:
+        from app import db
+        ids_ofrecidas = [s.get("id") for s in sucs if s.get("id")]
+        pedido.ia_sucursales_ofrecidas = json.dumps(ids_ofrecidas)
+        db.session.commit()
+    except Exception as e:
+        print("[VIA CARGO] Error guardando sucursales ofrecidas:", e)
+
     lista = ""
     for i, s in enumerate(sucs, 1):
         nombre = s.get("nombre") or "Sucursal"
@@ -870,6 +881,13 @@ def sugerir_sucursales(pedido):
 
 
 def detectar_sucursal(pedido, mensaje):
+    """
+    Detecta la sucursal elegida por el cliente en su respuesta.
+    Estrategias en orden de prioridad:
+      1. Si eligió por número (1, 2, 3) y el pedido tiene candidatas guardadas → usar índice
+      2. Match flexible por palabras clave del nombre (ignora "agencia", números intermedios)
+      3. Match por dirección
+    """
     try:
         with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -877,15 +895,42 @@ def detectar_sucursal(pedido, mensaje):
         print("[VIA CARGO] No se pudo leer via_cargo_sucursales.json:", e)
         return None
 
-    texto = (mensaje or "").lower()
+    texto = (mensaje or "").lower().strip()
+    if not texto:
+        return None
 
+    # 1) Eligió por número y tenemos las candidatas que le mostramos
+    candidatas_ids = []
+    try:
+        candidatas_ids = json.loads(getattr(pedido, "ia_sucursales_ofrecidas", "") or "[]")
+    except Exception:
+        pass
+
+    if candidatas_ids:
+        patrones_num = [
+            (r'(?<!\d)1(?!\d)|primero|primera', 0),
+            (r'(?<!\d)2(?!\d)|segundo|segunda', 1),
+            (r'(?<!\d)3(?!\d)|tercero|tercera', 2),
+        ]
+        for patron, idx in patrones_num:
+            if re.search(patron, texto) and idx < len(candidatas_ids):
+                suc_id = candidatas_ids[idx]
+                encontrada = next((s for s in data if s.get("id") == suc_id), None)
+                if encontrada:
+                    return encontrada
+
+    # 2) Match flexible por palabras clave del nombre
     for s in data:
         nombre = (s.get("nombre") or "").lower()
-        direccion = (s.get("direccion") or "").lower()
-
-        if nombre and nombre in texto:
+        if not nombre:
+            continue
+        palabras = [p for p in re.split(r'\W+', nombre) if len(p) > 3 and p not in ("agencia", "encomiendas", "logistica")]
+        if palabras and all(p in texto for p in palabras):
             return s
 
+    # 3) Match por dirección
+    for s in data:
+        direccion = re.sub(r'nro\.?\s*', '', (s.get("direccion") or "").lower()).strip()
         if direccion and direccion in texto:
             return s
 
