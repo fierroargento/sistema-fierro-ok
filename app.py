@@ -5356,6 +5356,8 @@ def ml_envio_ya_despachado(order, shipment=None):
 
 
 CLAIM_ESTADOS_BLOQUEANTES = {"opened", "under_review", "mediating", "claim_opened"}
+# Estados de reclamo cerrado con reembolso — también bloquean operación
+CLAIM_ESTADOS_REEMBOLSO = {"closed", "resolved", "refunded", "buyer_won"}
 
 
 def ml_obtener_claim_de_order(order_id, pack_id=None):
@@ -5387,7 +5389,11 @@ def ml_obtener_claim_de_order(order_id, pack_id=None):
 
             for claim in claims:
                 status = str((claim or {}).get("status") or "").lower().strip()
+                resolution = str((claim or {}).get("resolution") or {})
+                # Bloqueante: reclamo activo O cerrado con reembolso al comprador
                 if status in CLAIM_ESTADOS_BLOQUEANTES:
+                    return claim
+                if status in CLAIM_ESTADOS_REEMBOLSO and "buyer" in resolution.lower():
                     return claim
 
         except Exception as e:
@@ -5406,6 +5412,14 @@ def ml_marcar_claim_en_pedido(pedido, claim):
         pedido.ml_claim_abierto = True
         pedido.ml_claim_status = str(claim.get("status") or "").lower().strip()
         pedido.ml_claim_reason = str(claim.get("reason_id") or claim.get("type") or claim.get("stage") or "").strip()
+
+        # Si el reclamo está cerrado con reembolso → cancelar el pedido en el sistema
+        status = pedido.ml_claim_status
+        resolution = str(claim.get("resolution") or {}).lower()
+        if status in CLAIM_ESTADOS_REEMBOLSO and "buyer" in resolution:
+            if pedido.estado not in ["Cancelado", "Finalizado", "Entregado"]:
+                pedido.estado = "Cancelado"
+                print(f"[ML-CLAIMS] Pedido #{pedido.id} cancelado automáticamente — reclamo cerrado con reembolso al comprador")
     else:
         pedido.ml_claim_abierto = False
         pedido.ml_claim_status = ""
