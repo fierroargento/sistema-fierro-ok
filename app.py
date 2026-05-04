@@ -5515,7 +5515,7 @@ def ml_upsert_pedido_desde_order(order):
     pedido.canal = "Mercado Libre"
     pedido.id_venta = order_id
 
-    pedido.mail = pedido.mail or ""
+    pedido.mail = pedido.mail or "expedicionfierro@gmail.com"
     pedido.telefono = pedido.telefono or ""
     pedido.observaciones = (pedido.observaciones or "").strip()
     pedido.ml_pack_id = str(order.get("pack_id") or "").strip() or pedido.ml_pack_id
