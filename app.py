@@ -724,10 +724,10 @@ def _obtener_coords_cliente(codigo_postal, direccion, localidad, provincia):
     """
     Obtiene lat/lng del cliente para ordenar sucursales por distancia.
     Estrategia en orden de prioridad:
-      1. CP del cliente -> buscar sucursal con CP más cercano y usar sus coords
-      2. Nominatim con dirección completa (timeout 3s)
-      3. Nominatim con solo localidad/barrio
-      4. Diccionario interno de barrios CABA
+      1. Nominatim con dirección completa + localidad (más preciso)
+      2. Nominatim con solo localidad/barrio
+      3. Diccionario interno de barrios CABA
+      4. CP del cliente -> sucursal con CP más cercano como referencia (fallback sin internet)
       5. Centroide de CABA como último recurso
     Devuelve (lat, lng, metodo)
     """
@@ -738,24 +738,9 @@ def _obtener_coords_cliente(codigo_postal, direccion, localidad, provincia):
     es_caba = any(x in (provincia or "").lower()
                   for x in ["capital federal", "caba", "ciudad autonoma", "ciudad autónoma"])
 
-    # 1) CP: el más confiable, sin llamadas externas
-    cp_str = str(codigo_postal or "").strip()
-    if cp_str and cp_str.isdigit():
-        cp_int = int(cp_str)
-        try:
-            with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
-                data_suc = _json.load(f)
-            pool = [s for s in data_suc if s.get("cp") and s.get("lat") and s.get("lng")]
-            if es_caba:
-                pool_caba = [s for s in pool if "capital federal" in (s.get("provincia") or "").lower()]
-                pool = pool_caba or pool
-            if pool:
-                ref = min(pool, key=lambda s: abs(int(s["cp"]) - cp_int))
-                return float(ref["lat"]), float(ref["lng"]), "cp"
-        except Exception as e:
-            print("[VIA CARGO] Error buscando CP de referencia:", e)
+    sufijo_caba = "Ciudad Autónoma de Buenos Aires, Argentina"
+    sufijo_gen = f"{localidad or ''}, Argentina"
 
-    # 2 y 3) Nominatim
     headers = {"User-Agent": "fierro-sistema/1.0"}
 
     def nominatim(q):
@@ -768,28 +753,44 @@ def _obtener_coords_cliente(codigo_postal, direccion, localidad, provincia):
                 if res:
                     return float(res[0]["lat"]), float(res[0]["lon"])
         except Exception as e:
-            print(f"[NOMINATIM] Error '{{q}}':", e)
+            print(f"[NOMINATIM] Error '{q}':", e)
         return None
 
-    sufijo_caba = "Ciudad Autónoma de Buenos Aires, Argentina"
-    sufijo_gen = f"{localidad or ''}, Argentina"
-
+    # 1) Nominatim con dirección completa — más preciso que CP
     if direccion and localidad:
         coords = nominatim(f"{direccion}, {sufijo_caba if es_caba else sufijo_gen}")
         if coords:
             return coords[0], coords[1], "nominatim_direccion"
 
+    # 2) Nominatim con solo localidad/barrio
     if localidad:
         coords = nominatim(f"{localidad}, {sufijo_caba if es_caba else 'Argentina'}")
         if coords:
             return coords[0], coords[1], "nominatim_localidad"
 
-    # 4) Diccionario de barrios CABA
+    # 3) Diccionario de barrios CABA
     if es_caba and localidad:
         loc_norm = (localidad or "").lower().strip()
         for barrio, coords in _BARRIOS_CABA_COORDS.items():
             if barrio in loc_norm or loc_norm in barrio:
                 return coords[0], coords[1], "diccionario_barrio"
+
+    # 4) CP como fallback cuando no hay internet o Nominatim falla
+    cp_str = str(codigo_postal or "").strip()
+    if cp_str and cp_str.isdigit():
+        cp_int = int(cp_str)
+        try:
+            with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
+                data_suc = _json.load(f)
+            pool = [s for s in data_suc if s.get("cp") and s.get("lat") and s.get("lng")]
+            if es_caba:
+                pool_caba = [s for s in pool if "capital federal" in (s.get("provincia") or "").lower()]
+                pool = pool_caba or pool
+            if pool:
+                ref = min(pool, key=lambda s: abs(int(s["cp"]) - cp_int))
+                return float(ref["lat"]), float(ref["lng"]), "cp_fallback"
+        except Exception as e:
+            print("[VIA CARGO] Error buscando CP de referencia:", e)
 
     # 5) Centroide CABA
     if es_caba:
@@ -880,13 +881,54 @@ def sugerir_sucursales(pedido):
     )
 
 
+def _es_consulta_no_eleccion(texto):
+    """
+    Detecta si el mensaje del cliente es una pregunta o consulta,
+    no una elección concreta de sucursal.
+    En ese caso NO se debe detectar sucursal — escalar al operador.
+    """
+    texto = texto.lower().strip()
+    patrones_consulta = [
+        r'\?',                          # tiene signo de pregunta
+        r'no lo tienen',                 # preguntando si existe
+        r'ese no',                       # dudando
+        r'tienen ese',
+        r'queda cerca',
+        r'está cerca',
+        r'esta cerca',
+        r'me queda',
+        r'hay alguna',
+        r'tienen alguna',
+        r'podría ser',
+        r'podria ser',
+        r'o ese',
+        r'sino',                         # "sino ese otro"
+        r'si no',
+        r'en cambio',
+        r'por ejemplo',
+        r'pero.*\?',
+        r'\bno\b.*\bsé\b',
+        r'\bno\b.*\bse\b',
+        r'me parece',
+        r'creo que',
+    ]
+    return any(re.search(p, texto) for p in patrones_consulta)
+
+
 def detectar_sucursal(pedido, mensaje):
     """
     Detecta la sucursal elegida por el cliente en su respuesta.
+
+    REGLAS DE SEGURIDAD:
+    - Si el mensaje parece una consulta o pregunta → devuelve None (escalar al operador)
+    - Solo matchea sucursales dentro de las candidatas ofrecidas si las hay
+    - Valida que la provincia de la sucursal coincida con la del cliente
+    - Nunca asume una elección de un texto ambiguo
+
     Estrategias en orden de prioridad:
       1. Si eligió por número (1, 2, 3) y el pedido tiene candidatas guardadas → usar índice
-      2. Match flexible por palabras clave del nombre (ignora "agencia", números intermedios)
-      3. Match por dirección
+      2. Match flexible por palabras clave del nombre (solo dentro de candidatas ofrecidas)
+      3. Match por dirección (solo dentro de candidatas ofrecidas)
     """
     try:
         with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
@@ -899,13 +941,58 @@ def detectar_sucursal(pedido, mensaje):
     if not texto:
         return None
 
-    # 1) Eligió por número y tenemos las candidatas que le mostramos
+    # REGLA 1: Si es consulta/pregunta → no detectar, escalar al operador
+    if _es_consulta_no_eleccion(texto):
+        print(f"[VIA CARGO] Mensaje detectado como consulta, no elección: '{texto[:80]}'")
+        return None
+
+    # Obtener candidatas ofrecidas (las que le mostramos al cliente)
     candidatas_ids = []
     try:
         candidatas_ids = json.loads(getattr(pedido, "ia_sucursales_ofrecidas", "") or "[]")
     except Exception:
         pass
 
+    # Pool de búsqueda: SOLO las candidatas ofrecidas si las tenemos
+    # Esto evita matchear sucursales de otras provincias/localidades
+    if candidatas_ids:
+        pool = [s for s in data if s.get("id") in candidatas_ids]
+    else:
+        # Si no hay candidatas guardadas, filtrar por CP + localidad + provincia del cliente
+        cp_cliente = str(getattr(pedido, "codigo_postal", "") or "").strip()
+        loc_cliente = (getattr(pedido, "localidad", "") or "").lower().strip()
+        prov_cliente = (getattr(pedido, "provincia", "") or "").lower().strip()
+
+        pool = []
+        for s in data:
+            # Validar provincia obligatoriamente
+            prov_suc = (s.get("provincia") or "").lower()
+            if prov_cliente and prov_cliente not in prov_suc:
+                continue
+            # Validar localidad si la tenemos
+            loc_suc = (s.get("localidad") or "").lower()
+            if loc_cliente and loc_cliente not in loc_suc and loc_suc not in loc_cliente:
+                continue
+            # Validar CP si lo tenemos: el CP de la sucursal debe estar en el mismo rango
+            # Para CABA (CP 1000-1499): rango de ±100
+            # Para el interior: rango de ±50
+            cp_suc = str(s.get("cp") or "").strip()
+            if cp_cliente and cp_cliente.isdigit() and cp_suc and cp_suc.isdigit():
+                cp_int = int(cp_cliente)
+                cp_suc_int = int(cp_suc)
+                rango = 100 if cp_int < 1500 else 50
+                if abs(cp_int - cp_suc_int) > rango:
+                    continue
+            pool.append(s)
+
+        # Si el filtro quedó vacío (caso edge) no matchear nada
+        if not pool:
+            return None
+
+    if not pool:
+        return None
+
+    # ESTRATEGIA 1: Eligió por número
     if candidatas_ids:
         patrones_num = [
             (r'(?<!\d)1(?!\d)|primero|primera', 0),
@@ -915,12 +1002,12 @@ def detectar_sucursal(pedido, mensaje):
         for patron, idx in patrones_num:
             if re.search(patron, texto) and idx < len(candidatas_ids):
                 suc_id = candidatas_ids[idx]
-                encontrada = next((s for s in data if s.get("id") == suc_id), None)
+                encontrada = next((s for s in pool if s.get("id") == suc_id), None)
                 if encontrada:
                     return encontrada
 
-    # 2) Match flexible por palabras clave del nombre
-    for s in data:
+    # ESTRATEGIA 2: Match por palabras clave del nombre (solo en pool)
+    for s in pool:
         nombre = (s.get("nombre") or "").lower()
         if not nombre:
             continue
@@ -928,10 +1015,10 @@ def detectar_sucursal(pedido, mensaje):
         if palabras and all(p in texto for p in palabras):
             return s
 
-    # 3) Match por dirección
-    for s in data:
+    # ESTRATEGIA 3: Match por dirección (solo en pool)
+    for s in pool:
         direccion = re.sub(r'nro\.?\s*', '', (s.get("direccion") or "").lower()).strip()
-        if direccion and direccion in texto:
+        if direccion and len(direccion) > 5 and direccion in texto:
             return s
 
     return None
@@ -4499,6 +4586,26 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     texto = ml_texto_mensaje_ml(ultimo)
 
     # DETECTAR SUCURSAL
+    # Si el sistema ya ofreció sucursales y el cliente hace una consulta
+    # en lugar de elegir → escalar al operador para que lo resuelva
+    candidatas_ids_check = []
+    try:
+        candidatas_ids_check = json.loads(getattr(pedido, "ia_sucursales_ofrecidas", "") or "[]")
+    except Exception:
+        pass
+
+    if candidatas_ids_check and texto and _es_consulta_no_eleccion(texto.lower()):
+        try:
+            pedido.ml_mensajes_pendientes = True
+            pedido.ia_requiere_operador = True
+            resumen = (pedido.ia_resumen or "").strip()
+            pedido.ia_resumen = f"{resumen} | Cliente consultó sobre sucursal: {texto[:100]}".strip(" |")
+            db.session.commit()
+            print(f"[VIA CARGO] Pedido #{pedido.id} escalado: consulta de sucursal no resuelta")
+        except Exception as e:
+            print(f"[VIA CARGO] Error escalando consulta sucursal:", e)
+        return None
+
     suc = detectar_sucursal(pedido, texto)
     if suc and not getattr(pedido, "sucursal_nombre", None):
         pedido.sucursal_nombre = suc.get("nombre")
@@ -5448,8 +5555,8 @@ def ml_order_debe_omitirse(order, shipment=None):
         return True, "sin ID de orden"
 
     estado = str(order.get("status") or "").lower().strip()
-    if estado in ["cancelled", "invalid"]:
-        return True, f"estado ML {estado}"
+    if estado in ["cancelled", "invalid", "closed"]:
+        return True, f"estado ML {estado} — orden ya finalizada en ML, no se importa"
 
     no_operable, motivo = ml_logistica_no_operable(order, shipment or {})
     if no_operable:
@@ -5577,7 +5684,16 @@ def ml_upsert_pedido_desde_order(order):
     # Al crear un pedido nuevo de Mercado Libre / Acordás la Entrega,
     # intentar enviar automaticamente el primer mensaje de contacto existente.
     # Si ML lo rechaza, no se rompe la importacion y el pedido queda pendiente para accion manual.
-    if creado and es_ml_acordas_entrega(pedido) and not getattr(pedido, "contacto_iniciado", False):
+    # No contactar si la orden ya está cerrada/entregada/cancelada en ML
+    estados_ml_bloqueados = {"closed", "cancelled", "invalid", "delivered"}
+    ml_order_status_actual = str(getattr(pedido, "ml_order_status", "") or "").lower().strip()
+    if (
+        creado
+        and es_ml_acordas_entrega(pedido)
+        and not getattr(pedido, "contacto_iniciado", False)
+        and ml_order_status_actual not in estados_ml_bloqueados
+        and pedido.estado not in ["Entregado", "Finalizado", "Cancelado"]
+    ):
         enviado_auto, motivo_auto = ml_auto_enviar_contacto_inicial_acordas(pedido)
         if not enviado_auto:
             print(f"[ML-AUTO-CONTACTO] Pedido #{getattr(pedido, 'id', '')} queda pendiente. Motivo: {motivo_auto}")
