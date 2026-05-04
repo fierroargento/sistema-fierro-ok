@@ -4514,6 +4514,19 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             db.session.commit()
         except:
             pass
+        # Confirmar al cliente que la sucursal fue registrada y el despacho está en proceso
+        try:
+            nombre_cliente = (pedido.nombre or "").split()[0] or "Cliente"
+            msg_confirmacion = (
+                f"Muchas gracias {nombre_cliente}! 🙌\n\n"
+                f"Tu pedido ya está en proceso de despacho a:\n"
+                f"📍 {suc.get('nombre')}\n"
+                f"📌 {suc.get('direccion')}\n\n"
+                f"En breve te pasamos el número de seguimiento para que puedas rastrear tu envío 😊"
+            )
+            ml_enviar_mensaje_acordas(pedido, msg_confirmacion)
+        except Exception as e:
+            print(f"[VIA CARGO] No se pudo enviar confirmación de sucursal pedido #{pedido.id}:", e)
 
     if not texto:
         return None
