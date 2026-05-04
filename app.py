@@ -6224,6 +6224,18 @@ def ml_sync_pedido_por_order_id_webhook(order_id):
             print(f"[WEBHOOK ML] Order vacia o no encontrada: {order_id}")
             return False
         pedido, creado, motivo = ml_upsert_pedido_desde_order(order)
+
+        # Si ML informa que la orden está cancelada y el pedido ya existe en el sistema,
+        # actualizarlo a Cancelado automáticamente
+        if not pedido and motivo:
+            estados_cancelados_ml = {"cancelled", "invalid", "closed"}
+            order_status = str((order or {}).get("status") or "").lower().strip()
+            if order_status in estados_cancelados_ml:
+                pedido_existente = ml_pedido_existente_por_order_id(order_id)
+                if pedido_existente and pedido_existente.estado not in ["Cancelado", "Finalizado", "Entregado"]:
+                    pedido_existente.estado = "Cancelado"
+                    print(f"[WEBHOOK ML] Pedido #{pedido_existente.id} cancelado automáticamente — ML status={order_status}")
+
         db.session.commit()
         if pedido:
             print(f"[WEBHOOK ML] Order sincronizada {order_id}. pedido_id={pedido.id} creado={creado} motivo={motivo}")
@@ -7475,6 +7487,14 @@ def resync_ml_pedido(id):
                     detalles.append("orden")
                 elif motivo:
                     detalles.append(f"orden omitida: {motivo}")
+                    # Si ML informa que la orden está cancelada/cerrada,
+                    # actualizar el estado del pedido existente en el sistema
+                    estados_cancelados_ml = {"cancelled", "invalid", "closed"}
+                    order_status = str((order or {}).get("status") or "").lower().strip()
+                    if order_status in estados_cancelados_ml and pedido.estado not in ["Cancelado", "Finalizado", "Entregado"]:
+                        pedido.estado = "Cancelado"
+                        detalles.append("estado=Cancelado (ML informa orden cancelada)")
+                        print(f"[ML-RESYNC] Pedido #{pedido.id} cancelado — ML status={order_status}")
 
         tiene_msgs, count_msgs = ml_sync_mensajes_pedido(pedido)
         detalles.append(f"mensajes={count_msgs}")
