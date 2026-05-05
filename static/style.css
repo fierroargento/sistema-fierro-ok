@@ -1462,6 +1462,18 @@ tr.fila-amarillo td .btn-accion-rapida {
     color: #ffffff !important;
 }
 
+.contacto-badge-escalado {
+    background: #c2410c !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(194, 65, 12, 0.35);
+    animation: pulse-naranja 1.5s infinite;
+}
+
+@keyframes pulse-naranja {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
 .contacto-badge-count,
 .mini-action-badge {
     position: absolute;

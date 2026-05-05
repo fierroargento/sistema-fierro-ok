@@ -192,11 +192,16 @@
     {% endif %}
 
 
-    {% if pedido.canal == "Mercado Libre" and (pedido.ml_claim_abierto or ml_pedido_tiene_mensajes_pendientes(pedido)) %}
+    {% if pedido.canal == "Mercado Libre" and (pedido.ml_claim_abierto or ml_pedido_tiene_mensajes_pendientes(pedido) or pedido.ia_requiere_operador) %}
     <div class="detalle-alertas-ml">
         {% if pedido.ml_claim_abierto %}
         <span class="apb-ml-badge reclamo">
             ⚠️ Reclamo activo en ML: NO DESPACHAR
+        </span>
+        {% endif %}
+        {% if pedido.ia_requiere_operador %}
+        <span class="apb-ml-badge" style="background:#ea580c; color:white; animation: pulse-naranja 1.5s infinite;">
+            🔔 Bot escaló al operador — requiere atención manual
         </span>
         {% endif %}
         {% if ml_pedido_tiene_mensajes_pendientes(pedido) %}
