@@ -8668,4 +8668,4 @@ with app.app_context():
     # ── Módulo WhatsApp Bot ──────────────────────────────────────────
     # Para activar: configurar WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID
     # y WHATSAPP_VERIFY_TOKEN en el .env y descomentar la línea siguiente:
-    # from modules.whatsapp import activar; activar(app)
+    from modules.whatsapp import activar; activar(app)
