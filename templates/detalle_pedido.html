@@ -513,8 +513,11 @@
 
 
     {% if rol_actual in ["admin", "carga"] %}
-    <div class="detalle-box detalle-box-full" id="notas" style="margin-top:16px; border-left:5px solid #6366f1;">
-        <h3 style="margin:0 0 12px 0;">📝 Notas internas</h3>
+    <details class="detalle-box detalle-box-full" id="notas" style="margin-top:16px; border-left:5px solid #6366f1;">
+        <summary style="cursor:pointer; font-weight:700; font-size:1rem;">📝 Notas internas
+            {% if notas_pedido %}<span style="font-size:0.78rem; font-weight:400; color:#6366f1; margin-left:8px;">({{ notas_pedido|length }})</span>{% endif %}
+        </summary>
+        <div style="margin-top:12px;">
 
         <!-- Formulario agregar nota -->
         <form method="POST" action="{{ url_for('agregar_nota_pedido', id=pedido.id) }}" style="margin-bottom:16px;">
@@ -566,7 +569,8 @@
         {% else %}
         <p style="margin:0; font-size:0.86rem; color:#94a3b8;">Sin notas todavía.</p>
         {% endif %}
-    </div>
+        </div>
+    </details>
     {% endif %}
 
     {% if rol_actual == "admin" %}
