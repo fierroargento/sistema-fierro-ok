@@ -7704,7 +7704,7 @@ def eliminar_pedido(id):
 @login_required
 def agregar_nota_pedido(id):
     pedido = Pedido.query.get_or_404(id)
-    rol = rol_actual()
+    rol = session.get("rol", "")
     if rol not in ["admin", "carga"]:
         return redirect(url_for("detalle_pedido", id=id, error="Sin permiso para agregar notas."))
 
@@ -7716,7 +7716,7 @@ def agregar_nota_pedido(id):
         pedido_id=id,
         texto=texto,
         usuario=session.get("username", ""),
-        rol=rol_actual(),
+        rol=rol,
         fecha=datetime.utcnow(),
     )
     db.session.add(nota)
@@ -7727,7 +7727,7 @@ def agregar_nota_pedido(id):
 @app.route("/pedido/<int:id>/nota/<int:nota_id>/editar", methods=["POST"])
 @login_required
 def editar_nota_pedido(id, nota_id):
-    if rol_actual() != "admin":
+    if session.get("rol") != "admin":
         return redirect(url_for("detalle_pedido", id=id, error="Solo Admin puede editar notas."))
 
     nota = NotaPedido.query.get_or_404(nota_id)
@@ -7743,7 +7743,7 @@ def editar_nota_pedido(id, nota_id):
 @app.route("/pedido/<int:id>/nota/<int:nota_id>/eliminar", methods=["POST"])
 @login_required
 def eliminar_nota_pedido(id, nota_id):
-    if rol_actual() != "admin":
+    if session.get("rol") != "admin":
         return redirect(url_for("detalle_pedido", id=id, error="Solo Admin puede eliminar notas."))
 
     nota = NotaPedido.query.get_or_404(nota_id)
