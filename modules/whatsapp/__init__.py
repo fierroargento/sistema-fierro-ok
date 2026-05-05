@@ -2,18 +2,11 @@
 modules/whatsapp/__init__.py
 ─────────────────────────────
 Punto de entrada del módulo WhatsApp.
-
-Para activar el módulo, agregar al .env:
-    WHATSAPP_TOKEN=...
-    WHATSAPP_PHONE_NUMBER_ID=...
-    WHATSAPP_VERIFY_TOKEN=...
-
-Y descomentar en app.py (al final del bloque with app.app_context()):
-    from modules.whatsapp import activar
-    activar(app)
 """
 
-from .config import modulo_activo
+from datetime import datetime, timedelta
+
+from .config import modulo_activo, SCHEDULER_INTERVALO_SEGUNDOS
 from .webhook import registrar_webhook
 from .flows import (
     wa_enviar_confirmacion_sucursal,
@@ -24,17 +17,43 @@ from .flows import (
 )
 from .scheduler import ejecutar_timers
 
+_ultimo_scheduler = None
+_scheduler_corriendo = False
+
+
+def _registrar_scheduler_liviano(app):
+    """Ejecuta scheduler cada N segundos enganchado a requests.
+
+    Evita threads/background workers para no complicar Render ni romper deploy.
+    """
+    global _ultimo_scheduler, _scheduler_corriendo
+
+    @app.before_request
+    def _wa_scheduler_tick():
+        global _ultimo_scheduler, _scheduler_corriendo
+        ahora = datetime.utcnow()
+        if _scheduler_corriendo:
+            return
+        if _ultimo_scheduler and (ahora - _ultimo_scheduler).total_seconds() < SCHEDULER_INTERVALO_SEGUNDOS:
+            return
+        _scheduler_corriendo = True
+        try:
+            ejecutar_timers()
+            _ultimo_scheduler = ahora
+        except Exception as e:
+            print("[WA] Scheduler tick error:", e)
+        finally:
+            _scheduler_corriendo = False
+
 
 def activar(app):
-    """
-    Activa el módulo WhatsApp registrando el webhook en la app Flask.
-    Solo hace algo si las credenciales están configuradas en el .env.
-    """
+    """Activa webhook y scheduler liviano si WhatsApp está configurado."""
     if not modulo_activo():
         print("[WA] Módulo WhatsApp en standby — configurar .env para activar")
         return
 
     registrar_webhook(app)
+    _registrar_scheduler_liviano(app)
     print("[WA] Módulo WhatsApp activo ✓")
 
 

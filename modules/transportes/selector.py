@@ -1,134 +1,227 @@
 """
 modules/transportes/selector.py
 ────────────────────────────────
-Lógica de selección automática del transporte más conveniente
-para pedidos PP6040 (plegable) que van por Andreani o Correo Argentino.
+Selector APB de transporte para PP6040.
 
-Criterio de selección:
-    1. Disponibilidad en destino
-    2. Precio más bajo entre los disponibles
-    3. Si empatan en precio → menor plazo de entrega
+Decisión actual validada:
+- En esta etapa SOLO se cotiza Correo Argentino.
+- Andreani queda en standby hasta tener credenciales reales.
+- El cliente NUNCA ve costos: para el comprador es envío sin cargo.
+- Preferencia operativa: punto/sucursal Correo.
+- Domicilio solo se acepta automático si no supera en más de 20% a sucursal
+  y no supera el tope máximo configurable.
 """
 
-from .correo_argentino import cotizar_correo
-from .andreani import cotizar_andreani
+import json
+import re
+from datetime import datetime
+
+from .correo_argentino import cotizar_correo, obtener_sucursales_correo_por_pedido
 
 
-def cotizar_ambos(cp_destino):
-    """
-    Cotiza con Correo Argentino y Andreani en paralelo.
-    Devuelve dict con los resultados de ambos.
-
-    {
-        "correo_argentino": { "disponible": True, "precio": 12500, ... },
-        "andreani":         { "disponible": False, "error": "...", ... },
-    }
-    """
-    correo  = cotizar_correo(cp_destino)
-    andreani = cotizar_andreani(cp_destino)
-
-    return {
-        "correo_argentino": correo,
-        "andreani":         andreani,
-    }
+def _cfg_float(clave, default):
+    """Lee configuración desde DB si existe; si no, usa default seguro."""
+    try:
+        from app import ConfiguracionSistema
+        obj = ConfiguracionSistema.query.filter_by(clave=clave).first()
+        if obj and str(obj.valor or "").strip() != "":
+            return float(str(obj.valor).replace(",", "."))
+    except Exception:
+        pass
+    return float(default or 0)
 
 
-def elegir_transporte(cp_destino):
-    """
-    Elige automáticamente el transporte más conveniente.
+def pedido_contiene_pp6040(pedido):
+    """Detecta cualquier SKU/descrición que contenga PP6040."""
+    try:
+        items = list(getattr(pedido, "items", []) or [])
+    except Exception:
+        items = []
+    textos = []
+    for item in items:
+        textos.append(str(getattr(item, "sku", "") or ""))
+        textos.append(str(getattr(item, "descripcion", "") or ""))
+    textos.append(str(getattr(pedido, "observaciones", "") or ""))
+    blob = " ".join(textos).upper()
+    return "PP6040" in blob
 
-    Devuelve dict con el ganador:
-    {
-        "tipo":        "correo_argentino" | "andreani",
-        "disponible":  True,
-        "precio":      12500.0,
-        "plazo_dias":  3,
-        "servicio":    "Envío Clásico",
-        "cp_origen":   "8500",   # solo Correo Argentino
-        "alternativa": { ... }   # el otro transporte si está disponible
-    }
 
-    O si ninguno está disponible:
-    {
-        "tipo":       None,
-        "disponible": False,
-        "error":      "Sin cobertura en ambos transportes para CP XXXX"
-    }
-    """
-    cotizaciones = cotizar_ambos(cp_destino)
-    correo   = cotizaciones["correo_argentino"]
-    andreani = cotizaciones["andreani"]
-
-    disponibles = [t for t in [correo, andreani] if t.get("disponible")]
-
-    if not disponibles:
-        print(f"[SELECTOR] Sin cobertura para CP {cp_destino}")
+def cotizar_correo_pp6040(pedido):
+    """Cotiza sucursal y domicilio por Correo para un pedido PP6040."""
+    cp = str(getattr(pedido, "codigo_postal", "") or "").strip()
+    if not cp or not re.fullmatch(r"\d{4,8}", cp):
         return {
-            "tipo":       None,
-            "disponible": False,
-            "error":      f"Sin cobertura en ambos transportes para CP {cp_destino}",
-            "cotizaciones": cotizaciones,
+            "ok": False,
+            "error": "CP destino inválido o faltante",
+            "requiere_operador": True,
         }
 
-    # Ordenar por precio, luego por plazo
-    disponibles.sort(key=lambda t: (
-        float(t.get("precio") or 99999999),
-        int(t.get("plazo_dias") or 99),
-    ))
+    sucursal = cotizar_correo(cp, tipo_entrega="S")
+    domicilio = cotizar_correo(cp, tipo_entrega="D")
 
-    ganador = disponibles[0]
-    alternativa = disponibles[1] if len(disponibles) > 1 else None
-
-    resultado = dict(ganador)
-    resultado["alternativa"] = alternativa
-    resultado["cotizaciones"] = cotizaciones
-
-    print(
-        f"[SELECTOR] CP {cp_destino} → {ganador['tipo']} "
-        f"${ganador.get('precio')} / {ganador.get('plazo_dias')} días"
-    )
-
-    return resultado
+    return {
+        "ok": bool(sucursal.get("disponible") or domicilio.get("disponible")),
+        "cp_destino": cp,
+        "sucursal": sucursal,
+        "domicilio": domicilio,
+        "error": None if (sucursal.get("disponible") or domicilio.get("disponible")) else "Correo sin cobertura para el CP indicado",
+    }
 
 
-def asignar_transporte_pedido(pedido):
+def evaluar_decision_correo_pp6040(pedido, preferencia_cliente="sucursal"):
+    """Evalúa si se puede decidir automático o debe escalar.
+
+    preferencia_cliente:
+    - "sucursal": flujo preferido.
+    - "domicilio": cliente insiste domicilio.
     """
-    Cotiza y asigna automáticamente el transporte al pedido PP6040.
-    Guarda empresa_envio, tipo_entrega y costo_envio en el pedido.
+    from modules.whatsapp.config import MAX_COSTO_ENVIO_DEFAULT, MAX_PORCENTAJE_DOMICILIO_DEFAULT
 
-    Devuelve (ok, mensaje)
-    """
-    cp_destino = str(pedido.codigo_postal or "").strip()
-    if not cp_destino:
-        return False, "El pedido no tiene CP destino"
+    cot = cotizar_correo_pp6040(pedido)
+    if not cot.get("ok"):
+        cot["decision"] = "escalar"
+        cot["motivo"] = cot.get("error") or "No se pudo cotizar Correo"
+        return cot
 
-    resultado = elegir_transporte(cp_destino)
+    max_costo = _cfg_float("MAX_COSTO_ENVIO", MAX_COSTO_ENVIO_DEFAULT)
+    max_porcentaje_dom = _cfg_float("MAX_PORCENTAJE_DOMICILIO", MAX_PORCENTAJE_DOMICILIO_DEFAULT)
 
-    if not resultado.get("disponible"):
-        return False, resultado.get("error", "Sin cobertura")
+    suc = cot.get("sucursal") or {}
+    dom = cot.get("domicilio") or {}
+    suc_ok = bool(suc.get("disponible"))
+    dom_ok = bool(dom.get("disponible"))
+    precio_suc = float(suc.get("precio") or 0)
+    precio_dom = float(dom.get("precio") or 0)
+
+    # Tope máximo general. 0 significa sin tope cargado todavía.
+    precio_control = precio_suc if preferencia_cliente != "domicilio" else precio_dom
+    if max_costo > 0 and precio_control > max_costo:
+        cot.update({
+            "decision": "escalar",
+            "motivo": f"Cotización supera tope admin (${precio_control:.0f} > ${max_costo:.0f})",
+            "max_costo": max_costo,
+        })
+        return cot
+
+    if preferencia_cliente == "domicilio":
+        if not dom_ok:
+            cot.update({"decision": "escalar", "motivo": "Cliente pidió domicilio pero Correo no devolvió cotización domicilio"})
+            return cot
+        if suc_ok and precio_suc > 0:
+            limite = precio_suc * (1 + max_porcentaje_dom / 100.0)
+            if precio_dom > limite:
+                cot.update({
+                    "decision": "escalar",
+                    "motivo": f"Domicilio supera +{max_porcentaje_dom:.0f}% contra sucursal",
+                    "limite_domicilio": limite,
+                })
+                return cot
+        cot.update({"decision": "domicilio", "motivo": "Domicilio aceptado por regla automática"})
+        return cot
+
+    # Preferencia base: sucursal/punto Correo.
+    if suc_ok:
+        cot.update({"decision": "sucursal", "motivo": "Sucursal/Punto Correo preferido"})
+    elif dom_ok:
+        # Si sucursal no está disponible pero domicilio sí, no lo decide solo: escala.
+        cot.update({"decision": "escalar", "motivo": "No hay sucursal disponible; solo domicilio"})
+    else:
+        cot.update({"decision": "escalar", "motivo": "Sin opciones Correo disponibles"})
+    return cot
+
+
+def asignar_transporte_pedido(pedido, preferencia_cliente="sucursal"):
+    """Cotiza y asigna Correo al pedido PP6040, sin informar costos al cliente."""
+    if not pedido_contiene_pp6040(pedido):
+        return False, "El pedido no contiene PP6040"
+
+    resultado = evaluar_decision_correo_pp6040(pedido, preferencia_cliente=preferencia_cliente)
+    decision = resultado.get("decision")
+
+    if decision == "escalar":
+        _marcar_escalado(pedido, resultado.get("motivo") or "Revisión manual transporte Correo")
+        return False, resultado.get("motivo") or "Revisión manual transporte Correo"
 
     try:
         from app import db
+        pedido.empresa_envio = "Correo Argentino"
+        pedido.tipo_entrega = "Domicilio" if decision == "domicilio" else "Sucursal"
 
-        nombres = {
-            "correo_argentino": "Correo Argentino",
-            "andreani":         "Andreani",
-        }
+        # Campos nuevos si existen en el modelo; si no existen, no rompe.
+        if hasattr(pedido, "costo_envio"):
+            cot_sel = resultado.get("domicilio") if decision == "domicilio" else resultado.get("sucursal")
+            pedido.costo_envio = float((cot_sel or {}).get("precio") or 0)
+        if hasattr(pedido, "costo_envio_sucursal"):
+            pedido.costo_envio_sucursal = float((resultado.get("sucursal") or {}).get("precio") or 0)
+        if hasattr(pedido, "costo_envio_domicilio"):
+            pedido.costo_envio_domicilio = float((resultado.get("domicilio") or {}).get("precio") or 0)
 
-        pedido.empresa_envio  = nombres.get(resultado["tipo"], resultado["tipo"])
-        pedido.tipo_entrega   = "Domicilio"
-        pedido.costo_envio    = resultado.get("precio")
-
+        resumen = (getattr(pedido, "ia_resumen", "") or "").strip()
+        pedido.ia_resumen = f"{resumen} | Correo PP6040 evaluado: {decision}. {resultado.get('motivo','')}".strip(" |")
         db.session.commit()
-
-        msg = (
-            f"Transporte asignado: {pedido.empresa_envio} "
-            f"— ${resultado.get('precio'):,.0f} "
-            f"— {resultado.get('plazo_dias')} días hábiles"
-        )
-        print(f"[SELECTOR] Pedido #{pedido.id}: {msg}")
-        return True, msg
-
+        return True, f"Correo Argentino asignado ({pedido.tipo_entrega})"
     except Exception as e:
-        print(f"[SELECTOR] Error guardando transporte en pedido #{pedido.id}:", e)
-        return False, f"Error guardando: {e}"
+        try:
+            from app import db
+            db.session.rollback()
+        except Exception:
+            pass
+        return False, f"Error asignando Correo: {e}"
+
+
+def sugerir_sucursales_correo_pedido(pedido):
+    """Genera mensaje con 3 puntos Correo cercanos usando la misma lógica geográfica validada para Via Cargo."""
+    try:
+        sucursales = obtener_sucursales_correo_por_pedido(pedido)
+    except Exception as e:
+        print("[CORREO SELECTOR] Error obteniendo sucursales:", e)
+        sucursales = []
+
+    if not sucursales:
+        _marcar_escalado(pedido, "No se pudieron obtener sucursales Correo cercanas")
+        return None
+
+    sucs = sucursales[:3]
+    try:
+        from app import db
+        ids = [s.get("id") or s.get("agencyId") or s.get("codigo") or str(i + 1) for i, s in enumerate(sucs)]
+        if hasattr(pedido, "correo_sucursales_ofrecidas"):
+            pedido.correo_sucursales_ofrecidas = json.dumps(sucs, ensure_ascii=False)
+        else:
+            pedido.ia_sucursales_ofrecidas = json.dumps(ids, ensure_ascii=False)
+        pedido.empresa_envio = "Correo Argentino"
+        pedido.tipo_entrega = "Sucursal"
+        pedido.wa_estado = "falta_elegir_transporte"
+        pedido.wa_ultimo_contacto = datetime.utcnow()
+        db.session.commit()
+    except Exception as e:
+        print("[CORREO SELECTOR] Error guardando sucursales ofrecidas:", e)
+
+    lista = ""
+    for i, s in enumerate(sucs, 1):
+        nombre = s.get("nombre") or s.get("name") or s.get("descripcion") or "Punto Correo"
+        direccion = s.get("direccion") or s.get("address") or s.get("domicilio") or ""
+        localidad = s.get("localidad") or s.get("city") or ""
+        lista += f"{i}) {nombre}\n{direccion}{(' - ' + localidad) if localidad else ''}\n\n"
+
+    return (
+        "Genial, ya tenemos los datos para avanzar con el despacho.\n\n"
+        "Siempre recomendamos retiro en sucursal o punto Correo porque suele ser más ordenado "
+        "y evita posibles demoras por visitas fallidas en domicilio.\n\n"
+        "Te paso las opciones más cercanas:\n\n"
+        f"{lista}"
+        "Decime cuál preferís y seguimos con el despacho."
+    )
+
+
+def _marcar_escalado(pedido, motivo):
+    try:
+        from app import db
+        pedido.ia_requiere_operador = True
+        pedido.ml_mensajes_pendientes = True
+        pedido.wa_estado = "requiere_operador"
+        resumen = (pedido.ia_resumen or "").strip()
+        pedido.ia_resumen = f"{resumen} | TRANSPORTE: {motivo}".strip(" |")
+        db.session.commit()
+    except Exception as e:
+        print("[SELECTOR] Error escalando:", e)

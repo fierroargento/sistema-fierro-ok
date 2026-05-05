@@ -1,93 +1,77 @@
 """
 modules/whatsapp/scheduler.py
 ──────────────────────────────
-Maneja los timers del bot:
-- Recordatorio 1 a la hora sin respuesta
-- Recordatorio 2 a las 3 horas sin respuesta  
-- Escalado al operador después del recordatorio 2
-- Siguiente producto de cross-sell a los 5 minutos sin respuesta
+Scheduler central APB.
 
-Se ejecuta periódicamente desde un job en app.py (cada 5 minutos es suficiente).
+Se ejecuta periódicamente desde modules.whatsapp.activar(app), enganchado a before_request.
+No abre threads ni procesos extra, para no complicar Render.
 """
 
 from datetime import datetime, timedelta
+
 from .config import (
     TIMER_PRIMER_RECORDATORIO,
     TIMER_SEGUNDO_RECORDATORIO,
     TIMER_CROSS_SELL_SIGUIENTE,
+    TRACKING_INTERVALO_MINUTOS,
     modulo_activo,
 )
 from .flows import (
     wa_enviar_recordatorio_1,
     wa_enviar_recordatorio_2,
-    wa_iniciar_cross_sell,
-    wa_procesar_respuesta_cross_sell,
     _guardar_estado_wa,
 )
 
 
 def ejecutar_timers():
-    """
-    Revisa todos los pedidos con conversación WhatsApp activa
-    y ejecuta las acciones que correspondan según el tiempo transcurrido.
-    Llamar periódicamente cada 5 minutos.
-    """
+    """Punto único de scheduler."""
+    ejecutar_timers_whatsapp()
+    ejecutar_tracking_automatico()
+
+
+def ejecutar_timers_whatsapp():
     if not modulo_activo():
         return
-
     try:
         from app import db, Pedido
-
         ahora = datetime.utcnow()
-
-        # Buscar pedidos con conversación WA activa
         pedidos = (
             Pedido.query
             .filter(Pedido.wa_estado.isnot(None))
             .filter(Pedido.wa_estado != "")
             .filter(Pedido.wa_ultimo_contacto.isnot(None))
-            .filter(Pedido.estado.notin_(["Entregado", "Cancelado"]))
+            .filter(Pedido.estado.notin_(["Entregado", "Finalizado", "Cancelado"]))
             .all()
         )
-
         for pedido in pedidos:
             estado = str(pedido.wa_estado or "")
             ultimo = pedido.wa_ultimo_contacto
             if not ultimo:
                 continue
-
             elapsed = (ahora - ultimo).total_seconds()
 
-            # ── Recordatorios por no respuesta ──
-            if estado == "esperando_confirmacion_sucursal":
+            if estado in ["esperando_confirmacion_sucursal", "esperando_datos", "falta_elegir_transporte"]:
                 if elapsed >= TIMER_SEGUNDO_RECORDATORIO and not _ya_envio_recordatorio(pedido, 2):
                     wa_enviar_recordatorio_2(pedido)
                     _marcar_recordatorio(pedido, 2)
-
                 elif elapsed >= TIMER_PRIMER_RECORDATORIO and not _ya_envio_recordatorio(pedido, 1):
                     wa_enviar_recordatorio_1(pedido)
                     _marcar_recordatorio(pedido, 1)
-
-                # Después del recordatorio 2 sin respuesta → escalar operador
                 elif elapsed >= TIMER_SEGUNDO_RECORDATORIO + 3600 and _ya_envio_recordatorio(pedido, 2):
                     _escalar_sin_respuesta(pedido)
 
-            # ── Cross-sell: siguiente producto si no responde en 5 min ──
             elif estado.startswith("cross_sell:") and estado != "cross_sell_cerrado":
                 if elapsed >= TIMER_CROSS_SELL_SIGUIENTE:
                     partes = estado.split(":")
-                    sku_actual = partes[1] if len(partes) > 1 else ""
                     try:
                         indice = int(partes[-1]) if partes[-1].isdigit() else 0
                     except Exception:
                         indice = 0
-
                     from .cross_sell import obtener_productos_a_ofrecer, wa_ofrecer_producto, wa_cerrar_cross_sell
                     from app import normalizar_telefono
                     tel = normalizar_telefono(pedido.telefono)
                     productos = obtener_productos_a_ofrecer(pedido)
                     siguiente_idx = indice + 1
-
                     if siguiente_idx < len(productos):
                         siguiente_sku = productos[siguiente_idx]
                         _guardar_estado_wa(pedido, f"cross_sell:{siguiente_sku}:{siguiente_idx}")
@@ -95,19 +79,87 @@ def ejecutar_timers():
                     else:
                         wa_cerrar_cross_sell(tel)
                         _guardar_estado_wa(pedido, "cross_sell_cerrado")
-
     except Exception as e:
-        print("[WA SCHEDULER] Error:", e)
+        print("[WA SCHEDULER] Error WA:", e)
+
+
+def ejecutar_tracking_automatico():
+    """Consulta tracking de pedidos despachados con seguimiento cargado y dispara eventos."""
+    try:
+        from app import (
+            db, Pedido, es_correo_argentino_pedido, tracking_info_pedido,
+            aplicar_estado_tracking_seguro,
+        )
+        from services.tracking_externo import consultar_correo_formulario, consultar_tracking_url, interpretar_estado_logistico
+        from .post_despacho import registrar_tracking_evento, procesar_evento_tracking_pedido
+
+        ahora = datetime.utcnow()
+        limite = ahora - timedelta(minutes=TRACKING_INTERVALO_MINUTOS)
+
+        pedidos = (
+            Pedido.query
+            .filter(Pedido.estado.in_(["Despachado", "Verificar llegada a destino", "Listo para retirar", "Con demora de entrega", "Con reclamo en transporte", "Entregado"]))
+            .filter(Pedido.seguimiento.isnot(None))
+            .filter(Pedido.seguimiento != "")
+            .filter((Pedido.tracking_ultima_sync.is_(None)) | (Pedido.tracking_ultima_sync < limite))
+            .limit(25)
+            .all()
+        )
+
+        for pedido in pedidos:
+            tracking_info = tracking_info_pedido(pedido)
+            transporte = pedido.empresa_envio or ("Correo Argentino" if es_correo_argentino_pedido(pedido) else "")
+            seguimiento = (pedido.seguimiento or pedido.tn_tracking_number or "").strip()
+            url = (tracking_info or {}).get("url") or ""
+            try:
+                if es_correo_argentino_pedido(pedido):
+                    resultado = consultar_correo_formulario(
+                        seguimiento,
+                        mercado_envios=(pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos")
+                    )
+                    transporte = "Correo Argentino"
+                else:
+                    resultado = consultar_tracking_url(url, transporte=transporte, seguimiento=seguimiento)
+
+                estado = (resultado.get("estado") or "").strip() or "Sin estado detectado"
+                clasificacion = interpretar_estado_logistico(estado, transporte=transporte)
+
+                pedido.tracking_transportista = transporte[:80] if transporte else None
+                pedido.tracking_url_consultada = url[:500] if url else None
+                pedido.tracking_estado_externo = estado[:300]
+                pedido.tracking_ultima_sync = ahora
+                pedido.tracking_error = resultado.get("error")
+
+                registrar_tracking_evento(
+                    pedido, transporte, seguimiento, estado, clasificacion,
+                    raw_json=str(resultado)[:4000], origen="scheduler"
+                )
+
+                nuevo_estado = None
+                if not resultado.get("error"):
+                    nuevo_estado = aplicar_estado_tracking_seguro(pedido, clasificacion)
+                    procesar_evento_tracking_pedido(pedido, clasificacion, estado, origen="scheduler")
+
+                db.session.commit()
+                print(f"[TRACKING AUTO] Pedido #{pedido.id}: {estado} → {clasificacion} / {nuevo_estado or pedido.estado}")
+            except Exception as e:
+                db.session.rollback()
+                try:
+                    pedido.tracking_error = str(e)
+                    pedido.tracking_ultima_sync = ahora
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                print(f"[TRACKING AUTO] Error pedido #{pedido.id}:", e)
+    except Exception as e:
+        print("[TRACKING AUTO] Error general:", e)
 
 
 def _ya_envio_recordatorio(pedido, numero):
-    """Checa si ya se envió el recordatorio N."""
-    flag = getattr(pedido, f"wa_recordatorio_{numero}", None)
-    return bool(flag)
+    return bool(getattr(pedido, f"wa_recordatorio_{numero}", None))
 
 
 def _marcar_recordatorio(pedido, numero):
-    """Marca que ya se envió el recordatorio N."""
     try:
         from app import db
         setattr(pedido, f"wa_recordatorio_{numero}", True)
@@ -118,17 +170,15 @@ def _marcar_recordatorio(pedido, numero):
 
 
 def _escalar_sin_respuesta(pedido):
-    """Escala al operador cuando el cliente no responde después de todos los intentos."""
     try:
         from app import db
         if pedido.ia_requiere_operador:
-            return  # Ya está escalado
+            return
         pedido.ml_mensajes_pendientes = True
         pedido.ia_requiere_operador = True
-        resumen = (pedido.ia_resumen or "").strip()
-        pedido.ia_resumen = f"{resumen} | WA: Cliente no respondió confirmación de sucursal".strip(" |")
         pedido.wa_estado = "sin_respuesta_escalado"
+        resumen = (pedido.ia_resumen or "").strip()
+        pedido.ia_resumen = f"{resumen} | WA: Cliente no respondió".strip(" |")
         db.session.commit()
-        print(f"[WA SCHEDULER] Pedido #{pedido.id} escalado por falta de respuesta")
     except Exception as e:
         print("[WA SCHEDULER] Error escalando:", e)

@@ -1,16 +1,29 @@
 """
 modules/whatsapp/flows.py
 ─────────────────────────
-Flujos conversacionales completos del bot.
-Cada función maneja un estado del pedido y las respuestas posibles del cliente.
+Flujos conversacionales WhatsApp — APB.
+
+Alcance de esta etapa:
+- WhatsApp es continuación operativa luego de Mercado Libre.
+- PP6040 va por Correo Argentino.
+- Cliente no ve costos: siempre envío sin cargo.
+- Bot prioriza sucursal / punto Correo.
+- Preguntas fiscales se responden con regla fija y se escalan si piden otros datos.
 """
 
+import json
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from .config import (
-    ALIAS_PAGO, TIMER_PRIMER_RECORDATORIO,
-    TIMER_SEGUNDO_RECORDATORIO, TIMER_CROSS_SELL_SIGUIENTE,
+    WA_ESPERANDO_DATOS,
+    WA_FALTA_ELEGIR_TRANSPORTE,
+    WA_REQUIERE_OPERADOR,
+    WA_CONFIRMADO_CLIENTE,
+    WA_DESPACHO_EN_PROCESO,
+    WA_DESPACHADO,
+    WA_POSTVENTA,
+    WA_FINALIZADO,
 )
 from .sender import wa_enviar_texto
 from .cross_sell import (
@@ -23,485 +36,7 @@ from .cross_sell import (
 # HELPERS
 # ─────────────────────────────────────────────
 
-def _escalar_operador(pedido, motivo, mensaje_cliente=None):
-    """
-    Marca el pedido para atención del operador.
-    Opcionalmente manda un mensaje neutro al cliente.
-    """
-    try:
-        from app import db, normalizar_telefono
-        pedido.ml_mensajes_pendientes = True
-        pedido.ml_mensajes_pendientes_count = (pedido.ml_mensajes_pendientes_count or 0) + 1
-        pedido.ia_requiere_operador = True
-        resumen_actual = (pedido.ia_resumen or "").strip()
-        pedido.ia_resumen = f"{resumen_actual} | WA: {motivo}".strip(" |")
-        db.session.commit()
-        print(f"[WA] Pedido #{pedido.id} escalado: {motivo}")
-
-        if mensaje_cliente:
-            tel = normalizar_telefono(pedido.telefono)
-            wa_enviar_texto(tel, mensaje_cliente)
-    except Exception as e:
-        print("[WA] Error escalando:", e)
-
-
-def _es_afirmativo(texto):
-    texto = texto.lower().strip()
-    return any(x in texto for x in [
-        "si", "sí", "ok", "dale", "confirmo", "confirmado", "correcto",
-        "exacto", "perfecto", "claro", "obvio", "de una", "va", "bueno",
-        "está bien", "esta bien", "todo bien", "listo", "ya", "por supuesto",
-    ])
-
-
-def _es_negativo(texto):
-    texto = texto.lower().strip()
-    return any(x in texto for x in [
-        "no", "nope", "nel", "para nada", "negativo", "no gracias",
-        "no me interesa", "no quiero", "paso", "por ahora no",
-    ])
-
-
-def _pregunta_precio(texto):
-    texto = texto.lower().strip()
-    return any(x in texto for x in [
-        "cuanto", "cuánto", "precio", "sale", "cuesta", "valor", "costo", "plata",
-    ])
-
-
-def _pregunta_cantidad(texto):
-    numeros = re.findall(r'\b([1-9][0-9]?)\b', texto)
-    return int(numeros[0]) if numeros else None
-
-
-def _es_queja_o_problema(texto):
-    texto = texto.lower()
-    return any(x in texto for x in [
-        "reclamo", "queja", "problema", "no llegó", "no llego", "no recibi",
-        "no recibí", "cancelar", "cancelación", "devolucion", "devolución",
-        "estafa", "mentira", "mal", "roto", "defecto", "incompleto",
-        "no funciona", "tarde", "demora", "donde esta", "dónde está",
-    ])
-
-
-# ─────────────────────────────────────────────
-# FLUJO 1 — CONFIRMACIÓN DE SUCURSAL (Caso A)
-# Datos completos + sucursal definida
-# ─────────────────────────────────────────────
-
-def wa_enviar_confirmacion_sucursal(pedido):
-    """
-    Primer mensaje al cliente cuando todo está listo para despachar.
-    Reemplaza whatsapp_link_pedido.
-    """
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
-    if not tel:
-        return False
-
-    nombre = (pedido.nombre or "").split()[0] or "Cliente"
-    sucursal = pedido.sucursal_nombre or ""
-    direccion = pedido.direccion or ""
-
-    texto = (
-        f"¡Hola {nombre}! 👋 Te escribo desde Fierro 100% Argento.\n\n"
-        f"Quiero confirmarte el despacho de tu compra, así que acá te paso el detalle:\n\n"
-        f"Tu pedido se despacha a:\n"
-        f"📍 {sucursal}\n"
-        f"📌 {direccion}\n\n"
-        f"¿Confirmás que esa es la sucursal que elegiste?"
-    )
-
-    # Guardar estado en el pedido
-    _guardar_estado_wa(pedido, "esperando_confirmacion_sucursal", tel)
-    return wa_enviar_texto(tel, texto)
-
-
-def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
-    """
-    Procesa la respuesta del cliente al mensaje de confirmación de sucursal.
-    """
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
-    nombre = (pedido.nombre or "").split()[0] or "Cliente"
-
-    if _es_queja_o_problema(texto_cliente):
-        _escalar_operador(
-            pedido, "Queja o problema en confirmación de sucursal",
-            "Entendé tu consulta, dejame derivarte con un operador para que te ayude mejor 😊"
-        )
-        return
-
-    if _es_afirmativo(texto_cliente):
-        # Confirma sucursal → mensaje de seguimiento pendiente → cross-sell
-        wa_enviar_texto(
-            tel,
-            "¡Perfecto! Solo nos resta pasarte el número de seguimiento "
-            "para que puedas ver cómo va tu pedido de manera online 😊"
-        )
-        _guardar_estado_wa(pedido, "sucursal_confirmada", tel)
-        # Iniciar cross-sell si corresponde
-        wa_iniciar_cross_sell(pedido)
-        return
-
-    if _es_negativo(texto_cliente) or "otra sucursal" in texto_cliente.lower() or "cambiar" in texto_cliente.lower():
-        # Quiere cambiar de sucursal → operador sin mensaje al cliente
-        _escalar_operador(pedido, "Cliente quiere cambiar de sucursal")
-        return
-
-    if "domicilio" in texto_cliente.lower() or "casa" in texto_cliente.lower():
-        # Quiere envío a domicilio
-        wa_enviar_texto(
-            tel,
-            "Sí, correcto, el envío es sin cargo tal como está en la descripción de tu compra. "
-            "Solo nos resta confirmarte el despacho para no errarle en nada "
-            "y que recibas correctamente tu compra 😊"
-        )
-        return
-
-    if "sin cargo" in texto_cliente.lower() or "gratis" in texto_cliente.lower() or "pagar" in texto_cliente.lower():
-        wa_enviar_texto(
-            tel,
-            "Sí, correcto, el envío es sin cargo tal como está en la descripción de tu compra. "
-            "Solo nos resta confirmarte el despacho para no errarle en nada "
-            "y que recibas correctamente tu compra 😊"
-        )
-        return
-
-    if any(x in texto_cliente.lower() for x in ["quien", "quién", "qué es", "que es", "no compré", "no compre", "equivocado"]):
-        # Desconfianza o número equivocado
-        from app import normalizar_telefono
-        skus = _skus_str(pedido)
-        fecha = pedido.fecha.strftime("%d/%m/%Y") if pedido.fecha else ""
-        wa_enviar_texto(
-            tel,
-            f"Somos Fierro 100% Argento, la tienda donde realizaste tu compra 😊 "
-            f"Te escribimos para coordinar el despacho de tu {skus} "
-            f"{'que adquiriste el ' + fecha if fecha else ''}. "
-            f"Cualquier duda estamos acá."
-        )
-        return
-
-    # Respuesta no reconocida → IA intenta resolver o escala
-    _wa_responder_con_ia(pedido, texto_cliente, tel)
-
-
-# ─────────────────────────────────────────────
-# FLUJO 2 — RECOLECCIÓN DE DATOS (Caso B)
-# Solo tiene teléfono, faltan datos
-# ─────────────────────────────────────────────
-
-def wa_enviar_solicitud_datos(pedido, faltantes):
-    """
-    Primer mensaje cuando el cliente dio solo el teléfono por ML
-    y faltan datos para procesar el despacho.
-    """
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
-    if not tel:
-        return False
-
-    nombre = (pedido.nombre or "").split()[0] if pedido.nombre else ""
-    saludo = f"¡Hola {nombre}! 👋 " if nombre else "¡Hola! 👋 "
-
-    campos_amigables = {
-        "nombre":         "nombre y apellido",
-        "apellido":       "apellido",
-        "dni":            "DNI",
-        "direccion":      "dirección",
-        "localidad":      "localidad",
-        "codigo_postal":  "código postal",
-    }
-
-    faltantes_str = "\n".join(
-        f"• {campos_amigables.get(f, f)}" for f in faltantes
-    )
-
-    texto = (
-        f"{saludo}Te escribo desde Fierro 100% Argento para coordinar "
-        f"el despacho de tu compra.\n\n"
-        f"Para poder avanzar con el envío necesito confirmar algunos datos:\n\n"
-        f"{faltantes_str}\n\n"
-        f"¿Me los podés confirmar por acá? 😊"
-    )
-
-    _guardar_estado_wa(pedido, "esperando_datos", tel)
-    return wa_enviar_texto(tel, texto)
-
-
-def wa_procesar_datos_recibidos(pedido, texto_cliente):
-    """
-    Procesa los datos que manda el cliente en respuesta a la solicitud.
-    Reutiliza la IA de ML para extraer los datos del texto.
-    """
-    from app import (
-        normalizar_telefono, ia_analizar_datos_cliente_ml_acordas,
-        ia_guardar_resultado_recolector, ia_faltantes_pedido,
-        ia_datos_previos_pedido,
-    )
-    tel = normalizar_telefono(pedido.telefono)
-
-    if _es_queja_o_problema(texto_cliente):
-        _escalar_operador(
-            pedido, "Queja durante recolección de datos",
-            "Entendé tu consulta, dejame derivarte con un operador para que te ayude mejor 😊"
-        )
-        return
-
-    # Reutilizar IA de ML para extraer datos
-    resultado = ia_analizar_datos_cliente_ml_acordas(
-        texto_cliente,
-        ia_datos_previos_pedido(pedido)
-    )
-    ia_guardar_resultado_recolector(pedido, texto_cliente, resultado)
-
-    # Chequear si ya están completos
-    faltantes = ia_faltantes_pedido(pedido)
-    if not faltantes:
-        # Datos completos → avanzar al flujo de confirmación de sucursal
-        from .flows import wa_enviar_confirmacion_sucursal
-        wa_enviar_confirmacion_sucursal(pedido)
-    else:
-        # Siguen faltando datos → pedir solo los que faltan
-        wa_enviar_texto(
-            tel,
-            f"¡Gracias! Solo me falta confirmar:\n\n" +
-            "\n".join(f"• {f}" for f in faltantes) +
-            "\n\n¿Me los podés pasar? 😊"
-        )
-
-
-# ─────────────────────────────────────────────
-# FLUJO 3 — CROSS-SELL
-# ─────────────────────────────────────────────
-
-def wa_iniciar_cross_sell(pedido):
-    """
-    Arranca el flujo de cross-sell si hay productos para ofrecer.
-    Se llama después de confirmar la sucursal.
-    """
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
-    productos = obtener_productos_a_ofrecer(pedido)
-
-    if not productos:
-        return
-
-    # Ofrecer el primer producto
-    primer_sku = productos[0]
-    _guardar_estado_wa(pedido, f"cross_sell:{primer_sku}:0", tel)
-    wa_ofrecer_producto(tel, primer_sku)
-
-
-def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_actual):
-    """
-    Procesa la respuesta del cliente durante el flujo de cross-sell.
-    """
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
-    productos = obtener_productos_a_ofrecer(pedido)
-
-    if _es_queja_o_problema(texto_cliente):
-        _escalar_operador(
-            pedido, "Queja durante cross-sell",
-            "Entendé tu consulta, dejame derivarte con un operador para que te ayude mejor 😊"
-        )
-        return
-
-    # Pregunta precio o confirma interés
-    if _pregunta_precio(texto_cliente) or _es_afirmativo(texto_cliente):
-        cantidad = _pregunta_cantidad(texto_cliente) or 1
-        wa_responder_precio(tel, sku_actual, cantidad)
-        _guardar_estado_wa(pedido, f"cross_sell:{sku_actual}:precio_enviado:{cantidad}", tel)
-        return
-
-    # Confirma compra después de ver precio
-    if "precio_enviado" in _obtener_estado_wa(pedido):
-        if _es_afirmativo(texto_cliente):
-            cantidad = _pregunta_cantidad(texto_cliente) or 1
-            wa_escalar_venta_cerrada(pedido, sku_actual, cantidad)
-            # Ofrecer siguiente producto si hay
-            siguiente_idx = indice_actual + 1
-            if siguiente_idx < len(productos):
-                siguiente_sku = productos[siguiente_idx]
-                _guardar_estado_wa(pedido, f"cross_sell:{siguiente_sku}:{siguiente_idx}", tel)
-                wa_ofrecer_producto(tel, siguiente_sku)
-            else:
-                wa_cerrar_cross_sell(tel)
-                _guardar_estado_wa(pedido, "cross_sell_cerrado", tel)
-            return
-
-    # No le interesa → siguiente producto
-    if _es_negativo(texto_cliente):
-        siguiente_idx = indice_actual + 1
-        if siguiente_idx < len(productos):
-            siguiente_sku = productos[siguiente_idx]
-            _guardar_estado_wa(pedido, f"cross_sell:{siguiente_sku}:{siguiente_idx}", tel)
-            wa_ofrecer_producto(tel, siguiente_sku)
-        else:
-            wa_cerrar_cross_sell(tel)
-            _guardar_estado_wa(pedido, "cross_sell_cerrado", tel)
-        return
-
-    # Respuesta no reconocida → IA
-    _wa_responder_con_ia(pedido, texto_cliente, tel)
-
-
-# ─────────────────────────────────────────────
-# FLUJO 4 — DESPACHO Y SEGUIMIENTO
-# ─────────────────────────────────────────────
-
-def wa_enviar_numero_seguimiento(pedido):
-    """
-    Manda el número de seguimiento cuando el pedido es despachado.
-    Reemplaza whatsapp_link_despachado.
-    """
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
-    if not tel:
-        return False
-
-    nombre = (pedido.nombre or "").split()[0] or "Cliente"
-    seguimiento = (pedido.numero_seguimiento or "").strip()
-
-    if not seguimiento:
-        return False
-
-    texto = (
-        f"¡Hola {nombre}! 📦\n\n"
-        f"Tu pedido ya fue despachado. Acá te paso el número de seguimiento "
-        f"para que puedas ver cómo va tu envío de manera online:\n\n"
-        f"🔍 *{seguimiento}*\n\n"
-        f"Podés rastrearlo en la web de Vía Cargo. "
-        f"Cualquier duda escribinos acá 😊"
-    )
-
-    return wa_enviar_texto(tel, texto)
-
-
-def wa_enviar_listo_para_retirar(pedido):
-    """
-    Avisa que el pedido está listo para retirar.
-    Reemplaza whatsapp_link_confirmar_entrega.
-    """
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
-    if not tel:
-        return False
-
-    nombre = (pedido.nombre or "").split()[0] or "Cliente"
-
-    texto = (
-        f"¡Hola {nombre}! 🎉\n\n"
-        f"Tu pedido está *listo para retirar* en:\n\n"
-        f"📍 *{pedido.sucursal_nombre or 'la sucursal elegida'}*\n"
-        f"📌 {pedido.direccion or ''}\n\n"
-        f"¡Te esperamos! Ante cualquier duda escribinos acá 😊"
-    )
-
-    return wa_enviar_texto(tel, texto)
-
-
-# ─────────────────────────────────────────────
-# FLUJO 5 — POSTVENTA
-# ─────────────────────────────────────────────
-
-def wa_enviar_postventa(pedido):
-    """
-    Mensaje de postventa después de que el cliente retiró.
-    Reemplaza whatsapp_link_postventa.
-    """
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
-    if not tel:
-        return False
-
-    nombre = (pedido.nombre or "").split()[0] or "Cliente"
-
-    texto = (
-        f"¡Hola {nombre}! 👋\n\n"
-        f"Vimos que ya recibiste tu parrilla. "
-        f"Esperamos haber cumplido con tus expectativas, ¡gracias por confiar en nosotros! 🙌\n\n"
-        f"Te dejamos algunos tips para que te dure muchos años:\n\n"
-        f"• Evitá quemarla a fuego directo, ese calor puede doblar las varillas.\n"
-        f"• Limpiala con un cepillo mientras está caliente, justo después de usarla.\n"
-        f"• Usá la grasa del asado para pasarle y curarla; ayuda a evitar el óxido.\n"
-        f"• Si queda al aire libre, podés pasarle aceite comestible con una esponja.\n\n"
-        f"Si tenés alguna duda con el uso, escribinos.\n\n"
-        f"Gracias nuevamente 😊\n"
-        f"Y si querés, seguinos en Instagram para ver lo nuevo que vamos sumando:\n"
-        f"https://www.instagram.com/fierroargento"
-    )
-
-    return wa_enviar_texto(tel, texto)
-
-
-def wa_procesar_respuesta_postventa(pedido, texto_cliente):
-    """Procesa respuestas al mensaje de postventa."""
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
-
-    if _es_queja_o_problema(texto_cliente):
-        _escalar_operador(
-            pedido, "Problema postventa",
-            "Entendé tu consulta, dejame derivarte con un operador para que te ayude mejor 😊"
-        )
-        return
-
-    if _es_afirmativo(texto_cliente) or "gracias" in texto_cliente.lower():
-        wa_enviar_texto(tel, "¡Gracias a vos! Un placer 😊🔥")
-        return
-
-    # Cualquier otra cosa → IA o escala
-    _wa_responder_con_ia(pedido, texto_cliente, tel)
-
-
-# ─────────────────────────────────────────────
-# RECORDATORIOS (sin respuesta del cliente)
-# ─────────────────────────────────────────────
-
-def wa_enviar_recordatorio_1(pedido):
-    """Primer recordatorio a la hora sin respuesta."""
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
-    nombre = (pedido.nombre or "").split()[0] or ""
-    saludo = f"Hola {nombre} 👋 " if nombre else "Hola 👋 "
-    wa_enviar_texto(
-        tel,
-        f"{saludo}Solo quería asegurarme de que te haya llegado mi mensaje anterior. "
-        f"Quedamos a disposición para confirmar el despacho de tu parrilla 😊"
-    )
-
-
-def wa_enviar_recordatorio_2(pedido):
-    """Segundo y último recordatorio a las 3 horas sin respuesta."""
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
-    nombre = (pedido.nombre or "").split()[0] or ""
-    saludo = f"Hola {nombre} 👋 " if nombre else "Hola 👋 "
-    wa_enviar_texto(
-        tel,
-        f"{saludo}Te escribimos por última vez para confirmar el despacho de tu parrilla. "
-        f"Necesitamos tu confirmación para poder avanzar con el envío. "
-        f"Si tenés alguna duda o inconveniente podés escribirnos acá 😊"
-    )
-
-
-# ─────────────────────────────────────────────
-# HELPERS INTERNOS
-# ─────────────────────────────────────────────
-
-def _skus_str(pedido):
-    """Devuelve descripción legible de los productos del pedido."""
-    items = pedido.items or []
-    if not items:
-        return "pedido"
-    descripciones = [str(getattr(i, "descripcion", "") or getattr(i, "sku", "") or "producto") for i in items[:2]]
-    return " y ".join(descripciones)
-
-
 def _guardar_estado_wa(pedido, estado, tel=None):
-    """Guarda el estado de la conversación WhatsApp en el pedido."""
     try:
         from app import db
         pedido.wa_estado = estado
@@ -515,25 +50,529 @@ def _obtener_estado_wa(pedido):
     return str(getattr(pedido, "wa_estado", "") or "")
 
 
+def _escalar_operador(pedido, motivo, mensaje_cliente=None):
+    """Marca el pedido para atención humana sin romper ML."""
+    try:
+        from app import db, normalizar_telefono
+        pedido.ml_mensajes_pendientes = True
+        pedido.ml_mensajes_pendientes_count = (pedido.ml_mensajes_pendientes_count or 0) + 1
+        pedido.ia_requiere_operador = True
+        pedido.wa_estado = WA_REQUIERE_OPERADOR
+        resumen_actual = (pedido.ia_resumen or "").strip()
+        pedido.ia_resumen = f"{resumen_actual} | WA: {motivo}".strip(" |")
+        pedido.wa_ultimo_contacto = datetime.utcnow()
+        db.session.commit()
+        print(f"[WA] Pedido #{pedido.id} escalado: {motivo}")
+
+        if mensaje_cliente:
+            tel = normalizar_telefono(pedido.telefono)
+            if tel:
+                wa_enviar_texto(tel, mensaje_cliente)
+    except Exception as e:
+        print("[WA] Error escalando:", e)
+
+
+def _es_afirmativo(texto):
+    texto = texto.lower().strip()
+    return any(x in texto for x in [
+        "si", "sí", "ok", "dale", "confirmo", "confirmado", "correcto",
+        "exacto", "perfecto", "claro", "obvio", "de una", "va", "bueno",
+        "está bien", "esta bien", "todo bien", "listo", "por supuesto",
+    ])
+
+
+def _es_negativo(texto):
+    texto = texto.lower().strip()
+    return any(x in texto for x in [
+        "no", "nope", "negativo", "no gracias", "no me interesa", "no quiero",
+        "paso", "por ahora no", "solo domicilio", "prefiero domicilio", "a domicilio",
+    ])
+
+
+def _pregunta_precio(texto):
+    texto = texto.lower().strip()
+    return any(x in texto for x in ["cuanto", "cuánto", "precio", "sale", "cuesta", "valor", "costo", "plata"])
+
+
+def _pregunta_cantidad(texto):
+    numeros = re.findall(r"\b([1-9][0-9]?)\b", texto)
+    return int(numeros[0]) if numeros else None
+
+
+def _es_queja_o_problema(texto):
+    texto = texto.lower()
+    return any(x in texto for x in [
+        "reclamo", "queja", "problema", "no llegó", "no llego", "no recibi",
+        "no recibí", "cancelar", "cancelación", "devolucion", "devolución",
+        "estafa", "mentira", "mal", "roto", "defecto", "incompleto",
+        "no funciona", "tarde", "demora", "donde esta", "dónde está",
+    ])
+
+
+def _es_consulta_factura(texto):
+    t = texto.lower()
+    return any(x in t for x in ["factura", "facturacion", "facturación", "factura a", "factura b"])
+
+
+def _requiere_factura_distinta(texto):
+    t = texto.lower()
+    return any(x in t for x in [
+        "otros datos", "otro dato", "otra razon", "otra razón", "razon social", "razón social",
+        "otro cuit", "cuit distinto", "a nombre de", "datos distintos", "cambiar datos",
+        "no son esos", "con estos datos", "te paso los datos",
+    ])
+
+
+def _responder_factura_o_escalar(pedido, texto_cliente):
+    from app import normalizar_telefono
+    tel = normalizar_telefono(pedido.telefono)
+    if _requiere_factura_distinta(texto_cliente):
+        _escalar_operador(
+            pedido,
+            "Cliente necesita factura con datos distintos a la plataforma",
+            "Sí, realizamos factura A y B. Si necesitás que se emita con datos distintos a los cargados en la plataforma, te derivamos con un operador para revisarlo."
+        )
+        return True
+    wa_enviar_texto(
+        tel,
+        "Sí, realizamos factura A y B.\n\nLa factura se emite con los datos cargados en la plataforma donde realizaste la compra."
+    )
+    return True
+
+
+def _skus_str(pedido):
+    items = pedido.items or []
+    if not items:
+        return "pedido"
+    descripciones = [str(getattr(i, "descripcion", "") or getattr(i, "sku", "") or "producto") for i in items[:2]]
+    return " y ".join(descripciones)
+
+
+def _completar_localidad_provincia_por_cp(pedido):
+    """Si hay CP y faltan localidad/provincia, intenta deducirlas sin pedir datos de más."""
+    cp = str(getattr(pedido, "codigo_postal", "") or "").strip()
+    if not cp or not cp.isdigit():
+        return []
+    if getattr(pedido, "localidad", None) and getattr(pedido, "provincia", None):
+        return []
+
+    completados = []
+    try:
+        # Primero usar CP de sucursales Via Cargo como base local validada del sistema.
+        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+        candidatas = [s for s in data if str(s.get("cp") or "").strip() == cp]
+        if not candidatas and len(cp) >= 4:
+            cp_int = int(cp)
+            candidatas = sorted(
+                [s for s in data if str(s.get("cp") or "").isdigit()],
+                key=lambda s: abs(int(str(s.get("cp"))) - cp_int)
+            )[:1]
+        if candidatas:
+            ref = candidatas[0]
+            if not getattr(pedido, "localidad", None) and ref.get("localidad"):
+                pedido.localidad = ref.get("localidad")
+                completados.append("localidad")
+            if not getattr(pedido, "provincia", None) and ref.get("provincia"):
+                pedido.provincia = ref.get("provincia")
+                completados.append("provincia")
+            if completados:
+                from app import db
+                db.session.commit()
+    except Exception as e:
+        print("[WA] No se pudo autocompletar localidad/provincia por CP:", e)
+    return completados
+
+
+# ─────────────────────────────────────────────
+# FLUJO DATOS
+# ─────────────────────────────────────────────
+
+def wa_enviar_solicitud_datos(pedido, faltantes):
+    from app import normalizar_telefono
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        return False
+
+    nombre_base = (getattr(pedido, "nombre", None) or getattr(pedido, "cliente", None) or "")
+    nombre = nombre_base.split()[0] if nombre_base else ""
+    saludo = f"Hola {nombre}! " if nombre else "Hola! "
+
+    campos_amigables = {
+        "nombre": "nombre y apellido",
+        "apellido": "apellido",
+        "dni": "DNI",
+        "direccion": "dirección completa",
+        "localidad": "localidad",
+        "provincia": "provincia",
+        "codigo_postal": "código postal",
+        "telefono": "teléfono",
+    }
+    faltantes_str = "\n".join(f"• {campos_amigables.get(f, f)}" for f in faltantes)
+
+    texto = (
+        f"{saludo}Te escribimos desde Fierro 100% Argento para avanzar con el despacho de tu compra.\n\n"
+        f"Para poder enviarlo necesitamos confirmar:\n\n"
+        f"{faltantes_str}\n\n"
+        f"Me lo podés pasar por acá?"
+    )
+    _guardar_estado_wa(pedido, WA_ESPERANDO_DATOS, tel)
+    return wa_enviar_texto(tel, texto)
+
+
+def wa_procesar_datos_recibidos(pedido, texto_cliente):
+    from app import (
+        normalizar_telefono, ia_analizar_datos_cliente_ml_acordas,
+        ia_guardar_resultado_recolector, ia_faltantes_pedido,
+        ia_datos_previos_pedido, db,
+    )
+    tel = normalizar_telefono(pedido.telefono)
+
+    if _es_consulta_factura(texto_cliente):
+        return _responder_factura_o_escalar(pedido, texto_cliente)
+
+    if _es_queja_o_problema(texto_cliente):
+        _escalar_operador(pedido, "Queja durante recolección de datos", "Te derivamos con un operador para ayudarte mejor.")
+        return
+
+    resultado = ia_analizar_datos_cliente_ml_acordas(texto_cliente, ia_datos_previos_pedido(pedido))
+    ia_guardar_resultado_recolector(pedido, texto_cliente, resultado)
+    _completar_localidad_provincia_por_cp(pedido)
+
+    faltantes = ia_faltantes_pedido(pedido)
+    # No pedir localidad/provincia si se pudieron deducir por CP.
+    faltantes = [f for f in faltantes if f not in ["localidad", "provincia"] or not getattr(pedido, f, None)]
+
+    if not faltantes:
+        wa_cerrar_datos_completos(pedido)
+        return
+
+    campos = {
+        "nombre": "nombre y apellido",
+        "apellido": "apellido",
+        "dni": "DNI",
+        "direccion": "dirección completa",
+        "localidad": "localidad",
+        "provincia": "provincia",
+        "codigo_postal": "código postal",
+    }
+    wa_enviar_texto(
+        tel,
+        "Perfecto, gracias.\n\nTodavía me faltaría confirmar:\n\n" +
+        "\n".join(f"• {campos.get(f, f)}" for f in faltantes) +
+        "\n\nMe lo pasás por acá?"
+    )
+    pedido.wa_ultimo_contacto = datetime.utcnow()
+    db.session.commit()
+
+
+def wa_cerrar_datos_completos(pedido):
+    """Datos completos: para PP6040 prepara Correo y no informa costos al cliente."""
+    from app import normalizar_telefono, db
+    from modules.transportes.selector import pedido_contiene_pp6040, asignar_transporte_pedido, sugerir_sucursales_correo_pedido
+
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        return False
+
+    if pedido_contiene_pp6040(pedido):
+        # Cotización interna y sucursales/puntos Correo.
+        ok, msg = asignar_transporte_pedido(pedido, preferencia_cliente="sucursal")
+        msg_suc = sugerir_sucursales_correo_pedido(pedido)
+        if msg_suc:
+            _guardar_estado_wa(pedido, WA_FALTA_ELEGIR_TRANSPORTE, tel)
+            return wa_enviar_texto(tel, msg_suc)
+        if ok:
+            _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
+            return wa_enviar_texto(tel, "Perfecto, ya tenemos todos los datos para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.")
+        _escalar_operador(pedido, msg or "No se pudo resolver transporte Correo")
+        return False
+
+    _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
+    return wa_enviar_texto(tel, "Perfecto, ya tenemos todos los datos para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.")
+
+
+# ─────────────────────────────────────────────
+# FLUJO TRANSPORTE CORREO
+# ─────────────────────────────────────────────
+
+def _cargar_sucursales_ofrecidas(pedido):
+    raw = getattr(pedido, "correo_sucursales_ofrecidas", None) or getattr(pedido, "ia_sucursales_ofrecidas", "") or ""
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def wa_procesar_eleccion_transporte(pedido, texto_cliente):
+    from app import normalizar_telefono, db
+    from modules.transportes.selector import asignar_transporte_pedido
+    tel = normalizar_telefono(pedido.telefono)
+    texto = (texto_cliente or "").strip().lower()
+
+    if _es_consulta_factura(texto_cliente):
+        return _responder_factura_o_escalar(pedido, texto_cliente)
+
+    if any(x in texto for x in ["domicilio", "a casa", "mi casa", "entrega en casa"]):
+        # Primero educa. Si el cliente ya lo expresó en negativo/firme, evaluar regla y escalar si corresponde.
+        ok, msg = asignar_transporte_pedido(pedido, preferencia_cliente="domicilio")
+        if ok:
+            _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
+            wa_enviar_texto(tel, "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.")
+            return
+        _escalar_operador(
+            pedido,
+            msg or "Cliente pidió domicilio y requiere revisión",
+            "Siempre recomendamos retiro en sucursal o punto Correo porque suele ser más ordenado y evita posibles demoras por visitas fallidas en domicilio.\n\nDe todas maneras, lo revisamos con un operador y te confirmamos."
+        )
+        return
+
+    if _es_queja_o_problema(texto_cliente):
+        _escalar_operador(pedido, "Consulta/problema en elección de transporte", "Te derivamos con un operador para ayudarte mejor.")
+        return
+
+    sucs = _cargar_sucursales_ofrecidas(pedido)
+    m = re.search(r"\b([1-3])\b", texto)
+    if m and sucs:
+        idx = int(m.group(1)) - 1
+        if 0 <= idx < len(sucs):
+            suc = sucs[idx]
+            pedido.empresa_envio = "Correo Argentino"
+            pedido.tipo_entrega = "Sucursal"
+            pedido.sucursal_nombre = suc.get("nombre") or suc.get("name") or pedido.sucursal_nombre
+            pedido.direccion = suc.get("direccion") or suc.get("address") or pedido.direccion
+            pedido.localidad = suc.get("localidad") or suc.get("city") or pedido.localidad
+            pedido.provincia = suc.get("provincia") or pedido.provincia
+            pedido.wa_estado = WA_DESPACHO_EN_PROCESO
+            pedido.wa_ultimo_contacto = datetime.utcnow()
+            db.session.commit()
+            wa_enviar_texto(tel, "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.")
+            return
+
+    if _es_afirmativo(texto) and sucs:
+        _escalar_operador(pedido, "Cliente confirmó sucursal sin indicar número claro", "Perfecto, lo revisamos y te confirmamos el despacho.")
+        return
+
+    _escalar_operador(pedido, f"Respuesta no clara sobre transporte: {texto_cliente[:120]}", "Lo revisamos con un operador para no cometer errores en el despacho.")
+
+
+# ─────────────────────────────────────────────
+# FLUJO COMPATIBLE: CONFIRMACIÓN SUCURSAL LEGACY
+# ─────────────────────────────────────────────
+
+def wa_enviar_confirmacion_sucursal(pedido):
+    from app import normalizar_telefono
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        return False
+    nombre_base = (getattr(pedido, "nombre", None) or getattr(pedido, "cliente", None) or "")
+    nombre = nombre_base.split()[0] if nombre_base else "Cliente"
+    texto = (
+        f"Hola {nombre}!\n\n"
+        f"Tu pedido se despacha a:\n"
+        f"{pedido.sucursal_nombre or 'Sucursal elegida'}\n"
+        f"{pedido.direccion or ''}\n\n"
+        f"Confirmás que está correcto?"
+    )
+    _guardar_estado_wa(pedido, "esperando_confirmacion_sucursal", tel)
+    return wa_enviar_texto(tel, texto)
+
+
+def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
+    from app import normalizar_telefono
+    tel = normalizar_telefono(pedido.telefono)
+    if _es_consulta_factura(texto_cliente):
+        return _responder_factura_o_escalar(pedido, texto_cliente)
+    if _es_afirmativo(texto_cliente):
+        _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
+        wa_enviar_texto(tel, "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.")
+        wa_iniciar_cross_sell(pedido)
+        return
+    if _es_negativo(texto_cliente):
+        _escalar_operador(pedido, "Cliente no confirmó sucursal")
+        return
+    _wa_responder_con_ia(pedido, texto_cliente, tel)
+
+
+# ─────────────────────────────────────────────
+# CROSS-SELL
+# ─────────────────────────────────────────────
+
+def wa_iniciar_cross_sell(pedido):
+    from app import normalizar_telefono
+    tel = normalizar_telefono(pedido.telefono)
+    productos = obtener_productos_a_ofrecer(pedido)
+    if not productos or not tel:
+        return
+    primer_sku = productos[0]
+    _guardar_estado_wa(pedido, f"cross_sell:{primer_sku}:0", tel)
+    wa_ofrecer_producto(tel, primer_sku)
+
+
+def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_actual):
+    from app import normalizar_telefono
+    tel = normalizar_telefono(pedido.telefono)
+    productos = obtener_productos_a_ofrecer(pedido)
+
+    if _es_consulta_factura(texto_cliente):
+        return _responder_factura_o_escalar(pedido, texto_cliente)
+    if _es_queja_o_problema(texto_cliente):
+        _escalar_operador(pedido, "Queja durante cross-sell", "Te derivamos con un operador para ayudarte mejor.")
+        return
+    if _pregunta_precio(texto_cliente) or _es_afirmativo(texto_cliente):
+        cantidad = _pregunta_cantidad(texto_cliente) or 1
+        wa_responder_precio(tel, sku_actual, cantidad)
+        _guardar_estado_wa(pedido, f"cross_sell:{sku_actual}:precio_enviado:{cantidad}", tel)
+        return
+    if _es_negativo(texto_cliente):
+        siguiente_idx = indice_actual + 1
+        if siguiente_idx < len(productos):
+            siguiente_sku = productos[siguiente_idx]
+            _guardar_estado_wa(pedido, f"cross_sell:{siguiente_sku}:{siguiente_idx}", tel)
+            wa_ofrecer_producto(tel, siguiente_sku)
+        else:
+            wa_cerrar_cross_sell(tel)
+            _guardar_estado_wa(pedido, "cross_sell_cerrado", tel)
+        return
+    _wa_responder_con_ia(pedido, texto_cliente, tel)
+
+
+# ─────────────────────────────────────────────
+# DESPACHO / TRACKING / POSTVENTA
+# ─────────────────────────────────────────────
+
+def wa_enviar_numero_seguimiento(pedido):
+    from app import normalizar_telefono
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        return False
+    seguimiento = (getattr(pedido, "seguimiento", "") or getattr(pedido, "tn_tracking_number", "") or "").strip()
+    if not seguimiento:
+        return False
+    empresa = pedido.empresa_envio or "Correo Argentino"
+    texto = (
+        "Tu pedido ya fue despachado.\n\n"
+        f"Empresa: {empresa}\n"
+        f"Seguimiento: {seguimiento}\n\n"
+        "Con ese número podés consultar el avance del envío. Cualquier duda escribinos por acá."
+    )
+    _guardar_estado_wa(pedido, WA_DESPACHADO, tel)
+    return wa_enviar_texto(tel, texto)
+
+
+def wa_enviar_listo_para_retirar(pedido):
+    from app import normalizar_telefono, db
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        return False
+    if getattr(pedido, "wa_listo_retirar_enviado", False):
+        return False
+    texto = (
+        "Tu pedido ya se encuentra disponible para retirar en la sucursal/punto de Correo Argentino.\n\n"
+        f"Sucursal: {pedido.sucursal_nombre or 'la sucursal elegida'}\n"
+        f"Dirección: {pedido.direccion or ''}\n\n"
+        "Te recomendamos retirarlo dentro de los próximos días para evitar devoluciones automáticas."
+    )
+    ok = wa_enviar_texto(tel, texto)
+    if ok:
+        try:
+            pedido.wa_listo_retirar_enviado = True
+            pedido.wa_ultimo_contacto = datetime.utcnow()
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+    return ok
+
+
+def wa_enviar_postventa(pedido):
+    from app import normalizar_telefono, db
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        return False
+    if getattr(pedido, "wa_postventa_enviada", False):
+        return False
+    texto = (
+        "Hola! Vimos que tu pedido ya fue entregado.\n\n"
+        "Esperamos que disfrutes mucho tu compra y gracias por elegir Fierro 100% Argento.\n\n"
+        "Te dejamos algunos tips para que tu parrilla dure muchos años:\n\n"
+        "• Evitá quemarla a fuego directo, ese calor puede doblar las varillas.\n"
+        "• Limpiala con un cepillo mientras está caliente, justo después de usarla.\n"
+        "• Usá la grasa del asado para pasarle y curarla; ayuda a evitar el óxido.\n"
+        "• Si queda al aire libre, podés pasarle aceite comestible con una esponja.\n\n"
+        "Si tenés alguna duda con el uso, escribinos.\n\n"
+        "También podés seguirnos en Instagram para ver nuevos productos, ideas y novedades:\n"
+        "https://www.instagram.com/fierroargento\n\n"
+        "Gracias nuevamente!"
+    )
+    ok = wa_enviar_texto(tel, texto)
+    if ok:
+        try:
+            pedido.wa_postventa_enviada = True
+            pedido.wa_estado = WA_FINALIZADO
+            pedido.wa_ultimo_contacto = datetime.utcnow()
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+    return ok
+
+
+def wa_procesar_respuesta_postventa(pedido, texto_cliente):
+    from app import normalizar_telefono
+    tel = normalizar_telefono(pedido.telefono)
+    if _es_queja_o_problema(texto_cliente):
+        _escalar_operador(pedido, "Problema postventa", "Te derivamos con un operador para ayudarte mejor.")
+        return
+    if _es_afirmativo(texto_cliente) or "gracias" in texto_cliente.lower():
+        wa_enviar_texto(tel, "Gracias a vos! Un placer.")
+        return
+    _wa_responder_con_ia(pedido, texto_cliente, tel)
+
+
+# ─────────────────────────────────────────────
+# RECORDATORIOS
+# ─────────────────────────────────────────────
+
+def wa_enviar_recordatorio_1(pedido):
+    from app import normalizar_telefono
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        return False
+    return wa_enviar_texto(tel, "Hola! Solo quería asegurarme de que hayas visto el mensaje anterior. Quedamos atentos para avanzar con el despacho.")
+
+
+def wa_enviar_recordatorio_2(pedido):
+    from app import normalizar_telefono
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        return False
+    return wa_enviar_texto(tel, "Te escribimos nuevamente para poder avanzar con el despacho de tu pedido. Si tenés alguna duda, escribinos por acá.")
+
+
+# ─────────────────────────────────────────────
+# IA fallback
+# ─────────────────────────────────────────────
+
 def _wa_responder_con_ia(pedido, texto_cliente, tel):
-    """Último recurso: IA responde o escala."""
+    if _es_consulta_factura(texto_cliente):
+        return _responder_factura_o_escalar(pedido, texto_cliente)
     try:
         from app import ia_llamar_openai_chat
         prompt = f"""
-Sos el asistente de atención al cliente de Fierro 100% Argento, empresa que vende parrillas.
-Respondé de forma amable, breve y en español rioplatense.
+Sos el asistente de atención al cliente de Fierro 100% Argento.
+Respondé breve, amable y en español rioplatense.
 
 Estado del pedido: {pedido.estado or 'En proceso'}
-Sucursal de retiro: {pedido.sucursal_nombre or 'No asignada aún'}
+Empresa de envío: {pedido.empresa_envio or 'No asignada'}
+Tipo de entrega: {pedido.tipo_entrega or 'No asignada'}
 
-Mensaje del cliente: \"\"\"{texto_cliente}\"\"\"
+Mensaje del cliente: """ + "\"\"\"" + f"{texto_cliente}" + "\"\"\"" + """
 
 REGLAS:
-- Si es sobre el producto (parrillas, medidas, materiales, garantía) respondé con info general.
-- Si es sobre demoras: el plazo habitual es 3 a 5 días hábiles desde el despacho.
-- Si es queja, reclamo, cancelación o algo que no podés resolver → respondé que un operador
-  se va a comunicar y al final escribí exactamente: ESCALAR
-- Nunca confirmes fechas exactas ni hagas promesas de entrega.
+- No informes costos de envío. Para el cliente es envío sin cargo.
+- Si pregunta por factura A/B: decir que sí, y que se emite con los datos cargados en la plataforma.
+- Si necesita factura con datos distintos, reclamo, queja, cancelación o algo riesgoso: respondé que lo deriva un operador y agregá exactamente ESCALAR.
+- Nunca prometas fecha exacta de entrega.
 - Respondé solo el mensaje para el cliente.
 """
         respuesta = ia_llamar_openai_chat(prompt)
@@ -544,7 +583,4 @@ REGLAS:
             wa_enviar_texto(tel, respuesta)
     except Exception as e:
         print("[WA] Error IA:", e)
-        _escalar_operador(
-            pedido, "Error IA",
-            "Entendé tu consulta, dejame derivarte con un operador para que te ayude mejor 😊"
-        )
+        _escalar_operador(pedido, "Error IA", "Te derivamos con un operador para ayudarte mejor.")

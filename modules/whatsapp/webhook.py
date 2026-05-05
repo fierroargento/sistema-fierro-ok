@@ -14,6 +14,8 @@ from .flows import (
     wa_procesar_datos_recibidos,
     wa_procesar_respuesta_cross_sell,
     wa_procesar_respuesta_postventa,
+    wa_procesar_eleccion_transporte,
+    _responder_factura_o_escalar,
 )
 
 
@@ -55,9 +57,19 @@ def _routear_mensaje(pedido, texto, telefono):
         )
         return
 
-    # Esperando confirmación de sucursal
+    # Preguntas simples de factura: respuesta fija en cualquier estado activo
+    if any(x in (texto or "").lower() for x in ["factura", "facturacion", "facturación", "factura a", "factura b"]):
+        _responder_factura_o_escalar(pedido, texto)
+        return
+
+    # Esperando confirmación de sucursal legacy
     if estado == "esperando_confirmacion_sucursal":
         wa_procesar_respuesta_confirmacion(pedido, texto)
+        return
+
+    # Esperando elección de sucursal/punto Correo o domicilio
+    if estado == "falta_elegir_transporte":
+        wa_procesar_eleccion_transporte(pedido, texto)
         return
 
     # Esperando datos faltantes

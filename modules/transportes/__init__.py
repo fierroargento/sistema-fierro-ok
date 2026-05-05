@@ -1,27 +1,30 @@
 """
 modules/transportes/__init__.py
 ────────────────────────────────
-Módulo de cotización automática de transportes.
-Cotiza Correo Argentino (API MiCorreo) y Andreani (pendiente credenciales).
-Elige automáticamente el más conveniente por precio y disponibilidad.
+Módulo de transporte.
 
-Variables de entorno necesarias:
-    CORREO_ARGENTINO_EMAIL=fierro.argentoventas@gmail.com
-    CORREO_ARGENTINO_PASSWORD=tu_contraseña
-    
-    # Cuando tengas credenciales Andreani:
-    ANDREANI_USUARIO=...
-    ANDREANI_PASSWORD=...
-    ANDREANI_CONTRATO=...
+Estado actual:
+- Correo Argentino activo para PP6040.
+- Andreani queda en standby hasta credenciales.
 """
 
-from .correo_argentino import cotizar_correo
+from .correo_argentino import cotizar_correo, obtener_sucursales_correo_por_pedido
 from .andreani import cotizar_andreani
-from .selector import elegir_transporte, cotizar_ambos
+from .selector import (
+    pedido_contiene_pp6040,
+    cotizar_correo_pp6040,
+    evaluar_decision_correo_pp6040,
+    asignar_transporte_pedido,
+    sugerir_sucursales_correo_pedido,
+)
 
 __all__ = [
     "cotizar_correo",
-    "cotizar_andreani", 
-    "cotizar_ambos",
-    "elegir_transporte",
+    "cotizar_andreani",
+    "obtener_sucursales_correo_por_pedido",
+    "pedido_contiene_pp6040",
+    "cotizar_correo_pp6040",
+    "evaluar_decision_correo_pp6040",
+    "asignar_transporte_pedido",
+    "sugerir_sucursales_correo_pedido",
 ]

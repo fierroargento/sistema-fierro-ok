@@ -257,3 +257,147 @@ def obtener_sucursales_correo(provincia_code):
     except Exception as e:
         print(f"[CORREO ARG] Error obteniendo sucursales provincia {provincia_code}:", e)
         return []
+
+
+# ─────────────────────────────────────────────────────────────
+# Sucursales / puntos Correo para flujo PP6040
+# ─────────────────────────────────────────────────────────────
+
+_PROVINCIA_A_CODIGO = {
+    "buenos aires": "B",
+    "capital federal": "C",
+    "caba": "C",
+    "ciudad autonoma de buenos aires": "C",
+    "ciudad autónoma de buenos aires": "C",
+    "cordoba": "X",
+    "córdoba": "X",
+    "santa fe": "S",
+    "mendoza": "M",
+    "tucuman": "T",
+    "tucumán": "T",
+    "chaco": "H",
+    "formosa": "P",
+    "misiones": "N",
+    "entre rios": "E",
+    "entre ríos": "E",
+    "corrientes": "W",
+    "santiago del estero": "G",
+    "salta": "A",
+    "san juan": "J",
+    "san luis": "D",
+    "catamarca": "K",
+    "la rioja": "F",
+    "neuquen": "Q",
+    "neuquén": "Q",
+    "rio negro": "R",
+    "río negro": "R",
+    "chubut": "U",
+    "santa cruz": "Z",
+    "tierra del fuego": "V",
+    "la pampa": "L",
+    "jujuy": "Y",
+}
+
+
+def _norm_txt(txt):
+    import unicodedata
+    txt = str(txt or "").strip().lower()
+    txt = unicodedata.normalize("NFD", txt)
+    txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+    return txt
+
+
+def _provincia_code(nombre):
+    n = _norm_txt(nombre)
+    return _PROVINCIA_A_CODIGO.get(n, "")
+
+
+def _leer_float_agencia(ag, *keys):
+    for k in keys:
+        v = ag.get(k)
+        if v is None or v == "":
+            continue
+        try:
+            return float(str(v).replace(",", "."))
+        except Exception:
+            continue
+    return None
+
+
+def _normalizar_agencia(ag):
+    """Normaliza campos posibles de la API MiCorreo sin asumir una sola forma."""
+    nombre = ag.get("name") or ag.get("nombre") or ag.get("description") or ag.get("descripcion") or ag.get("agencyName") or "Punto Correo"
+    direccion = ag.get("address") or ag.get("direccion") or ag.get("domicilio") or ag.get("street") or ""
+    localidad = ag.get("city") or ag.get("localidad") or ag.get("town") or ag.get("locality") or ""
+    provincia = ag.get("province") or ag.get("provincia") or ag.get("provinceName") or ""
+    cp = ag.get("postalCode") or ag.get("cp") or ag.get("zipCode") or ""
+    lat = _leer_float_agencia(ag, "lat", "latitude", "geoLat", "coordenadaLatitud")
+    lng = _leer_float_agencia(ag, "lng", "lon", "longitude", "geoLng", "coordenadaLongitud")
+    return {
+        "id": str(ag.get("id") or ag.get("agencyId") or ag.get("code") or ag.get("codigo") or nombre),
+        "nombre": str(nombre or "Punto Correo"),
+        "direccion": str(direccion or ""),
+        "localidad": str(localidad or ""),
+        "provincia": str(provincia or ""),
+        "cp": str(cp or ""),
+        "lat": lat,
+        "lng": lng,
+        "raw": ag,
+    }
+
+
+def obtener_sucursales_correo_por_pedido(pedido):
+    """Devuelve puntos/sucursales Correo ordenados por cercanía al domicilio del cliente.
+
+    Reutiliza los helpers geográficos ya validados para Via Cargo desde app.py.
+    Si la API no devuelve coordenadas, usa localidad/provincia/CP como fallback seguro.
+    """
+    provincia = str(getattr(pedido, "provincia", "") or "")
+    localidad = str(getattr(pedido, "localidad", "") or "")
+    direccion = str(getattr(pedido, "direccion", "") or "")
+    cp_cliente = str(getattr(pedido, "codigo_postal", "") or "").strip()
+
+    code = _provincia_code(provincia)
+    if not code:
+        # fallback CABA por localidad
+        if "caba" in _norm_txt(localidad) or "capital" in _norm_txt(localidad):
+            code = "C"
+        else:
+            return []
+
+    agencias_raw = obtener_sucursales_correo(code)
+    agencias = [_normalizar_agencia(a) for a in agencias_raw]
+    if not agencias:
+        return []
+
+    loc_norm = _norm_txt(localidad)
+    prov_norm = _norm_txt(provincia)
+    cp_num = int(cp_cliente) if cp_cliente.isdigit() else None
+
+    # Filtro suave: primero localidad; si queda vacío, provincia entera.
+    candidatas = agencias
+    if loc_norm:
+        por_loc = [a for a in agencias if loc_norm in _norm_txt(a.get("localidad")) or _norm_txt(a.get("localidad")) in loc_norm]
+        if por_loc:
+            candidatas = por_loc
+
+    try:
+        from app import _obtener_coords_cliente, _distancia_km
+        lat_cli, lng_cli, metodo = _obtener_coords_cliente(cp_cliente, direccion, localidad, provincia)
+        con_coords = [a for a in candidatas if a.get("lat") is not None and a.get("lng") is not None]
+        if lat_cli and lng_cli and con_coords:
+            con_coords.sort(key=lambda a: _distancia_km(lat_cli, lng_cli, float(a["lat"]), float(a["lng"])))
+            return con_coords[:10]
+    except Exception as e:
+        print("[CORREO ARG] No se pudo ordenar por coordenadas:", e)
+
+    # Fallback por CP más cercano.
+    if cp_num is not None:
+        def dist_cp(a):
+            cp = str(a.get("cp") or "")
+            return abs(int(cp) - cp_num) if cp.isdigit() else 999999
+        candidatas.sort(key=dist_cp)
+    else:
+        candidatas.sort(key=lambda a: (a.get("localidad") or "", a.get("nombre") or ""))
+
+    return candidatas[:10]

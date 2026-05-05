@@ -144,6 +144,12 @@ class Pedido(db.Model):
     wa_ultimo_contacto   = db.Column(db.DateTime)
     wa_recordatorio_1    = db.Column(db.Boolean, default=False)
     wa_recordatorio_2    = db.Column(db.Boolean, default=False)
+    wa_listo_retirar_enviado = db.Column(db.Boolean, default=False)
+    wa_postventa_enviada = db.Column(db.Boolean, default=False)
+    correo_sucursales_ofrecidas = db.Column(db.Text)
+    costo_envio = db.Column(db.Float)
+    costo_envio_sucursal = db.Column(db.Float)
+    costo_envio_domicilio = db.Column(db.Float)
     ia_ultimo_mensaje_hash = db.Column(db.String(80))
     ia_ultimo_analisis = db.Column(db.DateTime)
     ia_error = db.Column(db.Text)
@@ -261,6 +267,31 @@ class NotaPedido(db.Model):
     usuario     = db.Column(db.String(100))   # username del operador
     rol         = db.Column(db.String(50))    # rol en el momento de crear
     fecha       = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+
+class ConfiguracionSistema(db.Model):
+    """Configuraciones simples para escalar a CRM sin hardcodes dispersos."""
+    __tablename__ = "configuracion_sistema"
+    id = db.Column(db.Integer, primary_key=True)
+    clave = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    valor = db.Column(db.String(300))
+    descripcion = db.Column(db.Text)
+    actualizado_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class TrackingEvento(db.Model):
+    """Historial de eventos de tracking externo por pedido."""
+    __tablename__ = "tracking_evento"
+    id = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"), nullable=False, index=True)
+    empresa = db.Column(db.String(80))
+    seguimiento = db.Column(db.String(100))
+    estado = db.Column(db.String(300))
+    clasificacion = db.Column(db.String(50))
+    raw_json = db.Column(db.Text)
+    origen = db.Column(db.String(50))
+    fecha_evento = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
 class Producto(db.Model):
@@ -428,6 +459,12 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("wa_ultimo_contacto", "TIMESTAMP")
     asegurar_columna_si_no_existe("wa_recordatorio_1", "BOOLEAN DEFAULT FALSE")
     asegurar_columna_si_no_existe("wa_recordatorio_2", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("wa_listo_retirar_enviado", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("wa_postventa_enviada", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("correo_sucursales_ofrecidas", "TEXT")
+    asegurar_columna_si_no_existe("costo_envio", "FLOAT")
+    asegurar_columna_si_no_existe("costo_envio_sucursal", "FLOAT")
+    asegurar_columna_si_no_existe("costo_envio_domicilio", "FLOAT")
     asegurar_columna_si_no_existe("ia_ultimo_mensaje_hash", "VARCHAR(80)")
     asegurar_columna_si_no_existe("ia_ultimo_analisis", "TIMESTAMP")
     asegurar_columna_si_no_existe("ia_error", "TEXT")
@@ -7643,6 +7680,12 @@ def actualizar_tracking_externo_pedido(id):
         nuevo_estado = None
         if not resultado.get("error"):
             nuevo_estado = aplicar_estado_tracking_seguro(pedido, clasificacion)
+            try:
+                from modules.whatsapp.post_despacho import registrar_tracking_evento, procesar_evento_tracking_pedido
+                registrar_tracking_evento(pedido, transporte, seguimiento, estado, clasificacion, raw_json=str(resultado)[:4000], origen="manual")
+                procesar_evento_tracking_pedido(pedido, clasificacion, estado, origen="manual")
+            except Exception as e:
+                print("[TRACKING] Error post-despacho:", e)
 
         registrar_auditoria(
             accion="Actualizó tracking externo",
@@ -8662,6 +8705,19 @@ def ia_llamar_openai_chat(prompt, temperatura=0.4):
     return data["choices"][0]["message"]["content"].strip()
 
 
+def asegurar_configuracion_inicial():
+    """Carga defaults editables en DB para no hardcodear reglas operativas."""
+    defaults = {
+        "MAX_COSTO_ENVIO": ("0", "Tope interno de costo de envío. 0 = sin tope hasta configurarlo."),
+        "MAX_PORCENTAJE_DOMICILIO": ("20", "Máximo porcentaje extra permitido para domicilio vs sucursal Correo."),
+        "TRACKING_INTERVALO_MINUTOS": ("60", "Intervalo sugerido para consultar tracking externo."),
+    }
+    for clave, (valor, descripcion) in defaults.items():
+        if not ConfiguracionSistema.query.filter_by(clave=clave).first():
+            db.session.add(ConfiguracionSistema(clave=clave, valor=valor, descripcion=descripcion))
+    db.session.commit()
+
+
 def asegurar_usuarios_iniciales():
     if UsuarioSistema.query.count() > 0:
         return
@@ -8691,6 +8747,7 @@ with app.app_context():
     asegurar_columnas_integracion_ml()
     asegurar_columnas_integracion_tn()
     asegurar_usuarios_iniciales()
+    asegurar_configuracion_inicial()
 
     # ── Módulo WhatsApp Bot ──────────────────────────────────────────
     # Para activar: configurar WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID
