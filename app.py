@@ -855,14 +855,22 @@ def sugerir_sucursales(pedido):
     if getattr(pedido, "sucursal_nombre", None):
         return None
 
-    loc = (pedido.localidad or "").lower().strip()
-    prov = (pedido.provincia or "").lower().strip()
+    import unicodedata as _ud, re as _re
+    def _norm(s):
+        """Normaliza: minúsculas, sin tildes, sin contenido entre paréntesis."""
+        s = (s or "").lower().strip()
+        s = _ud.normalize("NFD", s)
+        s = "".join(c for c in s if _ud.category(c) != "Mn")
+        s = _re.sub(r"\s*\(.*?\)", "", s).strip()
+        return s
+    loc = _norm(pedido.localidad)
+    prov = _norm(pedido.provincia)
     direccion = (pedido.direccion or "").strip()
     cp = str(pedido.codigo_postal or "").strip()
 
     es_caba = loc in ["caba", "capital federal", "ciudad autonoma de buenos aires",
-                      "ciudad autónoma de buenos aires"] or \
-              any(x in prov for x in ["capital federal", "caba", "ciudad autonoma", "ciudad autónoma"])
+                      "ciudad autonoma de buenos aires"] or \
+              any(x in prov for x in ["capital federal", "caba", "ciudad autonoma"])
 
     # APB: exigir CP válido antes de ofrecer sucursales
     # Sin CP el ordenamiento por distancia no es confiable
@@ -880,14 +888,18 @@ def sugerir_sucursales(pedido):
     if es_caba:
         candidatas = [s for s in data if "capital federal" in (s.get("provincia") or "").lower()]
     else:
-        candidatas = [
-            s for s in data
-            if loc and loc in (s.get("localidad") or "").lower()
-            and prov in (s.get("provincia") or "").lower()
-        ]
-        # Si no matchea exacto, ampliar a toda la provincia
+        # 1) CP exacto
+        candidatas = [s for s in data if cp and str(s.get("cp", "")) == cp]
+        # 2) Localidad + provincia normalizadas (sin tildes, sin paréntesis)
+        if not candidatas:
+            candidatas = [
+                s for s in data
+                if loc and loc in _norm(s.get("localidad"))
+                and prov in _norm(s.get("provincia"))
+            ]
+        # 3) Solo provincia normalizada
         if not candidatas and prov:
-            candidatas = [s for s in data if prov in (s.get("provincia") or "").lower()]
+            candidatas = [s for s in data if prov in _norm(s.get("provincia"))]
 
     if not candidatas:
         return None
