@@ -1071,11 +1071,11 @@ def requiere_seguimiento_retiro(pedido):
             )
             or (
                 pedido.canal == "Tienda Nube"
-                and pedido.empresa_envio == "Vía Cargo"
+                and es_via_cargo(pedido.empresa_envio)
             )
             or (
                 pedido.canal == "Mayorista"
-                and pedido.empresa_envio == "Vía Cargo"
+                and es_via_cargo(pedido.empresa_envio)
             )
         )
     )
@@ -1203,7 +1203,7 @@ def es_tnube(pedido):
 
 
 def es_tnube_via_cargo(pedido):
-    return es_tnube(pedido) and pedido.empresa_envio == "Vía Cargo"
+    return es_tnube(pedido) and es_via_cargo(pedido.empresa_envio)
 
 
 def es_mayorista(pedido):
@@ -1211,7 +1211,7 @@ def es_mayorista(pedido):
 
 
 def es_mayorista_via_cargo(pedido):
-    return es_mayorista(pedido) and pedido.empresa_envio == "Vía Cargo"
+    return es_mayorista(pedido) and es_via_cargo(pedido.empresa_envio)
 
 
 def usa_flujo_etiqueta_directa(pedido):
@@ -1267,7 +1267,7 @@ def puede_imprimir_acordas_entrega(pedido):
         and len(pedido.items) > 0
         and despacho_completo(pedido)
         and (
-            pedido.empresa_envio == "Vía Cargo"
+            es_via_cargo(pedido.empresa_envio)
             or bool(pedido.etiqueta_archivo)
         )
     )
@@ -1313,7 +1313,7 @@ def aplicar_autoavance_post_despacho(pedido):
     if pedido.estado != "Despachado":
         return
 
-    if pedido.empresa_envio == "Vía Cargo":
+    if es_via_cargo(pedido.empresa_envio):
         if pedido.seguimiento:
             pedido.estado = "Verificar llegada a destino"
         return
@@ -1447,7 +1447,7 @@ def texto_boton_estado(pedido):
             return "Contactar cliente"
         if puede_imprimir_etiqueta_directamente(pedido):
             return "Imprimir etiqueta"
-        if pedido.empresa_envio == "Vía Cargo":
+        if es_via_cargo(pedido.empresa_envio):
             return "Preparar pedido"
         return "Generar etiqueta"
 
@@ -1461,7 +1461,7 @@ def texto_boton_estado(pedido):
         return "Marcar despachado"
 
     if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte"]:
-        if pedido.empresa_envio == "Vía Cargo" and not pedido.seguimiento:
+        if es_via_cargo(pedido.empresa_envio) and not pedido.seguimiento:
             return "Cargar seguimiento"
         return "Marcar entregado"
 
@@ -1559,7 +1559,7 @@ def accion_sugerida_pedido(pedido):
         if puede_imprimir_etiqueta_directamente(pedido):
             return "Imprimir etiqueta"
 
-        if pedido.empresa_envio == "Vía Cargo":
+        if es_via_cargo(pedido.empresa_envio):
             return "Pedido listo para imprimir etiqueta"
 
         return "Pedido listo para generar etiqueta"
@@ -1577,7 +1577,7 @@ def accion_sugerida_pedido(pedido):
         return "Iniciar reclamo"
 
     if pedido.estado in ["Despachado", "Con reclamo en transporte"]:
-        if pedido.empresa_envio == "Vía Cargo" and not pedido.seguimiento:
+        if es_via_cargo(pedido.empresa_envio) and not pedido.seguimiento:
             return "Cargar seguimiento"
         return "Confirmar entrega"
 
@@ -1916,7 +1916,7 @@ def alertas_operativas():
             if ref and (ahora - ref).total_seconds() >= 24 * 3600:
                 sin_despachar += 1
 
-        if pedido.empresa_envio == "Vía Cargo" and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
+        if es_via_cargo(pedido.empresa_envio) and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
             ref = pedido.fecha_despachado or fecha_referencia_estado(pedido)
             if ref and (ahora - ref).total_seconds() >= 72 * 3600:
                 seguimiento += 1
@@ -1999,10 +1999,17 @@ def es_guardado_parcial_acordas():
         request.method == "POST"
         and (
             (canal == "Mercado Libre" and ml_tipo == "Acordás la Entrega")
-            or (canal == "Tienda Nube" and empresa_envio == "Vía Cargo")
+            or (canal == "Tienda Nube" and es_via_cargo(empresa_envio))
         )
         and accion_guardado_paso2() in ["guardar_y_seguir_despues", "coordinar_whatsapp"]
     )
+
+def es_via_cargo(valor):
+    """Compara empresa_envio con Vía Cargo tolerando variantes con/sin tilde."""
+    if not valor:
+        return False
+    return valor.strip().lower().replace('\u00ed', 'i') == 'via cargo'
+
 
 def usuario_actual():
     user_id = session.get("user_id")
@@ -2275,7 +2282,7 @@ def puede_contactar_cliente(pedido):
 def requiere_cargar_seguimiento(pedido):
     return bool(
         pedido.estado in ["Despachado", "Con reclamo en transporte"]
-        and pedido.empresa_envio == "Vía Cargo"
+        and es_via_cargo(pedido.empresa_envio)
         and not pedido.seguimiento
     )
 
@@ -2306,7 +2313,7 @@ def puede_avanzar_pedido(pedido):
         return False, errores
 
     if pedido.estado == "Despachado":
-        if pedido.empresa_envio == "Vía Cargo" and not pedido.seguimiento:
+        if es_via_cargo(pedido.empresa_envio) and not pedido.seguimiento:
             return False, ["En Vía Cargo el seguimiento se carga después del despacho."]
 
     puede_por_rol, errores_rol = puede_avanzar_segun_rol(pedido)
@@ -7148,7 +7155,7 @@ def imprimir_etiqueta(id):
 
     actualizar_estado_automatico(pedido)
 
-    if pedido.empresa_envio == "Vía Cargo" and not es_mercado_envios(pedido):
+    if es_via_cargo(pedido.empresa_envio) and not es_mercado_envios(pedido):
         aplicar_estado_y_fechas(pedido, "Etiqueta Impresa")
         db.session.commit()
         if origen == "mobile" and rol_actual() == "despacho":
