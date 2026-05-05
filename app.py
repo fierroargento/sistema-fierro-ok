@@ -1674,7 +1674,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "target": "",
         }
 
-    if requiere_contacto_cliente(pedido):
+    if requiere_contacto_cliente(pedido) and pedido.estado not in ["Despachado", "Verificar llegada a destino", "Listo para retirar", "Con demora de entrega", "Con reclamo en transporte", "Entregado", "Finalizado"]:
         return {
             "tipo": "completar_carga",
             "texto": "Completar carga",
@@ -7190,7 +7190,8 @@ def imprimir_etiqueta(id):
                 texto_boton=texto_boton_estado(pedido),
                 hay_autorizado=hay_autorizado,
                 puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-                whatsapp_url=whatsapp_link_pedido(pedido)
+                whatsapp_url=whatsapp_link_pedido(pedido),
+                notas_pedido=[]
             )
 
     if not pedido.etiqueta_archivo:
@@ -7205,7 +7206,8 @@ def imprimir_etiqueta(id):
             texto_boton=texto_boton_estado(pedido),
             hay_autorizado=hay_autorizado,
             puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-            whatsapp_url=whatsapp_link_pedido(pedido)
+            whatsapp_url=whatsapp_link_pedido(pedido),
+            notas_pedido=[]
         )
 
     etiqueta = str(pedido.etiqueta_archivo or "").strip()
@@ -7704,7 +7706,7 @@ def eliminar_pedido(id):
 @login_required
 def agregar_nota_pedido(id):
     pedido = Pedido.query.get_or_404(id)
-    rol = session.get("rol", "")
+    rol = rol_actual()
     if rol not in ["admin", "carga"]:
         return redirect(url_for("detalle_pedido", id=id, error="Sin permiso para agregar notas."))
 
@@ -7716,7 +7718,7 @@ def agregar_nota_pedido(id):
         pedido_id=id,
         texto=texto,
         usuario=session.get("username", ""),
-        rol=rol,
+        rol=rol_actual(),
         fecha=datetime.utcnow(),
     )
     db.session.add(nota)
@@ -7727,7 +7729,7 @@ def agregar_nota_pedido(id):
 @app.route("/pedido/<int:id>/nota/<int:nota_id>/editar", methods=["POST"])
 @login_required
 def editar_nota_pedido(id, nota_id):
-    if session.get("rol") != "admin":
+    if rol_actual() != "admin":
         return redirect(url_for("detalle_pedido", id=id, error="Solo Admin puede editar notas."))
 
     nota = NotaPedido.query.get_or_404(nota_id)
@@ -7743,7 +7745,7 @@ def editar_nota_pedido(id, nota_id):
 @app.route("/pedido/<int:id>/nota/<int:nota_id>/eliminar", methods=["POST"])
 @login_required
 def eliminar_nota_pedido(id, nota_id):
-    if session.get("rol") != "admin":
+    if rol_actual() != "admin":
         return redirect(url_for("detalle_pedido", id=id, error="Solo Admin puede eliminar notas."))
 
     nota = NotaPedido.query.get_or_404(nota_id)
@@ -8566,7 +8568,8 @@ def avanzar_pedido(id):
             texto_boton=texto_boton_estado(pedido),
             hay_autorizado=hay_autorizado,
             puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-            whatsapp_url=whatsapp_link_pedido(pedido)
+            whatsapp_url=whatsapp_link_pedido(pedido),
+            notas_pedido=[]
         )
 
     nuevo = siguiente_estado(pedido.estado)
