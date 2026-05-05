@@ -6380,6 +6380,23 @@ def ayuda():
     return render_template("ayuda.html")
 
 
+@app.route("/privacidad")
+def privacidad():
+    return """
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Política de Privacidad - Fierro 100% Argento</title></head>
+<body style="font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;">
+<h1>Política de Privacidad</h1>
+<p>Última actualización: Mayo 2026</p>
+<p>Fierro 100% Argento utiliza WhatsApp Business API para comunicarse con sus clientes en el marco de ventas y logística. Los datos recopilados (nombre, teléfono, dirección de entrega) son utilizados exclusivamente para gestionar pedidos y coordinar envíos.</p>
+<p>No compartimos información personal con terceros salvo con las empresas de transporte necesarias para completar la entrega.</p>
+<p>Para consultas sobre privacidad contactar a: nauticadelplata@yahoo.com.ar</p>
+</body>
+</html>
+"""
+
+
 def ml_crear_log_webhook(topic, resource, data):
     try:
         log = WebhookML(
