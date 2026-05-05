@@ -6,3 +6,4 @@ pymupdf
 gunicorn
 psycopg2-binary
 cloudinary
+apscheduler

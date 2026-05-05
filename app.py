@@ -8765,3 +8765,64 @@ with app.app_context():
     # Para activar: configurar WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID
     # y WHATSAPP_VERIFY_TOKEN en el .env y descomentar la línea siguiente:
     from modules.whatsapp import activar; activar(app)
+
+    # ── Scheduler: jobs periódicos ───────────────────────────────────
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+
+        def _job_ml_mensajes():
+            """Procesa mensajes pendientes de ML Acordás cada 5 minutos."""
+            try:
+                with app.app_context():
+                    from app import Pedido, MercadoLibreCuenta
+                    cuenta = MercadoLibreCuenta.query.first()
+                    seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+                    pedidos = (
+                        Pedido.query
+                        .filter(Pedido.canal == "Mercado Libre")
+                        .filter(Pedido.ml_tipo == "Acordás la Entrega")
+                        .filter(Pedido.ml_mensajes_pendientes == True)
+                        .filter(Pedido.estado.notin_(["Despachado", "Entregado", "Finalizado", "Cancelado"]))
+                        .all()
+                    )
+                    for pedido in pedidos:
+                        try:
+                            ids_chat = []
+                            for posible in [getattr(pedido, "ml_pack_id", None), getattr(pedido, "id_venta", None)]:
+                                posible = str(posible or "").strip()
+                                if posible and posible not in ids_chat:
+                                    ids_chat.append(posible)
+                            mensajes = []
+                            for id_chat in ids_chat:
+                                mensajes = ml_obtener_mensajes_pack_para_ia(id_chat, seller_id=seller_id)
+                                if mensajes:
+                                    break
+                            if mensajes:
+                                resultado = ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id=seller_id, forzar=False)
+                                if resultado:
+                                    db.session.commit()
+                        except Exception as e:
+                            print(f"[SCHEDULER ML] Error procesando pedido #{pedido.id}:", e)
+                            try:
+                                db.session.rollback()
+                            except Exception:
+                                pass
+            except Exception as e:
+                print("[SCHEDULER ML] Error general:", e)
+
+        def _job_wa_timers():
+            """Ejecuta timers de WhatsApp cada 5 minutos."""
+            try:
+                with app.app_context():
+                    from modules.whatsapp.scheduler import ejecutar_timers
+                    ejecutar_timers()
+            except Exception as e:
+                print("[SCHEDULER WA] Error:", e)
+
+        _scheduler = BackgroundScheduler(daemon=True)
+        _scheduler.add_job(_job_ml_mensajes, "interval", minutes=5, id="ml_mensajes")
+        _scheduler.add_job(_job_wa_timers, "interval", minutes=5, id="wa_timers")
+        _scheduler.start()
+        print("[SCHEDULER] Iniciado: ml_mensajes + wa_timers cada 5 minutos")
+    except Exception as e:
+        print("[SCHEDULER] No se pudo iniciar:", e)
