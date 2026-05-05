@@ -409,6 +409,20 @@
     {% set ia_faltantes = ia_faltantes_pedido(pedido) %}
     {% set ia_respuesta_sugerida = ia_generar_respuesta_faltantes_pedido(pedido) %}
     {% set ia_cta_operador = ia_generar_cta_operador_pedido(pedido) %}
+    {% set ia_completo = pedido.ia_recolector_estado == "datos_completos" and pedido.sucursal_nombre %}
+    {% if ia_completo %}
+    <details class="detalle-box detalle-box-full" style="margin-top:16px; border-left:5px solid #124E64;">
+    <summary style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div>
+            <h3 style="margin:0 0 4px 0;">IA Recolector</h3>
+            <span style="padding:5px 9px; border-radius:999px; background:#dcfce7; color:#166534; font-weight:700; font-size:0.78rem;">Datos completos</span>
+            {% if pedido.ia_ultimo_analisis %}
+            <span style="font-size:0.8rem; color:#64748b; margin-left:8px;">Último análisis: {{ fecha_argentina(pedido.ia_ultimo_analisis).strftime("%d/%m/%Y %H:%M") }}</span>
+            {% endif %}
+        </div>
+    </summary>
+    <div style="margin-top:12px;">
+    {% else %}
     <div class="detalle-box detalle-box-full" style="margin-top:16px; border-left:5px solid #124E64;">
         <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;">
             <div>
@@ -482,6 +496,69 @@
         {% endif %}
         {% if pedido.ia_resumen %}
             <p style="margin:8px 0 0 0; font-size:0.88rem;"><strong>Resumen IA:</strong> {{ pedido.ia_resumen }}</p>
+        {% endif %}
+    {% if ia_completo %}
+    </div>
+    </details>
+    {% else %}
+    </div>
+    {% endif %}
+    {% endif %}
+
+
+    {% if rol_actual in ["admin", "carga"] %}
+    <div class="detalle-box detalle-box-full" id="notas" style="margin-top:16px; border-left:5px solid #6366f1;">
+        <h3 style="margin:0 0 12px 0;">📝 Notas internas</h3>
+
+        <!-- Formulario agregar nota -->
+        <form method="POST" action="{{ url_for('agregar_nota_pedido', id=pedido.id) }}" style="margin-bottom:16px;">
+            <textarea name="texto" rows="2" placeholder="Agregar nota..." required
+                style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.88rem; resize:vertical; box-sizing:border-box;"></textarea>
+            <button type="submit" class="btn btn-primario" style="margin-top:6px; padding:6px 14px; font-size:0.84rem;">Agregar nota</button>
+        </form>
+
+        <!-- Lista de notas -->
+        {% if notas_pedido %}
+        <div style="display:flex; flex-direction:column; gap:10px;">
+            {% for nota in notas_pedido %}
+            <div style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;">
+                    <p style="margin:0; font-size:0.88rem; white-space:pre-line; flex:1;">{{ nota.texto }}</p>
+                    {% if rol_actual == "admin" %}
+                    <div style="display:flex; gap:6px; flex-shrink:0;">
+                        <!-- Editar -->
+                        <button onclick="document.getElementById('edit-nota-{{ nota.id }}').style.display='block'; this.parentElement.parentElement.querySelector('p').style.display='none'; this.parentElement.style.display='none';"
+                            style="font-size:0.78rem; padding:3px 8px; border:1px solid #94a3b8; border-radius:6px; background:white; cursor:pointer;">✏️</button>
+                        <!-- Eliminar -->
+                        <form method="POST" action="{{ url_for('eliminar_nota_pedido', id=pedido.id, nota_id=nota.id) }}"
+                            onsubmit="return confirm('¿Eliminar esta nota?');" style="margin:0;">
+                            <button type="submit" style="font-size:0.78rem; padding:3px 8px; border:1px solid #fca5a5; border-radius:6px; background:white; cursor:pointer; color:#dc2626;">🗑️</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+                <!-- Form editar (oculto) -->
+                {% if rol_actual == "admin" %}
+                <form id="edit-nota-{{ nota.id }}" method="POST"
+                    action="{{ url_for('editar_nota_pedido', id=pedido.id, nota_id=nota.id) }}"
+                    style="display:none; margin-top:8px;">
+                    <textarea name="texto" rows="2" required
+                        style="width:100%; padding:8px 10px; border:1px solid #6366f1; border-radius:8px; font-size:0.88rem; resize:vertical; box-sizing:border-box;">{{ nota.texto }}</textarea>
+                    <div style="display:flex; gap:6px; margin-top:6px;">
+                        <button type="submit" class="btn btn-primario" style="padding:4px 12px; font-size:0.82rem;">Guardar</button>
+                        <button type="button" onclick="document.getElementById('edit-nota-{{ nota.id }}').style.display='none';"
+                            style="padding:4px 12px; font-size:0.82rem; border:1px solid #94a3b8; border-radius:6px; background:white; cursor:pointer;">Cancelar</button>
+                    </div>
+                </form>
+                {% endif %}
+                <p style="margin:6px 0 0 0; font-size:0.76rem; color:#94a3b8;">
+                    {{ nota.usuario }} ({{ nota.rol }}) — {{ fecha_argentina(nota.fecha).strftime("%d/%m/%Y %H:%M") if nota.fecha else "" }}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="margin:0; font-size:0.86rem; color:#94a3b8;">Sin notas todavía.</p>
         {% endif %}
     </div>
     {% endif %}

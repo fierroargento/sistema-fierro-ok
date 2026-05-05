@@ -253,6 +253,16 @@ class PedidoItem(db.Model):
     observacion_devolucion_item = db.Column(db.String(300))
 
 
+class NotaPedido(db.Model):
+    """Bitácora de notas internas por pedido. Solo visible para admin y carga."""
+    id          = db.Column(db.Integer, primary_key=True)
+    pedido_id   = db.Column(db.Integer, db.ForeignKey("pedido.id"), nullable=False)
+    texto       = db.Column(db.Text, nullable=False)
+    usuario     = db.Column(db.String(100))   # username del operador
+    rol         = db.Column(db.String(50))    # rol en el momento de crear
+    fecha       = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class Producto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sku = db.Column(db.String(80), nullable=False, index=True)
@@ -7445,6 +7455,11 @@ def detalle_pedido(id):
     if rol_actual() == "admin":
         auditorias_pedido = Auditoria.query.filter_by(entidad="pedido", entidad_id=str(pedido.id)).order_by(Auditoria.fecha.desc()).limit(50).all()
 
+    # Notas internas (solo admin y carga)
+    notas_pedido = []
+    if rol_actual() in ["admin", "carga"]:
+        notas_pedido = NotaPedido.query.filter_by(pedido_id=pedido.id).order_by(NotaPedido.fecha.desc()).all()
+
     return render_template(
         "detalle_pedido.html",
         pedido=pedido,
@@ -7455,7 +7470,8 @@ def detalle_pedido(id):
         hay_autorizado=hay_autorizado,
         puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
         whatsapp_url=whatsapp_link_pedido(pedido),
-        auditorias_pedido=auditorias_pedido
+        auditorias_pedido=auditorias_pedido,
+        notas_pedido=notas_pedido,
     )
 
 
@@ -7681,6 +7697,59 @@ def eliminar_pedido(id):
         db.session.rollback()
         return redirect(url_for("detalle_pedido", id=id, error=f"No se pudo eliminar el pedido: {e}"))
 
+
+
+
+@app.route("/pedido/<int:id>/nota/agregar", methods=["POST"])
+@login_required
+def agregar_nota_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+    rol = session.get("rol", "")
+    if rol not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=id, error="Sin permiso para agregar notas."))
+
+    texto = (request.form.get("texto") or "").strip()
+    if not texto:
+        return redirect(url_for("detalle_pedido", id=id, error="La nota no puede estar vacía."))
+
+    nota = NotaPedido(
+        pedido_id=id,
+        texto=texto,
+        usuario=session.get("username", ""),
+        rol=rol,
+        fecha=datetime.utcnow(),
+    )
+    db.session.add(nota)
+    db.session.commit()
+    return redirect(url_for("detalle_pedido", id=id) + "#notas")
+
+
+@app.route("/pedido/<int:id>/nota/<int:nota_id>/editar", methods=["POST"])
+@login_required
+def editar_nota_pedido(id, nota_id):
+    if session.get("rol") != "admin":
+        return redirect(url_for("detalle_pedido", id=id, error="Solo Admin puede editar notas."))
+
+    nota = NotaPedido.query.get_or_404(nota_id)
+    texto = (request.form.get("texto") or "").strip()
+    if not texto:
+        return redirect(url_for("detalle_pedido", id=id, error="La nota no puede estar vacía."))
+
+    nota.texto = texto
+    db.session.commit()
+    return redirect(url_for("detalle_pedido", id=id) + "#notas")
+
+
+@app.route("/pedido/<int:id>/nota/<int:nota_id>/eliminar", methods=["POST"])
+@login_required
+def eliminar_nota_pedido(id, nota_id):
+    if session.get("rol") != "admin":
+        return redirect(url_for("detalle_pedido", id=id, error="Solo Admin puede eliminar notas."))
+
+    nota = NotaPedido.query.get_or_404(nota_id)
+    db.session.delete(nota)
+    db.session.commit()
+    return redirect(url_for("detalle_pedido", id=id) + "#notas")
 
 @app.route("/pedido/<int:id>/marcar-contacto-ml", methods=["POST"])
 @login_required
