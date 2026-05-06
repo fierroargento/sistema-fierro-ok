@@ -332,6 +332,18 @@ class MercadoLibreCuenta(db.Model):
 
 
 
+class PedidoIgnoradoML(db.Model):
+    """Ventas de Mercado Libre eliminadas manualmente para que el sync no las reimporte al flujo operativo."""
+    __tablename__ = "pedido_ignorado_ml"
+
+    id = db.Column(db.Integer, primary_key=True)
+    id_venta = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    motivo = db.Column(db.String(255))
+    pedido_local_id = db.Column(db.Integer)
+    usuario = db.Column(db.String(100))
+    fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
 class WebhookML(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     topic = db.Column(db.String(80))
@@ -5770,14 +5782,110 @@ def ml_preparar_etiqueta_mercado_envios(order, shipment=None):
     return os.path.basename(str(nombre_pdf))
 
 
+def ml_estado_order(order):
+    return str((order or {}).get("status") or "").lower().strip()
+
+
+def ml_estado_shipment(order=None, shipment=None):
+    order = order or {}
+    shipment = shipment or {}
+    shipping = order.get("shipping") or {}
+    return str(shipment.get("status") or shipping.get("status") or "").lower().strip()
+
+
+def ml_order_esta_entregado(order, shipment=None):
+    """Detecta ventas que Mercado Libre ya muestra como entregadas/finalizadas para sacarlas del flujo activo."""
+    order = order or {}
+    shipment = shipment or {}
+    estado_order = ml_estado_order(order)
+    estado_shipping = ml_estado_shipment(order, shipment)
+    tags = {str(t or "").lower().strip() for t in (order.get("tags") or [])}
+
+    if estado_shipping in {"delivered", "fulfilled"}:
+        return True
+
+    if estado_order in {"delivered", "fulfilled"}:
+        return True
+
+    if tags.intersection({"delivered", "fulfilled"}):
+        return True
+
+    return False
+
+
+def ml_pedido_esta_ignorado(order_id):
+    order_id = str(order_id or "").strip()
+    if not order_id:
+        return False
+    try:
+        return PedidoIgnoradoML.query.filter_by(id_venta=order_id).first() is not None
+    except Exception:
+        return False
+
+
+def ml_registrar_pedido_ignorado(pedido, motivo="eliminado_manual"):
+    if not pedido or pedido.canal != "Mercado Libre" or not pedido.id_venta:
+        return None
+
+    order_id = str(pedido.id_venta or "").strip()
+    if not order_id:
+        return None
+
+    ignorado = PedidoIgnoradoML.query.filter_by(id_venta=order_id).first()
+    if not ignorado:
+        ignorado = PedidoIgnoradoML(id_venta=order_id)
+        db.session.add(ignorado)
+
+    ignorado.motivo = motivo
+    ignorado.pedido_local_id = pedido.id
+    ignorado.usuario = session.get("username") or "sistema"
+    ignorado.fecha = datetime.utcnow()
+    return ignorado
+
+
+def ml_marcar_pedido_finalizado_por_entrega(pedido, order, shipment=None):
+    """Mantiene la venta en Histórico cuando ML ya la informa como entregada."""
+    if not pedido:
+        return None
+
+    shipment = shipment or {}
+    estado_order = ml_estado_order(order)
+    estado_shipping = ml_estado_shipment(order, shipment)
+
+    pedido.origen = "mercadolibre"
+    pedido.canal = "Mercado Libre"
+    pedido.id_venta = str((order or {}).get("id") or pedido.id_venta or "").strip()
+    pedido.ml_order_status = estado_order or pedido.ml_order_status
+    if estado_shipping:
+        pedido.ml_shipping_status = estado_shipping
+
+    pedido.estado = "Finalizado"
+    pedido.fecha_entregado = pedido.fecha_entregado or datetime.utcnow()
+    pedido.ultima_sync_ml = datetime.utcnow()
+
+    aviso = "ML informa venta entregada. Pedido movido automáticamente a Histórico/Finalizado."
+    obs = str(pedido.observaciones or "").strip()
+    if aviso not in obs:
+        pedido.observaciones = (f"{aviso} {obs}".strip())[:300]
+
+    return pedido
+
+
 def ml_order_debe_omitirse(order, shipment=None):
     order_id = str(order.get("id") or "").strip()
     if not order_id:
         return True, "sin ID de orden"
 
-    estado = str(order.get("status") or "").lower().strip()
+    if ml_pedido_esta_ignorado(order_id):
+        return True, "pedido eliminado manualmente en Fierro"
+
+    # Si está entregado en ML no se omite: se procesa para dejarlo en Histórico/Finalizado.
+    if ml_order_esta_entregado(order, shipment):
+        return False, ""
+
+    estado = ml_estado_order(order)
     if estado in ["cancelled", "invalid", "closed"]:
-        return True, f"estado ML {estado} — orden ya finalizada en ML, no se importa"
+        return True, f"estado ML {estado} — orden ya finalizada/no operable en ML, no se importa"
 
     no_operable, motivo = ml_logistica_no_operable(order, shipment or {})
     if no_operable:
@@ -5806,14 +5914,59 @@ def ml_borrar_pedido_importado_si_corresponde(pedido):
 def ml_upsert_pedido_desde_order(order):
     order_id = str(order.get("id") or "").strip()
 
-    omitir, motivo_omision = ml_order_debe_omitirse(order)
-    if omitir:
-        pedido_existente = ml_pedido_existente_por_order_id(order_id)
-        if ml_borrar_pedido_importado_si_corresponde(pedido_existente):
-            return None, False, f"{motivo_omision} - pedido importado eliminado"
-        return None, False, motivo_omision
+    if ml_pedido_esta_ignorado(order_id):
+        return None, False, "pedido eliminado manualmente en Fierro"
 
     shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
+
+    # APB ML: si Mercado Libre ya informa Entregado, no queda más en flujo activo.
+    # Se crea/actualiza el pedido como Finalizado para que aparezca en Histórico.
+    if ml_order_esta_entregado(order, shipment):
+        pedido = ml_pedido_existente_por_order_id(order_id)
+        creado = pedido is None
+        if creado:
+            pedido = Pedido(
+                cliente=ml_nombre_cliente(order, shipment),
+                canal="Mercado Libre",
+                id_venta=order_id,
+                estado="Finalizado",
+                origen="mercadolibre",
+            )
+            db.session.add(pedido)
+            db.session.flush()
+
+        pedido.mail = pedido.mail or "expedicionfierro@gmail.com"
+        pedido.telefono = pedido.telefono or ""
+        ml_aplicar_datos_envio(pedido, order, shipment)
+
+        billing_info = ml_obtener_billing_info(order_id)
+        ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info)
+
+        order_items = order.get("order_items") or []
+        existentes = {str(item.sku or "").strip(): item for item in pedido.items}
+        usados = set()
+        for order_item in order_items:
+            item_data = order_item.get("item") or {}
+            sku = str(item_data.get("seller_sku") or item_data.get("id") or "").strip()
+            if not sku:
+                sku = str(item_data.get("id") or "SIN-SKU").strip()
+            descripcion = str(item_data.get("title") or "Producto ML").strip()
+            cantidad = int(order_item.get("quantity") or 1)
+            item = existentes.get(sku)
+            if item is None:
+                item = PedidoItem(sku=sku, descripcion=descripcion, cantidad=cantidad)
+                pedido.items.append(item)
+            else:
+                item.descripcion = descripcion
+                item.cantidad = cantidad
+            usados.add(sku)
+
+        for sku, item in list(existentes.items()):
+            if sku not in usados:
+                db.session.delete(item)
+
+        ml_marcar_pedido_finalizado_por_entrega(pedido, order, shipment)
+        return pedido, creado, "finalizado_por_entregado_ml"
 
     omitir, motivo_omision = ml_order_debe_omitirse(order, shipment)
     if omitir:
@@ -5965,6 +6118,13 @@ def ml_limpiar_pedidos_ml_no_operables_existentes():
             continue
 
         shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
+
+        if ml_order_esta_entregado(order, shipment):
+            ml_marcar_pedido_finalizado_por_entrega(pedido, order, shipment)
+            eliminados += 1
+            detalles.append(f"{order_id}: movido a Histórico/Finalizado (ML entregado)")
+            continue
+
         omitir, motivo = ml_order_debe_omitirse(order, shipment)
 
         if omitir and ml_borrar_pedido_importado_si_corresponde(pedido):
@@ -7919,6 +8079,9 @@ def eliminar_pedido(id):
 
     pedido_numero = pedido.id
     try:
+        if pedido.canal == "Mercado Libre" and pedido.id_venta:
+            ml_registrar_pedido_ignorado(pedido, motivo="eliminado_manual_admin")
+
         db.session.delete(pedido)
         db.session.commit()
         return redirect(url_for("inicio", ok=f"Pedido #{pedido_numero} eliminado correctamente."))
