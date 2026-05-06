@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.admin-edit-wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+}
+.admin-edit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+.admin-edit-alert {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    font-size: 0.92rem;
+}
+.admin-fieldset {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 14px;
+    margin: 14px 0;
+    background: #ffffff;
+}
+.admin-fieldset legend {
+    font-weight: 800;
+    color: #124E64;
+    padding: 0 8px;
+}
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+.admin-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.admin-field label {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #334155;
+}
+.admin-field input,
+.admin-field select,
+.admin-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    padding: 8px 9px;
+    font-size: 0.86rem;
+    background: #fff;
+}
+.admin-field textarea {
+    min-height: 74px;
+    resize: vertical;
+}
+.admin-actions {
+    position: sticky;
+    bottom: 0;
+    background: rgba(248,250,252,0.96);
+    border-top: 1px solid #e2e8f0;
+    padding: 12px 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 18px;
+}
+@media (max-width: 980px) {
+    .admin-grid { grid-template-columns: 1fr; }
+    .admin-actions { position: static; flex-direction: column; }
+}
+</style>
+
+<div class="admin-edit-wrap">
+    <div class="admin-edit-header">
+        <div>
+            <h2>Editar completo — Pedido #{{ pedido.id }}</h2>
+            <p class="detalle-sub">Solo Admin | {{ pedido.cliente or '-' }} | {{ pedido.canal or '-' }}</p>
+        </div>
+        <a href="{{ url_for('detalle_pedido', id=pedido.id) }}" class="btn btn-secundario">Volver al pedido</a>
+    </div>
+
+    <div class="admin-edit-alert">
+        <strong>Modo Admin:</strong> esta pantalla permite editar campos sensibles del pedido. Usala solo para correcciones puntuales.
+        Cada guardado queda registrado en auditoría con campo anterior y campo nuevo.
+    </div>
+
+    {% if error %}
+    <div class="error">{{ error|safe }}</div>
+    {% endif %}
+
+    <form method="POST" onsubmit="return confirm('¿Confirmás guardar esta edición completa de Admin? Quedará registrado en auditoría.');">
+        {% for titulo, campos in grupos_campos %}
+        <fieldset class="admin-fieldset">
+            <legend>{{ titulo }}</legend>
+            <div class="admin-grid">
+                {% for campo in campos %}
+                <div class="admin-field">
+                    <label for="{{ campo.name }}">{{ campo.label }} <small style="color:#94a3b8; font-weight:600;">({{ campo.name }})</small></label>
+
+                    {% if campo.tipo == 'textarea' %}
+                    <textarea id="{{ campo.name }}" name="{{ campo.name }}">{{ campo.value }}</textarea>
+
+                    {% elif campo.tipo == 'bool' %}
+                    <select id="{{ campo.name }}" name="{{ campo.name }}">
+                        <option value="" {% if campo.value == '' %}selected{% endif %}>Vacío / None</option>
+                        <option value="true" {% if campo.value in ['True', 'true', '1'] %}selected{% endif %}>True</option>
+                        <option value="false" {% if campo.value in ['False', 'false', '0'] %}selected{% endif %}>False</option>
+                    </select>
+
+                    {% elif campo.tipo == 'number' %}
+                    <input id="{{ campo.name }}" name="{{ campo.name }}" type="number" value="{{ campo.value }}">
+
+                    {% elif campo.tipo == 'decimal' %}
+                    <input id="{{ campo.name }}" name="{{ campo.name }}" type="text" inputmode="decimal" value="{{ campo.value }}">
+
+                    {% elif campo.tipo == 'datetime' %}
+                    <input id="{{ campo.name }}" name="{{ campo.name }}" type="text" placeholder="YYYY-MM-DD HH:MM" value="{{ campo.value }}">
+
+                    {% else %}
+                    <input id="{{ campo.name }}" name="{{ campo.name }}" type="text" value="{{ campo.value }}">
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </fieldset>
+        {% endfor %}
+
+        <div class="admin-actions">
+            <a href="{{ url_for('detalle_pedido', id=pedido.id) }}" class="btn btn-secundario">Cancelar</a>
+            <button type="submit" class="btn btn-confirmar">Guardar edición completa</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

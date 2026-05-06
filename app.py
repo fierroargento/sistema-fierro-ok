@@ -8481,6 +8481,234 @@ def ia_enviar_respuesta_faltantes_pedido(id):
         return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo enviar respuesta IA a Mercado Libre: {e}"))
 
 
+
+
+# =========================
+# ADMIN - EDICIÓN COMPLETA DE PEDIDO
+# =========================
+ADMIN_PEDIDO_CAMPOS_GRUPOS = [
+    ("Identificación / ML / TN", [
+        "origen", "ml_pack_id", "ml_order_status", "ml_shipping_status", "ml_shipping_id",
+        "ml_logistic_type", "ml_shipping_mode", "ultima_sync_ml", "tn_order_id", "tn_order_number",
+        "tn_order_status", "tn_payment_status", "tn_paid_at", "tn_cancelled_at", "tn_fulfillment_id",
+        "tn_fulfillment_status", "tn_shipping_type", "tn_shipping_carrier", "tn_shipping_option",
+        "tn_tracking_number", "tn_tracking_url", "ultima_sync_tn",
+    ]),
+    ("Cliente / venta", [
+        "cliente", "dni", "telefono", "mail", "canal", "id_venta", "ml_tipo",
+        "ml_buyer_id", "ml_buyer_nickname", "ml_nombre_real", "ml_datos_fiscales_ok",
+        "ml_billing_nombre", "ml_billing_documento", "ml_billing_direccion", "ml_campos_faltantes",
+        "ml_mensaje_contacto", "contacto_iniciado", "fecha_contacto",
+    ]),
+    ("Envío / autorizado / tracking", [
+        "empresa_envio", "tipo_entrega", "direccion", "codigo_postal", "localidad", "provincia",
+        "observaciones", "sucursal_nombre", "autorizado_nombre", "autorizado_dni", "autorizado_telefono",
+        "seguimiento", "andreani_estado", "andreani_ultima_sync", "andreani_eventos_json",
+        "tracking_estado_externo", "tracking_ultima_sync", "tracking_error", "tracking_transportista",
+        "tracking_url_consultada", "etiqueta_archivo", "comprobante_dux_archivo",
+    ]),
+    ("Estado / fechas / reclamos", [
+        "estado", "fecha_creacion", "fecha_etiqueta_impresa", "fecha_embalado", "fecha_despachado",
+        "fecha_entregado", "numero_reclamo", "fecha_hora_reclamo", "ultima_revision_reclamo",
+        "observacion_reclamo", "motivo_no_entregado", "fecha_devolucion", "estado_devolucion",
+        "observacion_devolucion", "numero_reclamo_ml", "resultado_reclamo_ml", "monto_recuperado_ml",
+        "observacion_reclamo_ml",
+    ]),
+    ("IA / WhatsApp / reclamos ML", [
+        "ml_mensajes_pendientes", "ml_mensajes_pendientes_count", "ultima_sync_mensajes_ml",
+        "ia_recolector_estado", "ia_datos_detectados", "ia_faltantes", "ia_resumen",
+        "ia_requiere_operador", "wa_estado", "wa_ultimo_contacto", "wa_recordatorio_1",
+        "wa_recordatorio_2", "wa_listo_retirar_enviado", "wa_postventa_enviada",
+        "correo_sucursales_ofrecidas", "costo_envio", "costo_envio_sucursal", "costo_envio_domicilio",
+        "ia_ultimo_mensaje_hash", "ia_ultimo_analisis", "ia_error", "ia_respuesta_sugerida",
+        "ia_sucursales_ofrecidas", "ia_respuesta_enviada_hash", "ia_ultima_respuesta_enviada",
+        "ml_claim_id", "ml_claim_abierto", "ml_claim_status", "ml_claim_reason", "ultima_sync_claim_ml",
+    ]),
+]
+
+ADMIN_PEDIDO_LABELS = {
+    "cliente": "Cliente / titular", "dni": "DNI / CUIT", "telefono": "Teléfono", "mail": "Mail",
+    "canal": "Canal", "id_venta": "ID venta", "ml_tipo": "Tipo ML", "empresa_envio": "Empresa envío",
+    "tipo_entrega": "Tipo entrega", "direccion": "Dirección", "codigo_postal": "Código postal",
+    "localidad": "Localidad", "provincia": "Provincia", "observaciones": "Observaciones",
+    "sucursal_nombre": "Sucursal", "autorizado_nombre": "Autorizado nombre",
+    "autorizado_dni": "Autorizado DNI", "autorizado_telefono": "Autorizado teléfono",
+    "seguimiento": "Seguimiento", "estado": "Estado Fierro", "etiqueta_archivo": "Etiqueta archivo/URL",
+    "comprobante_dux_archivo": "Comprobante DUX", "wa_estado": "Estado WhatsApp",
+    "ia_resumen": "Resumen IA", "ia_requiere_operador": "IA requiere operador",
+}
+
+
+def _admin_valor_a_texto(valor):
+    if valor is None:
+        return ""
+    if isinstance(valor, datetime):
+        return valor.strftime("%Y-%m-%d %H:%M:%S")
+    return str(valor)
+
+
+def _admin_parse_datetime(valor):
+    valor = str(valor or "").strip()
+    if not valor:
+        return None
+    formatos = [
+        "%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S",
+        "%d/%m/%Y %H:%M", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y",
+    ]
+    for fmt in formatos:
+        try:
+            return datetime.strptime(valor, fmt)
+        except ValueError:
+            pass
+    raise ValueError(f"Fecha inválida: {valor}. Usá formato YYYY-MM-DD HH:MM.")
+
+
+def _admin_parse_valor_pedido(campo, valor):
+    columna = Pedido.__table__.columns.get(campo)
+    if columna is None:
+        return None
+
+    valor = str(valor or "").strip()
+
+    try:
+        tipo_python = columna.type.python_type
+    except Exception:
+        tipo_python = str
+
+    if tipo_python is bool:
+        if valor == "":
+            return None
+        return valor.lower() in ["1", "true", "verdadero", "si", "sí", "on", "yes"]
+
+    if tipo_python is int:
+        return int(valor) if valor else None
+
+    if tipo_python is float:
+        if not valor:
+            return None
+        return float(valor.replace(",", "."))
+
+    if tipo_python is datetime:
+        return _admin_parse_datetime(valor)
+
+    # Campos string/texto. En columnas NOT NULL dejamos cadena vacía, no None.
+    if valor == "" and getattr(columna, "nullable", True):
+        return None
+    return valor
+
+
+def _admin_tipo_input_pedido(campo):
+    columna = Pedido.__table__.columns.get(campo)
+    if columna is None:
+        return "text"
+    try:
+        tipo_python = columna.type.python_type
+    except Exception:
+        tipo_python = str
+    if tipo_python is bool:
+        return "bool"
+    if tipo_python is int:
+        return "number"
+    if tipo_python is float:
+        return "decimal"
+    if tipo_python is datetime:
+        return "datetime"
+    if str(columna.type).upper().startswith("TEXT") or campo in ["observaciones", "ia_resumen", "ia_error", "ml_campos_faltantes", "ml_mensaje_contacto", "andreani_eventos_json"]:
+        return "textarea"
+    return "text"
+
+
+def _admin_campos_pedido_para_template(pedido):
+    columnas = Pedido.__table__.columns
+    usados = set()
+    grupos = []
+
+    for titulo, campos in ADMIN_PEDIDO_CAMPOS_GRUPOS:
+        lista = []
+        for campo in campos:
+            if campo not in columnas or campo == "id":
+                continue
+            usados.add(campo)
+            valor = getattr(pedido, campo, None)
+            lista.append({
+                "name": campo,
+                "label": ADMIN_PEDIDO_LABELS.get(campo, campo.replace("_", " ").capitalize()),
+                "tipo": _admin_tipo_input_pedido(campo),
+                "value": _admin_valor_a_texto(valor),
+            })
+        if lista:
+            grupos.append((titulo, lista))
+
+    otros = []
+    for columna in columnas:
+        campo = columna.name
+        if campo == "id" or campo in usados:
+            continue
+        valor = getattr(pedido, campo, None)
+        otros.append({
+            "name": campo,
+            "label": ADMIN_PEDIDO_LABELS.get(campo, campo.replace("_", " ").capitalize()),
+            "tipo": _admin_tipo_input_pedido(campo),
+            "value": _admin_valor_a_texto(valor),
+        })
+    if otros:
+        grupos.append(("Otros campos", otros))
+
+    return grupos
+
+
+@app.route("/pedido/<int:id>/admin/editar-completo", methods=["GET", "POST"])
+@admin_required
+def admin_editar_pedido_completo(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if request.method == "POST":
+        cambios = []
+        try:
+            for columna in Pedido.__table__.columns:
+                campo = columna.name
+                if campo == "id" or campo not in request.form:
+                    continue
+
+                valor_anterior = getattr(pedido, campo, None)
+                valor_nuevo = _admin_parse_valor_pedido(campo, request.form.get(campo))
+
+                if _admin_valor_a_texto(valor_anterior) != _admin_valor_a_texto(valor_nuevo):
+                    cambios.append(
+                        f"{campo}: '{_admin_valor_a_texto(valor_anterior)}' → '{_admin_valor_a_texto(valor_nuevo)}'"
+                    )
+                    setattr(pedido, campo, valor_nuevo)
+
+            db.session.commit()
+
+            detalle = "; ".join(cambios) if cambios else "Sin cambios reales."
+            registrar_auditoria(
+                "Admin editó pedido completo",
+                entidad="pedido",
+                entidad_id=pedido.id,
+                detalle=detalle,
+            )
+
+            return redirect(url_for("detalle_pedido", id=pedido.id, ok="Pedido actualizado por edición completa admin."))
+
+        except Exception as e:
+            db.session.rollback()
+            return render_template(
+                "admin_editar_pedido_completo.html",
+                pedido=pedido,
+                grupos_campos=_admin_campos_pedido_para_template(pedido),
+                error=f"No se pudo guardar la edición completa: {e}",
+            )
+
+    return render_template(
+        "admin_editar_pedido_completo.html",
+        pedido=pedido,
+        grupos_campos=_admin_campos_pedido_para_template(pedido),
+        error="",
+    )
+
+
 @app.route("/pedido/<int:id>/editar", methods=["GET", "POST"])
 @login_required
 def editar_pedido(id):

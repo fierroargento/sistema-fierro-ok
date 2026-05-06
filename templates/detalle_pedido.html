@@ -212,6 +212,14 @@
     </div>
     {% endif %}
 
+    {% if rol_actual == "admin" %}
+    <div style="margin: 8px 0 14px 0; display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="{{ url_for('admin_editar_pedido_completo', id=pedido.id) }}" class="btn btn-secundario" style="padding: 7px 12px; font-size: 0.82rem; border-color:#f97316; color:#9a3412;">
+            🛠️ Editar completo Admin
+        </a>
+    </div>
+    {% endif %}
+
     {% if pedido.canal == "Mercado Libre" and rol_actual in ["admin", "carga"] %}
     <div style="margin: 6px 0 10px 0; display:flex; gap:6px; flex-wrap:wrap;">
         <form method="POST" action="{{ url_for('resync_ml_pedido', id=pedido.id) }}" style="display:inline-block;">
