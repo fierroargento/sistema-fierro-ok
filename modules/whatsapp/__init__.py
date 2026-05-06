@@ -2,11 +2,15 @@
 modules/whatsapp/__init__.py
 ─────────────────────────────
 Punto de entrada del módulo WhatsApp.
+
+APB 2026-05:
+- Este módulo registra SOLO el webhook.
+- El scheduler periódico queda unificado en app.py vía APScheduler.
+- No se registra before_request para evitar ejecuciones duplicadas, mensajes dobles
+  o que el bot vuelva a escribir cuando un operador tomó la conversación.
 """
 
-from datetime import datetime, timedelta
-
-from .config import modulo_activo, SCHEDULER_INTERVALO_SEGUNDOS
+from .config import modulo_activo
 from .webhook import registrar_webhook
 from .flows import (
     wa_enviar_confirmacion_sucursal,
@@ -17,53 +21,18 @@ from .flows import (
 )
 from .scheduler import ejecutar_timers
 
-_ultimo_scheduler = None
-_scheduler_corriendo = False
-
-
-def _registrar_scheduler_liviano(app):
-    """Ejecuta scheduler cada N segundos enganchado a requests.
-
-    Evita threads/background workers para no complicar Render ni romper deploy.
-    """
-    global _ultimo_scheduler, _scheduler_corriendo
-
-    @app.before_request
-    def _wa_scheduler_tick():
-        global _ultimo_scheduler, _scheduler_corriendo
-        ahora = datetime.utcnow()
-        if _scheduler_corriendo:
-            return
-        if _ultimo_scheduler and (ahora - _ultimo_scheduler).total_seconds() < SCHEDULER_INTERVALO_SEGUNDOS:
-            return
-        _scheduler_corriendo = True
-        try:
-            ejecutar_timers()
-            _ultimo_scheduler = ahora
-        except Exception as e:
-            print("[WA] Scheduler tick error:", e)
-            try:
-                from app import db
-                db.session.rollback()
-            except Exception:
-                pass
-        finally:
-            try:
-                from app import db
-                db.session.remove()
-            except Exception:
-                pass
-            _scheduler_corriendo = False
-
 
 def activar(app):
-    """Activa webhook y scheduler liviano si WhatsApp está configurado."""
+    """Activa el webhook si WhatsApp está configurado.
+
+    El scheduler NO se engancha acá. Queda centralizado en app.py para que haya
+    un único motor periódico en Render.
+    """
     if not modulo_activo():
         print("[WA] Módulo WhatsApp en standby — configurar .env para activar")
         return
 
     registrar_webhook(app)
-    _registrar_scheduler_liviano(app)
     print("[WA] Módulo WhatsApp activo ✓")
 
 

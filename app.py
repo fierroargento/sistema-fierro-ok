@@ -1057,6 +1057,31 @@ def _es_consulta_no_eleccion(texto):
     return any(re.search(p, texto) for p in patrones_consulta)
 
 
+def _texto_parece_eleccion_sucursal(texto):
+    """Determina si un texto realmente intenta elegir una sucursal ofrecida.
+
+    Evita que un mensaje largo con datos de domicilio/localidad se confunda con
+    una opción de sucursal solo porque contiene una palabra parecida.
+    """
+    t = str(texto or "").lower().strip()
+    if not t:
+        return False
+    if re.search(r"\b([1-3])\b", t):
+        return True
+    if any(x in t for x in [
+        "elijo", "elegí", "elegi", "elegimos", "prefiero", "quiero la",
+        "quiero esa", "me quedo", "opcion", "opción", "numero", "número",
+        "la 1", "la 2", "la 3", "primera", "segunda", "tercera", "la de"
+    ]):
+        return True
+    # Mensaje corto tipo "San Martín" puede ser elección. Mensaje largo con
+    # DNI/dirección/CP/contacto NO debe matchear sucursal.
+    palabras_datos = ["dni", "documento", "direccion", "dirección", "cp", "codigo", "código", "telefono", "teléfono", "contacto", "envio", "envío", "calle", "altura"]
+    if len(t) <= 45 and not any(x in t for x in palabras_datos):
+        return True
+    return False
+
+
 def detectar_sucursal(pedido, mensaje):
     """
     Detecta la sucursal elegida por el cliente en su respuesta.
@@ -1094,6 +1119,13 @@ def detectar_sucursal(pedido, mensaje):
         candidatas_ids = json.loads(getattr(pedido, "ia_sucursales_ofrecidas", "") or "[]")
     except Exception:
         pass
+
+    # Si hay candidatas ofrecidas, solo detectar sucursal cuando el cliente
+    # realmente esté eligiendo una opción. No asignar por haber mencionado una
+    # localidad/dirección dentro de los datos del envío.
+    if candidatas_ids and not _texto_parece_eleccion_sucursal(texto):
+        print(f"[VIA CARGO] No se asigna sucursal: texto no parece elección explícita: '{texto[:100]}'")
+        return None
 
     # Pool de búsqueda: SOLO las candidatas ofrecidas si las tenemos
     # Esto evita matchear sucursales de otras provincias/localidades
@@ -4571,6 +4603,7 @@ def ia_analizar_datos_cliente_ml_acordas(texto_cliente, datos_previos=None):
     modelo = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
     datos_previos = datos_previos or {}
     campos = ["nombre", "apellido", "dni", "telefono", "direccion", "localidad", "codigo_postal"]
+    campos_autorizado = ["autorizado_nombre", "autorizado_dni", "autorizado_telefono"]
 
     prompt = '''
 Sos el recolector de datos de Fierro 100% Argento para pedidos de Mercado Libre / Acordás la Entrega.
@@ -4579,7 +4612,7 @@ OBJETIVO PRINCIPAL:
 Analizar la respuesta del comprador, extraer datos para coordinar el envío y clasificar la intención del mensaje.
 No inventes datos. Si no estás seguro, dejá el campo vacío y ponelo como faltante.
 
-DATOS OBLIGATORIOS:
+DATOS OBLIGATORIOS DEL COMPRADOR / TITULAR:
 - nombre
 - apellido
 - dni
@@ -4587,6 +4620,14 @@ DATOS OBLIGATORIOS:
 - direccion
 - localidad
 - codigo_postal
+
+DATOS DE AUTORIZADO / QUIEN RECIBE O RETIRA:
+Si el comprador dice que recibe, retira, está autorizado, se entrega a otra persona, o usa frases como "quien recibe", "quien retira", "autorizo a", "entregar a", NO pongas esos datos como titular. Cargalos en:
+- autorizado_nombre
+- autorizado_dni
+- autorizado_telefono
+
+Si no hay señal explícita de autorizado, dejá autorizado_* vacío.
 
 REGLAS DE NEGOCIO ML / ACORDÁS:
 1. En esta modalidad no vemos siempre todos los datos completos que el comprador cargó en Mercado Libre. Si el comprador dice "están en Mercado Libre", "son los mismos de la compra", "ya figuran", "están en mis datos" o similar, NO lo marques como conflicto: resumí que reclama que los datos ya están en ML y mantené los faltantes.
@@ -4596,6 +4637,8 @@ REGLAS DE NEGOCIO ML / ACORDÁS:
 5. Si dice "ya los pasé", verificá contra datos_previos + mensaje nuevo. Si siguen faltando datos, mantené solo los faltantes reales.
 6. Si falta código postal pero hay localidad clara, mantené codigo_postal como faltante salvo que el comprador lo haya escrito explícitamente.
 7. Si el comprador solo quiere que lo llamen o pasar WhatsApp, extraé el teléfono si está, pero seguí marcando los datos faltantes.
+8. Si el mensaje mezcla datos del titular y de un autorizado, mantené separados: titular en nombre/apellido/dni/teléfono; autorizado en autorizado_nombre/autorizado_dni/autorizado_telefono.
+9. No reemplaces el titular por el autorizado.
 
 ESCALAR A OPERADOR:
 Marcá requiere_operador=true SOLO si detectás intención de cancelar, reclamo/problema, enojo fuerte, insultos, cambio de modalidad de entrega/retiro, problema con el producto o una pregunta que no se pueda responder con estas reglas. En esos casos, el resumen debe incluir un llamado a la acción claro para el operador.
@@ -4622,7 +4665,10 @@ Respondé SOLO JSON válido con esta estructura exacta:
     "telefono": "",
     "direccion": "",
     "localidad": "",
-    "codigo_postal": ""
+    "codigo_postal": "",
+    "autorizado_nombre": "",
+    "autorizado_dni": "",
+    "autorizado_telefono": ""
   }},
   "faltantes": [],
   "datos_completos": false,
@@ -4674,9 +4720,15 @@ En resumen, indicá claramente si aplica alguno de estos casos: datos en Mercado
                 fusionados[c] = valor
             else:
                 fusionados.setdefault(c, "")
+        for c in campos_autorizado:
+            valor = str(datos.get(c) or "").strip()
+            if valor:
+                fusionados[c] = valor
+            else:
+                fusionados.setdefault(c, "")
 
         faltantes = [c for c in campos if not str(fusionados.get(c) or "").strip()]
-        resultado["datos"] = {c: str(fusionados.get(c) or "").strip() for c in campos}
+        resultado["datos"] = {c: str(fusionados.get(c) or "").strip() for c in campos + campos_autorizado}
         resultado["faltantes"] = faltantes
         resultado["datos_completos"] = len(faltantes) == 0
         resultado["ok"] = True
@@ -4741,13 +4793,17 @@ def normalizar_datos_ia_fierro(datos):
     if not isinstance(datos, dict):
         return {}
     normalizados = dict(datos)
-    for campo in ["nombre", "apellido", "localidad"]:
+    for campo in ["nombre", "apellido", "localidad", "autorizado_nombre"]:
         if normalizados.get(campo):
             normalizados[campo] = capitalizar_texto_fierro(normalizados.get(campo))
     if normalizados.get("direccion"):
         normalizados["direccion"] = normalizar_direccion_fierro(normalizados.get("direccion"))
     if normalizados.get("dni"):
         normalizados["dni"] = ia_dni_valido(normalizados.get("dni")) or str(normalizados.get("dni") or "").strip()
+    if normalizados.get("autorizado_dni"):
+        normalizados["autorizado_dni"] = ia_dni_valido(normalizados.get("autorizado_dni")) or str(normalizados.get("autorizado_dni") or "").strip()
+    if normalizados.get("autorizado_telefono"):
+        normalizados["autorizado_telefono"] = normalizar_telefono(normalizados.get("autorizado_telefono"))
     if normalizados.get("codigo_postal"):
         normalizados["codigo_postal"] = str(normalizados.get("codigo_postal") or "").strip().upper()
     return normalizados
@@ -4767,7 +4823,38 @@ def ia_cp_valido(valor):
     return limpio if 3 <= len(limpio) <= 12 else ""
 
 
-def ia_autocompletar_pedido_con_datos(pedido, datos):
+def ia_texto_menciona_autorizado(texto):
+    """Detecta si el comprador está pasando datos de otra persona.
+
+    Regla APB:
+    - Si aparecen frases como "quien recibe", "retira", "autorizado" o
+      "entregar a", esos datos NO deben pisar al comprador/titular.
+    - Se cargan en autorizado_nombre / autorizado_dni / autorizado_telefono.
+    """
+    t = str(texto or "").lower()
+    patrones = [
+        r"\bquien\s+recibe\b",
+        r"\bquien\s+retira\b",
+        r"\bquien\s+va\s+a\s+recibir\b",
+        r"\bquien\s+va\s+a\s+retirar\b",
+        r"\bel\s+que\s+recibe\b",
+        r"\bla\s+que\s+recibe\b",
+        r"\bel\s+que\s+retira\b",
+        r"\bla\s+que\s+retira\b",
+        r"\brecibe\s+[^,.]{2,80}",
+        r"\bretira\s+[^,.]{2,80}",
+        r"\bretirar\s+[^,.]{2,80}",
+        r"\bautorizad[oa]\b",
+        r"\bautorizo\s+a\b",
+        r"\bentregar\s+a\b",
+        r"\bentrega\s+a\b",
+        r"\bse\s+lo\s+entregan\s+a\b",
+        r"\ba\s+nombre\s+de\b",
+    ]
+    return any(re.search(p, t) for p in patrones)
+
+
+def ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=""):
     """
     Fase 4 segura: usa datos detectados por IA para completar la carga.
     Regla APB: solo completa campos vacíos. No pisa datos ya cargados manualmente,
@@ -4784,21 +4871,43 @@ def ia_autocompletar_pedido_con_datos(pedido, datos):
     apellido = str(datos.get("apellido") or "").strip()
     nombre_completo = " ".join([x for x in [nombre, apellido] if x]).strip()
 
-    cliente_actual = str(getattr(pedido, "cliente", "") or "").strip()
-    puede_reemplazar_cliente = ia_campo_vacio(cliente_actual) or parece_nickname_ml(cliente_actual, getattr(pedido, "ml_buyer_nickname", ""))
-    if nombre_completo and puede_reemplazar_cliente:
-        pedido.cliente = nombre_completo
-        completados.append("cliente")
+    autorizado_nombre = str(datos.get("autorizado_nombre") or "").strip()
+    autorizado_dni = ia_dni_valido(datos.get("autorizado_dni"))
+    autorizado_telefono = normalizar_telefono(datos.get("autorizado_telefono")) if datos.get("autorizado_telefono") else ""
+    texto_indica_autorizado = ia_texto_menciona_autorizado(texto_cliente)
 
-    dni = ia_dni_valido(datos.get("dni"))
-    if dni and ia_campo_vacio(getattr(pedido, "dni", "")):
-        pedido.dni = dni
-        completados.append("dni")
+    if texto_indica_autorizado:
+        # APB: si el texto habla de quien recibe/retira/autorizado, NO pisar titular.
+        # Si la IA no separó los campos, usamos los datos comunes como autorizado.
+        autorizado_nombre = autorizado_nombre or nombre_completo
+        autorizado_dni = autorizado_dni or ia_dni_valido(datos.get("dni"))
+        autorizado_telefono = autorizado_telefono or (normalizar_telefono(datos.get("telefono")) if datos.get("telefono") else "")
 
-    telefono = normalizar_telefono(datos.get("telefono"))
-    if telefono and ia_campo_vacio(getattr(pedido, "telefono", "")):
-        pedido.telefono = telefono
-        completados.append("telefono")
+        if autorizado_nombre and ia_campo_vacio(getattr(pedido, "autorizado_nombre", "")):
+            pedido.autorizado_nombre = autorizado_nombre
+            completados.append("autorizado_nombre")
+        if autorizado_dni and ia_campo_vacio(getattr(pedido, "autorizado_dni", "")):
+            pedido.autorizado_dni = autorizado_dni
+            completados.append("autorizado_dni")
+        if autorizado_telefono and ia_campo_vacio(getattr(pedido, "autorizado_telefono", "")):
+            pedido.autorizado_telefono = autorizado_telefono
+            completados.append("autorizado_telefono")
+    else:
+        cliente_actual = str(getattr(pedido, "cliente", "") or "").strip()
+        puede_reemplazar_cliente = ia_campo_vacio(cliente_actual) or parece_nickname_ml(cliente_actual, getattr(pedido, "ml_buyer_nickname", ""))
+        if nombre_completo and puede_reemplazar_cliente:
+            pedido.cliente = nombre_completo
+            completados.append("cliente")
+
+        dni = ia_dni_valido(datos.get("dni"))
+        if dni and ia_campo_vacio(getattr(pedido, "dni", "")):
+            pedido.dni = dni
+            completados.append("dni")
+
+        telefono = normalizar_telefono(datos.get("telefono"))
+        if telefono and ia_campo_vacio(getattr(pedido, "telefono", "")):
+            pedido.telefono = telefono
+            completados.append("telefono")
 
     direccion = str(datos.get("direccion") or "").strip()
     if direccion and ia_campo_vacio(getattr(pedido, "direccion", "")):
@@ -4831,7 +4940,7 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
         return
 
     datos = normalizar_datos_ia_fierro(resultado.get("datos") or {})
-    completados = ia_autocompletar_pedido_con_datos(pedido, datos)
+    completados = ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=texto_cliente)
     faltantes = resultado.get("faltantes") or []
     requiere_operador = bool(resultado.get("requiere_operador"))
 
@@ -4909,7 +5018,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 pass
             # Confirmar al cliente que la sucursal fue registrada y el despacho está en proceso
             try:
-                nombre_cliente = (pedido.nombre or "").split()[0] or "Cliente"
+                nombre_cliente = (getattr(pedido, "cliente", "") or "Cliente").split()[0] or "Cliente"
                 msg_confirmacion = (
                     f"Muchas gracias {nombre_cliente}! 🙌\n\n"
                     f"Tu pedido ya está en proceso de despacho a:\n"
