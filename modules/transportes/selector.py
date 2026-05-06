@@ -145,6 +145,7 @@ def evaluar_decision_correo_pp6040(pedido, preferencia_cliente="sucursal"):
 
 
 def asignar_transporte_pedido(pedido, preferencia_cliente="sucursal"):
+        return False, "Cotización Correo temporalmente deshabilitada"
     """Cotiza y asigna Correo al pedido PP6040, sin informar costos al cliente."""
     if not pedido_contiene_pp6040(pedido):
         return False, "El pedido no contiene PP6040"
