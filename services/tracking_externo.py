@@ -1,9 +1,10 @@
 import re
 import html
+import json
 import unicodedata
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 
 
 USER_AGENT = (
@@ -13,16 +14,17 @@ USER_AGENT = (
 )
 
 
-def _headers_navegador(referer=""):
+def _headers_navegador(referer="", accept_json=False):
     headers = {
         "User-Agent": USER_AGENT,
         "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/json,text/plain,*/*;q=0.8",
+        "Accept": "application/json,text/plain,*/*" if accept_json else "text/html,application/xhtml+xml,application/xml;q=0.9,application/json,text/plain,*/*;q=0.8",
         "Cache-Control": "no-cache",
         "Pragma": "no-cache",
         "Connection": "close",
-        "Upgrade-Insecure-Requests": "1",
     }
+    if not accept_json:
+        headers["Upgrade-Insecure-Requests"] = "1"
     if referer:
         headers["Referer"] = referer
     return headers
@@ -93,6 +95,8 @@ ESTADOS_ANDREANI = [
     "EN TRANSITO",
     "EN TRÁNSITO",
     "EN VIAJE",
+    "EN CAMINO",
+    "INGRESADO",
     "INGRESO",
     "ADMITIDO",
     "PROCESAMIENTO",
@@ -101,7 +105,7 @@ ESTADOS_ANDREANI = [
 
 def _lista_estados_por_transporte(transporte):
     t = _normalizar(transporte)
-    if "via cargo" in t or "via" in t and "cargo" in t:
+    if "via cargo" in t or ("via" in t and "cargo" in t):
         return ESTADOS_VIA_CARGO
     if "correo" in t or "mercado env" in t:
         return ESTADOS_CORREO
@@ -113,9 +117,8 @@ def _lista_estados_por_transporte(transporte):
 def _extraer_estado_por_patrones(texto, transporte=""):
     """Devuelve el estado logístico más reciente encontrado.
 
-    Las páginas de tracking muestran el evento más nuevo arriba. Por eso se toma
-    la primera aparición real en el texto limpio, no una búsqueda genérica por
-    palabras sueltas.
+    Las páginas de tracking suelen mostrar el evento más nuevo arriba. Por eso
+    se toma la primera aparición real en el texto limpio.
     """
     if not texto:
         return ""
@@ -133,7 +136,6 @@ def _extraer_estado_por_patrones(texto, transporte=""):
         candidatos.sort(key=lambda x: x[0])
         return candidatos[0][1]
 
-    # Fallback controlado para páginas que cambian el texto exacto.
     patrones = [
         r"(entregad[oa](?:\s+al\s+destinatario)?)",
         r"(entrega\s+en\s+sucursal)",
@@ -143,10 +145,12 @@ def _extraer_estado_por_patrones(texto, transporte=""):
         r"(listo\s+para\s+retirar[^.]{0,80})",
         r"(en\s+sucursal[^.]{0,80})",
         r"(intento\s+de\s+entrega[^.]{0,80})",
+        r"(visita\s+sin\s+entregar[^.]{0,80})",
         r"(no\s+entregad[oa][^.]{0,80})",
         r"(en\s+distribuci[oó]n[^.]{0,80})",
         r"(en\s+tr[aá]nsito[^.]{0,80})",
         r"(en\s+viaje[^.]{0,80})",
+        r"(en\s+camino[^.]{0,80})",
         r"(en\s+proceso\s+de\s+clasificaci[oó]n)",
         r"(llegada\s+al\s+centro\s+de\s+procesamiento)",
         r"(llegada\s+a\s+centro\s+de\s+distribuci[oó]n)",
@@ -158,7 +162,7 @@ def _extraer_estado_por_patrones(texto, transporte=""):
     for patron in patrones:
         m = re.search(patron, texto, flags=re.IGNORECASE)
         if m:
-            return m.group(1).strip(" -:;,.").upper()
+            return m.group(1).strip(" -:;,.\n\t").upper()
 
     return ""
 
@@ -167,7 +171,7 @@ def interpretar_estado_logistico(texto, transporte=""):
     """Mapea estados externos a clases seguras del Sistema Fierro.
 
     Retornos posibles:
-    - entregado: se puede pasar a Entregado.
+    - entregado: se puede pasar a Entregado, salvo protección ML Acordás en app.py.
     - sucursal: se puede pasar a Verificar llegada a destino.
     - incidencia: requiere revisión; no autoavanza para no romper flujo.
     - transito: guardar info, no cambiar estado interno.
@@ -181,8 +185,6 @@ def interpretar_estado_logistico(texto, transporte=""):
     if any(x in t for x in ["no entreg", "fallid", "rechaz", "devol", "incid", "siniestr", "imposible entregar"]):
         return "incidencia"
 
-    # Correo puede mostrar INTENTO DE ENTREGA como historia y ENTREGA EN SUCURSAL como estado.
-    # Si el último estado detectado es intento, se deja como incidencia para revisión manual.
     if "intento de entrega" in t or "visita sin entregar" in t:
         return "incidencia"
 
@@ -202,18 +204,18 @@ def interpretar_estado_logistico(texto, transporte=""):
         return "sucursal"
 
     if any(x in t for x in [
-        "transito", "distribucion", "viaje", "clasificacion", "procesamiento",
-        "ingreso", "preimposicion", "repesaje", "admitido",
+        "transito", "distribucion", "viaje", "camino", "clasificacion", "procesamiento",
+        "ingreso", "ingresado", "preimposicion", "repesaje", "admitido",
     ]):
         return "transito"
 
     return "desconocido"
 
 
-def _leer_url(url, referer=""):
-    req = Request(url, headers=_headers_navegador(referer=referer))
-    with urlopen(req, timeout=20) as resp:
-        raw = resp.read(1200000).decode("utf-8", errors="ignore")
+def _leer_url(url, referer="", accept_json=False):
+    req = Request(url, headers=_headers_navegador(referer=referer, accept_json=accept_json))
+    with urlopen(req, timeout=25) as resp:
+        raw = resp.read(1600000).decode("utf-8", errors="ignore")
     return raw
 
 
@@ -230,51 +232,146 @@ def _extraer_numero_envio(url="", seguimiento=""):
     return ""
 
 
-def _consultar_via_cargo_endpoint(url, seguimiento=""):
-    """Fallback liviano para Vía Cargo.
+def _texto_desde_json(data):
+    partes = []
 
-    La página pública renderiza el seguimiento con JS/iframe. En navegador se ve
-    un request tipo: tracking?NumeroEnvio=<nro>&tokenRecaptcha=<token>.
-    Probamos el endpoint sin depender de Selenium; si Vía Cargo exige token,
-    devolvemos vacío sin romper.
+    def walk(obj):
+        if obj is None:
+            return
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                if isinstance(value, (dict, list, tuple)):
+                    walk(value)
+                else:
+                    partes.append(str(value))
+        elif isinstance(obj, (list, tuple)):
+            for item in obj:
+                walk(item)
+        else:
+            partes.append(str(obj))
+
+    walk(data)
+    return " ".join(partes)
+
+
+def _consultar_andreani_oficial(seguimiento=""):
+    """Consulta Andreani usando credenciales oficiales si están configuradas.
+
+    Esto evita depender del HTML público cuando Render no ve lo mismo que el navegador.
+    Si no hay credenciales o Andreani devuelve error, se informa y se usa fallback HTML.
+    """
+    numero = str(seguimiento or "").strip()
+    if not numero:
+        return "", "No hay seguimiento Andreani"
+
+    try:
+        from services.andreani import andreani_configurada, andreani_trazas_envio, resumen_evento_andreani
+    except Exception as e:
+        return "", f"No se pudo importar servicio Andreani: {e}"
+
+    try:
+        if not andreani_configurada():
+            return "", "Credenciales Andreani no configuradas"
+        data = andreani_trazas_envio(numero)
+        evento = data.get("ultimo_evento") or {}
+        estado = resumen_evento_andreani(evento)
+        if estado and estado != "Sin eventos":
+            return estado.upper(), None
+        # Si no hay evento único, buscar en todo el JSON
+        texto = _texto_desde_json(data)
+        estado = _extraer_estado_por_patrones(texto, transporte="Andreani")
+        if estado:
+            return estado, None
+        return "", "Andreani oficial sin eventos legibles"
+    except Exception as e:
+        return "", str(e)
+
+
+def _consultar_andreani_publico(url, seguimiento=""):
+    numero = _extraer_numero_envio(url, seguimiento)
+    if not numero:
+        return "", "No se pudo obtener número Andreani"
+    public_url = f"https://www.andreani.com/envio/{quote(numero)}"
+
+    try:
+        raw = _leer_url(public_url, referer="https://www.andreani.com/", accept_json=False)
+    except HTTPError as e:
+        return "", f"HTTP {e.code} Andreani público"
+    except URLError as e:
+        return "", f"Error de conexión Andreani público: {e.reason}"
+    except Exception as e:
+        return "", str(e)
+
+    texto = _limpiar_texto_html(raw)
+    estado = _extraer_estado_por_patrones(texto, transporte="Andreani")
+    if estado:
+        return estado, None
+    return "", "Andreani público no devolvió estado legible"
+
+
+def _consultar_via_cargo_endpoint(url, seguimiento=""):
+    """Consulta el endpoint interno real visto en Network.
+
+    En navegador se ve:
+      https://ws.busplus.com.ar/alerce/tracking?NumeroEnvio=<nro>&tokenRecaptcha=<token>
+
+    Probamos sin Selenium. Si Vía Cargo exige token Recaptcha válido, devolvemos error
+    controlado y el sistema no rompe.
     """
     numero = _extraer_numero_envio(url, seguimiento)
     if not numero:
         return "", "No se pudo obtener NumeroEnvio"
 
-    base = "https://viacargo.com.ar/tracking"
-    api_url = f"{base}?{urlencode({'NumeroEnvio': numero, 'tokenRecaptcha': ''})}"
-    try:
-        raw = _leer_url(api_url, referer=url)
-    except HTTPError as e:
-        return "", f"HTTP {e.code} consultando endpoint Via Cargo"
-    except URLError as e:
-        return "", f"Error de conexión endpoint Via Cargo: {e.reason}"
-    except Exception as e:
-        return "", str(e)
+    referer = url or f"https://viacargo.com.ar/seguimiento-de-envio/{numero}/"
+    urls = [
+        f"https://ws.busplus.com.ar/alerce/tracking?{urlencode({'NumeroEnvio': numero, 'tokenRecaptcha': ''})}",
+        f"https://viacargo.com.ar/alerce/tracking?{urlencode({'NumeroEnvio': numero, 'tokenRecaptcha': ''})}",
+    ]
 
-    texto = _limpiar_texto_html(raw)
-    estado = _extraer_estado_por_patrones(texto, transporte="Via Cargo")
-    if estado:
-        return estado, None
+    errores = []
+    for api_url in urls:
+        try:
+            raw = _leer_url(api_url, referer=referer, accept_json=True)
+        except HTTPError as e:
+            try:
+                detalle = e.read().decode("utf-8", errors="ignore")[:300]
+            except Exception:
+                detalle = ""
+            errores.append(f"{api_url}: HTTP {e.code} {detalle}")
+            continue
+        except URLError as e:
+            errores.append(f"{api_url}: {e.reason}")
+            continue
+        except Exception as e:
+            errores.append(f"{api_url}: {e}")
+            continue
 
-    # Algunos endpoints devuelven JSON simple. Buscar el último evento textual.
-    try:
-        import json as _json
-        data = _json.loads(raw)
-        plano = json.dumps(data, ensure_ascii=False)
-        texto_json = _limpiar_texto_html(plano)
-        estado = _extraer_estado_por_patrones(texto_json, transporte="Via Cargo")
+        texto_html = _limpiar_texto_html(raw)
+        estado = _extraer_estado_por_patrones(texto_html, transporte="Via Cargo")
         if estado:
             return estado, None
-    except Exception:
-        pass
 
-    return "", "Endpoint Via Cargo no devolvió estado legible"
+        try:
+            data = json.loads(raw)
+            texto_json = _texto_desde_json(data)
+            estado = _extraer_estado_por_patrones(texto_json, transporte="Via Cargo")
+            if estado:
+                return estado, None
+        except Exception:
+            pass
+
+        # Fallback: buscar directamente en el raw por si viene escapado.
+        estado = _extraer_estado_por_patrones(raw, transporte="Via Cargo")
+        if estado:
+            return estado, None
+
+        errores.append(f"{api_url}: respuesta sin estado legible")
+
+    return "", " | ".join(errores[:2]) or "Endpoint Via Cargo no devolvió estado legible"
 
 
 def consultar_tracking_url(url, transporte="", seguimiento=""):
-    """Consulta una URL pública de tracking y devuelve el estado detectado.
+    """Consulta una URL pública/API de tracking y devuelve el estado detectado.
 
     Modo APB:
     - si lee un estado claro, lo devuelve;
@@ -284,6 +381,64 @@ def consultar_tracking_url(url, transporte="", seguimiento=""):
     if not url:
         return {"estado": "", "error": "No hay URL de tracking"}
 
+    transporte_norm = _normalizar(transporte)
+    url_norm = _normalizar(url)
+
+    # Andreani: preferir API oficial si está configurada. Si no, fallback público.
+    if "andreani" in transporte_norm or "andreani.com" in url_norm:
+        estado_oficial, error_oficial = _consultar_andreani_oficial(seguimiento=seguimiento)
+        if estado_oficial:
+            return {
+                "estado": estado_oficial,
+                "error": None,
+                "texto_muestra": estado_oficial[:1200],
+            }
+        estado_publico, error_publico = _consultar_andreani_publico(url, seguimiento=seguimiento)
+        if estado_publico:
+            return {
+                "estado": estado_publico,
+                "error": None,
+                "texto_muestra": estado_publico[:1200],
+            }
+        return {
+            "estado": "Sin estado detectado",
+            "error": error_publico or error_oficial or "No se detectó estado Andreani",
+            "texto_muestra": "",
+        }
+
+    # Vía Cargo: usar endpoint interno real visto en Network. El HTML público queda como fallback.
+    if "via cargo" in transporte_norm or "vía cargo" in transporte_norm or "viacargo.com" in url_norm:
+        estado_api, error_api = _consultar_via_cargo_endpoint(url, seguimiento=seguimiento)
+        if estado_api:
+            return {
+                "estado": estado_api,
+                "error": None,
+                "texto_muestra": estado_api[:1200],
+            }
+        # fallback HTML público
+        try:
+            raw = _leer_url(url, referer="https://viacargo.com.ar/", accept_json=False)
+            texto = _limpiar_texto_html(raw)
+            estado = _extraer_estado_por_patrones(texto, transporte=transporte)
+            if estado:
+                return {
+                    "estado": estado,
+                    "error": None,
+                    "texto_muestra": texto[:1200],
+                }
+            return {
+                "estado": "Sin estado detectado",
+                "error": error_api or "No se detectó un estado logístico claro en Vía Cargo",
+                "texto_muestra": texto[:1200],
+            }
+        except Exception as e:
+            return {
+                "estado": "Sin estado detectado",
+                "error": error_api or str(e),
+                "texto_muestra": "",
+            }
+
+    # Genérico: HTML simple.
     try:
         raw = _leer_url(url)
     except HTTPError as e:
@@ -295,19 +450,6 @@ def consultar_tracking_url(url, transporte="", seguimiento=""):
 
     texto = _limpiar_texto_html(raw)
     estado = _extraer_estado_por_patrones(texto, transporte=transporte)
-
-    # Vía Cargo renderiza el tracking con JS/iframe. Si el HTML inicial no trae
-    # eventos, intentamos el endpoint liviano visto en Network.
-    if not estado and ("via cargo" in _normalizar(transporte) or "viacargo.com" in _normalizar(url)):
-        estado_api, error_api = _consultar_via_cargo_endpoint(url, seguimiento=seguimiento)
-        if estado_api:
-            estado = estado_api
-        else:
-            return {
-                "estado": "Sin estado detectado",
-                "error": error_api or "No se detectó un estado logístico claro en Vía Cargo",
-                "texto_muestra": texto[:1200],
-            }
 
     if not estado:
         return {
@@ -337,11 +479,6 @@ def consultar_correo_formulario(seguimiento, mercado_envios=False):
     Usa el endpoint interno que utiliza la web de Correo:
     - action=mercadolibre para Mercado Envíos
     - action=ecommerce para Acordás / e-commerce
-
-    Modo APB:
-    - si lee un estado claro, lo devuelve;
-    - si falla o la respuesta cambia, devuelve error controlado;
-    - nunca lanza excepción hacia el sistema principal.
     """
     seguimiento = str(seguimiento or "").strip()
     if not seguimiento:
