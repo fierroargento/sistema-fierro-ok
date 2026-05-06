@@ -59,12 +59,26 @@ def cotizar_correo_pp6040(pedido):
     sucursal = cotizar_correo(cp, tipo_entrega="S")
     domicilio = cotizar_correo(cp, tipo_entrega="D")
 
+    error = None
+
+    if not (sucursal.get("disponible") or domicilio.get("disponible")):
+        error_suc = (sucursal or {}).get("error") or ""
+        error_dom = (domicilio or {}).get("error") or ""
+
+        if (
+            "autentic" in error_suc.lower()
+            or "autentic" in error_dom.lower()
+        ):
+            error = "No se pudo autenticar con Correo Argentino. Revisar credenciales en Render."
+        else:
+            error = f"No se pudo cotizar Correo para CP {cp}. Revisar respuesta de la integración."
+
     return {
         "ok": bool(sucursal.get("disponible") or domicilio.get("disponible")),
         "cp_destino": cp,
         "sucursal": sucursal,
         "domicilio": domicilio,
-        "error": None if (sucursal.get("disponible") or domicilio.get("disponible")) else "Correo sin cobertura para el CP indicado",
+        "error": error,
     }
 
 
