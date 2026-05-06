@@ -8026,7 +8026,8 @@ def resync_tn_pedido(id):
 
 
 
-@app.route("/pedido/<int:id>/actualizar-tracking-externo", methods=["POST"])
+@app.route("/pedido/<int:id>/sync-tracking", methods=["GET", "POST"])
+@app.route("/pedido/<int:id>/actualizar-tracking-externo", methods=["GET", "POST"])
 @login_required
 def actualizar_tracking_externo_pedido(id):
     pedido = Pedido.query.get_or_404(id)
