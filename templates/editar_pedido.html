@@ -450,6 +450,56 @@ function transporteRequiereEtiquetaYSeguimiento() {
 }
 
 
+function cantidadPP6040Items() {
+    return (itemsAgregados || []).reduce(function(total, item) {
+        const sku = String(item.sku || "").toUpperCase();
+        const descripcion = String(item.descripcion || "").toUpperCase();
+        if (sku.includes("PP6040") || descripcion.includes("PP6040")) {
+            return total + (parseInt(item.cantidad, 10) || 0);
+        }
+        return total;
+    }, 0);
+}
+
+
+function aplicarReglaViaCargoPP6040() {
+    const selectTransporte = document.getElementById("empresa_envio");
+    if (!selectTransporte) return;
+
+    const opcionViaCargo = Array.from(selectTransporte.options).find(function(opt) {
+        return opt.value === "Vía Cargo";
+    });
+    if (!opcionViaCargo) return;
+
+    const cantidadPP6040 = cantidadPP6040Items();
+    const bloquearViaCargo = cantidadPP6040 > 0 && cantidadPP6040 <= 2;
+
+    opcionViaCargo.disabled = bloquearViaCargo;
+    opcionViaCargo.textContent = bloquearViaCargo
+        ? "Vía Cargo (PP6040 solo +2 unidades)"
+        : "Vía Cargo";
+
+    let aviso = document.getElementById("aviso_via_cargo_pp6040");
+    if (!aviso && selectTransporte.parentElement) {
+        aviso = document.createElement("div");
+        aviso.id = "aviso_via_cargo_pp6040";
+        aviso.className = "form-help aviso-apb";
+        aviso.style.display = "none";
+        aviso.style.marginTop = "6px";
+        selectTransporte.parentElement.appendChild(aviso);
+    }
+
+    if (aviso) {
+        aviso.textContent = "APB: PP6040 no permite Vía Cargo salvo pedidos de 3 unidades o más.";
+        aviso.style.display = bloquearViaCargo ? "block" : "none";
+    }
+
+    if (bloquearViaCargo && selectTransporte.value === "Vía Cargo") {
+        selectTransporte.value = "";
+    }
+}
+
+
 function soloDigitos(valor) {
     return (valor || "").replace(/\D/g, "");
 }
@@ -665,6 +715,7 @@ function validarPaso() {
         const mlValor = document.getElementById("ml_tipo").value;
         const empresa = document.getElementById("empresa_envio").value;
         const entrega = document.getElementById("tipo_entrega").value;
+        const cantidadPP6040 = cantidadPP6040Items();
 
         const sucursalNombre = document.querySelector("[name=sucursal_nombre]").value.trim();
         const direccion = document.querySelector("[name=direccion]").value.trim();
@@ -697,6 +748,9 @@ function validarPaso() {
             const etiquetaExistente = document.getElementById("etiqueta_existente").value.trim();
 
             if (!empresa) agregarError("Elegí el transporte del pedido.", "#empresa_envio");
+            if (empresa === "Vía Cargo" && cantidadPP6040 > 0 && cantidadPP6040 <= 2) {
+                agregarError("PP6040 no puede enviarse por Vía Cargo salvo pedidos de 3 unidades o más.", "#empresa_envio");
+            }
             if (!entrega) agregarError("Elegí si la entrega es a domicilio o en sucursal.", "#tipo_entrega");
 
             if (entrega === "Domicilio") {
@@ -907,6 +961,7 @@ function actualizar() {
     const pasoEnvioSidebar = document.getElementById("step-3");
     pasoEnvioSidebar.style.display = usaPasoEnvio() ? "block" : "none";
     mostrarBotonCoordinarEnvio();
+    aplicarReglaViaCargoPP6040();
 }
 canal.addEventListener("change", actualizar);
 ml.addEventListener("change", actualizar);
@@ -1014,6 +1069,8 @@ function renderizarItems() {
     document.getElementById("items_texto").value = itemsAgregados
         .map(i => `${i.sku}|${i.descripcion}|${i.cantidad}`)
         .join("\n");
+
+    aplicarReglaViaCargoPP6040();
 }
 
 function eliminarItem(index) {

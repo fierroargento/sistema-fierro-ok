@@ -1561,6 +1561,10 @@ def motor_bloqueo(pedido):
     if not pedido.items:
         errores.append("No hay productos cargados.")
 
+    error_via_pp6040 = validar_regla_via_cargo_pp6040(pedido)
+    if error_via_pp6040:
+        errores.append(error_via_pp6040)
+
     if pedido.canal == "Mercado Libre":
         if not pedido.ml_tipo:
             errores.append("Falta tipo de envío ML.")
@@ -3812,6 +3816,40 @@ def pedido_es_plegable_pp6040(pedido):
             return True
 
     return False
+
+
+def cantidad_pp6040_pedido(pedido):
+    """Cantidad total de unidades PP6040 en el pedido. Regla APB transporte."""
+    if not pedido:
+        return 0
+
+    total = 0
+    for item in (pedido.items or []):
+        sku = str(getattr(item, "sku", "") or "").upper()
+        descripcion = str(getattr(item, "descripcion", "") or "").upper()
+        if "PP6040" in sku or "PP6040" in descripcion:
+            try:
+                total += int(getattr(item, "cantidad", 0) or 0)
+            except Exception:
+                total += 0
+
+    return total
+
+
+def via_cargo_no_permitido_para_pp6040(pedido):
+    """PP6040 no puede ir por Vía Cargo salvo pedidos de 3 unidades o más."""
+    if not pedido or not es_via_cargo(getattr(pedido, "empresa_envio", None)):
+        return False
+
+    cantidad = cantidad_pp6040_pedido(pedido)
+    return cantidad > 0 and cantidad <= 2
+
+
+def validar_regla_via_cargo_pp6040(pedido):
+    if via_cargo_no_permitido_para_pp6040(pedido):
+        cantidad = cantidad_pp6040_pedido(pedido)
+        return f"PP6040 no puede enviarse por Vía Cargo con {cantidad} unidad(es). Vía Cargo solo queda habilitado para PP6040 cuando el pedido tiene más de 2 unidades."
+    return None
 
 
 def generar_mensaje_contacto_ml(pedido):
