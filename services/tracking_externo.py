@@ -6,7 +6,26 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 
 
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/146.0.0.0 Safari/537.36"
+)
+
+
+def _headers_navegador(referer=""):
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/json,text/plain,*/*;q=0.8",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Connection": "close",
+        "Upgrade-Insecure-Requests": "1",
+    }
+    if referer:
+        headers["Referer"] = referer
+    return headers
 
 
 def _normalizar(txt):
@@ -27,12 +46,21 @@ def _limpiar_texto_html(raw):
 
 
 ESTADOS_VIA_CARGO = [
+    "ENTREGADO",
     "ENTREGADA",
+    "ENTREGADO AL DESTINATARIO",
     "RECIBIDO EN DESTINO",
+    "RECIBIDO EN SUCURSAL DESTINO",
+    "DISPONIBLE PARA RETIRAR",
+    "LISTO PARA RETIRAR",
+    "EN SUCURSAL",
     "EN VIAJE",
+    "EN TRANSITO",
+    "EN TRÁNSITO",
     "LLEGADA A CENTRO DE DISTRIBUCION",
     "LLEGADA A CENTRO DE DISTRIBUCIÓN",
     "INGRESO A VIA CARGO",
+    "INGRESO A VIA CARGO EN ORIGEN",
 ]
 
 ESTADOS_CORREO = [
@@ -182,15 +210,67 @@ def interpretar_estado_logistico(texto, transporte=""):
     return "desconocido"
 
 
-def _leer_url(url):
-    req = Request(url, headers={
-        "User-Agent": USER_AGENT,
-        "Accept-Language": "es-AR,es;q=0.9",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    })
-    with urlopen(req, timeout=15) as resp:
-        raw = resp.read(800000).decode("utf-8", errors="ignore")
+def _leer_url(url, referer=""):
+    req = Request(url, headers=_headers_navegador(referer=referer))
+    with urlopen(req, timeout=20) as resp:
+        raw = resp.read(1200000).decode("utf-8", errors="ignore")
     return raw
+
+
+def _extraer_numero_envio(url="", seguimiento=""):
+    seguimiento = str(seguimiento or "").strip()
+    if seguimiento:
+        return seguimiento
+    m = re.search(r"/(\d{8,})/?$", str(url or ""))
+    if m:
+        return m.group(1)
+    m = re.search(r"NumeroEnvio=(\d{8,})", str(url or ""), flags=re.I)
+    if m:
+        return m.group(1)
+    return ""
+
+
+def _consultar_via_cargo_endpoint(url, seguimiento=""):
+    """Fallback liviano para Vía Cargo.
+
+    La página pública renderiza el seguimiento con JS/iframe. En navegador se ve
+    un request tipo: tracking?NumeroEnvio=<nro>&tokenRecaptcha=<token>.
+    Probamos el endpoint sin depender de Selenium; si Vía Cargo exige token,
+    devolvemos vacío sin romper.
+    """
+    numero = _extraer_numero_envio(url, seguimiento)
+    if not numero:
+        return "", "No se pudo obtener NumeroEnvio"
+
+    base = "https://viacargo.com.ar/tracking"
+    api_url = f"{base}?{urlencode({'NumeroEnvio': numero, 'tokenRecaptcha': ''})}"
+    try:
+        raw = _leer_url(api_url, referer=url)
+    except HTTPError as e:
+        return "", f"HTTP {e.code} consultando endpoint Via Cargo"
+    except URLError as e:
+        return "", f"Error de conexión endpoint Via Cargo: {e.reason}"
+    except Exception as e:
+        return "", str(e)
+
+    texto = _limpiar_texto_html(raw)
+    estado = _extraer_estado_por_patrones(texto, transporte="Via Cargo")
+    if estado:
+        return estado, None
+
+    # Algunos endpoints devuelven JSON simple. Buscar el último evento textual.
+    try:
+        import json as _json
+        data = _json.loads(raw)
+        plano = json.dumps(data, ensure_ascii=False)
+        texto_json = _limpiar_texto_html(plano)
+        estado = _extraer_estado_por_patrones(texto_json, transporte="Via Cargo")
+        if estado:
+            return estado, None
+    except Exception:
+        pass
+
+    return "", "Endpoint Via Cargo no devolvió estado legible"
 
 
 def consultar_tracking_url(url, transporte="", seguimiento=""):
@@ -215,6 +295,20 @@ def consultar_tracking_url(url, transporte="", seguimiento=""):
 
     texto = _limpiar_texto_html(raw)
     estado = _extraer_estado_por_patrones(texto, transporte=transporte)
+
+    # Vía Cargo renderiza el tracking con JS/iframe. Si el HTML inicial no trae
+    # eventos, intentamos el endpoint liviano visto en Network.
+    if not estado and ("via cargo" in _normalizar(transporte) or "viacargo.com" in _normalizar(url)):
+        estado_api, error_api = _consultar_via_cargo_endpoint(url, seguimiento=seguimiento)
+        if estado_api:
+            estado = estado_api
+        else:
+            return {
+                "estado": "Sin estado detectado",
+                "error": error_api or "No se detectó un estado logístico claro en Vía Cargo",
+                "texto_muestra": texto[:1200],
+            }
+
     if not estado:
         return {
             "estado": "Sin estado detectado",
