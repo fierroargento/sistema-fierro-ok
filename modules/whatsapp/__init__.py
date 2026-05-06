@@ -42,7 +42,17 @@ def _registrar_scheduler_liviano(app):
             _ultimo_scheduler = ahora
         except Exception as e:
             print("[WA] Scheduler tick error:", e)
+            try:
+                from app import db
+                db.session.rollback()
+            except Exception:
+                pass
         finally:
+            try:
+                from app import db
+                db.session.remove()
+            except Exception:
+                pass
             _scheduler_corriendo = False
 
 

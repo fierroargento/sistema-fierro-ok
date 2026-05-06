@@ -8,6 +8,32 @@ No abre threads ni procesos extra, para no complicar Render.
 """
 
 from datetime import datetime, timedelta
+from threading import Lock
+
+_scheduler_lock = Lock()
+
+
+def _cerrar_sesion_db_segura(rollback=False):
+    """Limpieza defensiva de SQLAlchemy para schedulers/background jobs.
+
+    En Render/Postgres puede cortarse SSL; si queda una transacción inválida,
+    SQLAlchemy exige rollback antes de reutilizar la conexión. Este helper evita
+    que un error de scheduler rompa requests normales.
+    """
+    try:
+        from app import db
+        if rollback:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+        try:
+            db.session.remove()
+        except Exception:
+            pass
+    except Exception:
+        pass
+
 
 from .config import (
     TIMER_PRIMER_RECORDATORIO,
@@ -24,9 +50,26 @@ from .flows import (
 
 
 def ejecutar_timers():
-    """Punto único de scheduler."""
-    ejecutar_timers_whatsapp()
-    ejecutar_tracking_automatico()
+    """Punto único de scheduler.
+
+    Protegido contra ejecuciones simultáneas: el módulo puede dispararse desde
+    APScheduler y también desde el hook liviano de requests. Si se solapan, se
+    saltea una vuelta para no compartir sesión DB ni duplicar consultas externas.
+    """
+    if not _scheduler_lock.acquire(blocking=False):
+        print("[WA SCHEDULER] Tick omitido: ya hay un scheduler corriendo")
+        return
+
+    hubo_error = False
+    try:
+        ejecutar_timers_whatsapp()
+        ejecutar_tracking_automatico()
+    except Exception as e:
+        hubo_error = True
+        print("[WA SCHEDULER] Error general ejecutar_timers:", e)
+    finally:
+        _cerrar_sesion_db_segura(rollback=hubo_error)
+        _scheduler_lock.release()
 
 
 def ejecutar_timers_whatsapp():
@@ -80,7 +123,10 @@ def ejecutar_timers_whatsapp():
                         wa_cerrar_cross_sell(tel)
                         _guardar_estado_wa(pedido, "cross_sell_cerrado")
     except Exception as e:
+        _cerrar_sesion_db_segura(rollback=True)
         print("[WA SCHEDULER] Error WA:", e)
+    finally:
+        _cerrar_sesion_db_segura(rollback=False)
 
 
 def _es_transporte_tracking_auto_apb(pedido):
@@ -179,7 +225,10 @@ def ejecutar_tracking_automatico():
                     db.session.rollback()
                 print(f"[TRACKING AUTO] Error pedido #{pedido.id}:", e)
     except Exception as e:
+        _cerrar_sesion_db_segura(rollback=True)
         print("[TRACKING AUTO] Error general:", e)
+    finally:
+        _cerrar_sesion_db_segura(rollback=False)
 
 
 def _ya_envio_recordatorio(pedido, numero):
@@ -193,7 +242,10 @@ def _marcar_recordatorio(pedido, numero):
         pedido.wa_ultimo_contacto = datetime.utcnow()
         db.session.commit()
     except Exception as e:
+        _cerrar_sesion_db_segura(rollback=True)
         print(f"[WA SCHEDULER] Error marcando recordatorio {numero}:", e)
+    finally:
+        _cerrar_sesion_db_segura(rollback=False)
 
 
 def _escalar_sin_respuesta(pedido):
@@ -208,4 +260,7 @@ def _escalar_sin_respuesta(pedido):
         pedido.ia_resumen = f"{resumen} | WA: Cliente no respondió".strip(" |")
         db.session.commit()
     except Exception as e:
+        _cerrar_sesion_db_segura(rollback=True)
         print("[WA SCHEDULER] Error escalando:", e)
+    finally:
+        _cerrar_sesion_db_segura(rollback=False)

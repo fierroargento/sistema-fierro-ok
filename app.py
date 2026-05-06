@@ -9254,6 +9254,15 @@ with app.app_context():
                                 pass
             except Exception as e:
                 print("[SCHEDULER ML] Error general:", e)
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+            finally:
+                try:
+                    db.session.remove()
+                except Exception:
+                    pass
 
         def _job_wa_timers():
             """Ejecuta timers de WhatsApp cada 5 minutos."""
@@ -9263,6 +9272,15 @@ with app.app_context():
                     ejecutar_timers()
             except Exception as e:
                 print("[SCHEDULER WA] Error:", e)
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+            finally:
+                try:
+                    db.session.remove()
+                except Exception:
+                    pass
 
         _scheduler = BackgroundScheduler(daemon=True)
         _scheduler.add_job(_job_ml_mensajes, "interval", minutes=5, id="ml_mensajes")
