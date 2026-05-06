@@ -8043,8 +8043,17 @@ def actualizar_tracking_externo_pedido(id):
         return redirect(url_for("detalle_pedido", id=pedido.id, ok="No hay link de seguimiento disponible."))
 
     transporte = pedido.empresa_envio or ("Correo Argentino" if es_correo_argentino_pedido(pedido) else "")
-    url = tracking_info.get("url") or ""
-    seguimiento = tracking_info.get("seguimiento") or pedido.seguimiento or pedido.tn_tracking_number or ""
+    seguimiento = str(tracking_info.get("seguimiento") or pedido.seguimiento or pedido.tn_tracking_number or "").strip()
+
+    # APB: para consultar automáticamente NO confiamos en links genéricos ni en datos viejos.
+    # Armamos la URL real del transportista desde empresa_envio + seguimiento.
+    transporte_norm = str(transporte or "").strip().lower()
+    if "andreani" in transporte_norm:
+        url = f"https://www.andreani.com/envio/{seguimiento}"
+    elif "via cargo" in transporte_norm or "vía cargo" in transporte_norm:
+        url = f"https://viacargo.com.ar/seguimiento-de-envio/{seguimiento}/"
+    else:
+        url = tracking_info.get("url") or ""
 
     try:
         if es_correo_argentino_pedido(pedido):
