@@ -22,6 +22,9 @@ def _headers_navegador(referer="", accept_json=False):
         "Cache-Control": "no-cache",
         "Pragma": "no-cache",
         "Connection": "close",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Dest": "empty",
     }
     if not accept_json:
         headers["Upgrade-Insecure-Requests"] = "1"
@@ -114,6 +117,43 @@ def _lista_estados_por_transporte(transporte):
     return ESTADOS_ANDREANI + ESTADOS_VIA_CARGO + ESTADOS_CORREO
 
 
+
+
+# Estados reales vistos en navegador. Se evalúan antes que la lista general
+# para evitar que textos secundarios del sitio ganen por posición.
+ESTADOS_PRIORITARIOS_REALES = [
+    ("andreani", "en camino", "EN CAMINO"),
+    ("andreani", "tu envio se encuentra en camino", "EN CAMINO"),
+    ("andreani", "tu envío se encuentra en camino", "EN CAMINO"),
+    ("andreani", "ingresado", "INGRESADO"),
+    ("andreani", "visitas pendientes", "EN CAMINO"),
+    ("via cargo", "ingreso a via cargo", "INGRESO A VIA CARGO"),
+    ("via cargo", "via cargo estandar", "INGRESO A VIA CARGO"),
+    ("via cargo", "recibido en destino", "RECIBIDO EN DESTINO"),
+    ("via cargo", "en viaje", "EN VIAJE"),
+    ("via cargo", "entregada", "ENTREGADA"),
+    ("via cargo", "entregado", "ENTREGADO"),
+]
+
+
+def _extraer_estado_prioritario(texto, transporte=""):
+    """Detecta estados reales observados en Andreani/Vía Cargo antes del parser general."""
+    normal = _normalizar(texto)
+    trans = _normalizar(transporte)
+
+    for scope, needle, estado in ESTADOS_PRIORITARIOS_REALES:
+        if scope in trans and needle in normal:
+            return estado
+
+    if "ingreso a via cargo" in normal:
+        return "INGRESO A VIA CARGO"
+    if "tu envio se encuentra en camino" in normal or "tu envío se encuentra en camino" in normal:
+        return "EN CAMINO"
+    if re.search(r"\ben camino\b", normal):
+        return "EN CAMINO"
+
+    return ""
+
 def _extraer_estado_por_patrones(texto, transporte=""):
     """Devuelve el estado logístico más reciente encontrado.
 
@@ -122,6 +162,10 @@ def _extraer_estado_por_patrones(texto, transporte=""):
     """
     if not texto:
         return ""
+
+    prioritario = _extraer_estado_prioritario(texto, transporte=transporte)
+    if prioritario:
+        return prioritario
 
     normal = _normalizar(texto)
     candidatos = []
@@ -306,7 +350,7 @@ def _consultar_andreani_publico(url, seguimiento=""):
     estado = _extraer_estado_por_patrones(texto, transporte="Andreani")
     if estado:
         return estado, None
-    return "", "Andreani público no devolvió estado legible"
+    return "", "Andreani público no devolvió estado legible: " + texto[:250]
 
 
 def _consultar_via_cargo_endpoint(url, seguimiento=""):
@@ -324,7 +368,9 @@ def _consultar_via_cargo_endpoint(url, seguimiento=""):
 
     referer = url or f"https://viacargo.com.ar/seguimiento-de-envio/{numero}/"
     urls = [
+        # Endpoint real visto en Network de Vía Cargo.
         f"https://ws.busplus.com.ar/alerce/tracking?{urlencode({'NumeroEnvio': numero, 'tokenRecaptcha': ''})}",
+        f"https://ws.busplus.com.ar/alerce/tracking?{urlencode({'NumeroEnvio': numero})}",
         f"https://viacargo.com.ar/alerce/tracking?{urlencode({'NumeroEnvio': numero, 'tokenRecaptcha': ''})}",
     ]
 
