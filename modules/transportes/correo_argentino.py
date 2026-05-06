@@ -1,403 +1,473 @@
 """
 modules/transportes/correo_argentino.py
-────────────────────────────────────────
-Integración con la API REST de MiCorreo (Correo Argentino).
-Documentación oficial: https://api.correoargentino.com.ar/micorreo/v1
+──────────────────────────────────────
+Integración Correo Argentino PAQ.AR API 2.0.
 
-Credenciales en .env:
-    CORREO_ARGENTINO_EMAIL=fierro.argentoventas@gmail.com
-    CORREO_ARGENTINO_PASSWORD=tu_contraseña
+IMPORTANTE:
+- Esta API NO usa email/password ni /token.
+- Usa headers:
+    Authorization: Apikey <CORREO_ARGENTINO_API_KEY>
+    agreement: <CORREO_ARGENTINO_AGREEMENT>
+- Base producción:
+    https://api.correoargentino.com.ar/paqar/v1
+- Base test:
+    https://apitest.correoargentino.com.ar/paqar/v1
+
+Variables Render requeridas:
+    CORREO_ARGENTINO_API_KEY
+    CORREO_ARGENTINO_AGREEMENT
+Opcional:
+    CORREO_ARGENTINO_BASE_URL
+    CORREO_ARGENTINO_EXT_CLIENT
+    CORREO_ARGENTINO_ENV
+
+Compatibilidad:
+- Mantiene nombres usados por selector.py:
+    cotizar_correo(cp_destino, tipo_entrega="S")
+    obtener_sucursales_correo_por_pedido(pedido)
+
+Nota APB:
+El PDF PAQ.AR 2.0 que estamos usando documenta auth, alta de órdenes,
+cancelación, rótulos, tracking y agencias/sucursales. No documenta un endpoint
+de cotización de tarifas. Por eso cotizar_correo() queda como respuesta segura
+hasta tener endpoint/tabla de tarifas real.
 """
 
-import os
 import json
-import base64
-from datetime import datetime, timedelta
+import os
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
+from datetime import datetime
 
-# ── Configuración ────────────────────────────────────────────────────
-CA_EMAIL     = os.getenv("CORREO_ARGENTINO_EMAIL", "")
-CA_PASSWORD  = os.getenv("CORREO_ARGENTINO_PASSWORD", "")
-CA_BASE_URL  = "https://api.correoargentino.com.ar/micorreo/v1"
+# ─────────────────────────────────────────────
+# Configuración
+# ─────────────────────────────────────────────
 
-# Datos del paquete PP6040 (plegable)
-PP6040_PESO   = 3000   # gramos
-PP6040_ALTO   = 5      # cm
-PP6040_ANCHO  = 30     # cm
-PP6040_LARGO  = 40     # cm
+DEFAULT_PROD_URL = "https://api.correoargentino.com.ar/paqar/v1"
+DEFAULT_TEST_URL = "https://apitest.correoargentino.com.ar/paqar/v1"
 
-# CPs de origen (comarca - se prueba el más conveniente)
+CORREO_ENV = (os.getenv("CORREO_ARGENTINO_ENV") or "prod").strip().lower()
+
+if os.getenv("CORREO_ARGENTINO_BASE_URL"):
+    CA_BASE_URL = os.getenv("CORREO_ARGENTINO_BASE_URL", "").rstrip("/")
+elif CORREO_ENV in ["test", "qa", "dev"]:
+    CA_BASE_URL = DEFAULT_TEST_URL
+else:
+    CA_BASE_URL = DEFAULT_PROD_URL
+
+CA_API_KEY = (os.getenv("CORREO_ARGENTINO_API_KEY") or "").strip()
+CA_AGREEMENT = (os.getenv("CORREO_ARGENTINO_AGREEMENT") or "").strip()
+CA_EXT_CLIENT = (os.getenv("CORREO_ARGENTINO_EXT_CLIENT") or "").strip()
+
+# Compatibilidad con nombres viejos, para que Render Shell no explote si se consultan.
+CA_EMAIL = (os.getenv("CORREO_ARGENTINO_EMAIL") or "").strip()
+CA_PASSWORD = (os.getenv("CORREO_ARGENTINO_PASSWORD") or "").strip()
 CPS_ORIGEN = ["8504", "8500"]
 
-# Cache del token para no pedir uno nuevo en cada cotización
-_token_cache = {
-    "token":      None,
-    "expires":    None,
-    "customerId": None,
-}
+# Parámetros PP6040 vigentes.
+PP6040_PESO = int(os.getenv("CORREO_PP6040_PESO_GR", "3000"))
+PP6040_ALTO = int(os.getenv("CORREO_PP6040_ALTO_CM", "5"))
+PP6040_ANCHO = int(os.getenv("CORREO_PP6040_ANCHO_CM", "30"))
+PP6040_LARGO = int(os.getenv("CORREO_PP6040_LARGO_CM", "40"))
 
 
-def _modulo_activo():
-    return bool(CA_EMAIL and CA_PASSWORD)
+# ─────────────────────────────────────────────
+# HTTP helpers PAQ.AR
+# ─────────────────────────────────────────────
+
+def _credenciales_configuradas():
+    return bool(CA_API_KEY and CA_AGREEMENT)
 
 
-def _ca_post(endpoint, payload=None, token=None):
-    """Realiza un POST a la API de MiCorreo."""
-    url = f"{CA_BASE_URL}/{endpoint.lstrip('/')}"
-    headers = {"Content-Type": "application/json"}
-
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    else:
-        # Basic Auth para obtener el token
-        credenciales = base64.b64encode(f"{CA_EMAIL}:{CA_PASSWORD}".encode()).decode()
-        headers["Authorization"] = f"Basic {credenciales}"
-
-    req = Request(
-        url,
-        data=json.dumps(payload or {}).encode("utf-8"),
-        headers=headers,
-        method="POST",
-    )
-    with urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read().decode("utf-8"))
-
-
-def _ca_get(endpoint, params=None, token=None):
-    """Realiza un GET a la API de MiCorreo."""
-    from urllib.parse import urlencode
-    url = f"{CA_BASE_URL}/{endpoint.lstrip('/')}"
-    if params:
-        url += "?" + urlencode(params)
-
-    headers = {}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-
-    req = Request(url, headers=headers, method="GET")
-    with urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read().decode("utf-8"))
-
-
-def _obtener_token():
-    """
-    Obtiene el JWT de autenticación.
-    Usa cache para no pedir uno nuevo en cada cotización.
-    Renueva si está por vencer.
-    """
-    global _token_cache
-
-    ahora = datetime.utcnow()
-
-    # Verificar si el token en cache sigue siendo válido (margen de 5 min)
-    if (
-        _token_cache["token"]
-        and _token_cache["expires"]
-        and _token_cache["expires"] > ahora + timedelta(minutes=5)
-    ):
-        return _token_cache["token"], _token_cache["customerId"]
-
-    # Obtener nuevo token
-    try:
-        data = _ca_post("/token")
-        token = data.get("token", "")
-        expires_str = data.get("expires", "")
-
-        try:
-            expires = datetime.strptime(expires_str, "%Y-%m-%d %H:%M:%S")
-        except Exception:
-            expires = ahora + timedelta(hours=2)
-
-        # Obtener customerId
-        customer_data = _ca_post(
-            "/users/validate",
-            {"email": CA_EMAIL, "password": CA_PASSWORD},
-            token=token,
-        )
-        customer_id = customer_data.get("customerId", "")
-
-        _token_cache = {
-            "token":      token,
-            "expires":    expires,
-            "customerId": customer_id,
-        }
-
-        print(f"[CORREO ARG] Token obtenido, customerId={customer_id}, expira={expires_str}")
-        return token, customer_id
-
-    except HTTPError as e:
-        print(f"[CORREO ARG] Error HTTP {e.code} obteniendo token:", e.read().decode())
-        return None, None
-    except Exception as e:
-        print(f"[CORREO ARG] Error obteniendo token:", e)
-        return None, None
-
-
-def cotizar_correo(cp_destino, tipo_entrega="D"):
-    """
-    Cotiza el envío del PP6040 desde los CPs de origen al CP destino.
-
-    cp_destino: CP del cliente (string)
-    tipo_entrega: "D" domicilio, "S" sucursal
-
-    Devuelve dict con:
-        {
-            "disponible": True/False,
-            "precio": 12500.0,
-            "plazo_dias": 3,
-            "cp_origen": "8500",
-            "tipo": "correo_argentino",
-            "servicio": "Envío Clásico",
-            "error": None  # o mensaje de error
-        }
-    """
-    if not _modulo_activo():
-        return {"disponible": False, "error": "Correo Argentino no configurado", "tipo": "correo_argentino"}
-
-    token, customer_id = _obtener_token()
-    if not token or not customer_id:
-        return {"disponible": False, "error": "Error de autenticación", "tipo": "correo_argentino"}
-
-    cp_destino = str(cp_destino or "").strip()
-    if not cp_destino:
-        return {"disponible": False, "error": "CP destino vacío", "tipo": "correo_argentino"}
-
-    mejor = None
-
-    # Probar con cada CP de origen y quedarse con el más barato
-    for cp_origen in CPS_ORIGEN:
-        try:
-            payload = {
-                "customerId":            customer_id,
-                "postalCodeOrigin":      cp_origen,
-                "postalCodeDestination": cp_destino,
-                "deliveredType":         tipo_entrega,
-                "dimensions": {
-                    "weight": PP6040_PESO,
-                    "height": PP6040_ALTO,
-                    "width":  PP6040_ANCHO,
-                    "length": PP6040_LARGO,
-                },
-            }
-
-            data = _ca_post("/rates", payload, token=token)
-
-            # La API devuelve lista de servicios disponibles
-            servicios = data if isinstance(data, list) else data.get("rates", [data])
-
-            for servicio in servicios:
-                precio = float(servicio.get("price") or servicio.get("precio") or 0)
-                if precio <= 0:
-                    continue
-
-                plazo = int(servicio.get("days") or servicio.get("plazo") or 0)
-                nombre_servicio = servicio.get("name") or servicio.get("service") or "Envío Clásico"
-
-                if mejor is None or precio < mejor["precio"]:
-                    mejor = {
-                        "disponible":  True,
-                        "precio":      precio,
-                        "plazo_dias":  plazo,
-                        "cp_origen":   cp_origen,
-                        "tipo":        "correo_argentino",
-                        "servicio":    nombre_servicio,
-                        "error":       None,
-                    }
-
-            print(f"[CORREO ARG] CP origen {cp_origen} → destino {cp_destino}: {mejor}")
-
-        except HTTPError as e:
-            error_body = e.read().decode()
-            print(f"[CORREO ARG] Error HTTP {e.code} cotizando CP {cp_origen}→{cp_destino}:", error_body)
-            # 402 generalmente significa CP destino no disponible
-            if e.code == 402:
-                continue
-        except Exception as e:
-            print(f"[CORREO ARG] Error cotizando CP {cp_origen}→{cp_destino}:", e)
-            continue
-
-    if mejor:
-        return mejor
-
-    return {
-        "disponible": False,
-        "precio":     None,
-        "tipo":       "correo_argentino",
-        "error":      f"Sin cobertura para CP {cp_destino}",
+def _headers(extra=None):
+    h = {
+        "Authorization": f"Apikey {CA_API_KEY}",
+        "agreement": str(CA_AGREEMENT),
+        "Accept": "application/json",
     }
+    if extra:
+        h.update(extra)
+    return h
 
 
-def obtener_sucursales_correo(provincia_code):
-    """
-    Devuelve las sucursales de Correo Argentino para una provincia.
-    provincia_code: "B" (Buenos Aires), "C" (CABA), "X" (Córdoba), etc.
+def _leer_error_http(e):
+    try:
+        return e.read().decode("utf-8", errors="replace")
+    except Exception:
+        return ""
 
-    Códigos de provincia:
-    B=Buenos Aires, C=CABA, X=Córdoba, S=Santa Fe, M=Mendoza,
-    T=Tucumán, H=Chaco, P=Formosa, N=Misiones, E=Entre Ríos,
-    W=Corrientes, G=Santiago del Estero, A=Salta, J=San Juan,
-    D=San Luis, K=Catamarca, F=La Rioja, Q=Neuquén, R=Río Negro,
-    U=Chubut, Z=Santa Cruz, V=Tierra del Fuego, L=La Pampa, Y=Jujuy
-    """
-    if not _modulo_activo():
-        return []
 
-    token, customer_id = _obtener_token()
-    if not token or not customer_id:
-        return []
+def _request_json(method, endpoint, payload=None, params=None, timeout=20):
+    """Request JSON genérico contra PAQ.AR."""
+    if not _credenciales_configuradas():
+        raise RuntimeError(
+            "Faltan CORREO_ARGENTINO_API_KEY y/o CORREO_ARGENTINO_AGREEMENT en Render."
+        )
+
+    endpoint = "/" + str(endpoint or "").lstrip("/")
+    url = f"{CA_BASE_URL}{endpoint}"
+
+    if params:
+        qs = urlencode(params, doseq=True)
+        url = f"{url}?{qs}"
+
+    data = None
+    headers = _headers()
+
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    req = Request(url, data=data, headers=headers, method=method.upper())
 
     try:
-        data = _ca_get(
-            "/agencies",
-            params={"customerId": customer_id, "provinceCode": provincia_code},
-            token=token,
+        with urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            if not raw.strip():
+                return {"_status": resp.status, "_raw": ""}
+            try:
+                data = json.loads(raw)
+            except Exception:
+                data = {"_status": resp.status, "_raw": raw}
+            if isinstance(data, dict):
+                data.setdefault("_status", resp.status)
+            return data
+    except HTTPError as e:
+        body = _leer_error_http(e)
+        print(f"[CORREO PAQAR] HTTP {e.code} {method} {endpoint}: {body}")
+        raise
+    except URLError as e:
+        print(f"[CORREO PAQAR] URL error {method} {endpoint}: {e}")
+        raise
+
+
+def _request_raw(method, endpoint, payload=None, params=None, timeout=20):
+    """Request que puede devolver texto/binario/base64 sin forzar JSON."""
+    if not _credenciales_configuradas():
+        raise RuntimeError(
+            "Faltan CORREO_ARGENTINO_API_KEY y/o CORREO_ARGENTINO_AGREEMENT en Render."
         )
-        return data if isinstance(data, list) else []
+
+    endpoint = "/" + str(endpoint or "").lstrip("/")
+    url = f"{CA_BASE_URL}{endpoint}"
+
+    if params:
+        qs = urlencode(params, doseq=True)
+        url = f"{url}?{qs}"
+
+    data = None
+    headers = _headers()
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    req = Request(url, data=data, headers=headers, method=method.upper())
+
+    with urlopen(req, timeout=timeout) as resp:
+        return resp.status, resp.read()
+
+
+# ─────────────────────────────────────────────
+# Autenticación / diagnóstico
+# ─────────────────────────────────────────────
+
+def validar_credenciales_correo():
+    """GET /auth. La respuesta correcta es HTTP 204 sin body."""
+    if not _credenciales_configuradas():
+        return {
+            "ok": False,
+            "status": None,
+            "error": "Faltan CORREO_ARGENTINO_API_KEY y/o CORREO_ARGENTINO_AGREEMENT en Render.",
+            "base_url": CA_BASE_URL,
+            "tipo": "correo_argentino_paqar",
+        }
+
+    url = f"{CA_BASE_URL}/auth"
+    req = Request(url, headers=_headers(), method="GET")
+
+    try:
+        with urlopen(req, timeout=15) as resp:
+            return {
+                "ok": resp.status == 204,
+                "status": resp.status,
+                "error": None,
+                "base_url": CA_BASE_URL,
+                "agreement": CA_AGREEMENT,
+                "tipo": "correo_argentino_paqar",
+            }
+    except HTTPError as e:
+        body = _leer_error_http(e)
+        return {
+            "ok": False,
+            "status": e.code,
+            "error": body or str(e),
+            "base_url": CA_BASE_URL,
+            "agreement": CA_AGREEMENT,
+            "tipo": "correo_argentino_paqar",
+        }
     except Exception as e:
-        print(f"[CORREO ARG] Error obteniendo sucursales provincia {provincia_code}:", e)
-        return []
+        return {
+            "ok": False,
+            "status": None,
+            "error": str(e),
+            "base_url": CA_BASE_URL,
+            "agreement": CA_AGREEMENT,
+            "tipo": "correo_argentino_paqar",
+        }
 
 
-# ─────────────────────────────────────────────────────────────
-# Sucursales / puntos Correo para flujo PP6040
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# Sucursales / agencias
+# ─────────────────────────────────────────────
 
-_PROVINCIA_A_CODIGO = {
+PROVINCIA_A_CODIGO = {
+    "salta": "A",
     "buenos aires": "B",
-    "capital federal": "C",
+    "provincia de buenos aires": "B",
     "caba": "C",
+    "capital federal": "C",
     "ciudad autonoma de buenos aires": "C",
     "ciudad autónoma de buenos aires": "C",
-    "cordoba": "X",
-    "córdoba": "X",
-    "santa fe": "S",
-    "mendoza": "M",
-    "tucuman": "T",
-    "tucumán": "T",
-    "chaco": "H",
-    "formosa": "P",
-    "misiones": "N",
+    "san luis": "D",
     "entre rios": "E",
     "entre ríos": "E",
-    "corrientes": "W",
-    "santiago del estero": "G",
-    "salta": "A",
-    "san juan": "J",
-    "san luis": "D",
-    "catamarca": "K",
     "la rioja": "F",
+    "santiago del estero": "G",
+    "chaco": "H",
+    "san juan": "J",
+    "catamarca": "K",
+    "la pampa": "L",
+    "mendoza": "M",
+    "misiones": "N",
+    "formosa": "P",
     "neuquen": "Q",
     "neuquén": "Q",
     "rio negro": "R",
     "río negro": "R",
+    "santa fe": "S",
+    "tucuman": "T",
+    "tucumán": "T",
     "chubut": "U",
-    "santa cruz": "Z",
     "tierra del fuego": "V",
-    "la pampa": "L",
+    "corrientes": "W",
+    "cordoba": "X",
+    "córdoba": "X",
     "jujuy": "Y",
+    "santa cruz": "Z",
 }
 
 
-def _norm_txt(txt):
+def _norm(s):
     import unicodedata
-    txt = str(txt or "").strip().lower()
-    txt = unicodedata.normalize("NFD", txt)
-    txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
-    return txt
+    s = str(s or "").strip().lower()
+    s = unicodedata.normalize("NFD", s)
+    return "".join(c for c in s if unicodedata.category(c) != "Mn")
 
 
-def _provincia_code(nombre):
-    n = _norm_txt(nombre)
-    return _PROVINCIA_A_CODIGO.get(n, "")
+def codigo_provincia_correo(provincia):
+    p = _norm(provincia)
+    return PROVINCIA_A_CODIGO.get(p, "")
 
 
-def _leer_float_agencia(ag, *keys):
-    for k in keys:
-        v = ag.get(k)
-        if v is None or v == "":
-            continue
-        try:
-            return float(str(v).replace(",", "."))
-        except Exception:
-            continue
-    return None
+def obtener_sucursales_correo(state_id=None, pickup_availability=True, package_reception=None):
+    """GET /agencies con filtros opcionales."""
+    params = {}
+    if state_id:
+        params["stateId"] = state_id
+    if pickup_availability is not None:
+        params["pickup_availability"] = "true" if pickup_availability else "false"
+    if package_reception is not None:
+        params["package_reception"] = "true" if package_reception else "false"
+
+    try:
+        data = _request_json("GET", "/agencies", params=params)
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict) and isinstance(data.get("data"), list):
+            return data["data"]
+        return []
+    except Exception as e:
+        print("[CORREO PAQAR] Error obteniendo agencias:", e)
+        return []
 
 
-def _normalizar_agencia(ag):
-    """Normaliza campos posibles de la API MiCorreo sin asumir una sola forma."""
-    nombre = ag.get("name") or ag.get("nombre") or ag.get("description") or ag.get("descripcion") or ag.get("agencyName") or "Punto Correo"
-    direccion = ag.get("address") or ag.get("direccion") or ag.get("domicilio") or ag.get("street") or ""
-    localidad = ag.get("city") or ag.get("localidad") or ag.get("town") or ag.get("locality") or ""
-    provincia = ag.get("province") or ag.get("provincia") or ag.get("provinceName") or ""
-    cp = ag.get("postalCode") or ag.get("cp") or ag.get("zipCode") or ""
-    lat = _leer_float_agencia(ag, "lat", "latitude", "geoLat", "coordenadaLatitud")
-    lng = _leer_float_agencia(ag, "lng", "lon", "longitude", "geoLng", "coordenadaLongitud")
+def _mapear_sucursal_paqar(s):
+    loc = s.get("location") or {}
+    geo = loc.get("geolocation") or {}
+
     return {
-        "id": str(ag.get("id") or ag.get("agencyId") or ag.get("code") or ag.get("codigo") or nombre),
-        "nombre": str(nombre or "Punto Correo"),
-        "direccion": str(direccion or ""),
-        "localidad": str(localidad or ""),
-        "provincia": str(provincia or ""),
-        "cp": str(cp or ""),
-        "lat": lat,
-        "lng": lng,
-        "raw": ag,
+        "id": s.get("agency_id") or s.get("agencyId") or s.get("id"),
+        "agency_id": s.get("agency_id") or s.get("agencyId") or s.get("id"),
+        "nombre": s.get("agency_name") or s.get("agencyName") or "Punto Correo",
+        "direccion": " ".join([
+            str(loc.get("street_name") or "").strip(),
+            str(loc.get("street_number") or "").strip(),
+        ]).strip(),
+        "localidad": loc.get("city_name") or "",
+        "provincia": loc.get("state_name") or "",
+        "cp": loc.get("zip_code") or "",
+        "lat": geo.get("latitude"),
+        "lng": geo.get("longitude"),
+        "horario": s.get("schedule") or "",
+        "telefono": s.get("phone") or "",
+        "email": s.get("email") or "",
+        "pickup_availability": s.get("pickup_availability"),
+        "package_reception": s.get("package_reception"),
+        "raw": s,
     }
 
 
 def obtener_sucursales_correo_por_pedido(pedido):
-    """Devuelve puntos/sucursales Correo ordenados por cercanía al domicilio del cliente.
+    """Devuelve agencias Correo cercanas para el pedido, usando estado/provincia y orden geográfico si hay coords."""
+    provincia = getattr(pedido, "provincia", "") or ""
+    state_id = codigo_provincia_correo(provincia)
 
-    Reutiliza los helpers geográficos ya validados para Via Cargo desde app.py.
-    Si la API no devuelve coordenadas, usa localidad/provincia/CP como fallback seguro.
-    """
-    provincia = str(getattr(pedido, "provincia", "") or "")
-    localidad = str(getattr(pedido, "localidad", "") or "")
-    direccion = str(getattr(pedido, "direccion", "") or "")
-    cp_cliente = str(getattr(pedido, "codigo_postal", "") or "").strip()
+    agencias = obtener_sucursales_correo(
+        state_id=state_id or None,
+        pickup_availability=True,
+        package_reception=None,
+    )
+    sucs = [_mapear_sucursal_paqar(a) for a in agencias]
 
-    code = _provincia_code(provincia)
-    if not code:
-        # fallback CABA por localidad
-        if "caba" in _norm_txt(localidad) or "capital" in _norm_txt(localidad):
-            code = "C"
-        else:
-            return []
+    cp = str(getattr(pedido, "codigo_postal", "") or "").strip()
+    loc = _norm(getattr(pedido, "localidad", "") or "")
 
-    agencias_raw = obtener_sucursales_correo(code)
-    agencias = [_normalizar_agencia(a) for a in agencias_raw]
-    if not agencias:
-        return []
+    # Filtro suave por localidad o CP aproximado si la API devuelve demasiadas.
+    filtradas = []
+    for s in sucs:
+        s_loc = _norm(s.get("localidad"))
+        s_cp = "".join(ch for ch in str(s.get("cp") or "") if ch.isdigit())
+        ok_loc = bool(loc and (loc in s_loc or s_loc in loc))
+        ok_cp = bool(cp and s_cp and cp[:2] == s_cp[:2])
+        if ok_loc or ok_cp:
+            filtradas.append(s)
+    if filtradas:
+        sucs = filtradas
 
-    loc_norm = _norm_txt(localidad)
-    prov_norm = _norm_txt(provincia)
-    cp_num = int(cp_cliente) if cp_cliente.isdigit() else None
-
-    # Filtro suave: primero localidad; si queda vacío, provincia entera.
-    candidatas = agencias
-    if loc_norm:
-        por_loc = [a for a in agencias if loc_norm in _norm_txt(a.get("localidad")) or _norm_txt(a.get("localidad")) in loc_norm]
-        if por_loc:
-            candidatas = por_loc
-
+    # Intentar ordenar por distancia reutilizando helper del app si existe.
     try:
         from app import _obtener_coords_cliente, _distancia_km
-        lat_cli, lng_cli, metodo = _obtener_coords_cliente(cp_cliente, direccion, localidad, provincia)
-        con_coords = [a for a in candidatas if a.get("lat") is not None and a.get("lng") is not None]
-        if lat_cli and lng_cli and con_coords:
-            con_coords.sort(key=lambda a: _distancia_km(lat_cli, lng_cli, float(a["lat"]), float(a["lng"])))
-            return con_coords[:10]
+        lat_cli, lng_cli, _metodo = _obtener_coords_cliente(
+            cp,
+            getattr(pedido, "direccion", "") or "",
+            getattr(pedido, "localidad", "") or "",
+            getattr(pedido, "provincia", "") or "",
+        )
+        if lat_cli and lng_cli:
+            def keydist(s):
+                try:
+                    return _distancia_km(lat_cli, lng_cli, float(s.get("lat")), float(s.get("lng")))
+                except Exception:
+                    return 999999
+            sucs.sort(key=keydist)
     except Exception as e:
-        print("[CORREO ARG] No se pudo ordenar por coordenadas:", e)
+        print("[CORREO PAQAR] No se pudo ordenar por distancia:", e)
 
-    # Fallback por CP más cercano.
-    if cp_num is not None:
-        def dist_cp(a):
-            cp = str(a.get("cp") or "")
-            return abs(int(cp) - cp_num) if cp.isdigit() else 999999
-        candidatas.sort(key=dist_cp)
-    else:
-        candidatas.sort(key=lambda a: (a.get("localidad") or "", a.get("nombre") or ""))
+    return sucs[:10]
 
-    return candidatas[:10]
+
+# ─────────────────────────────────────────────
+# Cotización
+# ─────────────────────────────────────────────
+
+def cotizar_correo(cp_destino, tipo_entrega="S"):
+    """Compatibilidad con selector.py.
+
+    El manual PAQ.AR 2.0 no documenta endpoint de cotización de tarifas.
+    Por seguridad, no inventamos costos ni disponibilidad económica.
+    """
+    if not _credenciales_configuradas():
+        return {
+            "disponible": False,
+            "precio": None,
+            "plazo_dias": None,
+            "tipo": "correo_argentino_paqar",
+            "error": "Faltan CORREO_ARGENTINO_API_KEY y/o CORREO_ARGENTINO_AGREEMENT en Render.",
+        }
+
+    auth = validar_credenciales_correo()
+    if not auth.get("ok"):
+        return {
+            "disponible": False,
+            "precio": None,
+            "plazo_dias": None,
+            "tipo": "correo_argentino_paqar",
+            "error": f"Credenciales PAQ.AR inválidas: {auth.get('error')}",
+        }
+
+    return {
+        "disponible": False,
+        "precio": None,
+        "plazo_dias": None,
+        "tipo": "correo_argentino_paqar",
+        "error": "PAQ.AR API 2.0 no documenta endpoint de cotización de tarifas. Usar alta de orden/sucursales/tracking o solicitar endpoint tarifario a Correo.",
+    }
+
+
+# ─────────────────────────────────────────────
+# Tracking
+# ─────────────────────────────────────────────
+
+def consultar_tracking_paqar(tracking_numbers, ext_client=None):
+    """GET /tracking. Acepta un TN o lista de TN."""
+    if isinstance(tracking_numbers, str):
+        tracking_numbers = [tracking_numbers]
+
+    payload = [{"trackingNumber": str(tn).strip()} for tn in tracking_numbers if str(tn or "").strip()]
+    params = {}
+    ext = ext_client if ext_client is not None else CA_EXT_CLIENT
+    if ext:
+        params["extClient"] = str(ext).zfill(3)[-3:]
+
+    try:
+        # Aunque la doc diga GET con body, urllib permite GET con data de forma irregular.
+        # Usamos POST-like raw si el gateway lo tolera; si no, se ajusta con la respuesta real.
+        return _request_json("GET", "/tracking", payload=payload, params=params)
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": str(e),
+            "tracking_numbers": tracking_numbers,
+            "tipo": "correo_argentino_paqar",
+        }
+
+
+# ─────────────────────────────────────────────
+# Alta de orden / etiqueta: preparado para próxima fase
+# ─────────────────────────────────────────────
+
+def crear_orden_paqar(payload_order):
+    """POST /orders. Espera payload ya validado según manual."""
+    return _request_json("POST", "/orders", payload=payload_order)
+
+
+def obtener_rotulos_paqar(tracking_numbers, seller_id="", label_format="10x15"):
+    """POST /labels. Devuelve respuesta JSON con fileBase64."""
+    if isinstance(tracking_numbers, str):
+        tracking_numbers = [tracking_numbers]
+    payload = [{"sellerId": seller_id or "", "trackingNumber": tn} for tn in tracking_numbers]
+    params = {}
+    if label_format:
+        params["labelFormat"] = label_format
+    return _request_json("POST", "/labels", payload=payload, params=params)
+
+
+def cancelar_orden_paqar(tracking_number):
+    """PATCH /orders/{trackingNumber}/cancel."""
+    endpoint = f"/orders/{tracking_number}/cancel"
+    return _request_json("PATCH", endpoint, payload={})
+
+
+# Alias legados por si alguna parte vieja del sistema los usa.
+def cotizar_correo_argentino(cp_destino):
+    return cotizar_correo(cp_destino, tipo_entrega="S")
+
+
+def obtener_sucursales_correo(cp_destino=None):
+    return obtener_sucursales_correo_por_pedido(type("PedidoTmp", (), {
+        "codigo_postal": cp_destino or "",
+        "provincia": "",
+        "localidad": "",
+        "direccion": "",
+    })())
