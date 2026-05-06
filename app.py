@@ -3911,15 +3911,40 @@ def puede_actualizar_tracking_externo(pedido):
 
 
 def aplicar_estado_tracking_seguro(pedido, clasificacion):
-    """Autoavanza solo cuando el estado logístico es claro."""
+    """Autoavanza solo cuando el estado logístico es claro.
+
+    Regla APB importante:
+    - Andreani/Via Cargo pueden informar ENTREGADO automáticamente.
+    - Pero Mercado Libre / Acordás la Entrega NO debe cerrarse solo por tracking,
+      porque primero el operador debe avisar/confirmar la entrega en Mercado Libre.
+    """
     if not pedido or not clasificacion:
         return None
     if pedido.estado in ["Finalizado", "No entregado", "Reclamar a Mercado Libre"]:
         return None
+
+    es_ml_acordas = (
+        str(getattr(pedido, "canal", "") or "").strip() == "Mercado Libre"
+        and str(getattr(pedido, "ml_tipo", "") or "").strip() == "Acordás la Entrega"
+    )
+
     if clasificacion == "entregado" and pedido.estado not in ["Entregado", "Finalizado"]:
+        if es_ml_acordas:
+            # No marcar Entregado automáticamente: queda para revisión/cierre APB
+            # con aviso previo en Mercado Libre.
+            if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte"]:
+                pedido.estado = "Verificar llegada a destino"
+                resumen = (getattr(pedido, "ia_resumen", "") or "").strip()
+                marca = "TRACKING: transporte informa entregado; confirmar entrega y avisar a Mercado Libre antes de cerrar"
+                if marca not in resumen:
+                    pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
+                return "Verificar llegada a destino"
+            return None
+
         pedido.estado = "Entregado"
         pedido.fecha_entregado = pedido.fecha_entregado or datetime.utcnow()
         return "Entregado"
+
     if clasificacion == "sucursal" and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte"]:
         pedido.estado = "Verificar llegada a destino"
         return "Verificar llegada a destino"

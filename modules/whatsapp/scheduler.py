@@ -83,14 +83,32 @@ def ejecutar_timers_whatsapp():
         print("[WA SCHEDULER] Error WA:", e)
 
 
+def _es_transporte_tracking_auto_apb(pedido):
+    """Tracking automático habilitado solo para Andreani y Via Cargo.
+
+    Correo Argentino queda fuera de este scheduler para no mezclarlo con la
+    integración WhatsApp/Correo que está en revisión. El tracking manual sigue
+    disponible desde el detalle cuando corresponda.
+    """
+    transporte = str(getattr(pedido, "empresa_envio", "") or "").lower()
+    return "andreani" in transporte or "via cargo" in transporte or "vía cargo" in transporte
+
+
 def ejecutar_tracking_automatico():
-    """Consulta tracking de pedidos despachados con seguimiento cargado y dispara eventos."""
+    """Consulta tracking de Andreani/Via Cargo y trae el estado al resumen.
+
+    Modo APB:
+    - guarda estado externo, última sync, error y URL consultada;
+    - autoavanza solo estados seguros;
+    - NO marca Entregado automáticamente en Mercado Libre/Acordás la Entrega,
+      porque antes debe intervenir el operador y avisar/confirmar en ML.
+    """
     try:
         from app import (
-            db, Pedido, es_correo_argentino_pedido, tracking_info_pedido,
+            db, Pedido, tracking_info_pedido,
             aplicar_estado_tracking_seguro,
         )
-        from services.tracking_externo import consultar_correo_formulario, consultar_tracking_url, interpretar_estado_logistico
+        from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico
         from .post_despacho import registrar_tracking_evento, procesar_evento_tracking_pedido
 
         ahora = datetime.utcnow()
@@ -98,7 +116,13 @@ def ejecutar_tracking_automatico():
 
         pedidos = (
             Pedido.query
-            .filter(Pedido.estado.in_(["Despachado", "Verificar llegada a destino", "Listo para retirar", "Con demora de entrega", "Con reclamo en transporte", "Entregado"]))
+            .filter(Pedido.estado.in_([
+                "Despachado",
+                "Verificar llegada a destino",
+                "Listo para retirar",
+                "Con demora de entrega",
+                "Con reclamo en transporte",
+            ]))
             .filter(Pedido.seguimiento.isnot(None))
             .filter(Pedido.seguimiento != "")
             .filter((Pedido.tracking_ultima_sync.is_(None)) | (Pedido.tracking_ultima_sync < limite))
@@ -107,19 +131,22 @@ def ejecutar_tracking_automatico():
         )
 
         for pedido in pedidos:
+            if not _es_transporte_tracking_auto_apb(pedido):
+                continue
+
             tracking_info = tracking_info_pedido(pedido)
-            transporte = pedido.empresa_envio or ("Correo Argentino" if es_correo_argentino_pedido(pedido) else "")
+            transporte = pedido.empresa_envio or ""
             seguimiento = (pedido.seguimiento or pedido.tn_tracking_number or "").strip()
             url = (tracking_info or {}).get("url") or ""
+
             try:
-                if es_correo_argentino_pedido(pedido):
-                    resultado = consultar_correo_formulario(
-                        seguimiento,
-                        mercado_envios=(pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos")
-                    )
-                    transporte = "Correo Argentino"
-                else:
-                    resultado = consultar_tracking_url(url, transporte=transporte, seguimiento=seguimiento)
+                if not url:
+                    pedido.tracking_error = "No hay URL pública de seguimiento para consulta automática"
+                    pedido.tracking_ultima_sync = ahora
+                    db.session.commit()
+                    continue
+
+                resultado = consultar_tracking_url(url, transporte=transporte, seguimiento=seguimiento)
 
                 estado = (resultado.get("estado") or "").strip() or "Sin estado detectado"
                 clasificacion = interpretar_estado_logistico(estado, transporte=transporte)
@@ -141,7 +168,7 @@ def ejecutar_tracking_automatico():
                     procesar_evento_tracking_pedido(pedido, clasificacion, estado, origen="scheduler")
 
                 db.session.commit()
-                print(f"[TRACKING AUTO] Pedido #{pedido.id}: {estado} → {clasificacion} / {nuevo_estado or pedido.estado}")
+                print(f"[TRACKING AUTO] Pedido #{pedido.id}: {transporte} {estado} → {clasificacion} / {nuevo_estado or pedido.estado}")
             except Exception as e:
                 db.session.rollback()
                 try:

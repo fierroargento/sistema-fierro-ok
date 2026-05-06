@@ -67,22 +67,30 @@ def procesar_evento_tracking_pedido(pedido, clasificacion, estado_externo, orige
 
         # Entregado: postventa/fidelización una sola vez.
         if clasificacion == "entregado":
+            canal = str(getattr(pedido, "canal", "") or "")
+            ml_tipo = str(getattr(pedido, "ml_tipo", "") or "")
+
+            # Regla APB: ML Acordás requiere intervención del operador.
+            # El tracking externo puede informar ENTREGADO, pero no enviamos postventa
+            # ni marcamos fecha_entregado hasta que el operador confirme/avise en ML.
+            if canal == "Mercado Libre" and ml_tipo == "Acordás la Entrega":
+                pedido.ia_requiere_operador = True
+                resumen = (getattr(pedido, "ia_resumen", "") or "").strip()
+                marca = "TRACKING: transporte informa entregado; confirmar entrega y avisar a Mercado Libre antes de cerrar"
+                if marca not in resumen:
+                    pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
+                acciones.append("pendiente_avisar_ml")
+                return acciones
+
             if not getattr(pedido, "fecha_entregado", None):
                 pedido.fecha_entregado = datetime.utcnow()
             if not getattr(pedido, "wa_postventa_enviada", False):
                 if wa_enviar_postventa(pedido):
                     acciones.append("wa_postventa")
 
-            # Si NO es ML Acordás, puede quedar finalizado según reglas actuales.
-            # Si es ML Acordás, NO cerrar: debe quedar Entregado para permitir "Avisar a Mercado Libre".
-            canal = str(getattr(pedido, "canal", "") or "")
-            ml_tipo = str(getattr(pedido, "ml_tipo", "") or "")
-            if not (canal == "Mercado Libre" and ml_tipo == "Acordás la Entrega"):
-                if pedido.estado == "Entregado":
-                    pedido.estado = "Finalizado"
-                    acciones.append("finalizado_auto")
-            else:
-                acciones.append("pendiente_avisar_ml")
+            if pedido.estado == "Entregado":
+                pedido.estado = "Finalizado"
+                acciones.append("finalizado_auto")
             return acciones
 
         return acciones
