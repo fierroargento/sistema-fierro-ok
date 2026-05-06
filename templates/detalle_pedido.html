@@ -257,10 +257,9 @@
             </p>
             {% endif %}
             <p class="cliente-contact-row">
-                <strong>Chat WhatsApp:</strong>
-                {% set whatsapp_url_cliente = whatsapp_link_pedido(pedido) %}
-                {% if whatsapp_url_cliente %}
-                    <a href="{{ whatsapp_url_cliente }}" target="_blank" rel="noopener noreferrer" class="mini-action-link mini-action-whatsapp" title="Abrir chat de WhatsApp" aria-label="Abrir chat de WhatsApp">
+                <strong>WhatsApp:</strong>
+                {% if normalizar_telefono(pedido.telefono) %}
+                    <a href="#whatsapp-conversacion" class="mini-action-link mini-action-whatsapp" title="Ver WhatsApp interno" aria-label="Ver WhatsApp interno">
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5.1 18.9 6 15.6A7.7 7.7 0 1 1 8.4 18l-3.3.9Z"></path><path d="M9.2 8.6c.2-.5.4-.5.7-.5h.5c.2 0 .4.1.5.4l.7 1.6c.1.3 0 .5-.1.7l-.4.5c.8 1.3 1.8 2.2 3.1 2.8l.6-.6c.2-.2.4-.2.7-.1l1.5.7c.3.1.4.3.4.6v.4c0 .4-.2.7-.6.9-.5.3-1.2.4-2.1.2-2.3-.5-5.1-2.7-6.1-5.1-.4-.9-.3-1.7.1-2.5Z"></path><path d="M15.4 6.8h4.2"></path><path d="M17.4 4.8l2.4 2-2.4 2"></path></svg>
                     </a>
                 {% else %}
@@ -510,6 +509,66 @@
 
 
     {% if rol_actual in ["admin", "carga"] %}
+    <details class="detalle-box detalle-box-full wa-panel" id="whatsapp-conversacion" open style="margin-top:16px; border-left:5px solid #16a34a;">
+        <summary style="cursor:pointer; font-weight:700; font-size:1rem;">💬 WhatsApp interno
+            {% if whatsapp_mensajes %}<span style="font-size:0.78rem; font-weight:400; color:#16a34a; margin-left:8px;">({{ whatsapp_mensajes|length }})</span>{% endif %}
+        </summary>
+
+        <div class="wa-status-row">
+            <div>
+                <strong>Estado WA:</strong> {{ pedido.wa_estado or "sin iniciar" }}
+                {% if pedido.wa_ultimo_contacto %}
+                <span class="wa-muted">— último contacto {{ fecha_argentina(pedido.wa_ultimo_contacto).strftime("%d/%m/%Y %H:%M") }}</span>
+                {% endif %}
+            </div>
+            <div class="wa-actions-inline">
+                {% if pedido.wa_estado != "operador_manual" %}
+                <form method="POST" action="{{ url_for('whatsapp_tomar_conversacion', id=pedido.id) }}" style="margin:0;">
+                    <button type="submit" class="btn btn-secundario btn-wa-small">Tomar conversación</button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('whatsapp_reactivar_bot', id=pedido.id) }}" style="margin:0;">
+                    <button type="submit" class="btn btn-secundario btn-wa-small">Reactivar bot</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if pedido.wa_estado == "operador_manual" %}
+        <div class="wa-alerta-operador">El operador tomó esta conversación. El bot queda pausado y no responde automático.</div>
+        {% endif %}
+
+        <div class="wa-thread">
+            {% for m in whatsapp_mensajes %}
+            <div class="wa-msg wa-msg-{{ m.direccion or 'out' }}">
+                <div class="wa-msg-meta">
+                    <strong>{{ m.autor or ("cliente" if m.direccion == "in" else "sistema") }}</strong>
+                    <span>{{ fecha_argentina(m.fecha).strftime("%d/%m/%Y %H:%M") if m.fecha else "" }}</span>
+                    {% if m.estado %}<span class="wa-estado">{{ m.estado }}</span>{% endif %}
+                </div>
+                <div class="wa-msg-body">{{ m.texto }}</div>
+                {% if m.error %}<div class="wa-msg-error">{{ m.error }}</div>{% endif %}
+            </div>
+            {% else %}
+            <p class="wa-empty">Todavía no hay mensajes WhatsApp registrados para este pedido.</p>
+            {% endfor %}
+        </div>
+
+        {% if normalizar_telefono(pedido.telefono) %}
+        <form method="POST" action="{{ url_for('whatsapp_enviar_operador', id=pedido.id) }}" class="wa-form-enviar">
+            <textarea name="mensaje" rows="3" placeholder="Responder al cliente desde el sistema..." required></textarea>
+            <div class="wa-form-footer">
+                <span class="wa-muted">Se envía por WhatsApp API. No abre WhatsApp Web.</span>
+                <button type="submit" class="btn btn-primario">Enviar WhatsApp</button>
+            </div>
+        </form>
+        {% else %}
+        <p class="wa-empty">No hay teléfono válido para enviar WhatsApp API.</p>
+        {% endif %}
+    </details>
+    {% endif %}
+
+    {% if rol_actual in ["admin", "carga"] %}
     <details class="detalle-box detalle-box-full" id="notas" style="margin-top:16px; border-left:5px solid #6366f1;">
         <summary style="cursor:pointer; font-weight:700; font-size:1rem;">📝 Notas internas
             {% if notas_pedido %}<span style="font-size:0.78rem; font-weight:400; color:#6366f1; margin-left:8px;">({{ notas_pedido|length }})</span>{% endif %}
@@ -679,7 +738,7 @@
                     {{ accion.texto }}
                 </a>
             {% elif accion.tipo == "avisar_cliente" %}
-                <a href="{{ accion.url }}" class="{{ accion.clases }}" onclick="return abrirWhatsappYRecargar(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
+                <a href="{{ accion.url }}" class="{{ accion.clases }}">
                     {{ accion.texto }}
                 </a>
             {% else %}
@@ -690,13 +749,13 @@
         {% endif %}
 
         {% if puede_avisar_despacho_whatsapp(pedido) %}
-        <a href="{{ url_for('avisar_despacho_whatsapp', id=pedido.id) }}" class="btn btn-secundario" onclick="return abrirWhatsappYRecargar(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
+        <a href="{{ url_for('avisar_despacho_whatsapp', id=pedido.id) }}" class="btn btn-secundario">
             Avisar cliente despacho
         </a>
         {% endif %}
 
         {% if puede_enviar_postventa_whatsapp(pedido) %}
-        <a href="{{ url_for('postventa_whatsapp', id=pedido.id) }}" class="btn btn-secundario" onclick="return abrirWhatsappYRecargar(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
+        <a href="{{ url_for('postventa_whatsapp', id=pedido.id) }}" class="btn btn-secundario">
             Mensaje postventa
         </a>
         {% endif %}

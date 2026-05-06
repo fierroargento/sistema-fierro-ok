@@ -25,18 +25,8 @@ def _obtener_estado_wa(pedido):
 
 def _buscar_pedido_por_telefono(telefono):
     """Busca el pedido activo más reciente asociado a ese número."""
-    from app import Pedido, normalizar_telefono
-    tel_norm = normalizar_telefono(telefono)
-    if not tel_norm:
-        return None
-
-    return (
-        Pedido.query
-        .filter(Pedido.telefono.ilike(f"%{tel_norm[-8:]}%"))
-        .filter(Pedido.estado.notin_(["Entregado", "Cancelado"]))
-        .order_by(Pedido.id.desc())
-        .first()
-    )
+    from app import buscar_pedido_activo_por_telefono
+    return buscar_pedido_activo_por_telefono(telefono)
 
 
 def _routear_mensaje(pedido, texto, telefono):
@@ -55,6 +45,18 @@ def _routear_mensaje(pedido, texto, telefono):
             "¡Hola! 👋 No encontramos un pedido activo asociado a este número. "
             "Si tenés una consulta escribinos y un operador te ayuda a la brevedad 😊"
         )
+        return
+
+    # Si un operador tomó la conversación, el bot NO responde automático.
+    if estado == "operador_manual":
+        try:
+            from app import db
+            pedido.ml_mensajes_pendientes = True
+            pedido.ml_mensajes_pendientes_count = (pedido.ml_mensajes_pendientes_count or 0) + 1
+            pedido.ia_requiere_operador = True
+            db.session.commit()
+        except Exception as e:
+            print("[WA] No se pudo marcar pendiente operador:", e)
         return
 
     # Preguntas simples de factura: respuesta fija en cualquier estado activo
@@ -146,6 +148,19 @@ def registrar_webhook(app):
 
                 if texto:
                     pedido = _buscar_pedido_por_telefono(telefono)
+                    try:
+                        from app import registrar_whatsapp_mensaje
+                        registrar_whatsapp_mensaje(
+                            pedido=pedido,
+                            telefono=telefono,
+                            direccion="in",
+                            autor="cliente",
+                            texto=texto,
+                            message_id_meta=msg.get("id", ""),
+                            estado="recibido",
+                        )
+                    except Exception as e:
+                        print("[WA-HIST] Error registrando entrada:", e)
                     _routear_mensaje(pedido, texto, telefono)
 
         except Exception as e:

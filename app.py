@@ -294,6 +294,21 @@ class TrackingEvento(db.Model):
     fecha_evento = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
+class WhatsAppMensaje(db.Model):
+    """Historial real de conversación WhatsApp API asociado al pedido."""
+    __tablename__ = "whatsapp_mensaje"
+    id = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"), index=True)
+    telefono = db.Column(db.String(30), index=True)
+    direccion = db.Column(db.String(10))  # in / out
+    autor = db.Column(db.String(30))      # cliente / bot / operador / sistema
+    texto = db.Column(db.Text)
+    message_id_meta = db.Column(db.String(120), index=True)
+    estado = db.Column(db.String(40))     # recibido / enviado / error / pendiente
+    error = db.Column(db.Text)
+    fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
 class Producto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sku = db.Column(db.String(80), nullable=False, index=True)
@@ -718,6 +733,58 @@ def normalizar_telefono(raw):
         solo_digitos = solo_digitos[2:]
 
     return "549" + solo_digitos
+
+
+def buscar_pedido_activo_por_telefono(telefono):
+    """Busca el pedido activo más reciente asociado a un teléfono normalizado."""
+    tel_norm = normalizar_telefono(telefono)
+    if not tel_norm:
+        return None
+
+    ultimos = (
+        Pedido.query
+        .filter(Pedido.estado.notin_(["Finalizado", "Cancelado"]))
+        .order_by(Pedido.id.desc())
+        .limit(80)
+        .all()
+    )
+    cola = tel_norm[-8:]
+    for pedido in ultimos:
+        tel_pedido = normalizar_telefono(getattr(pedido, "telefono", ""))
+        if tel_pedido and tel_pedido[-8:] == cola:
+            return pedido
+    return None
+
+
+def registrar_whatsapp_mensaje(pedido=None, telefono="", direccion="", autor="", texto="", message_id_meta="", estado="", error=""):
+    """Guarda un mensaje WA sin romper el flujo si falla la auditoría."""
+    try:
+        tel_norm = normalizar_telefono(telefono or (getattr(pedido, "telefono", "") if pedido else ""))
+        if pedido is None and tel_norm:
+            pedido = buscar_pedido_activo_por_telefono(tel_norm)
+        msg = WhatsAppMensaje(
+            pedido_id=getattr(pedido, "id", None),
+            telefono=tel_norm or str(telefono or ""),
+            direccion=(direccion or "")[:10],
+            autor=(autor or "")[:30],
+            texto=str(texto or ""),
+            message_id_meta=str(message_id_meta or "")[:120],
+            estado=(estado or "")[:40],
+            error=str(error or "")[:1000] if error else "",
+            fecha=datetime.utcnow(),
+        )
+        db.session.add(msg)
+        if pedido is not None:
+            pedido.wa_ultimo_contacto = datetime.utcnow()
+        db.session.commit()
+        return msg
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        print("[WA-HIST] No se pudo registrar mensaje:", e)
+        return None
 
 
 
@@ -1223,6 +1290,75 @@ def whatsapp_link_postventa(pedido):
         )
 
     return generar_link_whatsapp(numero, mensaje)
+
+
+def mensaje_whatsapp_despachado(pedido):
+    tracking_info = tracking_info_pedido(pedido)
+    seguimiento = (
+        getattr(pedido, "seguimiento", None)
+        or getattr(pedido, "tn_tracking_number", None)
+        or (tracking_info or {}).get("seguimiento")
+        or "no disponible"
+    )
+    link_tracking = (tracking_info or {}).get("url") or ""
+    partes = [
+        "Hola!",
+        "",
+        "Tu pedido ya fue despachado.",
+        "",
+        f"Seguimiento: {seguimiento}",
+    ]
+    if link_tracking:
+        partes += ["Podés seguirlo acá:", link_tracking]
+    partes += ["", "Cualquier duda estoy por acá."]
+    return "\n".join(partes)
+
+
+def mensaje_whatsapp_confirmar_entrega(pedido):
+    sucursal = (pedido.sucursal_nombre or "a confirmar").strip()
+    direccion_partes = [
+        (pedido.direccion or "").strip(),
+        (pedido.localidad or "").strip(),
+        (pedido.provincia or "").strip(),
+    ]
+    direccion_sucursal = ", ".join([parte for parte in direccion_partes if parte]) or "a confirmar"
+    seguimiento = (pedido.seguimiento or pedido.tn_tracking_number or "no disponible").strip()
+    return (
+        f"Hola {pedido.cliente or ''}, te escribimos de Fierro por tu pedido #{pedido.id}.\n\n"
+        "Tu compra ya está disponible para retirar en sucursal.\n\n"
+        f"Sucursal: {sucursal}\n"
+        f"Dirección sucursal: {direccion_sucursal}\n"
+        f"Seguimiento: {seguimiento}\n\n"
+        "Tenés 5 días para retirarlo antes de que vuelva a origen.\n\n"
+        "Cuando lo retires, por favor avisame así cerramos la entrega."
+    )
+
+
+def mensaje_whatsapp_postventa(pedido):
+    if pedido_tiene_parrilla(pedido):
+        return (
+            "Buenas!\n\n"
+            "Vimos que ya recibiste tu parrilla.\n"
+            "Esperamos haber cumplido con tus expectativas, ¡gracias por confiar en nosotros!\n\n"
+            "Te dejamos algunos tips para que te dure muchos años:\n\n"
+            "• Evitá “quemarla” a fuego directo, ese calor puede doblar las varillas.\n"
+            "• Limpiala con un cepillo mientras está caliente, justo después de usarla.\n"
+            "• Usá la grasa del asado para pasarle y “curarla”; ayuda a evitar el óxido.\n"
+            "• Si queda al aire libre, podés pasarle aceite comestible con una esponja.\n\n"
+            "Si tenés alguna duda con el uso, escribinos.\n\n"
+            "Gracias nuevamente.\n"
+            "Y si querés, seguinos en Instagram para ver lo nuevo que vamos sumando:\n"
+            "https://www.instagram.com/fierroargento"
+        )
+    return (
+        "Buenas!\n\n"
+        "Vimos que ya recibiste tu compra.\n"
+        "Esperamos haber cumplido con tus expectativas, ¡gracias por confiar en nosotros!\n\n"
+        "Si tenés alguna duda con el producto, escribinos y te ayudamos.\n\n"
+        "Gracias nuevamente.\n"
+        "Y si querés, seguinos en Instagram para ver lo nuevo que vamos sumando:\n"
+        "https://www.instagram.com/fierroargento"
+    )
 
 
 def puede_avisar_despacho_whatsapp(pedido):
@@ -6138,6 +6274,7 @@ def inyectar_contexto_global():
         "whatsapp_link_despachado": whatsapp_link_despachado,
         "whatsapp_link_confirmar_entrega": whatsapp_link_confirmar_entrega,
         "whatsapp_link_postventa": whatsapp_link_postventa,
+        "normalizar_telefono": normalizar_telefono,
         "puede_avisar_despacho_whatsapp": puede_avisar_despacho_whatsapp,
         "puede_enviar_postventa_whatsapp": puede_enviar_postventa_whatsapp,
         "requiere_contacto_cliente": requiere_contacto_cliente,
@@ -7535,6 +7672,16 @@ def detalle_pedido(id):
     if rol_actual() in ["admin", "carga"]:
         notas_pedido = NotaPedido.query.filter_by(pedido_id=pedido.id).order_by(NotaPedido.fecha.desc()).all()
 
+    whatsapp_mensajes = []
+    if rol_actual() in ["admin", "carga"]:
+        whatsapp_mensajes = (
+            WhatsAppMensaje.query
+            .filter_by(pedido_id=pedido.id)
+            .order_by(WhatsAppMensaje.fecha.asc())
+            .limit(80)
+            .all()
+        )
+
     return render_template(
         "detalle_pedido.html",
         pedido=pedido,
@@ -7547,6 +7694,7 @@ def detalle_pedido(id):
         whatsapp_url=whatsapp_link_pedido(pedido),
         auditorias_pedido=auditorias_pedido,
         notas_pedido=notas_pedido,
+        whatsapp_mensajes=whatsapp_mensajes,
     )
 
 
@@ -8198,6 +8346,71 @@ def editar_pedido(id):
         error=""
     )
 
+def _enviar_whatsapp_api_pedido(pedido, texto, autor="operador"):
+    """Envía WhatsApp por API y registra historial. No usa WhatsApp Web."""
+    from modules.whatsapp.sender import wa_enviar_texto
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        registrar_whatsapp_mensaje(pedido, telefono=pedido.telefono, direccion="out", autor=autor, texto=texto, estado="error", error="Pedido sin teléfono válido")
+        return False, "El pedido no tiene teléfono válido."
+    ok = wa_enviar_texto(tel, texto, pedido=pedido, autor=autor)
+    if ok:
+        return True, "Mensaje enviado por WhatsApp API."
+    return False, "No se pudo enviar por WhatsApp API. Revisá token/configuración Meta."
+
+
+@app.route("/pedido/<int:id>/whatsapp/enviar", methods=["POST"])
+@login_required
+def whatsapp_enviar_operador(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+
+    texto = (request.form.get("mensaje") or "").strip()
+    if not texto:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="Escribí un mensaje para enviar por WhatsApp."))
+
+    pedido.wa_estado = "operador_manual"
+    ok, msg = _enviar_whatsapp_api_pedido(pedido, texto, autor="operador")
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok=msg if ok else "", error="" if ok else msg))
+
+
+@app.route("/pedido/<int:id>/whatsapp/tomar", methods=["POST"])
+@login_required
+def whatsapp_tomar_conversacion(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+
+    pedido.wa_estado = "operador_manual"
+    pedido.ia_requiere_operador = True
+    pedido.wa_ultimo_contacto = datetime.utcnow()
+    db.session.commit()
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok="Conversación WhatsApp tomada por operador. El bot queda pausado."))
+
+
+@app.route("/pedido/<int:id>/whatsapp/reactivar", methods=["POST"])
+@login_required
+def whatsapp_reactivar_bot(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+
+    pedido.wa_estado = pedido.wa_estado if pedido.wa_estado and pedido.wa_estado != "operador_manual" else "esperando_datos"
+    pedido.ia_requiere_operador = False
+    pedido.wa_ultimo_contacto = datetime.utcnow()
+    db.session.commit()
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok="Bot WhatsApp reactivado."))
+
+
 @app.route("/pedido/<int:id>/avisar-despacho-whatsapp")
 @login_required
 def avisar_despacho_whatsapp(id):
@@ -8209,11 +8422,12 @@ def avisar_despacho_whatsapp(id):
     if not puede_avisar_despacho_whatsapp(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id))
 
-    whatsapp_url = whatsapp_link_despachado(pedido)
-    if whatsapp_url:
-        return redirect(whatsapp_url)
-
-    return redirect(url_for("detalle_pedido", id=pedido.id))
+    texto = mensaje_whatsapp_despachado(pedido)
+    ok, msg = _enviar_whatsapp_api_pedido(pedido, texto, autor="sistema")
+    if ok:
+        pedido.wa_estado = "despachado"
+        db.session.commit()
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok=msg if ok else "", error="" if ok else msg))
 
 
 @app.route("/pedido/<int:id>/postventa-whatsapp")
@@ -8227,11 +8441,13 @@ def postventa_whatsapp(id):
     if not puede_enviar_postventa_whatsapp(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id))
 
-    whatsapp_url = whatsapp_link_postventa(pedido)
-    if whatsapp_url:
-        return redirect(whatsapp_url)
-
-    return redirect(url_for("detalle_pedido", id=pedido.id))
+    texto = mensaje_whatsapp_postventa(pedido)
+    ok, msg = _enviar_whatsapp_api_pedido(pedido, texto, autor="sistema")
+    if ok:
+        pedido.wa_postventa_enviada = True
+        pedido.wa_estado = "finalizado"
+        db.session.commit()
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok=msg if ok else "", error="" if ok else msg))
 
 
 @app.route("/pedido/<int:id>/confirmar-entrega")
@@ -8248,11 +8464,14 @@ def confirmar_entrega(id):
     pedido.estado = "Listo para retirar"
     db.session.commit()
 
-    whatsapp_url = whatsapp_link_confirmar_entrega(pedido)
-    if whatsapp_url:
-        return redirect(whatsapp_url)
+    texto = mensaje_whatsapp_confirmar_entrega(pedido)
+    ok, msg = _enviar_whatsapp_api_pedido(pedido, texto, autor="sistema")
+    if ok:
+        pedido.wa_listo_retirar_enviado = True
+        pedido.wa_estado = "listo_para_retirar"
+        db.session.commit()
 
-    return redirect(url_for("detalle_pedido", id=pedido.id, ok=texto_feedback_estado("Listo para retirar")))
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok=texto_feedback_estado("Listo para retirar") if ok else "", error="" if ok else msg))
 
 def checklist_cierre_pedido(pedido):
     """Checklist APB para cerrar pedidos entregados sin saltear pasos críticos."""
