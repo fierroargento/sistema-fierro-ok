@@ -9624,8 +9624,15 @@ def extraer_items_comprobante_dux_desde_pdf(archivo_pdf):
     """
     Lee un comprobante DUX en PDF con texto real y devuelve todos los items detectados.
 
-    Formato recomendado DUX:
-        Código | Descripción | Cant. | Precio Uni. | Sub Total | % IVA | Sub Total c/ IVA
+    Soporta dos formas de extracción de DUX:
+    1) Fila en una sola línea:
+       C-MDF-151 CUADRO FRASES 3 PIEZAS 43X20 1,00 14.450,99 ...
+    2) Columnas separadas por líneas, como devuelve PyMuPDF en algunos PDF:
+       C-MDF-151
+       CUADRO FRASES 3 PIEZAS 43X20
+       1,00
+       14.450,99
+       ...
 
     Regla APB:
     - El SKU manda.
@@ -9659,14 +9666,54 @@ def extraer_items_comprobante_dux_desde_pdf(archivo_pdf):
             pass
         return {"ok": False, "items": [], "texto": "", "error": f"No se pudo leer el PDF DUX: {e}"}
 
-    lineas = [l.strip() for l in texto.splitlines() if l.strip()]
+    lineas = [l.strip() for l in texto.splitlines() if l and l.strip()]
 
-    # Formatos DUX soportados:
-    # Nuevo recomendado:
-    # C-MDF-151 CUADRO FRASES 3 PIEZAS 43X20 1,00 14.450,99 14.450,99 21,00 17.485,70
-    # Anterior:
-    # C-MDF-151 - CUADRO FRASES 3 PIEZAS 43X20 1,00 14.450,99 14.450,99 21,00 17.485,70
-    # La cantidad se captura SOLO si está seguida por un precio, evitando tomar "3" de "3 PIEZAS".
+    def _es_sku(valor):
+        valor = (valor or "").strip().upper()
+        return bool(re.match(r"^[A-Z0-9][A-Z0-9_\-\.\/]{1,40}$", valor))
+
+    def _es_importe(valor):
+        valor = (valor or "").strip()
+        return bool(re.match(r"^\$?\s*[0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}$|^\$?\s*[0-9]+,[0-9]{2}$", valor))
+
+    def _parse_cantidad(valor):
+        valor = (valor or "").strip().replace(".", "").replace(",", ".")
+        try:
+            cantidad_float = float(valor)
+            cantidad = int(cantidad_float) if cantidad_float.is_integer() else int(round(cantidad_float))
+        except Exception:
+            cantidad = 1
+        return max(cantidad, 1)
+
+    def _descripcion_por_sku(sku, descripcion_pdf):
+        descripcion = (descripcion_pdf or "").strip()
+        try:
+            producto = Producto.query.filter(Producto.sku.ilike(sku)).first()
+            if producto and producto.descripcion:
+                descripcion = producto.descripcion.strip()
+        except Exception:
+            pass
+        return descripcion
+
+    def _agregar_item(sku, descripcion_pdf, cantidad, linea_original):
+        sku = (sku or "").strip().upper()
+        descripcion = _descripcion_por_sku(sku, descripcion_pdf)
+        if not sku or not descripcion:
+            return
+        clave = (sku, descripcion, cantidad)
+        if clave in vistos:
+            return
+        vistos.add(clave)
+        items.append({
+            "sku": sku,
+            "descripcion": descripcion,
+            "cantidad": cantidad,
+            "linea_original": linea_original,
+        })
+
+    vistos = set()
+
+    # Caso 1: DUX extraído en una sola línea por item.
     patron_linea = re.compile(
         r"^([A-Z0-9][A-Z0-9_\-\.\/]{1,40})\s+(?:-\s+)?(.+?)\s+"
         r"([0-9]+(?:[\.,][0-9]{1,3})?)\s+"
@@ -9675,44 +9722,54 @@ def extraer_items_comprobante_dux_desde_pdf(archivo_pdf):
         re.IGNORECASE,
     )
 
-    vistos = set()
-
     for linea in lineas:
         m = patron_linea.search(linea)
         if not m:
             continue
-
-        sku = (m.group(1) or "").strip().upper()
+        sku = m.group(1)
         descripcion_pdf = (m.group(2) or "").strip(" -")
-        cantidad_txt = (m.group(3) or "1").replace(".", "").replace(",", ".")
+        cantidad = _parse_cantidad(m.group(3))
+        _agregar_item(sku, descripcion_pdf, cantidad, linea)
 
-        try:
-            cantidad_float = float(cantidad_txt)
-            cantidad = int(cantidad_float) if cantidad_float.is_integer() else int(round(cantidad_float))
-        except Exception:
-            cantidad = 1
+    # Caso 2: DUX/PyMuPDF extrae cada columna en líneas separadas.
+    # Estructura esperada:
+    # SKU / DESCRIPCION / CANTIDAD / PRECIO / SUBTOTAL / IVA / TOTAL
+    i = 0
+    while i < len(lineas):
+        sku = lineas[i].strip().upper()
+        if not _es_sku(sku):
+            i += 1
+            continue
 
-        if cantidad < 1:
-            cantidad = 1
+        # Evitar falsos positivos en encabezados o datos generales.
+        if sku in {"COMPROBANTE", "FECHA", "IVA", "DNI", "TOTAL", "SUBTOTAL", "CANT", "CODIGO", "CÓDIGO", "DESCRIPCION", "DESCRIPCIÓN"}:
+            i += 1
+            continue
 
-        descripcion = descripcion_pdf
-        try:
-            producto = Producto.query.filter(Producto.sku.ilike(sku)).first()
-            if producto and producto.descripcion:
-                descripcion = producto.descripcion.strip()
-        except Exception:
-            # Si el parser se usa fuera de contexto DB, no rompe: usa descripción del PDF.
-            descripcion = descripcion_pdf
+        if i + 2 >= len(lineas):
+            i += 1
+            continue
 
-        clave = (sku, descripcion, cantidad, linea)
-        if sku and descripcion and clave not in vistos:
-            vistos.add(clave)
-            items.append({
-                "sku": sku,
-                "descripcion": descripcion,
-                "cantidad": cantidad,
-                "linea_original": linea,
-            })
+        descripcion_pdf = lineas[i + 1].strip()
+        cantidad_txt = lineas[i + 2].strip()
+
+        if not descripcion_pdf or _es_sku(descripcion_pdf):
+            i += 1
+            continue
+
+        # La cantidad debe ser decimal tipo 1,00 y seguida por al menos un precio.
+        if not re.match(r"^[0-9]+(?:[\.,][0-9]{1,3})?$", cantidad_txt):
+            i += 1
+            continue
+
+        if i + 3 < len(lineas) and not _es_importe(lineas[i + 3]):
+            i += 1
+            continue
+
+        cantidad = _parse_cantidad(cantidad_txt)
+        linea_original = " | ".join(lineas[i:i + 7])
+        _agregar_item(sku, descripcion_pdf, cantidad, linea_original)
+        i += 7
 
     return {
         "ok": bool(items),
