@@ -5031,6 +5031,14 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
     pedido.ia_resumen = resumen
     pedido.ia_requiere_operador = requiere_operador
 
+    # APB: ML inicia el contacto; cuando ya tenemos teléfono válido, WhatsApp toma la posta.
+    if not requiere_operador:
+        wa_auto_iniciar_desde_ml_si_corresponde(
+            pedido,
+            faltantes=faltantes,
+            motivo="ia_guardar_resultado_recolector",
+        )
+
 
 def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=False):
     """Analiza último mensaje del comprador si corresponde. Autocompleta campos vacíos. No envía nada al cliente."""
@@ -6461,6 +6469,101 @@ def ia_faltantes_pedido(pedido):
         return []
     data = ia_json_loads_seguro(pedido.ia_faltantes)
     return data if isinstance(data, list) else []
+
+
+
+def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
+    """Disparador APB: ML inicia, WhatsApp continúa cuando ya hay teléfono válido.
+
+    Reglas:
+    - Solo Mercado Libre / Acordás la Entrega.
+    - Solo si ya hubo contacto inicial por ML (`contacto_iniciado=True`).
+    - Solo si hay teléfono normalizado.
+    - No pisa conversaciones WA ya iniciadas ni operador_manual.
+    - No actúa sobre pedidos cerrados/finalizados/cancelados.
+    """
+    if not pedido or not es_ml_acordas_entrega(pedido):
+        return False, "no_aplica"
+
+    if os.getenv("WA_AUTO_DESDE_ML", "1").strip().lower() in ["0", "false", "no", "off"]:
+        return False, "apagado"
+
+    if not getattr(pedido, "contacto_iniciado", False):
+        return False, "ml_no_iniciado"
+
+    if str(getattr(pedido, "wa_estado", "") or "").strip():
+        return False, "wa_ya_iniciado"
+
+    if pedido.estado in ["Despachado", "Entregado", "Finalizado", "Cancelado", "No entregado"]:
+        return False, "pedido_cerrado_o_post_despacho"
+
+    ml_order_status_actual = str(getattr(pedido, "ml_order_status", "") or "").lower().strip()
+    if ml_order_status_actual in {"closed", "cancelled", "invalid", "delivered"}:
+        return False, "ml_cerrado"
+
+    tel = normalizar_telefono(getattr(pedido, "telefono", ""))
+    if not tel or len(tel) < 12:
+        return False, "sin_telefono_valido"
+
+    faltantes_limpios = []
+    for campo in (faltantes or ia_faltantes_pedido(pedido) or []):
+        campo = str(campo or "").strip()
+        if not campo:
+            continue
+        if campo == "telefono" and tel:
+            continue
+        if campo in ["localidad", "provincia"] and getattr(pedido, campo, None):
+            continue
+        if campo not in faltantes_limpios:
+            faltantes_limpios.append(campo)
+
+    try:
+        if faltantes_limpios:
+            from modules.whatsapp.flows import wa_enviar_solicitud_datos
+            ok = wa_enviar_solicitud_datos(pedido, faltantes_limpios)
+            accion = "Solicitó datos faltantes por WhatsApp"
+            detalle_extra = ", ".join(faltantes_limpios)
+        else:
+            from modules.whatsapp.flows import wa_cerrar_datos_completos, wa_iniciar_cross_sell
+            ok = wa_cerrar_datos_completos(pedido)
+            accion = "Inició WhatsApp con datos completos"
+            detalle_extra = "datos completos"
+            try:
+                wa_iniciar_cross_sell(pedido)
+            except Exception as cross_error:
+                print(f"[WA-AUTO-ML] Cross-sell no iniciado pedido #{getattr(pedido, 'id', '')}: {cross_error}")
+
+        if ok:
+            pedido.wa_ultimo_contacto = datetime.utcnow()
+            resumen = (pedido.ia_resumen or "").strip()
+            marca = "WA iniciado automáticamente desde ML"
+            pedido.ia_resumen = f"{resumen} | {marca}".strip(" |") if marca not in resumen else resumen
+            try:
+                pedido.ml_mensajes_pendientes = False
+                pedido.ml_mensajes_pendientes_count = 0
+            except Exception:
+                pass
+            db.session.commit()
+            try:
+                registrar_auditoria(
+                    accion=accion,
+                    entidad="pedido",
+                    entidad_id=str(pedido.id),
+                    detalle=f"Origen ML/Acordás. Teléfono: {tel}. {detalle_extra}. Motivo: {motivo}",
+                )
+            except Exception as audit_error:
+                print(f"[WA-AUTO-ML] No se pudo auditar pedido #{getattr(pedido, 'id', '')}: {audit_error}")
+            print(f"[WA-AUTO-ML] OK pedido #{getattr(pedido, 'id', '')}: {accion} ({detalle_extra})")
+            return True, "enviado"
+
+        return False, "wa_no_enviado"
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        print(f"[WA-AUTO-ML] Error pedido #{getattr(pedido, 'id', '')}: {e}")
+        return False, str(e)
 
 
 def ia_etiqueta_faltante(campo):
