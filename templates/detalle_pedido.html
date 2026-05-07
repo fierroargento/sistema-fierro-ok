@@ -709,10 +709,8 @@
             <h3 style="margin:0;">Detalle de productos</h3>
 
             {% if rol_actual in ["admin", "carga"] and pedido.estado not in ["Despachado", "Finalizado"] %}
-            <a href="{{ url_for('agregar_item_pedido', id=pedido.id) }}"
-               class="btn btn-primario"
-               style="padding:8px 14px; font-size:0.82rem;">
-                ➕ Agregar item
+            <a href="{{ url_for('agregar_item_pedido', id=pedido.id) }}" class="btn btn-accion-rapida">
+                Agregar item
             </a>
             {% endif %}
         </div>
