@@ -741,6 +741,56 @@
         </table>
     </div>
 
+    {% if agregados_apb %}
+    <div class="detalle-box detalle-box-full" style="margin-top: 18px; border-left:5px solid #16a34a; background:#f0fdf4;">
+        <h3 style="margin-top:0;">Agregados APB</h3>
+
+        {% for agregado in agregados_apb %}
+        <div style="background:#ffffff; border:1px solid #dcfce7; border-radius:10px; padding:12px; margin-top:10px;">
+            <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+                <div>
+                    <strong>Agregado #{{ agregado.id }}</strong>
+                    <span style="color:#4b5563; font-size:13px;">
+                        | Operador: {{ agregado.usuario or '-' }}
+                        {% if agregado.fecha %}
+                        | {{ fecha_argentina(agregado.fecha).strftime('%d/%m/%Y %H:%M') }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    {% if agregado.comprobante_dux_url %}
+                    <a href="{{ agregado.comprobante_dux_url }}" target="_blank" rel="noopener" class="btn btn-secundario" style="padding:5px 9px; font-size:0.75rem;">Ver DUX</a>
+                    {% endif %}
+                    {% if agregado.comprobante_pago_url %}
+                    <a href="{{ agregado.comprobante_pago_url }}" target="_blank" rel="noopener" class="btn btn-secundario" style="padding:5px 9px; font-size:0.75rem;">Ver pago</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <table class="tabla-items" style="margin-top:8px;">
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Descripción</th>
+                        <th>Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in agregado.items %}
+                    <tr>
+                        <td>{{ item.sku or '-' }}</td>
+                        <td>{{ item.descripcion or '-' }}</td>
+                        <td>{{ item.cantidad or 0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+
     {% set accion = accion_principal_pedido(pedido, 'detalle') %}
     <div class="detalle-acciones">
         <a href="{{ url_for('inicio') }}" class="btn btn-secundario btn-volver">Volver</a>

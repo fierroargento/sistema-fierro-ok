@@ -14,7 +14,7 @@
 
     <div class="detalle-box" style="margin:14px 0 18px; border-left:5px solid #f97316; background:#fff7ed;">
         <strong>Control APB:</strong>
-        para agregar productos extra, primero cargá el comprobante DUX correspondiente. Sin comprobante no se guarda.
+        el comprobante DUX es exclusivo del agregado. Se cargan todos los items detectados y además es obligatorio adjuntar comprobante de pago.
     </div>
 
     {% if error %}
@@ -48,48 +48,31 @@
                 {% endfor %}
             </tbody>
         </table>
-        {% if items_detectados|length > 1 %}
-        <p style="margin:10px 0 0; color:#92400e; font-size:14px;">
-            Atención: se detectó más de un item. Por ahora se precarga el primero. Si necesitás agregar otro, repetí el proceso.
+        <p style="margin:10px 0 0; color:#166534; font-size:14px; font-weight:700;">
+            Se agregarán todos los items de este comprobante. No hace falta repetir el proceso.
         </p>
-        {% endif %}
     </div>
     {% endif %}
 
     <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="comprobante_dux_url" value="{{ datos.comprobante_dux_url if datos else '' }}">
         <input type="hidden" name="comprobante_dux_public_id" value="{{ datos.comprobante_dux_public_id if datos else '' }}">
+        <input type="hidden" name="comprobante_pago_url" value="{{ datos.comprobante_pago_url if datos else '' }}">
+        <input type="hidden" name="comprobante_pago_public_id" value="{{ datos.comprobante_pago_public_id if datos else '' }}">
+        <input type="hidden" name="items_json" value="{{ datos.items_json if datos else '' }}">
 
-        {% if items_detectados %}
-        <div style="display:grid; grid-template-columns: 180px 1fr 120px; gap:14px; align-items:end; margin-bottom:16px;">            <div>
-                <label>SKU</label>
-                <input type="text" name="sku" value="{{ datos.sku if datos else '' }}" placeholder="Ej: KITPACH" required>
-            </div>
-
-            <div>
-                <label>Descripción</label>
-                <input type="text" name="descripcion" value="{{ datos.descripcion if datos else '' }}" placeholder="Si queda vacío, intenta traerla del padrón">
-            </div>
-
-            <div>
-                <label>Cantidad</label>
-                <input type="number" name="cantidad" min="1" value="{{ datos.cantidad if datos else 1 }}" required>
-            </div>
-        </div>
-        {% endif %}
-
-        <div style="display:grid; grid-template-columns: 1fr auto auto; gap:12px; align-items:end;">
+        <div style="display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:end; margin-bottom:16px;">
             <div>
                 <label>Comprobante DUX del agregado</label>
-                <input type="file" name="comprobante_dux" accept=".pdf,.jpg,.jpeg,.png,.webp" {% if not datos or not datos.comprobante_dux_url %}required{% endif %}>
+                <input type="file" name="comprobante_dux" accept=".pdf" {% if not datos or not datos.comprobante_dux_url %}required{% endif %}>
                 {% if datos and datos.comprobante_dux_url %}
                 <div style="font-size:13px; color:#166534; margin-top:6px;">
                     Comprobante DUX ya cargado para este agregado.
-                    <a href="{{ datos.comprobante_dux_url }}" target="_blank" rel="noopener">Ver comprobante</a>
+                    <a href="{{ datos.comprobante_dux_url }}" target="_blank" rel="noopener">Ver comprobante DUX</a>
                 </div>
                 {% else %}
                 <div style="font-size:13px; color:#6b7280; margin-top:6px;">
-                    Si subís PDF de DUX, podés usar “Leer PDF DUX” para precargar SKU y cantidad.
+                    Subí el PDF de DUX y presioná “Leer PDF DUX”.
                 </div>
                 {% endif %}
             </div>
@@ -105,8 +88,25 @@
                 Leer PDF DUX
             </button>
             {% endif %}
+        </div>
 
-            {% if items_detectados %}
+        {% if items_detectados %}
+        <div style="display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:end;">
+            <div>
+                <label>Comprobante de pago del agregado</label>
+                <input type="file" name="comprobante_pago" accept=".pdf,.jpg,.jpeg,.png,.webp" {% if not datos or not datos.comprobante_pago_url %}required{% endif %}>
+                {% if datos and datos.comprobante_pago_url %}
+                <div style="font-size:13px; color:#166534; margin-top:6px;">
+                    Comprobante de pago ya cargado para este agregado.
+                    <a href="{{ datos.comprobante_pago_url }}" target="_blank" rel="noopener">Ver comprobante de pago</a>
+                </div>
+                {% else %}
+                <div style="font-size:13px; color:#6b7280; margin-top:6px;">
+                    Obligatorio. Puede ser PDF o imagen.
+                </div>
+                {% endif %}
+            </div>
+
             <button
                 type="submit"
                 name="accion"
@@ -114,10 +114,10 @@
                 class="btn btn-success"
                 onclick="this.disabled=true; this.innerText='Procesando agregado...'; this.form.submit();"
             >
-                Confirmar y agregar item
+                Confirmar y agregar todos
             </button>
-            {% endif %}
         </div>
+        {% endif %}
     </form>
 </div>
 {% endblock %}
