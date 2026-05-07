@@ -1,43 +1,105 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card detalle-card">
-    <h2>Agregar item al pedido #{{ pedido.id }}</h2>
-    <p>{{ pedido.cliente }} | {{ pedido.canal }} | Estado: <strong>{{ pedido.estado }}</strong></p>
+<div class="card detalle-card" style="max-width: 980px; margin: 0 auto;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:14px;">
+        <div>
+            <h2 style="margin-bottom:6px;">Agregar item al pedido #{{ pedido.id }}</h2>
+            <p style="margin:0; color:#4b5563;">
+                {{ pedido.cliente }} | {{ pedido.canal }} | Estado: <strong>{{ pedido.estado }}</strong>
+            </p>
+        </div>
+        <a href="{{ url_for('detalle_pedido', id=pedido.id) }}" class="btn btn-secundario">Volver</a>
+    </div>
 
-    <div class="detalle-box" style="margin:14px 0; border-left:5px solid #f97316;">
+    <div class="detalle-box" style="margin:14px 0 18px; border-left:5px solid #f97316; background:#fff7ed;">
         <strong>Control APB:</strong>
-        para agregar productos extra, primero cargá el comprobante DUX correspondiente.
+        para agregar productos extra, primero cargá el comprobante DUX correspondiente. Sin comprobante no se guarda.
     </div>
 
     {% if error %}
-    <div class="error">{{ error }}</div>
+    <div class="error" style="margin-bottom:14px;">{{ error }}</div>
     {% endif %}
 
-    <form method="POST" enctype="multipart/form-data" class="form-grid">
-        <div>
-            <label>SKU</label>
-            <input type="text" name="sku" placeholder="Ej: KITPACH" required>
+    {% if mensaje_ok %}
+    <div class="detalle-box" style="margin-bottom:14px; border-left:5px solid #16a34a; background:#f0fdf4;">
+        <strong>{{ mensaje_ok }}</strong>
+    </div>
+    {% endif %}
+
+    {% if items_detectados %}
+    <div class="detalle-box" style="margin-bottom:16px;">
+        <h3 style="margin-top:0; margin-bottom:10px;">Items detectados en comprobante DUX</h3>
+        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+            <thead>
+                <tr style="text-align:left; border-bottom:1px solid #e5e7eb;">
+                    <th style="padding:8px;">SKU</th>
+                    <th style="padding:8px;">Descripción</th>
+                    <th style="padding:8px; width:100px;">Cantidad</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items_detectados %}
+                <tr style="border-bottom:1px solid #f3f4f6;">
+                    <td style="padding:8px; font-weight:700;">{{ item.sku }}</td>
+                    <td style="padding:8px;">{{ item.descripcion }}</td>
+                    <td style="padding:8px;">{{ item.cantidad }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if items_detectados|length > 1 %}
+        <p style="margin:10px 0 0; color:#92400e; font-size:14px;">
+            Atención: se detectó más de un item. Por ahora se precarga el primero. Si necesitás agregar otro, repetí el proceso.
+        </p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="comprobante_dux_url" value="{{ datos.comprobante_dux_url if datos else '' }}">
+        <input type="hidden" name="comprobante_dux_public_id" value="{{ datos.comprobante_dux_public_id if datos else '' }}">
+
+        <div style="display:grid; grid-template-columns: 180px 1fr 120px; gap:14px; align-items:end; margin-bottom:16px;">
+            <div>
+                <label>SKU</label>
+                <input type="text" name="sku" value="{{ datos.sku if datos else '' }}" placeholder="Ej: KITPACH" required>
+            </div>
+
+            <div>
+                <label>Descripción</label>
+                <input type="text" name="descripcion" value="{{ datos.descripcion if datos else '' }}" placeholder="Si queda vacío, intenta traerla del padrón">
+            </div>
+
+            <div>
+                <label>Cantidad</label>
+                <input type="number" name="cantidad" min="1" value="{{ datos.cantidad if datos else 1 }}" required>
+            </div>
         </div>
 
-        <div>
-            <label>Descripción</label>
-            <input type="text" name="descripcion" placeholder="Si queda vacío, intenta traerla del padrón">
-        </div>
+        <div style="display:grid; grid-template-columns: 1fr auto auto; gap:12px; align-items:end;">
+            <div>
+                <label>Comprobante DUX del agregado</label>
+                <input type="file" name="comprobante_dux" accept=".pdf,.jpg,.jpeg,.png,.webp" {% if not datos or not datos.comprobante_dux_url %}required{% endif %}>
+                {% if datos and datos.comprobante_dux_url %}
+                <div style="font-size:13px; color:#166534; margin-top:6px;">
+                    Comprobante DUX ya cargado para este agregado.
+                    <a href="{{ datos.comprobante_dux_url }}" target="_blank" rel="noopener">Ver comprobante</a>
+                </div>
+                {% else %}
+                <div style="font-size:13px; color:#6b7280; margin-top:6px;">
+                    Si subís PDF de DUX, podés usar “Leer PDF DUX” para precargar SKU y cantidad.
+                </div>
+                {% endif %}
+            </div>
 
-        <div>
-            <label>Cantidad</label>
-            <input type="number" name="cantidad" min="1" value="1" required>
-        </div>
+            <button type="submit" name="accion" value="leer_pdf" class="btn btn-secundario" formnovalidate>
+                Leer PDF DUX
+            </button>
 
-        <div>
-            <label>Comprobante DUX del agregado</label>
-            <input type="file" name="comprobante_dux" accept=".pdf,.jpg,.jpeg,.png,.webp" required>
-        </div>
-
-        <div style="margin-top:18px; display:flex; gap:10px;">
-            <a href="{{ url_for('detalle_pedido', id=pedido.id) }}" class="btn btn-secundario">Cancelar</a>
-            <button type="submit" class="btn btn-primario">Agregar item con comprobante</button>
+            <button type="submit" name="accion" value="guardar" class="btn btn-primario">
+                Confirmar y agregar item
+            </button>
         </div>
     </form>
 </div>
