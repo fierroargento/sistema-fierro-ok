@@ -6089,6 +6089,27 @@ def ml_registrar_pedido_ignorado(pedido, motivo="eliminado_manual"):
     return ignorado
 
 
+def ml_registrar_order_ignorado(order_id, motivo="omitido_por_sync_ml"):
+    """Registra una orden ML omitida aunque no exista Pedido local.
+    APB: se usa para ventas históricas ya entregadas, evitando que vuelvan a importarse
+    sin tocar pedidos activos existentes.
+    """
+    order_id = str(order_id or "").strip()
+    if not order_id:
+        return None
+
+    ignorado = PedidoIgnoradoML.query.filter_by(id_venta=order_id).first()
+    if not ignorado:
+        ignorado = PedidoIgnoradoML(id_venta=order_id)
+        db.session.add(ignorado)
+
+    ignorado.motivo = motivo
+    ignorado.pedido_local_id = None
+    ignorado.usuario = session.get("username") or "sistema"
+    ignorado.fecha = datetime.utcnow()
+    return ignorado
+
+
 def ml_marcar_pedido_finalizado_por_entrega(pedido, order, shipment=None):
     """Mantiene la venta en Histórico cuando ML ya la informa como entregada."""
     if not pedido:
@@ -6125,9 +6146,10 @@ def ml_order_debe_omitirse(order, shipment=None):
     if ml_pedido_esta_ignorado(order_id):
         return True, "pedido eliminado manualmente en Fierro"
 
-    # Si está entregado en ML no se omite: se procesa para dejarlo en Histórico/Finalizado.
+    # Si está entregado en ML y llega a esta validación, no es una venta operativa nueva.
+    # La decisión fina para pedidos existentes se toma en ml_upsert_pedido_desde_order().
     if ml_order_esta_entregado(order, shipment):
-        return False, ""
+        return True, "ML entregado/histórico — no se importa como pedido operativo nuevo"
 
     estado = ml_estado_order(order)
     if estado in ["cancelled", "invalid", "closed"]:
@@ -6165,54 +6187,29 @@ def ml_upsert_pedido_desde_order(order):
 
     shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
 
-    # APB ML: si Mercado Libre ya informa Entregado, no queda más en flujo activo.
-    # Se crea/actualiza el pedido como Finalizado para que aparezca en Histórico.
+    # APB ML: si Mercado Libre ya informa Entregado:
+    # - Si NO existe en Fierro, se omite como histórico y NO se crea pedido operativo.
+    # - Si SÍ existe en Fierro, NO se lo saca del flujo: solo se actualizan estados ML
+    #   para que Carga pueda cerrar el proceso interno cuando corresponda.
     if ml_order_esta_entregado(order, shipment):
         pedido = ml_pedido_existente_por_order_id(order_id)
-        creado = pedido is None
-        if creado:
-            pedido = Pedido(
-                cliente=ml_nombre_cliente(order, shipment),
-                canal="Mercado Libre",
-                id_venta=order_id,
-                estado="Finalizado",
-                origen="mercadolibre",
+        if pedido is None:
+            ml_registrar_order_ignorado(
+                order_id,
+                "ML entregado/histórico omitido: no existía en Fierro"
             )
-            db.session.add(pedido)
-            db.session.flush()
+            return None, False, "ML entregado/histórico omitido: no existía en Fierro"
 
-        pedido.mail = pedido.mail or "expedicionfierro@gmail.com"
-        pedido.telefono = pedido.telefono or ""
-        ml_aplicar_datos_envio(pedido, order, shipment)
-
-        billing_info = ml_obtener_billing_info(order_id)
-        ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info)
-
-        order_items = order.get("order_items") or []
-        existentes = {str(item.sku or "").strip(): item for item in pedido.items}
-        usados = set()
-        for order_item in order_items:
-            item_data = order_item.get("item") or {}
-            sku = str(item_data.get("seller_sku") or item_data.get("id") or "").strip()
-            if not sku:
-                sku = str(item_data.get("id") or "SIN-SKU").strip()
-            descripcion = str(item_data.get("title") or "Producto ML").strip()
-            cantidad = int(order_item.get("quantity") or 1)
-            item = existentes.get(sku)
-            if item is None:
-                item = PedidoItem(sku=sku, descripcion=descripcion, cantidad=cantidad)
-                pedido.items.append(item)
-            else:
-                item.descripcion = descripcion
-                item.cantidad = cantidad
-            usados.add(sku)
-
-        for sku, item in list(existentes.items()):
-            if sku not in usados:
-                db.session.delete(item)
-
-        ml_marcar_pedido_finalizado_por_entrega(pedido, order, shipment)
-        return pedido, creado, "finalizado_por_entregado_ml"
+        pedido.origen = pedido.origen or "mercadolibre"
+        pedido.canal = "Mercado Libre"
+        pedido.id_venta = order_id
+        pedido.ml_pack_id = str(order.get("pack_id") or "").strip() or pedido.ml_pack_id
+        pedido.ml_order_status = ml_estado_order(order) or pedido.ml_order_status
+        estado_shipping = ml_estado_shipment(order, shipment)
+        if estado_shipping:
+            pedido.ml_shipping_status = estado_shipping
+        pedido.ultima_sync_ml = datetime.utcnow()
+        return pedido, False, "ML entregado informado; pedido existente conservado en flujo Fierro"
 
     omitir, motivo_omision = ml_order_debe_omitirse(order, shipment)
     if omitir:
@@ -6366,9 +6363,14 @@ def ml_limpiar_pedidos_ml_no_operables_existentes():
         shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
 
         if ml_order_esta_entregado(order, shipment):
-            ml_marcar_pedido_finalizado_por_entrega(pedido, order, shipment)
-            eliminados += 1
-            detalles.append(f"{order_id}: movido a Histórico/Finalizado (ML entregado)")
+            # APB: no sacar del flujo pedidos existentes solo porque ML ya figure entregado.
+            # Carga debe cerrar el proceso interno cuando corresponda.
+            pedido.ml_order_status = ml_estado_order(order) or pedido.ml_order_status
+            estado_shipping = ml_estado_shipment(order, shipment)
+            if estado_shipping:
+                pedido.ml_shipping_status = estado_shipping
+            pedido.ultima_sync_ml = datetime.utcnow()
+            detalles.append(f"{order_id}: ML entregado informado; pedido existente conservado en flujo Fierro")
             continue
 
         omitir, motivo = ml_order_debe_omitirse(order, shipment)
