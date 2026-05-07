@@ -1901,8 +1901,8 @@ a.btn-danger:hover {
 }
 
 /* =========================================================
-   FIX APB - Inicio sin desborde horizontal
-   Evita que la tabla empuje fuera de pantalla.
+   FIX APB - Inicio tabla compacta sin romper columnas
+   Mantiene la columna de contacto chica y evita desborde.
    ========================================================= */
 .main {
     overflow-x: hidden;
@@ -1922,49 +1922,62 @@ a.btn-danger:hover {
 .tabla-pedidos th,
 .tabla-pedidos td {
     min-width: 0 !important;
-    max-width: none !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: normal;
     overflow-wrap: anywhere;
     word-break: normal;
+    white-space: normal;
 }
 
 .tabla-pedidos th:nth-child(1),
-.tabla-pedidos td:nth-child(1) { width: 16% !important; }
-
-.tabla-pedidos th:nth-child(2),
-.tabla-pedidos td:nth-child(2) { width: 12% !important; }
-
-.tabla-pedidos th:nth-child(3),
-.tabla-pedidos td:nth-child(3) { width: 10% !important; }
-
-.tabla-pedidos th:nth-child(4),
-.tabla-pedidos td:nth-child(4) { width: 14% !important; }
-
-.tabla-pedidos th:nth-child(5),
-.tabla-pedidos td:nth-child(5) {
-    width: 10% !important;
-    white-space: nowrap;
-}
-
-.tabla-pedidos th:nth-child(6),
-.tabla-pedidos td:nth-child(6) { width: 17% !important; }
-
-.tabla-pedidos th:nth-child(7),
-.tabla-pedidos td:nth-child(7) {
-    width: 16% !important;
+.tabla-pedidos td:nth-child(1) {
+    width: 54px !important;
+    min-width: 54px !important;
+    max-width: 54px !important;
     text-align: center;
 }
 
+.tabla-pedidos th:nth-child(2),
+.tabla-pedidos td:nth-child(2) {
+    width: 18% !important;
+}
+
+.tabla-pedidos th:nth-child(3),
+.tabla-pedidos td:nth-child(3) {
+    width: 14% !important;
+}
+
+.tabla-pedidos th:nth-child(4),
+.tabla-pedidos td:nth-child(4) {
+    width: 10% !important;
+}
+
+.tabla-pedidos th:nth-child(5),
+.tabla-pedidos td:nth-child(5) {
+    width: 14% !important;
+}
+
+.tabla-pedidos th:nth-child(6),
+.tabla-pedidos td:nth-child(6) {
+    width: 105px !important;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.tabla-pedidos th:nth-child(7),
+.tabla-pedidos td:nth-child(7) {
+    width: 15% !important;
+}
+
 .tabla-pedidos th:nth-child(8),
-.tabla-pedidos td:nth-child(8),
+.tabla-pedidos td:nth-child(8) {
+    width: 140px !important;
+    text-align: center;
+}
+
 .tabla-pedidos th:nth-child(9),
 .tabla-pedidos td:nth-child(9),
 .tabla-pedidos th:nth-child(10),
 .tabla-pedidos td:nth-child(10) {
     width: 120px !important;
-    min-width: 0 !important;
     text-align: center;
 }
 
@@ -1984,4 +1997,3 @@ a.btn-danger:hover {
         min-width: 0 !important;
     }
 }
-
