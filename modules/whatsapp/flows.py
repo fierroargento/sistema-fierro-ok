@@ -244,6 +244,28 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
     faltantes = [f for f in faltantes if f not in ["localidad", "provincia"] or not getattr(pedido, f, None)]
 
     if not faltantes:
+
+        tipo_ml = str(getattr(pedido, "tipo_ml", "") or "").lower()
+        canal = str(getattr(pedido, "canal", "") or "").lower()
+
+        es_ml_acordas = (
+            canal == "mercado libre"
+            and "acord" in tipo_ml
+        )
+
+        # APB:
+        # ML Acordás SIEMPRE continúa por WhatsApp.
+        if es_ml_acordas:
+
+            wa_cerrar_datos_completos(pedido)
+
+            try:
+                wa_iniciar_cross_sell(pedido)
+            except Exception as e:
+                print("[WA] Error iniciando cross sell:", e)
+
+            return
+
         wa_cerrar_datos_completos(pedido)
         return
 
