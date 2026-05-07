@@ -2407,7 +2407,7 @@ def estados_visibles_inicio():
         ]
 
     if rol == "carga":
-        return ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Reclamar a Mercado Libre", "Entregado"]
+        return ["Cargando Pedido", "Etiqueta Lista", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Reclamar a Mercado Libre", "Entregado"]
 
     if rol == "despacho":
         return ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]
@@ -2452,7 +2452,7 @@ def puede_ver_pedido(pedido):
         return True
 
     if rol == "carga":
-        return pedido.estado in ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado"]
+        return pedido.estado in ["Cargando Pedido", "Etiqueta Lista", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado"]
 
     if rol == "despacho":
         return pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]
