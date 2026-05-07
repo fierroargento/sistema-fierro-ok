@@ -9525,10 +9525,117 @@ def asegurar_configuracion_inicial():
             db.session.add(ConfiguracionSistema(clave=clave, valor=valor, descripcion=descripcion))
     db.session.commit()
 
-@app.route("/pedido/<int:id>/agregar-item", methods=["GET", "POST"])
+
+def extraer_items_comprobante_dux_desde_pdf(archivo_pdf):
+    """
+    Lee un comprobante DUX en PDF con texto real y devuelve items detectados.
+    APB: esto solo precarga datos. El operador siempre confirma antes de guardar.
+    """
+    items = []
+    texto = ""
+
+    if not archivo_pdf or not archivo_pdf.filename:
+        return {"ok": False, "items": [], "texto": "", "error": "No se recibió archivo PDF."}
+
+    try:
+        archivo_pdf.stream.seek(0)
+        contenido = archivo_pdf.read()
+        archivo_pdf.stream.seek(0)
+
+        doc = fitz.open(stream=contenido, filetype="pdf")
+        try:
+            partes = []
+            for page in doc:
+                partes.append(page.get_text("text") or "")
+            texto = "\n".join(partes)
+        finally:
+            doc.close()
+    except Exception as e:
+        try:
+            archivo_pdf.stream.seek(0)
+        except Exception:
+            pass
+        return {"ok": False, "items": [], "texto": "", "error": f"No se pudo leer el PDF DUX: {e}"}
+
+    lineas = [l.strip() for l in texto.splitlines() if l.strip()]
+
+    # Formato DUX observado:
+    # C-MDF-088 - CUADRO COFFEE CORAZON 22X43 1,00 7.226,28 7.226,28 21,00 8.743,80
+    patron_linea = re.compile(
+        r"^([A-Z0-9][A-Z0-9_\-\.\/]{1,40})\s*-\s*(.+?)\s+([0-9]+(?:[\.,][0-9]+)?)\s+",
+        re.IGNORECASE,
+    )
+
+    for linea in lineas:
+        m = patron_linea.search(linea)
+        if not m:
+            continue
+
+        sku = (m.group(1) or "").strip().upper()
+        descripcion = (m.group(2) or "").strip()
+        cantidad_txt = (m.group(3) or "1").replace(".", "").replace(",", ".")
+
+        try:
+            cantidad_float = float(cantidad_txt)
+            cantidad = int(cantidad_float) if cantidad_float.is_integer() else int(round(cantidad_float))
+        except Exception:
+            cantidad = 1
+
+        if cantidad < 1:
+            cantidad = 1
+
+        if sku and descripcion:
+            items.append({
+                "sku": sku,
+                "descripcion": descripcion,
+                "cantidad": cantidad,
+                "linea_original": linea,
+            })
+
+    # Fallback: buscar una línea que empiece con algo parecido a SKU y tenga " - "
+    if not items:
+        for linea in lineas:
+            if " - " not in linea:
+                continue
+            partes = linea.split(" - ", 1)
+            sku = partes[0].strip().upper()
+            resto = partes[1].strip()
+            if not re.match(r"^[A-Z0-9][A-Z0-9_\-\.\/]{1,40}$", sku):
+                continue
+            numeros = re.findall(r"\b[0-9]+(?:[\.,][0-9]+)?\b", resto)
+            cantidad = 1
+            if numeros:
+                try:
+                    cantidad = int(float(numeros[0].replace(".", "").replace(",", ".")))
+                except Exception:
+                    cantidad = 1
+            descripcion = resto
+            if numeros:
+                descripcion = resto.split(numeros[0], 1)[0].strip()
+            if sku and descripcion:
+                items.append({
+                    "sku": sku,
+                    "descripcion": descripcion,
+                    "cantidad": max(cantidad, 1),
+                    "linea_original": linea,
+                })
+
+    return {
+        "ok": bool(items),
+        "items": items,
+        "texto": texto[:4000],
+        "error": "" if items else "No se detectaron items en el comprobante DUX.",
+    }
+
 @app.route("/pedido/<int:id>/agregar-item", methods=["GET", "POST"])
 def agregar_item_pedido(id):
     if rol_actual() not in ["admin", "carga"]:
+        registrar_auditoria(
+            "Intento no autorizado de agregar item",
+            entidad="pedido",
+            entidad_id=id,
+            detalle=f"Rol sin permiso: {rol_actual()}"
+        )
         return redirect(url_for("inicio", error="No tenés permisos para agregar items."))
 
     pedido = Pedido.query.get_or_404(id)
@@ -9536,13 +9643,68 @@ def agregar_item_pedido(id):
     if pedido.estado in ["Despachado", "Finalizado"]:
         return redirect(url_for("detalle_pedido", id=pedido.id, error="No se pueden agregar items a un pedido despachado o finalizado."))
 
+    datos_form = {
+        "sku": "",
+        "descripcion": "",
+        "cantidad": 1,
+        "comprobante_dux_url": "",
+        "comprobante_dux_public_id": "",
+    }
+    items_detectados = []
+    mensaje_ok = ""
+    error = ""
+
     if request.method == "POST":
-        sku = (request.form.get("sku") or "").strip().upper()
-        descripcion = (request.form.get("descripcion") or "").strip()
-        cantidad_raw = (request.form.get("cantidad") or "1").strip()
+        accion = (request.form.get("accion") or "guardar").strip()
+        archivo = request.files.get("comprobante_dux")
+
+        datos_form["sku"] = (request.form.get("sku") or "").strip().upper()
+        datos_form["descripcion"] = (request.form.get("descripcion") or "").strip()
+        datos_form["cantidad"] = (request.form.get("cantidad") or "1").strip()
+        datos_form["comprobante_dux_url"] = (request.form.get("comprobante_dux_url") or "").strip()
+        datos_form["comprobante_dux_public_id"] = (request.form.get("comprobante_dux_public_id") or "").strip()
+
+        if accion == "leer_pdf":
+            if not archivo or not archivo.filename:
+                error = "Subí un comprobante DUX en PDF para leer los items."
+                return render_template("agregar_item_pedido.html", pedido=pedido, error=error, datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
+
+            nombre_archivo = (archivo.filename or "").lower()
+            if not nombre_archivo.endswith(".pdf"):
+                error = "La lectura automática solo funciona con PDF de DUX. Para imagen, cargá los datos manualmente y guardá con comprobante."
+                return render_template("agregar_item_pedido.html", pedido=pedido, error=error, datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
+
+            resultado_pdf = extraer_items_comprobante_dux_desde_pdf(archivo)
+            items_detectados = resultado_pdf.get("items", []) or []
+
+            if not items_detectados:
+                error = resultado_pdf.get("error") or "No se detectaron items en el comprobante DUX."
+                return render_template("agregar_item_pedido.html", pedido=pedido, error=error, datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
+
+            archivo.stream.seek(0)
+            comprobante = guardar_comprobante_dux_subido(archivo)
+            if not comprobante.get("url"):
+                error = "Se leyeron los items, pero no se pudo guardar el comprobante DUX. Volvé a intentar."
+                return render_template("agregar_item_pedido.html", pedido=pedido, error=error, datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
+
+            primer_item = items_detectados[0]
+            datos_form["sku"] = primer_item.get("sku", "")
+            datos_form["descripcion"] = primer_item.get("descripcion", "")
+            datos_form["cantidad"] = primer_item.get("cantidad", 1)
+            datos_form["comprobante_dux_url"] = comprobante.get("url", "")
+            datos_form["comprobante_dux_public_id"] = comprobante.get("public_id", "")
+            mensaje_ok = "Comprobante leído. Revisá los datos detectados y confirmá el agregado."
+
+            return render_template("agregar_item_pedido.html", pedido=pedido, error="", datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
+
+        sku = datos_form["sku"]
+        descripcion = datos_form["descripcion"]
+        cantidad_raw = str(datos_form["cantidad"] or "1").strip()
+        comprobante_url = datos_form["comprobante_dux_url"]
+        comprobante_public_id = datos_form["comprobante_dux_public_id"]
 
         try:
-            cantidad = int(cantidad_raw)
+            cantidad = int(float(cantidad_raw.replace(",", ".")))
         except Exception:
             cantidad = 1
 
@@ -9550,7 +9712,17 @@ def agregar_item_pedido(id):
             cantidad = 1
 
         if not sku:
-            return render_template("agregar_item_pedido.html", pedido=pedido, error="Ingresá un SKU.")
+            return render_template("agregar_item_pedido.html", pedido=pedido, error="Ingresá un SKU.", datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
+
+        if not comprobante_url:
+            if not archivo or not archivo.filename:
+                return render_template("agregar_item_pedido.html", pedido=pedido, error="Adjuntá el comprobante DUX del agregado. Sin comprobante no se guarda.", datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
+            comprobante = guardar_comprobante_dux_subido(archivo)
+            comprobante_url = comprobante.get("url", "")
+            comprobante_public_id = comprobante.get("public_id", "")
+
+        if not comprobante_url:
+            return render_template("agregar_item_pedido.html", pedido=pedido, error="No se pudo guardar el comprobante DUX. Volvé a intentar.", datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
 
         if not descripcion:
             producto = Producto.query.filter(Producto.sku.ilike(sku)).first()
@@ -9566,21 +9738,27 @@ def agregar_item_pedido(id):
             descripcion=descripcion,
             cantidad=cantidad
         )
-
         db.session.add(item)
 
-        registrar_auditoria(
-            "Agregó item al pedido",
-            entidad="pedido",
-            entidad_id=pedido.id,
-            detalle=f"SKU {sku} x{cantidad} - {descripcion}"
-        )
+        pedido.comprobante_dux_archivo = comprobante_url
 
         db.session.commit()
 
+        registrar_auditoria(
+            "Agregó item al pedido con comprobante DUX",
+            entidad="pedido",
+            entidad_id=pedido.id,
+            detalle=(
+                f"SKU {sku} x{cantidad} - {descripcion}. "
+                f"Comprobante DUX: {comprobante_url}. "
+                f"Cloudinary public_id: {comprobante_public_id}"
+            )
+        )
+
         return redirect(url_for("detalle_pedido", id=pedido.id, ok=f"Item agregado: {sku} x{cantidad}"))
 
-    return render_template("agregar_item_pedido.html", pedido=pedido, error="")
+    return render_template("agregar_item_pedido.html", pedido=pedido, error="", datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
+
 def asegurar_usuarios_iniciales():
     if UsuarioSistema.query.count() > 0:
         return
