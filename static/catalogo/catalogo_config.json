@@ -1,0 +1,33 @@
+{
+  "PP6040": {
+    "nombre": "Parrilla Plegable PP6040",
+    "upsells": [
+      { "sku": "KITPACH", "prioridad": 1 },
+      { "sku": "KPADES", "prioridad": 2 }
+    ]
+  },
+  "B4030H": {
+    "nombre": "Brasero 40x30",
+    "upsells": [
+      { "sku": "KITPACH", "prioridad": 1 }
+    ]
+  },
+  "B5030H": {
+    "nombre": "Brasero 50x30",
+    "upsells": [
+      { "sku": "KITPACH", "prioridad": 1 }
+    ]
+  },
+  "BPPC01": {
+    "nombre": "Base Parrilla",
+    "upsells": [
+      { "sku": "KPADES", "prioridad": 1 }
+    ]
+  },
+  "KITPACH": {
+    "nombre": "Kit Pala y Atizador"
+  },
+  "KPADES": {
+    "nombre": "Kit Pala y Atizador Desarmable"
+  }
+}
