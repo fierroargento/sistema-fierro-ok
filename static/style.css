@@ -1892,3 +1892,89 @@ a.btn-danger:hover {
     flex-wrap: wrap;
     margin-top: 8px;
 }
+
+/* =========================================================
+   FIX APB - Inicio sin desborde horizontal
+   Evita que la tabla empuje fuera de pantalla.
+   ========================================================= */
+.main {
+    overflow-x: hidden;
+}
+
+.listado-card {
+    overflow-x: hidden !important;
+    max-width: 100%;
+}
+
+.tabla-pedidos {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+}
+
+.tabla-pedidos th,
+.tabla-pedidos td {
+    min-width: 0 !important;
+    max-width: none !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+.tabla-pedidos th:nth-child(1),
+.tabla-pedidos td:nth-child(1) { width: 16% !important; }
+
+.tabla-pedidos th:nth-child(2),
+.tabla-pedidos td:nth-child(2) { width: 12% !important; }
+
+.tabla-pedidos th:nth-child(3),
+.tabla-pedidos td:nth-child(3) { width: 10% !important; }
+
+.tabla-pedidos th:nth-child(4),
+.tabla-pedidos td:nth-child(4) { width: 14% !important; }
+
+.tabla-pedidos th:nth-child(5),
+.tabla-pedidos td:nth-child(5) {
+    width: 10% !important;
+    white-space: nowrap;
+}
+
+.tabla-pedidos th:nth-child(6),
+.tabla-pedidos td:nth-child(6) { width: 17% !important; }
+
+.tabla-pedidos th:nth-child(7),
+.tabla-pedidos td:nth-child(7) {
+    width: 16% !important;
+    text-align: center;
+}
+
+.tabla-pedidos th:nth-child(8),
+.tabla-pedidos td:nth-child(8),
+.tabla-pedidos th:nth-child(9),
+.tabla-pedidos td:nth-child(9),
+.tabla-pedidos th:nth-child(10),
+.tabla-pedidos td:nth-child(10) {
+    width: 120px !important;
+    min-width: 0 !important;
+    text-align: center;
+}
+
+.tabla-pedidos .btn,
+.tabla-pedidos .btn-accion-rapida {
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 132px;
+    padding: 8px 8px;
+    font-size: 12px;
+    white-space: normal;
+    line-height: 1.15;
+}
+
+@media (max-width: 1200px) {
+    .tabla-pedidos {
+        min-width: 0 !important;
+    }
+}
+
