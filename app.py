@@ -9525,7 +9525,17 @@ def asegurar_configuracion_inicial():
             db.session.add(ConfiguracionSistema(clave=clave, valor=valor, descripcion=descripcion))
     db.session.commit()
 
+@app.route("/pedido/<int:id>/agregar-item", methods=["GET", "POST"])
+def agregar_item_pedido(id):
+    if rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("inicio", error="No tenés permisos para agregar items."))
 
+    pedido = Pedido.query.get_or_404(id)
+
+    if pedido.estado in ["Despachado", "Finalizado"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No se pueden agregar items a un pedido despachado o finalizado."))
+
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok="Función Agregar item pendiente de implementar."))
 def asegurar_usuarios_iniciales():
     if UsuarioSistema.query.count() > 0:
         return
