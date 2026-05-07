@@ -9526,6 +9526,7 @@ def asegurar_configuracion_inicial():
     db.session.commit()
 
 @app.route("/pedido/<int:id>/agregar-item", methods=["GET", "POST"])
+@app.route("/pedido/<int:id>/agregar-item", methods=["GET", "POST"])
 def agregar_item_pedido(id):
     if rol_actual() not in ["admin", "carga"]:
         return redirect(url_for("inicio", error="No tenés permisos para agregar items."))
@@ -9535,7 +9536,51 @@ def agregar_item_pedido(id):
     if pedido.estado in ["Despachado", "Finalizado"]:
         return redirect(url_for("detalle_pedido", id=pedido.id, error="No se pueden agregar items a un pedido despachado o finalizado."))
 
-    return redirect(url_for("detalle_pedido", id=pedido.id, ok="Función Agregar item pendiente de implementar."))
+    if request.method == "POST":
+        sku = (request.form.get("sku") or "").strip().upper()
+        descripcion = (request.form.get("descripcion") or "").strip()
+        cantidad_raw = (request.form.get("cantidad") or "1").strip()
+
+        try:
+            cantidad = int(cantidad_raw)
+        except Exception:
+            cantidad = 1
+
+        if cantidad < 1:
+            cantidad = 1
+
+        if not sku:
+            return render_template("agregar_item_pedido.html", pedido=pedido, error="Ingresá un SKU.")
+
+        if not descripcion:
+            producto = Producto.query.filter(Producto.sku.ilike(sku)).first()
+            if producto:
+                descripcion = producto.descripcion
+
+        if not descripcion:
+            descripcion = sku
+
+        item = PedidoItem(
+            pedido_id=pedido.id,
+            sku=sku,
+            descripcion=descripcion,
+            cantidad=cantidad
+        )
+
+        db.session.add(item)
+
+        registrar_auditoria(
+            "Agregó item al pedido",
+            entidad="pedido",
+            entidad_id=pedido.id,
+            detalle=f"SKU {sku} x{cantidad} - {descripcion}"
+        )
+
+        db.session.commit()
+
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok=f"Item agregado: {sku} x{cantidad}"))
+
+    return render_template("agregar_item_pedido.html", pedido=pedido, error="")
 def asegurar_usuarios_iniciales():
     if UsuarioSistema.query.count() > 0:
         return

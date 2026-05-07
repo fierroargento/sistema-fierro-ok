@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card detalle-card">
+    <h2>Agregar item al pedido #{{ pedido.id }}</h2>
+    <p>{{ pedido.cliente }} | {{ pedido.canal }} | Estado: <strong>{{ pedido.estado }}</strong></p>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" class="form-grid">
+        <div>
+            <label>SKU</label>
+            <input type="text" name="sku" placeholder="Ej: KITPACH" required>
+        </div>
+
+        <div>
+            <label>Descripción</label>
+            <input type="text" name="descripcion" placeholder="Si queda vacío, intenta traerla del padrón">
+        </div>
+
+        <div>
+            <label>Cantidad</label>
+            <input type="number" name="cantidad" min="1" value="1" required>
+        </div>
+
+        <div style="margin-top:18px; display:flex; gap:10px;">
+            <a href="{{ url_for('detalle_pedido', id=pedido.id) }}" class="btn btn-secundario">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Agregar item</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
