@@ -2062,3 +2062,53 @@ a.btn-danger:hover {
         min-width: 0 !important;
     }
 }
+
+
+/* =========================================================
+   WhatsApp APB - estados de entrega/lectura tipo doble tilde
+   ========================================================= */
+.wa-estado {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 20px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1;
+    background: #e2e8f0;
+    color: #334155;
+    border: 1px solid rgba(51, 65, 85, 0.12);
+}
+
+.wa-estado-enviado {
+    background: #eef2ff;
+    color: #3730a3;
+    border-color: #c7d2fe;
+}
+
+.wa-estado-entregado {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+
+.wa-estado-leido {
+    background: #e0f2fe;
+    color: #0369a1;
+    border-color: #7dd3fc;
+}
+
+.wa-estado-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fecaca;
+}
+
+.wa-estado-pendiente {
+    background: #f8fafc;
+    color: #64748b;
+    border-color: #e2e8f0;
+}

@@ -552,7 +552,22 @@
                 <div class="wa-msg-meta">
                     <strong>{{ m.autor or ("cliente" if m.direccion == "in" else "sistema") }}</strong>
                     <span>{{ fecha_argentina(m.fecha).strftime("%d/%m/%Y %H:%M") if m.fecha else "" }}</span>
-                    {% if m.estado %}<span class="wa-estado">{{ m.estado }}</span>{% endif %}
+                    {% if m.direccion == "out" %}
+                        {% set estado_wa = (m.estado or "pendiente")|lower %}
+                        {% if estado_wa in ["leido", "leído", "read"] %}
+                        <span class="wa-estado wa-estado-leido" title="Leído por el cliente">✓✓ leído</span>
+                        {% elif estado_wa in ["entregado", "delivered"] %}
+                        <span class="wa-estado wa-estado-entregado" title="Entregado al teléfono del cliente">✓✓ entregado</span>
+                        {% elif estado_wa in ["enviado", "sent"] %}
+                        <span class="wa-estado wa-estado-enviado" title="Enviado por WhatsApp">✓ enviado</span>
+                        {% elif estado_wa in ["error", "failed", "fallido"] %}
+                        <span class="wa-estado wa-estado-error" title="Falló el envío">⚠️ falló</span>
+                        {% else %}
+                        <span class="wa-estado wa-estado-pendiente" title="Pendiente de confirmación">⏳ pendiente</span>
+                        {% endif %}
+                    {% elif m.estado %}
+                    <span class="wa-estado">{{ m.estado }}</span>
+                    {% endif %}
                 </div>
                 <div class="wa-msg-body">{{ m.texto }}</div>
                 {% if m.error %}<div class="wa-msg-error">{{ m.error }}</div>{% endif %}
