@@ -423,10 +423,41 @@ def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
 
 def wa_iniciar_cross_sell(pedido):
     from app import normalizar_telefono
+
     tel = normalizar_telefono(pedido.telefono)
     productos = obtener_productos_a_ofrecer(pedido)
+
     if not productos or not tel:
         return
+
+    empresa = str(getattr(pedido, "empresa_envio", "") or "").strip()
+    tipo_entrega = str(getattr(pedido, "tipo_entrega", "") or "").strip()
+    sucursal = str(getattr(pedido, "sucursal_nombre", "") or "").strip()
+
+    texto_operativo = (
+        "Perfecto, ya tenemos todo para avanzar con el despacho.\n\n"
+    )
+
+    if empresa:
+        texto_operativo += f"El envío va a salir por *{empresa}*"
+        if tipo_entrega:
+            texto_operativo += f" con entrega en *{tipo_entrega}*"
+        texto_operativo += ".\n"
+
+    if sucursal:
+        texto_operativo += f"\nSucursal seleccionada: *{sucursal}*.\n"
+
+    texto_operativo += (
+        "\nEn cuanto tengamos el número de seguimiento, te lo compartimos por acá."
+    )
+
+    wa_enviar_texto(tel, texto_operativo)
+
+    wa_enviar_texto(
+        tel,
+        "Aprovecho también para mostrarte algunos accesorios que suelen agregar junto con este pedido 👇"
+    )
+
     primer_sku = productos[0]
     _guardar_estado_wa(pedido, f"cross_sell:{primer_sku}:0", tel)
     wa_ofrecer_producto(tel, primer_sku)
