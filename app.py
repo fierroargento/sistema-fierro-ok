@@ -9622,8 +9622,16 @@ def asegurar_configuracion_inicial():
 
 def extraer_items_comprobante_dux_desde_pdf(archivo_pdf):
     """
-    Lee un comprobante DUX en PDF con texto real y devuelve items detectados.
-    APB: esto solo precarga datos. El operador siempre confirma antes de guardar.
+    Lee un comprobante DUX en PDF con texto real y devuelve todos los items detectados.
+
+    Formato recomendado DUX:
+        Código | Descripción | Cant. | Precio Uni. | Sub Total | % IVA | Sub Total c/ IVA
+
+    Regla APB:
+    - El SKU manda.
+    - Si el SKU existe en la base de productos, se usa esa descripción.
+    - La descripción del PDF queda como fallback.
+    - La cantidad se toma de la columna Cant., no de números dentro de la descripción.
     """
     items = []
     texto = ""
@@ -9653,12 +9661,21 @@ def extraer_items_comprobante_dux_desde_pdf(archivo_pdf):
 
     lineas = [l.strip() for l in texto.splitlines() if l.strip()]
 
-    # Formato DUX observado:
-    # C-MDF-088 - CUADRO COFFEE CORAZON 22X43 1,00 7.226,28 7.226,28 21,00 8.743,80
+    # Formatos DUX soportados:
+    # Nuevo recomendado:
+    # C-MDF-151 CUADRO FRASES 3 PIEZAS 43X20 1,00 14.450,99 14.450,99 21,00 17.485,70
+    # Anterior:
+    # C-MDF-151 - CUADRO FRASES 3 PIEZAS 43X20 1,00 14.450,99 14.450,99 21,00 17.485,70
+    # La cantidad se captura SOLO si está seguida por un precio, evitando tomar "3" de "3 PIEZAS".
     patron_linea = re.compile(
-        r"^([A-Z0-9][A-Z0-9_\-\.\/]{1,40})\s*-\s*(.+?)\s+([0-9]+(?:[\.,][0-9]+)?)\s+",
+        r"^([A-Z0-9][A-Z0-9_\-\.\/]{1,40})\s+(?:-\s+)?(.+?)\s+"
+        r"([0-9]+(?:[\.,][0-9]{1,3})?)\s+"
+        r"([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}|[0-9]+,[0-9]{2})\s+"
+        r"([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}|[0-9]+,[0-9]{2})",
         re.IGNORECASE,
     )
+
+    vistos = set()
 
     for linea in lineas:
         m = patron_linea.search(linea)
@@ -9666,7 +9683,7 @@ def extraer_items_comprobante_dux_desde_pdf(archivo_pdf):
             continue
 
         sku = (m.group(1) or "").strip().upper()
-        descripcion = (m.group(2) or "").strip()
+        descripcion_pdf = (m.group(2) or "").strip(" -")
         cantidad_txt = (m.group(3) or "1").replace(".", "").replace(",", ".")
 
         try:
@@ -9678,41 +9695,24 @@ def extraer_items_comprobante_dux_desde_pdf(archivo_pdf):
         if cantidad < 1:
             cantidad = 1
 
-        if sku and descripcion:
+        descripcion = descripcion_pdf
+        try:
+            producto = Producto.query.filter(Producto.sku.ilike(sku)).first()
+            if producto and producto.descripcion:
+                descripcion = producto.descripcion.strip()
+        except Exception:
+            # Si el parser se usa fuera de contexto DB, no rompe: usa descripción del PDF.
+            descripcion = descripcion_pdf
+
+        clave = (sku, descripcion, cantidad, linea)
+        if sku and descripcion and clave not in vistos:
+            vistos.add(clave)
             items.append({
                 "sku": sku,
                 "descripcion": descripcion,
                 "cantidad": cantidad,
                 "linea_original": linea,
             })
-
-    # Fallback: buscar una línea que empiece con algo parecido a SKU y tenga " - "
-    if not items:
-        for linea in lineas:
-            if " - " not in linea:
-                continue
-            partes = linea.split(" - ", 1)
-            sku = partes[0].strip().upper()
-            resto = partes[1].strip()
-            if not re.match(r"^[A-Z0-9][A-Z0-9_\-\.\/]{1,40}$", sku):
-                continue
-            numeros = re.findall(r"\b[0-9]+(?:[\.,][0-9]+)?\b", resto)
-            cantidad = 1
-            if numeros:
-                try:
-                    cantidad = int(float(numeros[0].replace(".", "").replace(",", ".")))
-                except Exception:
-                    cantidad = 1
-            descripcion = resto
-            if numeros:
-                descripcion = resto.split(numeros[0], 1)[0].strip()
-            if sku and descripcion:
-                items.append({
-                    "sku": sku,
-                    "descripcion": descripcion,
-                    "cantidad": max(cantidad, 1),
-                    "linea_original": linea,
-                })
 
     return {
         "ok": bool(items),
