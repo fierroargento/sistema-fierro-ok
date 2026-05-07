@@ -67,7 +67,7 @@
                             💬<span class="contacto-badge-count">{{ p.ml_mensajes_pendientes_count or 1 }}</span>
                         </span>
                         {% elif ml_pedido_tiene_chat_iniciado(p) %}
-                        <span class="contacto-badge contacto-badge-ok" title="Chat iniciado / contacto inicial enviado">💬</span>
+                        <span class="contacto-badge contacto-badge-ok" title="Contacto iniciado por WhatsApp">💬</span>
                         {% else %}
                         <span class="contacto-pendiente" title="Sin contacto iniciado"></span>
                         {% endif %}
