@@ -19,18 +19,28 @@
 
         <div class="menu">
             <a href="{{ url_for('inicio') }}">Inicio</a>
+
             {% if puede_crear_pedido() %}
             <a href="{{ url_for('nuevo_pedido') }}">Nuevo Pedido</a>
             {% endif %}
+
             {% if puede_ver_historico() %}
             <a href="{{ url_for('historico') }}">Histórico</a>
             {% endif %}
+
+            {% if rol_actual in ["admin", "carga"] %}
+            <a href="{{ url_for('inicio') }}?filtro=preparacion">
+                Pedidos en preparación
+            </a>
+            {% endif %}
+
             {% if rol_actual == "admin" %}
             <a href="{{ url_for('admin_productos') }}">Productos</a>
             <a href="{{ url_for('admin_integraciones') }}">Integraciones</a>
             <a href="{{ url_for('admin_usuarios') }}">Usuarios</a>
             <a href="{{ url_for('admin_auditoria') }}">Auditoría</a>
             {% endif %}
+
             <a href="{{ url_for('ayuda') }}">Ayuda</a>
 
             <div class="menu-user">
