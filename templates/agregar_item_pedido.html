@@ -5,11 +5,16 @@
     <h2>Agregar item al pedido #{{ pedido.id }}</h2>
     <p>{{ pedido.cliente }} | {{ pedido.canal }} | Estado: <strong>{{ pedido.estado }}</strong></p>
 
+    <div class="detalle-box" style="margin:14px 0; border-left:5px solid #f97316;">
+        <strong>Control APB:</strong>
+        para agregar productos extra, primero cargá el comprobante DUX correspondiente.
+    </div>
+
     {% if error %}
     <div class="error">{{ error }}</div>
     {% endif %}
 
-    <form method="POST" class="form-grid">
+    <form method="POST" enctype="multipart/form-data" class="form-grid">
         <div>
             <label>SKU</label>
             <input type="text" name="sku" placeholder="Ej: KITPACH" required>
@@ -25,9 +30,14 @@
             <input type="number" name="cantidad" min="1" value="1" required>
         </div>
 
+        <div>
+            <label>Comprobante DUX del agregado</label>
+            <input type="file" name="comprobante_dux" accept=".pdf,.jpg,.jpeg,.png,.webp" required>
+        </div>
+
         <div style="margin-top:18px; display:flex; gap:10px;">
             <a href="{{ url_for('detalle_pedido', id=pedido.id) }}" class="btn btn-secundario">Cancelar</a>
-            <button type="submit" class="btn btn-primario">Agregar item</button>
+            <button type="submit" class="btn btn-primario">Agregar item con comprobante</button>
         </div>
     </form>
 </div>
