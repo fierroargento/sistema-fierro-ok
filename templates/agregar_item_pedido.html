@@ -60,8 +60,8 @@
         <input type="hidden" name="comprobante_dux_url" value="{{ datos.comprobante_dux_url if datos else '' }}">
         <input type="hidden" name="comprobante_dux_public_id" value="{{ datos.comprobante_dux_public_id if datos else '' }}">
 
-        <div style="display:grid; grid-template-columns: 180px 1fr 120px; gap:14px; align-items:end; margin-bottom:16px;">
-            <div>
+        {% if items_detectados %}
+        <div style="display:grid; grid-template-columns: 180px 1fr 120px; gap:14px; align-items:end; margin-bottom:16px;">            <div>
                 <label>SKU</label>
                 <input type="text" name="sku" value="{{ datos.sku if datos else '' }}" placeholder="Ej: KITPACH" required>
             </div>
@@ -76,6 +76,7 @@
                 <input type="number" name="cantidad" min="1" value="{{ datos.cantidad if datos else 1 }}" required>
             </div>
         </div>
+        {% endif %}
 
         <div style="display:grid; grid-template-columns: 1fr auto auto; gap:12px; align-items:end;">
             <div>
@@ -93,13 +94,29 @@
                 {% endif %}
             </div>
 
-            <button type="submit" name="accion" value="leer_pdf" class="btn btn-secundario" formnovalidate>
+            {% if not items_detectados %}
+            <button
+                type="submit"
+                name="accion"
+                value="leer_pdf"
+                class="btn btn-secundario"
+                formnovalidate
+            >
                 Leer PDF DUX
             </button>
+            {% endif %}
 
-            <button type="submit" name="accion" value="guardar" class="btn btn-primario">
+            {% if items_detectados %}
+            <button
+                type="submit"
+                name="accion"
+                value="guardar"
+                class="btn btn-primario"
+                onclick="this.disabled=true; this.innerText='Procesando agregado...'; this.form.submit();"
+            >
                 Confirmar y agregar item
             </button>
+            {% endif %}
         </div>
     </form>
 </div>
