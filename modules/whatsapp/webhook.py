@@ -29,6 +29,79 @@ def _buscar_pedido_por_telefono(telefono):
     return buscar_pedido_activo_por_telefono(telefono)
 
 
+
+def _normalizar_estado_meta(estado):
+    estado = str(estado or "").strip().lower()
+    mapa = {
+        "sent": "enviado",
+        "delivered": "entregado",
+        "read": "leido",
+        "failed": "error",
+    }
+    return mapa.get(estado, estado or "pendiente")
+
+
+def _procesar_statuses_whatsapp(statuses):
+    """
+    Actualiza el historial interno de WhatsApp con los estados que envía Meta.
+    Meta informa estos eventos para mensajes salientes: sent, delivered, read, failed.
+    """
+    if not statuses:
+        return
+
+    try:
+        from app import db, WhatsAppMensaje
+    except Exception as e:
+        print("[WA-STATUS] No se pudo importar db/WhatsAppMensaje:", e)
+        return
+
+    hubo_cambios = False
+
+    for status in statuses:
+        message_id = str(status.get("id") or "").strip()
+        estado_meta = str(status.get("status") or "").strip().lower()
+        estado_normalizado = _normalizar_estado_meta(estado_meta)
+
+        if not message_id:
+            continue
+
+        try:
+            msg = WhatsAppMensaje.query.filter_by(message_id_meta=message_id).first()
+            if not msg:
+                print(f"[WA-STATUS] No se encontró mensaje para id Meta {message_id} estado={estado_meta}")
+                continue
+
+            # APB: no degradar estados. Si ya fue leído, no volver a entregado/enviado.
+            prioridad = {"pendiente": 0, "enviado": 1, "entregado": 2, "leido": 3, "error": 4, "recibido": 5}
+            estado_actual = str(msg.estado or "").strip().lower()
+
+            if estado_normalizado == "error":
+                errores = status.get("errors") or []
+                if errores:
+                    try:
+                        msg.error = json.dumps(errores, ensure_ascii=False)[:1000]
+                    except Exception:
+                        msg.error = str(errores)[:1000]
+                msg.estado = "error"
+                hubo_cambios = True
+                continue
+
+            if prioridad.get(estado_normalizado, 0) >= prioridad.get(estado_actual, 0):
+                msg.estado = estado_normalizado
+                if estado_normalizado in ["enviado", "entregado", "leido"]:
+                    msg.error = ""
+                hubo_cambios = True
+
+        except Exception as e:
+            print(f"[WA-STATUS] Error procesando estado {estado_meta} para {message_id}:", e)
+
+    if hubo_cambios:
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print("[WA-STATUS] Error guardando estados:", e)
+
 def _routear_mensaje(pedido, texto, telefono):
     """
     Decide qué flujo manejar según el estado actual del pedido.
@@ -131,7 +204,13 @@ def registrar_webhook(app):
             entry   = (data.get("entry") or [{}])[0]
             changes = (entry.get("changes") or [{}])[0]
             value   = changes.get("value") or {}
+            statuses = value.get("statuses") or []
             messages = value.get("messages") or []
+
+            # Estados de entrega/lectura de mensajes salientes (sent/delivered/read/failed).
+            # Esto alimenta las tildes del chat interno del pedido.
+            if statuses:
+                _procesar_statuses_whatsapp(statuses)
 
             for msg in messages:
                 tipo     = msg.get("type")
