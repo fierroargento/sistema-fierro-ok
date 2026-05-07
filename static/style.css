@@ -269,6 +269,13 @@ textarea {
 .btn-accion-rapida:hover {
     transform: scale(1.03);
 }
+.detalle-box .btn-accion-rapida,
+.detalle-box .btn-accion-rapida:visited,
+.detalle-box .btn-accion-rapida:hover,
+.detalle-box .btn-accion-rapida:active {
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
 
 .btn-eliminar {
     background: #dc2626;
