@@ -2742,6 +2742,75 @@ def requiere_comprobante_dux_por_agregado(pedido, canal, ml_tipo, items_texto_nu
     )
 
 
+
+
+def extraer_datos_cliente_comprobante_dux_desde_pdf(archivo_pdf):
+    """Extrae datos de cabecera de un comprobante DUX PDF.
+
+    APB:
+    - Completa solo los campos que DUX informa con claridad.
+    - No inventa teléfono ni mail si no figuran en el comprobante.
+    - Devuelve también el texto recortado para auditoría/diagnóstico.
+    """
+    if not archivo_pdf or not archivo_pdf.filename:
+        return {"ok": False, "datos": {}, "texto": "", "error": "No se recibió archivo PDF."}
+
+    try:
+        archivo_pdf.stream.seek(0)
+        contenido = archivo_pdf.read()
+        archivo_pdf.stream.seek(0)
+
+        doc = fitz.open(stream=contenido, filetype="pdf")
+        try:
+            partes = []
+            for page in doc:
+                partes.append(page.get_text("text") or "")
+            texto = "\n".join(partes)
+        finally:
+            doc.close()
+    except Exception as e:
+        try:
+            archivo_pdf.stream.seek(0)
+        except Exception:
+            pass
+        return {"ok": False, "datos": {}, "texto": "", "error": f"No se pudo leer la cabecera del PDF DUX: {e}"}
+
+    def _limpiar(valor):
+        return re.sub(r"\s+", " ", str(valor or "").strip()).strip(" -:")
+
+    datos = {}
+
+    m_numero = re.search(r"N[º°]\s*([0-9]{4,5}-[0-9]{6,10})", texto, re.IGNORECASE)
+    if m_numero:
+        datos["id_venta"] = _limpiar(m_numero.group(1))
+
+    m_cliente = re.search(r"SEÑOR/ES:\s*(.*?)(?:\s+IVA:|\s+CUIT:|\n)", texto, re.IGNORECASE | re.S)
+    if m_cliente:
+        datos["cliente"] = _limpiar(m_cliente.group(1))
+
+    m_cuit = re.search(r"CUIT:\s*([0-9.\-]{7,20})", texto, re.IGNORECASE)
+    if m_cuit:
+        datos["dni"] = re.sub(r"\D", "", m_cuit.group(1))
+
+    m_domicilio = re.search(r"DOMICILIO:\s*(.*?)(?:\s+LOCALIDAD:|\n)", texto, re.IGNORECASE | re.S)
+    if m_domicilio:
+        datos["direccion"] = _limpiar(m_domicilio.group(1))
+
+    m_localidad = re.search(r"LOCALIDAD:\s*(.*?)(?:\s+PROVINCIA:|\n)", texto, re.IGNORECASE | re.S)
+    if m_localidad:
+        datos["localidad"] = _limpiar(m_localidad.group(1))
+
+    m_provincia = re.search(r"PROVINCIA:\s*(.*?)(?:\s+CONDICION|\s+CONDICIÓN|\n)", texto, re.IGNORECASE | re.S)
+    if m_provincia:
+        datos["provincia"] = _limpiar(m_provincia.group(1))
+
+    return {
+        "ok": bool(datos),
+        "datos": datos,
+        "texto": texto[:4000],
+        "error": "" if datos else "No se detectaron datos de cliente en el comprobante DUX.",
+    }
+
 def canal_requiere_dux_obligatorio(canal):
     return canal in ["Mayorista", "Presencial"]
 
@@ -8228,6 +8297,94 @@ def nuevo_pedido():
 
         canal = request.form.get("canal")
         ml_tipo = request.form.get("ml_tipo")
+
+        # APB Presencial / Mayorista:
+        # Importar DUX desde el primer paso permite autocompletar cliente/dirección
+        # y dejar los productos ya cargados para confirmar al final.
+        if accion_paso2 == "importar_dux_cliente":
+            form_data = request.form.to_dict()
+            form_data["current_step"] = "1"
+
+            archivo_importar_dux = request.files.get("comprobante_dux_importar")
+            if not archivo_importar_dux or not archivo_importar_dux.filename:
+                return render_template(
+                    "nuevo_pedido.html",
+                    error="Subí el PDF de DUX para importar los datos.",
+                    form_data=form_data,
+                    etiqueta_guardada=etiqueta_existente,
+                    comprobante_dux_guardado=comprobante_dux_existente,
+                    comprobante_pago_guardado=comprobante_pago_existente,
+                )
+
+            nombre_dux = (archivo_importar_dux.filename or "").lower()
+            if not nombre_dux.endswith(".pdf"):
+                return render_template(
+                    "nuevo_pedido.html",
+                    error="La importación automática solo funciona con PDF de DUX.",
+                    form_data=form_data,
+                    etiqueta_guardada=etiqueta_existente,
+                    comprobante_dux_guardado=comprobante_dux_existente,
+                    comprobante_pago_guardado=comprobante_pago_existente,
+                )
+
+            resultado_datos = extraer_datos_cliente_comprobante_dux_desde_pdf(archivo_importar_dux)
+            archivo_importar_dux.stream.seek(0)
+            resultado_items = extraer_items_comprobante_dux_desde_pdf(archivo_importar_dux)
+            items_detectados = resultado_items.get("items", []) or []
+
+            if not resultado_datos.get("ok") and not items_detectados:
+                return render_template(
+                    "nuevo_pedido.html",
+                    error=resultado_items.get("error") or resultado_datos.get("error") or "No se pudieron leer datos ni productos del PDF de DUX.",
+                    form_data=form_data,
+                    etiqueta_guardada=etiqueta_existente,
+                    comprobante_dux_guardado=comprobante_dux_existente,
+                    comprobante_pago_guardado=comprobante_pago_existente,
+                )
+
+            archivo_importar_dux.stream.seek(0)
+            subida_dux = guardar_comprobante_dux_subido(archivo_importar_dux)
+            comprobante_dux_existente = subida_dux.get("url", "")
+
+            if not comprobante_dux_existente:
+                return render_template(
+                    "nuevo_pedido.html",
+                    error="Se leyó el DUX, pero no se pudo guardar el comprobante. Volvé a intentar.",
+                    form_data=form_data,
+                    etiqueta_guardada=etiqueta_existente,
+                    comprobante_dux_guardado="",
+                    comprobante_pago_guardado=comprobante_pago_existente,
+                )
+
+            datos_dux = resultado_datos.get("datos", {}) or {}
+            for campo in ["cliente", "dni", "id_venta", "direccion", "localidad", "provincia"]:
+                valor_actual = (form_data.get(campo) or "").strip()
+                valor_dux = (datos_dux.get(campo) or "").strip()
+                if valor_dux and not valor_actual:
+                    form_data[campo] = valor_dux
+
+            if items_detectados:
+                form_data["items_texto"] = items_detectados_a_texto(items_detectados)
+
+            form_data["comprobante_dux_existente"] = comprobante_dux_existente
+            form_data["dux_importado_desde_cliente"] = "1"
+
+            partes_ok = []
+            if datos_dux:
+                partes_ok.append("datos del cliente")
+            if items_detectados:
+                partes_ok.append(f"{len(items_detectados)} producto(s)")
+            mensaje_ok = "DUX importado correctamente: " + " y ".join(partes_ok) + "."
+
+            return render_template(
+                "nuevo_pedido.html",
+                error="",
+                form_data=form_data,
+                etiqueta_guardada=etiqueta_existente,
+                comprobante_dux_guardado=comprobante_dux_existente,
+                comprobante_pago_guardado=comprobante_pago_existente,
+                ok_feedback=mensaje_ok,
+            )
 
         # APB Presencial / Mayorista:
         # DUX es obligatorio y además permite leer automáticamente los productos.

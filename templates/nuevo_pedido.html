@@ -92,6 +92,23 @@
                 <input name="dni" placeholder="DNI / CUIT" value="{{ form_data.get('dni', '') if form_data else '' }}">
                 <input name="telefono" placeholder="Teléfono (se normaliza automático)" value="{{ form_data.get('telefono', '') if form_data else '' }}">
                 <input name="mail" placeholder="Mail" value="{{ form_data.get('mail', '') if form_data else '' }}">
+
+                <div class="dux-import-card">
+                    <div class="dux-import-title">Importar datos desde DUX</div>
+                    <div class="form-help">
+                        Para ventas Presencial o Mayorista podés subir el comprobante DUX y el sistema completa cliente, CUIT, dirección/localidad/provincia e items detectados.
+                    </div>
+                    <input type="file" name="comprobante_dux_importar" id="comprobante_dux_importar" accept=".pdf">
+                    <button type="button" class="btn btn-secundario" id="btn_importar_dux_cliente" onclick="importarDuxCliente()">
+                        Importar PDF DUX
+                    </button>
+                    {% if comprobante_dux_guardado %}
+                    <div class="archivo-actual">
+                        Comprobante DUX cargado:
+                        <a href="{{ comprobante_dux_guardado }}" target="_blank" rel="noopener noreferrer">Ver comprobante DUX</a>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="wizard-step" data-step="2">
@@ -209,35 +226,42 @@
                 {% set canal_actual = form_data.get('canal', '') if form_data else '' %}
                 {% set dux_leido_nuevo = comprobante_dux_guardado and (form_data.get('items_texto', '') if form_data else '') %}
                 <div id="bloque_comprobante_dux" style="display:none;">
-                    {% if dux_leido_nuevo %}
-                    <div class="alerta alerta-ok" style="margin-bottom:14px;">
-                        <strong>Comprobante DUX leído.</strong>
-                        Se cargaron los productos detectados en la tabla. Revisá los items y confirmá el pedido.
-                    </div>
+                    <div class="dux-flow-card">
+                        {% if dux_leido_nuevo %}
+                        <div class="alerta alerta-ok" style="margin-bottom:14px;">
+                            <strong>Comprobante DUX leído.</strong>
+                            Se cargaron los productos detectados. Revisá y confirmá el pedido.
+                        </div>
 
-                    <div class="archivo-actual" style="margin-bottom:12px;">
-                        Comprobante DUX cargado:
-                        <a href="{{ comprobante_dux_guardado }}" target="_blank" rel="noopener noreferrer">Ver comprobante DUX</a>
-                    </div>
+                        <div class="archivo-actual" style="margin-bottom:12px;">
+                            Comprobante DUX cargado:
+                            <a href="{{ comprobante_dux_guardado }}" target="_blank" rel="noopener noreferrer">Ver comprobante DUX</a>
+                        </div>
 
-                    <label for="comprobante_pago" style="margin-top:12px; display:block;">Comprobante de pago <span style="font-weight:400;">(opcional)</span></label>
-                    <input type="file" name="comprobante_pago" id="comprobante_pago" accept=".pdf,.png,.jpg,.jpeg,.webp">
-                    <div class="form-help">
-                        Opcional. Si existe, adjuntalo para control administrativo. Si no, el pedido puede guardarse igual.
+                        <label for="comprobante_pago" style="margin-top:12px; display:block;">Comprobante de pago <span style="font-weight:400;">(opcional)</span></label>
+                        <input type="file" name="comprobante_pago" id="comprobante_pago" accept=".pdf,.png,.jpg,.jpeg,.webp">
+                        <div class="form-help">
+                            Opcional. Si existe, adjuntalo para control administrativo. Si no, el pedido puede guardarse igual.
+                        </div>
+                        {% if comprobante_pago_guardado %}
+                        <div class="archivo-actual">
+                            Comprobante de pago cargado: {{ comprobante_pago_guardado }}
+                        </div>
+                        {% endif %}
+                        {% else %}
+                        <div class="dux-import-title">Control APB DUX</div>
+                        <div class="form-help">
+                            Para Presencial y Mayorista es obligatorio subir el PDF de DUX y leerlo para cargar productos automáticamente.
+                        </div>
+                        <div class="dux-read-row">
+                            <div class="dux-file-col">
+                                <label for="comprobante_dux">Comprobante de venta DUX</label>
+                                <input type="file" name="comprobante_dux" id="comprobante_dux" accept=".pdf">
+                            </div>
+                            <button type="button" class="btn" id="btn_leer_dux_nuevo" onclick="leerDuxNuevoPedido()">Leer PDF DUX</button>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% if comprobante_pago_guardado %}
-                    <div class="archivo-actual">
-                        Comprobante de pago cargado: {{ comprobante_pago_guardado }}
-                    </div>
-                    {% endif %}
-                    {% else %}
-                    <label for="comprobante_dux">Comprobante de venta DUX</label>
-                    <input type="file" name="comprobante_dux" id="comprobante_dux" accept=".pdf">
-                    <div class="form-help">
-                        Para Presencial y Mayorista es obligatorio subir el PDF de DUX y leerlo para cargar productos automáticamente.
-                    </div>
-                    <button type="button" class="btn btn-secundario" id="btn_leer_dux_nuevo" onclick="leerDuxNuevoPedido()">Leer PDF DUX y cargar productos</button>
-                    {% endif %}
                 </div>
             </div>
 
@@ -714,7 +738,7 @@ function validarPaso() {
             const comprobanteDuxExistente = document.getElementById("comprobante_dux_existente");
             const tieneComprobanteDuxLeido = comprobanteDuxExistente && comprobanteDuxExistente.value.trim() !== "";
             if (!tieneComprobanteDuxLeido) {
-                agregarError("Subí el PDF de DUX y tocá 'Leer PDF DUX y cargar productos' antes de guardar.", "#comprobante_dux");
+                agregarError("Importá o leé el PDF de DUX antes de guardar.", "#comprobante_dux");
             }
         }
 
@@ -1039,6 +1063,28 @@ mostrarBotonCoordinarEnvio();
 }
 
 
+
+function importarDuxCliente() {
+    const comprobanteDux = document.getElementById("comprobante_dux_importar");
+    if (!comprobanteDux || comprobanteDux.files.length === 0) {
+        mostrarErroresVisuales(["Subí el PDF de DUX para importar los datos."], ["#comprobante_dux_importar"]);
+        return;
+    }
+
+    const nombre = (comprobanteDux.files[0].name || "").toLowerCase();
+    if (!nombre.endsWith(".pdf")) {
+        mostrarErroresVisuales(["La importación automática solo funciona con PDF de DUX."], ["#comprobante_dux_importar"]);
+        return;
+    }
+
+    document.getElementById("current_step").value = "1";
+    accionPaso2.value = "importar_dux_cliente";
+
+    const form = document.getElementById("form");
+    form.target = formTargetOriginal;
+    form.submit();
+}
+
 function leerDuxNuevoPedido() {
     const canalValor = document.getElementById("canal").value;
     if (!["Mayorista", "Presencial"].includes(canalValor)) {
@@ -1076,7 +1122,7 @@ function guardarPedidoFinal() {
         const duxCargado = !!(document.getElementById("comprobante_dux_existente")?.value || "").trim();
         if (!duxCargado) {
             mostrarErroresVisuales(
-                ["Para Presencial y Mayorista primero subí el PDF de DUX y tocá “Leer PDF DUX y cargar productos”."],
+                ["Para Presencial y Mayorista primero importá o leé el PDF de DUX."],
                 ["#bloque_comprobante_dux", "#comprobante_dux"]
             );
             return;
