@@ -4783,6 +4783,15 @@ En resumen, indicá claramente si aplica alguno de estos casos: datos en Mercado
             raise ValueError("La IA no devolvió JSON válido")
 
         datos = resultado.get("datos") or {}
+
+        # APB: refuerzo determinístico para DNI/CP.
+        # Si el comprador respondió "1617", "Código postal 1617", "32339954" o "DNI 37331234",
+        # lo tomamos aunque la IA no lo haya extraído.
+        datos_clasicos = ia_extraer_datos_clasico_fierro(texto_cliente, datos_previos)
+        for c, v in datos_clasicos.items():
+            if v and not str(datos.get(c) or "").strip():
+                datos[c] = v
+
         fusionados = dict(datos_previos)
         for c in campos:
             valor = str(datos.get(c) or "").strip()
@@ -4891,6 +4900,89 @@ def ia_cp_valido(valor):
     limpio = str(valor or "").strip()
     # Acepta CP numérico argentino y también formatos alfanuméricos, sin ser demasiado agresivo.
     return limpio if 3 <= len(limpio) <= 12 else ""
+
+
+def ia_extraer_datos_clasico_fierro(texto_cliente, datos_previos=None):
+    """Parser APB determinístico para datos críticos.
+
+    Motivo: en ML/WhatsApp muchos clientes contestan solo "1617",
+    "CP 1617", "Código postal 1617", "32339954" o "DNI 37331234".
+    No puede depender solo de la IA porque si falla se repregunta un dato ya pasado.
+    Este parser solo completa datos con alta confianza y no pisa valores previos.
+    """
+    datos_previos = datos_previos or {}
+    texto_original = str(texto_cliente or "").strip()
+    texto = texto_original.lower()
+    extraidos = {}
+
+    def falta(campo):
+        return not str((datos_previos or {}).get(campo) or "").strip()
+
+    # DNI etiquetado: DNI: 37331234 / Documento 37.331.234 / doc 37331234
+    m_dni = re.search(
+        r"(?:\bd\.?n\.?i\.?\b|\bdni\b|\bdocumento\b|\bdoc\.?\b)\s*[:#-]?\s*([0-9][0-9\.\s-]{5,15}[0-9])",
+        texto_original,
+        flags=re.IGNORECASE,
+    )
+    if m_dni and falta("dni"):
+        dni = ia_dni_valido(m_dni.group(1))
+        if dni:
+            extraidos["dni"] = dni
+
+    # CP etiquetado: CP 1617 / C.P.: 1888 / Código postal 1617 / codigo postal: 1617
+    m_cp = re.search(
+        r"(?:\bc\.?p\.?\b|\bcod(?:igo)?\s*postal\b|\bcódigo\s*postal\b|\bpostal\b)\s*[:#-]?\s*([A-Za-z]?[0-9]{3,5}[A-Za-z]{0,3})",
+        texto_original,
+        flags=re.IGNORECASE,
+    )
+    if m_cp and falta("codigo_postal"):
+        cp = ia_cp_valido(m_cp.group(1).strip().upper())
+        if cp:
+            extraidos["codigo_postal"] = cp
+
+    # Respuesta suelta: "1617" cuando falta CP.
+    # Para evitar confundir con DNI/teléfono, solo se usa si el mensaje es básicamente un único valor de 4 dígitos.
+    solo_numero = re.fullmatch(r"\s*(\d{4})\s*", texto_original)
+    if solo_numero and falta("codigo_postal"):
+        extraidos.setdefault("codigo_postal", solo_numero.group(1))
+
+    # Respuesta suelta: "32339954" cuando falta DNI.
+    # Solo se usa si el mensaje es un único número/documento de 7 a 11 dígitos.
+    solo_dni = re.fullmatch(r"\s*([0-9][0-9\.\s-]{5,15}[0-9])\s*", texto_original)
+    if solo_dni and falta("dni"):
+        dni = ia_dni_valido(solo_dni.group(1))
+        if dni and len(dni) >= 7:
+            extraidos.setdefault("dni", dni)
+
+    return extraidos
+
+
+def ia_calcular_faltantes_reales_pedido(pedido, datos=None):
+    """Recalcula faltantes contra el pedido ya actualizado, no contra la respuesta vieja de IA."""
+    datos = datos if isinstance(datos, dict) else {}
+
+    def valor(campo):
+        v = getattr(pedido, campo, "") if pedido else ""
+        if str(v or "").strip():
+            return str(v or "").strip()
+        return str(datos.get(campo) or "").strip()
+
+    faltantes = []
+    if not valor("nombre") and not valor("cliente"):
+        # Si el cliente ya está cargado como nombre completo, no forzar nombre/apellido por separado.
+        if not str(getattr(pedido, "cliente", "") or "").strip():
+            faltantes.append("nombre")
+    if not valor("dni") and not str(getattr(pedido, "ml_billing_documento", "") or "").strip():
+        faltantes.append("dni")
+    if not normalizar_telefono(valor("telefono")):
+        faltantes.append("telefono")
+    if not valor("direccion"):
+        faltantes.append("direccion")
+    if not valor("localidad"):
+        faltantes.append("localidad")
+    if not ia_cp_valido(valor("codigo_postal")):
+        faltantes.append("codigo_postal")
+    return faltantes
 
 
 def ia_texto_menciona_autorizado(texto):
@@ -5010,8 +5102,19 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
         return
 
     datos = normalizar_datos_ia_fierro(resultado.get("datos") or {})
+
+    # Segundo cinturón APB: si por algún motivo el resultado no trajo DNI/CP,
+    # volvemos a mirar el texto antes de guardar y responder.
+    datos_clasicos = ia_extraer_datos_clasico_fierro(texto_cliente, ia_datos_previos_pedido(pedido))
+    for c, v in datos_clasicos.items():
+        if v and not str(datos.get(c) or "").strip():
+            datos[c] = v
+
     completados = ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=texto_cliente)
-    faltantes = resultado.get("faltantes") or []
+
+    # Importante: no usar a ciegas los faltantes que devolvió la IA antes de autocompletar.
+    # Se recalculan contra el pedido actualizado para no pedir DNI/CP dos veces.
+    faltantes = ia_calcular_faltantes_reales_pedido(pedido, datos)
     requiere_operador = bool(resultado.get("requiere_operador"))
 
     if requiere_operador:
