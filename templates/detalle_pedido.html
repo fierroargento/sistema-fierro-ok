@@ -191,6 +191,34 @@
     <div class="error">{{ error|safe }}</div>
     {% endif %}
 
+    {% if pedido.agregado_pendiente_revision %}
+    <div class="detalle-box detalle-box-full" style="margin-top:14px; border-left:6px solid #dc2626; background:#fef2f2;">
+        <h3 style="margin-top:0; color:#991b1b;">⚠️ AGREGADO PENDIENTE DE REVISIÓN</h3>
+        <p style="margin-bottom:10px;">
+            Este pedido tiene productos agregados después de haber pasado a preparación.
+            <strong>Despacho debe revisar los items agregados antes de marcarlo como despachado.</strong>
+        </p>
+
+        {% if rol_actual in ["admin", "despacho"] %}
+        <form method="POST" action="{{ url_for('confirmar_revision_agregado', id=pedido.id) }}" style="margin-top:10px;">
+            <button type="submit" class="btn btn-confirmar">
+                Confirmé revisión del agregado
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% elif pedido.agregado_revision_fecha %}
+    <div class="detalle-box detalle-box-full" style="margin-top:14px; border-left:5px solid #16a34a; background:#f0fdf4;">
+        <strong>✓ Agregado revisado por despacho</strong>
+        {% if pedido.agregado_revision_usuario %}
+            — {{ pedido.agregado_revision_usuario }}
+        {% endif %}
+        {% if pedido.agregado_revision_fecha %}
+            — {{ fecha_argentina(pedido.agregado_revision_fecha).strftime('%d/%m/%Y %H:%M') }}
+        {% endif %}
+    </div>
+    {% endif %}
+
 
     {% if pedido.canal == "Mercado Libre" and (pedido.ml_claim_abierto or ml_pedido_tiene_mensajes_pendientes(pedido) or pedido.ia_requiere_operador) %}
     <div class="detalle-alertas-ml">
@@ -755,8 +783,8 @@
     </div>
 
     {% if agregados_apb %}
-    <div class="detalle-box detalle-box-full" style="margin-top: 18px; border-left:5px solid #16a34a; background:#f0fdf4;">
-        <h3 style="margin-top:0;">Agregados APB</h3>
+    <div class="detalle-box detalle-box-full" style="margin-top: 18px; border-left:5px solid {% if pedido.agregado_pendiente_revision %}#dc2626{% else %}#16a34a{% endif %}; background:{% if pedido.agregado_pendiente_revision %}#fef2f2{% else %}#f0fdf4{% endif %};">
+        <h3 style="margin-top:0;">Agregados APB {% if pedido.agregado_pendiente_revision %}<span style="color:#991b1b;">— pendiente revisión despacho</span>{% endif %}</h3>
 
         {% for agregado in agregados_apb %}
         <div style="background:#ffffff; border:1px solid #dcfce7; border-radius:10px; padding:12px; margin-top:10px;">

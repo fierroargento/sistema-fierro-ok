@@ -218,6 +218,9 @@ class Pedido(db.Model):
     tracking_url_consultada = db.Column(db.String(500))
     comprobante_dux_archivo = db.Column(db.String(255))
     comprobante_pago_archivo = db.Column(db.String(255))
+    agregado_pendiente_revision = db.Column(db.Boolean, default=False)
+    agregado_revision_fecha = db.Column(db.DateTime)
+    agregado_revision_usuario = db.Column(db.String(100))
     etiqueta_archivo = db.Column(db.String(255))
     estado = db.Column(db.String(50), default="Cargando Pedido")
 
@@ -438,6 +441,9 @@ def asegurar_columnas_extra():
     asegurar_columna_si_no_existe("tracking_url_consultada", "VARCHAR(500)")
     asegurar_columna_si_no_existe("comprobante_dux_archivo", "VARCHAR(255)")
     asegurar_columna_si_no_existe("comprobante_pago_archivo", "VARCHAR(255)")
+    asegurar_columna_si_no_existe("agregado_pendiente_revision", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("agregado_revision_fecha", "TIMESTAMP")
+    asegurar_columna_si_no_existe("agregado_revision_usuario", "VARCHAR(100)")
     asegurar_columna_si_no_existe("sucursal_nombre", "VARCHAR(150)")
     asegurar_columna_si_no_existe("autorizado_nombre", "VARCHAR(120)")
     asegurar_columna_si_no_existe("autorizado_dni", "VARCHAR(20)")
@@ -1835,6 +1841,12 @@ def accion_sugerida_pedido(pedido):
     if tn_pedido_bloqueado_cancelado(pedido):
         return "⚠️ NO DESPACHAR - Cancelado TN"
 
+    if (
+        getattr(pedido, "agregado_pendiente_revision", False)
+        and pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]
+    ):
+        return "⚠️ Revisar agregado pendiente"
+
     if pedido.estado == "Cargando Pedido":
         if not pedido.cliente:
             return "Falta cargar cliente"
@@ -2648,16 +2660,10 @@ def puede_avanzar_segun_rol(pedido):
 
     if rol == "carga":
 
-        # =========================
-        # CARGA SIEMPRE PUEDE CERRAR
-        # LA CARGA INICIAL
-        # =========================
+        # Carga puede cerrar la carga inicial del pedido manual / DUX.
         if pedido.estado == "Cargando Pedido":
             return True, []
 
-        # =========================
-        # ESTADOS OPERATIVOS DE CARGA
-        # =========================
         if pedido.estado in [
             "Despachado",
             "Con demora de entrega",
@@ -2665,20 +2671,15 @@ def puede_avanzar_segun_rol(pedido):
             "Verificar llegada a destino",
             "Listo para retirar",
             "No entregado",
-            "Reclamar a Mercado Libre"
+            "Reclamar a Mercado Libre",
         ]:
             return True, []
 
         return False, ["Este estado lo trabaja Embalaje y Despacho."]
 
     if rol == "despacho":
-
-        if pedido.estado in [
-            "Etiqueta Impresa",
-            "Embalado"
-        ]:
+        if pedido.estado in ["Etiqueta Impresa", "Embalado"]:
             return True, []
-
         return False, ["Este estado lo trabaja el operador de Carga."]
 
     return False, ["No tenés permisos para esta acción."]
@@ -2693,6 +2694,15 @@ def puede_avanzar_pedido(pedido):
     if pedido.estado == "Despachado":
         if es_via_cargo(pedido.empresa_envio) and not pedido.seguimiento:
             return False, ["En Vía Cargo el seguimiento se carga después del despacho."]
+
+    nuevo_estado = siguiente_estado(pedido.estado)
+    if (
+        nuevo_estado == "Despachado"
+        and getattr(pedido, "agregado_pendiente_revision", False)
+    ):
+        return False, [
+            "AGREGADO PENDIENTE: antes de marcar despachado, despacho debe revisar los items agregados y confirmar la revisión."
+        ]
 
     puede_por_rol, errores_rol = puede_avanzar_segun_rol(pedido)
     if not puede_por_rol:
@@ -8872,7 +8882,7 @@ def detalle_pedido(id):
         )
 
     agregados_apb = []
-    if rol_actual() in ["admin", "carga"]:
+    if rol_actual() in ["admin", "carga", "despacho"]:
         registros_agregados_apb = (
             PedidoAgregadoAPB.query
             .filter_by(pedido_id=pedido.id)
@@ -10299,6 +10309,48 @@ def revisar_reclamo(id):
 
     return redirect(url_for("detalle_pedido", id=pedido.id, ok="Reclamo revisado correctamente."))
 
+
+@app.route("/pedido/<int:id>/confirmar-revision-agregado", methods=["POST"])
+@login_required
+def confirmar_revision_agregado(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido):
+        return redirect(url_for("inicio"))
+
+    if rol_actual() not in ["admin", "despacho"]:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="Solo despacho o admin pueden confirmar la revisión del agregado."
+        ))
+
+    if not getattr(pedido, "agregado_pendiente_revision", False):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            ok="El pedido no tiene agregados pendientes de revisión."
+        ))
+
+    pedido.agregado_pendiente_revision = False
+    pedido.agregado_revision_fecha = datetime.utcnow()
+    pedido.agregado_revision_usuario = usuario_actual().username if usuario_actual() else ""
+
+    registrar_auditoria(
+        "Confirmó revisión de agregado APB",
+        entidad="pedido",
+        entidad_id=pedido.id,
+        detalle="Despacho confirmó que revisó los items agregados antes de despachar."
+    )
+
+    db.session.commit()
+
+    return redirect(url_for(
+        "detalle_pedido",
+        id=pedido.id,
+        ok="Agregado revisado por despacho. Ya se puede continuar el despacho."
+    ))
+
 @app.route("/pedido/<int:id>/avanzar")
 @login_required
 def avanzar_pedido(id):
@@ -10720,6 +10772,14 @@ def agregar_item_pedido(id):
 
         # Mantener compatibilidad con el campo histórico del pedido: queda el último DUX vinculado.
         pedido.comprobante_dux_archivo = comprobante_dux_url
+
+        # APB:
+        # Si el agregado se cargó cuando el pedido ya estaba en preparación,
+        # despacho debe revisarlo antes de poder marcarlo como despachado.
+        if pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]:
+            pedido.agregado_pendiente_revision = True
+            pedido.agregado_revision_fecha = None
+            pedido.agregado_revision_usuario = None
 
         db.session.commit()
 

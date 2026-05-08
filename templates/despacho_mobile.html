@@ -127,6 +127,48 @@
     margin-top: 18px;
 }
 
+.mobile-alerta-agregado {
+    margin: 10px 0 12px;
+    padding: 12px;
+    border-radius: 14px;
+    background: #fff1f2;
+    border: 2px solid #fb7185;
+    color: #9f1239;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.mobile-action-disabled {
+    display: block;
+    width: 100%;
+    text-align: center;
+    border-radius: 16px;
+    padding: 15px 12px;
+    font-size: 16px;
+    font-weight: 900;
+    text-decoration: none;
+    background: #9ca3af;
+    color: #ffffff;
+    box-sizing: border-box;
+    cursor: not-allowed;
+}
+
+.mobile-action-secundaria {
+    display: block;
+    width: 100%;
+    text-align: center;
+    border-radius: 16px;
+    padding: 13px 12px;
+    font-size: 15px;
+    font-weight: 900;
+    text-decoration: none;
+    background: #ffffff;
+    color: #124E64;
+    border: 2px solid #124E64;
+    box-sizing: border-box;
+    margin-top: 8px;
+}
+
 .mobile-footer-actions {
     margin: 18px 0 8px;
     display: flex;
@@ -179,7 +221,18 @@
                     {% endfor %}
                 </div>
 
-                {% if accion %}
+                {% if pedido.agregado_pendiente_revision %}
+                    <div class="mobile-alerta-agregado">
+                        ⚠️ AGREGADO PENDIENTE<br>
+                        Revisá los items agregados antes de despachar.
+                    </div>
+                    <div class="mobile-action-disabled">
+                        Despacho bloqueado hasta confirmar revisión
+                    </div>
+                    <a class="mobile-action-secundaria" href="{{ url_for('detalle_pedido', id=pedido.id, origen=request.path) }}">
+                        Abrir detalle y confirmar revisión
+                    </a>
+                {% elif accion %}
                     <a class="mobile-action" href="{{ accion.url }}">
                         {{ accion.texto }}
                     </a>
