@@ -207,6 +207,7 @@ class Pedido(db.Model):
     tracking_transportista = db.Column(db.String(80))
     tracking_url_consultada = db.Column(db.String(500))
     comprobante_dux_archivo = db.Column(db.String(255))
+    comprobante_pago_archivo = db.Column(db.String(255))
     etiqueta_archivo = db.Column(db.String(255))
     estado = db.Column(db.String(50), default="Cargando Pedido")
 
@@ -426,6 +427,7 @@ def asegurar_columnas_extra():
     asegurar_columna_si_no_existe("tracking_transportista", "VARCHAR(80)")
     asegurar_columna_si_no_existe("tracking_url_consultada", "VARCHAR(500)")
     asegurar_columna_si_no_existe("comprobante_dux_archivo", "VARCHAR(255)")
+    asegurar_columna_si_no_existe("comprobante_pago_archivo", "VARCHAR(255)")
     asegurar_columna_si_no_existe("sucursal_nombre", "VARCHAR(150)")
     asegurar_columna_si_no_existe("autorizado_nombre", "VARCHAR(120)")
     asegurar_columna_si_no_existe("autorizado_dni", "VARCHAR(20)")
@@ -2738,6 +2740,24 @@ def requiere_comprobante_dux_por_agregado(pedido, canal, ml_tipo, items_texto_nu
             resumen_items_desde_texto(items_texto_nuevo)
         )
     )
+
+
+def canal_requiere_dux_obligatorio(canal):
+    return canal in ["Mayorista", "Presencial"]
+
+
+def items_detectados_a_texto(items):
+    lineas = []
+    for item in items or []:
+        sku = str(item.get("sku") or "").strip()
+        descripcion = str(item.get("descripcion") or sku).strip()
+        try:
+            cantidad = int(float(str(item.get("cantidad") or 1).replace(",", ".")))
+        except Exception:
+            cantidad = 1
+        if sku:
+            lineas.append(f"{sku}|{descripcion}|{max(cantidad, 1)}")
+    return "\n".join(lineas)
 
 
 def puede_administrar_integraciones():
@@ -8192,8 +8212,15 @@ def nuevo_pedido():
         return redirect(url_for("inicio"))
 
     if request.method == "POST":
+        accion_paso2 = (request.form.get("accion_paso2") or "").strip()
+
         etiqueta_existente = request.form.get("etiqueta_existente", "").strip()
+        comprobante_dux_existente = request.form.get("comprobante_dux_existente", "").strip()
+        comprobante_pago_existente = request.form.get("comprobante_pago_existente", "").strip()
+
         archivo_etiqueta = request.files.get("etiqueta")
+        archivo_comprobante_dux = request.files.get("comprobante_dux")
+        archivo_comprobante_pago = request.files.get("comprobante_pago")
 
         if archivo_etiqueta and archivo_etiqueta.filename:
             subida = guardar_etiqueta_subida(archivo_etiqueta)
@@ -8201,6 +8228,85 @@ def nuevo_pedido():
 
         canal = request.form.get("canal")
         ml_tipo = request.form.get("ml_tipo")
+
+        # APB Presencial / Mayorista:
+        # DUX es obligatorio y además permite leer automáticamente los productos.
+        # Comprobante de pago es opcional: si se adjunta, se guarda; si no, no bloquea.
+        if accion_paso2 == "leer_dux_nuevo":
+            form_data = request.form.to_dict()
+            form_data["current_step"] = "4"
+
+            if not archivo_comprobante_dux or not archivo_comprobante_dux.filename:
+                return render_template(
+                    "nuevo_pedido.html",
+                    error="Subí el PDF de DUX para leer los productos.",
+                    form_data=form_data,
+                    etiqueta_guardada=etiqueta_existente,
+                    comprobante_dux_guardado=comprobante_dux_existente,
+                    comprobante_pago_guardado=comprobante_pago_existente,
+                )
+
+            nombre_dux = (archivo_comprobante_dux.filename or "").lower()
+            if not nombre_dux.endswith(".pdf"):
+                return render_template(
+                    "nuevo_pedido.html",
+                    error="La lectura automática solo funciona con PDF de DUX.",
+                    form_data=form_data,
+                    etiqueta_guardada=etiqueta_existente,
+                    comprobante_dux_guardado=comprobante_dux_existente,
+                    comprobante_pago_guardado=comprobante_pago_existente,
+                )
+
+            resultado_pdf = extraer_items_comprobante_dux_desde_pdf(archivo_comprobante_dux)
+            items_detectados = resultado_pdf.get("items", []) or []
+            if not items_detectados:
+                return render_template(
+                    "nuevo_pedido.html",
+                    error=resultado_pdf.get("error") or "No se detectaron productos en el PDF de DUX.",
+                    form_data=form_data,
+                    etiqueta_guardada=etiqueta_existente,
+                    comprobante_dux_guardado=comprobante_dux_existente,
+                    comprobante_pago_guardado=comprobante_pago_existente,
+                )
+
+            archivo_comprobante_dux.stream.seek(0)
+            subida_dux = guardar_comprobante_dux_subido(archivo_comprobante_dux)
+            comprobante_dux_existente = subida_dux.get("url", "")
+            if not comprobante_dux_existente:
+                return render_template(
+                    "nuevo_pedido.html",
+                    error="Se leyeron los productos, pero no se pudo guardar el comprobante DUX. Volvé a intentar.",
+                    form_data=form_data,
+                    etiqueta_guardada=etiqueta_existente,
+                    comprobante_dux_guardado="",
+                    comprobante_pago_guardado=comprobante_pago_existente,
+                )
+
+            if archivo_comprobante_pago and archivo_comprobante_pago.filename:
+                subida_pago = guardar_comprobante_pago_agregado_subido(archivo_comprobante_pago)
+                comprobante_pago_existente = subida_pago.get("url", "")
+
+            form_data["items_texto"] = items_detectados_a_texto(items_detectados)
+            form_data["comprobante_dux_existente"] = comprobante_dux_existente
+            form_data["comprobante_pago_existente"] = comprobante_pago_existente
+
+            return render_template(
+                "nuevo_pedido.html",
+                error="",
+                form_data=form_data,
+                etiqueta_guardada=etiqueta_existente,
+                comprobante_dux_guardado=comprobante_dux_existente,
+                comprobante_pago_guardado=comprobante_pago_existente,
+                ok_feedback=f"DUX leído correctamente: {len(items_detectados)} producto(s) cargado(s).",
+            )
+
+        if archivo_comprobante_dux and archivo_comprobante_dux.filename:
+            subida_dux = guardar_comprobante_dux_subido(archivo_comprobante_dux)
+            comprobante_dux_existente = subida_dux.get("url", "")
+
+        if archivo_comprobante_pago and archivo_comprobante_pago.filename:
+            subida_pago = guardar_comprobante_pago_agregado_subido(archivo_comprobante_pago)
+            comprobante_pago_existente = subida_pago.get("url", "")
 
         empresa_envio = request.form.get("empresa_envio")
         tipo_entrega = request.form.get("tipo_entrega")
@@ -8227,6 +8333,16 @@ def nuevo_pedido():
             autorizado_dni = ""
             autorizado_telefono = ""
 
+        if canal_requiere_dux_obligatorio(canal) and not comprobante_dux_existente:
+            return render_template(
+                "nuevo_pedido.html",
+                error="Para pedidos Presencial o Mayorista tenés que adjuntar el PDF de DUX y leer los productos antes de guardar.",
+                form_data=request.form,
+                etiqueta_guardada=etiqueta_existente,
+                comprobante_dux_guardado=comprobante_dux_existente,
+                comprobante_pago_guardado=comprobante_pago_existente,
+            )
+
         pedido = Pedido(
             cliente=request.form.get("cliente"),
             dni=request.form.get("dni"),
@@ -8247,7 +8363,9 @@ def nuevo_pedido():
             autorizado_dni=autorizado_dni,
             autorizado_telefono=autorizado_telefono,
             seguimiento=request.form.get("seguimiento"),
-            etiqueta_archivo=etiqueta_existente
+            etiqueta_archivo=etiqueta_existente,
+            comprobante_dux_archivo=comprobante_dux_existente,
+            comprobante_pago_archivo=comprobante_pago_existente,
         )
 
         db.session.add(pedido)
@@ -8274,7 +8392,9 @@ def nuevo_pedido():
                 "nuevo_pedido.html",
                 error="<br>".join(errores),
                 form_data=request.form,
-                etiqueta_guardada=etiqueta_existente
+                etiqueta_guardada=etiqueta_existente,
+                comprobante_dux_guardado=comprobante_dux_existente,
+                comprobante_pago_guardado=comprobante_pago_existente,
             )
 
         db.session.commit()
@@ -8284,8 +8404,14 @@ def nuevo_pedido():
 
         return redirect(url_for("inicio"))
 
-    return render_template("nuevo_pedido.html", error="", form_data={}, etiqueta_guardada="")
-
+    return render_template(
+        "nuevo_pedido.html",
+        error="",
+        form_data={},
+        etiqueta_guardada="",
+        comprobante_dux_guardado="",
+        comprobante_pago_guardado="",
+    )
 
 @app.route("/pedido/<int:id>")
 @login_required

@@ -81,6 +81,7 @@
             <input type="hidden" name="current_step" id="current_step" value="{{ form_data.get('current_step', '1') if form_data else '1' }}">
             <input type="hidden" name="etiqueta_existente" id="etiqueta_existente" value="{{ etiqueta_guardada or '' }}">
             <input type="hidden" name="comprobante_dux_existente" id="comprobante_dux_existente" value="{{ comprobante_dux_guardado or '' }}">
+            <input type="hidden" name="comprobante_pago_existente" id="comprobante_pago_existente" value="{{ comprobante_pago_guardado or '' }}">
             <input type="hidden" name="accion_paso2" id="accion_paso2" value="">
 
             <div id="wizard_error_box" class="wizard-error-box"></div>
@@ -207,10 +208,22 @@
 
                 <div id="bloque_comprobante_dux" style="display:none;">
                     <label for="comprobante_dux">Comprobante de venta DUX</label>
-                    <input type="file" name="comprobante_dux" id="comprobante_dux" accept=".pdf,.png,.jpg,.jpeg,.webp">
+                    <input type="file" name="comprobante_dux" id="comprobante_dux" accept=".pdf">
+                    <div class="form-help">
+                        Para Presencial y Mayorista es obligatorio subir el PDF de DUX y leerlo para cargar productos automáticamente.
+                    </div>
+                    <button type="button" class="btn btn-secundario" onclick="leerDuxNuevoPedido()">Leer PDF DUX y cargar productos</button>
                     {% if comprobante_dux_guardado %}
                     <div class="archivo-actual">
                         Comprobante DUX cargado: {{ comprobante_dux_guardado }}
+                    </div>
+                    {% endif %}
+
+                    <label for="comprobante_pago" style="margin-top:12px; display:block;">Comprobante de pago <span style="font-weight:400;">(opcional)</span></label>
+                    <input type="file" name="comprobante_pago" id="comprobante_pago" accept=".pdf,.png,.jpg,.jpeg,.webp">
+                    {% if comprobante_pago_guardado %}
+                    <div class="archivo-actual">
+                        Comprobante de pago cargado: {{ comprobante_pago_guardado }}
                     </div>
                     {% endif %}
                 </div>
@@ -678,11 +691,12 @@ function validarPaso() {
         agregarError("Revisá la tabla de productos antes de guardar.", ".tabla-items");
         }
 
-        if (document.getElementById("canal").value === "Mayorista") {
-            const comprobanteDux = document.getElementById("comprobante_dux");
+        if (["Mayorista", "Presencial"].includes(document.getElementById("canal").value)) {
             const comprobanteDuxExistente = document.getElementById("comprobante_dux_existente");
-            const tieneComprobanteDux = (comprobanteDux && comprobanteDux.files.length > 0) || (comprobanteDuxExistente && comprobanteDuxExistente.value.trim() !== "");
-            if (!tieneComprobanteDux) agregarError("Adjuntá el comprobante de venta de DUX en Productos antes de guardar el pedido mayorista.", "#comprobante_dux");
+            const tieneComprobanteDuxLeido = comprobanteDuxExistente && comprobanteDuxExistente.value.trim() !== "";
+            if (!tieneComprobanteDuxLeido) {
+                agregarError("Subí el PDF de DUX y tocá 'Leer PDF DUX y cargar productos' antes de guardar.", "#comprobante_dux");
+            }
         }
 
         itemsAgregados.forEach((item, index) => {
@@ -782,7 +796,7 @@ function actualizar() {
 
     }
 
-    if ((canal.value === "Mayorista" || (canal.value === "Mercado Libre" && ml.value === "Acordás la Entrega")) && bloqueComprobanteDux) {
+    if ((canal.value === "Mayorista" || canal.value === "Presencial" || (canal.value === "Mercado Libre" && ml.value === "Acordás la Entrega")) && bloqueComprobanteDux) {
         bloqueComprobanteDux.style.display = "block";
     }
 
@@ -1006,6 +1020,34 @@ mostrarBotonCoordinarEnvio();
 }
 
 
+function leerDuxNuevoPedido() {
+    const canalValor = document.getElementById("canal").value;
+    if (!["Mayorista", "Presencial"].includes(canalValor)) {
+        mostrarErroresVisuales(["La lectura automática de DUX en Nuevo Pedido está habilitada para Presencial y Mayorista."], ["#canal"]);
+        return;
+    }
+
+    const comprobanteDux = document.getElementById("comprobante_dux");
+    if (!comprobanteDux || comprobanteDux.files.length === 0) {
+        mostrarErroresVisuales(["Subí el PDF de DUX para leer los productos."], ["#comprobante_dux"]);
+        return;
+    }
+
+    const nombre = (comprobanteDux.files[0].name || "").toLowerCase();
+    if (!nombre.endsWith(".pdf")) {
+        mostrarErroresVisuales(["La lectura automática solo funciona con PDF de DUX."], ["#comprobante_dux"]);
+        return;
+    }
+
+    document.getElementById("current_step").value = "4";
+    accionPaso2.value = "leer_dux_nuevo";
+
+    const form = document.getElementById("form");
+    form.target = formTargetOriginal;
+    form.submit();
+}
+
+
 function guardarPedidoFinal() {
     const canalValor = document.getElementById("canal").value;
     const mlValor = document.getElementById("ml_tipo").value;
@@ -1022,6 +1064,7 @@ function guardarPedidoFinal() {
     const requierePestanaNueva = esMercadoEnvios || esCasoViaCargo;
 
     const form = document.getElementById("form");
+    accionPaso2.value = "";
 
     if (requierePestanaNueva) {
         window.open("", "printwin");
