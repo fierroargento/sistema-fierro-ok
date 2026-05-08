@@ -206,25 +206,37 @@
 
                 <input type="hidden" name="items_texto" id="items_texto" value="{{ form_data.get('items_texto', '') if form_data else '' }}">
 
+                {% set canal_actual = form_data.get('canal', '') if form_data else '' %}
+                {% set dux_leido_nuevo = comprobante_dux_guardado and (form_data.get('items_texto', '') if form_data else '') %}
                 <div id="bloque_comprobante_dux" style="display:none;">
+                    {% if dux_leido_nuevo %}
+                    <div class="alerta alerta-ok" style="margin-bottom:14px;">
+                        <strong>Comprobante DUX leído.</strong>
+                        Se cargaron los productos detectados en la tabla. Revisá los items y confirmá el pedido.
+                    </div>
+
+                    <div class="archivo-actual" style="margin-bottom:12px;">
+                        Comprobante DUX cargado:
+                        <a href="{{ comprobante_dux_guardado }}" target="_blank" rel="noopener noreferrer">Ver comprobante DUX</a>
+                    </div>
+
+                    <label for="comprobante_pago" style="margin-top:12px; display:block;">Comprobante de pago <span style="font-weight:400;">(opcional)</span></label>
+                    <input type="file" name="comprobante_pago" id="comprobante_pago" accept=".pdf,.png,.jpg,.jpeg,.webp">
+                    <div class="form-help">
+                        Opcional. Si existe, adjuntalo para control administrativo. Si no, el pedido puede guardarse igual.
+                    </div>
+                    {% if comprobante_pago_guardado %}
+                    <div class="archivo-actual">
+                        Comprobante de pago cargado: {{ comprobante_pago_guardado }}
+                    </div>
+                    {% endif %}
+                    {% else %}
                     <label for="comprobante_dux">Comprobante de venta DUX</label>
                     <input type="file" name="comprobante_dux" id="comprobante_dux" accept=".pdf">
                     <div class="form-help">
                         Para Presencial y Mayorista es obligatorio subir el PDF de DUX y leerlo para cargar productos automáticamente.
                     </div>
-                    <button type="button" class="btn btn-secundario" onclick="leerDuxNuevoPedido()">Leer PDF DUX y cargar productos</button>
-                    {% if comprobante_dux_guardado %}
-                    <div class="archivo-actual">
-                        Comprobante DUX cargado: {{ comprobante_dux_guardado }}
-                    </div>
-                    {% endif %}
-
-                    <label for="comprobante_pago" style="margin-top:12px; display:block;">Comprobante de pago <span style="font-weight:400;">(opcional)</span></label>
-                    <input type="file" name="comprobante_pago" id="comprobante_pago" accept=".pdf,.png,.jpg,.jpeg,.webp">
-                    {% if comprobante_pago_guardado %}
-                    <div class="archivo-actual">
-                        Comprobante de pago cargado: {{ comprobante_pago_guardado }}
-                    </div>
+                    <button type="button" class="btn btn-secundario" id="btn_leer_dux_nuevo" onclick="leerDuxNuevoPedido()">Leer PDF DUX y cargar productos</button>
                     {% endif %}
                 </div>
             </div>
@@ -543,6 +555,13 @@ actualizarCamposEtiquetaYSeguimientoPorTransporte();
     submitBtn.style.display = step === 4 ? "inline-block" : "none";
     nextBtn.style.display = step === 4 ? "none" : "inline-block";
     prevBtn.style.display = step === 1 ? "none" : "inline-block";
+
+    const duxYaLeido = !!(document.getElementById("comprobante_dux_existente")?.value || "").trim();
+    if (["Mayorista", "Presencial"].includes(canal.value) && duxYaLeido) {
+        submitBtn.textContent = "Confirmar y agregar todos";
+    } else {
+        submitBtn.textContent = "Guardar Pedido";
+    }
 
     document.getElementById("current_step").value = step;
     limpiarErroresVisuales();
@@ -1052,6 +1071,17 @@ function guardarPedidoFinal() {
     const canalValor = document.getElementById("canal").value;
     const mlValor = document.getElementById("ml_tipo").value;
     const empresaValor = document.getElementById("empresa_envio").value;
+
+    if (["Mayorista", "Presencial"].includes(canalValor)) {
+        const duxCargado = !!(document.getElementById("comprobante_dux_existente")?.value || "").trim();
+        if (!duxCargado) {
+            mostrarErroresVisuales(
+                ["Para Presencial y Mayorista primero subí el PDF de DUX y tocá “Leer PDF DUX y cargar productos”."],
+                ["#bloque_comprobante_dux", "#comprobante_dux"]
+            );
+            return;
+        }
+    }
 
     const esMercadoEnvios =
         canalValor === "Mercado Libre" &&

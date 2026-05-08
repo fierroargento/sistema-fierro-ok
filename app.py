@@ -10094,14 +10094,30 @@ def extraer_items_comprobante_dux_desde_pdf(archivo_pdf):
         return max(cantidad, 1)
 
     def _descripcion_por_sku(sku, descripcion_pdf):
-        descripcion = (descripcion_pdf or "").strip()
+        """Devuelve la descripción correcta del item DUX.
+
+        Regla APB:
+        - Si el código es NOCODE / sin código, se usa SIEMPRE la descripción del PDF.
+        - Si el SKU existe en catálogo pero su descripción está vacía o es "-", se usa la descripción del PDF.
+        - Si el SKU existe en catálogo con descripción real, se usa la descripción del catálogo.
+        """
+        sku_norm = (sku or "").strip().upper()
+        descripcion_pdf = re.sub(r"\s+", " ", (descripcion_pdf or "").strip(" -")).strip()
+
+        if sku_norm in {"NOCODE", "NO-CODE", "NO_CODE", "SINCODIGO", "SIN-CODIGO", "SIN_CODIGO"}:
+            return descripcion_pdf or sku_norm
+
+        descripcion = descripcion_pdf
         try:
-            producto = Producto.query.filter(Producto.sku.ilike(sku)).first()
+            producto = Producto.query.filter(Producto.sku.ilike(sku_norm)).first()
             if producto and producto.descripcion:
-                descripcion = producto.descripcion.strip()
+                desc_catalogo = re.sub(r"\s+", " ", (producto.descripcion or "").strip()).strip()
+                if desc_catalogo and desc_catalogo not in {"-", ".", "NOCODE", "NO CODE", "SIN DESCRIPCION", "SIN DESCRIPCIÓN"}:
+                    descripcion = desc_catalogo
         except Exception:
             pass
-        return descripcion
+
+        return descripcion or sku_norm
 
     def _agregar_item(sku, descripcion_pdf, cantidad, linea_original):
         sku = (sku or "").strip().upper()
