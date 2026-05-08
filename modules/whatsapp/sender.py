@@ -75,7 +75,13 @@ def _extraer_message_id(data):
 
 
 def wa_enviar_texto(telefono, texto, pedido=None, autor="bot", registrar=True):
-    """Envía un mensaje de texto simple."""
+    """Envía un mensaje de texto simple.
+
+    APB anti-acoso:
+    - si es bot automático, no puede mandar 2 mensajes consecutivos sin respuesta;
+    - respeta canal activo ML/WA;
+    - bloquea duplicados.
+    """
     telefono = re.sub(r"\D", "", str(telefono or ""))
     texto_limpio = str(texto or "").strip()
     if not telefono or not texto_limpio:
@@ -83,12 +89,39 @@ def wa_enviar_texto(telefono, texto, pedido=None, autor="bot", registrar=True):
             _registrar_historial(pedido, telefono, texto_limpio, autor=autor, estado="error", error="Falta teléfono o texto")
         return False
 
+    # Resolver pedido por teléfono cuando el caller no lo pasa explícitamente.
+    if pedido is None:
+        try:
+            from app import buscar_pedido_activo_por_telefono
+            pedido = buscar_pedido_activo_por_telefono(telefono)
+        except Exception as e:
+            print("[WA-APB] No se pudo resolver pedido para candado:", e)
+
+    if autor == "bot" and pedido is not None:
+        try:
+            from app import ia_puede_enviar_automatico
+            puede, motivo = ia_puede_enviar_automatico(pedido, "whatsapp", texto_limpio)
+            if not puede:
+                print(f"[WA-APB] Bloqueado envío automático pedido #{getattr(pedido, 'id', '?')}: {motivo}")
+                if registrar:
+                    _registrar_historial(pedido, telefono, texto_limpio, autor=autor, estado="bloqueado", error=motivo)
+                return False
+        except Exception as e:
+            print("[WA-APB] Error evaluando candado:", e)
+
     ok, data = _wa_post({
         "messaging_product": "whatsapp",
         "to":   telefono,
         "type": "text",
         "text": {"body": texto_limpio},
     })
+
+    if ok and autor == "bot" and pedido is not None:
+        try:
+            from app import ia_marcar_mensaje_bot
+            ia_marcar_mensaje_bot(pedido, "whatsapp", texto_limpio, commit=True)
+        except Exception as e:
+            print("[WA-APB] No se pudo marcar mensaje bot:", e)
 
     if registrar:
         _registrar_historial(
@@ -111,6 +144,26 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
             _registrar_historial(pedido, telefono, caption, autor=autor, estado="error", error="Falta teléfono o imagen")
         return False
 
+    if pedido is None:
+        try:
+            from app import buscar_pedido_activo_por_telefono
+            pedido = buscar_pedido_activo_por_telefono(telefono)
+        except Exception as e:
+            print("[WA-APB] No se pudo resolver pedido para imagen:", e)
+
+    texto_control = caption or f"[Imagen] {imagen_url}"
+    if autor == "bot" and pedido is not None:
+        try:
+            from app import ia_puede_enviar_automatico
+            puede, motivo = ia_puede_enviar_automatico(pedido, "whatsapp", texto_control)
+            if not puede:
+                print(f"[WA-APB] Bloqueado envío imagen pedido #{getattr(pedido, 'id', '?')}: {motivo}")
+                if registrar:
+                    _registrar_historial(pedido, telefono, texto_control, autor=autor, estado="bloqueado", error=motivo)
+                return False
+        except Exception as e:
+            print("[WA-APB] Error evaluando candado imagen:", e)
+
     payload = {
         "messaging_product": "whatsapp",
         "to":    telefono,
@@ -121,8 +174,14 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
         payload["image"]["caption"] = str(caption).strip()
 
     ok, data = _wa_post(payload)
+    texto_hist = caption or f"[Imagen] {imagen_url}"
+    if ok and autor == "bot" and pedido is not None:
+        try:
+            from app import ia_marcar_mensaje_bot
+            ia_marcar_mensaje_bot(pedido, "whatsapp", texto_hist, commit=True)
+        except Exception as e:
+            print("[WA-APB] No se pudo marcar imagen bot:", e)
     if registrar:
-        texto_hist = caption or f"[Imagen] {imagen_url}"
         _registrar_historial(
             pedido=pedido,
             telefono=telefono,

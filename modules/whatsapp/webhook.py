@@ -228,7 +228,7 @@ def registrar_webhook(app):
                 if texto:
                     pedido = _buscar_pedido_por_telefono(telefono)
                     try:
-                        from app import registrar_whatsapp_mensaje
+                        from app import registrar_whatsapp_mensaje, ia_marcar_respuesta_cliente
                         registrar_whatsapp_mensaje(
                             pedido=pedido,
                             telefono=telefono,
@@ -238,6 +238,8 @@ def registrar_webhook(app):
                             message_id_meta=msg.get("id", ""),
                             estado="recibido",
                         )
+                        if pedido is not None:
+                            ia_marcar_respuesta_cliente(pedido, canal="whatsapp", commit=True)
                     except Exception as e:
                         print("[WA-HIST] Error registrando entrada:", e)
                     _routear_mensaje(pedido, texto, telefono)

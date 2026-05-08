@@ -12,8 +12,9 @@ import numpy as np
 import fitz
 import cloudinary
 import cloudinary.uploader
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time, timezone
 from functools import wraps
+from zoneinfo import ZoneInfo
 
 from flask import Flask, request, redirect, render_template, url_for, jsonify, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
@@ -162,6 +163,15 @@ class Pedido(db.Model):
     ia_sucursales_ofrecidas = db.Column(db.Text)  # JSON con IDs de sucursales ofrecidas al cliente
     ia_respuesta_enviada_hash = db.Column(db.String(80))
     ia_ultima_respuesta_enviada = db.Column(db.DateTime)
+
+    # =====================
+    # APB CONVERSACIONAL ML / WA
+    # =====================
+    ia_esperando_respuesta = db.Column(db.Boolean, default=False)
+    ia_ultimo_mensaje_bot = db.Column(db.DateTime)
+    ia_ultimo_mensaje_cliente = db.Column(db.DateTime)
+    ia_canal_activo = db.Column(db.String(30))
+    ia_ultimo_timeout_operador = db.Column(db.DateTime)
 
     # =====================
     # APB RECLAMOS ML
@@ -526,6 +536,11 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ia_sucursales_ofrecidas", "TEXT")
     asegurar_columna_si_no_existe("ia_respuesta_enviada_hash", "VARCHAR(80)")
     asegurar_columna_si_no_existe("ia_ultima_respuesta_enviada", "TIMESTAMP")
+    asegurar_columna_si_no_existe("ia_esperando_respuesta", "BOOLEAN DEFAULT FALSE")
+    asegurar_columna_si_no_existe("ia_ultimo_mensaje_bot", "TIMESTAMP")
+    asegurar_columna_si_no_existe("ia_ultimo_mensaje_cliente", "TIMESTAMP")
+    asegurar_columna_si_no_existe("ia_canal_activo", "VARCHAR(30)")
+    asegurar_columna_si_no_existe("ia_ultimo_timeout_operador", "TIMESTAMP")
 
     # =====================
     # APB RECLAMOS ML
@@ -4731,6 +4746,176 @@ def ia_hash_texto(texto):
     return hashlib.sha256(str(texto or "").encode("utf-8", errors="ignore")).hexdigest()
 
 
+ARG_TZ = ZoneInfo("America/Argentina/Buenos_Aires")
+IA_HORA_INICIO_OPERATIVA = time(8, 0)
+IA_HORA_FIN_OPERATIVA = time(22, 0)
+IA_TIMEOUT_RESPUESTA_SEGUNDOS = 2 * 60 * 60
+
+
+def _ia_datetime_utc(dt):
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _ia_datetime_arg(dt):
+    dt_utc = _ia_datetime_utc(dt)
+    return dt_utc.astimezone(ARG_TZ) if dt_utc else None
+
+
+def ia_ahora_utc():
+    return datetime.utcnow()
+
+
+def ia_en_horario_operativo(dt=None):
+    ahora_arg = _ia_datetime_arg(dt or ia_ahora_utc())
+    if not ahora_arg:
+        return False
+    hora = ahora_arg.time()
+    return IA_HORA_INICIO_OPERATIVA <= hora < IA_HORA_FIN_OPERATIVA
+
+
+def ia_segundos_operativos_entre(inicio, fin=None):
+    """Cuenta solo segundos entre 08:00 y 22:00 hora Argentina."""
+    if not inicio:
+        return 0
+    fin = fin or ia_ahora_utc()
+    ini_arg = _ia_datetime_arg(inicio)
+    fin_arg = _ia_datetime_arg(fin)
+    if not ini_arg or not fin_arg or fin_arg <= ini_arg:
+        return 0
+
+    total = 0
+    cursor_fecha = ini_arg.date()
+    fin_fecha = fin_arg.date()
+
+    while cursor_fecha <= fin_fecha:
+        tramo_ini = datetime.combine(cursor_fecha, IA_HORA_INICIO_OPERATIVA, tzinfo=ARG_TZ)
+        tramo_fin = datetime.combine(cursor_fecha, IA_HORA_FIN_OPERATIVA, tzinfo=ARG_TZ)
+        desde = max(ini_arg, tramo_ini)
+        hasta = min(fin_arg, tramo_fin)
+        if hasta > desde:
+            total += int((hasta - desde).total_seconds())
+        cursor_fecha += timedelta(days=1)
+
+    return max(0, total)
+
+
+def ia_marcar_mensaje_bot(pedido, canal, texto=None, commit=True):
+    """Registra que el bot habló y debe esperar respuesta del comprador."""
+    if not pedido:
+        return False
+    try:
+        pedido.ia_esperando_respuesta = True
+        pedido.ia_ultimo_mensaje_bot = ia_ahora_utc()
+        pedido.ia_canal_activo = str(canal or "").strip()[:30] or None
+        if texto:
+            pedido.ia_respuesta_enviada_hash = ia_hash_texto(texto)
+            pedido.ia_ultima_respuesta_enviada = pedido.ia_ultimo_mensaje_bot
+        if commit:
+            db.session.commit()
+        return True
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        print("[IA-APB] No se pudo marcar mensaje bot:", e)
+        return False
+
+
+def ia_marcar_respuesta_cliente(pedido, canal=None, commit=True):
+    """Libera el candado porque el comprador respondió."""
+    if not pedido:
+        return False
+    try:
+        pedido.ia_esperando_respuesta = False
+        pedido.ia_ultimo_mensaje_cliente = ia_ahora_utc()
+        pedido.ia_canal_activo = None
+        # Si estaba escalado solo por timeout, el operador sigue viendo el caso;
+        # no se borra ia_requiere_operador automáticamente para no tapar alertas reales.
+        if commit:
+            db.session.commit()
+        return True
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        print("[IA-APB] No se pudo marcar respuesta cliente:", e)
+        return False
+
+
+def ia_puede_enviar_automatico(pedido, canal, texto=None):
+    """Candado global anti-acoso para ML y WhatsApp."""
+    if not pedido:
+        return True, "sin_pedido"
+
+    canal = str(canal or "").strip().lower()
+    canal_activo = str(getattr(pedido, "ia_canal_activo", "") or "").strip().lower()
+
+    if getattr(pedido, "ia_requiere_operador", False):
+        return False, "requiere_operador"
+
+    if getattr(pedido, "ia_esperando_respuesta", False):
+        if canal_activo and canal_activo != canal:
+            return False, f"canal_activo_{canal_activo}"
+        return False, "esperando_respuesta_cliente"
+
+    if canal_activo and canal_activo != canal:
+        return False, f"canal_activo_{canal_activo}"
+
+    if texto:
+        h = ia_hash_texto(texto)
+        ultimo_hash = str(getattr(pedido, "ia_respuesta_enviada_hash", "") or "")
+        ultimo_bot = getattr(pedido, "ia_ultimo_mensaje_bot", None)
+        ultimo_cliente = getattr(pedido, "ia_ultimo_mensaje_cliente", None)
+        if h == ultimo_hash and ultimo_bot and (not ultimo_cliente or ultimo_bot >= ultimo_cliente):
+            return False, "mensaje_duplicado_sin_respuesta"
+
+    return True, "ok"
+
+
+def ia_escalar_si_timeout_operativo(pedido, canal="", motivo="Sin respuesta del comprador"):
+    """Escala si pasaron 2 horas operativas desde el último mensaje del bot."""
+    if not pedido or not getattr(pedido, "ia_esperando_respuesta", False):
+        return False
+    ultimo_bot = getattr(pedido, "ia_ultimo_mensaje_bot", None)
+    if not ultimo_bot:
+        return False
+    if ia_segundos_operativos_entre(ultimo_bot, ia_ahora_utc()) < IA_TIMEOUT_RESPUESTA_SEGUNDOS:
+        return False
+    if getattr(pedido, "ia_requiere_operador", False):
+        return False
+
+    try:
+        pedido.ia_requiere_operador = True
+        pedido.ml_mensajes_pendientes = True
+        pedido.ml_mensajes_pendientes_count = max(int(pedido.ml_mensajes_pendientes_count or 0), 1)
+        pedido.ia_ultimo_timeout_operador = ia_ahora_utc()
+        canal_txt = str(canal or getattr(pedido, "ia_canal_activo", "") or "bot")
+        resumen = (pedido.ia_resumen or "").strip()
+        marca = f"BOT: sin respuesta del comprador tras 2 hs operativas ({canal_txt})"
+        if marca not in resumen:
+            pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
+        try:
+            pedido.wa_estado = "requiere_operador"
+        except Exception:
+            pass
+        db.session.commit()
+        print(f"[IA-APB] Pedido #{pedido.id} escalado por timeout operativo canal={canal_txt}")
+        return True
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        print("[IA-APB] Error escalando por timeout:", e)
+        return False
+
+
 def ia_json_loads_seguro(texto):
     texto = str(texto or "").strip()
     if not texto:
@@ -5273,6 +5458,8 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         return None
 
     texto = ml_texto_mensaje_ml(ultimo)
+    if texto:
+        ia_marcar_respuesta_cliente(pedido, canal="mercadolibre", commit=False)
 
     # DETECTAR SUCURSAL
     # PP6040 va por Andreani/Correo a domicilio → nunca detectar sucursal Via Cargo
@@ -5756,6 +5943,10 @@ def ml_enviar_mensaje_acordas(pedido, texto):
     if not texto:
         raise ValueError("No hay mensaje para enviar.")
 
+    puede_enviar, motivo_apb = ia_puede_enviar_automatico(pedido, "mercadolibre", texto)
+    if not puede_enviar:
+        raise ValueError(f"APB: no se envía mensaje automático ML ({motivo_apb}).")
+
     if not ml_mensaje_thread_habilitado(pedido):
         raise ValueError("__FALLBACK_A_WEB__")
 
@@ -5789,7 +5980,9 @@ def ml_enviar_mensaje_acordas(pedido, texto):
     ultimo_error = None
     for path in intentos:
         try:
-            return ml_api_post_json(path, payload)
+            resultado_ml = ml_api_post_json(path, payload)
+            ia_marcar_mensaje_bot(pedido, "mercadolibre", texto, commit=False)
+            return resultado_ml
         except Exception as e:
             ultimo_error = e
             print("No se pudo enviar mensaje ML por", path, e)
@@ -9181,6 +9374,7 @@ ADMIN_PEDIDO_CAMPOS_GRUPOS = [
         "correo_sucursales_ofrecidas", "costo_envio", "costo_envio_sucursal", "costo_envio_domicilio",
         "ia_ultimo_mensaje_hash", "ia_ultimo_analisis", "ia_error", "ia_respuesta_sugerida",
         "ia_sucursales_ofrecidas", "ia_respuesta_enviada_hash", "ia_ultima_respuesta_enviada",
+        "ia_esperando_respuesta", "ia_ultimo_mensaje_bot", "ia_ultimo_mensaje_cliente", "ia_canal_activo", "ia_ultimo_timeout_operador",
         "ml_claim_id", "ml_claim_abierto", "ml_claim_status", "ml_claim_reason", "ultima_sync_claim_ml",
     ]),
 ]
@@ -10569,6 +10763,19 @@ with app.app_context():
                     from app import Pedido, MercadoLibreCuenta
                     cuenta = MercadoLibreCuenta.query.first()
                     seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+
+                    # APB anti-acoso: si el bot ML habló y el comprador no respondió
+                    # durante 2 horas operativas, escala al operador. No insiste.
+                    pedidos_esperando = (
+                        Pedido.query
+                        .filter(Pedido.canal == "Mercado Libre")
+                        .filter(Pedido.ia_esperando_respuesta == True)
+                        .filter(Pedido.estado.notin_(["Despachado", "Entregado", "Finalizado", "Cancelado"]))
+                        .all()
+                    )
+                    for p_wait in pedidos_esperando:
+                        ia_escalar_si_timeout_operativo(p_wait, canal="mercadolibre")
+
                     pedidos = (
                         Pedido.query
                         .filter(Pedido.canal == "Mercado Libre")

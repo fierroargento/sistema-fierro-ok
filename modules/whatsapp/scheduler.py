@@ -36,16 +36,8 @@ def _cerrar_sesion_db_segura(rollback=False):
 
 
 from .config import (
-    TIMER_PRIMER_RECORDATORIO,
-    TIMER_SEGUNDO_RECORDATORIO,
-    TIMER_CROSS_SELL_SIGUIENTE,
     TRACKING_INTERVALO_MINUTOS,
     modulo_activo,
-)
-from .flows import (
-    wa_enviar_recordatorio_1,
-    wa_enviar_recordatorio_2,
-    _guardar_estado_wa,
 )
 
 
@@ -73,61 +65,31 @@ def ejecutar_timers():
 
 
 def ejecutar_timers_whatsapp():
+    """APB anti-acoso.
+
+    Ya no manda recordatorios automáticos. Solo escala a operador si el bot
+    habló y el comprador no respondió en 2 horas operativas (08:00-22:00 AR).
+    """
     if not modulo_activo():
         return
     try:
-        from app import db, Pedido
-        ahora = datetime.utcnow()
+        from app import Pedido, ia_escalar_si_timeout_operativo
         pedidos = (
             Pedido.query
-            .filter(Pedido.wa_estado.isnot(None))
-            .filter(Pedido.wa_estado != "")
-            .filter(Pedido.wa_ultimo_contacto.isnot(None))
+            .filter(Pedido.ia_esperando_respuesta == True)
+            .filter(Pedido.ia_ultimo_mensaje_bot.isnot(None))
             .filter(Pedido.estado.notin_(["Entregado", "Finalizado", "Cancelado"]))
+            .limit(100)
             .all()
         )
         for pedido in pedidos:
-            estado = str(pedido.wa_estado or "")
-            ultimo = pedido.wa_ultimo_contacto
-            if not ultimo:
-                continue
-            elapsed = (ahora - ultimo).total_seconds()
-
-            if estado in ["esperando_confirmacion_sucursal", "esperando_datos", "falta_elegir_transporte"]:
-                if elapsed >= TIMER_SEGUNDO_RECORDATORIO and not _ya_envio_recordatorio(pedido, 2):
-                    wa_enviar_recordatorio_2(pedido)
-                    _marcar_recordatorio(pedido, 2)
-                elif elapsed >= TIMER_PRIMER_RECORDATORIO and not _ya_envio_recordatorio(pedido, 1):
-                    wa_enviar_recordatorio_1(pedido)
-                    _marcar_recordatorio(pedido, 1)
-                elif elapsed >= TIMER_SEGUNDO_RECORDATORIO + 3600 and _ya_envio_recordatorio(pedido, 2):
-                    _escalar_sin_respuesta(pedido)
-
-            elif estado.startswith("cross_sell:") and estado != "cross_sell_cerrado":
-                if elapsed >= TIMER_CROSS_SELL_SIGUIENTE:
-                    partes = estado.split(":")
-                    try:
-                        indice = int(partes[-1]) if partes[-1].isdigit() else 0
-                    except Exception:
-                        indice = 0
-                    from .cross_sell import obtener_productos_a_ofrecer, wa_ofrecer_producto, wa_cerrar_cross_sell
-                    from app import normalizar_telefono
-                    tel = normalizar_telefono(pedido.telefono)
-                    productos = obtener_productos_a_ofrecer(pedido)
-                    siguiente_idx = indice + 1
-                    if siguiente_idx < len(productos):
-                        siguiente_sku = productos[siguiente_idx]
-                        _guardar_estado_wa(pedido, f"cross_sell:{siguiente_sku}:{siguiente_idx}")
-                        wa_ofrecer_producto(tel, siguiente_sku)
-                    else:
-                        wa_cerrar_cross_sell(tel)
-                        _guardar_estado_wa(pedido, "cross_sell_cerrado")
+            canal = str(getattr(pedido, "ia_canal_activo", "") or "whatsapp")
+            ia_escalar_si_timeout_operativo(pedido, canal=canal)
     except Exception as e:
         _cerrar_sesion_db_segura(rollback=True)
         print("[WA SCHEDULER] Error WA:", e)
     finally:
         _cerrar_sesion_db_segura(rollback=False)
-
 
 def _es_transporte_tracking_auto_apb(pedido):
     """Tracking automático habilitado solo para Andreani y Via Cargo.
@@ -227,40 +189,5 @@ def ejecutar_tracking_automatico():
     except Exception as e:
         _cerrar_sesion_db_segura(rollback=True)
         print("[TRACKING AUTO] Error general:", e)
-    finally:
-        _cerrar_sesion_db_segura(rollback=False)
-
-
-def _ya_envio_recordatorio(pedido, numero):
-    return bool(getattr(pedido, f"wa_recordatorio_{numero}", None))
-
-
-def _marcar_recordatorio(pedido, numero):
-    try:
-        from app import db
-        setattr(pedido, f"wa_recordatorio_{numero}", True)
-        pedido.wa_ultimo_contacto = datetime.utcnow()
-        db.session.commit()
-    except Exception as e:
-        _cerrar_sesion_db_segura(rollback=True)
-        print(f"[WA SCHEDULER] Error marcando recordatorio {numero}:", e)
-    finally:
-        _cerrar_sesion_db_segura(rollback=False)
-
-
-def _escalar_sin_respuesta(pedido):
-    try:
-        from app import db
-        if pedido.ia_requiere_operador:
-            return
-        pedido.ml_mensajes_pendientes = True
-        pedido.ia_requiere_operador = True
-        pedido.wa_estado = "sin_respuesta_escalado"
-        resumen = (pedido.ia_resumen or "").strip()
-        pedido.ia_resumen = f"{resumen} | WA: Cliente no respondió".strip(" |")
-        db.session.commit()
-    except Exception as e:
-        _cerrar_sesion_db_segura(rollback=True)
-        print("[WA SCHEDULER] Error escalando:", e)
     finally:
         _cerrar_sesion_db_segura(rollback=False)
