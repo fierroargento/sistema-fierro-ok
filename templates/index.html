@@ -109,7 +109,7 @@
                     </span>
                 </td>
                 <td class="col-acciones">
-                    <a href="{{ url_for('detalle_pedido', id=p.id) }}" class="btn btn-accion-rapida btn-confirmar">
+                    <a href="{{ url_for('detalle_pedido', id=p.id, origen=request.path) }}" class="btn btn-accion-rapida btn-confirmar">
                 {% if rol_actual in ['despacho', 'carga'] %}
                             Continuar proceso
                 {% else %}
