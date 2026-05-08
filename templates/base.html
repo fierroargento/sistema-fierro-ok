@@ -19,6 +19,9 @@
 
         <div class="menu">
             <a href="{{ url_for('inicio') }}">Inicio</a>
+            {% if rol_actual in ["admin", "carga"] %}
+            <a href="{{ url_for('pedidos_preparacion') }}">Pedidos en preparación</a>
+            {% endif %}
             {% if puede_crear_pedido() %}
             <a href="{{ url_for('nuevo_pedido') }}">Nuevo Pedido</a>
             {% endif %}

@@ -2477,13 +2477,39 @@ def estados_visibles_inicio():
         ]
 
     if rol == "carga":
-        return ["Cargando Pedido", "Etiqueta Lista", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Reclamar a Mercado Libre", "Entregado"]
+        # APB:
+        # Los pedidos de preparación/despacho no deben mezclarse en Inicio.
+        return [
+            "Cargando Pedido",
+            "Despachado",
+            "Con demora de entrega",
+            "Con reclamo en transporte",
+            "Verificar llegada a destino",
+            "Listo para retirar",
+            "No entregado",
+            "Reclamar a Mercado Libre",
+            "Entregado",
+        ]
 
     if rol == "despacho":
         return ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]
 
     return []
 
+
+def puede_ver_pedidos_preparacion():
+    return rol_actual() in ["admin", "carga"]
+
+
+def estados_visibles_preparacion():
+    if not puede_ver_pedidos_preparacion():
+        return []
+
+    return [
+        "Etiqueta Lista",
+        "Etiqueta Impresa",
+        "Embalado",
+    ]
 
 def titulo_inicio_por_rol():
     rol = rol_actual()
@@ -7012,6 +7038,51 @@ def inicio():
         texto_boton_estado=texto_boton_estado,
         puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
         ok_feedback=ok_feedback
+    )
+
+
+@app.route("/pedidos-preparacion")
+@login_required
+def pedidos_preparacion():
+    if not puede_ver_pedidos_preparacion():
+        return redirect(url_for("inicio"))
+
+    pedidos = Pedido.query.all()
+
+    cambios = False
+    for pedido in pedidos:
+        telefono_original = pedido.telefono or ""
+        telefono_normalizado = normalizar_telefono(telefono_original)
+        if telefono_original and telefono_normalizado and telefono_original != telefono_normalizado:
+            pedido.telefono = telefono_normalizado
+            cambios = True
+
+        estado_anterior = pedido.estado
+        actualizar_estado_automatico(pedido)
+        if pedido.estado != estado_anterior:
+            cambios = True
+
+    if cambios:
+        db.session.commit()
+
+    estados = estados_visibles_preparacion()
+    pedidos = [p for p in pedidos if p.estado in estados]
+    pedidos.sort(key=orden_inicio_pedido)
+
+    ok_feedback = (request.args.get("ok") or "").strip()
+    error = (request.args.get("error") or "").strip()
+
+    return render_template(
+        "index.html",
+        pedidos=pedidos,
+        resumen_operativo=resumen_operativo(pedidos),
+        accion_sugerida_pedido=accion_sugerida_pedido,
+        texto_boton_estado=texto_boton_estado,
+        puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
+        ok_feedback=ok_feedback,
+        error=error,
+        titulo_override="Pedidos en preparación",
+        subtitulo_override="Pedidos en instancia de impresión, embalaje y despacho",
     )
 
 
