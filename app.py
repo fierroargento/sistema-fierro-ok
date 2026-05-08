@@ -2090,7 +2090,19 @@ def accion_principal_pedido(pedido, origen="inicio"):
     if pedido.estado in ["Entregado", "Finalizado"]:
         return None
 
-    if (rol == "admin") or (rol == "carga" and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "No entregado"]) or (rol == "despacho" and pedido.estado in ["Etiqueta Impresa", "Embalado"]):
+    if (rol == "admin") or (
+        rol == "carga"
+        and pedido.estado in [
+            "Cargando Pedido",
+            "Despachado",
+            "Con demora de entrega",
+            "Con reclamo en transporte",
+            "No entregado"
+        ]
+    ) or (
+        rol == "despacho"
+        and pedido.estado in ["Etiqueta Impresa", "Embalado"]
+    ):
         texto = texto_boton_estado(pedido)
 
         if texto == "Cargar seguimiento":
