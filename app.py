@@ -2647,13 +2647,38 @@ def puede_avanzar_segun_rol(pedido):
         return True, []
 
     if rol == "carga":
-        if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Reclamar a Mercado Libre"]:
+
+        # =========================
+        # CARGA SIEMPRE PUEDE CERRAR
+        # LA CARGA INICIAL
+        # =========================
+        if pedido.estado == "Cargando Pedido":
             return True, []
+
+        # =========================
+        # ESTADOS OPERATIVOS DE CARGA
+        # =========================
+        if pedido.estado in [
+            "Despachado",
+            "Con demora de entrega",
+            "Con reclamo en transporte",
+            "Verificar llegada a destino",
+            "Listo para retirar",
+            "No entregado",
+            "Reclamar a Mercado Libre"
+        ]:
+            return True, []
+
         return False, ["Este estado lo trabaja Embalaje y Despacho."]
 
     if rol == "despacho":
-        if pedido.estado in ["Etiqueta Impresa", "Embalado"]:
+
+        if pedido.estado in [
+            "Etiqueta Impresa",
+            "Embalado"
+        ]:
             return True, []
+
         return False, ["Este estado lo trabaja el operador de Carga."]
 
     return False, ["No tenés permisos para esta acción."]
