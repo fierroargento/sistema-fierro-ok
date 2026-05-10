@@ -1,4 +1,5 @@
 import os
+import logging
 import re
 import json
 import hashlib
@@ -25,6 +26,14 @@ from services.andreani import andreani_configurada, andreani_trazas_envio, resum
 from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico, consultar_correo_formulario
 
 app = Flask(__name__)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s"
+)
+
+logger = logging.getLogger("fierro")
+
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
     api_key=os.getenv("CLOUDINARY_API_KEY"),
@@ -10938,7 +10947,9 @@ def asegurar_usuarios_iniciales():
         ))
     db.session.commit()
 
-
+@app.route("/health")
+def health():
+    return {"status": "ok"}, 200
 
 with app.app_context():
     db.create_all()
