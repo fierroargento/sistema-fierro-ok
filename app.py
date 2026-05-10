@@ -4792,6 +4792,34 @@ def ml_ultimo_mensaje_comprador(mensajes, seller_id=""):
 def ia_hash_texto(texto):
     return hashlib.sha256(str(texto or "").encode("utf-8", errors="ignore")).hexdigest()
 
+def ia_extraer_codigo_postal_simple(texto):
+    """
+    APB anti-loop:
+    Detecta CP escrito de forma simple por el comprador.
+    Ejemplos válidos:
+    - 3500
+    - CP 3500
+    - Código postal 3500
+    - codigo postal: 3500
+    """
+    texto = str(texto or "").strip()
+
+    if not texto:
+        return ""
+
+    patrones = [
+        r"\b(?:cp|c\.p\.|codigo postal|código postal|cod postal|cód postal)\s*[:\-]?\s*(\d{4})\b",
+        r"^\s*(\d{4})\s*$",
+        r"\bcp\s*(\d{4})\b",
+    ]
+
+    for patron in patrones:
+        m = re.search(patron, texto, flags=re.IGNORECASE)
+
+        if m:
+            return m.group(1)
+
+    return ""
 
 ARG_TZ = ZoneInfo("America/Argentina/Buenos_Aires")
 IA_HORA_INICIO_OPERATIVA = time(8, 0)
@@ -5505,77 +5533,104 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         return None
 
     texto = ml_texto_mensaje_ml(ultimo)
+
     if texto:
-        ia_marcar_respuesta_cliente(pedido, canal="mercadolibre", commit=False)
+        ia_marcar_respuesta_cliente(
+        pedido,
+        canal="mercadolibre",
+        commit=False,
+    )
 
-    # DETECTAR SUCURSAL
-    # PP6040 va por Andreani/Correo a domicilio → nunca detectar sucursal Via Cargo
-    # Solo detectar elección si el sistema YA ofreció opciones al cliente (ia_sucursales_ofrecidas)
-    # Evita que el texto con los datos del cliente (localidad, dirección) se confunda con una elección
-    _sucursales_ya_ofrecidas = bool(getattr(pedido, "ia_sucursales_ofrecidas", None))
-    if not pedido_es_plegable_pp6040(pedido) and _sucursales_ya_ofrecidas:
-        # Si el sistema ya ofreció sucursales y el cliente hace una consulta
-        # en lugar de elegir → escalar al operador para que lo resuelva
-        candidatas_ids_check = []
-        try:
-            candidatas_ids_check = json.loads(getattr(pedido, "ia_sucursales_ofrecidas", "") or "[]")
-        except Exception:
-            pass
+    # APB:
+    # Si el comprador respondió solo el CP
+    # o escribió "CP 3500", lo tomamos
+    # antes de llamar a IA.
+    cp_detectado = ia_extraer_codigo_postal_simple(texto)
 
-        if candidatas_ids_check and texto and _es_consulta_no_eleccion(texto.lower()):
-            try:
-                pedido.ml_mensajes_pendientes = True
-                pedido.ia_requiere_operador = True
-                resumen = (pedido.ia_resumen or "").strip()
-                pedido.ia_resumen = f"{resumen} | Cliente consultó sobre sucursal: {texto[:100]}".strip(" |")
-                db.session.commit()
-                print(f"[VIA CARGO] Pedido #{pedido.id} escalado: consulta de sucursal no resuelta")
-            except Exception as e:
-                print(f"[VIA CARGO] Error escalando consulta sucursal:", e)
-            return None
+    if (
+        cp_detectado
+        and not (pedido.codigo_postal or "").strip()
+    ):
+        pedido.codigo_postal = cp_detectado
 
-        suc = detectar_sucursal(pedido, texto)
-        if suc and not getattr(pedido, "sucursal_nombre", None):
-            pedido.sucursal_nombre = suc.get("nombre")
-            pedido.direccion = suc.get("direccion")
-            pedido.localidad = suc.get("localidad")
-            pedido.provincia = suc.get("provincia")
-            # Autocompletar transporte y tipo de entrega según regla de negocio
-            if not (pedido.empresa_envio or "").strip():
-                pedido.empresa_envio = "Vía Cargo"
-            if not (pedido.tipo_entrega or "").strip():
-                pedido.tipo_entrega = "Sucursal"
-            try:
-                db.session.commit()
-            except:
-                pass
-            # Confirmar al cliente que la sucursal fue registrada y el despacho está en proceso
-            try:
-                nombre_cliente = (getattr(pedido, "cliente", "") or "Cliente").split()[0] or "Cliente"
-                msg_confirmacion = (
-                    f"Muchas gracias {nombre_cliente}! 🙌\n\n"
-                    f"Tu pedido ya está en proceso de despacho a:\n"
-                    f"📍 {suc.get('nombre')}\n"
-                    f"📌 {suc.get('direccion')}\n\n"
-                    f"En breve te pasamos el número de seguimiento para que puedas rastrear tu envío 😊"
-                )
-                ml_enviar_mensaje_acordas(pedido, msg_confirmacion)
-            except Exception as e:
-                print(f"[VIA CARGO] No se pudo enviar confirmación de sucursal pedido #{pedido.id}:", e)
+        resumen = (pedido.ia_resumen or "").strip()
 
-    if not texto:
-        return None
+        marca = (
+            f"IA autocompletó CP simple: {cp_detectado}"
+        )
 
-    h = ia_hash_texto(texto)
-    if not forzar and h == str(getattr(pedido, "ia_ultimo_mensaje_hash", "") or ""):
-        return None
+        if marca not in resumen:
+            pedido.ia_resumen = (
+                f"{resumen} | {marca}"
+            ).strip(" |")[:1000]
 
-    resultado = ia_analizar_datos_cliente_ml_acordas(texto, ia_datos_previos_pedido(pedido))
-    ia_guardar_resultado_recolector(pedido, texto, resultado)
-    if resultado and resultado.get("ok"):
-        ia_auto_responder_post_analisis(pedido)
-    return resultado
+            # DETECTAR SUCURSAL
+            # PP6040 va por Andreani/Correo a domicilio → nunca detectar sucursal Via Cargo
+            # Solo detectar elección si el sistema YA ofreció opciones al cliente (ia_sucursales_ofrecidas)
+            # Evita que el texto con los datos del cliente (localidad, dirección) se confunda con una elección
+            _sucursales_ya_ofrecidas = bool(getattr(pedido, "ia_sucursales_ofrecidas", None))
+            if not pedido_es_plegable_pp6040(pedido) and _sucursales_ya_ofrecidas:
+                # Si el sistema ya ofreció sucursales y el cliente hace una consulta
+                # en lugar de elegir → escalar al operador para que lo resuelva
+                candidatas_ids_check = []
+                try:
+                    candidatas_ids_check = json.loads(getattr(pedido, "ia_sucursales_ofrecidas", "") or "[]")
+                except Exception:
+                    pass
 
+                if candidatas_ids_check and texto and _es_consulta_no_eleccion(texto.lower()):
+                    try:
+                        pedido.ml_mensajes_pendientes = True
+                        pedido.ia_requiere_operador = True
+                        resumen = (pedido.ia_resumen or "").strip()
+                        pedido.ia_resumen = f"{resumen} | Cliente consultó sobre sucursal: {texto[:100]}".strip(" |")
+                        db.session.commit()
+                        print(f"[VIA CARGO] Pedido #{pedido.id} escalado: consulta de sucursal no resuelta")
+                    except Exception as e:
+                        print(f"[VIA CARGO] Error escalando consulta sucursal:", e)
+                    return None
+
+                suc = detectar_sucursal(pedido, texto)
+                if suc and not getattr(pedido, "sucursal_nombre", None):
+                    pedido.sucursal_nombre = suc.get("nombre")
+                    pedido.direccion = suc.get("direccion")
+                    pedido.localidad = suc.get("localidad")
+                    pedido.provincia = suc.get("provincia")
+                    # Autocompletar transporte y tipo de entrega según regla de negocio
+                    if not (pedido.empresa_envio or "").strip():
+                        pedido.empresa_envio = "Vía Cargo"
+                    if not (pedido.tipo_entrega or "").strip():
+                        pedido.tipo_entrega = "Sucursal"
+                    try:
+                        db.session.commit()
+                    except:
+                        pass
+                    # Confirmar al cliente que la sucursal fue registrada y el despacho está en proceso
+                    try:
+                        nombre_cliente = (getattr(pedido, "cliente", "") or "Cliente").split()[0] or "Cliente"
+                        msg_confirmacion = (
+                            f"Muchas gracias {nombre_cliente}! 🙌\n\n"
+                            f"Tu pedido ya está en proceso de despacho a:\n"
+                            f"📍 {suc.get('nombre')}\n"
+                            f"📌 {suc.get('direccion')}\n\n"
+                            f"En breve te pasamos el número de seguimiento para que puedas rastrear tu envío 😊"
+                        )
+                        ml_enviar_mensaje_acordas(pedido, msg_confirmacion)
+                    except Exception as e:
+                        print(f"[VIA CARGO] No se pudo enviar confirmación de sucursal pedido #{pedido.id}:", e)
+
+            if not texto:
+                return None
+
+            h = ia_hash_texto(texto)
+            if not forzar and h == str(getattr(pedido, "ia_ultimo_mensaje_hash", "") or ""):
+                return None
+
+            resultado = ia_analizar_datos_cliente_ml_acordas(texto, ia_datos_previos_pedido(pedido))
+            ia_guardar_resultado_recolector(pedido, texto, resultado)
+            if resultado and resultado.get("ok"):
+                ia_auto_responder_post_analisis(pedido)
+            return resultado
 
 def ia_auto_responder_post_analisis(pedido):
     """
@@ -7214,16 +7269,66 @@ def ia_generar_cta_operador_pedido(pedido):
 
 
 def ia_respuesta_faltantes_ya_enviada(pedido, texto):
+
     if not pedido or not texto:
         return False
-    ultima_enviada = getattr(pedido, "ia_ultima_respuesta_enviada", None)
-    ultimo_analisis = getattr(pedido, "ia_ultimo_analisis", None)
+
+    ultima_enviada = getattr(
+        pedido,
+        "ia_ultima_respuesta_enviada",
+        None,
+    )
+
     if not ultima_enviada:
         return False
-    # Si hubo nuevo análisis después del último envío, se permite responder de nuevo.
-    if ultimo_analisis and ultima_enviada < ultimo_analisis:
+
+    mismo_texto = (
+        str(
+            getattr(
+                pedido,
+                "ia_respuesta_enviada_hash",
+                "",
+            ) or ""
+        )
+        == ia_hash_texto(texto)
+    )
+
+    if not mismo_texto:
         return False
-    return str(getattr(pedido, "ia_respuesta_enviada_hash", "") or "") == ia_hash_texto(texto)
+
+    # APB anti-acoso:
+    # aunque el scheduler relea el mensaje,
+    # no volver a mandar exactamente
+    # la misma respuesta automática.
+
+    segundos = ia_segundos_operativos_entre(
+        ultima_enviada,
+        datetime.utcnow(),
+    )
+
+    if segundos < IA_TIMEOUT_RESPUESTA_SEGUNDOS:
+        return True
+
+    # Si ya pasaron 2 hs operativas:
+    # no insistir.
+    # Escalar a operador.
+
+    pedido.ia_requiere_operador = True
+    pedido.ml_mensajes_pendientes = True
+
+    resumen = (pedido.ia_resumen or "").strip()
+
+    marca = (
+        "BOT frenado: respuesta automática repetida, "
+        "requiere operador"
+    )
+
+    if marca not in resumen:
+        pedido.ia_resumen = (
+            f"{resumen} | {marca}"
+        ).strip(" |")[:1000]
+
+    return True
 
 
 @app.context_processor
