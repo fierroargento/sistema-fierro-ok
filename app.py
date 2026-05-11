@@ -24,6 +24,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from services.andreani import andreani_configurada, andreani_trazas_envio, resumen_evento_andreani
 from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico, consultar_correo_formulario
+from services.pedidos_estado import requiere_contacto_cliente
 
 app = Flask(__name__)
 
@@ -1634,7 +1635,7 @@ def puede_imprimir_acordas_entrega(pedido):
     )
 
 
-def requiere_contacto_cliente(pedido):
+def requiere_contacto_cliente_old(pedido):
     return bool(
         usa_flujo_acordas_entrega(pedido)
         and not despacho_completo(pedido)
