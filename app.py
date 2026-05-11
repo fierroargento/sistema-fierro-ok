@@ -4,7 +4,6 @@ import json
 import hashlib
 import hmac
 import base64
-import logging
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse, urlencode
@@ -24,21 +23,8 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from services.andreani import andreani_configurada, andreani_trazas_envio, resumen_evento_andreani
 from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico, consultar_correo_formulario
-from services.pedidos_estado import (
-    requiere_contacto_cliente,
-    despacho_completo,
-    siguiente_estado,
-)
 
 app = Flask(__name__)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
-
-logger = logging.getLogger(__name__)
-
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
     api_key=os.getenv("CLOUDINARY_API_KEY"),
@@ -62,12 +48,7 @@ app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
 _secret_key = os.getenv("SECRET_KEY", "")
 if not _secret_key:
     raise RuntimeError("SECRET_KEY no está configurada. Definila en las variables de entorno.")
-
 app.config["SECRET_KEY"] = _secret_key
-
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SECURE"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
@@ -1598,7 +1579,7 @@ def puede_imprimir_etiqueta_directamente(pedido):
     )
 
 
-def despacho_completo_old(pedido):
+def despacho_completo(pedido):
     aplicar_default_tipo_entrega(pedido)
 
     if not pedido.empresa_envio or not pedido.tipo_entrega:
@@ -1639,7 +1620,7 @@ def puede_imprimir_acordas_entrega(pedido):
     )
 
 
-def requiere_contacto_cliente_old(pedido):
+def requiere_contacto_cliente(pedido):
     return bool(
         usa_flujo_acordas_entrega(pedido)
         and not despacho_completo(pedido)
@@ -1796,7 +1777,7 @@ def motor_bloqueo(pedido):
     return errores
 
 
-def siguiente_estado_old(e):
+def siguiente_estado(e):
     flujo = {
         "Cargando Pedido": "Etiqueta Lista",
         "Etiqueta Lista": "Etiqueta Impresa",
@@ -7431,22 +7412,6 @@ def inyectar_contexto_global():
         "ia_respuesta_faltantes_ya_enviada": ia_respuesta_faltantes_ya_enviada,
     }
 
-@app.route("/health")
-def health():
-    return {
-        "status": "ok",
-        "service": "sistema-fierro",
-        "timestamp": datetime.utcnow().isoformat()
-    }, 200
-
-@app.errorhandler(404)
-def not_found(e):
-    return render_template("404.html"), 404
-
-
-@app.errorhandler(500)
-def server_error(e):
-    return render_template("500.html"), 500
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
