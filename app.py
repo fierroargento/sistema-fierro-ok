@@ -10489,6 +10489,13 @@ def confirmar_revision_agregado(id):
 
     db.session.commit()
 
+    if rol_actual() == "despacho" and es_dispositivo_movil():
+
+        return redirect(url_for(
+            "despacho_mobile",
+            ok="Agregado revisado por despacho. Ya se puede continuar el despacho."
+        ))
+
     return redirect(url_for(
         "detalle_pedido",
         id=pedido.id,

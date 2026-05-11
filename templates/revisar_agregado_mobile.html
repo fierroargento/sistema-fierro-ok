@@ -131,13 +131,11 @@
 
         {% endfor %}
 
-        <a
-            class="mobile-btn"
-            href="{{ url_for('confirmar_revision_agregado', id=pedido.id) }}">
-
-            Confirmar revisión y desbloquear despacho
-
-        </a>
+        <form method="POST" action="{{ url_for('confirmar_revision_agregado', id=pedido.id) }}">
+            <button type="submit" class="mobile-btn">
+                Confirmar revisión y desbloquear despacho
+            </button>
+        </form>
 
         <a
             class="mobile-btn-sec"
