@@ -2004,10 +2004,20 @@ def accion_principal_pedido(pedido, origen="inicio"):
     if tn_necesita_completar_carga(pedido):
 
         if origen == "mobile" and rol == "despacho":
+
+            if pedido.agregado_pendiente_revision:
+                return {
+                    "tipo": "continuar_proceso",
+                    "texto": "Continuar proceso",
+                    "url": url_for("revisar_agregado_mobile", id=pedido.id),
+                    "clases": clase_confirmar,
+                    "target": "",
+                }
+
             return {
                 "tipo": "continuar_proceso",
                 "texto": "Continuar proceso",
-                "url": url_for("revisar_agregado_mobile", id=pedido.id),
+                "url": url_for("continuar_despacho_mobile", id=pedido.id),
                 "clases": clase_confirmar,
                 "target": "",
             }
@@ -9083,6 +9093,23 @@ def revisar_agregado_mobile(id):
     return render_template(
         "revisar_agregado_mobile.html",
         pedido=pedido
+    )
+
+@app.route("/despacho-mobile/pedido/<int:id>/continuar")
+@login_required
+def continuar_despacho_mobile(id):
+
+    pedido = Pedido.query.get_or_404(id)
+
+    if rol_actual() != "despacho" or not es_dispositivo_movil():
+        return redirect(url_for("inicio"))
+
+    accion = accion_principal_pedido(pedido, "mobile")
+
+    return render_template(
+        "continuar_despacho_mobile.html",
+        pedido=pedido,
+        accion=accion
     )
 
 def marcar_contacto_iniciado_pedido(pedido):
