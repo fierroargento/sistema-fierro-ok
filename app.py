@@ -8918,6 +8918,7 @@ def nuevo_pedido():
 @app.route("/pedido/<int:id>")
 @login_required
 def detalle_pedido(id):
+    
     pedido = Pedido.query.get_or_404(id)
 
     permitir_detalle_mobile = (
@@ -9046,6 +9047,23 @@ def detalle_pedido(id):
         agregados_apb=agregados_apb,
     )
 
+@app.route("/despacho-mobile/pedido/<int:id>/revisar-agregado")
+@login_requerido
+def revisar_agregado_mobile(id):
+
+    if rol_actual() != "despacho":
+        flash("Acceso inválido.", "danger")
+        return redirect(url_for("inicio"))
+
+    pedido = Pedido.query.get_or_404(id)
+
+    if not es_dispositivo_movil():
+        return redirect(url_for("detalle_pedido", id=pedido.id))
+
+    return render_template(
+        "revisar_agregado_mobile.html",
+        pedido=pedido
+    )
 
 def marcar_contacto_iniciado_pedido(pedido):
     if not pedido:

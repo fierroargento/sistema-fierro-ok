@@ -237,7 +237,7 @@
                     <button
                         type="button"
                         class="mobile-action-secundaria"
-                        onclick="window.location.href='{{ url_for('detalle_pedido', id=pedido.id, mobile_detalle='1') }}';">
+                        onclick="window.location.href='{{ url_for('revisar_agregado_mobile', id=pedido.id) }}';">
                         Abrir detalle y confirmar revisión
                     </button>
                 {% elif accion %}

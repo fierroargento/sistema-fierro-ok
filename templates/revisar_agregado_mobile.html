@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+@media (max-width: 900px) {
+
+    body {
+        background: #f4f7f8;
+    }
+
+    .layout {
+        display: block;
+    }
+
+    .sidebar {
+        display: none !important;
+    }
+
+    .main {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+}
+
+.mobile-wrap {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.mobile-card {
+    background: white;
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 14px;
+    border: 1px solid #dbe4e8;
+}
+
+.mobile-title {
+    font-size: 24px;
+    font-weight: 900;
+    color: #124E64;
+    margin-bottom: 6px;
+}
+
+.mobile-alerta {
+    background: #fff1f2;
+    border: 2px solid #fb7185;
+    color: #9f1239;
+    padding: 14px;
+    border-radius: 14px;
+    font-weight: 800;
+    margin-bottom: 16px;
+}
+
+.mobile-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.mobile-item:last-child {
+    border-bottom: none;
+}
+
+.mobile-btn {
+    display: block;
+    width: 100%;
+    border: none;
+    border-radius: 16px;
+    padding: 18px;
+    background: #124E64;
+    color: white;
+    font-size: 18px;
+    font-weight: 900;
+    text-align: center;
+    text-decoration: none;
+    margin-top: 16px;
+    box-sizing: border-box;
+}
+
+.mobile-btn-sec {
+    display: block;
+    width: 100%;
+    border-radius: 16px;
+    padding: 16px;
+    background: white;
+    color: #124E64;
+    border: 2px solid #124E64;
+    font-size: 16px;
+    font-weight: 900;
+    text-align: center;
+    text-decoration: none;
+    margin-top: 10px;
+    box-sizing: border-box;
+}
+</style>
+
+<div class="mobile-wrap">
+
+    <div class="mobile-card">
+
+        <div class="mobile-title">
+            Pedido #{{ pedido.id }}
+        </div>
+
+        <div style="font-weight:800;color:#64748b;margin-bottom:14px;">
+            {{ pedido.cliente }}
+        </div>
+
+        <div class="mobile-alerta">
+            ⚠️ AGREGADO PENDIENTE DE REVISIÓN
+        </div>
+
+        {% for item in pedido.items %}
+
+            <div class="mobile-item">
+
+                <strong>
+                    {{ item.cantidad or 0 }}x
+                </strong>
+
+                {{ item.descripcion or item.sku }}
+
+                {% if item.sku %}
+                    <br>
+                    <small>SKU: {{ item.sku }}</small>
+                {% endif %}
+
+            </div>
+
+        {% endfor %}
+
+        <a
+            class="mobile-btn"
+            href="{{ url_for('confirmar_revision_agregado', id=pedido.id) }}">
+
+            Confirmar revisión y desbloquear despacho
+
+        </a>
+
+        <a
+            class="mobile-btn-sec"
+            href="{{ url_for('despacho_mobile') }}">
+
+            Volver
+
+        </a>
+
+    </div>
+
+</div>
+
+{% endblock %}
