@@ -242,7 +242,13 @@
                     </button>
                 {% elif accion %}
                     <a class="mobile-action" href="{{ accion.url }}">
-                        {{ accion.texto }}
+
+                        {% if accion.texto == "Completar carga" %}
+                            Continuar proceso
+                        {% else %}
+                            {{ accion.texto }}
+                        {% endif %}
+
                     </a>
                 {% else %}
                     <div class="mobile-empty">Sin acción pendiente.</div>
