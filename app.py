@@ -48,7 +48,12 @@ app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
 _secret_key = os.getenv("SECRET_KEY", "")
 if not _secret_key:
     raise RuntimeError("SECRET_KEY no está configurada. Definila en las variables de entorno.")
+
 app.config["SECRET_KEY"] = _secret_key
+
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
