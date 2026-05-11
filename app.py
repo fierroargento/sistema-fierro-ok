@@ -9048,7 +9048,7 @@ def detalle_pedido(id):
     )
 
 @app.route("/despacho-mobile/pedido/<int:id>/revisar-agregado")
-@login_requerido
+@login_required
 def revisar_agregado_mobile(id):
 
     if rol_actual() != "despacho":
