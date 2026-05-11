@@ -167,6 +167,11 @@
     border: 2px solid #124E64;
     box-sizing: border-box;
     margin-top: 8px;
+
+    cursor: pointer;
+    font-family: inherit;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .mobile-footer-actions {
@@ -229,9 +234,12 @@
                     <div class="mobile-action-disabled">
                         Despacho bloqueado hasta confirmar revisión
                     </div>
-                    <a class="mobile-action-secundaria" href="{{ url_for('detalle_pedido', id=pedido.id) }}">
+                    <button
+                        type="button"
+                        class="mobile-action-secundaria"
+                        onclick="window.location.href='{{ url_for('detalle_pedido', id=pedido.id) }}';">
                         Abrir detalle y confirmar revisión
-                    </a>
+                    </button>
                 {% elif accion %}
                     <a class="mobile-action" href="{{ accion.url }}">
                         {{ accion.texto }}
