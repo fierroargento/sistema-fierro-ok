@@ -2021,6 +2021,16 @@ def accion_principal_pedido(pedido, origen="inicio"):
         }
 
     if requiere_contacto_cliente(pedido) and pedido.estado not in ["Despachado", "Verificar llegada a destino", "Listo para retirar", "Con demora de entrega", "Con reclamo en transporte", "Entregado", "Finalizado"]:
+
+        if origen == "mobile" and rol == "despacho":
+            return {
+                "tipo": "continuar_proceso",
+                "texto": "Continuar proceso",
+                "url": url_for("revisar_agregado_mobile", id=pedido.id),
+                "clases": clase_confirmar,
+                "target": "",
+            }
+
         return {
             "tipo": "completar_carga",
             "texto": "Completar carga",
