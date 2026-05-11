@@ -34,6 +34,18 @@
         </div>
     </div>
 
+    {% if rol_actual in ['admin', 'carga'] %}
+    <div class="buscador-wrapper" style="margin: 10px 0 8px 0;">
+        <input
+            type="search"
+            id="buscador_pedidos"
+            placeholder="Buscar por cliente, ID venta ML/TN, canal o dato del pedido…"
+            autocomplete="off"
+            style="width:100%; max-width:480px; padding:7px 12px; border:1px solid #ccc; border-radius:6px; font-size:14px; box-sizing:border-box;"
+        >
+    </div>
+    {% endif %}
+
     <table class="tabla-pedidos">
         <thead>
             <tr>
@@ -333,6 +345,10 @@ if (!cards.length || !filas.length) return;
         }
 
         actualizarFilaVacia(visibles);
+
+        if (inputBuscador && inputBuscador.value) {
+            aplicarBuscador();
+        }
     }
 
     function toggleFiltro(filtro) {
@@ -363,7 +379,71 @@ if (!cards.length || !filas.length) return;
         ? filtroGuardado
         : filtroDefaultPorRol();
 
+    // ── Buscador APB ───────────────────────────────────────────────────────────────────
+    const inputBuscador = document.getElementById('buscador_pedidos');
+
+    function normalizar(txt) {
+        return (txt || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function filaPasaFiltroSemaforo(fila) {
+        const color = fila.dataset.semaforo || 'gris';
+        const despachado = fila.dataset.despachado === 'si';
+
+        if (filtroActivo === 'rojo') return color === 'rojo';
+        if (filtroActivo === 'amarillo') return color === 'amarillo';
+        if (filtroActivo === 'verde') return color === 'verde';
+        if (filtroActivo === 'sin_despacho') return !despachado;
+
+        return true;
+    }
+
+    function aplicarBuscador() {
+        if (!inputBuscador) return;
+
+        const terminos = normalizar(inputBuscador.value).split(/\s+/).filter(Boolean);
+        let visibles = 0;
+
+        filas.forEach(function (fila) {
+            const celdas = fila.querySelectorAll('td');
+
+            const textoCliente = normalizar(celdas[1] ? celdas[1].innerText : '');
+            const textoIdVenta = normalizar(celdas[2] ? celdas[2].innerText : '');
+            const textoCanal   = normalizar(celdas[3] ? celdas[3].innerText : '');
+            const textoFila    = normalizar(fila.innerText || fila.textContent || '');
+
+            const pasaBusqueda = terminos.length === 0 || terminos.every(function (t) {
+                return (
+                    textoCliente.includes(t) ||
+                    textoIdVenta.includes(t) ||
+                    textoCanal.includes(t)   ||
+                    textoFila.includes(t)
+                );
+            });
+
+            const mostrar = pasaBusqueda && filaPasaFiltroSemaforo(fila);
+
+            fila.style.display = mostrar ? '' : 'none';
+            if (mostrar) visibles++;
+        });
+
+        actualizarFilaVacia(visibles);
+    }
+
+    if (inputBuscador) {
+        inputBuscador.addEventListener('input', aplicarBuscador);
+
+        inputBuscador.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                inputBuscador.value = '';
+                aplicarBuscador();
+            }
+        });
+    }
+
     aplicarFiltro(filtroInicial);
+    aplicarBuscador();
 })();
 </script>
 
