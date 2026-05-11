@@ -314,8 +314,8 @@ def wa_cerrar_datos_completos(pedido):
     # tipo_entrega vacío para Via Cargo/Correo. El helper central respeta si
     # carga/admin ya eligió Domicilio u otra opción.
     try:
-        from app import aplicar_default_tipo_entrega_sucursal
-        if aplicar_default_tipo_entrega_sucursal(pedido):
+        from app import aplicar_default_tipo_entrega
+        if aplicar_default_tipo_entrega(pedido):
             db.session.commit()
     except Exception as e:
         print("[WA] No se pudo aplicar tipo_entrega por defecto:", e)
