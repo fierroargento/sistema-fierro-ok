@@ -24,7 +24,10 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from services.andreani import andreani_configurada, andreani_trazas_envio, resumen_evento_andreani
 from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico, consultar_correo_formulario
-from services.pedidos_estado import requiere_contacto_cliente
+from services.pedidos_estado import (
+    requiere_contacto_cliente,
+    despacho_completo,
+)
 
 app = Flask(__name__)
 
@@ -1594,7 +1597,7 @@ def puede_imprimir_etiqueta_directamente(pedido):
     )
 
 
-def despacho_completo(pedido):
+def despacho_completo_old(pedido):
     aplicar_default_tipo_entrega(pedido)
 
     if not pedido.empresa_envio or not pedido.tipo_entrega:
