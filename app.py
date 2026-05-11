@@ -8919,7 +8919,16 @@ def nuevo_pedido():
 @login_required
 def detalle_pedido(id):
     pedido = Pedido.query.get_or_404(id)
-    if rol_actual() == "despacho" and es_dispositivo_movil():
+
+    permitir_detalle_mobile = (
+        request.args.get("mobile_detalle") == "1"
+    )
+
+    if (
+        rol_actual() == "despacho"
+        and es_dispositivo_movil()
+        and not permitir_detalle_mobile
+    ):
         return redirect(url_for("despacho_mobile"))
 
 
