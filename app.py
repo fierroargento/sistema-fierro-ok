@@ -5658,18 +5658,19 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     except Exception as e:
                         print(f"[VIA CARGO] No se pudo enviar confirmación de sucursal pedido #{pedido.id}:", e)
 
-            if not texto:
-                return None
 
-            h = ia_hash_texto(texto)
-            if not forzar and h == str(getattr(pedido, "ia_ultimo_mensaje_hash", "") or ""):
-                return None
+    if not texto:
+        return None
 
-            resultado = ia_analizar_datos_cliente_ml_acordas(texto, ia_datos_previos_pedido(pedido))
-            ia_guardar_resultado_recolector(pedido, texto, resultado)
-            if resultado and resultado.get("ok"):
-                ia_auto_responder_post_analisis(pedido)
-            return resultado
+    h = ia_hash_texto(texto)
+    if not forzar and h == str(getattr(pedido, "ia_ultimo_mensaje_hash", "") or ""):
+        return None
+
+    resultado = ia_analizar_datos_cliente_ml_acordas(texto, ia_datos_previos_pedido(pedido))
+    ia_guardar_resultado_recolector(pedido, texto, resultado)
+    if resultado and resultado.get("ok"):
+        ia_auto_responder_post_analisis(pedido)
+    return resultado
 
 def ia_auto_responder_post_analisis(pedido):
     """
