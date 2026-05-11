@@ -1,0 +1,36 @@
+name: Tests Sistema Fierro
+
+on:
+  push:
+    branches:
+      - main
+      - fase0-estabilizacion
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    env:
+      SECRET_KEY: local-test
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Ejecutar tests
+        run: pytest tests/ -v

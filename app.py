@@ -11053,6 +11053,6 @@ with app.app_context():
         _scheduler.add_job(_job_ml_mensajes, "interval", minutes=5, id="ml_mensajes")
         _scheduler.add_job(_job_wa_timers, "interval", minutes=5, id="wa_timers")
         _scheduler.start()
-        print("[SCHEDULER] Iniciado: ml_mensajes + wa_timers cada 5 minutos")
+        logger.info("[SCHEDULER] Iniciado: ml_mensajes + wa_timers cada 5 minutos")
     except Exception as e:
         print("[SCHEDULER] No se pudo iniciar:", e)
