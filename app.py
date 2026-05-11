@@ -2002,26 +2002,6 @@ def accion_principal_pedido(pedido, origen="inicio"):
         return None
 
     if tn_necesita_completar_carga(pedido):
-
-        if origen == "mobile" and rol == "despacho":
-
-            if pedido.agregado_pendiente_revision:
-                return {
-                    "tipo": "continuar_proceso",
-                    "texto": "Continuar proceso",
-                    "url": url_for("detalle_pedido", id=pedido.id, origen="mobile", mobile_detalle="1"),
-                    "clases": clase_confirmar,
-                    "target": "",
-                }
-
-            return {
-                "tipo": "continuar_proceso",
-                "texto": "Continuar proceso",
-                "url": url_for("detalle_pedido", id=pedido.id, origen="mobile", mobile_detalle="1"),
-                "clases": clase_confirmar,
-                "target": "",
-            }
-
         return {
             "tipo": "completar_carga",
             "texto": "Completar carga",
@@ -2031,26 +2011,6 @@ def accion_principal_pedido(pedido, origen="inicio"):
         }
 
     if requiere_contacto_cliente(pedido) and pedido.estado not in ["Despachado", "Verificar llegada a destino", "Listo para retirar", "Con demora de entrega", "Con reclamo en transporte", "Entregado", "Finalizado"]:
-
-        if origen == "mobile" and rol == "despacho":
-
-            if pedido.agregado_pendiente_revision:
-                return {
-                    "tipo": "continuar_proceso",
-                    "texto": "Continuar proceso",
-                    "url": url_for("detalle_pedido", id=pedido.id, origen="mobile", mobile_detalle="1"),
-                    "clases": clase_confirmar,
-                    "target": "",
-                }
-
-            return {
-                "tipo": "continuar_proceso",
-                "texto": "Continuar proceso",
-                "url": url_for("detalle_pedido", id=pedido.id, origen="mobile", mobile_detalle="1"),
-                "clases": clase_confirmar,
-                "target": "",
-            }
-
         return {
             "tipo": "completar_carga",
             "texto": "Completar carga",
