@@ -310,6 +310,16 @@ def wa_cerrar_datos_completos(pedido):
         _escalar_operador(pedido, msg or "No se pudo resolver transporte Correo")
         return False
 
+    # APB: si el flujo WA cerró datos y ya hay transporte asignado, no dejamos
+    # tipo_entrega vacío para Via Cargo/Correo. El helper central respeta si
+    # carga/admin ya eligió Domicilio u otra opción.
+    try:
+        from app import aplicar_default_tipo_entrega_sucursal
+        if aplicar_default_tipo_entrega_sucursal(pedido):
+            db.session.commit()
+    except Exception as e:
+        print("[WA] No se pudo aplicar tipo_entrega por defecto:", e)
+
     _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
     return wa_enviar_texto(tel, "Perfecto, ya tenemos todos los datos para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.")
 

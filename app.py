@@ -1548,6 +1548,25 @@ def es_ml_acordas_entrega(pedido):
     return pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega"
 
 
+def es_ml_acordas_via_cargo(pedido):
+    return bool(
+        pedido
+        and pedido.canal == "Mercado Libre"
+        and pedido.ml_tipo == "Acordás la Entrega"
+        and es_via_cargo(pedido.empresa_envio)
+    )
+
+
+def aplicar_default_tipo_entrega(pedido):
+    """
+    Regla APB preventiva:
+    Mercado Libre + Acordás la Entrega + Vía Cargo nace como Sucursal
+    salvo que carga/admin ya haya definido otro tipo de entrega.
+    """
+    if es_ml_acordas_via_cargo(pedido) and not (pedido.tipo_entrega or "").strip():
+        pedido.tipo_entrega = "Sucursal"
+
+
 def usa_flujo_acordas_entrega(pedido):
     return es_ml_acordas_entrega(pedido) or es_tnube_via_cargo(pedido) or es_mayorista_via_cargo(pedido)
 
@@ -1561,6 +1580,8 @@ def puede_imprimir_etiqueta_directamente(pedido):
 
 
 def despacho_completo(pedido):
+    aplicar_default_tipo_entrega(pedido)
+
     if not pedido.empresa_envio or not pedido.tipo_entrega:
         return False
 
@@ -2010,7 +2031,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "target": "",
         }
 
-    if requiere_contacto_cliente(pedido) and pedido.estado not in ["Despachado", "Verificar llegada a destino", "Listo para retirar", "Con demora de entrega", "Con reclamo en transporte", "Entregado", "Finalizado"]:
+    if requiere_contacto_cliente(pedido) and pedido.estado not in ["Despachado", "Verificar llegada a destino", "Listo para retirar", "Con demora de entrega", "Con reclamo en transporte", "Entregado", "Finalizado", "Etiqueta Lista", "Etiqueta Impresa", "Embalado"]:
         return {
             "tipo": "completar_carga",
             "texto": "Completar carga",
@@ -5599,8 +5620,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     # Autocompletar transporte y tipo de entrega según regla de negocio
                     if not (pedido.empresa_envio or "").strip():
                         pedido.empresa_envio = "Vía Cargo"
-                    if not (pedido.tipo_entrega or "").strip():
-                        pedido.tipo_entrega = "Sucursal"
+                    pedido.tipo_entrega = "Sucursal"
                     try:
                         db.session.commit()
                     except:
@@ -6256,6 +6276,9 @@ def ml_aplicar_datos_envio(pedido, order, shipment):
     pedido.localidad = city.get("name") or pedido.localidad
     pedido.provincia = state.get("name") or pedido.provincia
     pedido.sucursal_nombre = receiver_address.get("agency_name") or pedido.sucursal_nombre
+    aplicar_default_tipo_entrega(pedido)
+    if pedido.sucursal_nombre and es_ml_acordas_via_cargo(pedido):
+        pedido.tipo_entrega = "Sucursal"
     pedido.ml_shipping_status = shipment.get("status") or shipping.get("status") or pedido.ml_shipping_status
 
     if pedido.ml_tipo == "Mercado Envíos" and pedido.ml_shipping_id:
