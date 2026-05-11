@@ -2017,7 +2017,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
             return {
                 "tipo": "continuar_proceso",
                 "texto": "Continuar proceso",
-                "url": url_for("continuar_despacho_mobile", id=pedido.id),
+                "url": url_for("detalle_pedido", id=pedido.id, origen="mobile", mobile_detalle="1"),
                 "clases": clase_confirmar,
                 "target": "",
             }
@@ -2046,7 +2046,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
             return {
                 "tipo": "continuar_proceso",
                 "texto": "Continuar proceso",
-                "url": url_for("continuar_despacho_mobile", id=pedido.id),
+                "url": url_for("detalle_pedido", id=pedido.id, origen="mobile", mobile_detalle="1"),
                 "clases": clase_confirmar,
                 "target": "",
             }
