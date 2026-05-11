@@ -9105,23 +9105,6 @@ def revisar_agregado_mobile(id):
         pedido=pedido
     )
 
-@app.route("/despacho-mobile/pedido/<int:id>/continuar")
-@login_required
-def continuar_despacho_mobile(id):
-
-    pedido = Pedido.query.get_or_404(id)
-
-    if rol_actual() != "despacho" or not es_dispositivo_movil():
-        return redirect(url_for("inicio"))
-
-    accion = accion_principal_pedido(pedido, "mobile")
-
-    return render_template(
-        "continuar_despacho_mobile.html",
-        pedido=pedido,
-        accion=accion
-    )
-
 def marcar_contacto_iniciado_pedido(pedido):
     if not pedido:
         return
