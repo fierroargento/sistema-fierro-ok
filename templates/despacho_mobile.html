@@ -229,7 +229,7 @@
                     <div class="mobile-action-disabled">
                         Despacho bloqueado hasta confirmar revisión
                     </div>
-                    <a class="mobile-action-secundaria" href="{{ url_for('detalle_pedido', id=pedido.id, origen=request.path) }}">
+                    <a class="mobile-action-secundaria" href="{{ url_for('detalle_pedido', id=pedido.id) }}">
                         Abrir detalle y confirmar revisión
                     </a>
                 {% elif accion %}
