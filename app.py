@@ -2002,6 +2002,16 @@ def accion_principal_pedido(pedido, origen="inicio"):
         return None
 
     if tn_necesita_completar_carga(pedido):
+
+        if origen == "mobile" and rol == "despacho":
+            return {
+                "tipo": "continuar_proceso",
+                "texto": "Continuar proceso",
+                "url": url_for("revisar_agregado_mobile", id=pedido.id),
+                "clases": clase_confirmar,
+                "target": "",
+            }
+
         return {
             "tipo": "completar_carga",
             "texto": "Completar carga",
