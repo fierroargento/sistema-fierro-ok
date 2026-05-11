@@ -817,7 +817,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in agregado.items %}
+                    {% for item in agregado["items"] %}
                     <tr>
                         <td>{{ item.sku or '-' }}</td>
                         <td>{{ item.descripcion or '-' }}</td>
