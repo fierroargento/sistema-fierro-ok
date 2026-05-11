@@ -27,6 +27,7 @@ from services.tracking_externo import consultar_tracking_url, interpretar_estado
 from services.pedidos_estado import (
     requiere_contacto_cliente,
     despacho_completo,
+    siguiente_estado,
 )
 
 app = Flask(__name__)
@@ -1795,7 +1796,7 @@ def motor_bloqueo(pedido):
     return errores
 
 
-def siguiente_estado(e):
+def siguiente_estado_old(e):
     flujo = {
         "Cargando Pedido": "Etiqueta Lista",
         "Etiqueta Lista": "Etiqueta Impresa",
