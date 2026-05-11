@@ -7412,6 +7412,14 @@ def inyectar_contexto_global():
         "ia_respuesta_faltantes_ya_enviada": ia_respuesta_faltantes_ya_enviada,
     }
 
+@app.route("/health")
+def health():
+    return {
+        "status": "ok",
+        "service": "sistema-fierro",
+        "timestamp": datetime.utcnow().isoformat()
+    }, 200
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
