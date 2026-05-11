@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card detalle-card">
+    <h2>Página no encontrada</h2>
+    <p class="detalle-sub">La página que intentaste abrir no existe o fue movida.</p>
+
+    <div class="detalle-acciones">
+        <a href="{{ url_for('inicio') }}" class="btn btn-secundario">Volver al inicio</a>
+    </div>
+</div>
+{% endblock %}

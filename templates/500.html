@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card detalle-card">
+    <h2>Error interno del sistema</h2>
+    <p class="detalle-sub">Algo falló. El sistema registró el error para revisión.</p>
+
+    <div class="detalle-acciones">
+        <a href="{{ url_for('inicio') }}" class="btn btn-secundario">Volver al inicio</a>
+    </div>
+</div>
+{% endblock %}
