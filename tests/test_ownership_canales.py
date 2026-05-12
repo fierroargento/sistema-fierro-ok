@@ -7,6 +7,8 @@ Tests APB sobre ownership entre canales.
 from tests.fixtures.pedido_factory import PedidoFake
 
 from services.canal_manager import (
+    ml_puede_gobernar_timeout,
+    puede_enviar_mensaje,
     wa_puede_gobernar_timeout,
 )
 
@@ -101,3 +103,62 @@ class TestOwnershipCanales:
             ml_puede_gobernar_timeout(pedido)
             is True
         )
+
+    def test_ml_no_puede_enviar_si_whatsapp_activo(self):
+        """
+        Si WhatsApp tomó ownership,
+        ML no puede enviar mensajes automáticos.
+        """
+
+        pedido = PedidoFake(
+            wa_estado="activo",
+        )
+
+        permitido, motivo = puede_enviar_mensaje(
+            pedido=pedido,
+            canal="ml",
+            texto="Mensaje de prueba",
+        )
+
+        assert permitido is False
+        assert "WhatsApp activo" in motivo
+
+    def test_ml_puede_enviar_si_whatsapp_no_activo(self):
+        """
+        Si WhatsApp no tomó ownership,
+        ML puede enviar mensaje automático.
+        """
+
+        pedido = PedidoFake(
+            wa_estado="",
+        )
+
+        permitido, motivo = puede_enviar_mensaje(
+            pedido=pedido,
+            canal="ml",
+            texto="Mensaje de prueba",
+        )
+
+        assert permitido is True
+        assert motivo == "OK"
+
+    def test_bloquea_mensaje_automatico_repetido(self):
+        """
+        Anti-duplicación:
+        mismo canal + mismo texto debe bloquearse.
+        """
+
+        pedido = PedidoFake()
+
+        pedido.ultimo_mensaje_automatico_canal = "ml"
+        pedido.ultimo_mensaje_automatico_texto = "Hola cliente"
+
+        permitido, motivo = puede_enviar_mensaje(
+            pedido=pedido,
+            canal="ml",
+            texto="Hola cliente",
+        )
+
+        assert permitido is False
+        assert motivo == "Mensaje automático repetido"
+        
