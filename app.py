@@ -29,6 +29,10 @@ from services.pedidos_estado import (
     despacho_completo,
     siguiente_estado,
 )
+from services.canal_manager import (
+    puede_enviar_mensaje,
+    registrar_envio_automatico,
+)
 
 app = Flask(__name__)
 
@@ -5765,15 +5769,44 @@ def ia_auto_responder_post_analisis(pedido):
         return False, "duplicada"
 
     try:
+
+        # ---------------------------------------------------
+        # APB CANAL MANAGER
+        # ---------------------------------------------------
+
+        permitido, motivo = puede_enviar_mensaje(
+            pedido=pedido,
+            canal="ml",
+            texto=texto,
+        )
+
+        if not permitido:
+            print(
+                f"[CANAL-MANAGER] ML bloqueado pedido #{pedido.id}: {motivo}"
+            )
+            return False, motivo
+
         ml_enviar_mensaje_acordas(pedido, texto)
+
+        registrar_envio_automatico(
+            pedido=pedido,
+            canal="ml",
+            texto=texto,
+        )
+
         pedido.ia_respuesta_sugerida = texto
         pedido.ia_respuesta_enviada_hash = ia_hash_texto(texto)
         pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
         pedido.ml_mensajes_pendientes = False
         pedido.ml_mensajes_pendientes_count = 0
         pedido.ia_resumen = ((pedido.ia_resumen or "") + " | IA respondió automáticamente").strip(" |")
-        print(f"[IA-AUTO-RESPUESTA] OK pedido #{pedido.id}: {texto[:120]}")
+
+        print(
+            f"[IA-AUTO-RESPUESTA] OK pedido #{pedido.id}: {texto[:120]}"
+        )
+
         return True, "enviada"
+    
     except Exception as e:
         pedido.ia_error = f"No se pudo enviar respuesta automática IA: {str(e)[:400]}"
         print(f"[IA-AUTO-RESPUESTA] Error pedido #{getattr(pedido, 'id', '?')}: {e}")
