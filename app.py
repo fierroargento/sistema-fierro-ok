@@ -197,6 +197,13 @@ class Pedido(db.Model):
     ia_ultimo_timeout_operador = db.Column(db.DateTime)
 
     # =====================
+    # APB CANAL MANAGER
+    # =====================
+    ultimo_mensaje_automatico_texto = db.Column(db.Text)
+    ultimo_mensaje_automatico_canal = db.Column(db.String(30))
+    ultimo_mensaje_automatico_fecha = db.Column(db.DateTime)
+
+    # =====================
     # APB RECLAMOS ML
     # =====================
     ml_claim_id = db.Column(db.String(50))
@@ -570,6 +577,13 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ia_ultimo_mensaje_cliente", "TIMESTAMP")
     asegurar_columna_si_no_existe("ia_canal_activo", "VARCHAR(30)")
     asegurar_columna_si_no_existe("ia_ultimo_timeout_operador", "TIMESTAMP")
+
+    # =====================
+    # APB CANAL MANAGER
+    # =====================
+    asegurar_columna_si_no_existe("ultimo_mensaje_automatico_texto", "TEXT")
+    asegurar_columna_si_no_existe("ultimo_mensaje_automatico_canal", "VARCHAR(30)")
+    asegurar_columna_si_no_existe("ultimo_mensaje_automatico_fecha", "TIMESTAMP")
 
     # =====================
     # APB RECLAMOS ML
