@@ -154,7 +154,36 @@ def ejecutar_tracking_automatico():
                     db.session.commit()
                     continue
 
-                resultado = consultar_tracking_url(url, transporte=transporte, seguimiento=seguimiento)
+                                # APB:
+                # Solo permitimos tracking automático
+                # para transportes realmente soportados.
+                #
+                # Andreani y Vía Cargo quedan desactivados
+                # hasta tener integración/API estable.
+                #
+                # Evitamos falsos positivos,
+                # errores masivos y cambios peligrosos
+                # de estado automático.
+
+                transporte_norm = (transporte or "").strip().lower()
+
+                if "andreani" in transporte_norm:
+                    pedido.tracking_error = "Tracking automático Andreani desactivado hasta integración API"
+                    pedido.tracking_ultima_sync = ahora
+                    db.session.commit()
+                    continue
+
+                if "via cargo" in transporte_norm or "vía cargo" in transporte_norm:
+                    pedido.tracking_error = "Tracking automático Vía Cargo desactivado hasta integración API"
+                    pedido.tracking_ultima_sync = ahora
+                    db.session.commit()
+                    continue
+
+                resultado = consultar_tracking_url(
+                    url,
+                    transporte=transporte,
+                    seguimiento=seguimiento
+                )
 
                 estado = (resultado.get("estado") or "").strip() or "Sin estado detectado"
                 clasificacion = interpretar_estado_logistico(estado, transporte=transporte)
@@ -176,7 +205,19 @@ def ejecutar_tracking_automatico():
                     procesar_evento_tracking_pedido(pedido, clasificacion, estado, origen="scheduler")
 
                 db.session.commit()
-                print(f"[TRACKING AUTO] Pedido #{pedido.id}: {transporte} {estado} → {clasificacion} / {nuevo_estado or pedido.estado}")
+                # APB LOGS:
+                # Si el tracking automático no detecta estado útil,
+                # no llenamos Render de ruido. El dato queda guardado en DB.
+                if not (
+                    estado == "Sin estado detectado"
+                    and clasificacion == "desconocido"
+                    and not nuevo_estado
+                ):
+                    print(
+                        f"[TRACKING AUTO] Pedido #{pedido.id}: "
+                        f"{transporte} {estado} → {clasificacion} / "
+                        f"{nuevo_estado or pedido.estado}"
+                    )
             except Exception as e:
                 db.session.rollback()
                 try:
