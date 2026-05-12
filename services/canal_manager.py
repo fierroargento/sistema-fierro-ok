@@ -181,4 +181,73 @@ def ml_puede_gobernar_timeout(pedido):
     if wa_estado:
         return False
 
-    return True      
+    return True
+
+def puede_hacer_handoff_ml_a_whatsapp(
+    pedido
+):
+    """
+    Decide si el pedido puede migrar
+    automáticamente de ML a WhatsApp.
+
+    Solo evalúa ownership/reglas APB.
+    No ejecuta mensajes ni acciones.
+    """
+
+    if not pedido:
+        return (
+            False,
+            "sin_pedido",
+        )
+
+    wa_estado = str(
+        getattr(pedido, "wa_estado", "") or ""
+    ).strip()
+
+    # APB:
+    # Nunca pisar un flujo WA existente.
+    if wa_estado:
+        return (
+            False,
+            "wa_ya_iniciado",
+        )
+
+    estado = str(
+        getattr(pedido, "estado", "") or ""
+    ).strip()
+
+    if estado in [
+        "Despachado",
+        "Entregado",
+        "Finalizado",
+        "Cancelado",
+        "No entregado",
+    ]:
+        return (
+            False,
+            "pedido_cerrado",
+        )
+
+    ml_order_status_actual = str(
+        getattr(
+            pedido,
+            "ml_order_status",
+            "",
+        ) or ""
+    ).lower().strip()
+
+    if ml_order_status_actual in {
+        "closed",
+        "cancelled",
+        "invalid",
+        "delivered",
+    }:
+        return (
+            False,
+            "ml_cerrado",
+        )
+
+    return (
+        True,
+        "ok",
+    )      

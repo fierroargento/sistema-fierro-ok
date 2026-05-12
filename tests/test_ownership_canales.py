@@ -9,6 +9,7 @@ from tests.fixtures.pedido_factory import PedidoFake
 from services.canal_manager import (
     ml_puede_gobernar_timeout,
     puede_enviar_mensaje,
+    puede_hacer_handoff_ml_a_whatsapp,    
     wa_puede_gobernar_timeout,
 )
 
@@ -162,3 +163,63 @@ class TestOwnershipCanales:
         assert permitido is False
         assert motivo == "Mensaje automático repetido"
         
+    def test_no_hace_handoff_si_wa_ya_iniciado(self):
+        """
+        APB:
+        no debe pisar conversaciones
+        WhatsApp existentes.
+        """
+
+        pedido = PedidoFake(
+            wa_estado="activo",
+        )
+
+        permitido, motivo = (
+            puede_hacer_handoff_ml_a_whatsapp(
+                pedido
+            )
+        )
+
+        assert permitido is False
+        assert motivo == "wa_ya_iniciado"
+
+    def test_no_hace_handoff_pedido_finalizado(self):
+        """
+        APB:
+        pedidos cerrados no migran
+        automáticamente a WhatsApp.
+        """
+
+        pedido = PedidoFake(
+            estado="Finalizado",
+        )
+
+        permitido, motivo = (
+            puede_hacer_handoff_ml_a_whatsapp(
+                pedido
+            )
+        )
+
+        assert permitido is False
+        assert motivo == "pedido_cerrado"
+
+    def test_handoff_valido(self):
+        """
+        Caso sano:
+        puede migrar de ML a WhatsApp.
+        """
+
+        pedido = PedidoFake(
+            wa_estado="",
+            estado="Etiqueta Lista",
+            ml_order_status="paid",
+        )
+
+        permitido, motivo = (
+            puede_hacer_handoff_ml_a_whatsapp(
+                pedido
+            )
+        )
+
+        assert permitido is True
+        assert motivo == "ok"        

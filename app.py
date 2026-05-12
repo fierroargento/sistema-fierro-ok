@@ -7162,15 +7162,18 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
     if not getattr(pedido, "contacto_iniciado", False):
         return False, "ml_no_iniciado"
 
-    if str(getattr(pedido, "wa_estado", "") or "").strip():
-        return False, "wa_ya_iniciado"
+    from services.canal_manager import (
+        puede_hacer_handoff_ml_a_whatsapp,
+    )
 
-    if pedido.estado in ["Despachado", "Entregado", "Finalizado", "Cancelado", "No entregado"]:
-        return False, "pedido_cerrado_o_post_despacho"
+    permitido_handoff, motivo_handoff = (
+        puede_hacer_handoff_ml_a_whatsapp(
+            pedido
+        )
+    )
 
-    ml_order_status_actual = str(getattr(pedido, "ml_order_status", "") or "").lower().strip()
-    if ml_order_status_actual in {"closed", "cancelled", "invalid", "delivered"}:
-        return False, "ml_cerrado"
+    if not permitido_handoff:
+        return False, motivo_handoff
 
     tel = normalizar_telefono(getattr(pedido, "telefono", ""))
     if not tel or len(tel) < 12:
