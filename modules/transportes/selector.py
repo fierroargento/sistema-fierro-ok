@@ -137,7 +137,6 @@ def evaluar_decision_correo_pp6040(pedido, preferencia_cliente="sucursal"):
     if suc_ok:
         cot.update({"decision": "sucursal", "motivo": "Sucursal/Punto Correo preferido"})
     elif dom_ok:
-        # Si sucursal no está disponible pero domicilio sí, no lo decide solo: escala.
         cot.update({"decision": "escalar", "motivo": "No hay sucursal disponible; solo domicilio"})
     else:
         cot.update({"decision": "escalar", "motivo": "Sin opciones Correo disponibles"})
@@ -145,8 +144,15 @@ def evaluar_decision_correo_pp6040(pedido, preferencia_cliente="sucursal"):
 
 
 def asignar_transporte_pedido(pedido, preferencia_cliente="sucursal"):
-        return False, "Cotización Correo temporalmente deshabilitada"
-    """Cotiza y asigna Correo al pedido PP6040, sin informar costos al cliente."""
+    """Cotiza y asigna Correo al pedido PP6040, sin informar costos al cliente.
+
+    APB: deshabilitado hasta confirmar credenciales Correo Argentino en Render.
+    Reactivar eliminando el return de abajo cuando estén las credenciales.
+    """
+    # APB: cotización Correo deshabilitada hasta tener credenciales configuradas.
+    # Quitar este return cuando CORREO_USER y CORREO_PASS estén en Render.
+    return False, "Cotización Correo temporalmente deshabilitada"
+
     if not pedido_contiene_pp6040(pedido):
         return False, "El pedido no contiene PP6040"
 
@@ -162,7 +168,6 @@ def asignar_transporte_pedido(pedido, preferencia_cliente="sucursal"):
         pedido.empresa_envio = "Correo Argentino"
         pedido.tipo_entrega = "Domicilio" if decision == "domicilio" else "Sucursal"
 
-        # Campos nuevos si existen en el modelo; si no existen, no rompe.
         if hasattr(pedido, "costo_envio"):
             cot_sel = resultado.get("domicilio") if decision == "domicilio" else resultado.get("sucursal")
             pedido.costo_envio = float((cot_sel or {}).get("precio") or 0)
