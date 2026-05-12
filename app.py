@@ -11214,22 +11214,12 @@ with app.app_context():
             )
 
         def _job_wa_timers():
-            """Ejecuta timers de WhatsApp cada 5 minutos."""
-            try:
-                with app.app_context():
-                    from modules.whatsapp.scheduler import ejecutar_timers
-                    ejecutar_timers()
-            except Exception as e:
-                print("[SCHEDULER WA] Error:", e)
-                try:
-                    db.session.rollback()
-                except Exception:
-                    pass
-            finally:
-                try:
-                    db.session.remove()
-                except Exception:
-                    pass
+            from modules.automation.jobs.wa_timers import ejecutar_job_wa_timers
+
+            ejecutar_job_wa_timers(
+                app,
+                db
+            )
 
         iniciar_scheduler(
             _job_ml_mensajes,
