@@ -5690,6 +5690,16 @@ def ia_auto_responder_post_analisis(pedido):
     if str(getattr(pedido, "ia_recolector_estado", "") or "") == "error":
         return False, "error_ia"
 
+    # APB CANAL: si WhatsApp ya tomó la posta, Mercado Libre queda pasivo.
+    # Evita pedir los mismos faltantes por ML después de haberlos pedido por WA.
+    wa_estado_actual = str(getattr(pedido, "wa_estado", "") or "").strip()
+    if wa_estado_actual:
+        print(
+            f"[IA-AUTO-RESPUESTA] ML no responde pedido #{getattr(pedido, 'id', '?')}: "
+            f"WhatsApp activo ({wa_estado_actual})"
+        )
+        return False, f"wa_activo_{wa_estado_actual}"
+
     texto = ""
     if getattr(pedido, "ia_requiere_operador", False) or pedido.ia_recolector_estado == "requiere_operador":
         texto = ia_generar_cta_operador_pedido(pedido)
@@ -7096,6 +7106,23 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             pedido.wa_ultimo_contacto = datetime.utcnow()
             resumen = (pedido.ia_resumen or "").strip()
             marca = "WA iniciado automáticamente desde ML"
+
+            # APB UX: avisar una sola vez por ML que el canal operativo pasa a WhatsApp.
+            # No bloquea el flujo si Mercado Libre rechaza/falla el mensaje.
+            marca_transicion_ml = "ML avisó migración a WhatsApp"
+            if marca_transicion_ml not in resumen:
+                try:
+                    ml_enviar_mensaje_acordas(
+                        pedido,
+                        "Te escribimos por WhatsApp para coordinar el envío."
+                    )
+                    resumen = f"{resumen} | {marca_transicion_ml}".strip(" |")
+                except Exception as e:
+                    print(
+                        f"[WA-AUTO-ML] No se pudo avisar migración por ML "
+                        f"pedido #{getattr(pedido, 'id', '')}: {e}"
+                    )
+
             pedido.ia_resumen = f"{resumen} | {marca}".strip(" |") if marca not in resumen else resumen
             try:
                 pedido.ml_mensajes_pendientes = False
@@ -11069,6 +11096,9 @@ with app.app_context():
                         .all()
                     )
                     for p_wait in pedidos_esperando:
+                        # APB CANAL: si WhatsApp ya está activo, el timeout lo gobierna WA, no ML.
+                        if str(getattr(p_wait, "wa_estado", "") or "").strip():
+                            continue
                         ia_escalar_si_timeout_operativo(p_wait, canal="mercadolibre")
 
                     pedidos = (
@@ -11081,6 +11111,10 @@ with app.app_context():
                     )
                     for pedido in pedidos:
                         try:
+                            # APB CANAL: si WhatsApp ya tomó la posta, ML queda pasivo.
+                            if str(getattr(pedido, "wa_estado", "") or "").strip():
+                                continue
+
                             ids_chat = []
                             for posible in [getattr(pedido, "ml_pack_id", None), getattr(pedido, "id_venta", None)]:
                                 posible = str(posible or "").strip()
