@@ -11203,7 +11203,7 @@ with app.app_context():
 
     # ── Scheduler: jobs periódicos ───────────────────────────────────
     try:
-        from apscheduler.schedulers.background import BackgroundScheduler
+        from modules.automation.manager import iniciar_scheduler
 
         def _job_ml_mensajes():
             """Procesa mensajes pendientes de ML Acordás cada 5 minutos."""
@@ -11292,10 +11292,9 @@ with app.app_context():
                 except Exception:
                     pass
 
-        _scheduler = BackgroundScheduler(daemon=True)
-        _scheduler.add_job(_job_ml_mensajes, "interval", minutes=5, id="ml_mensajes")
-        _scheduler.add_job(_job_wa_timers, "interval", minutes=5, id="wa_timers")
-        _scheduler.start()
-        print("[SCHEDULER] Iniciado: ml_mensajes + wa_timers cada 5 minutos")
+        iniciar_scheduler(
+            _job_ml_mensajes,
+            _job_wa_timers
+        )
     except Exception as e:
         print("[SCHEDULER] No se pudo iniciar:", e)
