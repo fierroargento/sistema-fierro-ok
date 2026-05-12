@@ -5755,7 +5755,31 @@ def ia_auto_responder_post_analisis(pedido):
             msg_sucursales = sugerir_sucursales(pedido)
             if msg_sucursales:
                 try:
+
+                    # ---------------------------------------------------
+                    # APB CANAL MANAGER
+                    # ---------------------------------------------------
+
+                    permitido, motivo = puede_enviar_mensaje(
+                        pedido=pedido,
+                        canal="ml",
+                        texto=msg_sucursales,
+                    )
+
+                    if not permitido:
+                        print(
+                            f"[CANAL-MANAGER] ML bloqueado pedido #{pedido.id}: {motivo}"
+                        )
+                        return False, motivo
+
                     ml_enviar_mensaje_acordas(pedido, msg_sucursales)
+
+                    registrar_envio_automatico(
+                        pedido=pedido,
+                        canal="ml",
+                        texto=msg_sucursales,
+                    )
+
                     pedido.ia_respuesta_sugerida = msg_sucursales
                     pedido.ia_respuesta_enviada_hash = ia_hash_texto(msg_sucursales)
                     pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
