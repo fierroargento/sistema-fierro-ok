@@ -162,4 +162,23 @@ def wa_puede_gobernar_timeout(pedido):
     if not wa_estado:
         return False
 
-    return True        
+    return True  
+
+def ml_puede_gobernar_timeout(pedido):
+    """
+    Devuelve True solo si Mercado Libre
+    puede gobernar el timeout del pedido.
+
+    APB:
+    si WhatsApp ya tomó ownership,
+    ML queda pasivo.
+    """
+
+    wa_estado = str(
+        getattr(pedido, "wa_estado", "") or ""
+    ).strip()
+
+    if wa_estado:
+        return False
+
+    return True      

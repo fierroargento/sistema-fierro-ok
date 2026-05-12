@@ -30,9 +30,15 @@ def ejecutar_job_ml_mensajes(app, db):
                 .all()
             )
 
+            from services.canal_manager import (
+                ml_puede_gobernar_timeout,
+            )
+
             for p_wait in pedidos_esperando:
-                # APB CANAL: si WhatsApp ya está activo, el timeout lo gobierna WA, no ML.
-                if str(getattr(p_wait, "wa_estado", "") or "").strip():
+
+                if not ml_puede_gobernar_timeout(
+                    p_wait
+                ):
                     continue
 
                 ia_escalar_si_timeout_operativo(

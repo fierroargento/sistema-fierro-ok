@@ -63,3 +63,41 @@ class TestOwnershipCanales:
             wa_puede_gobernar_timeout(pedido)
             is False
         )
+
+    def test_ml_con_wa_activo_no_gobierna_timeout(self):
+        """
+        Si WhatsApp ya tomó ownership,
+        ML no debe gobernar timeout.
+        """
+
+        from services.canal_manager import (
+            ml_puede_gobernar_timeout,
+        )
+
+        pedido = PedidoFake(
+            wa_estado="activo",
+        )
+
+        assert (
+            ml_puede_gobernar_timeout(pedido)
+            is False
+        )
+
+    def test_ml_sin_wa_activo_si_gobierna_timeout(self):
+        """
+        Si WA no está activo,
+        ML puede gobernar timeout.
+        """
+
+        from services.canal_manager import (
+            ml_puede_gobernar_timeout,
+        )
+
+        pedido = PedidoFake(
+            wa_estado="",
+        )
+
+        assert (
+            ml_puede_gobernar_timeout(pedido)
+            is True
+        )
