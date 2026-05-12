@@ -5665,6 +5665,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     # Confirmar al cliente que la sucursal fue registrada y el despacho está en proceso
                     try:
                         nombre_cliente = (getattr(pedido, "cliente", "") or "Cliente").split()[0] or "Cliente"
+
                         msg_confirmacion = (
                             f"Muchas gracias {nombre_cliente}! 🙌\n\n"
                             f"Tu pedido ya está en proceso de despacho a:\n"
@@ -5672,9 +5673,39 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                             f"📌 {suc.get('direccion')}\n\n"
                             f"En breve te pasamos el número de seguimiento para que puedas rastrear tu envío 😊"
                         )
-                        ml_enviar_mensaje_acordas(pedido, msg_confirmacion)
+
+                        # ---------------------------------------------------
+                        # APB CANAL MANAGER
+                        # ---------------------------------------------------
+
+                        permitido, motivo = puede_enviar_mensaje(
+                            pedido=pedido,
+                            canal="ml",
+                            texto=msg_confirmacion,
+                        )
+
+                        if not permitido:
+                            print(
+                                f"[CANAL-MANAGER] ML bloqueado pedido #{pedido.id}: {motivo}"
+                            )
+                            return False, motivo
+
+                        ml_enviar_mensaje_acordas(
+                            pedido,
+                            msg_confirmacion,
+                        )
+
+                        registrar_envio_automatico(
+                            pedido=pedido,
+                            canal="ml",
+                            texto=msg_confirmacion,
+                        )
+
                     except Exception as e:
-                        print(f"[VIA CARGO] No se pudo enviar confirmación de sucursal pedido #{pedido.id}:", e)
+                        print(
+                            f"[VIA CARGO] No se pudo enviar confirmación de sucursal pedido #{pedido.id}:",
+                            e
+                        )
 
 
     if not texto:
@@ -7183,11 +7214,36 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             marca_transicion_ml = "ML avisó migración a WhatsApp"
             if marca_transicion_ml not in resumen:
                 try:
-                    ml_enviar_mensaje_acordas(
-                        pedido,
-                        "Te escribimos por WhatsApp para coordinar el envío."
+                    texto_transicion_ml = "Te escribimos por WhatsApp para coordinar el envío."
+
+                    # ---------------------------------------------------
+                    # APB CANAL MANAGER
+                    # ---------------------------------------------------
+
+                    permitido, motivo = puede_enviar_mensaje(
+                        pedido=pedido,
+                        canal="ml",
+                        texto=texto_transicion_ml,
                     )
-                    resumen = f"{resumen} | {marca_transicion_ml}".strip(" |")
+
+                    if not permitido:
+                        print(
+                            f"[CANAL-MANAGER] ML bloqueado pedido #{pedido.id}: {motivo}"
+                        )
+                    else:
+                        ml_enviar_mensaje_acordas(
+                            pedido,
+                            texto_transicion_ml,
+                        )
+
+                        registrar_envio_automatico(
+                            pedido=pedido,
+                            canal="ml",
+                            texto=texto_transicion_ml,
+                        )
+
+                        resumen = f"{resumen} | {marca_transicion_ml}".strip(" |")
+
                 except Exception as e:
                     print(
                         f"[WA-AUTO-ML] No se pudo avisar migración por ML "
