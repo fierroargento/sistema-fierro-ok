@@ -83,8 +83,36 @@ def ejecutar_timers_whatsapp():
             .all()
         )
         for pedido in pedidos:
-            canal = str(getattr(pedido, "ia_canal_activo", "") or "whatsapp")
-            ia_escalar_si_timeout_operativo(pedido, canal=canal)
+            canal = str(
+                getattr(pedido, "ia_canal_activo", "") or ""
+            ).strip().lower()
+
+            wa_estado = str(
+                getattr(pedido, "wa_estado", "") or ""
+            ).strip()
+
+            # APB CANAL:
+            # Este scheduler solo gobierna
+            # timeouts de WhatsApp.
+            #
+            # Si el canal activo sigue siendo ML,
+            # lo gobierna el job ML.
+            #
+            # Evita doble escalado
+            # y ownership ambiguo.
+            if canal not in ("whatsapp", "wa"):
+                continue
+
+            # APB:
+            # Si no existe estado WA real,
+            # este scheduler no toma ownership.
+            if not wa_estado:
+                continue
+
+            ia_escalar_si_timeout_operativo(
+                pedido,
+                canal="whatsapp"
+            )
     except Exception as e:
         _cerrar_sesion_db_segura(rollback=True)
         print("[WA SCHEDULER] Error WA:", e)
