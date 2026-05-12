@@ -8696,16 +8696,21 @@ def imprimir_etiqueta(id):
     if es_via_cargo(pedido.empresa_envio) and not es_mercado_envios(pedido):
         aplicar_estado_y_fechas(pedido, "Etiqueta Impresa")
         db.session.commit()
-        es_mobile = origen == "mobile" and rol_actual() == "despacho"
+        if origen == "mobile" and rol_actual() == "despacho":
+            return render_template(
+                "imprimir_etiqueta_interna_mobile.html",
+                pedido=pedido,
+                hay_autorizado=hay_autorizado,
+                volver_url=url_for("despacho_mobile", ok="Etiqueta impresa correctamente.")
+            )
 
         return render_template(
-            "etiqueta_via_cargo_print.html",
+            "imprimir_etiqueta_interna.html",
             pedido=pedido,
             hay_autorizado=hay_autorizado,
-            es_mobile=es_mobile,
             volver_url=(
-                url_for("despacho_mobile", ok="Etiqueta impresa correctamente.") if es_mobile
-                else url_for("detalle_pedido", id=pedido.id) if origen == "detalle"
+                url_for("detalle_pedido", id=pedido.id) if origen == "detalle"
+                else url_for("despacho_mobile", ok="Etiqueta impresa correctamente.") if origen == "mobile"
                 else url_for("inicio")
             )
         )
