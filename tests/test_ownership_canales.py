@@ -2,36 +2,13 @@
 tests/test_ownership_canales.py
 ──────────────────────────────
 Tests APB sobre ownership entre canales.
-
-Objetivo:
-evitar doble escalado y automatizaciones
-simultáneas entre Mercado Libre y WhatsApp.
 """
 
 from tests.fixtures.pedido_factory import PedidoFake
 
-
-def wa_scheduler_debe_escalar(pedido):
-    """
-    Replica exacta de la lógica APB actual
-    del scheduler WhatsApp.
-    """
-
-    canal = str(
-        getattr(pedido, "ia_canal_activo", "") or ""
-    ).strip().lower()
-
-    wa_estado = str(
-        getattr(pedido, "wa_estado", "") or ""
-    ).strip()
-
-    if canal not in ("whatsapp", "wa"):
-        return False
-
-    if not wa_estado:
-        return False
-
-    return True
+from services.canal_manager import (
+    wa_puede_gobernar_timeout,
+)
 
 
 class TestOwnershipCanales:
@@ -47,7 +24,10 @@ class TestOwnershipCanales:
             wa_estado="activo",
         )
 
-        assert wa_scheduler_debe_escalar(pedido) is False
+        assert (
+            wa_puede_gobernar_timeout(pedido)
+            is False
+        )
 
     def test_wa_activo_con_estado_wa_si_escalable(self):
         """
@@ -61,7 +41,10 @@ class TestOwnershipCanales:
             wa_estado="activo",
         )
 
-        assert wa_scheduler_debe_escalar(pedido) is True
+        assert (
+            wa_puede_gobernar_timeout(pedido)
+            is True
+        )
 
     def test_wa_sin_wa_estado_no_toma_ownership(self):
         """
@@ -76,4 +59,7 @@ class TestOwnershipCanales:
             wa_estado="",
         )
 
-        assert wa_scheduler_debe_escalar(pedido) is False
+        assert (
+            wa_puede_gobernar_timeout(pedido)
+            is False
+        )

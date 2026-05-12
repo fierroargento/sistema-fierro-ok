@@ -135,3 +135,31 @@ def registrar_envio_automatico(
             "[CANAL-MANAGER] Error registrando envío:",
             e
         )
+
+def wa_puede_gobernar_timeout(pedido):
+    """
+    Devuelve True solo si WhatsApp
+    es realmente el owner operativo
+    del timeout del pedido.
+    """
+
+    canal = str(
+        getattr(pedido, "ia_canal_activo", "") or ""
+    ).strip().lower()
+
+    wa_estado = str(
+        getattr(pedido, "wa_estado", "") or ""
+    ).strip()
+
+    # APB:
+    # Si el canal activo no es WhatsApp,
+    # WA no gobierna.
+    if canal not in ("whatsapp", "wa"):
+        return False
+
+    # APB:
+    # Debe existir estado WA real.
+    if not wa_estado:
+        return False
+
+    return True        
