@@ -758,7 +758,7 @@ body { background: #f4f7f8; }
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
             <h3 style="margin:0;">Detalle de productos</h3>
 
-            {% if rol_actual in ["admin", "carga"] and pedido.estado not in ["Despachado", "Finalizado"] %}
+            {% if rol_actual in ["admin", "carga"] and pedido.estado not in ["Despachado", "Verificar llegada a destino", "Listo para retirar", "Entregado", "Finalizado", "No entregado", "Con demora de entrega", "Con reclamo en transporte"] %}
             <a href="{{ url_for('agregar_item_pedido', id=pedido.id) }}" class="btn btn-accion-rapida">
                 Agregar item
             </a>
