@@ -7119,7 +7119,7 @@ def ml_limpiar_pedidos_ml_no_operables_existentes():
     return eliminados, detalles
 
 
-def ml_sync_manual(limit=20):
+def ml_sync_manual(limit=20, incluir_auxiliares=False):
     cuenta = cuenta_ml_actual()
     if not cuenta:
         raise ValueError("No hay cuenta de Mercado Libre conectada.")
@@ -7156,8 +7156,12 @@ def ml_sync_manual(limit=20):
             omitidos += 1
             errores.append(f"{order_id}: {e}")
 
-    mensajes_pendientes = ml_sync_mensajes_pendientes_pedidos()
-    claims_marcados = ml_sync_claims_pedidos_operativos()
+    mensajes_pendientes = 0
+    claims_marcados = 0
+
+    if incluir_auxiliares:
+        mensajes_pendientes = ml_sync_mensajes_pendientes_pedidos()
+        claims_marcados = ml_sync_claims_pedidos_operativos()
 
     cuenta.last_sync_at = datetime.utcnow()
     cuenta.last_sync_status = "ok" if not errores else "parcial"
@@ -8507,7 +8511,10 @@ def sync_mercadolibre():
         return redirect(url_for("admin_integraciones", error="Primero conectá una cuenta de Mercado Libre."))
 
     try:
-        resultado = ml_sync_manual(limit=50)
+        resultado = ml_sync_manual(
+            limit=5,
+            incluir_auxiliares=False,
+        )
         mensaje = (
             f"Sync ML OK. Leídos: {resultado['leidos']} | "
             f"Nuevos: {resultado['creados']} | "
