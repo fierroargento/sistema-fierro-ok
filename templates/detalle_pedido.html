@@ -866,13 +866,6 @@ body { background: #f4f7f8; }
             {% endif %}
         {% endif %}
 
-        {% if puede_avisar_despacho_whatsapp(pedido) %}
-        <a href="{{ url_for('avisar_despacho_whatsapp', id=pedido.id) }}" class="btn btn-secundario">
-            Avisar cliente despacho
-        </a>
-        {% endif %}
-
-
 
         {% if puede_editar_pedido(pedido) and pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Con reclamo en transporte', 'Con demora de entrega'] %}
         <a href="{{ url_for('editar_pedido', id=pedido.id, modo='reclamos') }}" class="btn btn-secundario">
@@ -913,13 +906,7 @@ function imprimirDesdeDetalle(urlImpresion, urlRecarga) {
     return false;
 }
 
-function abrirWhatsappYRecargar(urlWhatsapp, urlRecarga) {
-    window.open(urlWhatsapp, "_blank");
-    setTimeout(function () {
-        window.location.href = urlRecarga + (urlRecarga.indexOf("?") >= 0 ? "&" : "?") + "_r=" + Date.now();
-    }, 1200);
-    return false;
-}
+
 
 function ocultarBloqueContactoInicialMLAPB() {
     const bloque = document.getElementById("bloque-contacto-inicial-ml");
