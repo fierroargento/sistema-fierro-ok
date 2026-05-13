@@ -61,6 +61,9 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
     "pool_recycle": 300,
+    "connect_args": {
+        "sslmode": "require"
+    },
 }
 app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
 _secret_key = os.getenv("SECRET_KEY", "")
