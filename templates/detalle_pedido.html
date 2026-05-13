@@ -872,11 +872,7 @@ body { background: #f4f7f8; }
         </a>
         {% endif %}
 
-        {% if puede_enviar_postventa_whatsapp(pedido) %}
-        <a href="{{ url_for('postventa_whatsapp', id=pedido.id) }}" class="btn btn-secundario">
-            Mensaje postventa
-        </a>
-        {% endif %}
+
 
         {% if puede_editar_pedido(pedido) and pedido.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar', 'Con reclamo en transporte', 'Con demora de entrega'] %}
         <a href="{{ url_for('editar_pedido', id=pedido.id, modo='reclamos') }}" class="btn btn-secundario">

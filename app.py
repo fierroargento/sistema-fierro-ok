@@ -2119,6 +2119,23 @@ def accion_principal_pedido(pedido, origen="inicio"):
         }
 
     if pedido.estado == "Entregado" and rol in ["carga", "admin"]:
+
+        # APB:
+        # Mercado Libre Acordás requiere
+        # confirmación manual de aviso
+        # antes de finalizar.
+        if (
+            pedido.canal == "Mercado Libre"
+            and pedido.ml_tipo == "Acordás la Entrega"
+        ):
+            return {
+                "tipo": "aviso_ml_confirmado",
+                "texto": "Ya avisé Mercado Libre",
+                "url": url_for("cerrar_pedido", id=pedido.id),
+                "clases": clase_confirmar,
+                "target": "",
+            }
+
         return {
             "tipo": "cerrar_pedido",
             "texto": "Cerrar pedido",
