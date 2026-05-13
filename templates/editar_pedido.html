@@ -587,8 +587,7 @@ function actualizarCamposEtiquetaYSeguimientoPorTransporte() {
 }
 
 function mostrarBotonCoordinarEnvio() {
-    const mostrar = (canal.value === "Mercado Libre" && ml.value === "Acordás la Entrega") || ((canal.value === "Tienda Nube" || canal.value === "Mayorista") && document.getElementById("empresa_envio").value === "Vía Cargo");
-    bloqueCoordinarEnvio.style.display = mostrar ? "block" : "none";
+    return;
 }
 
 
