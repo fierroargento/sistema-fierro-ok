@@ -855,7 +855,7 @@ body { background: #f4f7f8; }
                 <a href="{{ accion.url }}" class="{{ accion.clases }}" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
                     {{ accion.texto }}
                 </a>
-            {% elif accion.tipo == "avisar_cliente" %}
+            {% elif accion.tipo == "marcar_listo_retirar" %}
                 <a href="{{ accion.url }}" class="{{ accion.clases }}">
                     {{ accion.texto }}
                 </a>

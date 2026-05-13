@@ -1755,7 +1755,7 @@ def texto_boton_estado(pedido):
 
     if pedido.estado == "Verificar llegada a destino":
         if pedido.tipo_entrega == "Sucursal":
-            return "Avisar al cliente"
+            return "Marcar listo para retirar"
         return "Marcar entregado"
 
     if pedido.estado == "Listo para retirar":
@@ -2012,11 +2012,11 @@ def accion_principal_pedido(pedido, origen="inicio"):
 
     if pedido.estado == "Verificar llegada a destino" and rol in ["carga", "admin"] and entrega_es_sucursal:
         return {
-            "tipo": "avisar_cliente",
-            "texto": "Avisar al Cliente",
+            "tipo": "marcar_listo_retirar",
+            "texto": "Marcar listo para retirar",
             "url": url_for("confirmar_entrega", id=pedido.id),
             "clases": clase_confirmar,
-            "target": "_blank",
+            "target": "",
         }
 
     if pedido.estado == "Listo para retirar" and rol in ["carga", "admin"] and entrega_es_sucursal:
