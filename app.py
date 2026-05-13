@@ -1327,34 +1327,7 @@ def detectar_sucursal(pedido, mensaje):
 
     return None
 
-def generar_link_whatsapp(numero, mensaje):
-    """Genera links de WhatsApp con codificación UTF-8 segura.
 
-    Centralizamos el armado del link para evitar caracteres rotos,
-    acentos y saltos de línea.
-    """
-    from urllib.parse import urlencode, quote
-
-    if not numero or not mensaje:
-        return ""
-
-    query = urlencode({"text": mensaje}, quote_via=quote, encoding="utf-8", errors="strict")
-    return f"https://wa.me/{numero}?{query}"
-
-# LEGACY WA WEB
-# Pendiente eliminación total.
-# Reemplazado por WhatsApp interno API.
-def whatsapp_link_pedido(pedido):
-    numero = normalizar_telefono(pedido.telefono)
-    if not numero:
-        return ""
-
-    mensaje = (
-        "Hola! Soy Ezequiel de Fierro 100% Argento.\n\n"
-        "Gracias por tu compra.\n"
-        "Te escribo por acá para avanzar con el despacho."
-    )
-    return generar_link_whatsapp(numero, mensaje)
 
 def requiere_seguimiento_retiro(pedido):
     return bool(
@@ -1376,62 +1349,6 @@ def requiere_seguimiento_retiro(pedido):
         )
     )
 
-# LEGACY WA WEB
-# Pendiente eliminación total.
-# Reemplazado por WhatsApp interno API.
-def whatsapp_link_confirmar_entrega(pedido):
-    numero = normalizar_telefono(pedido.telefono)
-    if not numero:
-        return ""
-
-    sucursal = (pedido.sucursal_nombre or "a confirmar").strip()
-    direccion_partes = [
-        (pedido.direccion or "").strip(),
-        (pedido.localidad or "").strip(),
-        (pedido.provincia or "").strip(),
-    ]
-    direccion_sucursal = ", ".join([parte for parte in direccion_partes if parte]) or "a confirmar"
-    seguimiento = (pedido.seguimiento or pedido.tn_tracking_number or "no disponible").strip()
-
-    mensaje = (
-        f"Hola {pedido.cliente or ''}, te escribimos de Fierro por tu pedido #{pedido.id}.\n\n"
-        "Tu compra ya está disponible para retirar en sucursal.\n\n"
-        f"Sucursal: {sucursal}\n"
-        f"Dirección sucursal: {direccion_sucursal}\n"
-        f"Seguimiento: {seguimiento}\n\n"
-        "Tenés 5 días para retirarlo antes de que vuelva a origen.\n\n"
-        "Cuando lo retires, por favor avisame así cerramos la entrega."
-    )
-
-    return generar_link_whatsapp(numero, mensaje)
-
-# LEGACY WA WEB
-# Pendiente eliminación total.
-# Reemplazado por WhatsApp interno API.
-def whatsapp_link_despachado(pedido):
-    numero = normalizar_telefono(pedido.telefono)
-    if not numero:
-        return ""
-
-    tracking_info = tracking_info_pedido(pedido)
-    seguimiento = (
-        getattr(pedido, "seguimiento", None)
-        or getattr(pedido, "tn_tracking_number", None)
-        or (tracking_info or {}).get("seguimiento")
-        or "no disponible"
-    )
-    link_tracking = (tracking_info or {}).get("url") or ""
-
-    mensaje = (
-        "Hola!\n\n"
-        "Tu pedido ya fue despachado.\n\n"
-        f"Seguimiento: {seguimiento}\n"
-        "Podés seguirlo acá:\n"
-        f"{link_tracking}\n\n"
-        "Cualquier duda estoy por acá."
-    )
-
-    return generar_link_whatsapp(numero, mensaje)
 
 
 def pedido_tiene_parrilla(pedido):
@@ -1440,43 +1357,6 @@ def pedido_tiene_parrilla(pedido):
         if "parrilla" in texto:
             return True
     return False
-
-
-# LEGACY WA WEB
-# Pendiente eliminación total.
-# Reemplazado por WhatsApp interno API.
-def whatsapp_link_postventa(pedido):
-    numero = normalizar_telefono(pedido.telefono)
-    if not numero:
-        return ""
-
-    if pedido_tiene_parrilla(pedido):
-        mensaje = (
-            "Buenas!\n\n"
-            "Vimos que ya recibiste tu parrilla.\n"
-            "Esperamos haber cumplido con tus expectativas, ¡gracias por confiar en nosotros!\n\n"
-            "Te dejamos algunos tips para que te dure muchos años:\n\n"
-            "• Evitá “quemarla” a fuego directo, ese calor puede doblar las varillas.\n"
-            "• Limpiala con un cepillo mientras está caliente, justo después de usarla.\n"
-            "• Usá la grasa del asado para pasarle y “curarla”; ayuda a evitar el óxido.\n"
-            "• Si queda al aire libre, podés pasarle aceite comestible con una esponja.\n\n"
-            "Si tenés alguna duda con el uso, escribinos.\n\n"
-            "Gracias nuevamente.\n"
-            "Y si querés, seguinos en Instagram para ver lo nuevo que vamos sumando:\n"
-            "https://www.instagram.com/fierroargento"
-        )
-    else:
-        mensaje = (
-            "Buenas!\n\n"
-            "Vimos que ya recibiste tu compra.\n"
-            "Esperamos haber cumplido con tus expectativas, ¡gracias por confiar en nosotros!\n\n"
-            "Si tenés alguna duda con el producto, escribinos y te ayudamos.\n\n"
-            "Gracias nuevamente.\n"
-            "Y si querés, seguinos en Instagram para ver lo nuevo que vamos sumando:\n"
-            "https://www.instagram.com/fierroargento"
-        )
-
-    return generar_link_whatsapp(numero, mensaje)
 
 
 def mensaje_whatsapp_despachado(pedido):
@@ -1547,30 +1427,6 @@ def mensaje_whatsapp_postventa(pedido):
         "https://www.instagram.com/fierroargento"
     )
 
-
-# LEGACY WA WEB
-# Pendiente eliminación total.
-# Reemplazado por WhatsApp interno API.
-def puede_avisar_despacho_whatsapp(pedido):
-    return bool(
-        pedido
-        and pedido.estado == "Despachado"
-        and pedido.canal == "Mercado Libre"
-        and pedido.ml_tipo == "Acordás la Entrega"
-        and normalizar_telefono(pedido.telefono)
-        and tracking_info_pedido(pedido)
-    )
-
-
-# LEGACY WA WEB
-# Pendiente eliminación total.
-# Reemplazado por WhatsApp interno API.
-def puede_enviar_postventa_whatsapp(pedido):
-    return bool(
-        pedido
-        and pedido.estado == "Entregado"
-        and normalizar_telefono(pedido.telefono)
-    )
 
 def es_mercado_envios(pedido):
     return pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Mercado Envíos"
@@ -2785,13 +2641,6 @@ def puede_imprimir_pedido(pedido):
         return pedido.estado not in ["Entregado", "Finalizado"] and imprimible
 
     return False
-
-
-def puede_contactar_cliente(pedido):
-    rol = rol_actual()
-    if rol not in ["admin", "carga"]:
-        return False
-    return requiere_contacto_cliente(pedido) and bool(whatsapp_link_pedido(pedido))
 
 
 def requiere_cargar_seguimiento(pedido):
@@ -10358,46 +10207,6 @@ def whatsapp_reactivar_bot(id):
     pedido.wa_ultimo_contacto = datetime.utcnow()
     db.session.commit()
     return redirect(url_for("detalle_pedido", id=pedido.id, ok="Bot WhatsApp reactivado."))
-
-
-@app.route("/pedido/<int:id>/avisar-despacho-whatsapp")
-@login_required
-def avisar_despacho_whatsapp(id):
-    pedido = Pedido.query.get_or_404(id)
-
-    if not puede_ver_pedido(pedido):
-        return redirect(url_for("inicio"))
-
-    if not puede_avisar_despacho_whatsapp(pedido):
-        return redirect(url_for("detalle_pedido", id=pedido.id))
-
-    texto = mensaje_whatsapp_despachado(pedido)
-    ok, msg = _enviar_whatsapp_api_pedido(pedido, texto, autor="sistema")
-    if ok:
-        pedido.wa_estado = "despachado"
-        db.session.commit()
-    return redirect(url_for("detalle_pedido", id=pedido.id, ok=msg if ok else "", error="" if ok else msg))
-
-
-@app.route("/pedido/<int:id>/postventa-whatsapp")
-@login_required
-def postventa_whatsapp(id):
-    pedido = Pedido.query.get_or_404(id)
-
-    if not puede_ver_pedido(pedido):
-        return redirect(url_for("inicio"))
-
-    if not puede_enviar_postventa_whatsapp(pedido):
-        return redirect(url_for("detalle_pedido", id=pedido.id))
-
-    texto = mensaje_whatsapp_postventa(pedido)
-    ok, msg = _enviar_whatsapp_api_pedido(pedido, texto, autor="sistema")
-    if ok:
-        pedido.wa_postventa_enviada = True
-        pedido.wa_estado = "finalizado"
-        db.session.commit()
-    return redirect(url_for("detalle_pedido", id=pedido.id, ok=msg if ok else "", error="" if ok else msg))
-
 
 @app.route("/pedido/<int:id>/confirmar-entrega")
 @login_required
