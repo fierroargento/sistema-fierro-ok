@@ -1330,9 +1330,14 @@ def detectar_sucursal(pedido, mensaje):
 
 
 def requiere_seguimiento_retiro(pedido):
+    entrega_es_sucursal = bool(
+        pedido.tipo_entrega == "Sucursal"
+        or str(pedido.sucursal_nombre or "").strip()
+    )
+
     return bool(
         pedido.estado == "Verificar llegada a destino"
-        and pedido.tipo_entrega == "Sucursal"
+        and entrega_es_sucursal
         and (
             (
                 pedido.canal == "Mercado Libre"
