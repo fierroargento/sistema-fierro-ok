@@ -1341,7 +1341,9 @@ def generar_link_whatsapp(numero, mensaje):
     query = urlencode({"text": mensaje}, quote_via=quote, encoding="utf-8", errors="strict")
     return f"https://wa.me/{numero}?{query}"
 
-
+# LEGACY WA WEB
+# Pendiente eliminación total.
+# Reemplazado por WhatsApp interno API.
 def whatsapp_link_pedido(pedido):
     numero = normalizar_telefono(pedido.telefono)
     if not numero:
@@ -1374,7 +1376,9 @@ def requiere_seguimiento_retiro(pedido):
         )
     )
 
-
+# LEGACY WA WEB
+# Pendiente eliminación total.
+# Reemplazado por WhatsApp interno API.
 def whatsapp_link_confirmar_entrega(pedido):
     numero = normalizar_telefono(pedido.telefono)
     if not numero:
@@ -1401,7 +1405,9 @@ def whatsapp_link_confirmar_entrega(pedido):
 
     return generar_link_whatsapp(numero, mensaje)
 
-
+# LEGACY WA WEB
+# Pendiente eliminación total.
+# Reemplazado por WhatsApp interno API.
 def whatsapp_link_despachado(pedido):
     numero = normalizar_telefono(pedido.telefono)
     if not numero:
@@ -1436,6 +1442,9 @@ def pedido_tiene_parrilla(pedido):
     return False
 
 
+# LEGACY WA WEB
+# Pendiente eliminación total.
+# Reemplazado por WhatsApp interno API.
 def whatsapp_link_postventa(pedido):
     numero = normalizar_telefono(pedido.telefono)
     if not numero:
@@ -1539,6 +1548,9 @@ def mensaje_whatsapp_postventa(pedido):
     )
 
 
+# LEGACY WA WEB
+# Pendiente eliminación total.
+# Reemplazado por WhatsApp interno API.
 def puede_avisar_despacho_whatsapp(pedido):
     return bool(
         pedido
@@ -1550,6 +1562,9 @@ def puede_avisar_despacho_whatsapp(pedido):
     )
 
 
+# LEGACY WA WEB
+# Pendiente eliminación total.
+# Reemplazado por WhatsApp interno API.
 def puede_enviar_postventa_whatsapp(pedido):
     return bool(
         pedido
@@ -2472,7 +2487,7 @@ def es_guardado_parcial_acordas():
             (canal == "Mercado Libre" and ml_tipo == "Acordás la Entrega")
             or (canal == "Tienda Nube" and es_via_cargo(empresa_envio))
         )
-        and accion_guardado_paso2() in ["guardar_y_seguir_despues", "coordinar_whatsapp"]
+        and accion_guardado_paso2() == "guardar_y_seguir_despues"
     )
 
 def es_via_cargo(valor):
@@ -8863,7 +8878,7 @@ def imprimir_etiqueta(id):
                 texto_boton=texto_boton_estado(pedido),
                 hay_autorizado=hay_autorizado,
                 puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-                whatsapp_url=whatsapp_link_pedido(pedido),
+                
                 notas_pedido=[]
             )
 
@@ -8879,7 +8894,7 @@ def imprimir_etiqueta(id):
             texto_boton=texto_boton_estado(pedido),
             hay_autorizado=hay_autorizado,
             puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-            whatsapp_url=whatsapp_link_pedido(pedido),
+            
             notas_pedido=[]
         )
 
@@ -8924,8 +8939,7 @@ def imprimir_etiqueta(id):
                 accion_sugerida=accion_sugerida_pedido(pedido),
                 texto_boton=texto_boton_estado(pedido),
                 hay_autorizado=hay_autorizado,
-                puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-                whatsapp_url=whatsapp_link_pedido(pedido)
+                puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,                
             )
 
         if extension == "pdf":
@@ -9217,10 +9231,7 @@ def nuevo_pedido():
         if es_guardado_parcial_acordas():
             db.session.commit()
 
-            if accion_guardado_paso2() == "coordinar_whatsapp":
-                whatsapp_url = whatsapp_link_pedido(pedido)
-                if whatsapp_url:
-                    return redirect(whatsapp_url)
+
 
             return redirect(url_for("inicio"))
 
@@ -9381,7 +9392,7 @@ def detalle_pedido(id):
         texto_boton=texto_boton_estado(pedido),
         hay_autorizado=hay_autorizado,
         puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-        whatsapp_url=whatsapp_link_pedido(pedido),
+        
         auditorias_pedido=auditorias_pedido,
         notas_pedido=notas_pedido,
         whatsapp_mensajes=whatsapp_mensajes,
@@ -10198,11 +10209,6 @@ def editar_pedido(id):
         if es_guardado_parcial_acordas():
             db.session.commit()
 
-            if accion_guardado_paso2() == "coordinar_whatsapp":
-                whatsapp_url = whatsapp_link_pedido(pedido)
-                if whatsapp_url:
-                    return redirect(whatsapp_url)
-
             return redirect(url_for("inicio"))
 
         items_texto_nuevo = request.form.get("items_texto", "")
@@ -10864,8 +10870,7 @@ def avanzar_pedido(id):
             accion_sugerida=accion_sugerida_pedido(pedido),
             texto_boton=texto_boton_estado(pedido),
             hay_autorizado=hay_autorizado,
-            puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
-            whatsapp_url=whatsapp_link_pedido(pedido),
+            puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,            
             notas_pedido=[]
         )
 
