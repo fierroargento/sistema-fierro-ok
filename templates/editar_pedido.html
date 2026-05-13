@@ -222,9 +222,10 @@
                 </div>
 
                 <div id="bloque_coordinar_envio" style="display:none;">
-                    <button type="button" class="btn btn-coordinar-whatsapp" onclick="coordinarEnvioWhatsapp()">
-                        Coordinar envío por WhatsApp
-                    </button>
+                    <div class="alerta-info" style="font-size:0.85rem; margin-top:8px;">
+                        WhatsApp se gestiona desde el detalle del pedido mediante mensajería interna por API.
+                        No se abre WhatsApp Web.
+                    </div>
                 </div>
 
                 <div id="bloque_seguimiento">
@@ -595,39 +596,7 @@ function mostrarBotonCoordinarEnvio() {
     bloqueCoordinarEnvio.style.display = mostrar ? "block" : "none";
 }
 
-function coordinarEnvioWhatsapp() {
-    const cliente = (document.querySelector("[name=cliente]")?.value || "").trim();
-    const telefono = (document.querySelector("[name=telefono]")?.value || "").trim();
 
-    if (!cliente || !telefono) {
-        const errores = [];
-        const campos = [];
-
-        if (!cliente) {
-            errores.push("Antes de abrir WhatsApp, cargá el nombre o razón social del cliente.");
-            campos.push('[name="cliente"]');
-        }
-
-        if (!telefono) {
-            errores.push("Antes de abrir WhatsApp, cargá un teléfono válido del cliente.");
-            campos.push('[name="telefono"]');
-        }
-
-        currentStep = 1;
-        showStep(currentStep);
-        mostrarErroresVisuales(errores, campos);
-        return;
-    }
-
-    accionPaso2.value = "coordinar_whatsapp";
-    document.getElementById("current_step").value = "2";
-    formPrincipal.setAttribute("target", "_blank");
-    formPrincipal.submit();
-    setTimeout(function () {
-        formPrincipal.setAttribute("target", formTargetOriginal);
-        window.location.href = "/";
-    }, 300);
-}
 
 function showStep(step) {
     steps.forEach(s => s.style.display = "none");
