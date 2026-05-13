@@ -585,10 +585,6 @@ function actualizarCamposEtiquetaYSeguimientoPorTransporte() {
     }
 }
 
-function mostrarBotonCoordinarEnvio() {
-    return;
-}
-
 
 
 function showStep(step) {
@@ -599,7 +595,7 @@ function showStep(step) {
 
     const pasoEnvioSidebar = document.getElementById("step-3");
     pasoEnvioSidebar.style.display = usaPasoEnvio() ? "block" : "none";
-    mostrarBotonCoordinarEnvio();
+
     actualizarCamposEtiquetaYSeguimientoPorTransporte();
 
     document.getElementById("step-" + step).classList.add("active");
@@ -790,15 +786,13 @@ function nextStep() {
 
     if (currentStep === 2 && !usaPasoEnvio()) {
         currentStep = 4;
-        showStep(currentStep);
-        mostrarBotonCoordinarEnvio();
+        showStep(currentStep);    
         return;
     }
 
     if (currentStep < 4) {
         currentStep++;
-        showStep(currentStep);
-        mostrarBotonCoordinarEnvio();
+        showStep(currentStep);    
     }
 }
 
@@ -806,14 +800,14 @@ function prevStep() {
     if (currentStep === 4 && !usaPasoEnvio()) {
         currentStep = 2;
         showStep(currentStep);
-mostrarBotonCoordinarEnvio();
+
         return;
     }
 
     if (currentStep > 1) {
         currentStep--;
         showStep(currentStep);
-mostrarBotonCoordinarEnvio();
+
     }
 }
 
@@ -871,9 +865,7 @@ function actualizar() {
     }
 
     if (esMercadoEnvios) {
-        if (bloqueSeguimiento.parentNode !== bloqueCoordinarEnvio.parentNode) {
-            bloqueCoordinarEnvio.parentNode.insertBefore(bloqueSeguimiento, bloqueCoordinarEnvio.nextSibling);
-        }
+
         if (bloqueEtiqueta.parentNode !== bloqueSeguimiento.parentNode) {
             bloqueSeguimiento.parentNode.insertBefore(bloqueEtiqueta, bloqueSeguimiento.nextSibling);
         }
@@ -887,9 +879,7 @@ function actualizar() {
         bloqueSeguimiento.style.display = "block";
         bloqueEtiqueta.style.display = "block";
     } else {
-        if (bloqueSeguimiento.parentNode !== bloqueCoordinarEnvio.parentNode) {
-            bloqueCoordinarEnvio.parentNode.insertBefore(bloqueSeguimiento, bloqueCoordinarEnvio.nextSibling);
-        }
+
         if (bloqueEtiqueta.parentNode !== bloqueSeguimiento.parentNode) {
             bloqueSeguimiento.parentNode.insertBefore(bloqueEtiqueta, bloqueSeguimiento.nextSibling);
         }
@@ -922,7 +912,7 @@ function actualizar() {
 
     const pasoEnvioSidebar = document.getElementById("step-3");
     pasoEnvioSidebar.style.display = usaPasoEnvio() ? "block" : "none";
-    mostrarBotonCoordinarEnvio();
+
     aplicarReglaViaCargoPP6040();
 }
 canal.addEventListener("change", actualizar);
@@ -1080,7 +1070,7 @@ async function inicializarFormulario() {
 
     actualizar();
     showStep(currentStep);
-mostrarBotonCoordinarEnvio();
+
 }
 
 inicializarFormulario();
