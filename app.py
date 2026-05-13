@@ -1597,10 +1597,39 @@ def es_ml_acordas_via_cargo(pedido):
 def aplicar_default_tipo_entrega(pedido):
     """
     Regla APB preventiva:
-    Mercado Libre + Acordás la Entrega + Vía Cargo nace como Sucursal
-    salvo que carga/admin ya haya definido otro tipo de entrega.
+    Mercado Libre + Acordás la Entrega
+    con transportista externo nace como Sucursal,
+    salvo que carga/admin ya haya definido
+    otro tipo de entrega.
+
+    Aplica a:
+    - Vía Cargo
+    - Andreani
+    - Correo Argentino
     """
-    if es_ml_acordas_via_cargo(pedido) and not (pedido.tipo_entrega or "").strip():
+
+    if not pedido:
+        return
+
+    if not es_ml_acordas_entrega(pedido):
+        return
+
+    if (pedido.tipo_entrega or "").strip():
+        return
+
+    empresa = str(
+        getattr(pedido, "empresa_envio", "") or ""
+    ).strip().lower()
+
+    transportistas_externos = [
+        "via cargo",
+        "vía cargo",
+        "andreani",
+        "correo argentino",
+        "correo",
+    ]
+
+    if any(t in empresa for t in transportistas_externos):
         pedido.tipo_entrega = "Sucursal"
 
 
@@ -2091,7 +2120,26 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "target": "_blank" if es_inicio else "",
         }
 
-    if pedido.estado == "Verificar llegada a destino" and rol in ["carga", "admin"] and pedido.tipo_entrega == "Sucursal":
+    entrega_es_sucursal = (
+        pedido.tipo_entrega == "Sucursal"
+        or bool(
+            str(
+                getattr(
+                    pedido,
+                    "sucursal_nombre",
+                    ""
+                ) or ""
+            ).strip()
+        )
+    )
+
+    entrega_es_domicilio = (
+        pedido.tipo_entrega == "Domicilio"
+        and not entrega_es_sucursal
+    )
+
+
+    if pedido.estado == "Verificar llegada a destino" and rol in ["carga", "admin"] and entrega_es_sucursal:
         return {
             "tipo": "avisar_cliente",
             "texto": "Avisar al Cliente",
@@ -2100,7 +2148,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "target": "_blank",
         }
 
-    if pedido.estado == "Listo para retirar" and rol in ["carga", "admin"] and pedido.tipo_entrega == "Sucursal":
+    if pedido.estado == "Listo para retirar" and rol in ["carga", "admin"] and entrega_es_sucursal:
         return {
             "tipo": "marcar_entregado",
             "texto": "Marcar entregado",
@@ -2109,7 +2157,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "target": "",
         }
 
-    if pedido.estado == "Verificar llegada a destino" and rol in ["carga", "admin"] and pedido.tipo_entrega == "Domicilio":
+    if pedido.estado == "Verificar llegada a destino" and rol in ["carga", "admin"] and entrega_es_domicilio:
         return {
             "tipo": "marcar_entregado",
             "texto": "Marcar entregado",
