@@ -6441,6 +6441,59 @@ def ml_pedido_existente_por_order_id(order_id):
         .first()
     )
 
+def ml_pedido_existente_operativo(order, shipment=None):
+    """
+    APB Mercado Libre:
+    - Mercado Envíos se opera por paquete/envío.
+      Un pack/shipment puede contener varias órdenes/items.
+    - Acordás la Entrega sigue operando por order_id.
+    """
+
+    order = order or {}
+    shipment = shipment or {}
+
+    order_id = str(order.get("id") or "").strip()
+    pack_id = str(order.get("pack_id") or "").strip()
+
+    shipping = order.get("shipping") or {}
+    shipping_id = str(
+        shipping.get("id")
+        or shipment.get("id")
+        or ""
+    ).strip()
+
+    if ml_es_mercado_envios_order(order, shipment):
+
+        if pack_id:
+            pedido = (
+                Pedido.query
+                .filter_by(
+                    canal="Mercado Libre",
+                    ml_pack_id=pack_id,
+                )
+                .order_by(Pedido.id.asc())
+                .first()
+            )
+
+            if pedido:
+                return pedido
+
+        if shipping_id:
+            pedido = (
+                Pedido.query
+                .filter_by(
+                    canal="Mercado Libre",
+                    ml_shipping_id=shipping_id,
+                )
+                .order_by(Pedido.id.asc())
+                .first()
+            )
+
+            if pedido:
+                return pedido
+
+    return ml_pedido_existente_por_order_id(order_id)
+
 
 def ml_logistica_no_operable(order, shipment):
     shipping = order.get("shipping") or {}
@@ -6871,7 +6924,7 @@ def ml_upsert_pedido_desde_order(order):
     # - Si SÍ existe en Fierro, NO se lo saca del flujo: solo se actualizan estados ML
     #   para que Carga pueda cerrar el proceso interno cuando corresponda.
     if ml_order_esta_entregado(order, shipment):
-        pedido = ml_pedido_existente_por_order_id(order_id)
+        pedido = ml_pedido_existente_operativo(order, shipment)
         if pedido is None:
             ml_registrar_order_ignorado(
                 order_id,
@@ -6892,7 +6945,7 @@ def ml_upsert_pedido_desde_order(order):
 
     omitir, motivo_omision = ml_order_debe_omitirse(order, shipment)
     if omitir:
-        pedido_existente = ml_pedido_existente_por_order_id(order_id)
+        pedido_existente = ml_pedido_existente_operativo(order, shipment)
         if ml_borrar_pedido_importado_si_corresponde(pedido_existente):
             return None, False, f"{motivo_omision} - pedido importado eliminado"
         return None, False, motivo_omision
@@ -6900,21 +6953,21 @@ def ml_upsert_pedido_desde_order(order):
     etiqueta_ml_preparada = ""
     if ml_es_mercado_envios_order(order, shipment):
         if ml_envio_ya_despachado(order, shipment):
-            pedido_existente = ml_pedido_existente_por_order_id(order_id)
+            pedido_existente = ml_pedido_existente_operativo(order, shipment)
             if ml_borrar_pedido_importado_si_corresponde(pedido_existente):
                 return None, False, "Mercado Envíos ya enviado - pedido importado eliminado"
             return None, False, "Mercado Envíos ya enviado"
 
         etiqueta_ml_preparada = ml_preparar_etiqueta_mercado_envios(order, shipment)
         if not etiqueta_ml_preparada:
-            pedido_existente = ml_pedido_existente_por_order_id(order_id)
+            pedido_existente = ml_pedido_existente_operativo(order, shipment)
             if ml_borrar_pedido_importado_si_corresponde(pedido_existente):
                 return None, False, "__ML_ME_SIN_ETIQUETA__ - pedido importado eliminado"
             return None, False, "__ML_ME_SIN_ETIQUETA__"
 
     billing_info = ml_obtener_billing_info(order_id)
 
-    pedido = ml_pedido_existente_por_order_id(order_id)
+    pedido = ml_pedido_existente_operativo(order, shipment)
     creado = pedido is None
 
     if creado:
@@ -6929,7 +6982,9 @@ def ml_upsert_pedido_desde_order(order):
 
     pedido.origen = "mercadolibre"
     pedido.canal = "Mercado Libre"
-    pedido.id_venta = order_id
+
+    if not pedido.id_venta:
+        pedido.id_venta = order_id
 
     pedido.mail = pedido.mail or "expedicionfierro@gmail.com"
     pedido.telefono = pedido.telefono or ""
@@ -6965,7 +7020,10 @@ def ml_upsert_pedido_desde_order(order):
             item.cantidad = cantidad
         usados.add(sku)
 
-    if pedido.estado == "Cargando Pedido":
+    if (
+        pedido.estado == "Cargando Pedido"
+        and not ml_es_mercado_envios_order(order, shipment)
+    ):
         for sku, item in list(existentes.items()):
             if sku not in usados:
                 db.session.delete(item)
