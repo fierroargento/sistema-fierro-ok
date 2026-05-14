@@ -10329,6 +10329,24 @@ def confirmar_entrega(id):
     pedido.estado = "Listo para retirar"
     db.session.commit()
 
+    registrar_evento_operativo(
+        pedido=pedido,
+        tipo_evento="pedido_listo_para_retirar",
+        origen="operador",
+        canal="sistema",
+        owner="sistema",
+        estado_conversacional="esperando_confirmacion_retiro",
+        payload={
+            "estado": pedido.estado,
+            "sucursal_nombre": pedido.sucursal_nombre,
+            "seguimiento": pedido.seguimiento or pedido.tn_tracking_number,
+        },
+        resultado="ok",
+        detalle="Operador marcó el pedido como listo para retirar.",
+        usuario=session.get("username", ""),
+        procesado=True,
+    )
+
     texto = mensaje_whatsapp_confirmar_entrega(pedido)
     ok, msg = _enviar_whatsapp_api_pedido(pedido, texto, autor="sistema")
     if ok:
