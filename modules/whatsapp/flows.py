@@ -24,8 +24,11 @@ from .config import (
     WA_DESPACHADO,
     WA_POSTVENTA,
     WA_FINALIZADO,
+    WA_TEMPLATE_SEGUIMIENTO,
+    WA_TEMPLATE_RETIRO,
+    WA_TEMPLATE_POSTVENTA_PARRILLA,    
 )
-from .sender import wa_enviar_texto
+from .sender import wa_enviar_texto, wa_enviar_template
 from .cross_sell import (
     obtener_productos_a_ofrecer, wa_ofrecer_producto,
     wa_responder_precio, wa_cerrar_cross_sell, wa_escalar_venta_cerrada,
@@ -562,38 +565,74 @@ def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_a
 # ─────────────────────────────────────────────
 
 def wa_enviar_numero_seguimiento(pedido):
-    from app import normalizar_telefono
+    from app import normalizar_telefono, url_seguimiento_pedido
+
     tel = normalizar_telefono(pedido.telefono)
     if not tel:
         return False
-    seguimiento = (getattr(pedido, "seguimiento", "") or getattr(pedido, "tn_tracking_number", "") or "").strip()
+
+    seguimiento = (
+        getattr(pedido, "seguimiento", "")
+        or getattr(pedido, "tn_tracking_number", "")
+        or ""
+    ).strip()
+
     if not seguimiento:
         return False
+
     empresa = pedido.empresa_envio or "Correo Argentino"
-    texto = (
-        "Tu pedido ya fue despachado.\n\n"
-        f"Empresa: {empresa}\n"
-        f"Seguimiento: {seguimiento}\n\n"
-        "Con ese número podés consultar el avance del envío. Cualquier duda escribinos por acá."
-    )
+    link = url_seguimiento_pedido(pedido) or ""
+
     _guardar_estado_wa(pedido, WA_DESPACHADO, tel)
-    return wa_enviar_texto(tel, texto)
+
+    return wa_enviar_template(
+        tel,
+        WA_TEMPLATE_SEGUIMIENTO,
+        parametros=[
+            (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+            empresa,
+            seguimiento,
+            link,
+        ],
+        pedido=pedido,
+        autor="bot",
+    )
 
 
 def wa_enviar_listo_para_retirar(pedido):
     from app import normalizar_telefono, db
+
     tel = normalizar_telefono(pedido.telefono)
     if not tel:
         return False
+
     if getattr(pedido, "wa_listo_retirar_enviado", False):
         return False
-    texto = (
-        "Tu pedido ya se encuentra disponible para retirar en la sucursal/punto de Correo Argentino.\n\n"
-        f"Sucursal: {pedido.sucursal_nombre or 'la sucursal elegida'}\n"
-        f"Dirección: {pedido.direccion or ''}\n\n"
-        "Te recomendamos retirarlo dentro de los próximos días para evitar devoluciones automáticas."
+
+    direccion_retiro = (
+        getattr(pedido, "direccion", "")
+        or getattr(pedido, "sucursal_nombre", "")
+        or "Punto de retiro informado por el transporte"
     )
-    ok = wa_enviar_texto(tel, texto)
+
+    seguimiento = (
+        getattr(pedido, "seguimiento", "")
+        or getattr(pedido, "tn_tracking_number", "")
+        or ""
+    ).strip()
+
+    ok = wa_enviar_template(
+        tel,
+        WA_TEMPLATE_RETIRO,
+        parametros=[
+            (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+            direccion_retiro,
+            seguimiento or "Sin número informado",
+        ],
+        pedido=pedido,
+        autor="bot",
+    )
+
     if ok:
         try:
             pedido.wa_listo_retirar_enviado = True
@@ -601,6 +640,7 @@ def wa_enviar_listo_para_retirar(pedido):
             db.session.commit()
         except Exception:
             db.session.rollback()
+
     return ok
 
 
@@ -611,20 +651,16 @@ def wa_enviar_postventa(pedido):
         return False
     if getattr(pedido, "wa_postventa_enviada", False):
         return False
-    texto = (
-        "Hola! Vimos que tu pedido ya fue entregado.\n\n"
-        "Esperamos que disfrutes mucho tu compra y gracias por elegir Fierro 100% Argento.\n\n"
-        "Te dejamos algunos tips para que tu parrilla dure muchos años:\n\n"
-        "• Evitá quemarla a fuego directo, ese calor puede doblar las varillas.\n"
-        "• Limpiala con un cepillo mientras está caliente, justo después de usarla.\n"
-        "• Usá la grasa del asado para pasarle y curarla; ayuda a evitar el óxido.\n"
-        "• Si queda al aire libre, podés pasarle aceite comestible con una esponja.\n\n"
-        "Si tenés alguna duda con el uso, escribinos.\n\n"
-        "También podés seguirnos en Instagram para ver nuevos productos, ideas y novedades:\n"
-        "https://www.instagram.com/fierroargento\n\n"
-        "Gracias nuevamente!"
+    ok = wa_enviar_template(
+        tel,
+        WA_TEMPLATE_POSTVENTA_PARRILLA,
+        parametros=[
+            (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+            "https://www.instagram.com/fierroargento",
+        ],
+        pedido=pedido,
+        autor="bot",
     )
-    ok = wa_enviar_texto(tel, texto)
     if ok:
         try:
             pedido.wa_postventa_enviada = True
