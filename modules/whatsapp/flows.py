@@ -458,7 +458,7 @@ def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
 # ─────────────────────────────────────────────
 
 def wa_iniciar_cross_sell(pedido):
-    from app import normalizar_telefono
+    from app import normalizar_telefono, actualizar_estado_conversacional, registrar_evento_operativo
 
     tel = normalizar_telefono(pedido.telefono)
     productos = obtener_productos_a_ofrecer(pedido)
@@ -495,6 +495,36 @@ def wa_iniciar_cross_sell(pedido):
     )
 
     primer_sku = productos[0]
+
+    actualizar_estado_conversacional(
+        pedido,
+        owner_actual="bot",
+        canal_activo="wa",
+        estado_conversacional="cross_sell",
+        takeover_activo=False,
+        bot_pausado=False,
+        cross_sell_activo=True,
+    )
+
+    registrar_evento_operativo(
+        pedido=pedido,
+        tipo_evento="cross_sell_iniciado",
+        origen="bot",
+        canal="wa",
+        owner="bot",
+        estado_conversacional="cross_sell",
+        payload={
+            "primer_sku": primer_sku,
+            "productos": productos,
+            "empresa_envio": empresa,
+            "tipo_entrega": tipo_entrega,
+            "sucursal": sucursal,
+        },
+        resultado="ok",
+        detalle="Se inició oferta de agregados por WhatsApp.",
+        procesado=True,
+    )
+
     _guardar_estado_wa(pedido, f"cross_sell:{primer_sku}:0", tel)
     wa_ofrecer_producto(tel, primer_sku)
 
