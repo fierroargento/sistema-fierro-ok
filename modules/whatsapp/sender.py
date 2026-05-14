@@ -73,6 +73,78 @@ def _extraer_message_id(data):
         pass
     return ""
 
+def wa_enviar_template(telefono, template_name, parametros=None, pedido=None, autor="bot", registrar=True):
+    """Envía una plantilla aprobada de Meta WhatsApp.
+
+    Sirve para iniciar/reabrir conversación cuando la ventana de 24 hs está cerrada.
+    """
+    from .config import WA_TEMPLATE_LANG
+
+    telefono = re.sub(r"\D", "", str(telefono or ""))
+    template_name = str(template_name or "").strip()
+    parametros = parametros or []
+
+    if not telefono or not template_name:
+        if registrar:
+            _registrar_historial(
+                pedido,
+                telefono,
+                f"[Template] {template_name}",
+                autor=autor,
+                estado="error",
+                error="Falta teléfono o template_name",
+            )
+        return False
+
+    components = []
+    if parametros:
+        components.append({
+            "type": "body",
+            "parameters": [
+                {
+                    "type": "text",
+                    "text": str(valor or ""),
+                }
+                for valor in parametros
+            ],
+        })
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": telefono,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {
+                "code": WA_TEMPLATE_LANG,
+            },
+            "components": components,
+        },
+    }
+
+    ok, data = _wa_post(payload)
+
+    texto_hist = f"[Template] {template_name} | Params: {parametros}"
+
+    if ok and autor == "bot" and pedido is not None:
+        try:
+            from app import ia_marcar_mensaje_bot
+            ia_marcar_mensaje_bot(pedido, "whatsapp", texto_hist, commit=True)
+        except Exception as e:
+            print("[WA-APB] No se pudo marcar template bot:", e)
+
+    if registrar:
+        _registrar_historial(
+            pedido=pedido,
+            telefono=telefono,
+            texto=texto_hist,
+            autor=autor,
+            estado="enviado" if ok else "error",
+            error="" if ok else str(data),
+            message_id_meta=_extraer_message_id(data) if ok else "",
+        )
+
+    return ok
 
 def wa_enviar_texto(telefono, texto, pedido=None, autor="bot", registrar=True):
     """Envía un mensaje de texto simple.
