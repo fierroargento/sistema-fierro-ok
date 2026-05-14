@@ -10479,6 +10479,33 @@ def whatsapp_reactivar_bot(id):
     pedido.ia_requiere_operador = False
     pedido.wa_ultimo_contacto = datetime.utcnow()
     db.session.commit()
+
+    actualizar_estado_conversacional(
+        pedido,
+        owner_actual="bot",
+        canal_activo="wa",
+        estado_conversacional="recolectando_datos",
+        takeover_activo=False,
+        bot_pausado=False,
+    )
+
+    registrar_evento_operativo(
+        pedido=pedido,
+        tipo_evento="bot_reactivado",
+        origen="operador",
+        canal="wa",
+        owner="bot",
+        estado_conversacional="recolectando_datos",
+        payload={
+            "wa_estado": pedido.wa_estado,
+            "ia_requiere_operador": pedido.ia_requiere_operador,
+        },
+        resultado="ok",
+        detalle="Operador reactivó el bot WhatsApp.",
+        usuario=session.get("username", ""),
+        procesado=True,
+    )
+
     return redirect(url_for("detalle_pedido", id=pedido.id, ok="Bot WhatsApp reactivado."))
 
 @app.route("/pedido/<int:id>/confirmar-entrega")
