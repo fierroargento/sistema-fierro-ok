@@ -5264,6 +5264,34 @@ def ia_escalar_si_timeout_operativo(pedido, canal="", motivo="Sin respuesta del 
             pedido.wa_estado = "requiere_operador"
         except Exception:
             pass
+
+        actualizar_estado_conversacional(
+            pedido,
+            owner_actual="operador",
+            canal_activo=canal_txt,
+            estado_conversacional="takeover_operador",
+            takeover_activo=True,
+            bot_pausado=True,
+        )
+
+        registrar_evento_operativo(
+            pedido=pedido,
+            tipo_evento="timeout_respuesta_cliente",
+            origen="scheduler",
+            canal=canal_txt,
+            owner="operador",
+            estado_conversacional="takeover_operador",
+            payload={
+                "motivo": motivo,
+                "canal": canal_txt,
+                "ia_esperando_respuesta": pedido.ia_esperando_respuesta,
+                "ia_ultimo_mensaje_bot": str(ultimo_bot),
+            },
+            resultado="escalado_operador",
+            detalle=marca,
+            procesado=True,
+        )
+
         db.session.commit()
         print(f"[IA-APB] Pedido #{pedido.id} escalado por timeout operativo canal={canal_txt}")
         return True
