@@ -39,6 +39,7 @@ CORREO_SERVICIO_PP6040 = "Pack AR Clásico"
 
 # ── Estados WA normalizados ────────────────────────────────────────
 WA_ESPERANDO_DATOS = "esperando_datos"
+WA_ESPERANDO_OK_INICIO = "esperando_ok_inicio"
 WA_FALTA_ELEGIR_TRANSPORTE = "falta_elegir_transporte"
 WA_REQUIERE_OPERADOR = "requiere_operador"
 WA_CONFIRMADO_CLIENTE = "confirmado_cliente"

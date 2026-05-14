@@ -8,10 +8,11 @@ import json
 import re
 from flask import request, jsonify
 
-from .config import WA_VERIFY_TOKEN, modulo_activo
+from .config import WA_VERIFY_TOKEN, modulo_activo, WA_ESPERANDO_OK_INICIO
 from .flows import (
     wa_procesar_respuesta_confirmacion,
     wa_procesar_datos_recibidos,
+    wa_procesar_ok_inicio,    
     wa_procesar_respuesta_cross_sell,
     wa_procesar_respuesta_postventa,
     wa_procesar_eleccion_transporte,
@@ -145,6 +146,11 @@ def _routear_mensaje(pedido, texto, telefono):
     # Esperando elección de sucursal/punto Correo o domicilio
     if estado == "falta_elegir_transporte":
         wa_procesar_eleccion_transporte(pedido, texto)
+        return
+
+    # Esperando OK inicial luego de handoff ML -> WA
+    if estado == WA_ESPERANDO_OK_INICIO:
+        wa_procesar_ok_inicio(pedido, texto)
         return
 
     # Esperando datos faltantes

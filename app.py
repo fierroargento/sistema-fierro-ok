@@ -7539,10 +7539,15 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
 
     try:
         if faltantes_limpios:
-            from modules.whatsapp.flows import wa_enviar_solicitud_datos
-            ok = wa_enviar_solicitud_datos(pedido, faltantes_limpios)
-            accion = "Solicitó datos faltantes por WhatsApp"
-            detalle_extra = ", ".join(faltantes_limpios)
+            from modules.whatsapp.flows import wa_iniciar_desde_ml
+
+            ok = wa_iniciar_desde_ml(pedido)
+
+            accion = "Inició WhatsApp desde ML"
+            detalle_extra = (
+                "handoff ML→WA pendiente OK cliente | "
+                + ", ".join(faltantes_limpios)
+            )
         else:
             from modules.whatsapp.flows import wa_cerrar_datos_completos, wa_iniciar_cross_sell
             ok = wa_cerrar_datos_completos(pedido)

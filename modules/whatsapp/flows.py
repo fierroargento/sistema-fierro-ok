@@ -17,6 +17,7 @@ from datetime import datetime
 
 from .config import (
     WA_ESPERANDO_DATOS,
+    WA_ESPERANDO_OK_INICIO,    
     WA_FALTA_ELEGIR_TRANSPORTE,
     WA_REQUIERE_OPERADOR,
     WA_CONFIRMADO_CLIENTE,
@@ -24,6 +25,8 @@ from .config import (
     WA_DESPACHADO,
     WA_POSTVENTA,
     WA_FINALIZADO,
+    WA_TEMPLATE_PEDIDO_DATO,
+    WA_TEMPLATE_INICIO_DESPACHO,    
     WA_TEMPLATE_SEGUIMIENTO,
     WA_TEMPLATE_RETIRO,
     WA_TEMPLATE_POSTVENTA_PARRILLA,    
@@ -191,15 +194,64 @@ def _completar_localidad_provincia_por_cp(pedido):
 # FLUJO DATOS
 # ─────────────────────────────────────────────
 
+def wa_iniciar_desde_ml(pedido):
+    """
+    Primer contacto formal WhatsApp luego de handoff desde ML.
+
+    IMPORTANTE:
+    - No pide datos todavía.
+    - Solo busca abrir ventana 24 hs.
+    - El cliente debe responder OK.
+    """
+
+    from app import normalizar_telefono
+
+    tel = normalizar_telefono(pedido.telefono)
+
+    if not tel:
+        return False
+
+    nombre_base = (
+        getattr(pedido, "nombre", None)
+        or getattr(pedido, "cliente", None)
+        or ""
+    )
+
+    nombre = nombre_base.split()[0] if nombre_base else ""
+
+    ok = wa_enviar_template(
+        tel,
+        WA_TEMPLATE_INICIO_DESPACHO,
+        parametros=[
+            nombre or "Cliente",
+            f"#{getattr(pedido, 'id_venta', '') or getattr(pedido, 'id', '')}",
+        ],
+        pedido=pedido,
+        autor="bot",
+    )
+
+    if ok:
+        _guardar_estado_wa(
+            pedido,
+            WA_ESPERANDO_OK_INICIO,
+            tel,
+        )
+
+    return ok
+
 def wa_enviar_solicitud_datos(pedido, faltantes):
     from app import normalizar_telefono
+
     tel = normalizar_telefono(pedido.telefono)
     if not tel:
         return False
 
-    nombre_base = (getattr(pedido, "nombre", None) or getattr(pedido, "cliente", None) or "")
-    nombre = nombre_base.split()[0] if nombre_base else ""
-    saludo = f"Hola {nombre}! " if nombre else "Hola! "
+    nombre_base = (
+        getattr(pedido, "nombre", None)
+        or getattr(pedido, "cliente", None)
+        or ""
+    )
+    nombre = nombre_base.split()[0] if nombre_base else "Cliente"
 
     campos_amigables = {
         "nombre": "nombre y apellido",
@@ -211,17 +263,42 @@ def wa_enviar_solicitud_datos(pedido, faltantes):
         "codigo_postal": "código postal",
         "telefono": "teléfono",
     }
-    faltantes_str = "\n".join(f"• {campos_amigables.get(f, f)}" for f in faltantes)
 
-    texto = (
-        f"{saludo}Te escribimos desde Fierro 100% Argento para avanzar con el despacho de tu compra.\n\n"
-        f"Para poder enviarlo necesitamos confirmar:\n\n"
-        f"{faltantes_str}\n\n"
-        f"Me lo podés pasar por acá?"
+    faltantes_str = "\n".join(
+        f"• {campos_amigables.get(f, f)}"
+        for f in faltantes
     )
-    _guardar_estado_wa(pedido, WA_ESPERANDO_DATOS, tel)
-    return wa_enviar_texto(tel, texto)
 
+    _guardar_estado_wa(pedido, WA_ESPERANDO_DATOS, tel)
+
+    return wa_enviar_template(
+        tel,
+        WA_TEMPLATE_PEDIDO_DATO,
+        parametros=[
+            nombre,
+            faltantes_str,
+        ],
+        pedido=pedido,
+        autor="bot",
+    )
+
+def wa_procesar_ok_inicio(pedido, texto_cliente):
+    """
+    Cliente respondió al template inicial WA.
+    Ahora sí WhatsApp queda habilitado para continuar el flujo.
+    """
+    from app import normalizar_telefono, ia_faltantes_pedido
+
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        return False
+
+    faltantes = ia_faltantes_pedido(pedido)
+
+    if faltantes:
+        return wa_enviar_solicitud_datos(pedido, faltantes)
+
+    return wa_cerrar_datos_completos(pedido)
 
 def wa_procesar_datos_recibidos(pedido, texto_cliente):
     from app import (
