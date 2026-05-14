@@ -767,18 +767,62 @@ def wa_procesar_respuesta_postventa(pedido, texto_cliente):
 
 def wa_enviar_recordatorio_1(pedido):
     from app import normalizar_telefono
+
     tel = normalizar_telefono(pedido.telefono)
     if not tel:
         return False
-    return wa_enviar_texto(tel, "Hola! Solo quería asegurarme de que hayas visto el mensaje anterior. Quedamos atentos para avanzar con el despacho.")
+
+    nombre = (
+        getattr(pedido, "nombre", None)
+        or getattr(pedido, "cliente", None)
+        or "Cliente"
+    ).split()[0]
+
+    return wa_enviar_template(
+        tel,
+        WA_TEMPLATE_PEDIDO_DATO,
+        parametros=[
+            nombre,
+            (
+                "Te escribimos nuevamente porque todavía necesitamos tu respuesta "
+                "para poder avanzar con el despacho de tu pedido.\n\n"
+                "Cuando puedas, respondé este mensaje así continuamos."
+            ),
+        ],
+        pedido=pedido,
+        autor="bot",
+    )
 
 
 def wa_enviar_recordatorio_2(pedido):
     from app import normalizar_telefono
+
     tel = normalizar_telefono(pedido.telefono)
     if not tel:
         return False
-    return wa_enviar_texto(tel, "Te escribimos nuevamente para poder avanzar con el despacho de tu pedido. Si tenés alguna duda, escribinos por acá.")
+
+    nombre = (
+        getattr(pedido, "nombre", None)
+        or getattr(pedido, "cliente", None)
+        or "Cliente"
+    ).split()[0]
+
+    return wa_enviar_template(
+        tel,
+        WA_TEMPLATE_PEDIDO_DATO,
+        parametros=[
+            nombre,
+            (
+                "Seguimos aguardando tu respuesta para poder continuar con el despacho "
+                "de tu pedido.\n\n"
+                "Si no recibimos respuesta, no podemos avanzar con el envío y eso "
+                "genera un atraso en el proceso."
+            ),
+        ],
+        pedido=pedido,
+        autor="bot",
+    )
+
 
 
 # ─────────────────────────────────────────────

@@ -65,43 +65,77 @@ def ejecutar_timers():
 
 
 def ejecutar_timers_whatsapp():
-    """APB anti-acoso.
+    """APB WhatsApp.
 
-    Ya no manda recordatorios automáticos. Solo escala a operador si el bot
-    habló y el comprador no respondió en 2 horas operativas (08:00-22:00 AR).
+    Recordatorios por template:
+    - +24 hs sin respuesta: recordatorio 1
+    - +48 hs sin respuesta: recordatorio 2
+    - +72 hs sin respuesta: escala operador
+
+    Solo aplica a estados críticos donde esperamos respuesta del cliente:
+    - esperando_datos
+    - esperando_confirmacion_sucursal
     """
     if not modulo_activo():
         return
+
     try:
-        from app import Pedido, ia_escalar_si_timeout_operativo
+        from app import Pedido, db, ia_ahora_utc, ia_escalar_si_timeout_operativo
+        from modules.whatsapp.flows import (
+            wa_enviar_recordatorio_1,
+            wa_enviar_recordatorio_2,
+        )
+        from services.canal_manager import wa_puede_gobernar_timeout
+
+        ahora = ia_ahora_utc()
+
         pedidos = (
             Pedido.query
             .filter(Pedido.ia_esperando_respuesta == True)
             .filter(Pedido.ia_ultimo_mensaje_bot.isnot(None))
             .filter(Pedido.estado.notin_(["Entregado", "Finalizado", "Cancelado"]))
+            .filter(Pedido.wa_estado.in_([
+                "esperando_datos",
+                "esperando_confirmacion_sucursal",
+            ]))
             .limit(100)
             .all()
         )
-        for pedido in pedidos:
-            from services.canal_manager import (
-                wa_puede_gobernar_timeout,
-            )
 
-            if not wa_puede_gobernar_timeout(
-                pedido
-            ):
+        for pedido in pedidos:
+            if not wa_puede_gobernar_timeout(pedido):
                 continue
 
-            ia_escalar_si_timeout_operativo(
-                pedido,
-                canal="whatsapp"
-            )
+            ultimo_bot = getattr(pedido, "ia_ultimo_mensaje_bot", None)
+            if not ultimo_bot:
+                continue
+
+            segundos = int((ahora - ultimo_bot).total_seconds())
+
+            if segundos >= 72 * 60 * 60:
+                ia_escalar_si_timeout_operativo(
+                    pedido,
+                    canal="whatsapp",
+                )
+                continue
+
+            if segundos >= 48 * 60 * 60 and not getattr(pedido, "wa_recordatorio_2", False):
+                if wa_enviar_recordatorio_2(pedido):
+                    pedido.wa_recordatorio_2 = True
+                    db.session.commit()
+                continue
+
+            if segundos >= 24 * 60 * 60 and not getattr(pedido, "wa_recordatorio_1", False):
+                if wa_enviar_recordatorio_1(pedido):
+                    pedido.wa_recordatorio_1 = True
+                    db.session.commit()
+                continue
+
     except Exception as e:
         _cerrar_sesion_db_segura(rollback=True)
         print("[WA SCHEDULER] Error WA:", e)
     finally:
         _cerrar_sesion_db_segura(rollback=False)
-
 def _es_transporte_tracking_auto_apb(pedido):
     """Tracking automático habilitado solo para Andreani y Via Cargo.
 
