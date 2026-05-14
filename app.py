@@ -1141,6 +1141,14 @@ def registrar_whatsapp_mensaje(pedido=None, telefono="", direccion="", autor="",
             pedido.wa_ultimo_contacto = datetime.utcnow()
         db.session.commit()
 
+        if pedido is not None:
+            actualizar_estado_conversacional(
+                pedido,
+                canal_activo="wa",
+                ultimo_mensaje_cliente=datetime.utcnow() if direccion == "in" else None,
+                ultimo_mensaje_bot=datetime.utcnow() if direccion == "out" else None,
+            )
+
         registrar_evento_operativo(
             pedido=pedido,
             tipo_evento="whatsapp_mensaje_registrado",
