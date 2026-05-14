@@ -290,12 +290,38 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
 
 def wa_cerrar_datos_completos(pedido):
     """Datos completos: para PP6040 prepara Correo y no informa costos al cliente."""
-    from app import normalizar_telefono, db
+    from app import normalizar_telefono, db, actualizar_estado_conversacional, registrar_evento_operativo
     from modules.transportes.selector import pedido_contiene_pp6040, asignar_transporte_pedido, sugerir_sucursales_correo_pedido
 
     tel = normalizar_telefono(pedido.telefono)
     if not tel:
         return False
+
+    actualizar_estado_conversacional(
+        pedido,
+        owner_actual="bot",
+        canal_activo="wa",
+        estado_conversacional="datos_completos",
+        takeover_activo=False,
+        bot_pausado=False,
+    )
+
+    registrar_evento_operativo(
+        pedido=pedido,
+        tipo_evento="datos_completos",
+        origen="bot",
+        canal="wa",
+        owner="bot",
+        estado_conversacional="datos_completos",
+        payload={
+            "wa_estado": getattr(pedido, "wa_estado", ""),
+            "estado_pedido": getattr(pedido, "estado", ""),
+            "telefono": tel,
+        },
+        resultado="ok",
+        detalle="WhatsApp cerró la recolección con datos completos.",
+        procesado=True,
+    )
 
     if pedido_contiene_pp6040(pedido):
         # Cotización interna y sucursales/puntos Correo.
