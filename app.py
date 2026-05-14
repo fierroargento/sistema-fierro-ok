@@ -5224,7 +5224,7 @@ def ia_marcar_respuesta_cliente(pedido, canal=None, commit=True):
         )
 
         # Si estaba escalado solo por timeout, el operador sigue viendo el caso;
-        # no se borra ia_requiere_operador automÃ¡ticamente para no tapar alertas reales.
+        # no se borra ia_requiere_operador automaticamente para no tapar alertas reales.
         if commit:
             db.session.commit()
         return True
@@ -10573,7 +10573,7 @@ def whatsapp_tomar_conversacion(id):
         procesado=True,
     )
 
-    return redirect(url_for("detalle_pedido", id=pedido.id, ok="ConversaciÃ³n WhatsApp tomada por operador. El bot queda pausado."))
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok="Conversacion WhatsApp tomada por operador. El bot queda pausado."))
 
 
 @app.route("/pedido/<int:id>/whatsapp/reactivar", methods=["POST"])
