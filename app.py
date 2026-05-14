@@ -5122,6 +5122,33 @@ def ia_marcar_mensaje_bot(pedido, canal, texto=None, commit=True):
         if texto:
             pedido.ia_respuesta_enviada_hash = ia_hash_texto(texto)
             pedido.ia_ultima_respuesta_enviada = pedido.ia_ultimo_mensaje_bot
+
+        actualizar_estado_conversacional(
+            pedido,
+            owner_actual="bot",
+            canal_activo=pedido.ia_canal_activo or canal,
+            estado_conversacional="esperando_respuesta",
+            takeover_activo=False,
+            bot_pausado=False,
+            ultimo_mensaje_bot=pedido.ia_ultimo_mensaje_bot,
+        )
+
+        registrar_evento_operativo(
+            pedido=pedido,
+            tipo_evento="bot_esperando_respuesta",
+            origen="bot",
+            canal=pedido.ia_canal_activo or canal or "sistema",
+            owner="bot",
+            estado_conversacional="esperando_respuesta",
+            payload={
+                "canal": pedido.ia_canal_activo,
+                "ia_esperando_respuesta": pedido.ia_esperando_respuesta,
+            },
+            resultado="ok",
+            detalle=(texto or "")[:500],
+            procesado=True,
+        )
+
         if commit:
             db.session.commit()
         return True
