@@ -5168,9 +5168,34 @@ def ia_marcar_respuesta_cliente(pedido, canal=None, commit=True):
     try:
         pedido.ia_esperando_respuesta = False
         pedido.ia_ultimo_mensaje_cliente = ia_ahora_utc()
+        canal_respuesta = str(canal or "").strip()[:30] or None
         pedido.ia_canal_activo = None
+
+        actualizar_estado_conversacional(
+            pedido,
+            canal_activo=canal_respuesta,
+            estado_conversacional="recolectando_datos",
+            ultimo_mensaje_cliente=pedido.ia_ultimo_mensaje_cliente,
+        )
+
+        registrar_evento_operativo(
+            pedido=pedido,
+            tipo_evento="cliente_respondio",
+            origen="cliente",
+            canal=canal_respuesta or "sistema",
+            owner="bot",
+            estado_conversacional="recolectando_datos",
+            payload={
+                "canal": canal_respuesta,
+                "ia_esperando_respuesta": pedido.ia_esperando_respuesta,
+            },
+            resultado="ok",
+            detalle="El cliente respondió y se liberó el candado de espera.",
+            procesado=True,
+        )
+
         # Si estaba escalado solo por timeout, el operador sigue viendo el caso;
-        # no se borra ia_requiere_operador automáticamente para no tapar alertas reales.
+        # no se borra ia_requiere_operador automÃ¡ticamente para no tapar alertas reales.
         if commit:
             db.session.commit()
         return True
