@@ -10437,7 +10437,34 @@ def whatsapp_tomar_conversacion(id):
     pedido.ia_requiere_operador = True
     pedido.wa_ultimo_contacto = datetime.utcnow()
     db.session.commit()
-    return redirect(url_for("detalle_pedido", id=pedido.id, ok="Conversación WhatsApp tomada por operador. El bot queda pausado."))
+
+    actualizar_estado_conversacional(
+        pedido,
+        owner_actual="operador",
+        canal_activo="wa",
+        estado_conversacional="takeover_operador",
+        takeover_activo=True,
+        bot_pausado=True,
+    )
+
+    registrar_evento_operativo(
+        pedido=pedido,
+        tipo_evento="takeover_operador",
+        origen="operador",
+        canal="wa",
+        owner="operador",
+        estado_conversacional="takeover_operador",
+        payload={
+            "wa_estado": pedido.wa_estado,
+            "ia_requiere_operador": pedido.ia_requiere_operador,
+        },
+        resultado="ok",
+        detalle="Operador tomó control de la conversación WhatsApp. Bot pausado.",
+        usuario=session.get("username", ""),
+        procesado=True,
+    )
+
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok="ConversaciÃ³n WhatsApp tomada por operador. El bot queda pausado."))
 
 
 @app.route("/pedido/<int:id>/whatsapp/reactivar", methods=["POST"])
