@@ -476,7 +476,9 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
         idx = int(m.group(1)) - 1
         if 0 <= idx < len(sucs):
             suc = sucs[idx]
-            pedido.empresa_envio = "Correo Argentino"
+            if not (pedido.empresa_envio or "").strip():
+                pedido.empresa_envio = "Vía Cargo"
+                
             pedido.tipo_entrega = "Sucursal"
             pedido.sucursal_nombre = suc.get("nombre") or suc.get("name") or pedido.sucursal_nombre
             pedido.direccion = suc.get("direccion") or suc.get("address") or pedido.direccion
