@@ -46,6 +46,14 @@ WA_DESPACHO_EN_PROCESO = "despacho_en_proceso"
 WA_DESPACHADO = "despachado"
 WA_POSTVENTA = "postventa"
 WA_FINALIZADO = "finalizado"
+# ── Templates Meta WhatsApp ─────────────────────────────────────────
+WA_TEMPLATE_LANG = "es_AR"
+
+WA_TEMPLATE_INICIO_DESPACHO = "inicio_despacho_datos"
+WA_TEMPLATE_PEDIDO_DATO = "pedido_dato_faltante"
+WA_TEMPLATE_SEGUIMIENTO = "seguimiento_despacho"
+WA_TEMPLATE_RETIRO = "listo_para_retirar"
+WA_TEMPLATE_POSTVENTA_PARRILLA = "postventa_parrilla"
 
 # ── Catálogo de cross-sell ─────────────────────────────────────────
 CATALOGO = {
