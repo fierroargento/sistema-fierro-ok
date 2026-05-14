@@ -1119,6 +1119,35 @@ def registrar_evento_operativo(
         print("[EVENTO-OPERATIVO] No se pudo registrar evento:", e)
         return None
 
+def wa_ventana_24h_abierta(pedido=None, telefono=""):
+    """Devuelve True si el cliente respondió por WhatsApp dentro de las últimas 24 hs."""
+    try:
+        tel_norm = normalizar_telefono(
+            telefono or (getattr(pedido, "telefono", "") if pedido else "")
+        )
+
+        query = WhatsAppMensaje.query.filter(
+            WhatsAppMensaje.direccion == "in"
+        )
+
+        if pedido is not None:
+            query = query.filter(WhatsAppMensaje.pedido_id == pedido.id)
+        elif tel_norm:
+            query = query.filter(WhatsAppMensaje.telefono == tel_norm)
+        else:
+            return False
+
+        ultimo = query.order_by(WhatsAppMensaje.fecha.desc()).first()
+
+        if not ultimo or not ultimo.fecha:
+            return False
+
+        return (datetime.utcnow() - ultimo.fecha) <= timedelta(hours=24)
+
+    except Exception as e:
+        print("[WA] No se pudo evaluar ventana 24h:", e)
+        return False
+
 def registrar_whatsapp_mensaje(pedido=None, telefono="", direccion="", autor="", texto="", message_id_meta="", estado="", error=""):
     """Guarda un mensaje WA sin romper el flujo si falla la auditoría."""
     try:
