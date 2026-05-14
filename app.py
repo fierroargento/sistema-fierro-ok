@@ -58,13 +58,18 @@ else:
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///pedidos.db"
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+
+_engine_options = {
     "pool_pre_ping": True,
     "pool_recycle": 300,
-    "connect_args": {
-        "sslmode": "require"
-    },
 }
+
+if database_url:
+    _engine_options["connect_args"] = {
+        "sslmode": "require"
+    }
+
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = _engine_options
 app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
 _secret_key = os.getenv("SECRET_KEY", "")
 if not _secret_key:
@@ -364,6 +369,35 @@ class TrackingEvento(db.Model):
     origen = db.Column(db.String(50))
     fecha_evento = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
+
+class EventoOperativo(db.Model):
+    """Registro APB de eventos operativos/conversacionales del pedido.
+
+    Esta tabla no modifica el flujo actual.
+    Sirve como base futura para auditoría, motor conversacional,
+    debugging, métricas y arquitectura SaaS.
+    """
+    __tablename__ = "evento_operativo"
+
+    id = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"), nullable=True, index=True)
+
+    tipo_evento = db.Column(db.String(120), nullable=False, index=True)
+    origen = db.Column(db.String(50))          # sistema / bot / operador / webhook / scheduler
+    canal = db.Column(db.String(30))           # ml / wa / tn / sistema
+    owner = db.Column(db.String(30))           # bot / operador / sistema
+
+    estado_conversacional = db.Column(db.String(80))
+    flujo_base = db.Column(db.String(80))
+
+    payload_json = db.Column(db.Text)
+    resultado = db.Column(db.String(80))
+    detalle = db.Column(db.Text)
+
+    usuario = db.Column(db.String(100))
+    procesado = db.Column(db.Boolean, default=False, index=True)
+
+    fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 class WhatsAppMensaje(db.Model):
     """Historial real de conversación WhatsApp API asociado al pedido."""
