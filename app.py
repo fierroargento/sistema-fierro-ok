@@ -1009,6 +1009,22 @@ def registrar_whatsapp_mensaje(pedido=None, telefono="", direccion="", autor="",
         if pedido is not None:
             pedido.wa_ultimo_contacto = datetime.utcnow()
         db.session.commit()
+
+        registrar_evento_operativo(
+            pedido=pedido,
+            tipo_evento="whatsapp_mensaje_registrado",
+            origen=autor or "sistema",
+            canal="wa",
+            owner="bot" if autor in ["bot", "sistema"] else "operador",
+            payload={
+                "direccion": direccion,
+                "estado": estado,
+                "message_id_meta": message_id_meta,
+            },
+            detalle=(texto or "")[:500],
+            procesado=True,
+        )
+
         return msg
     except Exception as e:
         try:
