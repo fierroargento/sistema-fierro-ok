@@ -146,7 +146,15 @@ def wa_enviar_template(telefono, template_name, parametros=None, pedido=None, au
 
     return ok
 
-def wa_enviar_texto(telefono, texto, pedido=None, autor="bot", registrar=True):
+def wa_enviar_texto(
+    telefono,
+    texto,
+    pedido=None,
+    autor="bot",
+    registrar=True,
+    fallback_template=None,
+    fallback_parametros=None,
+):
     """Envia un mensaje de texto simple.
 
     APB anti-acoso:
@@ -180,6 +188,22 @@ def wa_enviar_texto(telefono, texto, pedido=None, autor="bot", registrar=True):
 
             if not ventana_abierta:
                 motivo = "ventana_24h_cerrada"
+
+                if fallback_template:
+                    print(
+                        f"[WA-APB] Ventana cerrada pedido "
+                        f"#{getattr(pedido, 'id', '?')}: usando template {fallback_template}"
+                    )
+
+                    return wa_enviar_template(
+                        telefono,
+                        fallback_template,
+                        parametros=fallback_parametros or [],
+                        pedido=pedido,
+                        autor=autor,
+                        registrar=registrar,
+                    )
+
                 print(f"[WA-APB] Bloqueado envio automatico pedido #{getattr(pedido, 'id', '?')}: {motivo}")
 
                 if registrar:
