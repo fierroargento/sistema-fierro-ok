@@ -1,12 +1,12 @@
-"""
+﻿"""
 modules/whatsapp/sender.py
-──────────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Funciones de bajo nivel para enviar mensajes por WhatsApp Business API.
 Soporta texto, imagen y texto+imagen.
 
-APB conversación interna:
-- Todo envío intenta registrar historial en whatsapp_mensaje.
-- Si falla el registro, NO bloquea el envío.
+APB conversaciÃ³n interna:
+- Todo envÃ­o intenta registrar historial en whatsapp_mensaje.
+- Si falla el registro, NO bloquea el envÃ­o.
 """
 
 import json
@@ -35,9 +35,9 @@ def _registrar_historial(pedido=None, telefono="", texto="", autor="bot", estado
 
 
 def _wa_post(payload):
-    """Envía un payload a la API de Meta. Devuelve (ok, data/error)."""
+    """EnvÃ­a un payload a la API de Meta. Devuelve (ok, data/error)."""
     if not WA_TOKEN:
-        msg = "WHATSAPP_TOKEN no configurado — módulo inactivo"
+        msg = "WHATSAPP_TOKEN no configurado â€” mÃ³dulo inactivo"
         print("[WA]", msg)
         return False, msg
 
@@ -74,9 +74,9 @@ def _extraer_message_id(data):
     return ""
 
 def wa_enviar_template(telefono, template_name, parametros=None, pedido=None, autor="bot", registrar=True):
-    """Envía una plantilla aprobada de Meta WhatsApp.
+    """EnvÃ­a una plantilla aprobada de Meta WhatsApp.
 
-    Sirve para iniciar/reabrir conversación cuando la ventana de 24 hs está cerrada.
+    Sirve para iniciar/reabrir conversaciÃ³n cuando la ventana de 24 hs estÃ¡ cerrada.
     """
     from .config import WA_TEMPLATE_LANG
 
@@ -92,7 +92,7 @@ def wa_enviar_template(telefono, template_name, parametros=None, pedido=None, au
                 f"[Template] {template_name}",
                 autor=autor,
                 estado="error",
-                error="Falta teléfono o template_name",
+                error="Falta telÃ©fono o template_name",
             )
         return False
 
@@ -147,10 +147,10 @@ def wa_enviar_template(telefono, template_name, parametros=None, pedido=None, au
     return ok
 
 def wa_enviar_texto(telefono, texto, pedido=None, autor="bot", registrar=True):
-    """Envía un mensaje de texto simple.
+    """EnvÃ­a un mensaje de texto simple.
 
     APB anti-acoso:
-    - si es bot automático, no puede mandar 2 mensajes consecutivos sin respuesta;
+    - si es bot automÃ¡tico, no puede mandar 2 mensajes consecutivos sin respuesta;
     - respeta canal activo ML/WA;
     - bloquea duplicados.
     """
@@ -158,10 +158,10 @@ def wa_enviar_texto(telefono, texto, pedido=None, autor="bot", registrar=True):
     texto_limpio = str(texto or "").strip()
     if not telefono or not texto_limpio:
         if registrar:
-            _registrar_historial(pedido, telefono, texto_limpio, autor=autor, estado="error", error="Falta teléfono o texto")
+            _registrar_historial(pedido, telefono, texto_limpio, autor=autor, estado="error", error="Falta telÃ©fono o texto")
         return False
 
-    # Resolver pedido por teléfono cuando el caller no lo pasa explícitamente.
+    # Resolver pedido por telÃ©fono cuando el caller no lo pasa explÃ­citamente.
     if pedido is None:
         try:
             from app import buscar_pedido_activo_por_telefono
@@ -171,13 +171,50 @@ def wa_enviar_texto(telefono, texto, pedido=None, autor="bot", registrar=True):
 
     if autor == "bot" and pedido is not None:
         try:
-            from app import ia_puede_enviar_automatico
-            puede, motivo = ia_puede_enviar_automatico(pedido, "whatsapp", texto_limpio)
-            if not puede:
-                print(f"[WA-APB] Bloqueado envío automático pedido #{getattr(pedido, 'id', '?')}: {motivo}")
+            from app import ia_puede_enviar_automatico, wa_ventana_24h_abierta
+
+            ventana_abierta = wa_ventana_24h_abierta(
+                pedido=pedido,
+                telefono=telefono,
+            )
+
+            if not ventana_abierta:
+                motivo = "ventana_24h_cerrada"
+                print(f"[WA-APB] Bloqueado envio automatico pedido #{getattr(pedido, 'id', '?')}: {motivo}")
+
                 if registrar:
-                    _registrar_historial(pedido, telefono, texto_limpio, autor=autor, estado="bloqueado", error=motivo)
+                    _registrar_historial(
+                        pedido,
+                        telefono,
+                        texto_limpio,
+                        autor=autor,
+                        estado="bloqueado",
+                        error=motivo,
+                    )
+
                 return False
+
+            puede, motivo = ia_puede_enviar_automatico(
+                pedido,
+                "whatsapp",
+                texto_limpio,
+            )
+
+            if not puede:
+                print(f"[WA-APB] Bloqueado envio automatico pedido #{getattr(pedido, 'id', '?')}: {motivo}")
+
+                if registrar:
+                    _registrar_historial(
+                        pedido,
+                        telefono,
+                        texto_limpio,
+                        autor=autor,
+                        estado="bloqueado",
+                        error=motivo,
+                    )
+
+                return False
+
         except Exception as e:
             print("[WA-APB] Error evaluando candado:", e)
 
@@ -209,11 +246,11 @@ def wa_enviar_texto(telefono, texto, pedido=None, autor="bot", registrar=True):
 
 
 def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot", registrar=True):
-    """Envía una imagen con caption opcional."""
+    """EnvÃ­a una imagen con caption opcional."""
     telefono = re.sub(r"\D", "", str(telefono or ""))
     if not telefono or not imagen_url:
         if registrar:
-            _registrar_historial(pedido, telefono, caption, autor=autor, estado="error", error="Falta teléfono o imagen")
+            _registrar_historial(pedido, telefono, caption, autor=autor, estado="error", error="Falta telÃ©fono o imagen")
         return False
 
     if pedido is None:
@@ -229,7 +266,7 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
             from app import ia_puede_enviar_automatico
             puede, motivo = ia_puede_enviar_automatico(pedido, "whatsapp", texto_control)
             if not puede:
-                print(f"[WA-APB] Bloqueado envío imagen pedido #{getattr(pedido, 'id', '?')}: {motivo}")
+                print(f"[WA-APB] Bloqueado envÃ­o imagen pedido #{getattr(pedido, 'id', '?')}: {motivo}")
                 if registrar:
                     _registrar_historial(pedido, telefono, texto_control, autor=autor, estado="bloqueado", error=motivo)
                 return False
@@ -268,10 +305,11 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
 
 def wa_enviar_producto(telefono, texto, imagen_url="", pedido=None, autor="bot"):
     """
-    Envía descripción de un producto.
+    EnvÃ­a descripciÃ³n de un producto.
     Si tiene imagen_url la manda como imagen con el texto de caption.
     Si no tiene imagen manda solo texto.
     """
     if imagen_url:
         return wa_enviar_imagen(telefono, imagen_url, caption=texto, pedido=pedido, autor=autor)
     return wa_enviar_texto(telefono, texto, pedido=pedido, autor=autor)
+
