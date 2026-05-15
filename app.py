@@ -8176,7 +8176,18 @@ def ml_sync_shipment_por_id_webhook(shipment_id):
         if not shipment:
             print(f"[WEBHOOK ML] Shipment vacio o no encontrado: {shipment_id}")
             return False
-        pedido = (Pedido.query.filter_by(canal="Mercado Libre", ml_shipping_id=shipment_id).order_by(Pedido.id.asc()).first())
+        pedido = (
+            Pedido.query
+            .filter(
+                Pedido.canal == "Mercado Libre",
+                or_(
+                    Pedido.ml_shipping_id == shipment_id,
+                    Pedido.ml_shipping_id == str(shipment_id)
+                )
+            )
+            .order_by(Pedido.id.asc())
+            .first()
+        )
         if pedido:
             pedido.ml_shipping_status = str(shipment.get("status") or pedido.ml_shipping_status or "").strip()
             pedido.ml_logistic_type = str(shipment.get("logistic_type") or pedido.ml_logistic_type or "").strip()
