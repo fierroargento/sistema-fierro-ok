@@ -9689,6 +9689,26 @@ def resync_ml_pedido(id):
                         detalles.append("estado=Cancelado (ML informa orden cancelada)")
                         print(f"[ML-RESYNC] Pedido #{pedido.id} cancelado — ML status={order_status}")
 
+                    shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
+
+                    if ml_order_esta_entregado(order, shipment):
+
+                        if not pedido.fecha_entregado:
+                            pedido.fecha_entregado = datetime.utcnow()
+
+                        pedido.estado = "Finalizado"
+
+                        detalles.append(
+                            "estado=Finalizado (ML informa entrega/finalización)"
+                        )
+
+                        print(
+                            f"[ML-RESYNC] Pedido #{pedido.id} finalizado automáticamente — "
+                            f"order={order_status} "
+                            f"shipment={ml_estado_shipment(order, shipment)}"
+                        )
+
+
         tiene_msgs, count_msgs = ml_sync_mensajes_pedido(pedido)
         detalles.append(f"mensajes={count_msgs}")
 
