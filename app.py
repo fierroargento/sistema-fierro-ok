@@ -7078,6 +7078,47 @@ def ml_order_esta_entregado(order, shipment=None):
     if tags.intersection({"delivered", "fulfilled"}):
         return True
 
+    if estado_order == "paid":
+        date_closed_str = str(order.get("date_closed") or "").strip()
+
+        if date_closed_str:
+            tags_cancelacion = {
+                "cancelled",
+                "canceled",
+                "refunded",
+                "invalid"
+            }
+
+            if not tags.intersection(tags_cancelacion):
+
+                shipping = order.get("shipping") or {}
+
+                tiene_shipment = bool(
+                    shipping.get("id")
+                    or shipment.get("id")
+                    or shipping.get("status")
+                )
+
+                if not tiene_shipment:
+
+                    try:
+                        dc = date_closed_str[:19].replace("T", " ")
+
+                        fecha_closed = datetime.strptime(
+                            dc,
+                            "%Y-%m-%d %H:%M:%S"
+                        )
+
+                        antiguedad = (
+                            datetime.utcnow() - fecha_closed
+                        )
+
+                        if antiguedad.days >= 1:
+                            return True
+
+                    except Exception:
+                        return False
+
     return False
 
 
