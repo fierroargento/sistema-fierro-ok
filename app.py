@@ -8154,11 +8154,25 @@ def ml_sync_pedido_por_order_id_webhook(order_id):
                     pedido_existente.estado = "Cancelado"
                     print(f"[WEBHOOK ML] Pedido #{pedido_existente.id} cancelado automáticamente — ML status={order_status}")
 
+        if pedido and ml_order_esta_entregado(order):
+
+            if not pedido.fecha_entregado:
+                pedido.fecha_entregado = datetime.utcnow()
+
+            pedido.estado = "Finalizado"
+
+            print(
+                f"[WEBHOOK ML] Pedido #{pedido.id} "
+                f"finalizado automáticamente por order webhook"
+            )
+
         db.session.commit()
+
         if pedido:
             print(f"[WEBHOOK ML] Order sincronizada {order_id}. pedido_id={pedido.id} creado={creado} motivo={motivo}")
         else:
             print(f"[WEBHOOK ML] Order omitida {order_id}. motivo={motivo}")
+
         return True
     except Exception as e:
         db.session.rollback()
