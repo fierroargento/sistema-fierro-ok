@@ -10697,7 +10697,7 @@ def whatsapp_iniciar_chat_operador(id):
         return redirect(url_for("detalle_pedido", id=pedido.id, error="El pedido no tiene teléfono válido para WhatsApp."))
 
     try:
-        from modules.whatsapp.config import WA_TEMPLATE_INICIO_DESPACHO
+        from modules.whatsapp.config import WA_TEMPLATE_INICIO_CHAT_OPERADOR
         from modules.whatsapp.sender import wa_enviar_template
 
         nombre = (pedido.cliente or "Cliente").split()[0] or "Cliente"
@@ -10705,7 +10705,7 @@ def whatsapp_iniciar_chat_operador(id):
 
         ok = wa_enviar_template(
             tel,
-            WA_TEMPLATE_INICIO_DESPACHO,
+            WA_TEMPLATE_INICIO_CHAT_OPERADOR,
             parametros=[
                 nombre,
                 referencia,
@@ -10738,7 +10738,7 @@ def whatsapp_iniciar_chat_operador(id):
             owner="operador",
             estado_conversacional="takeover_operador",
             payload={
-                "template": WA_TEMPLATE_INICIO_DESPACHO,
+                "template": WA_TEMPLATE_INICIO_CHAT_OPERADOR,
                 "telefono": tel,
                 "wa_estado": pedido.wa_estado,
                 "ia_requiere_operador": pedido.ia_requiere_operador,
