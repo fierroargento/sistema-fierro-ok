@@ -568,19 +568,19 @@ body { background: #f4f7f8; }
                 {% endif %}
             </div>
             <div class="wa-actions-inline">
-                {% if normalizar_telefono(pedido.telefono) %}
-                <form method="POST" action="{{ url_for('whatsapp_iniciar_chat_operador', id=pedido.id) }}" style="margin:0;">
-                    <button type="submit" class="btn btn-confirmar btn-wa-small">Iniciar Chat Operador</button>
-                </form>
-                {% endif %}
-
                 {% if pedido.wa_estado != "operador_manual" %}
                 <form method="POST" action="{{ url_for('whatsapp_tomar_conversacion', id=pedido.id) }}" style="margin:0;">
-                    <button type="submit" class="btn btn-secundario btn-wa-small">Tomar conversación</button>
+                    <button type="submit" class="btn btn-confirmar btn-wa-small">Tomar conversación</button>
                 </form>
                 {% else %}
                 <form method="POST" action="{{ url_for('whatsapp_reactivar_bot', id=pedido.id) }}" style="margin:0;">
                     <button type="submit" class="btn btn-secundario btn-wa-small">Reactivar bot</button>
+                </form>
+                {% endif %}
+
+                {% if normalizar_telefono(pedido.telefono) %}
+                <form method="POST" action="{{ url_for('whatsapp_iniciar_chat_operador', id=pedido.id) }}" style="margin:0;">
+                    <button type="submit" class="btn btn-secundario btn-wa-small">Iniciar Chat Operador</button>
                 </form>
                 {% endif %}
             </div>
