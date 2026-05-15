@@ -1901,6 +1901,26 @@ def aplicar_estado_y_fechas(pedido, nuevo_estado):
     elif nuevo_estado == "Despachado":
         pedido.fecha_despachado = ahora
         aplicar_autoavance_post_despacho(pedido)
+
+        # APB:
+        # Al despachar un pedido con seguimiento,
+        # iniciamos automáticamente el flujo WhatsApp
+        # de despacho/seguimiento.
+        if (
+            pedido.telefono
+            and (
+                pedido.seguimiento
+                or pedido.tn_tracking_number
+            )
+            and pedido.wa_estado != "despachado"
+        ):
+            try:
+                from modules.whatsapp.flows import wa_enviar_numero_seguimiento
+
+                wa_enviar_numero_seguimiento(pedido)
+
+            except Exception as e:
+                print(f"[WA-DESPACHO] Error iniciando flujo WA despacho: {e}")
     elif nuevo_estado == "Entregado":
         pedido.fecha_entregado = ahora
 
@@ -11295,7 +11315,8 @@ def avanzar_pedido(id):
             puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,            
             notas_pedido=[]
         )
-
+    
+    estado_anterior = pedido.estado
     nuevo = siguiente_estado(pedido.estado)
 
     if nuevo in ["Embalado", "Despachado"] and pedido.canal == "Mercado Libre":
