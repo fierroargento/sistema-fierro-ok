@@ -7066,8 +7066,14 @@ def ml_order_esta_entregado(order, shipment=None):
     if estado_shipping in {"delivered", "fulfilled"}:
         return True
 
-    if estado_order in {"delivered", "fulfilled", "closed"}:
+    if estado_order in {"delivered", "fulfilled"}:
         return True
+
+    if estado_order == "closed":
+        tags_cancelacion = {"cancelled", "canceled", "refunded", "invalid"}
+
+        if not tags.intersection(tags_cancelacion):
+            return True
 
     if tags.intersection({"delivered", "fulfilled"}):
         return True
@@ -7216,34 +7222,7 @@ def ml_upsert_pedido_desde_order(order):
             )
             return None, False, "ML entregado/histórico omitido: no existía en Fierro"
 
-        pedido.origen = pedido.origen or "mercadolibre"
-        pedido.canal = "Mercado Libre"
-        pedido.id_venta = order_id
-        pedido.ml_pack_id = str(order.get("pack_id") or "").strip() or pedido.ml_pack_id
-        pedido.ml_order_status = ml_estado_order(order) or pedido.ml_order_status
-
-        estado_shipping = ml_estado_shipment(order, shipment)
-
-        if estado_shipping:
-            pedido.ml_shipping_status = estado_shipping
-
-        pedido.ultima_sync_ml = datetime.utcnow()
-
-        # APB FINAL:
-        # Mercado Libre es la fuente soberana del estado real de entrega.
-        # Si ML informa entregado/fulfilled y el pedido ya existe en Fierro,
-        # el sistema debe cerrarlo definitivamente en Fierro.
-        #
-        # Importante:
-        # Esto aplica SOLO a sincronización automática/manual desde Mercado Libre.
-        # NO afecta el avance manual del operador dentro de Fierro.
-        if pedido.estado != "Finalizado":
-
-            if not pedido.fecha_entregado:
-                pedido.fecha_entregado = datetime.utcnow()
-
-            pedido.estado = "Finalizado"
-
+        pedido = ml_marcar_pedido_finalizado_por_entrega(pedido, order, shipment)
         return pedido, False, "ML informó entregado; pedido actualizado automáticamente a Finalizado"
 
     omitir, motivo_omision = ml_order_debe_omitirse(order, shipment)
@@ -9729,6 +9708,16 @@ def resync_ml_pedido(id):
         if order_id:
             order = ml_obtener_order(order_id)
             if order:
+                print(
+                    f"[ML-RESYNC-DEBUG] Pedido #{pedido.id} order_id={order_id} "
+                    f"status={order.get('status')} "
+                    f"tags={order.get('tags')} "
+                    f"shipping_status={((order.get('shipping') or {}).get('status'))} "
+                    f"shipping_mode={((order.get('shipping') or {}).get('mode'))} "
+                    f"pack_id={order.get('pack_id')} "
+                    f"date_closed={order.get('date_closed')}"
+                )
+
                 pedido_actualizado, creado, motivo = ml_upsert_pedido_desde_order(order)
                 if pedido_actualizado:
                     pedido = pedido_actualizado
@@ -9737,7 +9726,7 @@ def resync_ml_pedido(id):
                     detalles.append(f"orden omitida: {motivo}")
                     # Si ML informa que la orden está cancelada/cerrada,
                     # actualizar el estado del pedido existente en el sistema
-                    estados_cancelados_ml = {"cancelled", "invalid", "closed"}
+                    estados_cancelados_ml = {"cancelled", "invalid"}
                     order_status = str((order or {}).get("status") or "").lower().strip()
                     if order_status in estados_cancelados_ml and pedido.estado not in ["Cancelado", "Finalizado", "Entregado"]:
                         pedido.estado = "Cancelado"
