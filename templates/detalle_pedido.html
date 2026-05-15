@@ -228,23 +228,35 @@ body { background: #f4f7f8; }
 
 
     {% if pedido.canal == "Mercado Libre" and (pedido.ml_claim_abierto or ml_pedido_tiene_mensajes_pendientes(pedido) or pedido.ia_requiere_operador) %}
-    <div class="detalle-alertas-ml">
-        {% if pedido.ml_claim_abierto %}
-        <span class="apb-ml-badge reclamo">
-            ⚠️ Reclamo activo en ML: NO DESPACHAR
-        </span>
-        {% endif %}
-        {% if pedido.ia_requiere_operador %}
-        <span class="apb-ml-badge" style="background:#ea580c; color:white; animation: pulse-naranja 1.5s infinite;">
-            🔔 Bot escaló al operador — requiere atención manual
-        </span>
-        {% endif %}
-        {% if ml_pedido_tiene_mensajes_pendientes(pedido) %}
-        <span class="apb-ml-badge alerta">
-            💬 Mensajes pendientes{% if pedido.ml_mensajes_pendientes_count %}: {{ pedido.ml_mensajes_pendientes_count }}{% endif %}
-        </span>
-        {% endif %}
-    </div>
+    <details class="detalle-box detalle-box-full" style="margin-top:12px; border-left:5px solid #ea580c;">
+        <summary style="cursor:pointer; font-weight:700; font-size:1rem;">
+            💬 Chat ML
+
+            {% if ml_pedido_tiene_mensajes_pendientes(pedido) %}
+            <span style="color:#dc2626; margin-left:10px;">
+                🔴
+            </span>
+            {% endif %}
+        </summary>
+
+        <div class="detalle-alertas-ml">
+            {% if pedido.ml_claim_abierto %}
+            <span class="apb-ml-badge reclamo">
+                ⚠️ Reclamo activo en ML: NO DESPACHAR
+            </span>
+            {% endif %}
+            {% if pedido.ia_requiere_operador %}
+            <span class="apb-ml-badge" style="background:#ea580c; color:white; animation: pulse-naranja 1.5s infinite;">
+                🔔 Bot escaló al operador — requiere atención manual
+            </span>
+            {% endif %}
+            {% if ml_pedido_tiene_mensajes_pendientes(pedido) %}
+            <span class="apb-ml-badge alerta">
+                💬 Mensajes pendientes{% if pedido.ml_mensajes_pendientes_count %}: {{ pedido.ml_mensajes_pendientes_count }}{% endif %}
+            </span>
+            {% endif %}
+        </div>
+    </details>
     {% endif %}
 
     {% if rol_actual == "admin" %}
@@ -299,16 +311,7 @@ body { background: #f4f7f8; }
                 {% endif %}
             </p>
             {% endif %}
-            <p class="cliente-contact-row">
-                <strong>WhatsApp:</strong>
-                {% if normalizar_telefono(pedido.telefono) %}
-                    <a href="#whatsapp-conversacion" class="mini-action-link mini-action-whatsapp" title="Ver WhatsApp interno" aria-label="Ver WhatsApp interno">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5.1 18.9 6 15.6A7.7 7.7 0 1 1 8.4 18l-3.3.9Z"></path><path d="M9.2 8.6c.2-.5.4-.5.7-.5h.5c.2 0 .4.1.5.4l.7 1.6c.1.3 0 .5-.1.7l-.4.5c.8 1.3 1.8 2.2 3.1 2.8l.6-.6c.2-.2.4-.2.7-.1l1.5.7c.3.1.4.3.4.6v.4c0 .4-.2.7-.6.9-.5.3-1.2.4-2.1.2-2.3-.5-5.1-2.7-6.1-5.1-.4-.9-.3-1.7.1-2.5Z"></path><path d="M15.4 6.8h4.2"></path><path d="M17.4 4.8l2.4 2-2.4 2"></path></svg>
-                    </a>
-                {% else %}
-                    -
-                {% endif %}
-            </p>
+
             {% endif %}
         </div>
 
@@ -357,19 +360,7 @@ body { background: #f4f7f8; }
                 </p>
             {% endif %}
 
-            {% if es_andreani_pedido(pedido) %}
-                {% set alerta_andreani = andreani_alerta_pedido(pedido) %}
-                <div style="margin-top:8px; padding:8px 10px; border-radius:10px; background:#f8fafc; border:1px solid #e5e7eb; font-size:0.86rem;">
-                    <p style="margin:0 0 4px 0;"><strong>Estado Andreani:</strong> {{ pedido.andreani_estado or "Sin sincronizar" }}</p>
-                    <p style="margin:0 0 4px 0;"><strong>Última sync Andreani:</strong> {{ fecha_argentina(pedido.andreani_ultima_sync) if pedido.andreani_ultima_sync else "-" }}</p>
-                    {% if andreani_texto_ultimo_evento(pedido) %}
-                    <p style="margin:0 0 4px 0;"><strong>Último evento:</strong> {{ andreani_texto_ultimo_evento(pedido) }}</p>
-                    {% endif %}
-                    {% if alerta_andreani %}
-                    <p style="margin:4px 0 0 0; font-weight:700; color:{% if alerta_andreani.tipo == 'roja' %}#b91c1c{% elif alerta_andreani.tipo == 'verde' %}#15803d{% else %}#a16207{% endif %};">{{ alerta_andreani.texto }}</p>
-                    {% endif %}
-                </div>
-            {% endif %}
+
             {% if pedido.canal == "Mayorista" %}
             <p><strong>Comprobante DUX:</strong>
                 {% if pedido.comprobante_dux_archivo %}
@@ -552,9 +543,21 @@ body { background: #f4f7f8; }
 
 
     {% if rol_actual in ["admin", "carga"] %}
-    <details class="detalle-box detalle-box-full wa-panel" id="whatsapp-conversacion" open style="margin-top:16px; border-left:5px solid #16a34a;">
-        <summary style="cursor:pointer; font-weight:700; font-size:1rem;">💬 WhatsApp interno
-            {% if whatsapp_mensajes %}<span style="font-size:0.78rem; font-weight:400; color:#16a34a; margin-left:8px;">({{ whatsapp_mensajes|length }})</span>{% endif %}
+    <details class="detalle-box detalle-box-full wa-panel" id="whatsapp-conversacion" style="margin-top:16px; border-left:5px solid #16a34a;">
+        <summary style="cursor:pointer; font-weight:700; font-size:1rem;">
+            💬 WhatsApp interno
+
+            {% if whatsapp_mensajes %}
+            <span style="font-size:0.78rem; font-weight:400; color:#16a34a; margin-left:8px;">
+                ({{ whatsapp_mensajes|length }})
+            </span>
+            {% endif %}
+
+            {% if pedido.ia_requiere_operador %}
+            <span style="color:#dc2626; margin-left:10px;">
+                🔴
+            </span>
+            {% endif %}
         </summary>
 
         <div class="wa-status-row">
@@ -565,6 +568,12 @@ body { background: #f4f7f8; }
                 {% endif %}
             </div>
             <div class="wa-actions-inline">
+                {% if normalizar_telefono(pedido.telefono) %}
+                <form method="POST" action="{{ url_for('whatsapp_iniciar_chat_operador', id=pedido.id) }}" style="margin:0;">
+                    <button type="submit" class="btn btn-confirmar btn-wa-small">Iniciar Chat Operador</button>
+                </form>
+                {% endif %}
+
                 {% if pedido.wa_estado != "operador_manual" %}
                 <form method="POST" action="{{ url_for('whatsapp_tomar_conversacion', id=pedido.id) }}" style="margin:0;">
                     <button type="submit" class="btn btn-secundario btn-wa-small">Tomar conversación</button>

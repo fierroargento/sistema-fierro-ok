@@ -10683,6 +10683,79 @@ def whatsapp_enviar_operador(id):
 
     return redirect(url_for("detalle_pedido", id=pedido.id, ok=msg if ok else "", error="" if ok else msg))
 
+@app.route("/pedido/<int:id>/whatsapp/iniciar-operador", methods=["POST"])
+@login_required
+def whatsapp_iniciar_chat_operador(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+
+    tel = normalizar_telefono(pedido.telefono)
+
+    if not tel or len(tel) < 12:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="El pedido no tiene teléfono válido para WhatsApp."))
+
+    try:
+        from modules.whatsapp.config import WA_TEMPLATE_INICIO_DESPACHO
+        from modules.whatsapp.sender import wa_enviar_template
+
+        nombre = (pedido.cliente or "Cliente").split()[0] or "Cliente"
+        referencia = f"#{pedido.id_venta or pedido.id}"
+
+        ok = wa_enviar_template(
+            tel,
+            WA_TEMPLATE_INICIO_DESPACHO,
+            parametros=[
+                nombre,
+                referencia,
+            ],
+            pedido=pedido,
+            autor="operador",
+        )
+
+        if not ok:
+            return redirect(url_for("detalle_pedido", id=pedido.id, error="No se pudo iniciar el chat por WhatsApp API. Revisá token/configuración Meta."))
+
+        pedido.wa_estado = "operador_manual"
+        pedido.ia_requiere_operador = True
+        pedido.wa_ultimo_contacto = datetime.utcnow()
+
+        actualizar_estado_conversacional(
+            pedido,
+            owner_actual="operador",
+            canal_activo="wa",
+            estado_conversacional="takeover_operador",
+            takeover_activo=True,
+            bot_pausado=True,
+        )
+
+        registrar_evento_operativo(
+            pedido=pedido,
+            tipo_evento="whatsapp_chat_operador_iniciado",
+            origen="operador",
+            canal="wa",
+            owner="operador",
+            estado_conversacional="takeover_operador",
+            payload={
+                "template": WA_TEMPLATE_INICIO_DESPACHO,
+                "telefono": tel,
+                "wa_estado": pedido.wa_estado,
+                "ia_requiere_operador": pedido.ia_requiere_operador,
+            },
+            resultado="ok",
+            detalle="Operador inició chat WhatsApp mediante template aprobado. Bot pausado.",
+            usuario=session.get("username", ""),
+            procesado=True,
+        )
+
+        db.session.commit()
+
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok="Chat WhatsApp iniciado por operador mediante plantilla. El bot queda pausado."))
+
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo iniciar el chat WhatsApp: {e}"))
 
 @app.route("/pedido/<int:id>/whatsapp/tomar", methods=["POST"])
 @login_required
