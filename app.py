@@ -7221,11 +7221,25 @@ def ml_upsert_pedido_desde_order(order):
         pedido.id_venta = order_id
         pedido.ml_pack_id = str(order.get("pack_id") or "").strip() or pedido.ml_pack_id
         pedido.ml_order_status = ml_estado_order(order) or pedido.ml_order_status
+
         estado_shipping = ml_estado_shipment(order, shipment)
+
         if estado_shipping:
             pedido.ml_shipping_status = estado_shipping
+
         pedido.ultima_sync_ml = datetime.utcnow()
-        return pedido, False, "ML entregado informado; pedido existente conservado en flujo Fierro"
+
+        # APB FINAL:
+        # Mercado Libre es la fuente soberana del estado real de entrega.
+        # Si ML informa entregado/fulfilled y el pedido ya existe en Fierro,
+        # el sistema debe cerrarlo operativamente automáticamente.
+        if pedido.estado not in ["Entregado", "Finalizado"]:
+            pedido.estado = "Entregado"
+
+            if not pedido.fecha_entregado:
+                pedido.fecha_entregado = datetime.utcnow()
+
+        return pedido, False, "ML informó entregado; pedido actualizado automáticamente a Entregado"
 
     omitir, motivo_omision = ml_order_debe_omitirse(order, shipment)
     if omitir:
