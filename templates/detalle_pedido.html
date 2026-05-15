@@ -434,16 +434,21 @@ body { background: #f4f7f8; }
     <details class="detalle-box detalle-box-full" style="margin-top:16px; border-left:5px solid #124E64;">
         <summary style="cursor:pointer;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-left:18px;">
-                <h3 style="margin:0 0 6px 0;">
-                    IA Recolector
-
+                <h3 style="margin:0 0 6px 0; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     {% if ml_pedido_tiene_mensajes_pendientes(pedido) %}
-                    <span style="color:#dc2626; margin-left:8px;">
-                        🔴
+                    <span class="mini-action-link mini-action-chat mini-action-alerta" style="position:relative; cursor:default; pointer-events:none;">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M5 6.5A3.5 3.5 0 0 1 8.5 3h7A3.5 3.5 0 0 1 19 6.5v5A3.5 3.5 0 0 1 15.5 15H11l-4.5 3v-3A3.5 3.5 0 0 1 3 11.5v-5Z"></path>
+                            <path d="M14.5 8h4.8"></path>
+                            <path d="M17.1 5.4 19.8 8l-2.7 2.6"></path>
+                        </svg>
+                        <span class="mini-action-badge">{{ pedido.ml_mensajes_pendientes_count or 1 }}</span>
                     </span>
                     {% endif %}
+
+                    <span>IA Recolector Chat ML</span>
                 </h3>
-                <p style="margin:0; font-size:0.88rem; color:#475569;">Fase 5: analiza, autocompleta y responde automáticamente cuando faltan datos. No cambia estados.</p>
+                
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
                 <form method="POST" action="{{ url_for('ia_analizar_respuesta_pedido', id=pedido.id) }}" style="margin:0;">
@@ -521,19 +526,23 @@ body { background: #f4f7f8; }
     {% if rol_actual in ["admin", "carga"] %}
     <details class="detalle-box detalle-box-full wa-panel" id="whatsapp-conversacion" style="margin-top:16px; border-left:5px solid #16a34a;">
         <summary style="cursor:pointer; font-weight:700; font-size:1rem;">
-            💬 WhatsApp interno
+            <span style="display:inline-flex; align-items:center; gap:8px;">
+    <span style="position:relative; display:inline-flex; align-items:center;">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="width:22px; height:22px; fill:#25D366;">
+            <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.34 4.96L2 22l5.26-1.38a9.85 9.85 0 0 0 4.78 1.22h.01c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2Zm0 18.16h-.01a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.12.82.83-3.04-.2-.31a8.15 8.15 0 0 1-1.25-4.4c0-4.54 3.69-8.23 8.23-8.23a8.22 8.22 0 0 1 8.23 8.23c0 4.54-3.69 8.25-8.23 8.25Zm4.51-6.17c-.25-.12-1.46-.72-1.69-.8-.23-.08-.39-.12-.56.12-.16.25-.64.8-.78.96-.14.16-.29.18-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.71-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.56-1.35-.76-1.85-.2-.48-.41-.42-.56-.43h-.48c-.16 0-.43.06-.66.31-.23.25-.87.85-.87 2.08s.89 2.41 1.01 2.58c.12.16 1.76 2.69 4.27 3.77.6.26 1.06.41 1.42.52.6.19 1.14.16 1.57.1.48-.07 1.46-.6 1.67-1.17.21-.58.21-1.07.15-1.17-.06-.1-.23-.16-.48-.29Z"></path>
+        </svg>
 
-            {% if whatsapp_mensajes %}
-            <span style="font-size:0.78rem; font-weight:400; color:#16a34a; margin-left:8px;">
-                ({{ whatsapp_mensajes|length }})
-            </span>
-            {% endif %}
+        {% if whatsapp_mensajes %}
+        <span style="position:absolute; top:-7px; right:-9px; color:#dc2626; font-size:0.72rem; font-weight:900; line-height:1;">
+            {{ whatsapp_mensajes|length }}
+        </span>
+        {% endif %}
+    </span>
 
-            {% if pedido.ia_requiere_operador %}
-            <span style="color:#dc2626; margin-left:10px;">
-                🔴
-            </span>
-            {% endif %}
+    <span>WhatsApp</span>
+</span>
+
+           
         </summary>
 
         <div class="wa-status-row">
