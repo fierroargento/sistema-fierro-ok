@@ -8185,7 +8185,37 @@ def ml_sync_shipment_por_id_webhook(shipment_id):
             db.session.commit()
             print(f"[WEBHOOK ML] Shipment actualizado {shipment_id}. pedido_id={pedido.id}")
             return True
-        print(f"[WEBHOOK ML] Shipment {shipment_id} sin pedido vinculado en Fierro")
+        print(
+            f"[WEBHOOK ML] Shipment {shipment_id} sin pedido vinculado en Fierro"
+        )
+
+        pedido_por_order = (
+            Pedido.query
+            .filter_by(
+                id_venta=str(
+                    shipment.get("order_id") or ""
+                )
+            )
+            .first()
+        )
+
+        if pedido_por_order:
+
+            print(
+                f"[WEBHOOK ML] Shipment {shipment_id} "
+                f"re-vinculado por order_id "
+                f"pedido=#{pedido_por_order.id}"
+            )
+
+            if not pedido_por_order.fecha_entregado:
+                pedido_por_order.fecha_entregado = datetime.utcnow()
+
+            pedido_por_order.estado = "Finalizado"
+
+            db.session.commit()
+
+            return True
+
         return False
     except Exception as e:
         db.session.rollback()
