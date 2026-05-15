@@ -10857,12 +10857,15 @@ def confirmar_entrega(id):
         procesado=True,
     )
 
-    texto = mensaje_whatsapp_confirmar_entrega(pedido)
-    ok, msg = _enviar_whatsapp_api_pedido(pedido, texto, autor="sistema")
-    if ok:
-        pedido.wa_listo_retirar_enviado = True
-        pedido.wa_estado = "listo_para_retirar"
-        db.session.commit()
+    try:
+        from modules.whatsapp.flows import wa_enviar_listo_para_retirar
+
+        ok = wa_enviar_listo_para_retirar(pedido)
+        msg = ""
+
+    except Exception as e:
+        ok = False
+        msg = f"No se pudo enviar WhatsApp listo para retirar: {e}"
 
     return redirect(url_for("detalle_pedido", id=pedido.id, ok=texto_feedback_estado("Listo para retirar") if ok else "", error="" if ok else msg))
 
