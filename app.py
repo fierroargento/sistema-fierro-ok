@@ -9691,6 +9691,16 @@ def resync_ml_pedido(id):
 
                     shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
 
+                    print(
+                        f"[ML-RESYNC-DEBUG] Pedido #{pedido.id} "
+                        f"order_id={order_id} "
+                        f"order_status={ml_estado_order(order)} "
+                        f"shipping_status={ml_estado_shipment(order, shipment)} "
+                        f"tags={order.get('tags') or []} "
+                        f"shipping={order.get('shipping') or {}} "
+                        f"shipment={shipment}"
+                    )
+
                     if ml_order_esta_entregado(order, shipment):
 
                         if not pedido.fecha_entregado:
