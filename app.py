@@ -7384,14 +7384,25 @@ def ml_limpiar_pedidos_ml_no_operables_existentes():
         shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
 
         if ml_order_esta_entregado(order, shipment):
-            # APB: no sacar del flujo pedidos existentes solo porque ML ya figure entregado.
-            # Carga debe cerrar el proceso interno cuando corresponda.
             pedido.ml_order_status = ml_estado_order(order) or pedido.ml_order_status
+
             estado_shipping = ml_estado_shipment(order, shipment)
+
             if estado_shipping:
                 pedido.ml_shipping_status = estado_shipping
+
+            pedido.estado = "Entregado"
+            pedido.fecha_entregado = (
+                pedido.fecha_entregado
+                or datetime.utcnow()
+            )
+
             pedido.ultima_sync_ml = datetime.utcnow()
-            detalles.append(f"{order_id}: ML entregado informado; pedido existente conservado en flujo Fierro")
+
+            detalles.append(
+                f"{order_id}: ML informó entregado; pedido actualizado a Entregado"
+            )
+
             continue
 
         omitir, motivo = ml_order_debe_omitirse(order, shipment)
