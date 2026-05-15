@@ -7232,14 +7232,19 @@ def ml_upsert_pedido_desde_order(order):
         # APB FINAL:
         # Mercado Libre es la fuente soberana del estado real de entrega.
         # Si ML informa entregado/fulfilled y el pedido ya existe en Fierro,
-        # el sistema debe cerrarlo operativamente automáticamente.
-        if pedido.estado not in ["Entregado", "Finalizado"]:
-            pedido.estado = "Entregado"
+        # el sistema debe cerrarlo definitivamente en Fierro.
+        #
+        # Importante:
+        # Esto aplica SOLO a sincronización automática/manual desde Mercado Libre.
+        # NO afecta el avance manual del operador dentro de Fierro.
+        if pedido.estado != "Finalizado":
 
             if not pedido.fecha_entregado:
                 pedido.fecha_entregado = datetime.utcnow()
 
-        return pedido, False, "ML informó entregado; pedido actualizado automáticamente a Entregado"
+            pedido.estado = "Finalizado"
+
+        return pedido, False, "ML informó entregado; pedido actualizado automáticamente a Finalizado"
 
     omitir, motivo_omision = ml_order_debe_omitirse(order, shipment)
     if omitir:
