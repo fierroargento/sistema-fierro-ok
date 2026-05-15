@@ -7066,7 +7066,7 @@ def ml_order_esta_entregado(order, shipment=None):
     if estado_shipping in {"delivered", "fulfilled"}:
         return True
 
-    if estado_order in {"delivered", "fulfilled"}:
+    if estado_order in {"delivered", "fulfilled", "closed"}:
         return True
 
     if tags.intersection({"delivered", "fulfilled"}):
