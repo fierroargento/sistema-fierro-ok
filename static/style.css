@@ -1901,7 +1901,8 @@ a.btn-danger:hover {
     background: #f8fafc;
 }
 .wa-msg {
-    max-width: 82%;
+    width: min(760px, 96%);
+    max-width: 96%;
     padding: 9px 11px;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
@@ -1912,7 +1913,7 @@ a.btn-danger:hover {
     border-left: 4px solid #22c55e;
 }
 .wa-msg-out {
-    align-self: flex-end;
+    align-self: center;
     border-right: 4px solid #0ea5e9;
     background: #f0f9ff;
 }
