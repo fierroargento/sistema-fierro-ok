@@ -1606,22 +1606,17 @@ def requiere_seguimiento_retiro(pedido):
     )
 
     return bool(
-        pedido.estado == "Verificar llegada a destino"
+        pedido.estado in [
+            "Verificar llegada a destino",
+            "Con demora de entrega",
+            "Con reclamo en transporte",
+        ]
         and entrega_es_sucursal
-        and (
-            (
-                pedido.canal == "Mercado Libre"
-                and pedido.ml_tipo == "Acordás la Entrega"
-            )
-            or (
-                pedido.canal == "Tienda Nube"
-                and es_via_cargo(pedido.empresa_envio)
-            )
-            or (
-                pedido.canal == "Mayorista"
-                and es_via_cargo(pedido.empresa_envio)
-            )
-        )
+        and pedido.canal in [
+            "Mercado Libre",
+            "Tienda Nube",
+            "Mayorista",
+        ]
     )
 
 
