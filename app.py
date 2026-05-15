@@ -2285,7 +2285,11 @@ def accion_principal_pedido(pedido, origen="inicio"):
     )
 
 
-    if pedido.estado == "Verificar llegada a destino" and rol in ["carga", "admin"] and entrega_es_sucursal:
+    if (
+        pedido.estado in ["Verificar llegada a destino", "Con demora de entrega", "Con reclamo en transporte"]
+        and rol in ["carga", "admin"]
+        and entrega_es_sucursal
+    ):
         return {
             "tipo": "marcar_listo_retirar",
             "texto": "Marcar listo para retirar",
