@@ -513,10 +513,9 @@ body { background: #f4f7f8; }
         {% if pedido.ia_resumen %}
             <p style="margin:8px 0 0 0; font-size:0.88rem;"><strong>Resumen IA:</strong> {{ pedido.ia_resumen }}</p>
         {% endif %}
-    </div>
-</details>
-{% endif %}
-{% endif %}
+    </details>
+    {% endif %}
+    {% endif %}
 
 
     {% if rol_actual in ["admin", "carga"] %}
