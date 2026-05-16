@@ -10554,6 +10554,21 @@ def editar_pedido(id):
         pedido.autorizado_telefono = autorizado_telefono
         seguimiento_valor = (request.form.get("seguimiento") or request.form.get("seguimiento_envio") or "").strip()
         pedido.seguimiento = seguimiento_valor
+
+        if (
+            es_via_cargo(pedido.empresa_envio)
+            and pedido.telefono
+            and pedido.seguimiento
+            and pedido.wa_estado != "despachado"
+        ):
+            try:
+                from modules.whatsapp.flows import wa_enviar_numero_seguimiento
+
+                wa_enviar_numero_seguimiento(pedido)
+
+            except Exception as e:
+                print(f"[WA-DESPACHO] Error enviando seguimiento Vía Cargo desde edición: {e}")
+
         pedido.etiqueta_archivo = etiqueta_actual
         pedido.comprobante_dux_archivo = comprobante_dux_actual
 
