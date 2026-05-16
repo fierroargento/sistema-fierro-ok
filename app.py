@@ -10476,7 +10476,7 @@ def editar_pedido(id):
             if (
                 es_via_cargo(pedido.empresa_envio)
                 and pedido.telefono
-                and pedido.wa_estado != "despachado"
+                and pedido.seguimiento
             ):
                 try:
                     from modules.whatsapp.flows import wa_enviar_numero_seguimiento
@@ -10559,7 +10559,6 @@ def editar_pedido(id):
             es_via_cargo(pedido.empresa_envio)
             and pedido.telefono
             and pedido.seguimiento
-            and pedido.wa_estado != "despachado"
         ):
             try:
                 from modules.whatsapp.flows import wa_enviar_numero_seguimiento
