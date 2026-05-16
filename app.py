@@ -2305,6 +2305,10 @@ def accion_principal_pedido(pedido, origen="inicio"):
         pedido.estado in ["Despachado", "Verificar llegada a destino", "Con demora de entrega", "Con reclamo en transporte"]
         and rol in ["carga", "admin"]
         and entrega_es_sucursal
+        and not (
+            es_via_cargo(pedido.empresa_envio)
+            and not pedido.seguimiento
+        )
     ):
         return {
             "tipo": "marcar_listo_retirar",
