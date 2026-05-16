@@ -596,7 +596,20 @@ body { background: #f4f7f8; }
                     <span class="wa-estado">{{ m.estado }}</span>
                     {% endif %}
                 </div>
+                    {% if m.texto and m.texto.startswith('[Template]') %}
+                <div class="wa-msg-body wa-template-msg">
+                    <strong>Plantilla Meta enviada</strong><br>
+                    {% set partes = m.texto.split('| Params:') %}
+                    <span>{{ partes[0].replace('[Template]', '').strip() }}</span>
+                    {% if partes|length > 1 %}
+                    <span style="display:block; margin-top:4px; font-size:0.82rem; opacity:0.8;">
+                        Parámetros: {{ partes[1].strip() }}
+                    </span>
+                    {% endif %}
+                </div>
+                {% else %}
                 <div class="wa-msg-body">{{ m.texto }}</div>
+                {% endif %}
                 {% if m.error %}<div class="wa-msg-error">{{ m.error }}</div>{% endif %}
             </div>
             {% else %}
