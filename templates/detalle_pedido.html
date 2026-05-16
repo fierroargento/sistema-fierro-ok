@@ -596,19 +596,92 @@ body { background: #f4f7f8; }
                     <span class="wa-estado">{{ m.estado }}</span>
                     {% endif %}
                 </div>
-                    {% if m.texto and m.texto.startswith('[Template]') %}
+                {% if m.texto and m.texto.startswith('[Template]') %}
+                {% set partes = m.texto.split('| Params:') %}
+                {% set template_nombre = partes[0].replace('[Template]', '').strip() %}
+                {% set params_raw = partes[1].strip() if partes|length > 1 else '' %}
+                {% set params = params_raw.replace('[', '').replace(']', '').replace("'", '').split(', ') %}
+
                 <div class="wa-msg-body wa-template-msg">
-                    <strong>Plantilla Meta enviada</strong><br>
-                    {% set partes = m.texto.split('| Params:') %}
-                    <span>{{ partes[0].replace('[Template]', '').strip() }}</span>
-                    {% if partes|length > 1 %}
-                    <span style="display:block; margin-top:4px; font-size:0.82rem; opacity:0.8;">
-                        Parámetros: {{ partes[1].strip() }}
-                    </span>
+
+                    {% if template_nombre == "inicio_chat_operador" %}
+
+                    Hola {{ params[0] if params|length > 0 else "Cliente" }}, soy de Fierro 100% Argento.<br><br>
+
+                    Te escribo por el envío de tu compra {{ params[1] if params|length > 1 else "" }}.<br><br>
+
+                    Apenas puedas, avisame y continuamos con el proceso.
+
+                    {% elif template_nombre == "inicio_despacho_datos" %}
+
+                    Hola {{ params[0] if params|length > 0 else "Cliente" }}, somos Fierro 100% Argento.<br><br>
+
+                    Te escribimos por tu compra {{ params[1] if params|length > 1 else "" }} para coordinar los detalles del despacho.<br><br>
+
+                    Apenas puedas, respondé por favor con un OK a este mensaje y seguimos por acá.
+
+                    {% elif template_nombre == "pedido_dato_faltante" %}
+
+                    Hola {{ params[0] if params|length > 0 else "Cliente" }}, nos está faltando esta info para avanzar con el despacho de tu compra:<br><br>
+
+                    {{ params[1] if params|length > 1 else "" }}<br><br>
+
+                    Apenas nos pases esto, continuamos procesando el envío.
+
+                    {% elif template_nombre == "seguimiento_despacho" %}
+
+                    Hola {{ params[0] if params|length > 0 else "Cliente" }}, tu compra ya fue despachada, te paso los datos;<br><br>
+
+                    Transporte: {{ params[1] if params|length > 1 else "" }}<br>
+
+                    Numero de Seguimiento: {{ params[2] if params|length > 2 else "" }}<br><br>
+
+                    Acá podes hacer el seguimiento online: {{ params[3] if params|length > 3 else "" }}<br><br>
+
+                    Gracias y te vamos avisando cualquier novedad importante del envío.
+
+                    {% elif template_nombre == "listo_para_retirar" %}
+
+                    Hola {{ params[0] if params|length > 0 else "Cliente" }}, tu compra ya está disponible para retirar.<br><br>
+
+                    Dirección del punto de retiro: {{ params[1] if params|length > 1 else "" }}<br>
+
+                    N° de seguimiento: {{ params[2] if params|length > 2 else "" }}<br><br>
+
+                    Recordá retirarla dentro de un plazo no mayor a 5 días hábiles, ya que luego de ese tiempo el transporte devuelve el producto a origen.
+
+                    {% elif template_nombre == "postventa_parrilla" %}
+
+                    Hola {{ params[0] if params|length > 0 else "Cliente" }}, esperamos que hayas recibido correctamente tu parrilla y que la disfrutes muchísimo.<br><br>
+
+                    Para prolongar su vida útil te recomendamos:<br>
+
+                    • Limpiarla después de cada uso.<br>
+
+                    • Guardarla siempre seca.<br>
+
+                    • Siempre es recomendable una pasadita con aceite comestible antes de guardarla.<br>
+
+                    • Evitar quemar a fuego directo la parrilla vacía.<br><br>
+
+                    También podés seguirnos en Instagram para ver nuevos productos y novedades:<br>
+
+                    {{ params[1] if params|length > 1 else "" }}<br><br>
+
+                    Muchas gracias por confiar en Fierro 100% Argento.
+
+                    {% else %}
+
+                    Plantilla Meta enviada: {{ template_nombre }}
+
                     {% endif %}
+
                 </div>
+
                 {% else %}
+
                 <div class="wa-msg-body">{{ m.texto }}</div>
+
                 {% endif %}
                 {% if m.error %}<div class="wa-msg-error">{{ m.error }}</div>{% endif %}
             </div>
