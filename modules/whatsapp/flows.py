@@ -426,6 +426,7 @@ def wa_cerrar_datos_completos(pedido):
                 fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
                 fallback_parametros=[
                     (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+                    pedido.id_venta or pedido.id or "",
                 ],
             )
         _escalar_operador(pedido, msg or "No se pudo resolver transporte Correo")
@@ -449,6 +450,7 @@ def wa_cerrar_datos_completos(pedido):
         fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
         fallback_parametros=[
             (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+            pedido.id_venta or pedido.id or "",
         ],
     )
 
@@ -487,6 +489,7 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
                 fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
                 fallback_parametros=[
                     (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+                    pedido.id_venta or pedido.id or "",
                 ],
             )
             return
@@ -525,6 +528,7 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
                 fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
                 fallback_parametros=[
                     (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+                    pedido.id_venta or pedido.id or "",
                 ],
             )
             return
@@ -572,6 +576,7 @@ def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
             fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
             fallback_parametros=[
                 (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+                pedido.id_venta or pedido.id or "",
             ],
         )
         wa_iniciar_cross_sell(pedido)
