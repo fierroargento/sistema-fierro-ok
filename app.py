@@ -7279,6 +7279,17 @@ def ml_upsert_pedido_desde_order(order):
                 return None, False, "__ML_ME_SIN_ETIQUETA__ - pedido importado eliminado"
             return None, False, "__ML_ME_SIN_ETIQUETA__"
 
+    # APB ML:
+    # Mercado Envíos se opera por pack_id.
+    # Acordás sigue usando order_id.
+    id_operativo_ml = order_id
+
+    if ml_es_mercado_envios_order(order, shipment):
+        pack_operativo = str(order.get("pack_id") or "").strip()
+
+        if pack_operativo:
+            id_operativo_ml = pack_operativo
+
     billing_info = ml_obtener_billing_info(order_id)
 
     pedido = ml_pedido_existente_operativo(order, shipment)
@@ -7288,7 +7299,7 @@ def ml_upsert_pedido_desde_order(order):
         pedido = Pedido(
             cliente=ml_nombre_cliente(order, shipment),
             canal="Mercado Libre",
-            id_venta=order_id,
+            id_venta=id_operativo_ml,
             estado="Cargando Pedido",
             origen="mercadolibre",
         )
@@ -7298,7 +7309,14 @@ def ml_upsert_pedido_desde_order(order):
     pedido.canal = "Mercado Libre"
 
     if not pedido.id_venta:
-        pedido.id_venta = order_id
+        pedido.id_venta = id_operativo_ml
+
+    if (
+        ml_es_mercado_envios_order(order, shipment)
+        and id_operativo_ml
+        and pedido.id_venta != id_operativo_ml
+    ):
+        pedido.id_venta = id_operativo_ml        
 
     pedido.mail = pedido.mail or "expedicionfierro@gmail.com"
     pedido.telefono = pedido.telefono or ""
