@@ -714,9 +714,7 @@ def wa_enviar_numero_seguimiento(pedido):
     empresa = pedido.empresa_envio or "Correo Argentino"
     link = url_seguimiento_pedido(pedido) or ""
 
-    _guardar_estado_wa(pedido, WA_DESPACHADO, tel)
-
-    return wa_enviar_template(
+    ok = wa_enviar_template(
         tel,
         WA_TEMPLATE_SEGUIMIENTO,
         parametros=[
@@ -728,6 +726,11 @@ def wa_enviar_numero_seguimiento(pedido):
         pedido=pedido,
         autor="bot",
     )
+
+    if ok:
+        _guardar_estado_wa(pedido, WA_DESPACHADO, tel)
+
+    return ok
 
 
 def wa_enviar_listo_para_retirar(pedido):
