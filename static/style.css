@@ -1937,6 +1937,15 @@ a.btn-danger:hover {
     font-size: 0.9rem;
     color: #0f172a;
 }
+.wa-template-msg {
+    line-height: 1.22;
+}
+
+.wa-template-msg br + br {
+    display: block;
+    content: "";
+    margin-top: 4px;
+}
 .wa-msg-error {
     margin-top: 6px;
     color: #b91c1c;
