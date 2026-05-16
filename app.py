@@ -1904,6 +1904,7 @@ def aplicar_estado_y_fechas(pedido, nuevo_estado):
         # de despacho/seguimiento.
         if (
             pedido.telefono
+            and not es_via_cargo(pedido.empresa_envio)
             and (
                 pedido.seguimiento
                 or pedido.tn_tracking_number
@@ -10471,6 +10472,19 @@ def editar_pedido(id):
 
             pedido.seguimiento = seguimiento_valor
             aplicar_autoavance_post_despacho(pedido)
+
+            if (
+                es_via_cargo(pedido.empresa_envio)
+                and pedido.telefono
+                and pedido.wa_estado != "despachado"
+            ):
+                try:
+                    from modules.whatsapp.flows import wa_enviar_numero_seguimiento
+
+                    wa_enviar_numero_seguimiento(pedido)
+
+                except Exception as e:
+                    print(f"[WA-DESPACHO] Error enviando seguimiento Vía Cargo: {e}")
 
             db.session.commit()
 
