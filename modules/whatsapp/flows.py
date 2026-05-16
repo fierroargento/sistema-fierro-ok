@@ -696,7 +696,7 @@ def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_a
 # ─────────────────────────────────────────────
 
 def wa_enviar_numero_seguimiento(pedido):
-    from app import normalizar_telefono, url_seguimiento_pedido
+    from app import normalizar_telefono
 
     tel = normalizar_telefono(pedido.telefono)
     if not tel:
@@ -712,7 +712,15 @@ def wa_enviar_numero_seguimiento(pedido):
         return False
 
     empresa = pedido.empresa_envio or "Correo Argentino"
-    link = url_seguimiento_pedido(pedido) or ""
+
+    try:
+        from app import tracking_info_pedido
+
+        tracking_info = tracking_info_pedido(pedido) or {}
+        link = tracking_info.get("url") or ""
+
+    except Exception:
+        link = ""
 
     ok = wa_enviar_template(
         tel,
