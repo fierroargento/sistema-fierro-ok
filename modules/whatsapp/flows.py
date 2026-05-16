@@ -26,7 +26,8 @@ from .config import (
     WA_POSTVENTA,
     WA_FINALIZADO,
     WA_TEMPLATE_PEDIDO_DATO,
-    WA_TEMPLATE_INICIO_DESPACHO,    
+    WA_TEMPLATE_INICIO_DESPACHO,
+    WA_TEMPLATE_INICIO_CHAT_OPERADOR,
     WA_TEMPLATE_SEGUIMIENTO,
     WA_TEMPLATE_RETIRO,
     WA_TEMPLATE_POSTVENTA_PARRILLA,    
@@ -362,7 +363,13 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
         tel,
         "Perfecto, gracias.\n\nTodavía me faltaría confirmar:\n\n" +
         "\n".join(f"• {campos.get(f, f)}" for f in faltantes) +
-        "\n\nMe lo pasás por acá?"
+        "\n\nMe lo pasás por acá?",
+        pedido=pedido,
+        fallback_template=WA_TEMPLATE_PEDIDO_DATO,
+        fallback_parametros=[
+            (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+            ", ".join(campos.get(f, f) for f in faltantes[:3]),
+        ],
     )
     pedido.wa_ultimo_contacto = datetime.utcnow()
     db.session.commit()
@@ -412,7 +419,15 @@ def wa_cerrar_datos_completos(pedido):
             return wa_enviar_texto(tel, msg_suc)
         if ok:
             _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
-            return wa_enviar_texto(tel, "Perfecto, ya tenemos todos los datos para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.")
+            return wa_enviar_texto(
+                tel,
+                "Perfecto, ya tenemos todos los datos para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.",
+                pedido=pedido,
+                fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
+                fallback_parametros=[
+                    (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+                ],
+            )
         _escalar_operador(pedido, msg or "No se pudo resolver transporte Correo")
         return False
 
@@ -427,7 +442,15 @@ def wa_cerrar_datos_completos(pedido):
         print("[WA] No se pudo aplicar tipo_entrega por defecto:", e)
 
     _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
-    return wa_enviar_texto(tel, "Perfecto, ya tenemos todos los datos para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.")
+    return wa_enviar_texto(
+        tel,
+        "Perfecto, ya tenemos todos los datos para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.",
+        pedido=pedido,
+        fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
+        fallback_parametros=[
+            (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+        ],
+    )
 
 
 # ─────────────────────────────────────────────
@@ -457,7 +480,15 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
         ok, msg = asignar_transporte_pedido(pedido, preferencia_cliente="domicilio")
         if ok:
             _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
-            wa_enviar_texto(tel, "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.")
+            wa_enviar_texto(
+                tel,
+                "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.",
+                pedido=pedido,
+                fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
+                fallback_parametros=[
+                    (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+                ],
+            )
             return
         _escalar_operador(
             pedido,
@@ -487,7 +518,15 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
             pedido.wa_estado = WA_DESPACHO_EN_PROCESO
             pedido.wa_ultimo_contacto = datetime.utcnow()
             db.session.commit()
-            wa_enviar_texto(tel, "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.")
+            wa_enviar_texto(
+                tel,
+                "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.",
+                pedido=pedido,
+                fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
+                fallback_parametros=[
+                    (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+                ],
+            )
             return
 
     if _es_afirmativo(texto) and sucs:
@@ -526,7 +565,15 @@ def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
         return _responder_factura_o_escalar(pedido, texto_cliente)
     if _es_afirmativo(texto_cliente):
         _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
-        wa_enviar_texto(tel, "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.")
+        wa_enviar_texto(
+            tel,
+            "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.",
+            pedido=pedido,
+            fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
+            fallback_parametros=[
+                (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+            ],
+        )
         wa_iniciar_cross_sell(pedido)
         return
     if _es_negativo(texto_cliente):
