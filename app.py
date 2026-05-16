@@ -1607,6 +1607,7 @@ def requiere_seguimiento_retiro(pedido):
 
     return bool(
         pedido.estado in [
+            "Despachado",
             "Verificar llegada a destino",
             "Con demora de entrega",
             "Con reclamo en transporte",
@@ -2301,7 +2302,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
 
 
     if (
-        pedido.estado in ["Verificar llegada a destino", "Con demora de entrega", "Con reclamo en transporte"]
+        pedido.estado in ["Despachado", "Verificar llegada a destino", "Con demora de entrega", "Con reclamo en transporte"]
         and rol in ["carga", "admin"]
         and entrega_es_sucursal
     ):
