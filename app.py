@@ -5920,6 +5920,11 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     ):
         pedido.codigo_postal = cp_detectado
 
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         resumen = (pedido.ia_resumen or "").strip()
 
         marca = (
@@ -5929,7 +5934,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         if marca not in resumen:
             pedido.ia_resumen = (
                 f"{resumen} | {marca}"
-            ).strip(" |")[:1000]
+            ).strip(" |")[:1000]    
 
             # DETECTAR SUCURSAL
             # PP6040 va por Andreani/Correo a domicilio → nunca detectar sucursal Via Cargo
