@@ -11193,6 +11193,20 @@ def confirmar_cierre_pedido(id):
     pedido.estado = "Finalizado"
     db.session.commit()
 
+    # APB:
+    # La postventa ya no bloquea el cierre,
+    # pero debe dispararse automáticamente después de finalizar.
+    try:
+        from modules.whatsapp.flows import wa_enviar_postventa
+
+        wa_enviar_postventa(pedido)
+
+    except Exception as e:
+        print(
+            f"[WA-POSTVENTA] No se pudo enviar postventa "
+            f"pedido #{pedido.id}: {e}"
+        )
+
     return redirect(url_for("detalle_pedido", id=pedido.id, ok=texto_feedback_estado("Finalizado")))
 
 
