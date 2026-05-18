@@ -158,6 +158,16 @@ def _routear_mensaje(pedido, texto, telefono):
         wa_procesar_datos_recibidos(pedido, texto)
         return
 
+    # Pedido ya listo para retirar:
+    # no volver jamás al recolector.
+    if estado == "listo_para_retirar":
+        _escalar_operador(
+            pedido,
+            "Cliente respondió luego de aviso de retiro",
+            mensaje_cliente=texto,
+        )
+        return
+
     # Cross-sell activo
     if estado.startswith("cross_sell:") and estado != "cross_sell_cerrado":
         partes = estado.split(":")
