@@ -8380,10 +8380,56 @@ def ml_sync_shipment_por_id_webhook(shipment_id):
             .first()
         )
         if pedido:
-            pedido.ml_shipping_status = str(shipment.get("status") or pedido.ml_shipping_status or "").strip()
-            pedido.ml_logistic_type = str(shipment.get("logistic_type") or pedido.ml_logistic_type or "").strip()
-            pedido.ml_shipping_mode = str(shipment.get("mode") or pedido.ml_shipping_mode or "").strip()
+            estado_shipping = str(
+                shipment.get("status")
+                or pedido.ml_shipping_status
+                or ""
+            ).lower().strip()
+
+            pedido.ml_shipping_status = estado_shipping
+            pedido.ml_logistic_type = str(
+                shipment.get("logistic_type")
+                or pedido.ml_logistic_type
+                or ""
+            ).strip()
+            pedido.ml_shipping_mode = str(
+                shipment.get("mode")
+                or pedido.ml_shipping_mode
+                or ""
+            ).strip()
             pedido.ultima_sync_ml = datetime.utcnow()
+
+            # APB Mercado Envíos:
+            # Si Mercado Libre informa delivered/fulfilled,
+            # el pedido no debe seguir operativo.
+            # En Mercado Envíos no hay aviso manual a ML:
+            # el estado válido es el del carrier/ML.
+            if (
+                pedido.ml_tipo == "Mercado Envíos"
+                and estado_shipping in ["delivered", "fulfilled"]
+                and pedido.estado not in ["Finalizado", "Cancelado"]
+            ):
+                pedido.estado = "Finalizado"
+                pedido.fecha_entregado = (
+                    pedido.fecha_entregado
+                    or datetime.utcnow()
+                )
+
+                aviso = (
+                    "ML Mercado Envíos informa entregado. "
+                    "Pedido finalizado automáticamente."
+                )
+                obs = str(pedido.observaciones or "").strip()
+                if aviso not in obs:
+                    pedido.observaciones = (
+                        f"{aviso} {obs}".strip()
+                    )[:300]
+
+                print(
+                    f"[WEBHOOK ML] Pedido #{pedido.id} finalizado automáticamente "
+                    f"por shipment delivered={shipment_id}"
+                )
+
             db.session.commit()
             print(f"[WEBHOOK ML] Shipment actualizado {shipment_id}. pedido_id={pedido.id}")
             return True
