@@ -7141,12 +7141,35 @@ def ml_estado_shipment(order=None, shipment=None):
 
 
 def ml_order_esta_entregado(order, shipment=None):
-    """Detecta ventas que Mercado Libre ya muestra como entregadas/finalizadas para sacarlas del flujo activo."""
+    """Detecta entregas reales informadas por Mercado Libre.
+
+    APB:
+    - Mercado Envíos puede finalizar con shipment delivered/fulfilled.
+    - Acordás la Entrega NO debe finalizar por order closed.
+      En Acordás, closed puede significar venta cerrada/pagada,
+      pero todavía requerir "Avisar entrega" manual en ML.
+    """
     order = order or {}
     shipment = shipment or {}
+
     estado_order = ml_estado_order(order)
     estado_shipping = ml_estado_shipment(order, shipment)
     tags = {str(t or "").lower().strip() for t in (order.get("tags") or [])}
+
+    shipping = order.get("shipping") or {}
+    logistic_type = str(
+        shipment.get("logistic_type")
+        or shipping.get("logistic_type")
+        or ""
+    ).lower().strip()
+
+    es_mercado_envios = logistic_type in [
+        "fulfillment",
+        "cross_docking",
+        "drop_off",
+        "xd_drop_off",
+        "self_service",
+    ]
 
     if estado_shipping in {"delivered", "fulfilled"}:
         return True
@@ -7154,21 +7177,19 @@ def ml_order_esta_entregado(order, shipment=None):
     if estado_order in {"delivered", "fulfilled"}:
         return True
 
-    if estado_order == "closed":
-        tags_cancelacion = {"cancelled", "canceled", "refunded", "invalid"}
-
-        if not tags.intersection(tags_cancelacion):
-            return True
-
     if tags.intersection({"delivered", "fulfilled"}):
         return True
 
     # APB:
-    # Una orden "paid" NO significa entregada.
-    # En Acordás la entrega / Via Cargo muchas ventas
-    # permanecen paid durante todo el proceso logístico.
-    # Solo consideramos entregado cuando ML informa
-    # explícitamente delivered / fulfilled.
+    # Nunca interpretar "closed" como entregado para Acordás la Entrega.
+    # Solo se permite como histórico automático si es Mercado Envíos.
+    if (
+        es_mercado_envios
+        and estado_order == "closed"
+    ):
+        tags_cancelacion = {"cancelled", "canceled", "refunded", "invalid"}
+        if not tags.intersection(tags_cancelacion):
+            return True
 
     return False
 
