@@ -5879,7 +5879,11 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
     pedido.ia_resumen = resumen
     pedido.ia_requiere_operador = requiere_operador
 
-    # APB: ML inicia el contacto; cuando ya tenemos teléfono válido, WhatsApp toma la posta.
+    # APB:
+    # Mercado Libre inicia el contacto y sigue recolectando mientras el canal esté activo.
+    # WhatsApp puede tomar la posta:
+    # - con datos completos,
+    # - o con faltantes si ML quedó cortado / timeout / escalado.
     if not requiere_operador:
         wa_auto_iniciar_desde_ml_si_corresponde(
             pedido,
@@ -5914,10 +5918,31 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     # antes de llamar a IA.
     cp_detectado = ia_extraer_codigo_postal_simple(texto)
 
+    faltantes_actuales = ia_faltantes_pedido(pedido) or []
+    texto_limpio_cp = re.sub(r"\D", "", texto or "")
+
+    esperando_cp = (
+        "codigo_postal" in faltantes_actuales
+        or "cp" in faltantes_actuales
+        or "codigo postal" in str(pedido.ia_faltantes or "").lower()
+    )
+
+    posible_cp_contextual = (
+        texto_limpio_cp.isdigit()
+        and len(texto_limpio_cp) == 4
+    )
+
+    if esperando_cp and posible_cp_contextual:
+        cp_detectado = texto_limpio_cp
+
     if (
-        cp_detectado
-        and not (pedido.codigo_postal or "").strip()
+        posible_cp_contextual
+        and (pedido.codigo_postal or "").strip()
+        and (pedido.codigo_postal or "").strip() != texto_limpio_cp
     ):
+        cp_detectado = texto_limpio_cp
+
+    if cp_detectado:
         pedido.codigo_postal = cp_detectado
 
         try:
@@ -7553,13 +7578,73 @@ def ia_faltantes_pedido(pedido):
 
 
 
+def ml_conversacion_cortada_para_handoff_wa(pedido, motivo_handoff=""):
+    """Check APB para permitir ML -> WhatsApp con datos faltantes.
+
+    WhatsApp puede continuar la recolección con faltantes solo si Mercado Libre
+    dejó de ser un canal útil o seguro. Si ML está activo y el cliente viene
+    respondiendo, la recolección debe seguir por ML.
+    """
+    if not pedido:
+        return False, "sin_pedido"
+
+    if getattr(pedido, "ia_ultimo_timeout_operador", None):
+        return True, "timeout_ml_registrado"
+
+    if getattr(pedido, "ia_requiere_operador", False):
+        return True, "requiere_operador"
+
+    canal_ia = str(getattr(pedido, "ia_canal_activo", "") or "").strip().lower()
+    if canal_ia and canal_ia not in ["ml", "mercadolibre", "mercado_libre"]:
+        return True, f"canal_ia_no_ml:{canal_ia}"
+
+    try:
+        estado_conv = obtener_estado_conversacional(
+            pedido,
+            crear_si_no_existe=False,
+        )
+    except Exception:
+        estado_conv = None
+
+    if estado_conv:
+        canal_conv = str(getattr(estado_conv, "canal_activo", "") or "").strip().lower()
+        if canal_conv and canal_conv not in ["ml", "mercadolibre", "mercado_libre"]:
+            return True, f"canal_conversacional_no_ml:{canal_conv}"
+
+        if getattr(estado_conv, "bot_pausado", False):
+            return True, "bot_pausado"
+
+        if getattr(estado_conv, "takeover_activo", False):
+            return True, "takeover_operador"
+
+    motivo_txt = str(motivo_handoff or "").strip().lower()
+    motivos_corte = [
+        "timeout",
+        "bloqueado",
+        "blocked",
+        "rechazado",
+        "fallo_ml",
+        "error_ml",
+        "ml_no_disponible",
+        "canal_no_disponible",
+    ]
+
+    if motivo_txt and any(m in motivo_txt for m in motivos_corte):
+        return True, f"motivo_handoff:{motivo_handoff}"
+
+    return False, "ml_activo_sigue_recolectando"
+
+
+
 def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
-    """Disparador APB: ML inicia, WhatsApp continúa cuando ya hay teléfono válido.
+    """Disparador APB: ML inicia, WhatsApp continúa cuando corresponde.
 
     Reglas:
     - Solo Mercado Libre / Acordás la Entrega.
     - Solo si ya hubo contacto inicial por ML (`contacto_iniciado=True`).
     - Solo si hay teléfono normalizado.
+    - Si hay faltantes, WA solo toma la posta cuando ML está cortado.
+    - Si no hay faltantes, WA puede continuar con datos completos.
     - No pisa conversaciones WA ya iniciadas ni operador_manual.
     - No actúa sobre pedidos cerrados/finalizados/cancelados.
     """
@@ -7601,6 +7686,34 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
         if campo not in faltantes_limpios:
             faltantes_limpios.append(campo)
 
+    if faltantes_limpios:
+        ml_cortado, motivo_corte_ml = ml_conversacion_cortada_para_handoff_wa(
+            pedido,
+            motivo_handoff=motivo_handoff,
+        )
+
+        if not ml_cortado:
+            try:
+                resumen = (pedido.ia_resumen or "").strip()
+                marca = (
+                    "ML sigue recolectando datos; WA no iniciado por faltantes: "
+                    + ", ".join(faltantes_limpios)
+                )
+                if marca not in resumen:
+                    pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
+                db.session.commit()
+            except Exception:
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+
+            print(
+                f"[WA-AUTO-ML] NO inicia WA pedido #{getattr(pedido, 'id', '')}: "
+                f"ML activo sigue recolectando ({', '.join(faltantes_limpios)})"
+            )
+            return False, motivo_corte_ml
+
     try:
         if faltantes_limpios:
             from modules.whatsapp.flows import wa_iniciar_desde_ml
@@ -7609,7 +7722,7 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
 
             accion = "Inició WhatsApp desde ML"
             detalle_extra = (
-                "handoff ML→WA pendiente OK cliente | "
+                "handoff ML→WA con ML cortado | "
                 + ", ".join(faltantes_limpios)
             )
         else:
