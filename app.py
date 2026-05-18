@@ -1600,6 +1600,12 @@ def detectar_sucursal(pedido, mensaje):
 
 
 def requiere_seguimiento_retiro(pedido):
+    """
+    APB:
+    El flujo "Listo para retirar" depende del tipo de entrega,
+    NO del canal ni de la empresa de envío.
+    """
+
     entrega_es_sucursal = bool(
         pedido.tipo_entrega == "Sucursal"
         or str(pedido.sucursal_nombre or "").strip()
@@ -1613,11 +1619,6 @@ def requiere_seguimiento_retiro(pedido):
             "Con reclamo en transporte",
         ]
         and entrega_es_sucursal
-        and pedido.canal in [
-            "Mercado Libre",
-            "Tienda Nube",
-            "Mayorista",
-        ]
     )
 
 
