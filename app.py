@@ -11118,12 +11118,7 @@ def checklist_cierre_pedido(pedido):
     """Checklist APB para cerrar pedidos entregados sin saltear pasos críticos."""
     items = []
 
-    items.append({
-        "clave": "postventa_confirmada",
-        "texto": "Mensaje postventa enviado o contacto final verificado.",
-        "obligatorio": True,
-        "detalle": "Usar primero el botón Mensaje postventa cuando corresponda. Si no hay teléfono, verificar contacto por el canal original.",
-    })
+
 
     if pedido.canal == "Mercado Libre" and pedido.ml_tipo == "Acordás la Entrega":
         items.append({
