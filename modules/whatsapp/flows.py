@@ -43,6 +43,44 @@ from .cross_sell import (
 # HELPERS
 # ─────────────────────────────────────────────
 
+def get_wa_paso_operativo(pedido):
+    return str(
+        getattr(pedido, "wa_paso_operativo", "") or ""
+    ).strip().lower()
+
+
+def set_wa_paso_operativo(
+    pedido,
+    paso,
+    commit=True,
+):
+    from app import db
+
+    pedido.wa_paso_operativo = (
+        str(paso or "").strip().lower()
+    )
+
+    if commit:
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+def limpiar_wa_paso_operativo(
+    pedido,
+    commit=True,
+):
+    from app import db
+
+    pedido.wa_paso_operativo = None
+
+    if commit:
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
 def _guardar_estado_wa(pedido, estado, tel=None):
     try:
         from app import db
@@ -271,6 +309,40 @@ def wa_enviar_solicitud_datos(pedido, faltantes):
     )
 
     _guardar_estado_wa(pedido, WA_ESPERANDO_DATOS, tel)
+
+    # APB:
+    # Guardamos el primer faltante operativo explícito.
+    # El router WA debe responder según este paso,
+    # no según IA libre.
+    try:
+        primer_faltante = (
+            faltantes[0]
+            if faltantes
+            else ""
+        )
+
+        mapa_operativo = {
+            "codigo_postal": "esperando_cp",
+            "direccion": "esperando_direccion",
+            "dni": "esperando_dni",
+            "localidad": "esperando_localidad",
+            "provincia": "esperando_provincia",
+        }
+
+        set_wa_paso_operativo(
+            pedido,
+            mapa_operativo.get(
+                primer_faltante,
+                "esperando_datos"
+            ),
+            commit=False,
+        )
+
+    except Exception as e:
+        print(
+            "[WA-APB] No se pudo guardar paso operativo:",
+            e,
+        )
 
     return wa_enviar_template(
         tel,

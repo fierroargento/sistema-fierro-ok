@@ -17,6 +17,7 @@ from .flows import (
     wa_procesar_respuesta_postventa,
     wa_procesar_eleccion_transporte,
     _responder_factura_o_escalar,
+    get_wa_paso_operativo,    
 )
 
 
@@ -108,6 +109,7 @@ def _routear_mensaje(pedido, texto, telefono):
     Decide qué flujo manejar según el estado actual del pedido.
     """
     estado = _obtener_estado_wa(pedido)
+    paso_operativo = get_wa_paso_operativo(pedido)
 
     # Sin pedido activo
     if not pedido:
@@ -153,9 +155,38 @@ def _routear_mensaje(pedido, texto, telefono):
         wa_procesar_ok_inicio(pedido, texto)
         return
 
-    # Esperando datos faltantes
+    # ─────────────────────────────────────
+    # APB ROUTER OPERACIONAL
+    # ─────────────────────────────────────
+
+    # Esperando código postal
+    if paso_operativo == "esperando_cp":
+
+        cp_detectado = re.sub(r"\D", "", texto or "")
+
+        if len(cp_detectado) == 4:
+            wa_procesar_datos_recibidos(
+                pedido,
+                cp_detectado,
+            )
+            return
+
+        from .sender import wa_enviar_texto
+        from app import normalizar_telefono
+
+        wa_enviar_texto(
+            normalizar_telefono(telefono),
+            "No llegué a detectar el código postal 😊\n\n¿Me lo pasás por acá?",
+            pedido=pedido,
+        )
+        return
+
+    # Esperando datos generales
     if estado == "esperando_datos":
-        wa_procesar_datos_recibidos(pedido, texto)
+        wa_procesar_datos_recibidos(
+            pedido,
+            texto,
+        )
         return
 
     # Pedido ya listo para retirar:

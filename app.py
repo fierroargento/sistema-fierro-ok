@@ -177,6 +177,10 @@ class Pedido(db.Model):
     ia_requiere_operador = db.Column(db.Boolean, default=False)
     # WhatsApp Bot
     wa_estado            = db.Column(db.String(100))
+        # APB:
+    # Subestado operacional del flujo WhatsApp.
+    # Evita depender de IA libre para pasos críticos.
+    wa_paso_operativo = db.Column(db.String(100))
     wa_ultimo_contacto   = db.Column(db.DateTime)
     wa_recordatorio_1    = db.Column(db.Boolean, default=False)
     wa_recordatorio_2    = db.Column(db.Boolean, default=False)
@@ -642,6 +646,7 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ia_resumen", "TEXT")
     asegurar_columna_si_no_existe("ia_requiere_operador", "BOOLEAN DEFAULT FALSE")
     asegurar_columna_si_no_existe("wa_estado", "VARCHAR(100)")
+    asegurar_columna_si_no_existe("wa_paso_operativo", "VARCHAR(100)")    
     asegurar_columna_si_no_existe("wa_ultimo_contacto", "TIMESTAMP")
     asegurar_columna_si_no_existe("wa_recordatorio_1", "BOOLEAN DEFAULT FALSE")
     asegurar_columna_si_no_existe("wa_recordatorio_2", "BOOLEAN DEFAULT FALSE")
@@ -10453,6 +10458,7 @@ ADMIN_PEDIDO_CAMPOS_GRUPOS = [
         "ml_buyer_id", "ml_buyer_nickname", "ml_nombre_real", "ml_datos_fiscales_ok",
         "ml_billing_nombre", "ml_billing_documento", "ml_billing_direccion", "ml_campos_faltantes",
         "ml_mensaje_contacto", "contacto_iniciado", "fecha_contacto",
+        "wa_estado", "wa_paso_operativo",
     ]),
     ("Envío / autorizado / tracking", [
         "empresa_envio", "tipo_entrega", "direccion", "codigo_postal", "localidad", "provincia",
