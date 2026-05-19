@@ -7358,6 +7358,16 @@ def ml_order_debe_omitirse(order, shipment=None):
 
 
 def ml_borrar_pedido_importado_si_corresponde(pedido):
+    """
+    APB:
+    Antes se borraban pedidos ML importados en Cargando Pedido.
+    Eso rompe si ya existen eventos/auditoría asociados.
+
+    Nueva regla:
+    No borrar pedidos con historial.
+    Se finalizan operativamente para sacarlos de Inicio,
+    dejando trazabilidad.
+    """
     if not pedido:
         return False
 
@@ -7370,7 +7380,17 @@ def ml_borrar_pedido_importado_si_corresponde(pedido):
     if pedido.estado != "Cargando Pedido":
         return False
 
-    db.session.delete(pedido)
+    pedido.estado = "Finalizado"
+
+    obs = (pedido.observaciones or "").strip()
+    marca = (
+        "Pedido ML omitido por sync. "
+        "No se borró para preservar auditoría."
+    )
+
+    if marca not in obs:
+        pedido.observaciones = f"{obs}\n{marca}".strip()
+
     return True
 
 
