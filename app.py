@@ -6982,13 +6982,68 @@ def ml_marcar_claim_en_pedido(pedido, claim):
         pedido.ml_claim_status = str(claim.get("status") or "").lower().strip()
         pedido.ml_claim_reason = str(claim.get("reason_id") or claim.get("type") or claim.get("stage") or "").strip()
 
-        # Si el reclamo está cerrado con reembolso → cancelar el pedido en el sistema
+        # APB:
+        # Reclamo cerrado con devolución/reembolso
+        # implica fin operativo del pedido.
+        # No queda activo en Inicio.
         status = pedido.ml_claim_status
-        resolution = str(claim.get("resolution") or {}).lower()
-        if status in CLAIM_ESTADOS_REEMBOLSO and "buyer" in resolution:
-            if pedido.estado not in ["Cancelado", "Finalizado", "Entregado"]:
-                pedido.estado = "Cancelado"
-                print(f"[ML-CLAIMS] Pedido #{pedido.id} cancelado automáticamente — reclamo cerrado con reembolso al comprador")
+
+        resolution_raw = claim.get("resolution") or ""
+
+        if isinstance(resolution_raw, dict):
+            resolution = json.dumps(
+                resolution_raw,
+                ensure_ascii=False
+            ).lower()
+        else:
+            resolution = str(
+                resolution_raw
+            ).lower()
+
+        palabras_reembolso = [
+            "refund",
+            "refunded",
+            "buyer",
+            "return",
+            "money_back",
+            "devol"
+        ]
+
+        hay_reembolso = any(
+            palabra in resolution
+            for palabra in palabras_reembolso
+        )
+
+        if (
+            status in CLAIM_ESTADOS_REEMBOLSO
+            and hay_reembolso
+        ):
+
+            if pedido.estado not in [
+                "Finalizado"
+            ]:
+
+                pedido.estado = "Finalizado"
+
+                observacion_actual = (
+                    pedido.observaciones or ""
+                ).strip()
+
+                marca = (
+                    "ML informó reclamo cerrado "
+                    "con reembolso al comprador."
+                )
+
+                if marca not in observacion_actual:
+                    pedido.observaciones = (
+                        f"{observacion_actual}\n{marca}"
+                    ).strip()
+
+                print(
+                    f"[ML-CLAIMS] Pedido #{pedido.id} "
+                    f"finalizado automáticamente "
+                    f"por reclamo con reembolso"
+                )
     else:
         pedido.ml_claim_abierto = False
         pedido.ml_claim_status = ""
