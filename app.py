@@ -2592,9 +2592,6 @@ def alertas_operativas():
             alertas.append({"tipo": "roja", "texto": f"{sin_despachar} pedidos sin despacho desde hace más de 24 hs"})
 
     if rol in ["carga", "admin"]:
-        # APB: se elimina la alerta global de carga incompleta porque molesta y no aporta prioridad real.
-        if seguimiento:
-            alertas.append({"tipo": "amarilla", "texto": f"{seguimiento} pedidos para seguimiento logístico (72 hs)"})
 
         if andreani_alertas:
             alertas.append({"tipo": "amarilla", "texto": f"{andreani_alertas} pedidos Andreani requieren revisión de tracking"})
@@ -2613,20 +2610,43 @@ def pedido_sin_despacho(pedido):
 
 
 def resumen_operativo(pedidos):
+
     resumen = {
-        "rojo": 0,
-        "amarillo": 0,
-        "verde": 0,
-        "gris": 0,
         "sin_despacho": 0,
+        "seguimiento": 0,
+        "demora": 0,
+        "mercado_envios": 0,
         "total": 0,
     }
 
     for pedido in pedidos:
-        color = semaforo_pedido(pedido)
-        resumen[color] = resumen.get(color, 0) + 1
+
+        estado = str(pedido.estado or "")
+
         if pedido_sin_despacho(pedido):
+
             resumen["sin_despacho"] += 1
+
+        elif estado in [
+            "Despachado",
+            "Verificar llegada a destino",
+            "Listo para retirar",
+        ]:
+
+            resumen["seguimiento"] += 1
+
+        elif estado in [
+            "Con demora de entrega",
+            "Con reclamo en transporte",
+            "No entregado",
+        ]:
+
+            resumen["demora"] += 1
+
+        if str(pedido.ml_tipo or "") == "Mercado Envíos":
+
+            resumen["mercado_envios"] += 1
+
         resumen["total"] += 1
 
     return resumen

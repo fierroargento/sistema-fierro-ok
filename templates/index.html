@@ -16,21 +16,25 @@
     </div>
 
     <div class="resumen-operativo" id="resumen_operativo">
-        <div class="resumen-card resumen-card-rojo filtro-card" data-filtro="rojo" tabindex="0" role="button" aria-label="Filtrar críticos">
-            <div class="resumen-card-titulo">Críticos</div>
-            <div class="resumen-card-valor" id="contador_rojo">{{ resumen_operativo.rojo }}</div>
-        </div>
-        <div class="resumen-card resumen-card-amarillo filtro-card" data-filtro="amarillo" tabindex="0" role="button" aria-label="Filtrar en riesgo">
-            <div class="resumen-card-titulo">En riesgo</div>
-            <div class="resumen-card-valor" id="contador_amarillo">{{ resumen_operativo.amarillo }}</div>
-        </div>
-        <div class="resumen-card resumen-card-verde filtro-card" data-filtro="verde" tabindex="0" role="button" aria-label="Filtrar al día">
-            <div class="resumen-card-titulo">Al día</div>
-            <div class="resumen-card-valor" id="contador_verde">{{ resumen_operativo.verde }}</div>
-        </div>
         <div class="resumen-card resumen-card-azul filtro-card" data-filtro="sin_despacho" tabindex="0" role="button" aria-label="Filtrar sin despacho">
             <div class="resumen-card-titulo">Sin despacho</div>
             <div class="resumen-card-valor" id="contador_sin_despacho">{{ resumen_operativo.sin_despacho }}</div>
+        </div>
+        <div class="resumen-card resumen-card-verde filtro-card" data-filtro="seguimiento" tabindex="0" role="button" aria-label="Filtrar en seguimiento">
+            <div class="resumen-card-titulo">En seguimiento</div>
+            <div class="resumen-card-valor" id="contador_seguimiento">{{ resumen_operativo.seguimiento }}</div>
+        </div>
+        <div class="resumen-card resumen-card-rojo filtro-card" data-filtro="demora" tabindex="0" role="button" aria-label="Filtrar con demora">
+            <div class="resumen-card-titulo">Con demora</div>
+            <div class="resumen-card-valor" id="contador_demora">{{ resumen_operativo.demora }}</div>
+        </div>
+        <div class="resumen-card resumen-card-amarillo filtro-card" data-filtro="mercado_envios" tabindex="0" role="button" aria-label="Filtrar Mercado Envíos">
+            <div class="resumen-card-titulo">Mercado Envíos</div>
+            <div class="resumen-card-valor" id="contador_me">{{ resumen_operativo.mercado_envios }}</div>
+        </div>
+        <div class="resumen-card resumen-card-gris filtro-card" data-filtro="todos" tabindex="0" role="button" aria-label="Ver todos">
+            <div class="resumen-card-titulo">Todos</div>
+            <div class="resumen-card-valor" id="contador_total">{{ resumen_operativo.total }}</div>
         </div>
     </div>
 
@@ -63,7 +67,7 @@
         <tbody id="tabla_pedidos_body">
             {% for p in pedidos %}
             {% set accion = accion_principal_pedido(p, 'inicio') %}
-            <tr class="fila-{{ semaforo_pedido(p) }} {% if ml_pedido_tiene_claim(p) %}fila-con-reclamo{% endif %}" data-semaforo="{{ semaforo_pedido(p) }}" data-estado="{{ (p.estado or '')|lower }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Con demora de entrega', 'Verificar llegada a destino', 'Listo para retirar', 'No entregado', 'Entregado', 'Finalizado'] else 'si' }}">
+            <tr class="fila-{{ semaforo_pedido(p) }} {% if ml_pedido_tiene_claim(p) %}fila-con-reclamo{% endif %}" data-semaforo="{{ semaforo_pedido(p) }}" data-estado="{{ (p.estado or '')|lower }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Con demora de entrega', 'Verificar llegada a destino', 'Listo para retirar', 'No entregado', 'Entregado', 'Finalizado'] else 'si' }}" data-seguimiento="{{ 'si' if p.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar'] else 'no' }}" data-demora="{{ 'si' if p.estado in ['Con demora de entrega', 'Con reclamo en transporte', 'No entregado'] else 'no' }}" data-mercado-envios="{{ 'si' if p.ml_tipo == 'Mercado Envíos' else 'no' }}">
                 <td class="col-contacto">
                     {% if ml_pedido_tiene_claim(p) %}
                     <span class="contacto-badge contacto-badge-reclamo" title="Reclamo activo en Mercado Libre: NO DESPACHAR">⚠️</span>
@@ -151,10 +155,11 @@ function copiarTexto(texto) {
     const cards = document.querySelectorAll('.filtro-card');
     const filas = document.querySelectorAll('#tabla_pedidos_body tr[data-semaforo]');
     const vacio = document.getElementById('fila_sin_pedidos');
-    const contadorRojo = document.getElementById('contador_rojo');
-    const contadorAmarillo = document.getElementById('contador_amarillo');
-    const contadorVerde = document.getElementById('contador_verde');
     const contadorSinDespacho = document.getElementById('contador_sin_despacho');
+    const contadorSeguimiento = document.getElementById('contador_seguimiento');
+    const contadorDemora = document.getElementById('contador_demora');
+    const contadorME = document.getElementById('contador_me');
+    const contadorTotal = document.getElementById('contador_total');
     const filtroStorageKey = 'fierro_filtro_inicio_{{ rol_actual }}';
 const rolActual = "{{ rol_actual }}";
 
@@ -293,25 +298,26 @@ if (!cards.length || !filas.length) return;
     }
 
     function actualizarContadores() {
-        let rojos = 0;
-        let amarillos = 0;
-        let verdes = 0;
         let sinDespacho = 0;
+        let seguimiento = 0;
+        let demora = 0;
+        let mercadoEnvios = 0;
+        let total = 0;
 
         filas.forEach(function (fila) {
-            const color = fila.dataset.semaforo || 'gris';
-            const despachado = fila.dataset.despachado === 'si';
+            total += 1;
 
-            if (color === 'rojo') rojos += 1;
-            if (color === 'amarillo') amarillos += 1;
-            if (color === 'verde') verdes += 1;
-            if (!despachado) sinDespacho += 1;
+            if (fila.dataset.despachado === 'no') sinDespacho += 1;
+            if (fila.dataset.seguimiento === 'si') seguimiento += 1;
+            if (fila.dataset.demora === 'si') demora += 1;
+            if (fila.dataset.mercadoEnvios === 'si') mercadoEnvios += 1;
         });
 
-        if (contadorRojo) contadorRojo.textContent = rojos;
-        if (contadorAmarillo) contadorAmarillo.textContent = amarillos;
-        if (contadorVerde) contadorVerde.textContent = verdes;
         if (contadorSinDespacho) contadorSinDespacho.textContent = sinDespacho;
+        if (contadorSeguimiento) contadorSeguimiento.textContent = seguimiento;
+        if (contadorDemora) contadorDemora.textContent = demora;
+        if (contadorME) contadorME.textContent = mercadoEnvios;
+        if (contadorTotal) contadorTotal.textContent = total;
     }
 
     function aplicarFiltro(filtro) {
@@ -323,10 +329,18 @@ if (!cards.length || !filas.length) return;
 
             let mostrar = true;
 
-            if (filtro === 'rojo') mostrar = color === 'rojo';
-            else if (filtro === 'amarillo') mostrar = color === 'amarillo';
-            else if (filtro === 'verde') mostrar = color === 'verde';
-            else if (filtro === 'sin_despacho') mostrar = !despachado;
+            if (filtro === 'sin_despacho') {
+                mostrar = !despachado;
+
+            } else if (filtro === 'seguimiento') {
+                mostrar = fila.dataset.seguimiento === 'si';
+
+            } else if (filtro === 'demora') {
+                mostrar = fila.dataset.demora === 'si';
+
+            } else if (filtro === 'mercado_envios') {
+                mostrar = fila.dataset.mercadoEnvios === 'si';
+            }
 
             fila.style.display = mostrar ? '' : 'none';
             if (mostrar) visibles += 1;
@@ -388,13 +402,24 @@ if (!cards.length || !filas.length) return;
     }
 
     function filaPasaFiltroSemaforo(fila) {
-        const color = fila.dataset.semaforo || 'gris';
+
         const despachado = fila.dataset.despachado === 'si';
 
-        if (filtroActivo === 'rojo') return color === 'rojo';
-        if (filtroActivo === 'amarillo') return color === 'amarillo';
-        if (filtroActivo === 'verde') return color === 'verde';
-        if (filtroActivo === 'sin_despacho') return !despachado;
+        if (filtroActivo === 'sin_despacho') {
+            return !despachado;
+        }
+
+        if (filtroActivo === 'seguimiento') {
+            return fila.dataset.seguimiento === 'si';
+        }
+
+        if (filtroActivo === 'demora') {
+            return fila.dataset.demora === 'si';
+        }
+
+        if (filtroActivo === 'mercado_envios') {
+            return fila.dataset.mercadoEnvios === 'si';
+        }
 
         return true;
     }
