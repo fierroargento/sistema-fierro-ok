@@ -28,6 +28,7 @@ from services.pedidos_estado import (
     requiere_contacto_cliente,
     despacho_completo,
     siguiente_estado,
+    ESTADOS_POST_DESPACHO,
 )
 from services.canal_manager import (
     puede_enviar_mensaje,
@@ -2030,7 +2031,7 @@ def texto_boton_estado(pedido):
     if pedido.estado == "Embalado":
         return "Marcar despachado"
 
-    if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte"]:
+    if pedido.estado in ESTADOS_POST_DESPACHO[:3]:
         if es_via_cargo(pedido.empresa_envio) and not pedido.seguimiento:
             return "Cargar seguimiento"
         return "Marcar entregado"
