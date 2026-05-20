@@ -11960,8 +11960,22 @@ def agregar_item_pedido(id):
 
     pedido = Pedido.query.get_or_404(id)
 
-    if pedido.estado in ["Despachado", "Finalizado"]:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No se pueden agregar items a un pedido despachado o finalizado."))
+    if pedido.estado in [
+        "Despachado",
+        "Con demora de entrega",
+        "Con reclamo en transporte",
+        "Verificar llegada a destino",
+        "Listo para retirar",
+        "No entregado",
+        "Entregado",
+        "Finalizado",
+        "Cancelado",
+    ]:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No se pueden agregar items a un pedido que ya fue despachado, entregado o cerrado."
+        ))
 
     datos_form = {
         "comprobante_dux_url": "",
