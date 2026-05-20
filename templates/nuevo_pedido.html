@@ -116,10 +116,8 @@
 
                 <select name="canal" id="canal">
                     <option value="">Canal</option>
-                    <option value="Mercado Libre" {% if form_data and form_data.get('canal') == 'Mercado Libre' %}selected{% endif %}>Mercado Libre</option>
-                    <option value="Tienda Nube" {% if form_data and form_data.get('canal') == 'Tienda Nube' %}selected{% endif %}>Tienda Nube</option>
-                    <option value="Mayorista" {% if form_data and form_data.get('canal') == 'Mayorista' %}selected{% endif %}>Mayorista</option>
-                    <option value="Presencial" {% if form_data and form_data.get('canal') == 'Presencial' %}selected{% endif %}>Presencial</option>
+                    <option value="Mayorista" {% if form_data and form_data.get('canal') == 'Mayorista' %}selected{% endif %}>Mayorista / DUX</option>
+                    <option value="Presencial" {% if form_data and form_data.get('canal') == 'Presencial' %}selected{% endif %}>Presencial / DUX</option>
                     <option value="Agregado" {% if form_data and form_data.get('canal') == 'Agregado' %}selected{% endif %}>Agregado</option>
                 </select>
 
