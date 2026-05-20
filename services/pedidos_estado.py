@@ -16,6 +16,12 @@ ESTADOS_POST_DESPACHO = [
     "No entregado",
 ]
 
+# Estados que trabaja el rol Despacho antes de despachar.
+ESTADOS_DESPACHO_OPERATIVO = [
+    "Etiqueta Lista",
+    "Etiqueta Impresa",
+    "Embalado",
+]
 
 def es_via_cargo(valor):
     if not valor:
