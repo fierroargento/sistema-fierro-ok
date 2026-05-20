@@ -9629,6 +9629,16 @@ def nuevo_pedido():
         canal = request.form.get("canal")
         ml_tipo = request.form.get("ml_tipo")
 
+        # APB:
+        # Mercado Libre y Tienda Nube NO se crean manualmente.
+        # Solo pueden ingresar por importación/sync.
+        if canal in ["Mercado Libre", "Tienda Nube"]:
+            return render_template(
+                "nuevo_pedido.html",
+                error="APB: Mercado Libre y Tienda Nube solo ingresan por sincronización.",
+                paso=1
+            )
+
         # APB Presencial / Mayorista:
         # Importar DUX desde el primer paso permite autocompletar cliente/dirección
         # y dejar los productos ya cargados para confirmar al final.
