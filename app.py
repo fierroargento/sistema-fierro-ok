@@ -2594,6 +2594,12 @@ def pedido_sin_despacho(pedido):
     )
 
 
+# TODO APB ESTADOS:
+# resumen_operativo separa estados post-despacho en dos familias:
+# - seguimiento normal
+# - demora/reclamo/no entregado
+# Conviene centralizar estas listas como constantes separadas
+# cuando se refactoricen KPIs y tablero.
 def resumen_operativo(pedidos):
 
     resumen = {
