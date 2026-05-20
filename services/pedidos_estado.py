@@ -99,6 +99,18 @@ def requiere_contacto_cliente(pedido):
     )
 
 
+# APB WORKFLOW:
+# Este es el mapa canonico de transiciones simples de estado.
+# Esta funcion NO debe validar permisos, bloqueos, ownership,
+# reclamos, tracking ni reglas operativas complejas.
+#
+# Las validaciones deben hacerse antes, desde guards operativos
+# como puede_avanzar_pedido().
+#
+# Esta funcion solo define:
+# estado_actual -> siguiente_estado_operativo
+#
+# Mantener simple, deterministico y facil de testear.
 def siguiente_estado(estado):
     flujo = {
         "Cargando Pedido": "Etiqueta Lista",
