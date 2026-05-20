@@ -29,6 +29,7 @@ from services.pedidos_estado import (
     despacho_completo,
     siguiente_estado,
     ESTADOS_POST_DESPACHO,
+    ESTADOS_DESPACHO_OPERATIVO,
 )
 from services.canal_manager import (
     puede_enviar_mensaje,
@@ -2906,7 +2907,7 @@ def puede_ver_pedido(pedido):
         )
 
     if rol == "despacho":
-        return pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]
+        return pedido.estado in ESTADOS_DESPACHO_OPERATIVO
 
     return False
 
