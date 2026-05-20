@@ -71,7 +71,7 @@
     </div>
 
     <div class="wizard-content">
-        <h2>Nuevo Pedido</h2>
+        <h2>Importar venta</h2>
 
         {% if error %}
         <div class="error">{{ error|safe }}</div>
@@ -96,7 +96,7 @@
                 <div class="dux-import-card">
                     <div class="dux-import-title">Importar datos desde DUX</div>
                     <div class="form-help">
-                        Para ventas Presencial o Mayorista podés subir el comprobante DUX y el sistema completa cliente, CUIT, dirección/localidad/provincia e items detectados.
+                        Para ventas Presencial o Mayorista, el comprobante DUX es obligatorio. El sistema completa cliente, CUIT, dirección/localidad/provincia e ítems detectados desde el PDF.
                     </div>
                     <input type="file" name="comprobante_dux_importar" id="comprobante_dux_importar" accept=".pdf">
                     <button type="button" class="btn btn-secundario" id="btn_importar_dux_cliente" onclick="importarDuxCliente()">
