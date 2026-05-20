@@ -10843,6 +10843,14 @@ def editar_pedido(id):
         canal = request.form.get("canal")
         ml_tipo = request.form.get("ml_tipo")
 
+        # APB:
+        # El canal y el tipo ML son identidad operativa del pedido.
+        # Rol carga puede completar datos, pero NO puede transformar
+        # un pedido ML/TN/Presencial en otro canal desde el formulario.
+        if rol_actual() != "admin":
+            canal = pedido.canal
+            ml_tipo = pedido.ml_tipo
+
         empresa_envio = request.form.get("empresa_envio")
         tipo_entrega = request.form.get("tipo_entrega")
         direccion = request.form.get("direccion")
