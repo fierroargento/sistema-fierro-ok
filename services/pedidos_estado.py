@@ -1,3 +1,9 @@
+# TODO APB ENCODING:
+# Este archivo todavia tiene comparaciones con textos mojibakeados.
+# Pendiente normalizar textos operativos para comparar correctamente valores como:
+# - Via Cargo / Via Cargo con tilde / texto mojibakeado
+# - Acordas la Entrega / Acordas con tilde / texto mojibakeado
+# Hacerlo en tarea separada, con tests, porque afecta reglas de flujo.
 def es_via_cargo(valor):
     if not valor:
         return False
