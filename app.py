@@ -2845,7 +2845,7 @@ def estados_visibles_inicio():
         ]
 
     if rol == "despacho":
-        return ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]
+        return ESTADOS_DESPACHO_OPERATIVO
 
     return []
 
