@@ -3048,7 +3048,18 @@ def puede_avanzar_segun_rol(pedido):
 
     return False, ["No tenés permisos para esta acción."]
 
-
+# TODO APB WORKFLOW:
+# Este guard ya funciona como motor preliminar de transición.
+# Pendiente futuro:
+# - evitar calcular siguiente_estado() dos veces entre validación y ejecución;
+# - separar resultado en objeto/estructura con permitido, errores y nuevo_estado;
+# - hacer que rutas, mobile, automatizaciones y futuras APIs usen esta única validación;
+# - agregar tests específicos de transición por rol/estado/canal.
+# APB:
+# Guard oficial para avanzar estados operativos.
+# Toda transición manual por botón "avanzar" debe pasar por acá antes de ejecutar
+# siguiente_estado() + aplicar_estado_y_fechas().
+# No saltear este guard desde rutas, mobile, automatizaciones ni futuras APIs.
 def puede_avanzar_pedido(pedido):
     errores = motor_bloqueo(pedido)
 
