@@ -4,6 +4,19 @@
 # - Via Cargo / Via Cargo con tilde / texto mojibakeado
 # - Acordas la Entrega / Acordas con tilde / texto mojibakeado
 # Hacerlo en tarea separada, con tests, porque afecta reglas de flujo.
+# APB ESTADOS:
+# Estados posteriores al despacho. Se centralizan para evitar listas repetidas
+# e inconsistencias entre tracking, reclamos, inicio, detalle y permisos.
+ESTADOS_POST_DESPACHO = [
+    "Despachado",
+    "Con demora de entrega",
+    "Con reclamo en transporte",
+    "Verificar llegada a destino",
+    "Listo para retirar",
+    "No entregado",
+]
+
+
 def es_via_cargo(valor):
     if not valor:
         return False
