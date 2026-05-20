@@ -983,6 +983,7 @@ Mensaje del cliente: """ + "\"\"\"" + f"{texto_cliente}" + "\"\"\"" + """
 
 REGLAS:
 - No informes costos de envío. Para el cliente es envío sin cargo.
+- No menciones factura, facturación, factura A/B ni datos fiscales si el cliente no preguntó específicamente por eso.
 - Si pregunta por factura A/B: decir que sí, y que se emite con los datos cargados en la plataforma.
 - Si necesita factura con datos distintos, reclamo, queja, cancelación o algo riesgoso: respondé que lo deriva un operador y agregá exactamente ESCALAR.
 - Nunca prometas fecha exacta de entrega.
