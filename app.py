@@ -2921,7 +2921,7 @@ def puede_editar_pedido(pedido):
         return True
 
     if rol == "carga":
-        return pedido.estado in ["Cargando Pedido", "Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Reclamar a Mercado Libre", "Entregado"]
+        return pedido.estado in ["Cargando Pedido"] + ESTADOS_POST_DESPACHO + ["Reclamar a Mercado Libre", "Entregado"]
 
     return False
 
