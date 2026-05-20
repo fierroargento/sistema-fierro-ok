@@ -2965,6 +2965,23 @@ def puede_agregar_item(pedido):
 
     return True
 
+
+def puede_operar_whatsapp(pedido):
+    # APB:
+    # WhatsApp operativo solo puede ser manejado por Admin o Carga.
+    # Despacho no debe intervenir conversaciones con clientes.
+    if rol_actual() not in ["admin", "carga"]:
+        return False
+
+    if not pedido:
+        return False
+
+    if not puede_ver_pedido(pedido):
+        return False
+
+    return True
+
+
 def puede_crear_pedido():
     return rol_actual() in ["admin", "carga"]
 
@@ -10093,8 +10110,12 @@ def marcar_contacto_iniciado_pedido(pedido):
 def resync_ml_pedido(id):
     pedido = Pedido.query.get_or_404(id)
 
-    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+    if not puede_operar_whatsapp(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No autorizado para operar WhatsApp."
+        ))
 
     if pedido.canal != "Mercado Libre":
         return redirect(url_for("detalle_pedido", id=pedido.id, error="No es un pedido de Mercado Libre."))
@@ -10435,8 +10456,12 @@ def marcar_contacto_ml(id):
 def desmarcar_contacto_ml(id):
     pedido = Pedido.query.get_or_404(id)
 
-    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+    if not puede_operar_whatsapp(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No autorizado para operar WhatsApp."
+        ))
 
     pedido.contacto_iniciado = False
     pedido.fecha_contacto = None
@@ -10484,8 +10509,12 @@ def enviar_mensaje_ml_acordas(id):
 def ia_analizar_respuesta_pedido(id):
     pedido = Pedido.query.get_or_404(id)
 
-    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+    if not puede_operar_whatsapp(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No autorizado para operar WhatsApp."
+        ))
 
     if not es_ml_acordas_entrega(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id, error="La IA recolector solo aplica a Mercado Libre / Acordás la Entrega."))
@@ -10530,8 +10559,12 @@ def ia_analizar_respuesta_pedido(id):
 def ia_enviar_respuesta_faltantes_pedido(id):
     pedido = Pedido.query.get_or_404(id)
 
-    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+    if not puede_operar_whatsapp(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No autorizado para operar WhatsApp."
+        ))
 
     if not es_ml_acordas_entrega(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id, error="La IA recolector solo aplica a Mercado Libre / Acordás la Entrega."))
@@ -11059,8 +11092,12 @@ def _enviar_whatsapp_api_pedido(pedido, texto, autor="operador"):
 def whatsapp_enviar_operador(id):
     pedido = Pedido.query.get_or_404(id)
 
-    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+    if not puede_operar_whatsapp(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No autorizado para operar WhatsApp."
+        ))
 
     texto = (request.form.get("mensaje") or "").strip()
     if not texto:
@@ -11080,8 +11117,12 @@ def whatsapp_enviar_operador(id):
 def whatsapp_iniciar_chat_operador(id):
     pedido = Pedido.query.get_or_404(id)
 
-    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+    if not puede_operar_whatsapp(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No autorizado para operar WhatsApp."
+        ))
 
     tel = normalizar_telefono(pedido.telefono)
 
@@ -11154,8 +11195,12 @@ def whatsapp_iniciar_chat_operador(id):
 def whatsapp_tomar_conversacion(id):
     pedido = Pedido.query.get_or_404(id)
 
-    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+    if not puede_operar_whatsapp(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No autorizado para operar WhatsApp."
+        ))
 
     pedido.wa_estado = "operador_manual"
     pedido.ia_requiere_operador = True
@@ -11196,8 +11241,12 @@ def whatsapp_tomar_conversacion(id):
 def whatsapp_reactivar_bot(id):
     pedido = Pedido.query.get_or_404(id)
 
-    if not puede_ver_pedido(pedido) or rol_actual() not in ["admin", "carga"]:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+    if not puede_operar_whatsapp(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No autorizado para operar WhatsApp."
+        ))
 
     pedido.wa_estado = pedido.wa_estado if pedido.wa_estado and pedido.wa_estado != "operador_manual" else "esperando_datos"
     pedido.ia_requiere_operador = False
