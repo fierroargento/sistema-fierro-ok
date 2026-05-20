@@ -118,7 +118,6 @@
                     <option value="">Canal</option>
                     <option value="Mayorista" {% if form_data and form_data.get('canal') == 'Mayorista' %}selected{% endif %}>Mayorista / DUX</option>
                     <option value="Presencial" {% if form_data and form_data.get('canal') == 'Presencial' %}selected{% endif %}>Presencial / DUX</option>
-                    <option value="Agregado" {% if form_data and form_data.get('canal') == 'Agregado' %}selected{% endif %}>Agregado</option>
                 </select>
 
                 <input name="id_venta" placeholder="ID Venta" value="{{ form_data.get('id_venta', '') if form_data else '' }}">
