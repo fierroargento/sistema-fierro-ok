@@ -2011,22 +2011,6 @@ def motor_bloqueo(pedido):
 
     return errores
 
-
-def siguiente_estado_old(e):
-    flujo = {
-        "Cargando Pedido": "Etiqueta Lista",
-        "Etiqueta Lista": "Etiqueta Impresa",
-        "Etiqueta Impresa": "Embalado",
-        "Embalado": "Despachado",
-        "Despachado": "Entregado",
-        "Con demora de entrega": "Entregado",
-        "Con reclamo en transporte": "Entregado",
-        "Verificar llegada a destino": "Entregado",
-        "Listo para retirar": "Entregado",
-    }
-    return flujo.get(e)
-
-
 def texto_boton_estado(pedido):
     if pedido.estado == "Cargando Pedido":
         if requiere_contacto_cliente(pedido):
