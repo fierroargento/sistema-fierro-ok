@@ -2555,7 +2555,7 @@ def alertas_operativas():
             if ref and (ahora - ref).total_seconds() >= 72 * 3600:
                 seguimiento += 1
 
-        if es_andreani_pedido(pedido) and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado"]:
+        if es_andreani_pedido(pedido) and pedido.estado in ESTADOS_POST_DESPACHO:
             if andreani_alerta_pedido(pedido):
                 andreani_alertas += 1
 
