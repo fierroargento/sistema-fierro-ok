@@ -12202,7 +12202,7 @@ def agregar_item_pedido(id):
         # APB:
         # Si el agregado se cargó cuando el pedido ya estaba en preparación,
         # despacho debe revisarlo antes de poder marcarlo como despachado.
-        if pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]:
+        if pedido.estado in ESTADOS_DESPACHO_OPERATIVO:
             pedido.agregado_pendiente_revision = True
             pedido.agregado_revision_fecha = None
             pedido.agregado_revision_usuario = None
