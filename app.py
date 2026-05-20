@@ -2413,7 +2413,7 @@ def fecha_referencia_estado(pedido):
     if pedido.estado == "Embalado":
         return pedido.fecha_embalado or pedido.fecha_etiqueta_impresa or pedido.fecha_creacion
 
-    if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado"]:
+    if pedido.estado in ESTADOS_POST_DESPACHO:
         return pedido.fecha_despachado or pedido.fecha_embalado or pedido.fecha_creacion
 
     if pedido.estado == "Entregado":
