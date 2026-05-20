@@ -821,7 +821,7 @@ function actualizar() {
     }
 
     if (esMercadoEnvios) {
-        if (bloqueSeguimiento.parentNode !== bloqueCoordinarEnvio.parentNode) {
+        if (bloqueCoordinarEnvio && bloqueSeguimiento.parentNode !== bloqueCoordinarEnvio.parentNode) {
             bloqueCoordinarEnvio.parentNode.insertBefore(bloqueSeguimiento, bloqueCoordinarEnvio.nextSibling);
         }
         if (bloqueEtiqueta.parentNode !== bloqueSeguimiento.parentNode) {
@@ -837,7 +837,7 @@ function actualizar() {
         bloqueSeguimiento.style.display = "block";
         bloqueEtiqueta.style.display = "block";
     } else {
-        if (bloqueSeguimiento.parentNode !== bloqueCoordinarEnvio.parentNode) {
+        if (bloqueCoordinarEnvio && bloqueSeguimiento.parentNode !== bloqueCoordinarEnvio.parentNode) {
             bloqueCoordinarEnvio.parentNode.insertBefore(bloqueSeguimiento, bloqueCoordinarEnvio.nextSibling);
         }
         if (bloqueEtiqueta.parentNode !== bloqueSeguimiento.parentNode) {
