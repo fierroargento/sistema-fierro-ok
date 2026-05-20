@@ -2924,6 +2924,22 @@ def puede_eliminar_pedido(pedido):
     return rol_actual() == "admin"
 
 
+def puede_cerrar_pedido(pedido):
+    # APB:
+    # Cerrar pedido implica moverlo a Finalizado.
+    # Solo Admin o Carga pueden cerrar, y únicamente desde Entregado.
+    if rol_actual() not in ["admin", "carga"]:
+        return False
+
+    if not pedido or pedido.estado != "Entregado":
+        return False
+
+    if getattr(pedido, "ml_claim_abierto", False):
+        return False
+
+    return True
+
+
 def puede_crear_pedido():
     return rol_actual() in ["admin", "carga"]
 
@@ -11271,19 +11287,14 @@ def cerrar_pedido(id):
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
     
-    if rol_actual() not in ["admin", "carga"]:
+    if not puede_cerrar_pedido(pedido):
         return redirect(url_for(
             "detalle_pedido",
             id=pedido.id,
-            error="Solo Admin o Carga pueden cerrar pedidos."
-        ))    
-
-    if pedido.estado != "Entregado":
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="El pedido solo puede cerrarse desde estado Entregado."))
+            error="Solo Admin o Carga pueden cerrar pedidos entregados y sin reclamo activo."
+        ))
 
     bloqueos = []
-    if getattr(pedido, "ml_claim_abierto", False):
-        bloqueos.append("Hay un reclamo activo en Mercado Libre. Resolver el reclamo antes de cerrar.")
 
     return render_template(
         "cerrar_pedido.html",
@@ -11301,14 +11312,12 @@ def confirmar_cierre_pedido(id):
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
 
-    if rol_actual() not in ["admin", "carga"]:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="Solo Admin o Carga pueden cerrar pedidos."))    
-
-    if pedido.estado != "Entregado":
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="El pedido solo puede cerrarse desde estado Entregado."))
-
-    if getattr(pedido, "ml_claim_abierto", False):
-        return redirect(url_for("cerrar_pedido", id=pedido.id, error="Hay un reclamo activo en Mercado Libre."))
+    if not puede_cerrar_pedido(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="Solo Admin o Carga pueden cerrar pedidos entregados y sin reclamo activo."
+        ))
 
     faltantes = []
     for item in checklist_cierre_pedido(pedido):
