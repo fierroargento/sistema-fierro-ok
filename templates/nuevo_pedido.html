@@ -519,7 +519,20 @@ function actualizarCamposEtiquetaYSeguimientoPorTransporte() {
 }
 
 function mostrarBotonCoordinarEnvio() {
-    const mostrar = (canal.value === "Mercado Libre" && ml.value === "Acordás la Entrega") || (canal.value === "Tienda Nube" && document.getElementById("empresa_envio").value === "Vía Cargo");
+
+    if (!bloqueCoordinarEnvio) {
+        return;
+    }
+
+    const mostrar =
+        (canal.value === "Mercado Libre" && ml.value === "Acordás la Entrega")
+        ||
+        (
+            canal.value === "Tienda Nube"
+            &&
+            document.getElementById("empresa_envio").value === "Vía Cargo"
+        );
+
     bloqueCoordinarEnvio.style.display = mostrar ? "block" : "none";
 }
 
