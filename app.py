@@ -2940,14 +2940,36 @@ def puede_cerrar_pedido(pedido):
     return True
 
 
+def puede_agregar_item(pedido):
+    # APB:
+    # Agregar ítems modifica la composición real del pedido.
+    # Solo Admin o Carga pueden hacerlo, y nunca después del despacho/cierre.
+    if rol_actual() not in ["admin", "carga"]:
+        return False
+
+    if not pedido:
+        return False
+
+    if pedido.estado in [
+        "Despachado",
+        "Con demora de entrega",
+        "Con reclamo en transporte",
+        "Verificar llegada a destino",
+        "Listo para retirar",
+        "No entregado",
+        "Entregado",
+        "Finalizado",
+        "Cancelado",
+    ]:
+        return False
+
+    return True
+
 def puede_crear_pedido():
     return rol_actual() in ["admin", "carga"]
 
-
 def puede_ver_historico():
     return rol_actual() in ["admin", "carga"]
-
-
 
 def etiqueta_es_archivo_local(etiqueta_archivo):
     archivo = os.path.basename(str(etiqueta_archivo or ""))
@@ -11968,32 +11990,23 @@ def extraer_items_comprobante_dux_desde_pdf(archivo_pdf):
 @app.route("/pedido/<int:id>/agregar-item", methods=["GET", "POST"])
 @login_required
 def agregar_item_pedido(id):
-    if rol_actual() not in ["admin", "carga"]:
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_agregar_item(pedido):
         registrar_auditoria(
             "Intento no autorizado de agregar item",
             entidad="pedido",
             entidad_id=id,
-            detalle=f"Rol sin permiso: {rol_actual()}"
+            detalle=(
+                f"Rol: {rol_actual()} | "
+                f"Estado pedido: {pedido.estado}"
+            )
         )
-        return redirect(url_for("inicio", error="No tenés permisos para agregar items."))
 
-    pedido = Pedido.query.get_or_404(id)
-
-    if pedido.estado in [
-        "Despachado",
-        "Con demora de entrega",
-        "Con reclamo en transporte",
-        "Verificar llegada a destino",
-        "Listo para retirar",
-        "No entregado",
-        "Entregado",
-        "Finalizado",
-        "Cancelado",
-    ]:
         return redirect(url_for(
             "detalle_pedido",
             id=pedido.id,
-            error="No se pueden agregar items a un pedido que ya fue despachado, entregado o cerrado."
+            error="No se pueden agregar items en el estado actual del pedido."
         ))
 
     datos_form = {
