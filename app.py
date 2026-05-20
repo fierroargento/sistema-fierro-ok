@@ -11270,6 +11270,13 @@ def cerrar_pedido(id):
 
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
+    
+    if rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="Solo Admin o Carga pueden cerrar pedidos."
+        ))    
 
     if pedido.estado != "Entregado":
         return redirect(url_for("detalle_pedido", id=pedido.id, error="El pedido solo puede cerrarse desde estado Entregado."))
