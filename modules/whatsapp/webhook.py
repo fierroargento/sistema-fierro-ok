@@ -199,6 +199,69 @@ def _routear_mensaje(pedido, texto, telefono):
         )
         return
 
+    # Estados logísticos APB:
+    # jamás responder con IA libre ni confirmar retiro si todavía no está en "Listo para retirar".
+    if estado in [
+        "despacho_en_proceso",
+        "despachado",
+        "confirmado_cliente",
+    ]:
+
+        texto_lower = (texto or "").lower()
+
+        from .sender import wa_enviar_texto
+        from app import normalizar_telefono
+
+        tel = normalizar_telefono(telefono)
+
+        # El cliente pregunta por retiro/sucursal, pero el sistema todavía no confirmó disponibilidad.
+        if any(x in texto_lower for x in [
+            "retiro",
+            "retirar",
+            "retirarlo",
+            "sucursal",
+            "lo puedo retirar",
+            "lo podre retirar",
+            "lo podré retirar",
+            "puedo pasar",
+            "puedo ir",
+        ]):
+            wa_enviar_texto(
+                tel,
+                "Todavía no te puedo confirmar que esté listo para retirar. En cuanto el transporte informe que está disponible en sucursal, te avisamos por acá 😊",
+                pedido=pedido,
+            )
+            return
+
+        # El cliente pregunta por seguimiento/estado del envío.
+        if any(x in texto_lower for x in [
+            "seguimiento",
+            "tracking",
+            "estado",
+            "donde esta",
+            "dónde está",
+            "cuando llega",
+            "cuándo llega",
+            "llego",
+            "llegó",
+            "ya salio",
+            "ya salió",
+        ]):
+            wa_enviar_texto(
+                tel,
+                "Estamos siguiendo el envío. En cuanto tengamos una novedad del transporte, te avisamos por acá 😊",
+                pedido=pedido,
+            )
+            return
+
+        # Cualquier otra cosa → operador.
+        _escalar_operador(
+            pedido,
+            f"Consulta fuera de flujo logístico APB: {texto[:80]}",
+            "Te derivamos con un operador para ayudarte mejor 😊"
+        )
+        return
+
     # Cross-sell activo
     if estado.startswith("cross_sell:") and estado != "cross_sell_cerrado":
         partes = estado.split(":")
