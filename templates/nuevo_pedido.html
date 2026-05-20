@@ -764,6 +764,27 @@ mostrarBotonCoordinarEnvio();
     }
 }
 
+// APB:
+// Este wizard originalmente soportaba:
+// - Mercado Libre
+// - Tienda Nube
+// - Mercado Envíos
+// - Acordás la Entrega
+//
+// Actualmente /nuevo quedó restringido a:
+// - Presencial
+// - Mayorista
+//
+// PERO todavía existe lógica residual histórica del flujo ML/TN.
+// NO eliminar ramas parcialmente sin revisar:
+// - navegación de pasos
+// - impresión automática
+// - tracking/transporte
+// - render dinámico
+//
+// El cleanup debe hacerse completo y testeado.
+// Hasta entonces, mantener compatibilidad.
+
 function actualizar() {
     bloqueML.style.display = "none";
     bloqueEnvio.style.display = "none";
