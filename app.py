@@ -2252,7 +2252,11 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "target": "",
         }
 
-    if requiere_contacto_cliente(pedido) and pedido.estado not in ["Despachado", "Verificar llegada a destino", "Listo para retirar", "Con demora de entrega", "Con reclamo en transporte", "Entregado", "Finalizado", "Etiqueta Lista", "Etiqueta Impresa", "Embalado"]:
+    if requiere_contacto_cliente(pedido) and pedido.estado not in (
+        ESTADOS_POST_DESPACHO
+        + ESTADOS_DESPACHO_OPERATIVO
+        + ["Entregado", "Finalizado"]
+    ):
         return {
             "tipo": "completar_carga",
             "texto": "Completar carga",
