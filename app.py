@@ -2085,7 +2085,7 @@ def accion_sugerida_pedido(pedido):
 
     if (
         getattr(pedido, "agregado_pendiente_revision", False)
-        and pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]
+        and pedido.estado in ESTADOS_DESPACHO_OPERATIVO
     ):
         return "⚠️ Revisar agregado pendiente"
 
