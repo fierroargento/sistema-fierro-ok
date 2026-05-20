@@ -12134,7 +12134,18 @@ def agregar_item_pedido(id):
     return render_template("agregar_item_pedido.html", pedido=pedido, error="", datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
 
 def asegurar_usuarios_iniciales():
+
+    # APB:
+    # Nunca recrear usuarios automáticos si ya existe cualquier usuario.
+    # Evita sobrescrituras o bootstrap accidental en producción.
     if UsuarioSistema.query.count() > 0:
+        return
+
+    # Seguridad:
+    # No crear usuarios default automáticamente en Render/producción.
+    # Solo permitir bootstrap local explícito.
+    if os.environ.get("RENDER"):
+        print("[APB] Bootstrap de usuarios omitido en Render.")
         return
 
     usuarios_base = [
