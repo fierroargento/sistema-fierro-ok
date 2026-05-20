@@ -9821,16 +9821,6 @@ def nuevo_pedido():
             autorizado_dni = ""
             autorizado_telefono = ""
 
-        if canal in ["Mercado Libre", "Tienda Nube"]:
-            return render_template(
-                "nuevo_pedido.html",
-                error="APB: las ventas de Mercado Libre y Tienda Nube deben ingresar por sincronización/webhook, no por carga manual.",
-                form_data=request.form,
-                etiqueta_guardada=etiqueta_existente,
-                comprobante_dux_guardado=comprobante_dux_existente,
-                comprobante_pago_guardado=comprobante_pago_existente,
-            )
-
         if canal_requiere_dux_obligatorio(canal) and not comprobante_dux_existente:
             return render_template(
                 "nuevo_pedido.html",
