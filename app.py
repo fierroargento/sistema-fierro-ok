@@ -8471,7 +8471,7 @@ def despacho_mobile():
     if rol_actual() != "despacho":
         return redirect(url_for("inicio"))
 
-    pedidos = Pedido.query.filter(Pedido.estado.in_(["Etiqueta Lista", "Etiqueta Impresa", "Embalado"])).all()
+    pedidos = Pedido.query.filter(Pedido.estado.in_(ESTADOS_DESPACHO_OPERATIVO)).all()
     pedidos.sort(key=orden_inicio_pedido)
 
     return render_template(
