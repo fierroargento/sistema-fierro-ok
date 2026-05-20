@@ -2590,7 +2590,7 @@ def alertas_operativas():
 def pedido_sin_despacho(pedido):
     return bool(
         pedido
-        and pedido.estado not in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado", "Finalizado"]
+        and pedido.estado not in ESTADOS_POST_DESPACHO + ["Entregado", "Finalizado"]
     )
 
 
