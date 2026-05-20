@@ -111,6 +111,16 @@ def requiere_contacto_cliente(pedido):
 # estado_actual -> siguiente_estado_operativo
 #
 # Mantener simple, deterministico y facil de testear.
+# IMPORTANTE:
+# Algunos estados reales del flujo no salen de este mapa directamente,
+# sino de automatizaciones, tracking, reclamos o reglas operativas.
+# Ejemplos:
+# - Verificar llegada a destino
+# - Listo para retirar
+# - Con demora de entrega
+# - Con reclamo en transporte
+#
+# Este mapa representa solamente el avance manual base del operador.
 def siguiente_estado(estado):
     flujo = {
         "Cargando Pedido": "Etiqueta Lista",
