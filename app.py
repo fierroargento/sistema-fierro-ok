@@ -2858,11 +2858,7 @@ def estados_visibles_preparacion():
     if not puede_ver_pedidos_preparacion():
         return []
 
-    return [
-        "Etiqueta Lista",
-        "Etiqueta Impresa",
-        "Embalado",
-    ]
+    return ESTADOS_DESPACHO_OPERATIVO
 
 def titulo_inicio_por_rol():
     rol = rol_actual()
