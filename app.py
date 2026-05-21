@@ -12216,8 +12216,11 @@ with app.app_context():
     # y WHATSAPP_VERIFY_TOKEN en el .env y descomentar la línea siguiente:
     from modules.whatsapp import activar; activar(app)
 
-    # ── Scheduler: jobs periódicos ───────────────────────────────────
-    try:
+# ── Scheduler: jobs periódicos ───────────────────────────────────
+try:
+    scheduler_enabled = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
+
+    if scheduler_enabled:
         from modules.automation.manager import iniciar_scheduler
 
         def _job_ml_mensajes():
@@ -12240,5 +12243,7 @@ with app.app_context():
             _job_ml_mensajes,
             _job_wa_timers
         )
-    except Exception as e:
-        print("[SCHEDULER] No se pudo iniciar:", e)
+    else:
+        print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")
+except Exception as e:
+    print("[SCHEDULER] No se pudo iniciar:", e)
