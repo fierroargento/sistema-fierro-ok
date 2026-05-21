@@ -127,4 +127,21 @@ def validar_regla_via_cargo_pp6040(pedido):
     if via_cargo_no_permitido_para_pp6040(pedido):
         cantidad = cantidad_pp6040_pedido(pedido)
         return f"PP6040 no puede enviarse por Vía Cargo con {cantidad} unidad(es). Vía Cargo solo queda habilitado para PP6040 cuando el pedido tiene más de 2 unidades."
-    return None    
+    return None
+
+def validar_transporte_obligatorio(pedido, usa_flujo_etiqueta_directa):
+    errores = []
+
+    requiere_datos_envio = True
+
+    if usa_flujo_acordas_entrega(pedido) and not despacho_completo(pedido):
+        requiere_datos_envio = False
+
+    if (
+        requiere_datos_envio
+        and not pedido.empresa_envio
+        and not usa_flujo_etiqueta_directa(pedido)
+    ):
+        errores.append("Falta transporte.")
+
+    return errores    

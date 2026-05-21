@@ -50,6 +50,7 @@ from services.motor_bloqueo import (
     validar_datos_ml,
     validar_transportes,
     validar_regla_via_cargo_pp6040,
+    validar_transporte_obligatorio,
 )
 
 app = Flask(__name__)
@@ -1965,13 +1966,7 @@ def motor_bloqueo(pedido):
 
     errores.extend(validar_datos_entrega(pedido))
 
-    requiere_datos_envio = True
-
-    if usa_flujo_acordas_entrega(pedido) and not despacho_completo(pedido):
-        requiere_datos_envio = False
-
-    if requiere_datos_envio and not pedido.empresa_envio and not usa_flujo_etiqueta_directa(pedido):
-        errores.append("Falta transporte.")
+    errores.extend(validar_transporte_obligatorio(pedido, usa_flujo_etiqueta_directa))
 
     errores.extend(validar_transportes(pedido, es_tnube))
 
