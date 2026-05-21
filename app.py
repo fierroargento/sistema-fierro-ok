@@ -4554,26 +4554,37 @@ def aplicar_estado_tracking_seguro(pedido, clasificacion):
         and str(getattr(pedido, "ml_tipo", "") or "").strip() == "Acordás la Entrega"
     )
 
-    if clasificacion == "entregado" and pedido.estado not in ["Entregado", "Finalizado"]:
+    if clasificacion == "entregado" and pedido.estado not in [
+        Estado.ENTREGADO,
+        Estado.FINALIZADO,
+    ]:
         if es_ml_acordas:
             # No marcar Entregado automáticamente: queda para revisión/cierre APB
             # con aviso previo en Mercado Libre.
-            if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte"]:
-                pedido.estado = "Verificar llegada a destino"
+            if pedido.estado in [
+                Estado.DESPACHADO,
+                Estado.DEMORA,
+                Estado.RECLAMO,
+            ]:
+                pedido.estado = Estado.VERIFICAR_DESTINO
                 resumen = (getattr(pedido, "ia_resumen", "") or "").strip()
                 marca = "TRACKING: transporte informa entregado; confirmar entrega y avisar a Mercado Libre antes de cerrar"
                 if marca not in resumen:
                     pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
-                return "Verificar llegada a destino"
+                return Estado.VERIFICAR_DESTINO
             return None
 
-        pedido.estado = "Entregado"
+        pedido.estado = Estado.ENTREGADO
         pedido.fecha_entregado = pedido.fecha_entregado or datetime.utcnow()
-        return "Entregado"
+        return Estado.ENTREGADO
 
-    if clasificacion == "sucursal" and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte"]:
-        pedido.estado = "Verificar llegada a destino"
-        return "Verificar llegada a destino"
+    if clasificacion == "sucursal" and pedido.estado in [
+        Estado.DESPACHADO,
+        Estado.DEMORA,
+        Estado.RECLAMO,
+    ]:
+        pedido.estado = Estado.VERIFICAR_DESTINO
+        return Estado.VERIFICAR_DESTINO
     return None
 
 

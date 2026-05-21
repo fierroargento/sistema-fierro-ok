@@ -10,6 +10,8 @@ No abre threads ni procesos extra, para no complicar Render.
 from datetime import datetime, timedelta
 from threading import Lock
 
+from domain.estados import Estado, ESTADOS_POST_DESPACHO
+
 _scheduler_lock = Lock()
 
 
@@ -93,7 +95,11 @@ def ejecutar_timers_whatsapp():
             Pedido.query
             .filter(Pedido.ia_esperando_respuesta == True)
             .filter(Pedido.ia_ultimo_mensaje_bot.isnot(None))
-            .filter(Pedido.estado.notin_(["Entregado", "Finalizado", "Cancelado"]))
+            .filter(Pedido.estado.notin_([
+                Estado.ENTREGADO,
+                Estado.FINALIZADO,
+                Estado.CANCELADO,
+            ]))
             .filter(Pedido.wa_estado.in_([
                 "esperando_datos",
                 "esperando_confirmacion_sucursal",
@@ -169,13 +175,7 @@ def ejecutar_tracking_automatico():
 
         pedidos = (
             Pedido.query
-            .filter(Pedido.estado.in_([
-                "Despachado",
-                "Verificar llegada a destino",
-                "Listo para retirar",
-                "Con demora de entrega",
-                "Con reclamo en transporte",
-            ]))
+            .filter(Pedido.estado.in_(ESTADOS_POST_DESPACHO))
             .filter(Pedido.seguimiento.isnot(None))
             .filter(Pedido.seguimiento != "")
             .filter((Pedido.tracking_ultima_sync.is_(None)) | (Pedido.tracking_ultima_sync < limite))

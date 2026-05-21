@@ -4,6 +4,9 @@ Job automático ML mensajes.
 Extraído desde app.py sin cambiar lógica.
 """
 
+from domain.estados import Estado
+
+
 def ejecutar_job_ml_mensajes(app, db):
     """Procesa mensajes pendientes de ML Acordás cada 5 minutos."""
 
@@ -26,7 +29,12 @@ def ejecutar_job_ml_mensajes(app, db):
                 Pedido.query
                 .filter(Pedido.canal == "Mercado Libre")
                 .filter(Pedido.ia_esperando_respuesta == True)
-                .filter(Pedido.estado.notin_(["Despachado", "Entregado", "Finalizado", "Cancelado"]))
+                .filter(Pedido.estado.notin_([
+                    Estado.DESPACHADO,
+                    Estado.ENTREGADO,
+                    Estado.FINALIZADO,
+                    Estado.CANCELADO,
+                ]))
                 .all()
             )
 
@@ -51,7 +59,12 @@ def ejecutar_job_ml_mensajes(app, db):
                 .filter(Pedido.canal == "Mercado Libre")
                 .filter(Pedido.ml_tipo == "Acordás la Entrega")
                 .filter(Pedido.ml_mensajes_pendientes == True)
-                .filter(Pedido.estado.notin_(["Despachado", "Entregado", "Finalizado", "Cancelado"]))
+                .filter(Pedido.estado.notin_([
+                    Estado.DESPACHADO,
+                    Estado.ENTREGADO,
+                    Estado.FINALIZADO,
+                    Estado.CANCELADO,
+                ]))
                 .all()
             )
 

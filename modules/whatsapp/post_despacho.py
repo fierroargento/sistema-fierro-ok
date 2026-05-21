@@ -8,6 +8,8 @@ No reemplaza el flujo validado del sistema: solo reacciona ante cambios claros d
 
 from datetime import datetime
 
+from domain.estados import Estado
+
 from .flows import wa_enviar_listo_para_retirar, wa_enviar_postventa
 
 
@@ -88,8 +90,8 @@ def procesar_evento_tracking_pedido(pedido, clasificacion, estado_externo, orige
                 if wa_enviar_postventa(pedido):
                     acciones.append("wa_postventa")
 
-            if pedido.estado == "Entregado":
-                pedido.estado = "Finalizado"
+            if pedido.estado == Estado.ENTREGADO:
+                pedido.estado = Estado.FINALIZADO
                 acciones.append("finalizado_auto")
             return acciones
 
