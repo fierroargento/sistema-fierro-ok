@@ -1,3 +1,6 @@
+from domain.estados import Estado
+
+
 # TODO APB ENCODING:
 # Este archivo todavia tiene comparaciones con textos mojibakeados.
 # Pendiente normalizar textos operativos para comparar correctamente valores como:
@@ -8,20 +11,21 @@
 # Estados posteriores al despacho. Se centralizan para evitar listas repetidas
 # e inconsistencias entre tracking, reclamos, inicio, detalle y permisos.
 ESTADOS_POST_DESPACHO = [
-    "Despachado",
-    "Con demora de entrega",
-    "Con reclamo en transporte",
-    "Verificar llegada a destino",
-    "Listo para retirar",
-    "No entregado",
+    Estado.DESPACHADO,
+    Estado.DEMORA,
+    Estado.RECLAMO,
+    Estado.VERIFICAR_DESTINO,
+    Estado.LISTO_RETIRAR,
+    Estado.NO_ENTREGADO,
 ]
 
 # Estados que trabaja el rol Despacho antes de despachar.
 ESTADOS_DESPACHO_OPERATIVO = [
-    "Etiqueta Lista",
-    "Etiqueta Impresa",
-    "Embalado",
+    Estado.ETIQUETA_LISTA,
+    Estado.ETIQUETA_IMPRESA,
+    Estado.EMBALADO,
 ]
+
 
 def es_via_cargo(valor):
     if not valor:
@@ -142,14 +146,14 @@ def requiere_contacto_cliente(pedido):
 # Este mapa representa solamente el avance manual base del operador.
 def siguiente_estado(estado):
     flujo = {
-        "Cargando Pedido": "Etiqueta Lista",
-        "Etiqueta Lista": "Etiqueta Impresa",
-        "Etiqueta Impresa": "Embalado",
-        "Embalado": "Despachado",
-        "Despachado": "Entregado",
-        "Con demora de entrega": "Entregado",
-        "Con reclamo en transporte": "Entregado",
-        "Verificar llegada a destino": "Entregado",
-        "Listo para retirar": "Entregado",
+        Estado.CARGANDO: Estado.ETIQUETA_LISTA,
+        Estado.ETIQUETA_LISTA: Estado.ETIQUETA_IMPRESA,
+        Estado.ETIQUETA_IMPRESA: Estado.EMBALADO,
+        Estado.EMBALADO: Estado.DESPACHADO,
+        Estado.DESPACHADO: Estado.ENTREGADO,
+        Estado.DEMORA: Estado.ENTREGADO,
+        Estado.RECLAMO: Estado.ENTREGADO,
+        Estado.VERIFICAR_DESTINO: Estado.ENTREGADO,
+        Estado.LISTO_RETIRAR: Estado.ENTREGADO,
     }
     return flujo.get(estado)
