@@ -43,3 +43,26 @@ def validar_datos_entrega(pedido):
                     errores.append("Falta teléfono del autorizado.")
 
     return errores
+
+def validar_datos_ml(pedido, parece_nickname_ml):
+    errores = []
+
+    if pedido.canal == "Mercado Libre":
+        if not pedido.ml_tipo:
+            errores.append("Falta tipo de envío ML.")
+
+        elif pedido.ml_tipo == "Mercado Envíos":
+            if not pedido.seguimiento:
+                errores.append("Falta seguimiento ML.")
+            if not pedido.etiqueta_archivo:
+                errores.append("Falta adjuntar etiqueta.")
+
+        elif pedido.ml_tipo == "Acordás la Entrega":
+            if parece_nickname_ml(pedido.cliente, pedido.ml_buyer_nickname) and not (pedido.ml_billing_nombre or "").strip():
+                errores.append("Falta nombre real del cliente.")
+            if not (pedido.dni or "").strip() and not (pedido.ml_billing_documento or "").strip():
+                errores.append("Falta DNI/CUIT del cliente.")
+            if not (pedido.telefono or "").strip():
+                errores.append("Falta teléfono del cliente.")
+
+    return errores
