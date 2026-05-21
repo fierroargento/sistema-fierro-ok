@@ -2418,7 +2418,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
 
 
 def fecha_referencia_estado(pedido):
-    if pedido.estado == "Etiqueta Impresa":
+    if pedido.estado == Estado.ETIQUETA_IMPRESA:
         return pedido.fecha_etiqueta_impresa or pedido.fecha_creacion
 
     if pedido.estado == Estado.EMBALADO:
