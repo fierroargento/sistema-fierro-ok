@@ -2148,7 +2148,7 @@ def accion_sugerida_pedido(pedido):
     if pedido.estado == Estado.ETIQUETA_LISTA:
         return "Imprimir etiqueta"
 
-    if pedido.estado == "Etiqueta Impresa":
+    if pedido.estado == Estado.ETIQUETA_IMPRESA:
         return "Embalar pedido"
 
     if pedido.estado == Estado.EMBALADO:
