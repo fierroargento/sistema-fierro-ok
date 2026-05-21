@@ -3015,7 +3015,7 @@ def etiqueta_es_archivo_local(etiqueta_archivo):
 def puede_imprimir_pedido(pedido):
     rol = rol_actual()
 
-    imprimible = pedido.estado == "Etiqueta Lista"
+    imprimible = pedido.estado == Estado.ETIQUETA_LISTA
 
     if rol == "admin":
         return pedido.estado not in ["Entregado", "Finalizado"] and imprimible
