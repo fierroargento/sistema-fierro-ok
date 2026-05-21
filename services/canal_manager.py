@@ -13,6 +13,7 @@ Objetivo:
 
 from datetime import datetime, timedelta
 
+from domain.estados import Estado, ESTADOS_CERRADOS
 
 # Cooldown anti-spam por defecto
 COOLDOWN_MINUTOS = 30
@@ -216,12 +217,8 @@ def puede_hacer_handoff_ml_a_whatsapp(
         getattr(pedido, "estado", "") or ""
     ).strip()
 
-    if estado in [
-        "Despachado",
-        "Entregado",
-        "Finalizado",
-        "Cancelado",
-        "No entregado",
+    if estado in ESTADOS_CERRADOS + [
+        Estado.DESPACHADO,
     ]:
         return (
             False,
