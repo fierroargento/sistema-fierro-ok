@@ -3081,7 +3081,7 @@ def puede_avanzar_segun_rol(pedido):
 def puede_avanzar_pedido(pedido):
     errores = motor_bloqueo(pedido)
 
-    if pedido.estado == "Cargando Pedido" and errores:
+    if pedido.estado == Estado.CARGANDO and errores:
         return False, errores
 
     if pedido.estado == Estado.DESPACHADO:
