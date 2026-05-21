@@ -22,6 +22,9 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text, inspect, or_
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+
+from domain.estados import Estado
+
 from services.andreani import andreani_configurada, andreani_trazas_envio, resumen_evento_andreani
 from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico, consultar_correo_formulario
 from services.pedidos_estado import (
@@ -2549,7 +2552,11 @@ def alertas_operativas():
             if (ahora - pedido.fecha_creacion).total_seconds() >= 4 * 3600:
                 sin_carga += 1
 
-        if pedido.estado in ["Etiqueta Lista", "Etiqueta Impresa", "Embalado"]:
+        if pedido.estado in [
+    Estado.ETIQUETA_LISTA,
+    Estado.ETIQUETA_IMPRESA,
+    Estado.EMBALADO,
+]:
             ref = fecha_referencia_estado(pedido)
             if ref and (ahora - ref).total_seconds() >= 24 * 3600:
                 sin_despachar += 1
