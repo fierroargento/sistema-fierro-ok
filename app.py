@@ -1624,7 +1624,7 @@ def requiere_seguimiento_retiro(pedido):
     return bool(
         pedido.estado in [
             Estado.DESPACHADO,
-            "Verificar llegada a destino",
+            Estado.VERIFICAR_DESTINO,
             "Con demora de entrega",
             "Con reclamo en transporte",
         ]
@@ -2040,7 +2040,7 @@ def texto_boton_estado(pedido):
             return "Cargar seguimiento"
         return "Marcar entregado"
 
-    if pedido.estado == "Verificar llegada a destino":
+    if pedido.estado == Estado.VERIFICAR_DESTINO:
         if pedido.tipo_entrega == "Sucursal":
             return "Marcar listo para retirar"
         return "Marcar entregado"
@@ -2068,7 +2068,7 @@ def texto_feedback_estado(estado):
         "Etiqueta Impresa": "Etiqueta impresa correctamente.",
         "Embalado": "Pedido embalado correctamente.",
         "Despachado": "Pedido despachado correctamente.",
-        "Verificar llegada a destino": "Pedido despachado correctamente.",
+        Estado.VERIFICAR_DESTINO: "Pedido despachado correctamente.",
         "Listo para retirar": "Cliente avisado correctamente.",
         "Entregado": "Pedido entregado correctamente.",
         "Finalizado": "Pedido finalizado correctamente.",
@@ -2537,7 +2537,7 @@ def alertas_operativas():
         Estado.DESPACHADO,
         "Con demora de entrega",
         "Con reclamo en transporte",
-        "Verificar llegada a destino",
+        Estado.VERIFICAR_DESTINO,
         "Listo para retirar",
         "No entregado",
         "Reclamar a Mercado Libre",
@@ -2836,7 +2836,7 @@ def estados_visibles_inicio():
             Estado.DESPACHADO,
             "Con demora de entrega",
             "Con reclamo en transporte",
-            "Verificar llegada a destino",
+            Estado.VERIFICAR_DESTINO,
             "Listo para retirar",
             "No entregado",
             "Reclamar a Mercado Libre",
@@ -2851,7 +2851,7 @@ def estados_visibles_inicio():
             Estado.DESPACHADO,
             "Con demora de entrega",
             "Con reclamo en transporte",
-            "Verificar llegada a destino",
+            Estado.VERIFICAR_DESTINO,
             "Listo para retirar",
             "No entregado",
             "Reclamar a Mercado Libre",
@@ -2972,7 +2972,7 @@ def puede_agregar_item(pedido):
         Estado.DESPACHADO,
         "Con demora de entrega",
         "Con reclamo en transporte",
-        "Verificar llegada a destino",
+        Estado.VERIFICAR_DESTINO,
         "Listo para retirar",
         "No entregado",
         "Entregado",
@@ -3708,7 +3708,7 @@ def tn_actualizar_enviado_existente(pedido, order):
     if pedido.estado not in ["Entregado", "Finalizado", "No entregado", "Reclamar a Mercado Libre"]:
         if not pedido.fecha_despachado:
             pedido.fecha_despachado = datetime.utcnow()
-        pedido.estado = "Verificar llegada a destino" if (pedido.seguimiento or pedido.tn_tracking_url) else "Despachado"
+        pedido.estado = Estado.VERIFICAR_DESTINO if (pedido.seguimiento or pedido.tn_tracking_url) else Estado.DESPACHADO
     return pedido
 
 
@@ -6541,7 +6541,7 @@ def ml_sync_mensajes_pendientes_pedidos():
         Estado.ETIQUETA_IMPRESA,
         "Embalado",
         "Despachado",
-        "Verificar llegada a destino",
+        Estado.VERIFICAR_DESTINO,
         "Listo para retirar",
         "Con demora de entrega",
         "Con reclamo en transporte",
@@ -7155,7 +7155,7 @@ def ml_sync_claims_pedidos_operativos():
         Estado.ETIQUETA_IMPRESA,
         "Embalado",
         "Despachado",
-        "Verificar llegada a destino",
+        Estado.VERIFICAR_DESTINO,
         "Listo para retirar",
         "Con demora de entrega",
         "Con reclamo en transporte",
