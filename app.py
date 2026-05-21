@@ -11801,6 +11801,13 @@ def avanzar_pedido(id):
     if pedido.estado == Estado.EMBALADO:
         return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje_ok))
 
+    if (
+        pedido.estado == Estado.ENTREGADO
+        and pedido.canal == "Mercado Libre"
+        and pedido.ml_tipo == "Acordás la Entrega"
+    ):
+        return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje_ok))
+
     if rol_actual() == "despacho":
         return redirect(url_for("inicio", ok=mensaje_ok))
 
