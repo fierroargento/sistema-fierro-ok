@@ -1905,7 +1905,7 @@ def aplicar_estado_y_fechas(pedido, nuevo_estado):
             pedido.fecha_etiqueta_impresa = ahora
     elif nuevo_estado == "Embalado":
         pedido.fecha_embalado = ahora
-    elif nuevo_estado == "Despachado":
+    elif nuevo_estado == Estado.DESPACHADO:
         pedido.fecha_despachado = ahora
         aplicar_autoavance_post_despacho(pedido)
 
