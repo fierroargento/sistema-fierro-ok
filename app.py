@@ -2532,7 +2532,7 @@ def alertas_operativas():
     estados_activos = [
         "Cargando Pedido",
         Estado.ETIQUETA_LISTA,
-        "Etiqueta Impresa",
+        Estado.ETIQUETA_IMPRESA,
         "Embalado",
         Estado.DESPACHADO,
         "Con demora de entrega",
@@ -2831,7 +2831,7 @@ def estados_visibles_inicio():
         return [
             "Cargando Pedido",
             Estado.ETIQUETA_LISTA,
-            "Etiqueta Impresa",
+            Estado.ETIQUETA_IMPRESA,
             "Embalado",
             Estado.DESPACHADO,
             "Con demora de entrega",
@@ -6538,7 +6538,7 @@ def ml_sync_mensajes_pendientes_pedidos():
     estados_operativos = [
         "Cargando Pedido",
         Estado.ETIQUETA_LISTA,
-        "Etiqueta Impresa",
+        Estado.ETIQUETA_IMPRESA,
         "Embalado",
         "Despachado",
         "Verificar llegada a destino",
@@ -7152,7 +7152,7 @@ def ml_sync_claims_pedidos_operativos():
     estados_operativos = [
         "Cargando Pedido",
         Estado.ETIQUETA_LISTA,
-        "Etiqueta Impresa",
+        Estado.ETIQUETA_IMPRESA,
         "Embalado",
         "Despachado",
         "Verificar llegada a destino",
