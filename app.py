@@ -1872,7 +1872,7 @@ def actualizar_estado_automatico(pedido):
         return
 
     if debe_pasar_a_demora_entrega(pedido):
-        pedido.estado = "Con demora de entrega"
+        pedido.estado = Estado.DEMORA_ENTREGA
 
 
 def aplicar_autoavance_post_despacho(pedido):
@@ -2045,7 +2045,7 @@ def texto_boton_estado(pedido):
             return "Marcar listo para retirar"
         return "Marcar entregado"
 
-    if pedido.estado == "Listo para retirar":
+    if pedido.estado == Estado.LISTO_RETIRAR:
         return "Marcar entregado"
 
     if pedido.estado == "No entregado":
@@ -2069,7 +2069,7 @@ def texto_feedback_estado(estado):
         "Embalado": "Pedido embalado correctamente.",
         "Despachado": "Pedido despachado correctamente.",
         Estado.VERIFICAR_DESTINO: "Pedido despachado correctamente.",
-        "Listo para retirar": "Cliente avisado correctamente.",
+        Estado.LISTO_RETIRAR: "Cliente avisado correctamente.",
         "Entregado": "Pedido entregado correctamente.",
         "Finalizado": "Pedido finalizado correctamente.",
         "No entregado": "Pedido marcado como no entregado.",
@@ -2154,7 +2154,7 @@ def accion_sugerida_pedido(pedido):
     if pedido.estado == Estado.EMBALADO:
         return "Despachar pedido"
 
-    if pedido.estado == "Con demora de entrega":
+    if pedido.estado == Estado.DEMORA_ENTREGA:
         return "Iniciar reclamo"
 
     if pedido.estado in ["Despachado", "Con reclamo en transporte"]:
@@ -2165,7 +2165,7 @@ def accion_sugerida_pedido(pedido):
     if pedido.estado == "Verificar llegada a destino":
         return "Hacer seguimiento"
 
-    if pedido.estado == "Listo para retirar":
+    if pedido.estado == Estado.LISTO_RETIRAR:
         return "Confirmar entrega"
 
     if pedido.estado == "No entregado":
@@ -2318,7 +2318,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "target": "",
         }
 
-    if pedido.estado == "Listo para retirar" and rol in ["carga", "admin"] and entrega_es_sucursal:
+    if pedido.estado == Estado.LISTO_RETIRAR and rol in ["carga", "admin"] and entrega_es_sucursal:
         return {
             "tipo": "marcar_entregado",
             "texto": "Marcar entregado",
@@ -2573,7 +2573,7 @@ def alertas_operativas():
             if andreani_alerta_pedido(pedido):
                 andreani_alertas += 1
 
-        if pedido.estado == "Con reclamo en transporte":
+        if pedido.estado == Estado.RECLAMO_TRANSPORTE:
             ref_reclamo = pedido.ultima_revision_reclamo or pedido.fecha_hora_reclamo
             if ref_reclamo and (ahora - ref_reclamo).total_seconds() >= 24 * 3600:
                 reclamos_sin_revision += 1
@@ -2636,7 +2636,7 @@ def resumen_operativo(pedidos):
         elif estado in [
             "Despachado",
             "Verificar llegada a destino",
-            "Listo para retirar",
+            Estado.LISTO_RETIRAR,
         ]:
 
             resumen["seguimiento"] += 1
@@ -2837,7 +2837,7 @@ def estados_visibles_inicio():
             "Con demora de entrega",
             "Con reclamo en transporte",
             Estado.VERIFICAR_DESTINO,
-            "Listo para retirar",
+            Estado.LISTO_RETIRAR,
             "No entregado",
             "Reclamar a Mercado Libre",
             "Entregado",
@@ -2852,7 +2852,7 @@ def estados_visibles_inicio():
             "Con demora de entrega",
             "Con reclamo en transporte",
             Estado.VERIFICAR_DESTINO,
-            "Listo para retirar",
+            Estado.LISTO_RETIRAR,
             "No entregado",
             "Reclamar a Mercado Libre",
             "Entregado",
@@ -2973,7 +2973,7 @@ def puede_agregar_item(pedido):
         "Con demora de entrega",
         "Con reclamo en transporte",
         Estado.VERIFICAR_DESTINO,
-        "Listo para retirar",
+        Estado.LISTO_RETIRAR,
         "No entregado",
         "Entregado",
         "Finalizado",
@@ -3084,7 +3084,7 @@ def puede_avanzar_pedido(pedido):
     if pedido.estado == "Cargando Pedido" and errores:
         return False, errores
 
-    if pedido.estado == "Despachado":
+    if pedido.estado == Estado.DESPACHADO:
         if es_via_cargo(pedido.empresa_envio) and not pedido.seguimiento:
             return False, ["En Vía Cargo el seguimiento se carga después del despacho."]
 
@@ -6542,7 +6542,7 @@ def ml_sync_mensajes_pendientes_pedidos():
         "Embalado",
         "Despachado",
         Estado.VERIFICAR_DESTINO,
-        "Listo para retirar",
+        Estado.LISTO_RETIRAR,
         "Con demora de entrega",
         "Con reclamo en transporte",
         "Con reclamo por demora",
@@ -7156,7 +7156,7 @@ def ml_sync_claims_pedidos_operativos():
         "Embalado",
         "Despachado",
         Estado.VERIFICAR_DESTINO,
-        "Listo para retirar",
+        Estado.LISTO_RETIRAR,
         "Con demora de entrega",
         "Con reclamo en transporte",
         "Con reclamo por demora",
@@ -10882,7 +10882,7 @@ def editar_pedido(id):
                 if not pedido.fecha_hora_reclamo:
                     pedido.fecha_hora_reclamo = datetime.utcnow()
                 pedido.ultima_revision_reclamo = datetime.utcnow()
-                pedido.estado = "Con reclamo en transporte"
+                pedido.estado = Estado.RECLAMO_TRANSPORTE
 
             db.session.commit()
             return redirect(url_for("detalle_pedido", id=pedido.id))
@@ -11321,7 +11321,7 @@ def confirmar_entrega(id):
     if not requiere_seguimiento_retiro(pedido):
         return redirect(url_for("inicio"))
 
-    pedido.estado = "Listo para retirar"
+    pedido.estado = Estado.LISTO_RETIRAR
     db.session.commit()
 
     registrar_evento_operativo(
