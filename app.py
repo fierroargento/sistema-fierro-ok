@@ -45,6 +45,7 @@ from services.canal_manager import (
 )
 
 from services.motor_bloqueo import (
+    validar_datos_basicos,
     validar_datos_entrega,
     validar_datos_ml,
     validar_transportes,
@@ -1953,14 +1954,7 @@ def motor_bloqueo(pedido):
     if tn_pedido_bloqueado_cancelado(pedido):
         errores.append("NO DESPACHAR - Pedido cancelado en Tienda Nube.")
 
-    if not pedido.cliente:
-        errores.append("Falta cliente.")
-
-    if not pedido.canal:
-        errores.append("Falta canal.")
-
-    if not pedido.items:
-        errores.append("No hay productos cargados.")
+    errores.extend(validar_datos_basicos(pedido))
 
     error_via_pp6040 = validar_regla_via_cargo_pp6040(pedido)
     if error_via_pp6040:

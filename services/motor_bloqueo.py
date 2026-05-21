@@ -80,3 +80,17 @@ def validar_transportes(pedido, es_tnube):
         errores.append("Falta transporte.")
 
     return errores
+
+def validar_datos_basicos(pedido):
+    errores = []
+
+    if not pedido.cliente:
+        errores.append("Falta cliente.")
+
+    if not pedido.canal:
+        errores.append("Falta canal.")
+
+    if not pedido.items:
+        errores.append("No hay productos cargados.")
+
+    return errores    
