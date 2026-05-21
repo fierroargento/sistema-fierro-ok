@@ -2531,7 +2531,7 @@ def alertas_operativas():
 
     estados_activos = [
         "Cargando Pedido",
-        "Etiqueta Lista",
+        Estado.ETIQUETA_LISTA,
         "Etiqueta Impresa",
         "Embalado",
         "Despachado",
@@ -2830,7 +2830,7 @@ def estados_visibles_inicio():
     if rol == "admin":
         return [
             "Cargando Pedido",
-            "Etiqueta Lista",
+            Estado.ETIQUETA_LISTA,
             "Etiqueta Impresa",
             "Embalado",
             "Despachado",
@@ -6537,7 +6537,7 @@ def ml_sync_mensajes_pendientes_pedidos():
 
     estados_operativos = [
         "Cargando Pedido",
-        "Etiqueta Lista",
+        Estado.ETIQUETA_LISTA,
         "Etiqueta Impresa",
         "Embalado",
         "Despachado",
@@ -7151,7 +7151,7 @@ def ml_sync_claims_pedidos_operativos():
 
     estados_operativos = [
         "Cargando Pedido",
-        "Etiqueta Lista",
+        Estado.ETIQUETA_LISTA,
         "Etiqueta Impresa",
         "Embalado",
         "Despachado",
