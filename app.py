@@ -2151,7 +2151,7 @@ def accion_sugerida_pedido(pedido):
     if pedido.estado == "Etiqueta Impresa":
         return "Embalar pedido"
 
-    if pedido.estado == "Embalado":
+    if pedido.estado == Estado.EMBALADO:
         return "Despachar pedido"
 
     if pedido.estado == "Con demora de entrega":
@@ -11832,7 +11832,7 @@ def avanzar_pedido(id):
 
     # Si queda Embalado, mantener al operador dentro del detalle
     # para continuar directo con el despacho. Aplica también a admin.
-    if pedido.estado == "Embalado":
+    if pedido.estado == Estado.EMBALADO:
         return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje_ok))
 
     if rol_actual() == "despacho":
