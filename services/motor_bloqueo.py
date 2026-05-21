@@ -66,3 +66,17 @@ def validar_datos_ml(pedido, parece_nickname_ml):
                 errores.append("Falta teléfono del cliente.")
 
     return errores
+
+def validar_transportes(pedido, es_tnube):
+    errores = []
+
+    if pedido.empresa_envio in ["Andreani", "Correo Argentino"]:
+        if not pedido.seguimiento:
+            errores.append("Falta número de seguimiento.")
+        if not pedido.etiqueta_archivo:
+            errores.append("Falta adjuntar etiqueta.")
+
+    if es_tnube(pedido) and not pedido.empresa_envio:
+        errores.append("Falta transporte.")
+
+    return errores

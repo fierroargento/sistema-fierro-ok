@@ -47,6 +47,7 @@ from services.canal_manager import (
 from services.motor_bloqueo import (
     validar_datos_entrega,
     validar_datos_ml,
+    validar_transportes,
 )
 
 app = Flask(__name__)
@@ -1977,14 +1978,7 @@ def motor_bloqueo(pedido):
     if requiere_datos_envio and not pedido.empresa_envio and not usa_flujo_etiqueta_directa(pedido):
         errores.append("Falta transporte.")
 
-    if pedido.empresa_envio in ["Andreani", "Correo Argentino"]:
-        if not pedido.seguimiento:
-            errores.append("Falta número de seguimiento.")
-        if not pedido.etiqueta_archivo:
-            errores.append("Falta adjuntar etiqueta.")
-
-    if es_tnube(pedido) and not pedido.empresa_envio:
-        errores.append("Falta transporte.")
+    errores.extend(validar_transportes(pedido, es_tnube))
 
     return errores
 
