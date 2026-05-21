@@ -23,7 +23,12 @@ from sqlalchemy import text, inspect, or_
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from domain.estados import Estado
+from domain.estados import (
+    Estado,
+    ESTADOS_FINALES,
+    ESTADOS_CERRADOS,
+)
+
 
 from services.andreani import andreani_configurada, andreani_trazas_envio, resumen_evento_andreani
 from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico, consultar_correo_formulario
@@ -2564,7 +2569,7 @@ def alertas_operativas():
             if ref and (ahora - ref).total_seconds() >= 24 * 3600:
                 sin_despachar += 1
 
-        if es_via_cargo(pedido.empresa_envio) and pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"]:
+        if es_via_cargo(pedido.empresa_envio) and pedido.estado in ESTADOS_POST_DESPACHO:
             ref = pedido.fecha_despachado or fecha_referencia_estado(pedido)
             if ref and (ahora - ref).total_seconds() >= 72 * 3600:
                 seguimiento += 1
@@ -2605,7 +2610,7 @@ def alertas_operativas():
 def pedido_sin_despacho(pedido):
     return bool(
         pedido
-        and pedido.estado not in ESTADOS_POST_DESPACHO + ["Entregado", "Finalizado"]
+        and pedido.estado not in ESTADOS_POST_DESPACHO + ESTADOS_FINALES[:2]
     )
 
 
@@ -4625,7 +4630,7 @@ def aplicar_estado_tracking_seguro(pedido, clasificacion):
     """
     if not pedido or not clasificacion:
         return None
-    if pedido.estado in ["Finalizado", "No entregado", "Reclamar a Mercado Libre"]:
+    if pedido.estado in ESTADOS_CERRADOS:
         return None
 
     es_ml_acordas = (

@@ -26,3 +26,41 @@ class Estado:
     # FINAL
     ENTREGADO = "Entregado"
     FINALIZADO = "Finalizado"
+
+
+ESTADOS_POST_DESPACHO = [
+    Estado.DESPACHADO,
+    Estado.DEMORA,
+    Estado.RECLAMO,
+    Estado.VERIFICAR_DESTINO,
+    Estado.LISTO_RETIRAR,
+    Estado.NO_ENTREGADO,
+]
+
+ESTADOS_FINALES = [
+    Estado.ENTREGADO,
+    Estado.FINALIZADO,
+    Estado.CANCELADO,
+]
+
+ESTADOS_CERRADOS = ESTADOS_FINALES + [
+    Estado.NO_ENTREGADO,
+    Estado.RECLAMAR_ML,
+]
+
+ESTADOS_RECLAMO = [
+    Estado.DEMORA,
+    Estado.RECLAMO,
+]
+
+ESTADOS_ACTIVOS = [
+    Estado.CARGANDO,
+    Estado.ETIQUETA_LISTA,
+    Estado.ETIQUETA_IMPRESA,
+    Estado.EMBALADO,
+    Estado.DESPACHADO,
+    Estado.DEMORA,
+    Estado.RECLAMO,
+    Estado.VERIFICAR_DESTINO,
+    Estado.LISTO_RETIRAR,
+]

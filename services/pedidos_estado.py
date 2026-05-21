@@ -1,4 +1,4 @@
-from domain.estados import Estado
+from domain.estados import Estado, ESTADOS_POST_DESPACHO
 
 
 # TODO APB ENCODING:
@@ -10,14 +10,7 @@ from domain.estados import Estado
 # APB ESTADOS:
 # Estados posteriores al despacho. Se centralizan para evitar listas repetidas
 # e inconsistencias entre tracking, reclamos, inicio, detalle y permisos.
-ESTADOS_POST_DESPACHO = [
-    Estado.DESPACHADO,
-    Estado.DEMORA,
-    Estado.RECLAMO,
-    Estado.VERIFICAR_DESTINO,
-    Estado.LISTO_RETIRAR,
-    Estado.NO_ENTREGADO,
-]
+
 
 # Estados que trabaja el rol Despacho antes de despachar.
 ESTADOS_DESPACHO_OPERATIVO = [
