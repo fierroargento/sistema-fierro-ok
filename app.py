@@ -2029,7 +2029,7 @@ def texto_boton_estado(pedido):
     if pedido.estado == Estado.ETIQUETA_LISTA:
         return "Imprimir etiqueta"
 
-    if pedido.estado == "Etiqueta Impresa":
+    if pedido.estado == Estado.ETIQUETA_IMPRESA:
         return "Marcar embalado"
 
     if pedido.estado == Estado.EMBALADO:
