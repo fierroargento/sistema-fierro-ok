@@ -1623,7 +1623,7 @@ def requiere_seguimiento_retiro(pedido):
 
     return bool(
         pedido.estado in [
-            "Despachado",
+            Estado.DESPACHADO,
             "Verificar llegada a destino",
             "Con demora de entrega",
             "Con reclamo en transporte",
@@ -2387,7 +2387,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
         rol == "carga"
         and pedido.estado in [
             "Cargando Pedido",
-            "Despachado",
+            Estado.DESPACHADO,
             "Con demora de entrega",
             "Con reclamo en transporte",
             "No entregado"
@@ -2534,7 +2534,7 @@ def alertas_operativas():
         Estado.ETIQUETA_LISTA,
         "Etiqueta Impresa",
         "Embalado",
-        "Despachado",
+        Estado.DESPACHADO,
         "Con demora de entrega",
         "Con reclamo en transporte",
         "Verificar llegada a destino",
@@ -2833,7 +2833,7 @@ def estados_visibles_inicio():
             Estado.ETIQUETA_LISTA,
             "Etiqueta Impresa",
             "Embalado",
-            "Despachado",
+            Estado.DESPACHADO,
             "Con demora de entrega",
             "Con reclamo en transporte",
             "Verificar llegada a destino",
@@ -2848,7 +2848,7 @@ def estados_visibles_inicio():
         # Los pedidos de preparación/despacho no deben mezclarse en Inicio.
         return [
             "Cargando Pedido",
-            "Despachado",
+            Estado.DESPACHADO,
             "Con demora de entrega",
             "Con reclamo en transporte",
             "Verificar llegada a destino",
@@ -2969,7 +2969,7 @@ def puede_agregar_item(pedido):
         return False
 
     if pedido.estado in [
-        "Despachado",
+        Estado.DESPACHADO,
         "Con demora de entrega",
         "Con reclamo en transporte",
         "Verificar llegada a destino",
