@@ -2032,7 +2032,7 @@ def texto_boton_estado(pedido):
     if pedido.estado == "Etiqueta Impresa":
         return "Marcar embalado"
 
-    if pedido.estado == "Embalado":
+    if pedido.estado == Estado.EMBALADO:
         return "Marcar despachado"
 
     if pedido.estado in ESTADOS_POST_DESPACHO[:3]:
