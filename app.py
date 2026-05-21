@@ -1868,7 +1868,7 @@ def actualizar_estado_automatico(pedido):
         puede_imprimir_etiqueta_directamente(pedido)
         or puede_imprimir_acordas_entrega(pedido)
     ):
-        pedido.estado = "Etiqueta Lista"
+        pedido.estado = Estado.ETIQUETA_LISTA
         return
 
     if debe_pasar_a_demora_entrega(pedido):
