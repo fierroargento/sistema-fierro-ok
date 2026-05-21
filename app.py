@@ -3060,7 +3060,7 @@ def puede_avanzar_segun_rol(pedido):
         return False, ["Este estado lo trabaja Embalaje y Despacho."]
 
     if rol == "despacho":
-        if pedido.estado in ["Etiqueta Impresa", "Embalado"]:
+        if pedido.estado in [Estado.ETIQUETA_IMPRESA, Estado.EMBALADO]:
             return True, []
         return False, ["Este estado lo trabaja el operador de Carga."]
 
