@@ -2394,7 +2394,10 @@ def accion_principal_pedido(pedido, origen="inicio"):
         ]
     ) or (
         rol == "despacho"
-        and pedido.estado in ["Etiqueta Impresa", "Embalado"]
+        and pedido.estado in [
+    Estado.ETIQUETA_IMPRESA,
+    Estado.EMBALADO,
+]
     ):
         texto = texto_boton_estado(pedido)
 
@@ -2418,7 +2421,7 @@ def fecha_referencia_estado(pedido):
     if pedido.estado == "Etiqueta Impresa":
         return pedido.fecha_etiqueta_impresa or pedido.fecha_creacion
 
-    if pedido.estado == "Embalado":
+    if pedido.estado == Estado.EMBALADO:
         return pedido.fecha_embalado or pedido.fecha_etiqueta_impresa or pedido.fecha_creacion
 
     if pedido.estado in ESTADOS_POST_DESPACHO:
