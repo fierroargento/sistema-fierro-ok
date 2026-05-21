@@ -44,6 +44,8 @@ from services.canal_manager import (
     registrar_envio_automatico,
 )
 
+from services.motor_bloqueo import validar_datos_entrega
+
 app = Flask(__name__)
 
 logging.basicConfig(
@@ -1978,34 +1980,12 @@ def motor_bloqueo(pedido):
             if not (pedido.telefono or "").strip():
                 errores.append("Falta teléfono del cliente.")
 
+    errores.extend(validar_datos_entrega(pedido))
+
     requiere_datos_envio = True
 
     if usa_flujo_acordas_entrega(pedido) and not despacho_completo(pedido):
         requiere_datos_envio = False
-
-    if requiere_datos_envio and pedido.empresa_envio:
-        if not pedido.tipo_entrega:
-            errores.append("Falta tipo de entrega.")
-
-        if pedido.tipo_entrega == "Domicilio":
-            if not pedido.direccion or not pedido.localidad or not pedido.provincia:
-                errores.append("Faltan datos domicilio.")
-            if not pedido.codigo_postal:
-                errores.append("Falta CP.")
-
-        if pedido.tipo_entrega == "Sucursal":
-            if not pedido.sucursal_nombre:
-                errores.append("Falta nombre de sucursal.")
-            if not pedido.direccion or not pedido.localidad or not pedido.provincia:
-                errores.append("Faltan datos sucursal.")
-
-            if hay_autorizado(pedido):
-                if not pedido.autorizado_nombre:
-                    errores.append("Falta nombre del autorizado.")
-                if not pedido.autorizado_dni:
-                    errores.append("Falta DNI del autorizado.")
-                if not pedido.autorizado_telefono:
-                    errores.append("Falta teléfono del autorizado.")
 
     if requiere_datos_envio and not pedido.empresa_envio and not usa_flujo_etiqueta_directa(pedido):
         errores.append("Falta transporte.")
