@@ -14,8 +14,14 @@ class Estado:
 
     # EXCEPCIONES
     DEMORA = "Con demora de entrega"
+    DEMORA_ENTREGA = DEMORA
+
     RECLAMO = "Con reclamo en transporte"
+    RECLAMO_TRANSPORTE = RECLAMO
+
     NO_ENTREGADO = "No entregado"
+    RECLAMAR_ML = "Reclamar a Mercado Libre"
+    CANCELADO = "Cancelado"
 
     # FINAL
     ENTREGADO = "Entregado"
