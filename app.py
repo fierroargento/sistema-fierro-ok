@@ -1872,7 +1872,7 @@ def actualizar_estado_automatico(pedido):
         return
 
     if debe_pasar_a_demora_entrega(pedido):
-        pedido.estado = Estado.DEMORA_ENTREGA
+        pedido.estado = Estado.DEMORA
 
 
 def aplicar_autoavance_post_despacho(pedido):
@@ -2154,7 +2154,7 @@ def accion_sugerida_pedido(pedido):
     if pedido.estado == Estado.EMBALADO:
         return "Despachar pedido"
 
-    if pedido.estado == Estado.DEMORA_ENTREGA:
+    if pedido.estado == Estado.DEMORA:
         return "Iniciar reclamo"
 
     if pedido.estado in ["Despachado", "Con reclamo en transporte"]:
@@ -2573,7 +2573,7 @@ def alertas_operativas():
             if andreani_alerta_pedido(pedido):
                 andreani_alertas += 1
 
-        if pedido.estado == Estado.RECLAMO_TRANSPORTE:
+        if pedido.estado == Estado.RECLAMO:
             ref_reclamo = pedido.ultima_revision_reclamo or pedido.fecha_hora_reclamo
             if ref_reclamo and (ahora - ref_reclamo).total_seconds() >= 24 * 3600:
                 reclamos_sin_revision += 1
@@ -10882,7 +10882,7 @@ def editar_pedido(id):
                 if not pedido.fecha_hora_reclamo:
                     pedido.fecha_hora_reclamo = datetime.utcnow()
                 pedido.ultima_revision_reclamo = datetime.utcnow()
-                pedido.estado = Estado.RECLAMO_TRANSPORTE
+                pedido.estado = Estado.RECLAMO
 
             db.session.commit()
             return redirect(url_for("detalle_pedido", id=pedido.id))
