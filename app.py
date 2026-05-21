@@ -3090,7 +3090,7 @@ def puede_avanzar_pedido(pedido):
 
     nuevo_estado = siguiente_estado(pedido.estado)
     if (
-        nuevo_estado == "Despachado"
+        nuevo_estado == Estado.DESPACHADO
         and getattr(pedido, "agregado_pendiente_revision", False)
     ):
         return False, [
