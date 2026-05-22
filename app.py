@@ -39,7 +39,8 @@ from services.ml_importacion import (
     ml_preparar_pedido_base_importacion_service,
     ml_intentar_contacto_inicial_acordas_service,
     ml_limpiar_pedidos_ml_no_operables_existentes_service,
-    ml_procesar_orders_sync_service,            
+    ml_procesar_orders_sync_service,
+    ml_actualizar_resumen_sync_service,                
 )    
 
 from services.telefonos import normalizar_telefono_service
@@ -7098,31 +7099,26 @@ def ml_sync_manual(limit=20, incluir_auxiliares=False):
         mensajes_pendientes = ml_sync_mensajes_pendientes_pedidos()
         claims_marcados = ml_sync_claims_pedidos_operativos()
 
-    cuenta.last_sync_at = datetime.utcnow()
-    cuenta.last_sync_status = "ok" if not errores else "parcial"
-
-    detalle = f"Pedidos leídos: {len(orders)} | Nuevos: {creados} | Actualizados: {actualizados} | Omitidos: {omitidos} | Eliminados no operables: {eliminados_existentes} | Mensajes ML pendientes: {mensajes_pendientes} | Reclamos ML detectados: {claims_marcados}"
-    if errores:
-        detalle += " | Detalle: " + " ; ".join(errores[:5])
-
-    cuenta.last_sync_detail = detalle
-
-    session["ml_me_sin_etiqueta_count"] = mercado_envios_sin_etiqueta
-    session["ml_me_sin_etiqueta_ids"] = mercado_envios_sin_etiqueta_ids[:10]
+    resultado = (
+        ml_actualizar_resumen_sync_service(
+            cuenta,
+            orders,
+            creados,
+            actualizados,
+            omitidos,
+            eliminados_existentes,
+            mensajes_pendientes,
+            claims_marcados,
+            errores,
+            mercado_envios_sin_etiqueta,
+            mercado_envios_sin_etiqueta_ids,
+            session,
+        )
+    )
 
     db.session.commit()
 
-    return {
-        "leidos": len(orders),
-        "creados": creados,
-        "actualizados": actualizados,
-        "omitidos": omitidos,
-        "eliminados": eliminados_existentes,
-        "mensajes_pendientes": mensajes_pendientes,
-        "claims_marcados": claims_marcados,
-        "errores": errores,
-        "me_sin_etiqueta": mercado_envios_sin_etiqueta,
-    }
+    return resultado
 
 
 def ia_datos_detectados_pedido(pedido):

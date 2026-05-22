@@ -492,3 +492,68 @@ def ml_procesar_orders_sync_service(
             mercado_envios_sin_etiqueta_ids
         ),
     }
+
+from datetime import datetime, UTC
+
+
+def ml_actualizar_resumen_sync_service(
+    cuenta,
+    orders,
+    creados,
+    actualizados,
+    omitidos,
+    eliminados_existentes,
+    mensajes_pendientes,
+    claims_marcados,
+    errores,
+    mercado_envios_sin_etiqueta,
+    mercado_envios_sin_etiqueta_ids,
+    session,
+):
+    ahora = datetime.now(UTC)
+
+    cuenta.last_sync_at = ahora
+
+    cuenta.last_sync_status = (
+        "ok"
+        if not errores
+        else "parcial"
+    )
+
+    detalle = (
+        f"Pedidos leídos: {len(orders)} "
+        f"| Nuevos: {creados} "
+        f"| Actualizados: {actualizados} "
+        f"| Omitidos: {omitidos} "
+        f"| Eliminados no operables: {eliminados_existentes} "
+        f"| Mensajes ML pendientes: {mensajes_pendientes} "
+        f"| Reclamos ML detectados: {claims_marcados}"
+    )
+
+    if errores:
+        detalle += (
+            " | Detalle: "
+            + " ; ".join(errores[:5])
+        )
+
+    cuenta.last_sync_detail = detalle
+
+    session["ml_me_sin_etiqueta_count"] = (
+        mercado_envios_sin_etiqueta
+    )
+
+    session["ml_me_sin_etiqueta_ids"] = (
+        mercado_envios_sin_etiqueta_ids[:10]
+    )
+
+    return {
+        "leidos": len(orders),
+        "creados": creados,
+        "actualizados": actualizados,
+        "omitidos": omitidos,
+        "eliminados": eliminados_existentes,
+        "mensajes_pendientes": mensajes_pendientes,
+        "claims_marcados": claims_marcados,
+        "errores": errores,
+        "me_sin_etiqueta": mercado_envios_sin_etiqueta,
+    }
