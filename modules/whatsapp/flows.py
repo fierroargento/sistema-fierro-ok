@@ -38,6 +38,15 @@ from .cross_sell import (
     wa_responder_precio, wa_cerrar_cross_sell, wa_escalar_venta_cerrada,
 )
 
+from modules.whatsapp.text_utils import (
+    es_afirmativo,
+    es_negativo,
+    pregunta_precio,
+    pregunta_cantidad,
+    es_queja_o_problema,
+    es_consulta_factura,
+    requiere_factura_distinta,
+)
 
 # ─────────────────────────────────────────────
 # HELPERS
@@ -118,54 +127,31 @@ def _escalar_operador(pedido, motivo, mensaje_cliente=None):
 
 
 def _es_afirmativo(texto):
-    texto = texto.lower().strip()
-    return any(x in texto for x in [
-        "si", "sí", "ok", "dale", "confirmo", "confirmado", "correcto",
-        "exacto", "perfecto", "claro", "obvio", "de una", "va", "bueno",
-        "está bien", "esta bien", "todo bien", "listo", "por supuesto",
-    ])
+    return es_afirmativo(texto)
 
 
 def _es_negativo(texto):
-    texto = texto.lower().strip()
-    return any(x in texto for x in [
-        "no", "nope", "negativo", "no gracias", "no me interesa", "no quiero",
-        "paso", "por ahora no", "solo domicilio", "prefiero domicilio", "a domicilio",
-    ])
+    return es_negativo(texto)
 
 
 def _pregunta_precio(texto):
-    texto = texto.lower().strip()
-    return any(x in texto for x in ["cuanto", "cuánto", "precio", "sale", "cuesta", "valor", "costo", "plata"])
+    return pregunta_precio(texto)
 
 
 def _pregunta_cantidad(texto):
-    numeros = re.findall(r"\b([1-9][0-9]?)\b", texto)
-    return int(numeros[0]) if numeros else None
+    return pregunta_cantidad(texto)
 
 
 def _es_queja_o_problema(texto):
-    texto = texto.lower()
-    return any(x in texto for x in [
-        "reclamo", "queja", "problema", "no llegó", "no llego", "no recibi",
-        "no recibí", "cancelar", "cancelación", "devolucion", "devolución",
-        "estafa", "mentira", "mal", "roto", "defecto", "incompleto",
-        "no funciona", "tarde", "demora", "donde esta", "dónde está",
-    ])
+    return es_queja_o_problema(texto)
 
 
 def _es_consulta_factura(texto):
-    t = texto.lower()
-    return any(x in t for x in ["factura", "facturacion", "facturación", "factura a", "factura b"])
+    return es_consulta_factura(texto)
 
 
 def _requiere_factura_distinta(texto):
-    t = texto.lower()
-    return any(x in t for x in [
-        "otros datos", "otro dato", "otra razon", "otra razón", "razon social", "razón social",
-        "otro cuit", "cuit distinto", "a nombre de", "datos distintos", "cambiar datos",
-        "no son esos", "con estos datos", "te paso los datos",
-    ])
+    return requiere_factura_distinta(texto)
 
 
 def _responder_factura_o_escalar(pedido, texto_cliente):
