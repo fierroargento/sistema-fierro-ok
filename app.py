@@ -38,7 +38,8 @@ from services.ml_importacion import (
     ml_prevalidar_importacion_order_service,
     ml_preparar_pedido_base_importacion_service,
     ml_intentar_contacto_inicial_acordas_service,
-    ml_limpiar_pedidos_ml_no_operables_existentes_service,        
+    ml_limpiar_pedidos_ml_no_operables_existentes_service,
+    ml_procesar_orders_sync_service,            
 )    
 
 from services.telefonos import normalizar_telefono_service
@@ -7066,34 +7067,29 @@ def ml_sync_manual(limit=20, incluir_auxiliares=False):
     eliminados_existentes, detalles_eliminados = ml_limpiar_pedidos_ml_no_operables_existentes()
 
     orders = ml_obtener_orders_recientes(cuenta, limit=limit)
-    creados = 0
-    actualizados = 0
-    omitidos = 0
+    resultado_sync = (
+        ml_procesar_orders_sync_service(
+            orders,
+            ml_upsert_pedido_desde_order,
+        )
+    )
+
+    creados = resultado_sync["creados"]
+    actualizados = resultado_sync["actualizados"]
+    omitidos = resultado_sync["omitidos"]
+
     errores = list(detalles_eliminados)
-    mercado_envios_sin_etiqueta = 0
-    mercado_envios_sin_etiqueta_ids = []
+    errores.extend(
+        resultado_sync["errores"]
+    )
 
-    for order in orders:
-        order_id = str(order.get("id") or "").strip() or "sin_id"
-        try:
-            pedido, creado, motivo_omision = ml_upsert_pedido_desde_order(order)
-            if not pedido:
-                omitidos += 1
-                if motivo_omision and "__ML_ME_SIN_ETIQUETA__" in motivo_omision:
-                    mercado_envios_sin_etiqueta += 1
-                    mercado_envios_sin_etiqueta_ids.append(order_id)
-                    errores.append(f"{order_id}: omitido (Mercado Envíos sin etiqueta)")
-                elif motivo_omision:
-                    errores.append(f"{order_id}: omitido ({motivo_omision})")
-                continue
+    mercado_envios_sin_etiqueta = (
+        resultado_sync["me_sin_etiqueta"]
+    )
 
-            if creado:
-                creados += 1
-            else:
-                actualizados += 1
-        except Exception as e:
-            omitidos += 1
-            errores.append(f"{order_id}: {e}")
+    mercado_envios_sin_etiqueta_ids = (
+        resultado_sync["me_sin_etiqueta_ids"]
+    )
 
     mensajes_pendientes = 0
     claims_marcados = 0

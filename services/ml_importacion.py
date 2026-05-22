@@ -417,3 +417,78 @@ def ml_limpiar_pedidos_ml_no_operables_existentes_service(
             )
 
     return eliminados, detalles
+
+def ml_procesar_orders_sync_service(
+    orders,
+    ml_upsert_pedido_desde_order,
+):
+    creados = 0
+    actualizados = 0
+    omitidos = 0
+    errores = []
+
+    mercado_envios_sin_etiqueta = 0
+    mercado_envios_sin_etiqueta_ids = []
+
+    for order in orders:
+
+        order_id = str(
+            (order or {}).get("id")
+            or ""
+        ).strip() or "sin_id"
+
+        try:
+            pedido, creado, motivo_omision = (
+                ml_upsert_pedido_desde_order(
+                    order
+                )
+            )
+
+            if not pedido:
+                omitidos += 1
+
+                if (
+                    motivo_omision
+                    and "__ML_ME_SIN_ETIQUETA__"
+                    in motivo_omision
+                ):
+                    mercado_envios_sin_etiqueta += 1
+
+                    mercado_envios_sin_etiqueta_ids.append(
+                        order_id
+                    )
+
+                    errores.append(
+                        f"{order_id}: omitido "
+                        f"(Mercado Envíos sin etiqueta)"
+                    )
+
+                elif motivo_omision:
+                    errores.append(
+                        f"{order_id}: omitido "
+                        f"({motivo_omision})"
+                    )
+
+                continue
+
+            if creado:
+                creados += 1
+            else:
+                actualizados += 1
+
+        except Exception as e:
+            omitidos += 1
+            errores.append(
+                f"{order_id}: {e}"
+            )
+
+    return {
+        "creados": creados,
+        "actualizados": actualizados,
+        "omitidos": omitidos,
+        "errores": errores,
+        "me_sin_etiqueta": mercado_envios_sin_etiqueta,
+        "me_sin_etiqueta_ids": (
+            mercado_envios_sin_etiqueta_ids
+        ),
+    }
