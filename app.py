@@ -1878,7 +1878,7 @@ def debe_pasar_a_demora_entrega(pedido):
 
 
 def actualizar_estado_automatico(pedido):
-    if pedido.estado == "Cargando Pedido" and (
+    if pedido.estado == Estado.CARGANDO and (
         puede_imprimir_etiqueta_directamente(pedido)
         or puede_imprimir_acordas_entrega(pedido)
     ):
@@ -1890,12 +1890,12 @@ def actualizar_estado_automatico(pedido):
 
 
 def aplicar_autoavance_post_despacho(pedido):
-    if pedido.estado != "Despachado":
+    if pedido.estado != Estado.DESPACHADO:
         return
 
     if es_via_cargo(pedido.empresa_envio):
         if pedido.seguimiento:
-            pedido.estado = "Verificar llegada a destino"
+            pedido.estado = Estado.VERIFICAR_DESTINO
         return
 
     if (
@@ -1904,7 +1904,7 @@ def aplicar_autoavance_post_despacho(pedido):
         and pedido.empresa_envio in ["Andreani", "Correo Argentino"]
         and pedido.seguimiento
     ):
-        pedido.estado = "Verificar llegada a destino"
+        pedido.estado = Estado.VERIFICAR_DESTINO
 
 
 def aplicar_estado_y_fechas(pedido, nuevo_estado):
