@@ -30,7 +30,8 @@ from .config import (
     WA_TEMPLATE_INICIO_CHAT_OPERADOR,
     WA_TEMPLATE_SEGUIMIENTO,
     WA_TEMPLATE_RETIRO,
-    WA_TEMPLATE_POSTVENTA_PARRILLA,    
+    WA_TEMPLATE_POSTVENTA_PARRILLA,
+    WA_ESPERANDO_CONFIRMACION_SUCURSAL,    
 )
 from .sender import wa_enviar_texto, wa_enviar_template
 from .cross_sell import (
@@ -616,7 +617,11 @@ def wa_enviar_confirmacion_sucursal(pedido):
         f"{pedido.direccion or ''}\n\n"
         f"Confirmás que está correcto?"
     )
-    _guardar_estado_wa(pedido, "esperando_confirmacion_sucursal", tel)
+    _guardar_estado_wa(
+    pedido,
+    WA_ESPERANDO_CONFIRMACION_SUCURSAL,
+    tel
+)
     return wa_enviar_texto(tel, texto)
 
 

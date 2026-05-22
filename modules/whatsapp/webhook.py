@@ -141,7 +141,7 @@ def _routear_mensaje(pedido, texto, telefono):
         return
 
     # Esperando confirmación de sucursal legacy
-    if estado == "esperando_confirmacion_sucursal":
+    if estado == WA_ESPERANDO_CONFIRMACION_SUCURSAL:
         wa_procesar_respuesta_confirmacion(pedido, texto)
         return
 

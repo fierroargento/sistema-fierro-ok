@@ -40,12 +40,20 @@ CORREO_SERVICIO_PP6040 = "Pack AR Clásico"
 # ── Estados WA normalizados ────────────────────────────────────────
 WA_ESPERANDO_DATOS = "esperando_datos"
 WA_ESPERANDO_OK_INICIO = "esperando_ok_inicio"
+WA_ESPERANDO_CONFIRMACION_SUCURSAL = "esperando_confirmacion_sucursal"
+
 WA_FALTA_ELEGIR_TRANSPORTE = "falta_elegir_transporte"
 WA_REQUIERE_OPERADOR = "requiere_operador"
 WA_CONFIRMADO_CLIENTE = "confirmado_cliente"
+
 WA_DESPACHO_EN_PROCESO = "despacho_en_proceso"
 WA_DESPACHADO = "despachado"
+WA_LISTO_PARA_RETIRAR = "listo_para_retirar"
 WA_POSTVENTA = "postventa"
+
+WA_CROSS_SELL = "cross_sell"
+WA_CROSS_SELL_CERRADO = "cross_sell_cerrado"
+
 WA_FINALIZADO = "finalizado"
 # ── Templates Meta WhatsApp ─────────────────────────────────────────
 WA_TEMPLATE_LANG = "es_AR"

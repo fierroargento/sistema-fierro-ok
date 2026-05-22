@@ -102,7 +102,7 @@ def ejecutar_timers_whatsapp():
             ]))
             .filter(Pedido.wa_estado.in_([
                 "esperando_datos",
-                "esperando_confirmacion_sucursal",
+                WA_ESPERANDO_CONFIRMACION_SUCURSAL,
             ]))
             .limit(100)
             .all()
