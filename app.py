@@ -52,7 +52,8 @@ from services.ml_estados import (
     ml_es_envio_full_service,
     ml_es_mercado_envios_order_service,
     ml_envio_ya_despachado_service,
-    ml_order_debe_omitirse_service,        
+    ml_order_debe_omitirse_service,
+    ml_marcar_pedido_finalizado_por_entrega_service,            
 )
 
 from services.ml_claims import (
@@ -6890,32 +6891,18 @@ def ml_registrar_order_ignorado(
     )
 
 
-def ml_marcar_pedido_finalizado_por_entrega(pedido, order, shipment=None):
-    """Mantiene la venta en Histórico cuando ML ya la informa como entregada."""
-    if not pedido:
-        return None
-
-    shipment = shipment or {}
-    estado_order = ml_estado_order(order)
-    estado_shipping = ml_estado_shipment(order, shipment)
-
-    pedido.origen = "mercadolibre"
-    pedido.canal = "Mercado Libre"
-    pedido.id_venta = str((order or {}).get("id") or pedido.id_venta or "").strip()
-    pedido.ml_order_status = estado_order or pedido.ml_order_status
-    if estado_shipping:
-        pedido.ml_shipping_status = estado_shipping
-
-    pedido.estado = "Finalizado"
-    pedido.fecha_entregado = pedido.fecha_entregado or datetime.utcnow()
-    pedido.ultima_sync_ml = datetime.utcnow()
-
-    aviso = "ML informa venta entregada. Pedido movido automáticamente a Histórico/Finalizado."
-    obs = str(pedido.observaciones or "").strip()
-    if aviso not in obs:
-        pedido.observaciones = (f"{aviso} {obs}".strip())[:300]
-
-    return pedido
+def ml_marcar_pedido_finalizado_por_entrega(
+    pedido,
+    order,
+    shipment=None,
+):
+    return ml_marcar_pedido_finalizado_por_entrega_service(
+        pedido,
+        order,
+        shipment,
+        ml_estado_order,
+        ml_estado_shipment,
+    )
 
 
 def ml_order_debe_omitirse(order, shipment=None):

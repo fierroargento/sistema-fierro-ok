@@ -242,4 +242,67 @@ def ml_order_debe_omitirse_service(
     if no_operable:
         return True, motivo
 
-    return False, ""    
+    return False, "" 
+
+from datetime import datetime, UTC
+
+from domain.estados import Estado
+
+
+def ml_marcar_pedido_finalizado_por_entrega_service(
+    pedido,
+    order,
+    shipment=None,
+    ml_estado_order=None,
+    ml_estado_shipment=None,
+):
+    """Mantiene la venta en Histórico cuando ML ya la informa como entregada."""
+
+    if not pedido:
+        return None
+
+    shipment = shipment or {}
+
+    estado_order = ml_estado_order(order)
+    estado_shipping = ml_estado_shipment(
+        order,
+        shipment,
+    )
+
+    pedido.origen = "mercadolibre"
+    pedido.canal = "Mercado Libre"
+    pedido.id_venta = str(
+        (order or {}).get("id")
+        or pedido.id_venta
+        or ""
+    ).strip()
+
+    pedido.ml_order_status = (
+        estado_order
+        or pedido.ml_order_status
+    )
+
+    if estado_shipping:
+        pedido.ml_shipping_status = estado_shipping
+
+    ahora = datetime.now(UTC)
+
+    pedido.estado = Estado.FINALIZADO
+    pedido.fecha_entregado = pedido.fecha_entregado or ahora
+    pedido.ultima_sync_ml = ahora
+
+    aviso = (
+        "ML informa venta entregada. "
+        "Pedido movido automáticamente a Histórico/Finalizado."
+    )
+
+    obs = str(
+        pedido.observaciones or ""
+    ).strip()
+
+    if aviso not in obs:
+        pedido.observaciones = (
+            f"{aviso} {obs}".strip()
+        )[:300]
+
+    return pedido   
