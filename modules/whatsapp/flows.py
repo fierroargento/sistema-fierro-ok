@@ -26,6 +26,7 @@ from .config import (
     WA_DESPACHADO,
     WA_POSTVENTA,
     WA_FINALIZADO,
+    WA_CROSS_SELL_CERRADO,
     WA_TEMPLATE_PEDIDO_DATO,
     WA_TEMPLATE_INICIO_DESPACHO,
     WA_TEMPLATE_INICIO_CHAT_OPERADOR,
@@ -750,7 +751,7 @@ def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_a
             wa_ofrecer_producto(tel, siguiente_sku)
         else:
             wa_cerrar_cross_sell(tel)
-            _guardar_estado_wa(pedido, "cross_sell_cerrado", tel)
+            _guardar_estado_wa(pedido, WA_CROSS_SELL_CERRADO, tel)
         return
     _wa_responder_con_ia(pedido, texto_cliente, tel)
 

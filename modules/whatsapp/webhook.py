@@ -19,6 +19,7 @@ from .config import (
     WA_DESPACHADO,
     WA_CONFIRMADO_CLIENTE,
     WA_POSTVENTA,
+    WA_CROSS_SELL_CERRADO,
 )
 from .flows import (
     wa_procesar_respuesta_confirmacion,
@@ -274,7 +275,7 @@ def _routear_mensaje(pedido, texto, telefono):
         return
 
     # Cross-sell activo
-    if estado.startswith("cross_sell:") and estado != "cross_sell_cerrado":
+    if estado.startswith("cross_sell:") and estado != WA_CROSS_SELL_CERRADO:
         partes = estado.split(":")
         sku_actual = partes[1] if len(partes) > 1 else ""
         try:
