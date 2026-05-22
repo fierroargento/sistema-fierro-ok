@@ -322,3 +322,98 @@ def ml_intentar_contacto_inicial_acordas_service(
         return enviado_auto, motivo_auto
 
     return False, ""
+
+from datetime import datetime, UTC
+
+
+def ml_limpiar_pedidos_ml_no_operables_existentes_service(
+    Pedido,
+    ml_obtener_order,
+    ml_obtener_shipment,
+    ml_order_esta_entregado,
+    ml_estado_order,
+    ml_estado_shipment,
+    ml_order_debe_omitirse,
+    ml_borrar_pedido_importado_si_corresponde,
+):
+    pedidos = (
+        Pedido.query
+        .filter_by(
+            canal="Mercado Libre",
+            origen="mercadolibre",
+            estado="Cargando Pedido",
+        )
+        .order_by(Pedido.id.asc())
+        .all()
+    )
+
+    eliminados = 0
+    detalles = []
+
+    for pedido in pedidos:
+        order_id = str(
+            pedido.id_venta or ""
+        ).strip()
+
+        if not order_id:
+            continue
+
+        order = ml_obtener_order(
+            order_id
+        )
+
+        if not order:
+            continue
+
+        shipment = ml_obtener_shipment(
+            (order.get("shipping") or {}).get("id")
+        )
+
+        if ml_order_esta_entregado(
+            order,
+            shipment,
+        ):
+            pedido.ml_order_status = (
+                ml_estado_order(order)
+                or pedido.ml_order_status
+            )
+
+            estado_shipping = ml_estado_shipment(
+                order,
+                shipment,
+            )
+
+            if estado_shipping:
+                pedido.ml_shipping_status = estado_shipping
+
+            ahora = datetime.now(UTC)
+
+            pedido.estado = "Entregado"
+            pedido.fecha_entregado = (
+                pedido.fecha_entregado
+                or ahora
+            )
+
+            pedido.ultima_sync_ml = ahora
+
+            detalles.append(
+                f"{order_id}: ML informó entregado; pedido actualizado a Entregado"
+            )
+
+            continue
+
+        omitir, motivo = ml_order_debe_omitirse(
+            order,
+            shipment,
+        )
+
+        if (
+            omitir
+            and ml_borrar_pedido_importado_si_corresponde(pedido)
+        ):
+            eliminados += 1
+            detalles.append(
+                f"{order_id}: eliminado ({motivo})"
+            )
+
+    return eliminados, detalles

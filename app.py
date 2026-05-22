@@ -37,7 +37,8 @@ from modules.whatsapp.runtime import (
 from services.ml_importacion import (
     ml_prevalidar_importacion_order_service,
     ml_preparar_pedido_base_importacion_service,
-    ml_intentar_contacto_inicial_acordas_service,    
+    ml_intentar_contacto_inicial_acordas_service,
+    ml_limpiar_pedidos_ml_no_operables_existentes_service,        
 )    
 
 from services.telefonos import normalizar_telefono_service
@@ -7045,56 +7046,16 @@ def ml_borrar_pedidos_ml_cargando_importados():
 
 
 def ml_limpiar_pedidos_ml_no_operables_existentes():
-    pedidos = (
-        Pedido.query
-        .filter_by(canal="Mercado Libre", origen="mercadolibre", estado="Cargando Pedido")
-        .order_by(Pedido.id.asc())
-        .all()
+    return ml_limpiar_pedidos_ml_no_operables_existentes_service(
+        Pedido,
+        ml_obtener_order,
+        ml_obtener_shipment,
+        ml_order_esta_entregado,
+        ml_estado_order,
+        ml_estado_shipment,
+        ml_order_debe_omitirse,
+        ml_borrar_pedido_importado_si_corresponde,
     )
-
-    eliminados = 0
-    detalles = []
-
-    for pedido in pedidos:
-        order_id = str(pedido.id_venta or "").strip()
-        if not order_id:
-            continue
-
-        order = ml_obtener_order(order_id)
-        if not order:
-            continue
-
-        shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
-
-        if ml_order_esta_entregado(order, shipment):
-            pedido.ml_order_status = ml_estado_order(order) or pedido.ml_order_status
-
-            estado_shipping = ml_estado_shipment(order, shipment)
-
-            if estado_shipping:
-                pedido.ml_shipping_status = estado_shipping
-
-            pedido.estado = "Entregado"
-            pedido.fecha_entregado = (
-                pedido.fecha_entregado
-                or datetime.utcnow()
-            )
-
-            pedido.ultima_sync_ml = datetime.utcnow()
-
-            detalles.append(
-                f"{order_id}: ML informó entregado; pedido actualizado a Entregado"
-            )
-
-            continue
-
-        omitir, motivo = ml_order_debe_omitirse(order, shipment)
-
-        if omitir and ml_borrar_pedido_importado_si_corresponde(pedido):
-            eliminados += 1
-            detalles.append(f"{order_id}: eliminado ({motivo})")
-
-    return eliminados, detalles
 
 
 def ml_sync_manual(limit=20, incluir_auxiliares=False):
