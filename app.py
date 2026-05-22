@@ -30,6 +30,14 @@ from domain.estados import (
 )
 
 from services.telefonos import normalizar_telefono_service
+from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
+
+from services.conversacional import (
+    obtener_estado_conversacional_service,
+    actualizar_estado_conversacional_service,
+)
+
+from services.eventos_operativos import registrar_evento_operativo_service
 
 from services.workflow import (
     aplicar_autoavance_post_despacho_service,
@@ -978,55 +986,21 @@ def normalizar_telefono(raw):
     return normalizar_telefono_service(raw)
 
 def buscar_pedido_activo_por_telefono(telefono):
-    """Busca el pedido activo más reciente asociado a un teléfono normalizado."""
-    tel_norm = normalizar_telefono(telefono)
-    if not tel_norm:
-        return None
-
-    ultimos = (
-        Pedido.query
-        .filter(Pedido.estado.notin_(["Finalizado", "Cancelado"]))
-        .order_by(Pedido.id.desc())
-        .limit(80)
-        .all()
-    )
-    cola = tel_norm[-8:]
-    for pedido in ultimos:
-        tel_pedido = normalizar_telefono(getattr(pedido, "telefono", ""))
-        if tel_pedido and tel_pedido[-8:] == cola:
-            return pedido
-    return None
-
-def obtener_estado_conversacional(pedido, crear_si_no_existe=True):
-    """Devuelve el estado conversacional APB asociado al pedido.
-
-    Si no existe y crear_si_no_existe=True, lo crea con valores seguros.
-    """
-    if not pedido:
-        return None
-
-    estado = EstadoConversacionalPedido.query.filter_by(
-        pedido_id=pedido.id
-    ).first()
-
-    if estado or not crear_si_no_existe:
-        return estado
-
-    estado = EstadoConversacionalPedido(
-        pedido_id=pedido.id,
-        owner_actual="bot",
-        estado_conversacional="recolectando_datos",
-        canal_activo="ml",
-        flujo_base="",
-        takeover_activo=False,
-        bot_pausado=False,
-        cross_sell_activo=False,
-        ultima_interaccion=datetime.utcnow(),
+    return buscar_pedido_activo_por_telefono_service(
+        telefono,
+        Pedido,
     )
 
-    db.session.add(estado)
-    db.session.commit()
-    return estado
+def obtener_estado_conversacional(
+    pedido,
+    crear_si_no_existe=True,
+):
+    return obtener_estado_conversacional_service(
+        pedido,
+        EstadoConversacionalPedido,
+        db,
+        crear_si_no_existe=crear_si_no_existe,
+    )
 
 
 def actualizar_estado_conversacional(
@@ -1041,42 +1015,20 @@ def actualizar_estado_conversacional(
     ultimo_mensaje_cliente=None,
     ultimo_mensaje_bot=None,
 ):
-    """Actualiza el estado conversacional APB sin modificar el flujo operativo."""
-    estado = obtener_estado_conversacional(pedido)
-
-    if not estado:
-        return None
-
-    if owner_actual is not None:
-        estado.owner_actual = owner_actual
-
-    if estado_conversacional is not None:
-        estado.estado_conversacional = estado_conversacional
-
-    if canal_activo is not None:
-        estado.canal_activo = canal_activo
-
-    if flujo_base is not None:
-        estado.flujo_base = flujo_base
-
-    if takeover_activo is not None:
-        estado.takeover_activo = bool(takeover_activo)
-
-    if bot_pausado is not None:
-        estado.bot_pausado = bool(bot_pausado)
-
-    if cross_sell_activo is not None:
-        estado.cross_sell_activo = bool(cross_sell_activo)
-
-    if ultimo_mensaje_cliente is not None:
-        estado.ultimo_mensaje_cliente = ultimo_mensaje_cliente
-
-    if ultimo_mensaje_bot is not None:
-        estado.ultimo_mensaje_bot = ultimo_mensaje_bot
-
-    estado.ultima_interaccion = datetime.utcnow()
-    db.session.commit()
-    return estado
+    return actualizar_estado_conversacional_service(
+        pedido,
+        EstadoConversacionalPedido,
+        db,
+        owner_actual=owner_actual,
+        estado_conversacional=estado_conversacional,
+        canal_activo=canal_activo,
+        flujo_base=flujo_base,
+        takeover_activo=takeover_activo,
+        bot_pausado=bot_pausado,
+        cross_sell_activo=cross_sell_activo,
+        ultimo_mensaje_cliente=ultimo_mensaje_cliente,
+        ultimo_mensaje_bot=ultimo_mensaje_bot,
+    )
 
 def registrar_evento_operativo(
     pedido=None,
@@ -1092,41 +1044,22 @@ def registrar_evento_operativo(
     usuario="",
     procesado=False,
 ):
-    """Registra un evento operativo APB sin romper el flujo si falla.
-
-    Este helper es la puerta única para guardar eventos del motor
-    conversacional/operativo. No debe cortar la operación principal.
-    """
-    if not tipo_evento:
-        return None
-
-    try:
-        evento = EventoOperativo(
-            pedido_id=getattr(pedido, "id", None),
-            tipo_evento=str(tipo_evento)[:120],
-            origen=str(origen or "")[:50],
-            canal=str(canal or "")[:30],
-            owner=str(owner or "")[:30],
-            estado_conversacional=str(estado_conversacional or "")[:80],
-            flujo_base=str(flujo_base or "")[:80],
-            payload_json=json.dumps(payload or {}, ensure_ascii=False),
-            resultado=str(resultado or "")[:80],
-            detalle=str(detalle or "")[:2000],
-            usuario=str(usuario or "")[:100],
-            procesado=bool(procesado),
-            fecha=datetime.utcnow(),
-        )
-        db.session.add(evento)
-        db.session.commit()
-        return evento
-
-    except Exception as e:
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-        print("[EVENTO-OPERATIVO] No se pudo registrar evento:", e)
-        return None
+    return registrar_evento_operativo_service(
+        EventoOperativo,
+        db,
+        pedido=pedido,
+        tipo_evento=tipo_evento,
+        origen=origen,
+        canal=canal,
+        owner=owner,
+        estado_conversacional=estado_conversacional,
+        flujo_base=flujo_base,
+        payload=payload,
+        resultado=resultado,
+        detalle=detalle,
+        usuario=usuario,
+        procesado=procesado,
+    )
 
 def wa_ventana_24h_abierta(pedido=None, telefono=""):
     """Devuelve True si el cliente respondió por WhatsApp dentro de las últimas 24 hs."""
