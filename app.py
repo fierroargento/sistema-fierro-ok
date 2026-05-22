@@ -38,6 +38,10 @@ from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
 
+from services.ml_etiquetas import (
+    ml_preparar_etiqueta_mercado_envios_service,
+)
+
 from services.ml_ignorados import (
     ml_pedido_esta_ignorado_service,
     ml_registrar_pedido_ignorado_service,
@@ -6821,16 +6825,15 @@ def ml_validar_orden_operable_antes_de_despacho(pedido):
     )
 
 
-def ml_preparar_etiqueta_mercado_envios(order, shipment=None):
-    shipping = (order or {}).get("shipping") or {}
-    shipment = shipment or {}
-    shipping_id = str(shipping.get("id") or shipment.get("id") or "").strip()
-    if not shipping_id:
-        return ""
-    nombre_pdf = ml_guardar_etiqueta_pdf(shipping_id)
-    if not nombre_pdf:
-        return ""
-    return os.path.basename(str(nombre_pdf))
+def ml_preparar_etiqueta_mercado_envios(
+    order,
+    shipment=None,
+):
+    return ml_preparar_etiqueta_mercado_envios_service(
+        order,
+        shipment,
+        ml_guardar_etiqueta_pdf,
+    )
 
 
 def ml_estado_order(order):
