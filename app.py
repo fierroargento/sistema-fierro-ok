@@ -42,12 +42,17 @@ from services.ml_estados import (
     ml_estado_order_service,
     ml_estado_shipment_service,
     ml_order_esta_entregado_service,
+    ml_logistica_no_operable_service,
+    ml_es_envio_full_service,
+    ml_es_mercado_envios_order_service,
+    ml_envio_ya_despachado_service,    
 )
 
 from services.ml_claims import (
     ml_pedido_tiene_claim_service,
     ml_marcar_claim_en_pedido_service,
     ml_sync_claims_pedidos_operativos_service,
+    ml_obtener_claim_de_order_service,    
 )
 
 from services.conversacional import (
@@ -6714,58 +6719,33 @@ def ml_pedido_existente_operativo(order, shipment=None):
 
 
 def ml_logistica_no_operable(order, shipment):
-    shipping = order.get("shipping") or {}
-    tags = order.get("tags") or []
-
-    valores = [
-        shipment.get("logistic_type"),
-        shipment.get("mode"),
-        shipping.get("logistic_type"),
-        shipping.get("mode"),
-    ]
-
-    valores_normalizados = [str(v or "").lower().strip() for v in valores]
-    tags_normalizados = [str(t or "").lower().strip() for t in tags]
-
-    if (
-        "fulfillment" in valores_normalizados
-        or "fulfillment" in tags_normalizados
-        or "meli_full" in tags_normalizados
-        or "mercado_envios_full" in tags_normalizados
-        or "full" in tags_normalizados
-    ):
-        return True, "Mercado Envíos Full"
-
-    if (
-        "self_service" in valores_normalizados
-        or "self_service" in tags_normalizados
-        or "flex" in valores_normalizados
-        or "flex" in tags_normalizados
-        or "mercado_envios_flex" in tags_normalizados
-    ):
-        return True, "Mercado Envíos Flex"
-
-    return False, ""
+    return ml_logistica_no_operable_service(
+        order,
+        shipment,
+    )
 
 
 def ml_es_envio_full(order, shipment):
-    no_operable, motivo = ml_logistica_no_operable(order, shipment)
-    return no_operable and motivo == "Mercado Envíos Full"
+    return ml_es_envio_full_service(
+        order,
+        shipment,
+        ml_logistica_no_operable,
+    )
 
 
 def ml_es_mercado_envios_order(order, shipment=None):
-    return ml_mapear_tipo(order or {}, shipment or {}) == "Mercado Envíos"
+    return ml_es_mercado_envios_order_service(
+        order,
+        shipment,
+        ml_mapear_tipo,
+    )
 
 
 def ml_envio_ya_despachado(order, shipment=None):
-    shipment = shipment or {}
-    shipping = (order or {}).get("shipping") or {}
-    estados = {
-        str(shipment.get("status") or "").lower().strip(),
-        str(shipping.get("status") or "").lower().strip(),
-    }
-    estados.discard("")
-    return bool(estados.intersection({"shipped", "delivered", "not_delivered", "cancelled", "returned"}))
+    return ml_envio_ya_despachado_service(
+        order,
+        shipment,
+    )
 
 
 CLAIM_ESTADOS_BLOQUEANTES = {"opened", "under_review", "mediating", "claim_opened"}
@@ -6774,45 +6754,11 @@ CLAIM_ESTADOS_REEMBOLSO = {"closed", "resolved", "refunded", "buyer_won"}
 
 
 def ml_obtener_claim_de_order(order_id, pack_id=None):
-    """
-    Busca un reclamo activo para una order/pack en Mercado Libre.
-    Devuelve el claim dict o None.
-    """
-    order_id = str(order_id or "").strip()
-    pack_id = str(pack_id or "").strip()
-
-    consultas = []
-    if order_id:
-        consultas.append({"order_id": order_id, "role": "seller", "limit": 5})
-        consultas.append({"resource_id": order_id, "role": "seller", "limit": 5})
-    if pack_id and pack_id != order_id:
-        consultas.append({"resource_id": pack_id, "role": "seller", "limit": 5})
-
-    for params in consultas:
-        try:
-            data = ml_api_get("/post-purchase/v1/claims/search", params=params)
-            claims = []
-            if isinstance(data, dict):
-                claims = data.get("data") or data.get("results") or data.get("claims") or []
-            elif isinstance(data, list):
-                claims = data
-
-            if not isinstance(claims, list):
-                claims = []
-
-            for claim in claims:
-                status = str((claim or {}).get("status") or "").lower().strip()
-                resolution = str((claim or {}).get("resolution") or {})
-                # Bloqueante: reclamo activo O cerrado con reembolso al comprador
-                if status in CLAIM_ESTADOS_BLOQUEANTES:
-                    return claim
-                if status in CLAIM_ESTADOS_REEMBOLSO and "buyer" in resolution.lower():
-                    return claim
-
-        except Exception as e:
-            print(f"[ML-CLAIMS] Error buscando claim params={params}: {e}")
-
-    return None
+    return ml_obtener_claim_de_order_service(
+        order_id,
+        pack_id=pack_id,
+        ml_api_get=ml_api_get,
+    )
 
 
 def ml_marcar_claim_en_pedido(

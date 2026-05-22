@@ -3,6 +3,106 @@ from datetime import datetime, UTC
 
 from domain.estados import Estado
 
+CLAIM_ESTADOS_BLOQUEANTES = {
+    "opened",
+    "under_review",
+    "mediating",
+    "claim_opened",
+}
+
+CLAIM_ESTADOS_REEMBOLSO = {
+    "closed",
+    "resolved",
+    "refunded",
+    "buyer_won",
+}
+
+def ml_obtener_claim_de_order_service(
+    order_id,
+    pack_id=None,
+    ml_api_get=None,
+):
+    """
+    Busca un reclamo activo para una order/pack en Mercado Libre.
+    Devuelve el claim dict o None.
+    """
+
+    order_id = str(order_id or "").strip()
+    pack_id = str(pack_id or "").strip()
+
+    consultas = []
+
+    if order_id:
+        consultas.append({
+            "order_id": order_id,
+            "role": "seller",
+            "limit": 5,
+        })
+
+        consultas.append({
+            "resource_id": order_id,
+            "role": "seller",
+            "limit": 5,
+        })
+
+    if pack_id and pack_id != order_id:
+        consultas.append({
+            "resource_id": pack_id,
+            "role": "seller",
+            "limit": 5,
+        })
+
+    for params in consultas:
+        try:
+            data = ml_api_get(
+                "/post-purchase/v1/claims/search",
+                params=params,
+            )
+
+            claims = []
+
+            if isinstance(data, dict):
+                claims = (
+                    data.get("data")
+                    or data.get("results")
+                    or data.get("claims")
+                    or []
+                )
+
+            elif isinstance(data, list):
+                claims = data
+
+            if not isinstance(claims, list):
+                claims = []
+
+            for claim in claims:
+                status = str(
+                    (claim or {}).get("status")
+                    or ""
+                ).lower().strip()
+
+                resolution = str(
+                    (claim or {}).get("resolution")
+                    or {}
+                )
+
+                # Bloqueante:
+                # reclamo activo O cerrado con reembolso al comprador.
+                if status in CLAIM_ESTADOS_BLOQUEANTES:
+                    return claim
+
+                if (
+                    status in CLAIM_ESTADOS_REEMBOLSO
+                    and "buyer" in resolution.lower()
+                ):
+                    return claim
+
+        except Exception as e:
+            print(
+                f"[ML-CLAIMS] Error buscando claim params={params}: {e}"
+            )
+
+    return None
 
 def ml_pedido_tiene_claim_service(pedido):
     return bool(
