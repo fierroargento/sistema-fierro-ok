@@ -29,6 +29,7 @@ from domain.estados import (
     ESTADOS_CERRADOS,
 )
 
+from services.telefonos import normalizar_telefono_service
 
 from services.workflow import (
     aplicar_autoavance_post_despacho_service,
@@ -974,28 +975,7 @@ def hay_reclamo_generado(pedido):
 
 
 def normalizar_telefono(raw):
-    telefono = "" if raw is None else str(raw).strip()
-
-    if not telefono:
-        return ""
-
-    telefono = telefono.replace("+", "")
-    solo_digitos = re.sub(r"\D", "", telefono)
-
-    if solo_digitos.startswith("549"):
-        return solo_digitos
-
-    if solo_digitos.startswith("54"):
-        resto = solo_digitos[2:]
-        if resto.startswith("9"):
-            return "54" + resto
-        return "549" + resto
-
-    if solo_digitos.startswith("15"):
-        solo_digitos = solo_digitos[2:]
-
-    return "549" + solo_digitos
-
+    return normalizar_telefono_service(raw)
 
 def buscar_pedido_activo_por_telefono(telefono):
     """Busca el pedido activo más reciente asociado a un teléfono normalizado."""
