@@ -30,6 +30,10 @@ from domain.estados import (
 )
 
 
+from services.workflow import (
+    aplicar_autoavance_post_despacho_service,
+    actualizar_estado_automatico_service,
+)
 from services.andreani import andreani_configurada, andreani_trazas_envio, resumen_evento_andreani
 from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico, consultar_correo_formulario
 from services.pedidos_estado import (
@@ -1878,33 +1882,16 @@ def debe_pasar_a_demora_entrega(pedido):
 
 
 def actualizar_estado_automatico(pedido):
-    if pedido.estado == Estado.CARGANDO and (
-        puede_imprimir_etiqueta_directamente(pedido)
-        or puede_imprimir_acordas_entrega(pedido)
-    ):
-        pedido.estado = Estado.ETIQUETA_LISTA
-        return
-
-    if debe_pasar_a_demora_entrega(pedido):
-        pedido.estado = Estado.DEMORA
+    actualizar_estado_automatico_service(
+        pedido,
+        puede_imprimir_etiqueta_directamente,
+        puede_imprimir_acordas_entrega,
+        debe_pasar_a_demora_entrega,
+    )
 
 
 def aplicar_autoavance_post_despacho(pedido):
-    if pedido.estado != Estado.DESPACHADO:
-        return
-
-    if es_via_cargo(pedido.empresa_envio):
-        if pedido.seguimiento:
-            pedido.estado = Estado.VERIFICAR_DESTINO
-        return
-
-    if (
-        pedido.canal == "Mercado Libre"
-        and pedido.ml_tipo == "Acordás la Entrega"
-        and pedido.empresa_envio in ["Andreani", "Correo Argentino"]
-        and pedido.seguimiento
-    ):
-        pedido.estado = Estado.VERIFICAR_DESTINO
+    aplicar_autoavance_post_despacho_service(pedido)
 
 
 def aplicar_estado_y_fechas(pedido, nuevo_estado):
