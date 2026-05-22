@@ -36,6 +36,13 @@ from modules.whatsapp.runtime import (
 
 from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
+from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
+
+from services.ml_claims import (
+    ml_pedido_tiene_claim_service,
+    ml_marcar_claim_en_pedido_service,
+    ml_sync_claims_pedidos_operativos_service,
+)
 
 from services.conversacional import (
     obtener_estado_conversacional_service,
@@ -6802,210 +6809,55 @@ def ml_obtener_claim_de_order(order_id, pack_id=None):
     return None
 
 
-def ml_marcar_claim_en_pedido(pedido, claim):
-    """Guarda o limpia datos del reclamo ML en el pedido."""
-    if not pedido:
-        return
-
-    if claim:
-        pedido.ml_claim_id = str(claim.get("id") or claim.get("claim_id") or "").strip()
-        pedido.ml_claim_abierto = True
-        pedido.ml_claim_status = str(claim.get("status") or "").lower().strip()
-        pedido.ml_claim_reason = str(claim.get("reason_id") or claim.get("type") or claim.get("stage") or "").strip()
-
-        # APB:
-        # Reclamo cerrado con devolución/reembolso
-        # implica fin operativo del pedido.
-        # No queda activo en Inicio.
-        status = pedido.ml_claim_status
-
-        resolution_raw = claim.get("resolution") or ""
-
-        if isinstance(resolution_raw, dict):
-            resolution = json.dumps(
-                resolution_raw,
-                ensure_ascii=False
-            ).lower()
-        else:
-            resolution = str(
-                resolution_raw
-            ).lower()
-
-        palabras_reembolso = [
-            "refund",
-            "refunded",
-            "buyer",
-            "return",
-            "money_back",
-            "devol"
-        ]
-
-        hay_reembolso = any(
-            palabra in resolution
-            for palabra in palabras_reembolso
-        )
-
-        if (
-            status in CLAIM_ESTADOS_REEMBOLSO
-            and hay_reembolso
-        ):
-
-            if pedido.estado not in [
-                "Finalizado"
-            ]:
-
-                pedido.estado = "Finalizado"
-
-                observacion_actual = (
-                    pedido.observaciones or ""
-                ).strip()
-
-                marca = (
-                    "ML informó reclamo cerrado "
-                    "con reembolso al comprador."
-                )
-
-                if marca not in observacion_actual:
-                    pedido.observaciones = (
-                        f"{observacion_actual}\n{marca}"
-                    ).strip()
-
-                print(
-                    f"[ML-CLAIMS] Pedido #{pedido.id} "
-                    f"finalizado automáticamente "
-                    f"por reclamo con reembolso"
-                )
-    else:
-        pedido.ml_claim_abierto = False
-        pedido.ml_claim_status = ""
-        pedido.ml_claim_reason = ""
-
-    pedido.ultima_sync_claim_ml = datetime.utcnow()
+def ml_marcar_claim_en_pedido(
+    pedido,
+    claim,
+):
+    return ml_marcar_claim_en_pedido_service(
+        pedido,
+        claim,
+    )
 
 
 def ml_sync_claims_pedidos_operativos():
-    """
-    Consulta claims para pedidos ML operativos.
-    Respaldo para cuando el webhook no trae/impacta el evento.
-    """
-    cuenta = cuenta_ml_actual()
-    if not cuenta:
-        return 0
-
     estados_operativos = [
-        "Cargando Pedido",
+        Estado.CARGANDO,
         Estado.ETIQUETA_LISTA,
         Estado.ETIQUETA_IMPRESA,
-        "Embalado",
-        "Despachado",
+        Estado.EMBALADO,
+        Estado.DESPACHADO,
         Estado.VERIFICAR_DESTINO,
         Estado.LISTO_RETIRAR,
-        "Con demora de entrega",
-        "Con reclamo en transporte",
+        Estado.DEMORA,
+        Estado.RECLAMO,
         "Con reclamo por demora",
     ]
 
-    pedidos = Pedido.query.filter(
-        Pedido.canal == "Mercado Libre",
-        Pedido.estado.in_(estados_operativos)
-    ).all()
-
-    marcados = 0
-
-    for pedido in pedidos:
-        order_id = str(getattr(pedido, "id_venta", "") or "").strip()
-        pack_id = str(getattr(pedido, "ml_pack_id", "") or "").strip()
-        if not order_id and not pack_id:
-            continue
-
-        claim = ml_obtener_claim_de_order(order_id, pack_id)
-        ml_marcar_claim_en_pedido(pedido, claim)
-        if claim:
-            marcados += 1
-
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        print(f"[ML-CLAIMS-SYNC] Error commit: {e}")
-
-    return marcados
+    return ml_sync_claims_pedidos_operativos_service(
+        Pedido,
+        db,
+        cuenta_ml_actual,
+        ml_obtener_claim_de_order,
+        ml_marcar_claim_en_pedido,
+        estados_operativos,
+    )
 
 
 def ml_pedido_tiene_claim(pedido):
-    return bool(pedido and getattr(pedido, "ml_claim_abierto", False))
+    return ml_pedido_tiene_claim_service(
+        pedido
+    )
 
 
 def ml_validar_orden_operable_antes_de_despacho(pedido):
-    """
-    Revalida en vivo contra Mercado Libre antes de embalar o despachar.
-    Evita operar pedidos que se cancelaron o cambiaron de estado en ML
-    entre la ultima sincronizacion y la accion del operador.
-    """
-    if not pedido or pedido.canal != "Mercado Libre" or not pedido.id_venta:
-        return True, ""
-
-    try:
-        order = ml_obtener_order(pedido.id_venta)
-        if not order:
-            return True, ""
-
-        estado_order = str(order.get("status") or "").lower().strip()
-        pedido.ml_order_status = estado_order or pedido.ml_order_status
-
-        shipping = order.get("shipping") or {}
-        shipping_id = str(shipping.get("id") or pedido.ml_shipping_id or "").strip()
-        shipment = ml_obtener_shipment(shipping_id) if shipping_id else {}
-
-        estado_shipping = str((shipment or {}).get("status") or shipping.get("status") or "").lower().strip()
-        if estado_shipping:
-            pedido.ml_shipping_status = estado_shipping
-        if shipping_id:
-            pedido.ml_shipping_id = shipping_id
-        pedido.ultima_sync_ml = datetime.utcnow()
-
-        estados_order_bloqueados = {"cancelled", "invalid"}
-        estados_shipping_bloqueados = {"cancelled", "not_delivered", "returned"}
-        estados_shipping_ya_operados = {"shipped", "delivered"}
-
-        if estado_order in estados_order_bloqueados:
-            db.session.commit()
-            return False, f"Mercado Libre informa que la venta esta {estado_order}. No corresponde embalar ni despachar."
-
-        if estado_shipping in estados_shipping_bloqueados:
-            db.session.commit()
-            return False, f"Mercado Libre informa que el envio esta {estado_shipping}. No corresponde embalar ni despachar."
-
-        if pedido.ml_tipo == "Mercado Envíos" and estado_shipping in estados_shipping_ya_operados:
-            db.session.commit()
-            return False, f"Mercado Libre informa que el envio ya figura {estado_shipping}. Revisar la venta antes de operar."
-
-        # --- APB: bloquear operación si ML tiene reclamo activo ---
-        if getattr(pedido, "ml_claim_abierto", False):
-            db.session.commit()
-            return False, (
-                f"Este pedido tiene un reclamo activo en Mercado Libre "
-                f"(ID: {pedido.ml_claim_id or 'sin ID'}). "
-                "No corresponde embalar ni despachar. Atender el reclamo primero."
-            )
-
-        claim_live = ml_obtener_claim_de_order(pedido.id_venta, getattr(pedido, "ml_pack_id", "") or "")
-        if claim_live:
-            ml_marcar_claim_en_pedido(pedido, claim_live)
-            db.session.commit()
-            return False, (
-                f"Mercado Libre reporta un reclamo activo "
-                f"({claim_live.get('reason_id') or claim_live.get('type') or 'sin motivo informado'}). "
-                "No corresponde embalar ni despachar. Atender el reclamo primero."
-            )
-
-        db.session.commit()
-        return True, ""
-
-    except Exception as e:
-        db.session.rollback()
-        print("No se pudo revalidar orden ML antes de embalar/despachar:", e)
-        return True, ""
+    return ml_validar_orden_operable_antes_de_despacho_service(
+        pedido,
+        db,
+        ml_obtener_order,
+        ml_obtener_shipment,
+        ml_obtener_claim_de_order,
+        ml_marcar_claim_en_pedido,
+    )
 
 
 def ml_preparar_etiqueta_mercado_envios(order, shipment=None):
