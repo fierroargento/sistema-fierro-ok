@@ -53,7 +53,8 @@ from services.ml_estados import (
     ml_es_mercado_envios_order_service,
     ml_envio_ya_despachado_service,
     ml_order_debe_omitirse_service,
-    ml_marcar_pedido_finalizado_por_entrega_service,            
+    ml_marcar_pedido_finalizado_por_entrega_service,
+    ml_borrar_pedido_importado_si_corresponde_service,                
 )
 
 from services.ml_claims import (
@@ -6916,41 +6917,13 @@ def ml_order_debe_omitirse(order, shipment=None):
     )
 
 
-def ml_borrar_pedido_importado_si_corresponde(pedido):
-    """
-    APB:
-    Antes se borraban pedidos ML importados en Cargando Pedido.
-    Eso rompe si ya existen eventos/auditoría asociados.
-
-    Nueva regla:
-    No borrar pedidos con historial.
-    Se finalizan operativamente para sacarlos de Inicio,
-    dejando trazabilidad.
-    """
-    if not pedido:
-        return False
-
-    if pedido.canal != "Mercado Libre":
-        return False
-
-    if pedido.origen != "mercadolibre":
-        return False
-
-    if pedido.estado != "Cargando Pedido":
-        return False
-
-    pedido.estado = "Finalizado"
-
-    obs = (pedido.observaciones or "").strip()
-    marca = (
-        "Pedido ML omitido por sync. "
-        "No se borró para preservar auditoría."
+def ml_borrar_pedido_importado_si_corresponde(
+    pedido,
+):
+    return ml_borrar_pedido_importado_si_corresponde_service(
+        pedido,
+        Estado,
     )
-
-    if marca not in obs:
-        pedido.observaciones = f"{obs}\n{marca}".strip()
-
-    return True
 
 
 def ml_upsert_pedido_desde_order(order):

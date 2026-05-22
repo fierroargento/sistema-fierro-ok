@@ -306,3 +306,48 @@ def ml_marcar_pedido_finalizado_por_entrega_service(
         )[:300]
 
     return pedido   
+
+def ml_borrar_pedido_importado_si_corresponde_service(
+    pedido,
+    Estado,
+):
+    """
+    APB:
+    Antes se borraban pedidos ML importados en Cargando Pedido.
+    Eso rompe si ya existen eventos/auditoría asociados.
+
+    Nueva regla:
+    No borrar pedidos con historial.
+    Se finalizan operativamente para sacarlos de Inicio,
+    dejando trazabilidad.
+    """
+
+    if not pedido:
+        return False
+
+    if pedido.canal != "Mercado Libre":
+        return False
+
+    if pedido.origen != "mercadolibre":
+        return False
+
+    if pedido.estado != Estado.CARGANDO:
+        return False
+
+    pedido.estado = Estado.FINALIZADO
+
+    obs = (
+        pedido.observaciones or ""
+    ).strip()
+
+    marca = (
+        "Pedido ML omitido por sync. "
+        "No se borró para preservar auditoría."
+    )
+
+    if marca not in obs:
+        pedido.observaciones = (
+            f"{obs}\n{marca}"
+        ).strip()
+
+    return True
