@@ -186,3 +186,139 @@ def ml_prevalidar_importacion_order_service(
         "shipment": shipment,
         "etiqueta_ml_preparada": etiqueta_ml_preparada,
     }
+
+from datetime import datetime, UTC
+
+
+def ml_preparar_pedido_base_importacion_service(
+    order,
+    shipment,
+    id_operativo_ml,
+    etiqueta_ml_preparada,
+    Pedido,
+    db,
+    ml_nombre_cliente,
+    ml_es_mercado_envios_order,
+    ml_pedido_existente_operativo,
+    ml_aplicar_datos_envio,
+    ml_aplicar_apb_en_pedido,
+    billing_info=None,
+):
+    pedido = ml_pedido_existente_operativo(
+        order,
+        shipment,
+    )
+
+    creado = pedido is None
+
+    if creado:
+        pedido = Pedido(
+            cliente=ml_nombre_cliente(
+                order,
+                shipment,
+            ),
+            canal="Mercado Libre",
+            id_venta=id_operativo_ml,
+            estado="Cargando Pedido",
+            origen="mercadolibre",
+        )
+
+        db.session.add(pedido)
+
+    pedido.origen = "mercadolibre"
+    pedido.canal = "Mercado Libre"
+
+    if not pedido.id_venta:
+        pedido.id_venta = id_operativo_ml
+
+    if (
+        ml_es_mercado_envios_order(order, shipment)
+        and id_operativo_ml
+        and pedido.id_venta != id_operativo_ml
+    ):
+        pedido.id_venta = id_operativo_ml
+
+    pedido.mail = pedido.mail or "expedicionfierro@gmail.com"
+    pedido.telefono = pedido.telefono or ""
+    pedido.observaciones = (
+        pedido.observaciones or ""
+    ).strip()
+
+    pedido.ml_pack_id = (
+        str((order or {}).get("pack_id") or "").strip()
+        or pedido.ml_pack_id
+    )
+
+    pedido.ml_order_status = (
+        (order or {}).get("status")
+        or pedido.ml_order_status
+    )
+
+    pedido.ultima_sync_ml = datetime.now(UTC)
+
+    if etiqueta_ml_preparada:
+        pedido.etiqueta_archivo = etiqueta_ml_preparada
+
+    ml_aplicar_datos_envio(
+        pedido,
+        order,
+        shipment,
+    )
+
+    ml_aplicar_apb_en_pedido(
+        pedido,
+        order,
+        shipment,
+        billing_info,
+    )
+
+    return pedido, creado
+
+def ml_intentar_contacto_inicial_acordas_service(
+    pedido,
+    creado,
+    es_ml_acordas_entrega,
+    ml_auto_enviar_contacto_inicial_acordas,
+):
+    """
+    APB:
+    Al crear un pedido nuevo de Mercado Libre / Acordás la Entrega,
+    intenta enviar automáticamente el primer mensaje de contacto.
+    Si ML lo rechaza, no rompe la importación.
+    """
+
+    estados_ml_bloqueados = {
+        "closed",
+        "cancelled",
+        "invalid",
+        "delivered",
+    }
+
+    ml_order_status_actual = str(
+        getattr(pedido, "ml_order_status", "") or ""
+    ).lower().strip()
+
+    if (
+        creado
+        and es_ml_acordas_entrega(pedido)
+        and not getattr(pedido, "contacto_iniciado", False)
+        and ml_order_status_actual not in estados_ml_bloqueados
+        and pedido.estado not in [
+            "Entregado",
+            "Finalizado",
+            "Cancelado",
+        ]
+    ):
+        enviado_auto, motivo_auto = ml_auto_enviar_contacto_inicial_acordas(
+            pedido
+        )
+
+        if not enviado_auto:
+            print(
+                f"[ML-AUTO-CONTACTO] Pedido #{getattr(pedido, 'id', '')} "
+                f"queda pendiente. Motivo: {motivo_auto}"
+            )
+
+        return enviado_auto, motivo_auto
+
+    return False, ""

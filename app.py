@@ -34,7 +34,12 @@ from modules.whatsapp.runtime import (
     registrar_whatsapp_mensaje_service,
 )
 
-from services.ml_importacion import ml_prevalidar_importacion_order_service
+from services.ml_importacion import (
+    ml_prevalidar_importacion_order_service,
+    ml_preparar_pedido_base_importacion_service,
+    ml_intentar_contacto_inicial_acordas_service,    
+)    
+
 from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
@@ -6977,43 +6982,20 @@ def ml_upsert_pedido_desde_order(order):
 
     billing_info = ml_obtener_billing_info(order_id)
 
-    pedido = ml_pedido_existente_operativo(order, shipment)
-    creado = pedido is None
-
-    if creado:
-        pedido = Pedido(
-            cliente=ml_nombre_cliente(order, shipment),
-            canal="Mercado Libre",
-            id_venta=id_operativo_ml,
-            estado="Cargando Pedido",
-            origen="mercadolibre",
-        )
-        db.session.add(pedido)
-
-    pedido.origen = "mercadolibre"
-    pedido.canal = "Mercado Libre"
-
-    if not pedido.id_venta:
-        pedido.id_venta = id_operativo_ml
-
-    if (
-        ml_es_mercado_envios_order(order, shipment)
-        and id_operativo_ml
-        and pedido.id_venta != id_operativo_ml
-    ):
-        pedido.id_venta = id_operativo_ml        
-
-    pedido.mail = pedido.mail or "expedicionfierro@gmail.com"
-    pedido.telefono = pedido.telefono or ""
-    pedido.observaciones = (pedido.observaciones or "").strip()
-    pedido.ml_pack_id = str(order.get("pack_id") or "").strip() or pedido.ml_pack_id
-    pedido.ml_order_status = order.get("status") or pedido.ml_order_status
-    pedido.ultima_sync_ml = datetime.utcnow()
-    if etiqueta_ml_preparada:
-        pedido.etiqueta_archivo = etiqueta_ml_preparada
-
-    ml_aplicar_datos_envio(pedido, order, shipment)
-    ml_aplicar_apb_en_pedido(pedido, order, shipment, billing_info)
+    pedido, creado = ml_preparar_pedido_base_importacion_service(
+        order,
+        shipment,
+        id_operativo_ml,
+        etiqueta_ml_preparada,
+        Pedido,
+        db,
+        ml_nombre_cliente,
+        ml_es_mercado_envios_order,
+        ml_pedido_existente_operativo,
+        ml_aplicar_datos_envio,
+        ml_aplicar_apb_en_pedido,
+        billing_info=billing_info,
+    )   
 
     ml_sincronizar_items_pedido_service(
         pedido,
@@ -7030,23 +7012,12 @@ def ml_upsert_pedido_desde_order(order):
     if not creado and estado_anterior != pedido.estado and estado_anterior != "Cargando Pedido":
         pedido.estado = estado_anterior
 
-    # APB 2.0 Fase 1:
-    # Al crear un pedido nuevo de Mercado Libre / Acordás la Entrega,
-    # intentar enviar automaticamente el primer mensaje de contacto existente.
-    # Si ML lo rechaza, no se rompe la importacion y el pedido queda pendiente para accion manual.
-    # No contactar si la orden ya está cerrada/entregada/cancelada en ML
-    estados_ml_bloqueados = {"closed", "cancelled", "invalid", "delivered"}
-    ml_order_status_actual = str(getattr(pedido, "ml_order_status", "") or "").lower().strip()
-    if (
-        creado
-        and es_ml_acordas_entrega(pedido)
-        and not getattr(pedido, "contacto_iniciado", False)
-        and ml_order_status_actual not in estados_ml_bloqueados
-        and pedido.estado not in ["Entregado", "Finalizado", "Cancelado"]
-    ):
-        enviado_auto, motivo_auto = ml_auto_enviar_contacto_inicial_acordas(pedido)
-        if not enviado_auto:
-            print(f"[ML-AUTO-CONTACTO] Pedido #{getattr(pedido, 'id', '')} queda pendiente. Motivo: {motivo_auto}")
+    ml_intentar_contacto_inicial_acordas_service(
+        pedido,
+        creado,
+        es_ml_acordas_entrega,
+        ml_auto_enviar_contacto_inicial_acordas,
+    )
 
     return pedido, creado, ""
 
