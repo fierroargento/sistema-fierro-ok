@@ -101,7 +101,7 @@ def ejecutar_timers_whatsapp():
                 Estado.CANCELADO,
             ]))
             .filter(Pedido.wa_estado.in_([
-                "esperando_datos",
+                WA_ESPERANDO_DATOS,
                 WA_ESPERANDO_CONFIRMACION_SUCURSAL,
             ]))
             .limit(100)

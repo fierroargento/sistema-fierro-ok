@@ -17,6 +17,7 @@ from datetime import datetime
 
 from .config import (
     WA_ESPERANDO_DATOS,
+    WA_LISTO_PARA_RETIRAR,
     WA_ESPERANDO_OK_INICIO,    
     WA_FALTA_ELEGIR_TRANSPORTE,
     WA_REQUIERE_OPERADOR,
@@ -320,7 +321,7 @@ def wa_enviar_solicitud_datos(pedido, faltantes):
             pedido,
             mapa_operativo.get(
                 primer_faltante,
-                "esperando_datos"
+                WA_ESPERANDO_DATOS
             ),
             commit=False,
         )

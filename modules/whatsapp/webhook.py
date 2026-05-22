@@ -8,7 +8,18 @@ import json
 import re
 from flask import request, jsonify
 
-from .config import WA_VERIFY_TOKEN, modulo_activo, WA_ESPERANDO_OK_INICIO
+from .config import (
+    WA_VERIFY_TOKEN,
+    modulo_activo,
+    WA_ESPERANDO_OK_INICIO,
+    WA_ESPERANDO_DATOS,
+    WA_ESPERANDO_CONFIRMACION_SUCURSAL,
+    WA_LISTO_PARA_RETIRAR,
+    WA_DESPACHO_EN_PROCESO,
+    WA_DESPACHADO,
+    WA_CONFIRMADO_CLIENTE,
+    WA_POSTVENTA,
+)
 from .flows import (
     wa_procesar_respuesta_confirmacion,
     wa_procesar_datos_recibidos,
@@ -182,7 +193,7 @@ def _routear_mensaje(pedido, texto, telefono):
         return
 
     # Esperando datos generales
-    if estado == "esperando_datos":
+    if estado == WA_ESPERANDO_DATOS:
         wa_procesar_datos_recibidos(
             pedido,
             texto,
@@ -191,7 +202,7 @@ def _routear_mensaje(pedido, texto, telefono):
 
     # Pedido ya listo para retirar:
     # no volver jamás al recolector.
-    if estado == "listo_para_retirar":
+    if estado == WA_LISTO_PARA_RETIRAR:
         _escalar_operador(
             pedido,
             "Cliente respondió luego de aviso de retiro",
@@ -202,9 +213,9 @@ def _routear_mensaje(pedido, texto, telefono):
     # Estados logísticos APB:
     # jamás responder con IA libre ni confirmar retiro si todavía no está en "Listo para retirar".
     if estado in [
-        "despacho_en_proceso",
-        "despachado",
-        "confirmado_cliente",
+        WA_DESPACHO_EN_PROCESO,
+        WA_DESPACHADO,
+        WA_CONFIRMADO_CLIENTE,
     ]:
 
         texto_lower = (texto or "").lower()
@@ -274,7 +285,7 @@ def _routear_mensaje(pedido, texto, telefono):
         return
 
     # Postventa
-    if estado == "postventa":
+    if estado == WA_POSTVENTA:
         wa_procesar_respuesta_postventa(pedido, texto)
         return
 
