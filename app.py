@@ -34,6 +34,7 @@ from modules.whatsapp.runtime import (
     registrar_whatsapp_mensaje_service,
 )
 
+from services.ml_importacion import ml_prevalidar_importacion_order_service
 from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
@@ -6932,48 +6933,36 @@ def ml_borrar_pedido_importado_si_corresponde(
 def ml_upsert_pedido_desde_order(order):
     order_id = str(order.get("id") or "").strip()
 
-    if ml_pedido_esta_ignorado(order_id):
-        return None, False, "pedido eliminado manualmente en Fierro"
+    shipment = ml_obtener_shipment(
+        (order.get("shipping") or {}).get("id")
+    )
 
-    shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
+    prevalidacion = ml_prevalidar_importacion_order_service(
+        order,
+        shipment,
+        ml_pedido_esta_ignorado,
+        ml_order_esta_entregado,
+        ml_pedido_existente_operativo,
+        ml_registrar_order_ignorado,
+        ml_marcar_pedido_finalizado_por_entrega,
+        ml_order_debe_omitirse,
+        ml_borrar_pedido_importado_si_corresponde,
+        ml_es_mercado_envios_order,
+        ml_envio_ya_despachado,
+        ml_preparar_etiqueta_mercado_envios,
+    )
 
-    # APB ML: si Mercado Libre ya informa Entregado:
-    # - Si NO existe en Fierro, se omite como histórico y NO se crea pedido operativo.
-    # - Si SÍ existe en Fierro, NO se lo saca del flujo: solo se actualizan estados ML
-    #   para que Carga pueda cerrar el proceso interno cuando corresponda.
-    if ml_order_esta_entregado(order, shipment):
-        pedido = ml_pedido_existente_operativo(order, shipment)
-        if pedido is None:
-            ml_registrar_order_ignorado(
-                order_id,
-                "ML entregado/histórico omitido: no existía en Fierro"
-            )
-            return None, False, "ML entregado/histórico omitido: no existía en Fierro"
+    if not prevalidacion.get("continuar"):
+        return (
+            prevalidacion.get("pedido"),
+            prevalidacion.get("creado", False),
+            prevalidacion.get("motivo", ""),
+        )
 
-        pedido = ml_marcar_pedido_finalizado_por_entrega(pedido, order, shipment)
-        return pedido, False, "ML informó entregado; pedido actualizado automáticamente a Finalizado"
-
-    omitir, motivo_omision = ml_order_debe_omitirse(order, shipment)
-    if omitir:
-        pedido_existente = ml_pedido_existente_operativo(order, shipment)
-        if ml_borrar_pedido_importado_si_corresponde(pedido_existente):
-            return None, False, f"{motivo_omision} - pedido importado eliminado"
-        return None, False, motivo_omision
-
-    etiqueta_ml_preparada = ""
-    if ml_es_mercado_envios_order(order, shipment):
-        if ml_envio_ya_despachado(order, shipment):
-            pedido_existente = ml_pedido_existente_operativo(order, shipment)
-            if ml_borrar_pedido_importado_si_corresponde(pedido_existente):
-                return None, False, "Mercado Envíos ya enviado - pedido importado eliminado"
-            return None, False, "Mercado Envíos ya enviado"
-
-        etiqueta_ml_preparada = ml_preparar_etiqueta_mercado_envios(order, shipment)
-        if not etiqueta_ml_preparada:
-            pedido_existente = ml_pedido_existente_operativo(order, shipment)
-            if ml_borrar_pedido_importado_si_corresponde(pedido_existente):
-                return None, False, "__ML_ME_SIN_ETIQUETA__ - pedido importado eliminado"
-            return None, False, "__ML_ME_SIN_ETIQUETA__"
+    etiqueta_ml_preparada = (
+        prevalidacion.get("etiqueta_ml_preparada")
+        or ""
+    )
 
     # APB ML:
     # Mercado Envíos se opera por pack_id.
