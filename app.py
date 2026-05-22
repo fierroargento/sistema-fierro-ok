@@ -38,6 +38,12 @@ from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
 
+from services.ml_ignorados import (
+    ml_pedido_esta_ignorado_service,
+    ml_registrar_pedido_ignorado_service,
+    ml_registrar_order_ignorado_service,
+)
+
 from services.ml_estados import (
     ml_estado_order_service,
     ml_estado_shipment_service,
@@ -45,7 +51,8 @@ from services.ml_estados import (
     ml_logistica_no_operable_service,
     ml_es_envio_full_service,
     ml_es_mercado_envios_order_service,
-    ml_envio_ya_despachado_service,    
+    ml_envio_ya_despachado_service,
+    ml_order_debe_omitirse_service,        
 )
 
 from services.ml_claims import (
@@ -6851,54 +6858,36 @@ def ml_order_esta_entregado(
 
 
 def ml_pedido_esta_ignorado(order_id):
-    order_id = str(order_id or "").strip()
-    if not order_id:
-        return False
-    try:
-        return PedidoIgnoradoML.query.filter_by(id_venta=order_id).first() is not None
-    except Exception:
-        return False
+    return ml_pedido_esta_ignorado_service(
+        order_id,
+        PedidoIgnoradoML,
+    )
 
 
-def ml_registrar_pedido_ignorado(pedido, motivo="eliminado_manual"):
-    if not pedido or pedido.canal != "Mercado Libre" or not pedido.id_venta:
-        return None
-
-    order_id = str(pedido.id_venta or "").strip()
-    if not order_id:
-        return None
-
-    ignorado = PedidoIgnoradoML.query.filter_by(id_venta=order_id).first()
-    if not ignorado:
-        ignorado = PedidoIgnoradoML(id_venta=order_id)
-        db.session.add(ignorado)
-
-    ignorado.motivo = motivo
-    ignorado.pedido_local_id = pedido.id
-    ignorado.usuario = session.get("username") or "sistema"
-    ignorado.fecha = datetime.utcnow()
-    return ignorado
+def ml_registrar_pedido_ignorado(
+    pedido,
+    motivo="eliminado_manual",
+):
+    return ml_registrar_pedido_ignorado_service(
+        pedido,
+        motivo,
+        PedidoIgnoradoML,
+        db,
+        usuario=session.get("username") or "sistema",
+    )
 
 
-def ml_registrar_order_ignorado(order_id, motivo="omitido_por_sync_ml"):
-    """Registra una orden ML omitida aunque no exista Pedido local.
-    APB: se usa para ventas históricas ya entregadas, evitando que vuelvan a importarse
-    sin tocar pedidos activos existentes.
-    """
-    order_id = str(order_id or "").strip()
-    if not order_id:
-        return None
-
-    ignorado = PedidoIgnoradoML.query.filter_by(id_venta=order_id).first()
-    if not ignorado:
-        ignorado = PedidoIgnoradoML(id_venta=order_id)
-        db.session.add(ignorado)
-
-    ignorado.motivo = motivo
-    ignorado.pedido_local_id = None
-    ignorado.usuario = session.get("username") or "sistema"
-    ignorado.fecha = datetime.utcnow()
-    return ignorado
+def ml_registrar_order_ignorado(
+    order_id,
+    motivo="omitido_por_sync_ml",
+):
+    return ml_registrar_order_ignorado_service(
+        order_id,
+        motivo,
+        PedidoIgnoradoML,
+        db,
+        usuario=session.get("username") or "sistema",
+    )
 
 
 def ml_marcar_pedido_finalizado_por_entrega(pedido, order, shipment=None):
@@ -6930,27 +6919,14 @@ def ml_marcar_pedido_finalizado_por_entrega(pedido, order, shipment=None):
 
 
 def ml_order_debe_omitirse(order, shipment=None):
-    order_id = str(order.get("id") or "").strip()
-    if not order_id:
-        return True, "sin ID de orden"
-
-    if ml_pedido_esta_ignorado(order_id):
-        return True, "pedido eliminado manualmente en Fierro"
-
-    # Si está entregado en ML y llega a esta validación, no es una venta operativa nueva.
-    # La decisión fina para pedidos existentes se toma en ml_upsert_pedido_desde_order().
-    if ml_order_esta_entregado(order, shipment):
-        return True, "ML entregado/histórico — no se importa como pedido operativo nuevo"
-
-    estado = ml_estado_order(order)
-    if estado in ["cancelled", "invalid", "closed"]:
-        return True, f"estado ML {estado} — orden ya finalizada/no operable en ML, no se importa"
-
-    no_operable, motivo = ml_logistica_no_operable(order, shipment or {})
-    if no_operable:
-        return True, motivo
-
-    return False, ""
+    return ml_order_debe_omitirse_service(
+        order,
+        shipment,
+        ml_pedido_esta_ignorado,
+        ml_order_esta_entregado,
+        ml_estado_order,
+        ml_logistica_no_operable,
+    )
 
 
 def ml_borrar_pedido_importado_si_corresponde(pedido):

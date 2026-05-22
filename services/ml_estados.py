@@ -102,3 +102,144 @@ def ml_order_esta_entregado_service(
             return True
 
     return False
+
+def ml_logistica_no_operable_service(order, shipment):
+    order = order or {}
+    shipment = shipment or {}
+
+    shipping = order.get("shipping") or {}
+    tags = order.get("tags") or []
+
+    valores = [
+        shipment.get("logistic_type"),
+        shipment.get("mode"),
+        shipping.get("logistic_type"),
+        shipping.get("mode"),
+    ]
+
+    valores_normalizados = [
+        str(v or "").lower().strip()
+        for v in valores
+    ]
+
+    tags_normalizados = [
+        str(t or "").lower().strip()
+        for t in tags
+    ]
+
+    if (
+        "fulfillment" in valores_normalizados
+        or "fulfillment" in tags_normalizados
+        or "meli_full" in tags_normalizados
+        or "mercado_envios_full" in tags_normalizados
+        or "full" in tags_normalizados
+    ):
+        return True, "Mercado Envíos Full"
+
+    if (
+        "self_service" in valores_normalizados
+        or "self_service" in tags_normalizados
+        or "flex" in valores_normalizados
+        or "flex" in tags_normalizados
+        or "mercado_envios_flex" in tags_normalizados
+    ):
+        return True, "Mercado Envíos Flex"
+
+    return False, ""
+
+
+def ml_es_envio_full_service(
+    order,
+    shipment,
+    ml_logistica_no_operable,
+):
+    no_operable, motivo = ml_logistica_no_operable(
+        order,
+        shipment,
+    )
+
+    return no_operable and motivo == "Mercado Envíos Full"
+
+
+def ml_es_mercado_envios_order_service(
+    order,
+    shipment,
+    ml_mapear_tipo,
+):
+    return ml_mapear_tipo(
+        order or {},
+        shipment or {},
+    ) == "Mercado Envíos"
+
+
+def ml_envio_ya_despachado_service(
+    order,
+    shipment=None,
+):
+    shipment = shipment or {}
+    shipping = (order or {}).get("shipping") or {}
+
+    estados = {
+        str(shipment.get("status") or "").lower().strip(),
+        str(shipping.get("status") or "").lower().strip(),
+    }
+
+    estados.discard("")
+
+    return bool(
+        estados.intersection({
+            "shipped",
+            "delivered",
+            "not_delivered",
+            "cancelled",
+            "returned",
+        })
+    )
+
+def ml_order_debe_omitirse_service(
+    order,
+    shipment=None,
+    ml_pedido_esta_ignorado=None,
+    ml_order_esta_entregado=None,
+    ml_estado_order=None,
+    ml_logistica_no_operable=None,
+):
+    order_id = str(
+        (order or {}).get("id") or ""
+    ).strip()
+
+    if not order_id:
+        return True, "sin ID de orden"
+
+    if ml_pedido_esta_ignorado(order_id):
+        return True, "pedido eliminado manualmente en Fierro"
+
+    # Si está entregado en ML y llega a esta validación,
+    # no es una venta operativa nueva.
+    if ml_order_esta_entregado(
+        order,
+        shipment,
+    ):
+        return True, "ML entregado/histórico — no se importa como pedido operativo nuevo"
+
+    estado = ml_estado_order(order)
+
+    if estado in [
+        "cancelled",
+        "invalid",
+        "closed",
+    ]:
+        return True, (
+            f"estado ML {estado} — orden ya finalizada/no operable en ML, "
+            "no se importa"
+        )
+
+    no_operable, motivo = ml_logistica_no_operable(
+        order,
+        shipment or {},
+    )
+
+    if no_operable:
+        return True, motivo
+
+    return False, ""    
