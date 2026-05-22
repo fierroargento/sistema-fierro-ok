@@ -24,13 +24,16 @@ from .config import (
 from .flows import (
     wa_procesar_respuesta_confirmacion,
     wa_procesar_datos_recibidos,
-    wa_procesar_ok_inicio,    
+    wa_procesar_ok_inicio,
     wa_procesar_respuesta_cross_sell,
     wa_procesar_respuesta_postventa,
     wa_procesar_eleccion_transporte,
     _responder_factura_o_escalar,
-    get_wa_paso_operativo,    
+    _escalar_operador,
+    get_wa_paso_operativo,
 )
+
+from .router import routear_mensaje
 
 
 def _obtener_estado_wa(pedido):
@@ -364,7 +367,12 @@ def registrar_webhook(app):
                             ia_marcar_respuesta_cliente(pedido, canal="whatsapp", commit=True)
                     except Exception as e:
                         print("[WA-HIST] Error registrando entrada:", e)
-                    _routear_mensaje(pedido, texto, telefono)
+                    routear_mensaje(
+                        pedido,
+                        texto,
+                        telefono,
+                        _obtener_estado_wa,
+                    )
 
         except Exception as e:
             print("[WA] Error procesando webhook:", e)
