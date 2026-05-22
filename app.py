@@ -1901,10 +1901,10 @@ def aplicar_estado_y_fechas(pedido, nuevo_estado):
     pedido.estado = nuevo_estado
     ahora = datetime.utcnow()
 
-    if nuevo_estado == "Etiqueta Impresa":
+    if nuevo_estado == Estado.ETIQUETA_IMPRESA:
         if not pedido.fecha_etiqueta_impresa:
             pedido.fecha_etiqueta_impresa = ahora
-    elif nuevo_estado == "Embalado":
+    elif nuevo_estado == Estado.EMBALADO:
         pedido.fecha_embalado = ahora
     elif nuevo_estado == Estado.DESPACHADO:
         pedido.fecha_despachado = ahora
@@ -1930,11 +1930,11 @@ def aplicar_estado_y_fechas(pedido, nuevo_estado):
 
             except Exception as e:
                 print(f"[WA-DESPACHO] Error iniciando flujo WA despacho: {e}")
-    elif nuevo_estado == "Entregado":
+    elif nuevo_estado == Estado.ENTREGADO:
         pedido.fecha_entregado = ahora
 
         if pedido.canal == "Tienda Nube" or usa_flujo_etiqueta_directa(pedido) or es_tnube_via_cargo(pedido) or es_mayorista_via_cargo(pedido):
-            pedido.estado = "Finalizado"
+            pedido.estado = Estado.FINALIZADO
 
 
 def motor_bloqueo(pedido):
