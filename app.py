@@ -38,6 +38,12 @@ from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
 
+from services.ml_estados import (
+    ml_estado_order_service,
+    ml_estado_shipment_service,
+    ml_order_esta_entregado_service,
+)
+
 from services.ml_claims import (
     ml_pedido_tiene_claim_service,
     ml_marcar_claim_en_pedido_service,
@@ -6873,68 +6879,29 @@ def ml_preparar_etiqueta_mercado_envios(order, shipment=None):
 
 
 def ml_estado_order(order):
-    return str((order or {}).get("status") or "").lower().strip()
+    return ml_estado_order_service(order)
 
 
-def ml_estado_shipment(order=None, shipment=None):
-    order = order or {}
-    shipment = shipment or {}
-    shipping = order.get("shipping") or {}
-    return str(shipment.get("status") or shipping.get("status") or "").lower().strip()
+def ml_estado_shipment(
+    order=None,
+    shipment=None,
+):
+    return ml_estado_shipment_service(
+        order,
+        shipment,
+    )
 
 
-def ml_order_esta_entregado(order, shipment=None):
-    """Detecta entregas reales informadas por Mercado Libre.
-
-    APB:
-    - Mercado Envíos puede finalizar con shipment delivered/fulfilled.
-    - Acordás la Entrega NO debe finalizar por order closed.
-      En Acordás, closed puede significar venta cerrada/pagada,
-      pero todavía requerir "Avisar entrega" manual en ML.
-    """
-    order = order or {}
-    shipment = shipment or {}
-
-    estado_order = ml_estado_order(order)
-    estado_shipping = ml_estado_shipment(order, shipment)
-    tags = {str(t or "").lower().strip() for t in (order.get("tags") or [])}
-
-    shipping = order.get("shipping") or {}
-    logistic_type = str(
-        shipment.get("logistic_type")
-        or shipping.get("logistic_type")
-        or ""
-    ).lower().strip()
-
-    es_mercado_envios = logistic_type in [
-        "fulfillment",
-        "cross_docking",
-        "drop_off",
-        "xd_drop_off",
-        "self_service",
-    ]
-
-    if estado_shipping in {"delivered", "fulfilled"}:
-        return True
-
-    if estado_order in {"delivered", "fulfilled"}:
-        return True
-
-    if tags.intersection({"delivered", "fulfilled"}):
-        return True
-
-    # APB:
-    # Nunca interpretar "closed" como entregado para Acordás la Entrega.
-    # Solo se permite como histórico automático si es Mercado Envíos.
-    if (
-        es_mercado_envios
-        and estado_order == "closed"
-    ):
-        tags_cancelacion = {"cancelled", "canceled", "refunded", "invalid"}
-        if not tags.intersection(tags_cancelacion):
-            return True
-
-    return False
+def ml_order_esta_entregado(
+    order,
+    shipment=None,
+):
+    return ml_order_esta_entregado_service(
+        order,
+        shipment,
+        ml_estado_order,
+        ml_estado_shipment,
+    )
 
 
 def ml_pedido_esta_ignorado(order_id):
