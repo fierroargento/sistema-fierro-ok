@@ -6,7 +6,7 @@ Motor de eventos post-despacho.
 No reemplaza el flujo validado del sistema: solo reacciona ante cambios claros de tracking.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 
 from domain.estados import Estado
 
