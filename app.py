@@ -19,20 +19,7 @@ from functools import wraps
 from zoneinfo import ZoneInfo
 
 
-SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
 
-if SENTRY_DSN:
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        integrations=[FlaskIntegration()],
-        traces_sample_rate=float(
-            os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.05")
-        ),
-        environment=os.getenv(
-            "RENDER_SERVICE_NAME",
-            "development",
-        ),
-    )
 
 from flask import Flask, request, redirect, render_template, url_for, jsonify, send_from_directory, session, flash
 from sentry_sdk.integrations.flask import FlaskIntegration
@@ -136,6 +123,21 @@ from services.motor_bloqueo import (
     validar_regla_via_cargo_pp6040,
     validar_transporte_obligatorio,
 )
+
+SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
+
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[FlaskIntegration()],
+        traces_sample_rate=float(
+            os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.05")
+        ),
+        environment=os.getenv(
+            "RENDER_SERVICE_NAME",
+            "development",
+        ),
+    )
 
 app = Flask(__name__)
 
