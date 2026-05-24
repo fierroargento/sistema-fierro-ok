@@ -13,7 +13,7 @@ Alcance de esta etapa:
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, UTC
 
 from .config import (
     WA_ESPERANDO_DATOS,
@@ -123,7 +123,7 @@ def _guardar_estado_wa(pedido, estado, tel=None):
     try:
         from app import db
         pedido.wa_estado = estado
-        pedido.wa_ultimo_contacto = datetime.utcnow()
+        pedido.wa_ultimo_contacto = datetime.now(UTC)
         db.session.commit()
     except Exception as e:
         print("[WA] Error guardando estado:", e)
@@ -136,14 +136,14 @@ def _obtener_estado_wa(pedido):
 def _escalar_operador(pedido, motivo, mensaje_cliente=None):
     """Marca el pedido para atención humana sin romper ML."""
     try:
-        from app import db, normalizar_telefono
+        from app import db
         pedido.ml_mensajes_pendientes = True
         pedido.ml_mensajes_pendientes_count = (pedido.ml_mensajes_pendientes_count or 0) + 1
         pedido.ia_requiere_operador = True
         pedido.wa_estado = WA_REQUIERE_OPERADOR
         resumen_actual = (pedido.ia_resumen or "").strip()
         pedido.ia_resumen = f"{resumen_actual} | WA: {motivo}".strip(" |")
-        pedido.wa_ultimo_contacto = datetime.utcnow()
+        pedido.wa_ultimo_contacto = datetime.now(UTC)
         db.session.commit()
         print(f"[WA] Pedido #{pedido.id} escalado: {motivo}")
 
@@ -458,7 +458,7 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
             ", ".join(campos.get(f, f) for f in faltantes[:3]),
         ],
     )
-    pedido.wa_ultimo_contacto = datetime.utcnow()
+    pedido.wa_ultimo_contacto = datetime.now(UTC)
     db.session.commit()
 
 
