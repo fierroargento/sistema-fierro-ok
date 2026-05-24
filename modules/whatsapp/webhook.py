@@ -36,6 +36,9 @@ from .flows import (
 from .router import routear_mensaje
 
 from services.telefonos import normalizar_telefono_service
+from services.logger import get_app_logger
+
+logger = get_app_logger(__name__)
 
 
 def _obtener_estado_wa(pedido):
@@ -119,7 +122,7 @@ def _procesar_statuses_whatsapp(statuses):
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            print("[WA-STATUS] Error guardando estados:", e)
+            logger.exception("[WA-STATUS] Error guardando estados")
 
 def _routear_mensaje(pedido, texto, telefono):
     """
@@ -149,7 +152,7 @@ def _routear_mensaje(pedido, texto, telefono):
             pedido.ia_requiere_operador = True
             db.session.commit()
         except Exception as e:
-            print("[WA] No se pudo marcar pendiente operador:", e)
+            logger.exception("[WA] No se pudo marcar pendiente operador")
         return
 
     # Preguntas simples de factura: respuesta fija en cualquier estado activo
@@ -381,7 +384,7 @@ def registrar_webhook(app):
                             except Exception:
                                 pass
 
-                            print("[WA-HIST] Error verificando dedup entrada:", e)
+                            logger.exception("[WA-HIST] Error verificando dedup entrada")
 
                     pedido = _buscar_pedido_por_telefono(telefono)
 
@@ -406,7 +409,7 @@ def registrar_webhook(app):
                             )
 
                     except Exception as e:
-                        print("[WA-HIST] Error registrando entrada:", e)
+                        logger.exception("[WA-HIST] Error registrando entrada")
 
                     routear_mensaje(
                         pedido,
@@ -416,7 +419,7 @@ def registrar_webhook(app):
                     )
 
         except Exception as e:
-            print("[WA] Error procesando webhook:", e)
+            logger.exception("[WA] Error procesando webhook")
 
         # Meta requiere siempre 200
         return jsonify({"status": "ok"}), 200
