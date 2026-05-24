@@ -141,6 +141,8 @@ if SENTRY_DSN:
         ),
     )
 
+app = Flask(__name__)
+
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[],
