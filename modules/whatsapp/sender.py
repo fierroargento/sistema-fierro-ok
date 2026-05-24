@@ -15,6 +15,9 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
 from .config import WA_TOKEN, WA_API_URL
+from services.logger import get_app_logger
+
+logger = get_app_logger(__name__)
 
 
 def _registrar_historial(pedido=None, telefono="", texto="", autor="bot", estado="", error="", message_id_meta=""):
@@ -31,7 +34,7 @@ def _registrar_historial(pedido=None, telefono="", texto="", autor="bot", estado
             error=error,
         )
     except Exception as e:
-        print("[WA-HIST] Error registrando salida:", e)
+        logger.exception("[WA-HIST] Error registrando salida")
 
 
 def _wa_post(payload):
@@ -57,10 +60,13 @@ def _wa_post(payload):
             return True, data
     except HTTPError as e:
         detalle = e.read().decode()
-        print(f"[WA] Error HTTP {e.code}:", detalle)
+        logger.exception(
+    "[WA] Error HTTP enviando mensaje. Codigo: %s",
+    getattr(e, "code", ""),
+)
         return False, detalle
     except Exception as e:
-        print(f"[WA] Error:", e)
+        logger.exception("[WA] Error enviando mensaje")
         return False, str(e)
 
 
@@ -131,7 +137,7 @@ def wa_enviar_template(telefono, template_name, parametros=None, pedido=None, au
             from app import ia_marcar_mensaje_bot
             ia_marcar_mensaje_bot(pedido, "whatsapp", texto_hist, commit=True)
         except Exception as e:
-            print("[WA-APB] No se pudo marcar template bot:", e)
+            logger.exception("[WA-APB] No se pudo marcar template bot")
 
     if registrar:
         _registrar_historial(
@@ -240,7 +246,7 @@ def wa_enviar_texto(
                 return False
 
         except Exception as e:
-            print("[WA-APB] Error evaluando candado:", e)
+            logger.exception("[WA-APB] Error evaluando candado")
 
     ok, data = _wa_post({
         "messaging_product": "whatsapp",
@@ -295,7 +301,7 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
                     _registrar_historial(pedido, telefono, texto_control, autor=autor, estado="bloqueado", error=motivo)
                 return False
         except Exception as e:
-            print("[WA-APB] Error evaluando candado imagen:", e)
+            logger.exception("[WA-APB] Error evaluando candado imagen")
 
     payload = {
         "messaging_product": "whatsapp",
