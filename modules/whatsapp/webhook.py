@@ -74,7 +74,7 @@ def _procesar_statuses_whatsapp(statuses):
     try:
         from app import db, WhatsAppMensaje
     except Exception as e:
-        print("[WA-STATUS] No se pudo importar db/WhatsAppMensaje:", e)
+        logger.exception("[WA-STATUS] No se pudo importar db/WhatsAppMensaje")
         return
 
     hubo_cambios = False
@@ -115,7 +115,11 @@ def _procesar_statuses_whatsapp(statuses):
                 hubo_cambios = True
 
         except Exception as e:
-            print(f"[WA-STATUS] Error procesando estado {estado_meta} para {message_id}:", e)
+            logger.exception(
+    "[WA-STATUS] Error procesando estado %s para %s",
+    estado_meta,
+    message_id,
+)
 
     if hubo_cambios:
         try:

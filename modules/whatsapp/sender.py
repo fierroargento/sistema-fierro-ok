@@ -181,7 +181,7 @@ def wa_enviar_texto(
             from app import buscar_pedido_activo_por_telefono
             pedido = buscar_pedido_activo_por_telefono(telefono)
         except Exception as e:
-            print("[WA-APB] No se pudo resolver pedido para candado:", e)
+            logger.exception("[WA-APB] No se pudo resolver pedido para candado")
 
     if autor == "bot" and pedido is not None:
         try:
@@ -288,7 +288,7 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
             from app import buscar_pedido_activo_por_telefono
             pedido = buscar_pedido_activo_por_telefono(telefono)
         except Exception as e:
-            print("[WA-APB] No se pudo resolver pedido para imagen:", e)
+            logger.exception("[WA-APB] No se pudo resolver pedido para imagen")
 
     texto_control = caption or f"[Imagen] {imagen_url}"
     if autor == "bot" and pedido is not None:
