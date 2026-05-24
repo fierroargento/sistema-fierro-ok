@@ -141,10 +141,6 @@ if SENTRY_DSN:
 
 app = Flask(__name__)
 
-@app.route("/sentry-test")
-def sentry_test():
-    raise RuntimeError("Sentry funcionando OK")
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s"
