@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from services.ml_estados import (
     ml_estado_order_service,
     ml_estado_shipment_service,
@@ -294,4 +296,88 @@ def test_ml_envio_despachado_prioriza_shipment():
             shipment,
         )
         is True
-    )        
+    )
+
+from domain.estados import Estado
+
+from services.ml_estados import (
+    ml_marcar_pedido_finalizado_por_entrega_service,
+    ml_borrar_pedido_importado_si_corresponde_service,
+)
+
+
+def test_ml_marcar_pedido_finalizado_por_entrega():
+    pedido = SimpleNamespace(
+        origen="",
+        canal="",
+        id_venta="",
+        ml_order_status="",
+        ml_shipping_status="",
+        estado=Estado.CARGANDO,
+        fecha_entregado=None,
+        ultima_sync_ml=None,
+        observaciones="",
+    )
+
+    order = {
+        "id": "2001",
+        "status": "paid",
+    }
+
+    shipment = {
+        "status": "delivered",
+    }
+
+    resultado = ml_marcar_pedido_finalizado_por_entrega_service(
+        pedido,
+        order,
+        shipment,
+        ml_estado_order_service,
+        ml_estado_shipment_service,
+    )
+
+    assert resultado is pedido
+    assert pedido.origen == "mercadolibre"
+    assert pedido.canal == "Mercado Libre"
+    assert pedido.id_venta == "2001"
+    assert pedido.ml_order_status == "paid"
+    assert pedido.ml_shipping_status == "delivered"
+    assert pedido.estado == Estado.FINALIZADO
+    assert pedido.fecha_entregado is not None
+    assert pedido.ultima_sync_ml is not None
+    assert "ML informa venta entregada" in pedido.observaciones
+
+
+def test_ml_borrar_pedido_importado_finaliza_sin_borrar():
+    pedido = SimpleNamespace(
+        canal="Mercado Libre",
+        origen="mercadolibre",
+        estado=Estado.CARGANDO,
+        observaciones="",
+    )
+
+    resultado = ml_borrar_pedido_importado_si_corresponde_service(
+        pedido,
+        Estado,
+    )
+
+    assert resultado is True
+    assert pedido.estado == Estado.FINALIZADO
+    assert "No se borró para preservar auditoría" in pedido.observaciones
+
+
+def test_ml_borrar_pedido_importado_no_toca_si_no_es_ml():
+    pedido = SimpleNamespace(
+        canal="Tienda Nube",
+        origen="tiendanube",
+        estado=Estado.CARGANDO,
+        observaciones="",
+    )
+
+    resultado = ml_borrar_pedido_importado_si_corresponde_service(
+        pedido,
+        Estado,
+    )
+
+    assert resultado is False
+    assert pedido.estado == Estado.CARGANDO            
