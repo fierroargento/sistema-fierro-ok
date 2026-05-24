@@ -70,6 +70,7 @@ from modules.whatsapp.flows_transporte import (
     _cargar_sucursales_ofrecidas,
     wa_enviar_confirmacion_sucursal,
     wa_procesar_respuesta_confirmacion,
+    wa_procesar_eleccion_transporte,
 )
 
 from services.telefonos import normalizar_telefono_service
@@ -538,85 +539,6 @@ def wa_cerrar_datos_completos(pedido):
             pedido.id_venta or pedido.id or "",
         ],
     )
-
-
-# ─────────────────────────────────────────────
-# FLUJO TRANSPORTE CORREO
-# ─────────────────────────────────────────────
-
-
-def wa_procesar_eleccion_transporte(pedido, texto_cliente):
-    from app import  db
-    from modules.transportes.selector import asignar_transporte_pedido
-    tel = normalizar_telefono_service(pedido.telefono)
-    texto = (texto_cliente or "").strip().lower()
-
-    if _es_consulta_factura(texto_cliente):
-        return _responder_factura_o_escalar(pedido, texto_cliente)
-
-    if any(x in texto for x in ["domicilio", "a casa", "mi casa", "entrega en casa"]):
-        # Primero educa. Si el cliente ya lo expresó en negativo/firme, evaluar regla y escalar si corresponde.
-        ok, msg = asignar_transporte_pedido(pedido, preferencia_cliente="domicilio")
-        if ok:
-            _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
-            wa_enviar_texto(
-                tel,
-                "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.",
-                pedido=pedido,
-                fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
-                fallback_parametros=[
-                    (getattr(pedido, "cliente", "") or "Cliente").split()[0],
-                    pedido.id_venta or pedido.id or "",
-                ],
-            )
-            return
-        _escalar_operador(
-            pedido,
-            msg or "Cliente pidió domicilio y requiere revisión",
-            "Siempre recomendamos retiro en sucursal o punto Correo porque suele ser más ordenado y evita posibles demoras por visitas fallidas en domicilio.\n\nDe todas maneras, lo revisamos con un operador y te confirmamos."
-        )
-        return
-
-    if _es_queja_o_problema(texto_cliente):
-        _escalar_operador(pedido, "Consulta/problema en elección de transporte", "Te derivamos con un operador para ayudarte mejor.")
-        return
-
-    sucs = _cargar_sucursales_ofrecidas(pedido)
-    m = re.search(r"\b([1-3])\b", texto)
-    if m and sucs:
-        idx = int(m.group(1)) - 1
-        if 0 <= idx < len(sucs):
-            suc = sucs[idx]
-            if not (pedido.empresa_envio or "").strip():
-                pedido.empresa_envio = "Vía Cargo"
-                
-            pedido.tipo_entrega = "Sucursal"
-            pedido.sucursal_nombre = suc.get("nombre") or suc.get("name") or pedido.sucursal_nombre
-            pedido.direccion = suc.get("direccion") or suc.get("address") or pedido.direccion
-            pedido.localidad = suc.get("localidad") or suc.get("city") or pedido.localidad
-            pedido.provincia = suc.get("provincia") or pedido.provincia
-            pedido.wa_estado = WA_DESPACHO_EN_PROCESO
-            pedido.wa_ultimo_contacto = datetime.utcnow()
-            db.session.commit()
-            wa_enviar_texto(
-                tel,
-                "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.",
-                pedido=pedido,
-                fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
-                fallback_parametros=[
-                    (getattr(pedido, "cliente", "") or "Cliente").split()[0],
-                    pedido.id_venta or pedido.id or "",
-                ],
-            )
-            return
-
-    if _es_afirmativo(texto) and sucs:
-        _escalar_operador(pedido, "Cliente confirmó sucursal sin indicar número claro", "Perfecto, lo revisamos y te confirmamos el despacho.")
-        return
-
-    _escalar_operador(pedido, f"Respuesta no clara sobre transporte: {texto_cliente[:120]}", "Lo revisamos con un operador para no cometer errores en el despacho.")
-
-
 
 # ─────────────────────────────────────────────
 # CROSS-SELL
