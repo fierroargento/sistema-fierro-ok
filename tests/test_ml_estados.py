@@ -218,4 +218,80 @@ def test_ml_order_debe_omitirse_si_entregado():
     )
 
     assert debe_omitirse is True
-    assert "entregado" in motivo.lower()    
+    assert "entregado" in motivo.lower()
+
+from services.ml_estados import (
+    ml_envio_ya_despachado_service,
+)
+
+
+def test_ml_envio_despachado_por_shipped():
+    order = {
+        "shipping": {
+            "status": "shipped"
+        }
+    }
+
+    assert (
+        ml_envio_ya_despachado_service(order)
+        is True
+    )
+
+
+def test_ml_envio_despachado_por_delivered():
+    order = {
+        "shipping": {
+            "status": "delivered"
+        }
+    }
+
+    assert (
+        ml_envio_ya_despachado_service(order)
+        is True
+    )
+
+
+def test_ml_envio_despachado_por_returned():
+    order = {
+        "shipping": {
+            "status": "returned"
+        }
+    }
+
+    assert (
+        ml_envio_ya_despachado_service(order)
+        is True
+    )
+
+
+def test_ml_envio_no_despachado_pending():
+    order = {
+        "shipping": {
+            "status": "pending"
+        }
+    }
+
+    assert (
+        ml_envio_ya_despachado_service(order)
+        is False
+    )
+
+
+def test_ml_envio_despachado_prioriza_shipment():
+    order = {
+        "shipping": {
+            "status": "pending"
+        }
+    }
+
+    shipment = {
+        "status": "shipped"
+    }
+
+    assert (
+        ml_envio_ya_despachado_service(
+            order,
+            shipment,
+        )
+        is True
+    )        
