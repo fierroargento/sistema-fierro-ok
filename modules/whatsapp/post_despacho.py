@@ -33,7 +33,7 @@ def registrar_tracking_evento(pedido, empresa, seguimiento, estado, clasificacio
             clasificacion=(clasificacion or "")[:50],
             raw_json=raw_json,
             origen=(origen or "scheduler")[:50],
-            fecha_evento=datetime.utcnow(),
+            fecha_evento=from datetime impdatetime.now(UTC)ort datetime, UTC,
         )
         db.session.add(ev)
         return True
@@ -85,7 +85,7 @@ def procesar_evento_tracking_pedido(pedido, clasificacion, estado_externo, orige
                 return acciones
 
             if not getattr(pedido, "fecha_entregado", None):
-                pedido.fecha_entregado = datetime.utcnow()
+                pedido.fecha_entregado = from datetime impdatetime.now(UTC)ort datetime, UTC
             if not getattr(pedido, "wa_postventa_enviada", False):
                 if wa_enviar_postventa(pedido):
                     acciones.append("wa_postventa")

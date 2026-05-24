@@ -11,7 +11,7 @@ Objetivo:
 - centralizar reglas mínimas de envío.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 from domain.estados import Estado, ESTADOS_CERRADOS
 
@@ -93,7 +93,7 @@ def puede_enviar_mensaje(
         fecha_ultimo
         and ultimo_canal == canal
     ):
-        ahora = datetime.utcnow()
+        ahora = datetime.now(UTC)
 
         diferencia = (
             ahora - fecha_ultimo
@@ -128,7 +128,7 @@ def registrar_envio_automatico(
         pedido.ultimo_mensaje_automatico_canal = canal
 
         pedido.ultimo_mensaje_automatico_fecha = (
-            datetime.utcnow()
+            datetime.now(UTC)
         )
 
     except Exception as e:

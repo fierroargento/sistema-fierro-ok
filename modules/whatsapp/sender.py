@@ -1,4 +1,4 @@
-﻿"""
+"""
 modules/whatsapp/sender.py
 # ------------------------------------------------------------
 Funciones de bajo nivel para enviar mensajes por WhatsApp Business API.

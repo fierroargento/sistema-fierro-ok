@@ -86,6 +86,8 @@ from services.conversacional import (
 
 from services.eventos_operativos import registrar_evento_operativo_service
 
+from services.ia import ia_llamar_openai_chat_service
+
 from services.workflow import (
     aplicar_autoavance_post_despacho_service,
     actualizar_estado_automatico_service,
@@ -11126,39 +11128,12 @@ def avanzar_pedido(id):
 
     return redirect(url_for("inicio", ok=mensaje_ok))
 
-
-
-
 def ia_llamar_openai_chat(prompt, temperatura=0.4):
-    """
-    Llamada genérica a OpenAI para el bot de WhatsApp.
-    Devuelve el texto de respuesta o lanza excepción.
-    """
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY no configurada")
-
-    modelo = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
-    payload = {
-        "model": modelo,
-        "messages": [
-            {"role": "system", "content": "Sos el asistente de Fierro 100% Argento. Respondés en español rioplatense, de forma amable y breve."},
-            {"role": "user", "content": prompt},
-        ],
-        "temperature": temperatura,
-    }
-    req = Request(
-        "https://api.openai.com/v1/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
+    return ia_llamar_openai_chat_service(
+        prompt,
+        temperatura=temperatura,
     )
-    with urlopen(req, timeout=20) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    return data["choices"][0]["message"]["content"].strip()
+
 
 
 def asegurar_configuracion_inicial():

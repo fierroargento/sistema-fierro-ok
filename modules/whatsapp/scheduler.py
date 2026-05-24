@@ -7,7 +7,7 @@ Se ejecuta periódicamente desde modules.whatsapp.activar(app), enganchado a bef
 No abre threads ni procesos extra, para no complicar Render.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from threading import Lock
 
 from domain.estados import Estado, ESTADOS_POST_DESPACHO
@@ -170,7 +170,7 @@ def ejecutar_tracking_automatico():
         from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico
         from .post_despacho import registrar_tracking_evento, procesar_evento_tracking_pedido
 
-        ahora = datetime.utcnow()
+        ahora = datetime.now(UTC)
         limite = ahora - timedelta(minutes=TRACKING_INTERVALO_MINUTOS)
 
         pedidos = (

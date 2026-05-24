@@ -353,22 +353,61 @@ def registrar_webhook(app):
                     continue
 
                 if texto:
+                    message_id_meta = str(msg.get("id") or "").strip()
+
+                    if message_id_meta:
+                        try:
+                            from app import db, WhatsAppMensaje
+
+                            ya_procesado = (
+                                WhatsAppMensaje.query
+                                .filter_by(
+                                    message_id_meta=message_id_meta,
+                                    direccion="in",
+                                )
+                                .first()
+                            )
+
+                            if ya_procesado:
+                                print(
+                                    "[WA-HIST] Mensaje entrante duplicado ignorado:",
+                                    message_id_meta,
+                                )
+                                continue
+
+                        except Exception as e:
+                            try:
+                                db.session.rollback()
+                            except Exception:
+                                pass
+
+                            print("[WA-HIST] Error verificando dedup entrada:", e)
+
                     pedido = _buscar_pedido_por_telefono(telefono)
+
                     try:
                         from app import registrar_whatsapp_mensaje, ia_marcar_respuesta_cliente
+
                         registrar_whatsapp_mensaje(
                             pedido=pedido,
                             telefono=telefono,
                             direccion="in",
                             autor="cliente",
                             texto=texto,
-                            message_id_meta=msg.get("id", ""),
+                            message_id_meta=message_id_meta,
                             estado="recibido",
                         )
+
                         if pedido is not None:
-                            ia_marcar_respuesta_cliente(pedido, canal="whatsapp", commit=True)
+                            ia_marcar_respuesta_cliente(
+                                pedido,
+                                canal="whatsapp",
+                                commit=True,
+                            )
+
                     except Exception as e:
                         print("[WA-HIST] Error registrando entrada:", e)
+
                     routear_mensaje(
                         pedido,
                         texto,

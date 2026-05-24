@@ -58,7 +58,7 @@ def ml_sincronizar_items_pedido_service(
         usados.add(sku)
 
     if (
-        pedido.estado == "Cargando Pedido"
+        pedido.estado == Estado.CARGANDO
         and not ml_es_mercado_envios_order(order, shipment)
     ):
         for sku, item in list(existentes.items()):
