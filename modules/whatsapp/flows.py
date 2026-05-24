@@ -71,6 +71,7 @@ from modules.whatsapp.flows_transporte import (
     wa_enviar_confirmacion_sucursal,
     wa_procesar_respuesta_confirmacion,
     wa_procesar_eleccion_transporte,
+    wa_cerrar_datos_completos,
 )
 
 from services.telefonos import normalizar_telefono_service
@@ -460,85 +461,6 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
     pedido.wa_ultimo_contacto = datetime.utcnow()
     db.session.commit()
 
-
-def wa_cerrar_datos_completos(pedido):
-    """Datos completos: para PP6040 prepara Correo y no informa costos al cliente."""
-    from app import db
-    from modules.transportes.selector import pedido_contiene_pp6040, asignar_transporte_pedido, sugerir_sucursales_correo_pedido
-
-    tel = normalizar_telefono_service(pedido.telefono)
-    if not tel:
-        return False
-
-    actualizar_estado_conversacional_wa(
-        pedido,
-        owner_actual="bot",
-        canal_activo="wa",
-        estado_conversacional="datos_completos",
-        takeover_activo=False,
-        bot_pausado=False,
-    )
-
-    registrar_evento_operativo_wa(
-        pedido=pedido,
-        tipo_evento="datos_completos",
-        origen="bot",
-        canal="wa",
-        owner="bot",
-        estado_conversacional="datos_completos",
-        payload={
-            "wa_estado": getattr(pedido, "wa_estado", ""),
-            "estado_pedido": getattr(pedido, "estado", ""),
-            "telefono": tel,
-        },
-        resultado="ok",
-        detalle="WhatsApp cerró la recolección con datos completos.",
-        procesado=True,
-    )
-
-    if pedido_contiene_pp6040(pedido):
-        # Cotización interna y sucursales/puntos Correo.
-        ok, msg = asignar_transporte_pedido(pedido, preferencia_cliente="sucursal")
-        msg_suc = sugerir_sucursales_correo_pedido(pedido)
-        if msg_suc:
-            _guardar_estado_wa(pedido, WA_FALTA_ELEGIR_TRANSPORTE, tel)
-            return wa_enviar_texto(tel, msg_suc)
-        if ok:
-            _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
-            return wa_enviar_texto(
-                tel,
-                "Perfecto, ya tenemos todos los datos para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.",
-                pedido=pedido,
-                fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
-                fallback_parametros=[
-                    (getattr(pedido, "cliente", "") or "Cliente").split()[0],
-                    pedido.id_venta or pedido.id or "",
-                ],
-            )
-        _escalar_operador(pedido, msg or "No se pudo resolver transporte Correo")
-        return False
-
-    # APB: si el flujo WA cerró datos y ya hay transporte asignado, no dejamos
-    # tipo_entrega vacío para Via Cargo/Correo. El helper central respeta si
-    # carga/admin ya eligió Domicilio u otra opción.
-    try:
-        from app import aplicar_default_tipo_entrega
-        if aplicar_default_tipo_entrega(pedido):
-            db.session.commit()
-    except Exception as e:
-        print("[WA] No se pudo aplicar tipo_entrega por defecto:", e)
-
-    _guardar_estado_wa(pedido, WA_DESPACHO_EN_PROCESO, tel)
-    return wa_enviar_texto(
-        tel,
-        "Perfecto, ya tenemos todos los datos para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.",
-        pedido=pedido,
-        fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
-        fallback_parametros=[
-            (getattr(pedido, "cliente", "") or "Cliente").split()[0],
-            pedido.id_venta or pedido.id or "",
-        ],
-    )
 
 # ─────────────────────────────────────────────
 # CROSS-SELL
