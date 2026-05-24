@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import base64
 import logging
+import sentry_sdk
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse, urlencode
@@ -17,7 +18,24 @@ from datetime import datetime, timedelta, time, timezone
 from functools import wraps
 from zoneinfo import ZoneInfo
 
+
+SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
+
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[FlaskIntegration()],
+        traces_sample_rate=float(
+            os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.05")
+        ),
+        environment=os.getenv(
+            "RENDER_SERVICE_NAME",
+            "development",
+        ),
+    )
+
 from flask import Flask, request, redirect, render_template, url_for, jsonify, send_from_directory, session, flash
+from sentry_sdk.integrations.flask import FlaskIntegration
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text, inspect, or_
 from werkzeug.utils import secure_filename
