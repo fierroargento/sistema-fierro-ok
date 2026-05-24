@@ -22,6 +22,8 @@ from zoneinfo import ZoneInfo
 
 
 from flask import Flask, request, redirect, render_template, url_for, jsonify, send_from_directory, session, flash
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from sentry_sdk.integrations.flask import FlaskIntegration
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text, inspect, or_
@@ -139,7 +141,12 @@ if SENTRY_DSN:
         ),
     )
 
-app = Flask(__name__)
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[],
+)
+
+limiter.init_app(app)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -7642,6 +7649,7 @@ def server_error(e):
     return render_template("500.html"), 500
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def login():
     if usuario_actual():
         return redirect(url_for("inicio"))

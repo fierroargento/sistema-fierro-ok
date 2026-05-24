@@ -18,3 +18,4 @@ SQLAlchemy==2.0.49
 tzlocal==5.3.1
 Werkzeug==3.1.8
 sentry-sdk[flask]==2.19.2
+Flask-Limiter==3.12
