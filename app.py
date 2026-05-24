@@ -86,7 +86,10 @@ from services.conversacional import (
 
 from services.eventos_operativos import registrar_evento_operativo_service
 
-from services.ia import ia_llamar_openai_chat_service
+from services.ia import (
+    ia_chat_completion_json_service,
+    ia_llamar_openai_chat_service,
+)
 
 from services.workflow import (
     aplicar_autoavance_post_despacho_service,
@@ -5315,30 +5318,24 @@ En resumen, indicá claramente si aplica alguno de estos casos: datos en Mercado
         texto_cliente=str(texto_cliente or "").strip(),
     )
 
-    payload = {
-        "model": modelo,
-        "messages": [
-            {"role": "system", "content": "Respondés únicamente JSON válido. Sos preciso, conservador y APB."},
-            {"role": "user", "content": prompt},
-        ],
-        "temperature": 0,
-    }
-
-    req = Request(
-        "https://api.openai.com/v1/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-
     try:
-        with urlopen(req, timeout=25) as resp:
-            raw = resp.read().decode("utf-8", errors="replace")
-        data = json.loads(raw)
-        contenido = data["choices"][0]["message"]["content"]
+        contenido = ia_chat_completion_json_service(
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Respondés únicamente JSON válido. "
+                        "Sos preciso, conservador y APB."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+            temperatura=0,
+            timeout=25,
+        )
         resultado = ia_json_loads_seguro(contenido)
         if not resultado:
             raise ValueError("La IA no devolvió JSON válido")
