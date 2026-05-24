@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 
 from domain.estados import Estado, ESTADOS_CERRADOS
 
@@ -35,7 +35,10 @@ def aplicar_estado_tracking_seguro_service(pedido, clasificacion):
             return None
 
         pedido.estado = Estado.ENTREGADO
-        pedido.fecha_entregado = pedido.fecha_entregado or datetime.utcnow()
+        pedido.fecha_entregado = (
+    pedido.fecha_entregado
+    or datetime.now(UTC)
+)
         return Estado.ENTREGADO
 
     if clasificacion == "sucursal" and pedido.estado in [

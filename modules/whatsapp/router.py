@@ -27,6 +27,8 @@ from .flows import (
 
 from .sender import wa_enviar_texto
 
+from services.telefonos import normalizar_telefono_service
+
 
 def routear_mensaje(
     pedido,
@@ -43,9 +45,9 @@ def routear_mensaje(
 
     # Sin pedido activo
     if not pedido:
-        from app import normalizar_telefono
+        
 
-        tel = normalizar_telefono(telefono)
+        tel = normalizar_telefono_service(telefono)
 
         wa_enviar_texto(
             tel,
@@ -142,10 +144,10 @@ def routear_mensaje(
 
             return
 
-        from app import normalizar_telefono
+        
 
         wa_enviar_texto(
-            normalizar_telefono(telefono),
+            normalizar_telefono_service(telefono),
             "No llegué a detectar el código postal 😊\n\n¿Me lo pasás por acá?",
             pedido=pedido,
         )
@@ -182,9 +184,9 @@ def routear_mensaje(
 
         texto_lower = (texto or "").lower()
 
-        from app import normalizar_telefono
+        
 
-        tel = normalizar_telefono(telefono)
+        tel = normalizar_telefono_service(telefono)
 
         if any(
             x in texto_lower
@@ -286,10 +288,10 @@ def routear_mensaje(
         return
 
     # Fallback IA
-    from app import normalizar_telefono
+    
 
     _wa_responder_con_ia(
         pedido,
         texto,
-        normalizar_telefono(telefono),
+        normalizar_telefono_service(telefono),
     )

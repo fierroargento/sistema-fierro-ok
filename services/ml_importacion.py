@@ -1,3 +1,7 @@
+from datetime import datetime, UTC
+from domain.estados import Estado
+
+
 def ml_prevalidar_importacion_order_service(
     order,
     shipment,
@@ -187,7 +191,7 @@ def ml_prevalidar_importacion_order_service(
         "etiqueta_ml_preparada": etiqueta_ml_preparada,
     }
 
-from datetime import datetime, UTC
+
 
 
 def ml_preparar_pedido_base_importacion_service(
@@ -219,7 +223,7 @@ def ml_preparar_pedido_base_importacion_service(
             ),
             canal="Mercado Libre",
             id_venta=id_operativo_ml,
-            estado="Cargando Pedido",
+            estado=Estado.CARGANDO_PEDIDO,
             origen="mercadolibre",
         )
 
@@ -238,7 +242,7 @@ def ml_preparar_pedido_base_importacion_service(
     ):
         pedido.id_venta = id_operativo_ml
 
-    pedido.mail = pedido.mail or "expedicionfierro@gmail.com"
+    pedido.mail = pedido.mail or ""
     pedido.telefono = pedido.telefono or ""
     pedido.observaciones = (
         pedido.observaciones or ""
@@ -304,9 +308,9 @@ def ml_intentar_contacto_inicial_acordas_service(
         and not getattr(pedido, "contacto_iniciado", False)
         and ml_order_status_actual not in estados_ml_bloqueados
         and pedido.estado not in [
-            "Entregado",
-            "Finalizado",
-            "Cancelado",
+            Estado.ENTREGADO,
+            Estado.FINALIZADO,
+            Estado.CANCELADO,
         ]
     ):
         enviado_auto, motivo_auto = ml_auto_enviar_contacto_inicial_acordas(
@@ -323,7 +327,7 @@ def ml_intentar_contacto_inicial_acordas_service(
 
     return False, ""
 
-from datetime import datetime, UTC
+
 
 
 def ml_limpiar_pedidos_ml_no_operables_existentes_service(
@@ -341,7 +345,7 @@ def ml_limpiar_pedidos_ml_no_operables_existentes_service(
         .filter_by(
             canal="Mercado Libre",
             origen="mercadolibre",
-            estado="Cargando Pedido",
+            estado=Estado.CARGANDO_PEDIDO,
         )
         .order_by(Pedido.id.asc())
         .all()
@@ -388,7 +392,7 @@ def ml_limpiar_pedidos_ml_no_operables_existentes_service(
 
             ahora = datetime.now(UTC)
 
-            pedido.estado = "Entregado"
+            pedido.estado = Estado.ENTREGADO
             pedido.fecha_entregado = (
                 pedido.fecha_entregado
                 or ahora
@@ -493,7 +497,7 @@ def ml_procesar_orders_sync_service(
         ),
     }
 
-from datetime import datetime, UTC
+
 
 
 def ml_actualizar_resumen_sync_service(

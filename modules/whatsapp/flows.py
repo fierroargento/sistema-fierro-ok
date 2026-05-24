@@ -35,6 +35,12 @@ from .config import (
     WA_TEMPLATE_POSTVENTA_PARRILLA,
     WA_ESPERANDO_CONFIRMACION_SUCURSAL,    
 )
+
+from modules.whatsapp.app_bridge import (
+    actualizar_estado_conversacional_wa,
+    registrar_evento_operativo_wa,
+)
+
 from .sender import wa_enviar_texto, wa_enviar_template
 from .cross_sell import (
     obtener_productos_a_ofrecer, wa_ofrecer_producto,
@@ -50,6 +56,9 @@ from modules.whatsapp.text_utils import (
     es_consulta_factura,
     requiere_factura_distinta,
 )
+
+from services.telefonos import normalizar_telefono_service
+
 
 # ─────────────────────────────────────────────
 # HELPERS
@@ -122,7 +131,7 @@ def _escalar_operador(pedido, motivo, mensaje_cliente=None):
         print(f"[WA] Pedido #{pedido.id} escalado: {motivo}")
 
         if mensaje_cliente:
-            tel = normalizar_telefono(pedido.telefono)
+            tel = normalizar_telefono_service(pedido.telefono)
             if tel:
                 wa_enviar_texto(tel, mensaje_cliente)
     except Exception as e:
@@ -158,8 +167,8 @@ def _requiere_factura_distinta(texto):
 
 
 def _responder_factura_o_escalar(pedido, texto_cliente):
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
+    
+    tel = normalizar_telefono_service(pedido.telefono)
     if _requiere_factura_distinta(texto_cliente):
         _escalar_operador(
             pedido,
@@ -232,9 +241,9 @@ def wa_iniciar_desde_ml(pedido):
     - El cliente debe responder OK.
     """
 
-    from app import normalizar_telefono
+    
 
-    tel = normalizar_telefono(pedido.telefono)
+    tel = normalizar_telefono_service(pedido.telefono)
 
     if not tel:
         return False
@@ -268,9 +277,9 @@ def wa_iniciar_desde_ml(pedido):
     return ok
 
 def wa_enviar_solicitud_datos(pedido, faltantes):
-    from app import normalizar_telefono
+    
 
-    tel = normalizar_telefono(pedido.telefono)
+    tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
         return False
 
@@ -349,9 +358,9 @@ def wa_procesar_ok_inicio(pedido, texto_cliente):
     Cliente respondió al template inicial WA.
     Ahora sí WhatsApp queda habilitado para continuar el flujo.
     """
-    from app import normalizar_telefono, ia_faltantes_pedido
+    from app import  ia_faltantes_pedido
 
-    tel = normalizar_telefono(pedido.telefono)
+    tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
         return False
 
@@ -364,11 +373,11 @@ def wa_procesar_ok_inicio(pedido, texto_cliente):
 
 def wa_procesar_datos_recibidos(pedido, texto_cliente):
     from app import (
-        normalizar_telefono, ia_analizar_datos_cliente_ml_acordas,
+         ia_analizar_datos_cliente_ml_acordas,
         ia_guardar_resultado_recolector, ia_faltantes_pedido,
         ia_datos_previos_pedido, db,
     )
-    tel = normalizar_telefono(pedido.telefono)
+    tel = normalizar_telefono_service(pedido.telefono)
 
     if _es_consulta_factura(texto_cliente):
         return _responder_factura_o_escalar(pedido, texto_cliente)
@@ -438,14 +447,14 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
 
 def wa_cerrar_datos_completos(pedido):
     """Datos completos: para PP6040 prepara Correo y no informa costos al cliente."""
-    from app import normalizar_telefono, db, actualizar_estado_conversacional, registrar_evento_operativo
+    from app import db
     from modules.transportes.selector import pedido_contiene_pp6040, asignar_transporte_pedido, sugerir_sucursales_correo_pedido
 
-    tel = normalizar_telefono(pedido.telefono)
+    tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
         return False
 
-    actualizar_estado_conversacional(
+    actualizar_estado_conversacional_wa(
         pedido,
         owner_actual="bot",
         canal_activo="wa",
@@ -454,7 +463,7 @@ def wa_cerrar_datos_completos(pedido):
         bot_pausado=False,
     )
 
-    registrar_evento_operativo(
+    registrar_evento_operativo_wa(
         pedido=pedido,
         tipo_evento="datos_completos",
         origen="bot",
@@ -530,9 +539,9 @@ def _cargar_sucursales_ofrecidas(pedido):
 
 
 def wa_procesar_eleccion_transporte(pedido, texto_cliente):
-    from app import normalizar_telefono, db
+    from app import  db
     from modules.transportes.selector import asignar_transporte_pedido
-    tel = normalizar_telefono(pedido.telefono)
+    tel = normalizar_telefono_service(pedido.telefono)
     texto = (texto_cliente or "").strip().lower()
 
     if _es_consulta_factura(texto_cliente):
@@ -606,8 +615,8 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
 # ─────────────────────────────────────────────
 
 def wa_enviar_confirmacion_sucursal(pedido):
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
+    
+    tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
         return False
     nombre_base = (getattr(pedido, "nombre", None) or getattr(pedido, "cliente", None) or "")
@@ -628,8 +637,8 @@ def wa_enviar_confirmacion_sucursal(pedido):
 
 
 def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
+    
+    tel = normalizar_telefono_service(pedido.telefono)
     if _es_consulta_factura(texto_cliente):
         return _responder_factura_o_escalar(pedido, texto_cliente)
     if _es_afirmativo(texto_cliente):
@@ -657,9 +666,9 @@ def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
 # ─────────────────────────────────────────────
 
 def wa_iniciar_cross_sell(pedido):
-    from app import normalizar_telefono, actualizar_estado_conversacional, registrar_evento_operativo
+    
 
-    tel = normalizar_telefono(pedido.telefono)
+    tel = normalizar_telefono_service(pedido.telefono)
     productos = obtener_productos_a_ofrecer(pedido)
 
     if not productos or not tel:
@@ -695,7 +704,7 @@ def wa_iniciar_cross_sell(pedido):
 
     primer_sku = productos[0]
 
-    actualizar_estado_conversacional(
+    actualizar_estado_conversacional_wa(
         pedido,
         owner_actual="bot",
         canal_activo="wa",
@@ -705,7 +714,7 @@ def wa_iniciar_cross_sell(pedido):
         cross_sell_activo=True,
     )
 
-    registrar_evento_operativo(
+    registrar_evento_operativo_wa(
         pedido=pedido,
         tipo_evento="cross_sell_iniciado",
         origen="bot",
@@ -729,8 +738,8 @@ def wa_iniciar_cross_sell(pedido):
 
 
 def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_actual):
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
+    
+    tel = normalizar_telefono_service(pedido.telefono)
     productos = obtener_productos_a_ofrecer(pedido)
 
     if _es_consulta_factura(texto_cliente):
@@ -761,9 +770,9 @@ def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_a
 # ─────────────────────────────────────────────
 
 def wa_enviar_numero_seguimiento(pedido):
-    from app import normalizar_telefono
+    
 
-    tel = normalizar_telefono(pedido.telefono)
+    tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
         return False
 
@@ -779,9 +788,9 @@ def wa_enviar_numero_seguimiento(pedido):
     empresa = pedido.empresa_envio or "Correo Argentino"
 
     try:
-        from app import tracking_info_pedido
+        from services.tracking_info import tracking_info_pedido_service
 
-        tracking_info = tracking_info_pedido(pedido) or {}
+        tracking_info = tracking_info_pedido_service(pedido) or {}
         link = tracking_info.get("url") or ""
 
     except Exception:
@@ -807,9 +816,9 @@ def wa_enviar_numero_seguimiento(pedido):
 
 
 def wa_enviar_listo_para_retirar(pedido):
-    from app import normalizar_telefono, db
+    from app import  db
 
-    tel = normalizar_telefono(pedido.telefono)
+    tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
         return False
 
@@ -852,8 +861,8 @@ def wa_enviar_listo_para_retirar(pedido):
 
 
 def wa_enviar_postventa(pedido):
-    from app import normalizar_telefono, db
-    tel = normalizar_telefono(pedido.telefono)
+    from app import  db
+    tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
         return False
     if getattr(pedido, "wa_postventa_enviada", False):
@@ -880,8 +889,8 @@ def wa_enviar_postventa(pedido):
 
 
 def wa_procesar_respuesta_postventa(pedido, texto_cliente):
-    from app import normalizar_telefono
-    tel = normalizar_telefono(pedido.telefono)
+    
+    tel = normalizar_telefono_service(pedido.telefono)
     if _es_queja_o_problema(texto_cliente):
         _escalar_operador(pedido, "Problema postventa", "Te derivamos con un operador para ayudarte mejor.")
         return
@@ -896,9 +905,9 @@ def wa_procesar_respuesta_postventa(pedido, texto_cliente):
 # ─────────────────────────────────────────────
 
 def wa_enviar_recordatorio_1(pedido):
-    from app import normalizar_telefono
+    
 
-    tel = normalizar_telefono(pedido.telefono)
+    tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
         return False
 
@@ -925,9 +934,8 @@ def wa_enviar_recordatorio_1(pedido):
 
 
 def wa_enviar_recordatorio_2(pedido):
-    from app import normalizar_telefono
 
-    tel = normalizar_telefono(pedido.telefono)
+    tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
         return False
 

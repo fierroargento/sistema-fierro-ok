@@ -1,3 +1,8 @@
+from datetime import datetime, UTC
+
+from domain.estados import Estado
+
+
 def ml_estado_order_service(order):
     return str(
         (order or {}).get("status") or ""
@@ -244,9 +249,7 @@ def ml_order_debe_omitirse_service(
 
     return False, "" 
 
-from datetime import datetime, UTC
 
-from domain.estados import Estado
 
 
 def ml_marcar_pedido_finalizado_por_entrega_service(

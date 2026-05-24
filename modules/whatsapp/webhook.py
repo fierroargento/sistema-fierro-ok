@@ -35,6 +35,8 @@ from .flows import (
 
 from .router import routear_mensaje
 
+from services.telefonos import normalizar_telefono_service
+
 
 def _obtener_estado_wa(pedido):
     return str(getattr(pedido, "wa_estado", "") or "")
@@ -129,8 +131,8 @@ def _routear_mensaje(pedido, texto, telefono):
     # Sin pedido activo
     if not pedido:
         from .sender import wa_enviar_texto
-        from app import normalizar_telefono
-        tel = normalizar_telefono(telefono)
+        
+        tel = normalizar_telefono_service(telefono)
         wa_enviar_texto(
             tel,
             "¡Hola! 👋 No encontramos un pedido activo asociado a este número. "
@@ -187,10 +189,10 @@ def _routear_mensaje(pedido, texto, telefono):
             return
 
         from .sender import wa_enviar_texto
-        from app import normalizar_telefono
+        
 
         wa_enviar_texto(
-            normalizar_telefono(telefono),
+            normalizar_telefono_service(telefono),
             "No llegué a detectar el código postal 😊\n\n¿Me lo pasás por acá?",
             pedido=pedido,
         )
@@ -225,9 +227,9 @@ def _routear_mensaje(pedido, texto, telefono):
         texto_lower = (texto or "").lower()
 
         from .sender import wa_enviar_texto
-        from app import normalizar_telefono
+        
 
-        tel = normalizar_telefono(telefono)
+        tel = normalizar_telefono_service(telefono)
 
         # El cliente pregunta por retiro/sucursal, pero el sistema todavía no confirmó disponibilidad.
         if any(x in texto_lower for x in [
@@ -295,8 +297,8 @@ def _routear_mensaje(pedido, texto, telefono):
 
     # Estado no reconocido o vacío → IA o escala
     from .flows import _wa_responder_con_ia
-    from app import normalizar_telefono
-    _wa_responder_con_ia(pedido, texto, normalizar_telefono(telefono))
+    
+    _wa_responder_con_ia(pedido, texto, normalizar_telefono_service(telefono))
 
 
 def registrar_webhook(app):

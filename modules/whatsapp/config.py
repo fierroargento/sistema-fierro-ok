@@ -53,7 +53,7 @@ WA_POSTVENTA = "postventa"
 
 WA_CROSS_SELL = "cross_sell"
 WA_CROSS_SELL_CERRADO = "cross_sell_cerrado"
-
+WA_OPERADOR_MANUAL = "operador_manual"
 WA_FINALIZADO = "finalizado"
 # ── Templates Meta WhatsApp ─────────────────────────────────────────
 WA_TEMPLATE_LANG = "es_AR"
