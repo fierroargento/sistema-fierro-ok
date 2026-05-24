@@ -11,6 +11,9 @@ from datetime import datetime, timedelta, UTC
 from threading import Lock
 
 from domain.estados import Estado, ESTADOS_POST_DESPACHO
+from services.logger import get_app_logger
+
+logger = get_app_logger(__name__)
 
 _scheduler_lock = Lock()
 
@@ -51,7 +54,7 @@ def ejecutar_timers():
     saltea una vuelta para no compartir sesión DB ni duplicar consultas externas.
     """
     if not _scheduler_lock.acquire(blocking=False):
-        print("[WA SCHEDULER] Tick omitido: ya hay un scheduler corriendo")
+        logger.info("[WA SCHEDULER] Tick omitido: ya hay un scheduler corriendo")
         return
 
     hubo_error = False
@@ -60,7 +63,7 @@ def ejecutar_timers():
         ejecutar_tracking_automatico()
     except Exception as e:
         hubo_error = True
-        print("[WA SCHEDULER] Error general ejecutar_timers:", e)
+        logger.exception("[WA SCHEDULER] Error general ejecutar_timers")
     finally:
         _cerrar_sesion_db_segura(rollback=hubo_error)
         _scheduler_lock.release()
@@ -139,7 +142,7 @@ def ejecutar_timers_whatsapp():
 
     except Exception as e:
         _cerrar_sesion_db_segura(rollback=True)
-        print("[WA SCHEDULER] Error WA:", e)
+        logger.exception("[WA SCHEDULER] Error WA")
     finally:
         _cerrar_sesion_db_segura(rollback=False)
 def _es_transporte_tracking_auto_apb(pedido):
@@ -271,9 +274,12 @@ def ejecutar_tracking_automatico():
                     db.session.commit()
                 except Exception:
                     db.session.rollback()
-                print(f"[TRACKING AUTO] Error pedido #{pedido.id}:", e)
+                logger.exception(
+    "[TRACKING AUTO] Error pedido #%s",
+    getattr(pedido, "id", ""),
+)
     except Exception as e:
         _cerrar_sesion_db_segura(rollback=True)
-        print("[TRACKING AUTO] Error general:", e)
+        logger.exception("[TRACKING AUTO] Error general")
     finally:
         _cerrar_sesion_db_segura(rollback=False)
