@@ -93,3 +93,29 @@ def test_autoavance_post_despacho_no_toca_pedido_que_no_esta_despachado():
     aplicar_autoavance_post_despacho_service(pedido)
 
     assert pedido.estado == Estado.EMBALADO
+
+def test_autoavance_post_despacho_ml_acordas_correo_con_seguimiento_pasa_a_verificar_destino():
+    pedido = pedido_base(
+        estado=Estado.DESPACHADO,
+        canal="Mercado Libre",
+        ml_tipo="Acordás la Entrega",
+        empresa_envio="Correo Argentino",
+        seguimiento="COR123",
+    )
+
+    aplicar_autoavance_post_despacho_service(pedido)
+
+    assert pedido.estado == Estado.VERIFICAR_DESTINO
+
+
+def test_actualizar_estado_automatico_pasa_a_etiqueta_lista_si_puede_imprimir_acordas():
+    pedido = pedido_base(estado=Estado.CARGANDO)
+
+    actualizar_estado_automatico_service(
+        pedido,
+        puede_imprimir_etiqueta_directamente=lambda p: False,
+        puede_imprimir_acordas_entrega=lambda p: True,
+        debe_pasar_a_demora_entrega=lambda p: False,
+    )
+
+    assert pedido.estado == Estado.ETIQUETA_LISTA    
