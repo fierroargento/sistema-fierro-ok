@@ -1,3 +1,6 @@
+from domain.estados import Estado
+
+
 def ml_sincronizar_items_pedido_service(
     pedido,
     order,
