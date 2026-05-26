@@ -223,7 +223,7 @@ def ml_preparar_pedido_base_importacion_service(
             ),
             canal="Mercado Libre",
             id_venta=id_operativo_ml,
-            estado=Estado.CARGANDO_PEDIDO,
+            estado=Estado.CARGANDO,
             origen="mercadolibre",
         )
 
@@ -345,7 +345,7 @@ def ml_limpiar_pedidos_ml_no_operables_existentes_service(
         .filter_by(
             canal="Mercado Libre",
             origen="mercadolibre",
-            estado=Estado.CARGANDO_PEDIDO,
+            estado=Estado.CARGANDO,
         )
         .order_by(Pedido.id.asc())
         .all()
