@@ -4053,7 +4053,7 @@ def ml_obtener_usuario_actual():
     return ml_api_get("/users/me")
 
 
-def ml_obtener_orders_recientes(cuenta, limit=None, horas=48, max_paginas=20):
+def ml_obtener_orders_recientes(cuenta, limit=None, horas=168, max_paginas=100):
     """
     Trae órdenes operativas recientes de ML con paginación por ventana de tiempo.
     Evita depender de un límite fijo que puede quedar tapado por ventas Full/omitidas.
