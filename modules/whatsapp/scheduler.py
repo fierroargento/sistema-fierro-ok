@@ -42,6 +42,8 @@ def _cerrar_sesion_db_segura(rollback=False):
 
 from .config import (
     TRACKING_INTERVALO_MINUTOS,
+    WA_ESPERANDO_DATOS,
+    WA_ESPERANDO_CONFIRMACION_SUCURSAL,
     modulo_activo,
 )
 
