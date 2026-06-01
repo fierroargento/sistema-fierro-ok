@@ -8149,10 +8149,8 @@ def webhook_mercadolibre():
                 marcados = ml_marcar_mensajes_pendientes_por_ids(ids, count=1, commit=True)
 
                 if marcados == 0:
-                    total = ml_sync_mensajes_pendientes_pedidos()
-                    db.session.commit()
-                    detalle_log = f"mensaje sin match directo; sync total={total}"
-                    print(f"[WEBHOOK ML] Mensaje sin match directo. Sync mensajes total={total}")
+                    detalle_log = "mensaje sin match directo"
+                    print("[WEBHOOK ML] Mensaje sin match directo.")
                 else:
                     detalle_log = f"mensaje vinculado a {marcados} pedido(s): {sorted(ids)}"
                     print(f"[WEBHOOK ML] Mensaje vinculado a {marcados} pedido(s). IDs={sorted(ids)}")
