@@ -39,3 +39,17 @@ def test_url_publica_convierte_ruta_relativa_en_url_publica():
 def test_url_publica_vacia_devuelve_vacio():
     assert _url_publica("", "https://sistema.test/") == ""
     assert _url_publica(None, "https://sistema.test/") == ""
+
+import json
+from pathlib import Path
+
+
+def test_catalogo_cross_sell_imagenes_son_https():
+    catalogo_path = Path("static/catalogo/catalogo_config.json")
+    data = json.loads(catalogo_path.read_text(encoding="utf-8"))
+
+    productos = data.get("productos", {})
+
+    for sku in ["KPADES", "BPPC01", "KITPACH", "B4030H", "B5030H"]:
+        imagen_url = productos.get(sku, {}).get("imagen_url", "")
+        assert imagen_url.startswith("https://"), f"{sku} no tiene imagen_url HTTPS"    
