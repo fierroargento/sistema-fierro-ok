@@ -52,4 +52,32 @@ def test_catalogo_cross_sell_imagenes_son_https():
 
     for sku in ["KPADES", "BPPC01", "KITPACH", "B4030H", "B5030H"]:
         imagen_url = productos.get(sku, {}).get("imagen_url", "")
-        assert imagen_url.startswith("https://"), f"{sku} no tiene imagen_url HTTPS"    
+        assert imagen_url.startswith("https://"), f"{sku} no tiene imagen_url HTTPS"
+
+from modules.whatsapp.cross_sell_operador import _armar_texto_propuesta_cross_sell
+
+
+def test_texto_cross_sell_pp6040h_es_especifico():
+    texto = _armar_texto_propuesta_cross_sell([
+        {"sku": "KPADES", "nombre": "Kit pala y atizador desarmable"},
+        {"sku": "BPPC01", "nombre": "Funda para parrilla plegable"},
+    ])
+
+    assert "parrilla plegable" in texto.lower()
+    assert "Kit pala y atizador desarmable" in texto
+    assert "Funda para parrilla plegable" in texto
+    assert "te pasamos precio" in texto
+
+
+def test_texto_cross_sell_parrillas_es_especifico():
+    texto = _armar_texto_propuesta_cross_sell([
+        {"sku": "KITPACH", "nombre": "Kit pala y atizador"},
+        {"sku": "B4030H", "nombre": "Brasero 30x40"},
+        {"sku": "B5030H", "nombre": "Brasero 30x53"},
+    ])
+
+    assert "esta parrilla" in texto.lower()
+    assert "Kit pala y atizador" in texto
+    assert "Brasero 30x40" in texto
+    assert "Brasero 30x53" in texto
+    assert "te pasamos precio" in texto            

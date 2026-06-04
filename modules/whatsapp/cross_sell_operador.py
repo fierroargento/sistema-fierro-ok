@@ -43,6 +43,70 @@ def _url_publica(imagen_relativa, host_url):
 
     return str(host_url or "").rstrip("/") + imagen_relativa
 
+def _armar_texto_propuesta_cross_sell(productos_cross):
+    """
+    Arma el texto comercial de la propuesta asistida.
+
+    APB:
+    - No cierra venta.
+    - No informa precio automáticamente.
+    - Invita al cliente a pedir precio para que el operador continúe.
+    """
+
+    productos_cross = productos_cross or []
+    skus = {
+        str(p.get("sku") or "").strip().upper()
+        for p in productos_cross
+    }
+
+    nombres_por_sku = {
+        str(p.get("sku") or "").strip().upper(): str(p.get("nombre") or "").strip()
+        for p in productos_cross
+    }
+
+    # Parrilla plegable PP6040H: kit desarmable + funda.
+    if "KPADES" in skus and "BPPC01" in skus:
+        nombre_kit = nombres_por_sku.get("KPADES") or "Kit pala y atizador desarmable"
+        nombre_funda = nombres_por_sku.get("BPPC01") or "Funda para parrilla plegable"
+
+        return (
+            "Antes de cerrar el pedido, te muestro dos accesorios que muchos clientes suman "
+            "con la parrilla plegable:\n\n"
+            f"- {nombre_kit}\n"
+            f"- {nombre_funda}\n\n"
+            "El kit es práctico para usar con la parrilla y la funda ayuda a guardarla y transportarla "
+            "más cómoda.\n\n"
+            "Si querés, te pasamos precio para agregarlos al pedido."
+        )
+
+    # Parrillas soldadas/flotantes: kit tradicional + braseros.
+    if "KITPACH" in skus and ("B4030H" in skus or "B5030H" in skus):
+        nombre_kit = nombres_por_sku.get("KITPACH") or "Kit pala y atizador"
+        nombre_brasero_1 = nombres_por_sku.get("B4030H") or "Brasero 30x40"
+        nombre_brasero_2 = nombres_por_sku.get("B5030H") or "Brasero 30x53"
+
+        return (
+            "Antes de cerrar el pedido, te muestro algunos accesorios que suelen sumar "
+            "con esta parrilla:\n\n"
+            f"- {nombre_kit}\n"
+            f"- {nombre_brasero_1}\n"
+            f"- {nombre_brasero_2}\n\n"
+            "El kit completa el uso de la parrilla y los braseros son una buena opción para preparar "
+            "y mantener las brasas más ordenadas.\n\n"
+            "Si querés, te pasamos precio para agregarlos al pedido."
+        )
+
+    # Fallback genérico para futuros productos.
+    lineas_productos = "\n".join(
+        f"- {p.get('nombre') or p.get('sku')}"
+        for p in productos_cross
+    )
+
+    return (
+        "Antes de cerrar el pedido, te muestro algunos accesorios que suelen sumar:\n\n"
+        f"{lineas_productos}\n\n"
+        "Si querés, te pasamos precio para agregarlos al pedido."
+    )
 
 def preparar_propuesta_cross_sell_operador(pedido):
     """
@@ -73,13 +137,7 @@ def preparar_propuesta_cross_sell_operador(pedido):
     if not productos_cross:
         return None
 
-    lineas_productos = "\n".join([f"- {nombre}" for nombre in nombres_cross])
-
-    texto_sugerido = (
-        "Antes de cerrar el pedido, te muestro algunos accesorios que suelen sumar:\n\n"
-        f"{lineas_productos}\n\n"
-        "Si querés, te pasamos precio para agregarlos al pedido."
-    )
+    texto_sugerido = _armar_texto_propuesta_cross_sell(productos_cross)
 
     return {
         "texto": texto_sugerido,
@@ -133,13 +191,7 @@ def enviar_propuesta_cross_sell_operador(
     if not productos_cross:
         return False, "Este pedido no tiene agregados configurados para ofrecer."
 
-    lineas_productos = "\n".join([f"- {nombre}" for nombre in nombres_cross])
-
-    texto_sugerido = (
-        "Antes de cerrar el pedido, te muestro algunos accesorios que suelen sumar:\n\n"
-        f"{lineas_productos}\n\n"
-        "Si querés, te pasamos precio para agregarlos al pedido."
-    )
+    texto_sugerido = _armar_texto_propuesta_cross_sell(productos_cross)
 
     ok_texto = wa_enviar_texto(
         tel,
