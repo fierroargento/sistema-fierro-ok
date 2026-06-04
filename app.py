@@ -9398,16 +9398,16 @@ def detalle_pedido(id):
     from modules.whatsapp.config import CROSS_SELL_MANUAL_ENABLED
 
     estados_sin_cross_sell = {
-        Estado.DESPACHADO.value,
-        Estado.VERIFICAR_DESTINO.value,
-        Estado.LISTO_RETIRAR.value,
-        Estado.DEMORA.value,
-        Estado.RECLAMO.value,
-        Estado.NO_ENTREGADO.value,
-        Estado.ENTREGADO.value,
-        Estado.FINALIZADO.value,
-        Estado.CANCELADO.value,
-        Estado.RECLAMAR_ML.value,
+        Estado.DESPACHADO,
+        Estado.VERIFICAR_DESTINO,
+        Estado.LISTO_RETIRAR,
+        Estado.DEMORA,
+        Estado.RECLAMO,
+        Estado.NO_ENTREGADO,
+        Estado.ENTREGADO,
+        Estado.FINALIZADO,
+        Estado.CANCELADO,
+        Estado.RECLAMAR_ML,
     }
 
     puede_iniciar_cross_sell = (
@@ -10656,16 +10656,16 @@ def whatsapp_iniciar_cross_sell_manual(id):
         ))
 
     estados_sin_cross_sell = {
-        Estado.DESPACHADO.value,
-        Estado.VERIFICAR_DESTINO.value,
-        Estado.LISTO_RETIRAR.value,
-        Estado.DEMORA.value,
-        Estado.RECLAMO.value,
-        Estado.NO_ENTREGADO.value,
-        Estado.ENTREGADO.value,
-        Estado.FINALIZADO.value,
-        Estado.CANCELADO.value,
-        Estado.RECLAMAR_ML.value,
+        Estado.DESPACHADO,
+        Estado.VERIFICAR_DESTINO,
+        Estado.LISTO_RETIRAR,
+        Estado.DEMORA,
+        Estado.RECLAMO,
+        Estado.NO_ENTREGADO,
+        Estado.ENTREGADO,
+        Estado.FINALIZADO,
+        Estado.CANCELADO,
+        Estado.RECLAMAR_ML,
     }
 
     if pedido.estado in estados_sin_cross_sell:
