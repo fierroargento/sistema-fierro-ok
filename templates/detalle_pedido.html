@@ -566,6 +566,14 @@ body { background: #f4f7f8; }
                     <button type="submit" class="btn btn-secundario btn-wa-small">Iniciar Chat Operador</button>
                 </form>
                 {% endif %}
+
+                {% if cross_sell_manual_enabled and normalizar_telefono(pedido.telefono) and cross_sell_propuesta %}
+                <form method="POST" action="{{ url_for('whatsapp_enviar_propuesta_cross_sell', id=pedido.id) }}" style="margin:0;" onsubmit="return confirm('¿Confirmás enviar esta propuesta de cross-sell por WhatsApp?');">
+                    <button type="submit" class="btn btn-confirmar btn-wa-small">
+                        Enviar propuesta cross-sell
+                    </button>
+                </form>
+                {% endif %}                
             </div>
         </div>
 
@@ -583,7 +591,7 @@ body { background: #f4f7f8; }
                     </div>
                 </div>
 
-                <div style="flex:0 1 360px; min-width:280px;">
+                <div style="flex:0 1 420px; min-width:280px;">
                     {% if cross_sell_propuesta.productos %}
                     <div style="font-size:12px; margin-bottom:10px;">
                         <strong>Imágenes que se intentarán enviar:</strong>
@@ -599,12 +607,6 @@ body { background: #f4f7f8; }
                         </ul>
                     </div>
                     {% endif %}
-
-                    <form method="POST" action="{{ url_for('whatsapp_enviar_propuesta_cross_sell', id=pedido.id) }}" style="margin:0;">
-                        <button type="submit" class="btn btn-confirmar btn-wa-small">
-                            Enviar propuesta cross-sell
-                        </button>
-                    </form>
                 </div>
 
             </div>
