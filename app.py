@@ -9397,6 +9397,24 @@ def detalle_pedido(id):
 
     from modules.whatsapp.config import CROSS_SELL_MANUAL_ENABLED
 
+    estados_sin_cross_sell = {
+        Estado.DESPACHADO.value,
+        Estado.VERIFICAR_DESTINO.value,
+        Estado.LISTO_RETIRAR.value,
+        Estado.DEMORA.value,
+        Estado.RECLAMO.value,
+        Estado.NO_ENTREGADO.value,
+        Estado.ENTREGADO.value,
+        Estado.FINALIZADO.value,
+        Estado.CANCELADO.value,
+        Estado.RECLAMAR_ML.value,
+    }
+
+    puede_iniciar_cross_sell = (
+        CROSS_SELL_MANUAL_ENABLED
+        and pedido.estado not in estados_sin_cross_sell
+    )
+
     return render_template(
         "detalle_pedido.html",
         pedido=pedido,
@@ -9411,7 +9429,7 @@ def detalle_pedido(id):
         notas_pedido=notas_pedido,
         whatsapp_mensajes=whatsapp_mensajes,
         agregados_apb=agregados_apb,
-        cross_sell_manual_enabled=CROSS_SELL_MANUAL_ENABLED,
+        cross_sell_manual_enabled=puede_iniciar_cross_sell,
     )
 
 @app.route("/despacho-mobile/pedido/<int:id>/revisar-agregado")
@@ -10637,11 +10655,24 @@ def whatsapp_iniciar_cross_sell_manual(id):
             error="No autorizado para operar WhatsApp."
         ))
 
-    if pedido.estado in ESTADOS_CERRADOS:
+    estados_sin_cross_sell = {
+        Estado.DESPACHADO.value,
+        Estado.VERIFICAR_DESTINO.value,
+        Estado.LISTO_RETIRAR.value,
+        Estado.DEMORA.value,
+        Estado.RECLAMO.value,
+        Estado.NO_ENTREGADO.value,
+        Estado.ENTREGADO.value,
+        Estado.FINALIZADO.value,
+        Estado.CANCELADO.value,
+        Estado.RECLAMAR_ML.value,
+    }
+
+    if pedido.estado in estados_sin_cross_sell:
         return redirect(url_for(
             "detalle_pedido",
             id=pedido.id,
-            error="No se puede iniciar cross-sell en un pedido cerrado."
+            error="No se puede iniciar cross-sell porque el pedido ya fue despachado o está en una etapa posterior."
         ))
 
     if not normalizar_telefono(pedido.telefono):

@@ -487,6 +487,22 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
         if not CROSS_SELL_AUTO_ENABLED:
             return False
 
+    estados_sin_cross_sell = {
+        "Despachado",
+        "Verificar destino",
+        "Listo para retirar",
+        "Con demora de entrega",
+        "Reclamo transporte",
+        "No entregado",
+        "Entregado",
+        "Finalizado",
+        "Cancelado",
+        "Reclamar ML",
+    }
+
+    if str(getattr(pedido, "estado", "") or "").strip() in estados_sin_cross_sell:
+        return False
+
     tel = normalizar_telefono_service(pedido.telefono)
     productos = obtener_productos_a_ofrecer(pedido)
 
