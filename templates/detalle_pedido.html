@@ -569,11 +569,47 @@ body { background: #f4f7f8; }
 
                 {% if cross_sell_manual_enabled and normalizar_telefono(pedido.telefono) %}
                 <form method="POST" action="{{ url_for('whatsapp_iniciar_cross_sell_manual', id=pedido.id) }}" style="margin:0;">
-                    <button type="submit" class="btn btn-confirmar btn-wa-small">Iniciar cross-sell</button>
+                    <button type="submit" class="btn btn-confirmar btn-wa-small">Iniciar cross-sell bot</button>
                 </form>
+                {% endif %}
+
+                                {% if cross_sell_manual_enabled and normalizar_telefono(pedido.telefono) and cross_sell_propuesta %}
+                <div style="width:100%; margin-top:10px; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fafafa;">
+                    <div style="font-weight:700; margin-bottom:6px;">
+                        Propuesta cross-sell sugerida
+                    </div>
+
+                    <div style="white-space:pre-line; font-size:13px; margin-bottom:8px;">
+{{ cross_sell_propuesta.texto }}
+                    </div>
+
+                    {% if cross_sell_propuesta.productos %}
+                    <div style="font-size:12px; margin-bottom:8px;">
+                        <strong>Imágenes que se intentarán enviar:</strong>
+                        <ul style="margin:4px 0 0 18px;">
+                            {% for prod_cross in cross_sell_propuesta.productos %}
+                            <li>
+                                {{ prod_cross.nombre }}
+                                {% if not prod_cross.tiene_imagen %}
+                                    <span style="color:#999;">(sin imagen configurada)</span>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <form method="POST" action="{{ url_for('whatsapp_enviar_propuesta_cross_sell', id=pedido.id) }}" style="margin:0;">
+                        <button type="submit" class="btn btn-confirmar btn-wa-small">
+                            Enviar propuesta cross-sell
+                        </button>
+                    </form>
+                </div>
                 {% endif %}
             </div>
         </div>
+
+
 
         {% if pedido.wa_estado == "operador_manual" %}
         <div class="wa-alerta-operador">El operador tomó esta conversación. El bot queda pausado y no responde automático.</div>

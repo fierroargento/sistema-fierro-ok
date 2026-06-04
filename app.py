@@ -9415,6 +9415,47 @@ def detalle_pedido(id):
         and pedido.estado not in estados_sin_cross_sell
     )
 
+    cross_sell_propuesta = None
+
+    if puede_iniciar_cross_sell:
+        try:
+            from modules.whatsapp.cross_sell import obtener_productos_a_ofrecer, obtener_producto
+
+            productos_cross = []
+            nombres_cross = []
+
+            for sku_cross in obtener_productos_a_ofrecer(pedido):
+                producto_cross = obtener_producto(sku_cross) or {}
+                nombre_cross = producto_cross.get("nombre", sku_cross)
+
+                productos_cross.append({
+                    "sku": sku_cross,
+                    "nombre": nombre_cross,
+                    "descripcion": producto_cross.get("descripcion", ""),
+                    "imagen_url": (producto_cross.get("imagen_url") or "").strip(),
+                    "tiene_imagen": bool((producto_cross.get("imagen_url") or "").strip()),
+                })
+
+                nombres_cross.append(nombre_cross)
+
+            if productos_cross:
+                lineas_productos = "\n".join([f"- {nombre}" for nombre in nombres_cross])
+
+                texto_sugerido = (
+                    "Antes de cerrar el pedido, te muestro algunos accesorios que suelen sumar:\n\n"
+                    f"{lineas_productos}\n\n"
+                    "Si querés, te pasamos precio para agregarlos al pedido."
+                )
+
+                cross_sell_propuesta = {
+                    "texto": texto_sugerido,
+                    "productos": productos_cross,
+                }
+
+        except Exception as e:
+            print(f"[WA CROSS-SELL] No se pudo preparar propuesta pedido #{pedido.id}: {e}")
+            cross_sell_propuesta = None
+
     return render_template(
         "detalle_pedido.html",
         pedido=pedido,
@@ -9430,6 +9471,7 @@ def detalle_pedido(id):
         whatsapp_mensajes=whatsapp_mensajes,
         agregados_apb=agregados_apb,
         cross_sell_manual_enabled=puede_iniciar_cross_sell,
+        cross_sell_propuesta=cross_sell_propuesta,
     )
 
 @app.route("/despacho-mobile/pedido/<int:id>/revisar-agregado")
@@ -10720,6 +10762,190 @@ def whatsapp_iniciar_cross_sell_manual(id):
             "detalle_pedido",
             id=pedido.id,
             error=f"No se pudo iniciar cross-sell: {e}"
+        ))
+
+@app.route("/pedido/<int:id>/whatsapp/enviar-propuesta-cross-sell", methods=["POST"])
+@login_required
+def whatsapp_enviar_propuesta_cross_sell(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    from modules.whatsapp.config import CROSS_SELL_MANUAL_ENABLED
+
+    if not CROSS_SELL_MANUAL_ENABLED:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="Cross-sell manual deshabilitado por configuración."
+        ))
+
+    if not puede_operar_whatsapp(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No autorizado para operar WhatsApp."
+        ))
+
+    estados_sin_cross_sell = {
+        Estado.DESPACHADO,
+        Estado.VERIFICAR_DESTINO,
+        Estado.LISTO_RETIRAR,
+        Estado.DEMORA,
+        Estado.RECLAMO,
+        Estado.NO_ENTREGADO,
+        Estado.ENTREGADO,
+        Estado.FINALIZADO,
+        Estado.CANCELADO,
+        Estado.RECLAMAR_ML,
+    }
+
+    if pedido.estado in estados_sin_cross_sell:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No se puede enviar propuesta de cross-sell porque el pedido ya fue despachado o está en una etapa posterior."
+        ))
+
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="El pedido no tiene teléfono válido para WhatsApp."
+        ))
+
+    try:
+        from modules.whatsapp.cross_sell import obtener_productos_a_ofrecer, obtener_producto
+        from modules.whatsapp.sender import wa_enviar_texto, wa_enviar_imagen
+
+        productos_cross = []
+        nombres_cross = []
+
+        for sku_cross in obtener_productos_a_ofrecer(pedido):
+            producto_cross = obtener_producto(sku_cross) or {}
+            nombre_cross = producto_cross.get("nombre", sku_cross)
+            imagen_relativa = (producto_cross.get("imagen_url") or "").strip()
+
+            if imagen_relativa.startswith("http://") or imagen_relativa.startswith("https://"):
+                imagen_url = imagen_relativa
+            elif imagen_relativa:
+                imagen_url = request.host_url.rstrip("/") + imagen_relativa
+            else:
+                imagen_url = ""
+
+            productos_cross.append({
+                "sku": sku_cross,
+                "nombre": nombre_cross,
+                "descripcion": producto_cross.get("descripcion", ""),
+                "imagen_url": imagen_url,
+            })
+
+            nombres_cross.append(nombre_cross)
+
+        if not productos_cross:
+            return redirect(url_for(
+                "detalle_pedido",
+                id=pedido.id,
+                error="Este pedido no tiene agregados configurados para ofrecer."
+            ))
+
+        lineas_productos = "\n".join([f"- {nombre}" for nombre in nombres_cross])
+
+        texto_sugerido = (
+            "Antes de cerrar el pedido, te muestro algunos accesorios que suelen sumar:\n\n"
+            f"{lineas_productos}\n\n"
+            "Si querés, te pasamos precio para agregarlos al pedido."
+        )
+
+        ok_texto = wa_enviar_texto(
+            tel,
+            texto_sugerido,
+            pedido=pedido,
+            autor="operador",
+        )
+
+        imagenes_enviadas = []
+        imagenes_fallidas = []
+
+        for producto_cross in productos_cross:
+            imagen_url = producto_cross.get("imagen_url", "")
+
+            if not imagen_url:
+                continue
+
+            ok_img = wa_enviar_imagen(
+                tel,
+                imagen_url,
+                caption=producto_cross.get("nombre", ""),
+                pedido=pedido,
+                autor="operador",
+            )
+
+            if ok_img:
+                imagenes_enviadas.append(producto_cross.get("sku"))
+            else:
+                imagenes_fallidas.append(producto_cross.get("sku"))
+
+        if not ok_texto and not imagenes_enviadas:
+            return redirect(url_for(
+                "detalle_pedido",
+                id=pedido.id,
+                error="No se pudo enviar la propuesta por WhatsApp API."
+            ))
+
+        pedido.wa_estado = "operador_manual"
+        pedido.ia_requiere_operador = True
+        pedido.wa_ultimo_contacto = datetime.utcnow()
+
+        actualizar_estado_conversacional(
+            pedido,
+            owner_actual="operador",
+            canal_activo="wa",
+            estado_conversacional="cross_sell_propuesta_operador",
+            takeover_activo=True,
+            bot_pausado=True,
+            cross_sell_activo=False,
+        )
+
+        registrar_evento_operativo(
+            pedido=pedido,
+            tipo_evento="cross_sell_propuesta_operador_enviada",
+            origen="operador",
+            canal="wa",
+            owner="operador",
+            estado_conversacional="cross_sell_propuesta_operador",
+            payload={
+                "texto": texto_sugerido,
+                "productos": productos_cross,
+                "imagenes_enviadas": imagenes_enviadas,
+                "imagenes_fallidas": imagenes_fallidas,
+            },
+            resultado="ok",
+            detalle="Operador envió propuesta asistida de cross-sell por WhatsApp. El bot queda pausado.",
+            usuario=session.get("username", ""),
+            procesado=True,
+        )
+
+        db.session.commit()
+
+        if imagenes_fallidas:
+            return redirect(url_for(
+                "detalle_pedido",
+                id=pedido.id,
+                ok="Propuesta enviada, pero alguna imagen no se pudo enviar por WhatsApp."
+            ))
+
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            ok="Propuesta de cross-sell enviada por WhatsApp. El operador sigue a cargo de la conversación."
+        ))
+
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=f"No se pudo enviar propuesta de cross-sell: {e}"
         ))
 
 @app.route("/pedido/<int:id>/confirmar-entrega")
