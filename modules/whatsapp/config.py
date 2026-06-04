@@ -25,6 +25,19 @@ TIMER_PRIMER_RECORDATORIO   = int(os.getenv("WA_TIMER_PRIMER_RECORDATORIO", 60 *
 TIMER_SEGUNDO_RECORDATORIO  = int(os.getenv("WA_TIMER_SEGUNDO_RECORDATORIO", 60 * 60 * 3))   # 3 horas
 TIMER_CROSS_SELL_SIGUIENTE  = int(os.getenv("WA_TIMER_CROSS_SELL", 60 * 5))                  # 5 minutos
 
+# ── Feature flags APB ──────────────────────────────────────────────
+# Por defecto queda apagado para poder subir a producción sin activar cambios.
+CROSS_SELL_MANUAL_ENABLED = (
+    os.getenv("CROSS_SELL_MANUAL_ENABLED", "false").strip().lower()
+    in ("1", "true", "yes", "si", "sí", "on")
+)
+
+# Dejamos el automático apagado por defecto. Primero probamos cross-sell manual.
+CROSS_SELL_AUTO_ENABLED = (
+    os.getenv("CROSS_SELL_AUTO_ENABLED", "false").strip().lower()
+    in ("1", "true", "yes", "si", "sí", "on")
+)
+
 # Scheduler central APB. Corre enganchado a requests para no abrir hilos raros en Render.
 SCHEDULER_INTERVALO_SEGUNDOS = int(os.getenv("WA_SCHEDULER_INTERVALO_SEGUNDOS", 60 * 5))
 TRACKING_INTERVALO_MINUTOS   = int(os.getenv("TRACKING_INTERVALO_MINUTOS", 60))

@@ -9395,6 +9395,8 @@ def detalle_pedido(id):
                 "items": items_agregado,
             })
 
+    from modules.whatsapp.config import CROSS_SELL_MANUAL_ENABLED
+
     return render_template(
         "detalle_pedido.html",
         pedido=pedido,
@@ -9409,6 +9411,7 @@ def detalle_pedido(id):
         notas_pedido=notas_pedido,
         whatsapp_mensajes=whatsapp_mensajes,
         agregados_apb=agregados_apb,
+        cross_sell_manual_enabled=CROSS_SELL_MANUAL_ENABLED,
     )
 
 @app.route("/despacho-mobile/pedido/<int:id>/revisar-agregado")
@@ -10612,6 +10615,81 @@ def whatsapp_reactivar_bot(id):
     )
 
     return redirect(url_for("detalle_pedido", id=pedido.id, ok="Bot WhatsApp reactivado."))
+
+@app.route("/pedido/<int:id>/whatsapp/iniciar-cross-sell", methods=["POST"])
+@login_required
+def whatsapp_iniciar_cross_sell_manual(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    from modules.whatsapp.config import CROSS_SELL_MANUAL_ENABLED
+
+    if not CROSS_SELL_MANUAL_ENABLED:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="Cross-sell manual deshabilitado por configuración."
+        ))
+
+    if not puede_operar_whatsapp(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No autorizado para operar WhatsApp."
+        ))
+
+    if pedido.estado in ESTADOS_CERRADOS:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No se puede iniciar cross-sell en un pedido cerrado."
+        ))
+
+    if not normalizar_telefono(pedido.telefono):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="El pedido no tiene teléfono válido para WhatsApp."
+        ))
+
+    try:
+        from modules.whatsapp.cross_sell import obtener_productos_a_ofrecer
+        productos = obtener_productos_a_ofrecer(pedido)
+
+        if not productos:
+            return redirect(url_for(
+                "detalle_pedido",
+                id=pedido.id,
+                error="Este pedido no tiene agregados configurados para ofrecer."
+            ))
+
+        from modules.whatsapp.flows import wa_iniciar_cross_sell
+
+        ok = wa_iniciar_cross_sell(
+            pedido,
+            origen="operador",
+            forzar=True,
+        )
+
+        if not ok:
+            return redirect(url_for(
+                "detalle_pedido",
+                id=pedido.id,
+                error="No se pudo iniciar el cross-sell por WhatsApp."
+            ))
+
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            ok="Cross-sell iniciado por WhatsApp. El bot queda a cargo solo de ese flujo."
+        ))
+
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=f"No se pudo iniciar cross-sell: {e}"
+        ))
 
 @app.route("/pedido/<int:id>/confirmar-entrega")
 @login_required

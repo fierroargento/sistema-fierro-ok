@@ -1,43 +1,141 @@
 {
-"productos": {
-"PP6040": {
-"nombre": "Parrilla Plegable PP6040",
-"upsells": [
-{ "sku": "KITPACH", "prioridad": 1 },
-{ "sku": "KPADES", "prioridad": 2 }
-]
-},
+  "productos": {
+    "PP6040H": {
+      "nombre": "Parrilla plegable PP6040H",
+      "upsells": [
+        { "sku": "KPADES", "prioridad": 1 },
+        { "sku": "BPPC01", "prioridad": 2 }
+      ]
+    },
+    "PP6040H+FUNDA": {
+      "nombre": "Parrilla plegable PP6040H con funda",
+      "upsells": [
+        { "sku": "KPADES", "prioridad": 1 }
+      ]
+    },
 
-```
-"B4030H": {
-  "nombre": "Brasero 40x30",
-  "upsells": [
-    { "sku": "KITPACH", "prioridad": 1 }
-  ]
-},
+    "PA6040H": {
+      "nombre": "Parrilla soldada 60x40",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
+    "PA7050H": {
+      "nombre": "Parrilla soldada 70x50",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
+    "PA8050H": {
+      "nombre": "Parrilla soldada 80x50",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
+    "PA9060H": {
+      "nombre": "Parrilla soldada 90x60",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
+    "PA10060H": {
+      "nombre": "Parrilla soldada 100x60",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
+    "PA12060H": {
+      "nombre": "Parrilla soldada 120x60",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
 
-"B5030H": {
-  "nombre": "Brasero 50x30",
-  "upsells": [
-    { "sku": "KITPACH", "prioridad": 1 }
-  ]
-},
+    "PF6040H": {
+      "nombre": "Parrilla flotante 60x40",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
+    "PF7050H": {
+      "nombre": "Parrilla flotante 70x50",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
+    "PF8050H": {
+      "nombre": "Parrilla flotante 80x50",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
+    "PF9060H": {
+      "nombre": "Parrilla flotante 90x60",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
+    "PF10060H": {
+      "nombre": "Parrilla flotante 100x60",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
+    "PF12060H": {
+      "nombre": "Parrilla flotante 120x60",
+      "upsells": [
+        { "sku": "KITPACH", "prioridad": 1 },
+        { "sku": "B4030H", "prioridad": 2 },
+        { "sku": "B5030H", "prioridad": 3 }
+      ]
+    },
 
-"BPPC01": {
-  "nombre": "Base Parrilla",
-  "upsells": [
-    { "sku": "KPADES", "prioridad": 1 }
-  ]
-},
-
-"KITPACH": {
-  "nombre": "Kit Pala y Atizador"
-},
-
-"KPADES": {
-  "nombre": "Kit Pala y Atizador Desarmable"
-}
-```
-
-}
+    "KPADES": {
+      "nombre": "Kit pala y atizador desarmable",
+      "descripcion": "Te muestro algo que muchos clientes suman con esta parrilla: el kit de pala y atizador desarmable. Es práctico, ocupa poco lugar y va muy bien con la parrilla plegable.",
+      "precio": 8500
+    },
+    "BPPC01": {
+      "nombre": "Funda para parrilla plegable",
+      "descripcion": "También tenemos la funda para proteger la parrilla y guardarla de forma más cómoda.",
+      "precio": 8500
+    },
+    "KITPACH": {
+      "nombre": "Kit pala y atizador",
+      "descripcion": "También podés sumar el kit de pala y atizador tradicional, ideal para acompañar la parrilla.",
+      "precio": 7500
+    },
+    "B4030H": {
+      "nombre": "Brasero 30x40",
+      "descripcion": "También tenemos brasero de hierro, ideal para acompañar la parrilla.",
+      "precio": 28700
+    },
+    "B5030H": {
+      "nombre": "Brasero 30x53",
+      "descripcion": "También tenemos brasero grande de hierro, ideal para acompañar parrillas más grandes.",
+      "precio": 33700
+    }
+  }
 }

@@ -566,6 +566,12 @@ body { background: #f4f7f8; }
                     <button type="submit" class="btn btn-secundario btn-wa-small">Iniciar Chat Operador</button>
                 </form>
                 {% endif %}
+
+                {% if cross_sell_manual_enabled and normalizar_telefono(pedido.telefono) %}
+                <form method="POST" action="{{ url_for('whatsapp_iniciar_cross_sell_manual', id=pedido.id) }}" style="margin:0;">
+                    <button type="submit" class="btn btn-confirmar btn-wa-small">Iniciar cross-sell</button>
+                </form>
+                {% endif %}
             </div>
         </div>
 
