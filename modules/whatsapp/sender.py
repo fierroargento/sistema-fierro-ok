@@ -290,7 +290,7 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
         except Exception as e:
             logger.exception("[WA-APB] No se pudo resolver pedido para imagen")
 
-    texto_control = caption or f"[Imagen] {imagen_url}"
+    texto_control = caption or f"[Imagen enviada] {imagen_url}"
     if autor == "bot" and pedido is not None:
         try:
             from app import ia_puede_enviar_automatico
@@ -313,7 +313,10 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
         payload["image"]["caption"] = str(caption).strip()
 
     ok, data = _wa_post(payload)
-    texto_hist = caption or f"[Imagen] {imagen_url}"
+    if caption:
+        texto_hist = f"[Imagen enviada] {caption}"
+    else:
+        texto_hist = f"[Imagen enviada] {imagen_url}"
     if ok and autor == "bot" and pedido is not None:
         try:
             from app import ia_marcar_mensaje_bot
