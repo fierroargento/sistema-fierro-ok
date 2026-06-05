@@ -660,36 +660,6 @@ body { background: #f4f7f8; }
 
         {% endif %}                    
 
-                    <div style="white-space:pre-line; font-size:13px; line-height:1.45;">
-{{ cross_sell_propuesta.texto }}
-                    </div>
-                </div>
-
-                <div style="flex:0 1 420px; min-width:280px;">
-                    {% if cross_sell_propuesta.productos %}
-                    <div style="font-size:12px; margin-bottom:10px;">
-                        <strong>Imágenes que se intentarán enviar:</strong>
-                        <ul style="margin:6px 0 0 18px;">
-                            {% for prod_cross in cross_sell_propuesta.productos %}
-                            <li>
-                                {{ prod_cross.nombre }}
-                                {% if not prod_cross.tiene_imagen %}
-                                    <span style="color:#999;">(sin imagen configurada)</span>
-                                {% endif %}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-                </div>
-
-            </div>
-        </div>
-        {% endif %}
-
-        {% if pedido.wa_estado == "operador_manual" %}
-        <div class="wa-alerta-operador">El operador tomó esta conversación. El bot queda pausado y no responde automático.</div>
-        {% endif %}
 
         <div class="wa-thread">
             {% for m in whatsapp_mensajes %}
