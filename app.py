@@ -200,8 +200,10 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 db = SQLAlchemy(app)
 
 from models.respuesta_rapida_wa import crear_modelo_respuesta_rapida_wa
+from models.whatsapp_media import crear_modelo_whatsapp_media_recibida
 
 RespuestaRapidaWA = crear_modelo_respuesta_rapida_wa(db)
+WhatsAppMediaRecibida = crear_modelo_whatsapp_media_recibida(db)
 
 ROLES_SISTEMA = ["admin", "carga", "despacho"]
 
@@ -10712,7 +10714,7 @@ def whatsapp_enviar_operador(id):
             "detalle_pedido",
             id=pedido.id,
             error=f"No se pudo enviar WhatsApp: {e}"
-        ))
+        ))  
 
 @app.route("/pedido/<int:id>/whatsapp/iniciar-operador", methods=["POST"])
 @login_required

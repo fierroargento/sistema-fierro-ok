@@ -350,16 +350,21 @@ def registrar_webhook(app):
                 tipo     = msg.get("type")
                 telefono = msg.get("from", "")
 
+                texto = ""
+                media_payload = None
+
                 if tipo == "text":
                     texto = (msg.get("text") or {}).get("body", "").strip()
                 elif tipo == "interactive":
                     inter = msg.get("interactive") or {}
                     reply = inter.get("button_reply") or inter.get("list_reply") or {}
                     texto = reply.get("title", "").strip()
+                elif tipo in ["image", "document"]:
+                    media_payload = msg
                 else:
                     continue
 
-                if texto:
+                if texto or media_payload:
                     message_id_meta = str(msg.get("id") or "").strip()
 
                     if message_id_meta:
@@ -392,6 +397,28 @@ def registrar_webhook(app):
 
                     pedido = _buscar_pedido_por_telefono(telefono)
 
+                    texto_para_historial = texto
+
+                    if media_payload:
+                        try:
+                            from app import db, WhatsAppMediaRecibida
+                            from modules.whatsapp.media_inbound import procesar_media_inbound_whatsapp
+
+                            media_resultado = procesar_media_inbound_whatsapp(
+                                msg=media_payload,
+                                pedido=pedido,
+                                telefono=telefono,
+                                WhatsAppMediaRecibida=WhatsAppMediaRecibida,
+                                db=db,
+                            )
+
+                            if media_resultado:
+                                texto_para_historial = media_resultado.get("texto_historial") or "[Archivo recibido]"
+
+                        except Exception as e:
+                            logger.exception("[WA-MEDIA] Error procesando media entrante")
+                            texto_para_historial = "[Archivo recibido] No se pudo procesar el archivo."
+
                     try:
                         from app import registrar_whatsapp_mensaje, ia_marcar_respuesta_cliente
 
@@ -400,7 +427,7 @@ def registrar_webhook(app):
                             telefono=telefono,
                             direccion="in",
                             autor="cliente",
-                            texto=texto,
+                            texto=texto_para_historial,
                             message_id_meta=message_id_meta,
                             estado="recibido",
                         )
@@ -415,12 +442,26 @@ def registrar_webhook(app):
                     except Exception as e:
                         logger.exception("[WA-HIST] Error registrando entrada")
 
-                    routear_mensaje(
-                        pedido,
-                        texto,
-                        telefono,
-                        _obtener_estado_wa,
-                    )
+                    if texto:
+                        routear_mensaje(
+                            pedido,
+                            texto,
+                            telefono,
+                            _obtener_estado_wa,
+                        )
+                    elif pedido is not None:
+                        try:
+                            from app import db
+
+                            pedido.ml_mensajes_pendientes = True
+                            pedido.ml_mensajes_pendientes_count = (
+                                pedido.ml_mensajes_pendientes_count or 0
+                            ) + 1
+                            pedido.ia_requiere_operador = True
+                            db.session.commit()
+
+                        except Exception:
+                            logger.exception("[WA-MEDIA] No se pudo marcar pendiente operador por media")
 
         except Exception as e:
             logger.exception("[WA] Error procesando webhook")
