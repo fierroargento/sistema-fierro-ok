@@ -9478,6 +9478,8 @@ def detalle_pedido(id):
         notas_pedido = NotaPedido.query.filter_by(pedido_id=pedido.id).order_by(NotaPedido.fecha.desc()).all()
 
     whatsapp_mensajes = []
+    whatsapp_media_por_message_id = {}
+
     if rol_actual() in ["admin", "carga"]:
         whatsapp_mensajes = (
             WhatsAppMensaje.query
@@ -9486,6 +9488,33 @@ def detalle_pedido(id):
             .limit(80)
             .all()
         )
+
+        message_ids_meta = [
+            str(m.message_id_meta or "").strip()
+            for m in whatsapp_mensajes
+            if str(m.message_id_meta or "").strip()
+        ]
+
+        if message_ids_meta:
+            try:
+                medias_recibidas = (
+                    WhatsAppMediaRecibida.query
+                    .filter(
+                        WhatsAppMediaRecibida.pedido_id == pedido.id,
+                        WhatsAppMediaRecibida.message_id_meta.in_(message_ids_meta),
+                    )
+                    .all()
+                )
+
+                whatsapp_media_por_message_id = {
+                    str(media.message_id_meta or "").strip(): media
+                    for media in medias_recibidas
+                    if str(media.message_id_meta or "").strip()
+                }
+
+            except Exception as e:
+                print(f"[WA-MEDIA] No se pudieron cargar adjuntos pedido #{pedido.id}: {e}")
+                whatsapp_media_por_message_id = {}
 
     agregados_apb = []
     if rol_actual() in ["admin", "carga", "despacho"]:
@@ -9555,6 +9584,7 @@ def detalle_pedido(id):
         auditorias_pedido=auditorias_pedido,
         notas_pedido=notas_pedido,
         whatsapp_mensajes=whatsapp_mensajes,
+        whatsapp_media_por_message_id=whatsapp_media_por_message_id,        
         agregados_apb=agregados_apb,
         cross_sell_manual_enabled=puede_iniciar_cross_sell,
         cross_sell_propuesta=cross_sell_propuesta,

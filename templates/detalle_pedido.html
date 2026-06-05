@@ -768,10 +768,46 @@ body { background: #f4f7f8; }
 
                 {% else %}
 
+                {% set media_recibida = whatsapp_media_por_message_id.get(m.message_id_meta) if whatsapp_media_por_message_id else None %}
+
                 {% if m.texto and m.texto.startswith('[Imagen enviada]') %}
                 <div class="wa-msg-body" style="border-left:4px solid #25D366; background:#f0fdf4;">
                     {{ m.texto }}
                 </div>
+
+                {% elif m.texto and (m.texto.startswith('[Imagen recibida]') or m.texto.startswith('[PDF recibido]') or m.texto.startswith('[Archivo recibido]')) %}
+                <div class="wa-msg-body" style="border-left:4px solid #2563eb; background:#eff6ff;">
+                    <div style="white-space:pre-line;">{{ m.texto }}</div>
+
+                    {% if media_recibida and media_recibida.cloudinary_url %}
+                    <div style="margin-top:7px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <a href="{{ media_recibida.cloudinary_url }}"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="btn btn-secundario btn-wa-small"
+                           style="text-decoration:none; color:#ffffff;">
+                            Ver archivo
+                        </a>
+
+                        {% if media_recibida.mime_type %}
+                        <span style="font-size:12px; color:#475569;">
+                            {{ media_recibida.mime_type }}
+                        </span>
+                        {% endif %}
+
+                        {% if media_recibida.estado_scan %}
+                        <span style="font-size:12px; color:#64748b;">
+                            Revisión: {{ media_recibida.estado_scan }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div style="margin-top:7px; font-size:12px; color:#991b1b;">
+                        Archivo recibido, pero todavía no hay link disponible.
+                    </div>
+                    {% endif %}
+                </div>
+
                 {% else %}
                 <div class="wa-msg-body">{{ m.texto }}</div>
                 {% endif %}
@@ -810,7 +846,7 @@ body { background: #f4f7f8; }
 
                 <a href="{{ url_for('respuestas_rapidas_wa_route') }}"
                    class="btn btn-secundario btn-wa-small"
-                   style="text-decoration:none;">
+                   style="text-decoration:none; color:#ffffff;">
                     Administrar
                 </a>
 
@@ -821,7 +857,7 @@ body { background: #f4f7f8; }
             <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
                 <a href="{{ url_for('respuestas_rapidas_wa_route') }}"
                    class="btn btn-secundario btn-wa-small"
-                   style="text-decoration:none;">
+                   style="text-decoration:none; color:#ffffff;">
                     Crear respuestas rápidas
                 </a>
             </div>
