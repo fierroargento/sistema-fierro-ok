@@ -273,18 +273,23 @@ def procesar_media_inbound_whatsapp(
     )
 
     tipo = media.get("tipo") or ""
-    if tipo == "image":
-        etiqueta = "Imagen recibida"
-    elif mime_type == "application/pdf":
-        etiqueta = "PDF recibido"
-    else:
-        etiqueta = "Archivo recibido"
 
-    nombre = media.get("filename") or etiqueta
-    texto_historial = f"[{etiqueta}] {nombre}"
+    if tipo == "image":
+        etiqueta = "Imagen recibida por WhatsApp"
+    elif mime_type == "application/pdf":
+        etiqueta = "PDF recibido por WhatsApp"
+    else:
+        etiqueta = "Archivo recibido por WhatsApp"
+
+    nombre = media.get("filename") or ""
+
+    texto_historial = etiqueta
+
+    if nombre:
+        texto_historial += f"\n{nombre}"
 
     if media.get("caption"):
-        texto_historial += f"\n{media.get('caption')}"
+        texto_historial += f"\n\nComentario del cliente:\n{media.get('caption')}"
 
     registro = WhatsAppMediaRecibida(
         empresa_id=1,
