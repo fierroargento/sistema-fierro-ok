@@ -130,3 +130,83 @@ def toggle_respuesta_rapida_wa(respuesta, db):
 
     estado = "activada" if respuesta.activa else "desactivada"
     return True, f"Respuesta rápida {estado} correctamente."
+
+ALLOWED_IMAGEN_WA_MIME_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+}
+
+MAX_IMAGEN_WA_BYTES = 5 * 1024 * 1024
+
+
+def imagen_manual_wa_es_valida(archivo):
+    """
+    Valida una imagen manual antes de subirla/enviarla por WhatsApp.
+
+    APB:
+    - Solo imágenes.
+    - Tamaño controlado.
+    - No PDFs/documentos en este flujo.
+    """
+    if not archivo or not getattr(archivo, "filename", ""):
+        return True, ""
+
+    mimetype = str(getattr(archivo, "mimetype", "") or "").lower().strip()
+
+    if mimetype not in ALLOWED_IMAGEN_WA_MIME_TYPES:
+        return False, "Solo se permiten imágenes JPG, PNG o WEBP para enviar por WhatsApp."
+
+    try:
+        archivo.stream.seek(0, 2)
+        size = archivo.stream.tell()
+        archivo.stream.seek(0)
+    except Exception:
+        size = 0
+
+    if size and size > MAX_IMAGEN_WA_BYTES:
+        return False, "La imagen no puede superar 5 MB."
+
+    return True, ""
+
+
+def subir_imagen_manual_wa_cloudinary(archivo, *, pedido_id="", usuario=""):
+    """
+    Sube imagen manual del operador a Cloudinary y devuelve metadata segura.
+    No guarda claves ni depende de app.py.
+    """
+    if not archivo or not getattr(archivo, "filename", ""):
+        return {
+            "url": "",
+            "public_id": "",
+            "nombre": "",
+        }
+
+    ok, error = imagen_manual_wa_es_valida(archivo)
+    if not ok:
+        raise ValueError(error)
+
+    import cloudinary.uploader
+
+    nombre_original = str(archivo.filename or "").strip()
+    carpeta = f"sistema_fierro/wa_operador/pedido_{pedido_id or 'sin_pedido'}"
+
+    resultado = cloudinary.uploader.upload(
+        archivo,
+        folder=carpeta,
+        resource_type="image",
+        use_filename=True,
+        unique_filename=True,
+        overwrite=False,
+        context={
+            "pedido_id": str(pedido_id or ""),
+            "usuario": str(usuario or ""),
+            "origen": "operador_manual_wa",
+        },
+    )
+
+    return {
+        "url": resultado.get("secure_url", ""),
+        "public_id": resultado.get("public_id", ""),
+        "nombre": nombre_original,
+    }

@@ -785,7 +785,7 @@ body { background: #f4f7f8; }
         </div>
 
         {% if normalizar_telefono(pedido.telefono) %}
-        <form method="POST" action="{{ url_for('whatsapp_enviar_operador', id=pedido.id) }}" class="wa-form-enviar">
+        <form method="POST" action="{{ url_for('whatsapp_enviar_operador', id=pedido.id) }}" class="wa-form-enviar" enctype="multipart/form-data">
             {% if respuestas_rapidas_wa %}
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
                 <label for="respuesta-rapida-wa-{{ pedido.id }}" style="font-size:13px; font-weight:700;">
@@ -804,6 +804,9 @@ body { background: #f4f7f8; }
                     </option>
                     {% endfor %}
                 </select>
+
+                <input type="hidden" name="respuesta_rapida_imagen_url" value="">
+                <input type="hidden" name="respuesta_rapida_imagen_nombre" value="">
 
                 <a href="{{ url_for('respuestas_rapidas_wa_route') }}"
                    class="btn btn-secundario btn-wa-small"
@@ -827,8 +830,21 @@ body { background: #f4f7f8; }
             <textarea id="wa-mensaje-operador-{{ pedido.id }}"
                       name="mensaje"
                       rows="3"
-                      placeholder="Responder al cliente desde el sistema..."
-                      required></textarea>
+                      placeholder="Responder al cliente desde el sistema..."></textarea>
+
+            <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <label for="wa-imagen-manual-{{ pedido.id }}" style="font-size:13px; font-weight:700;">
+                    Imagen opcional:
+                </label>
+                <input id="wa-imagen-manual-{{ pedido.id }}"
+                       type="file"
+                       name="imagen_manual_wa"
+                       accept="image/jpeg,image/png,image/webp"
+                       style="font-size:13px;">
+                <span style="font-size:12px; color:#64748b;">
+                    JPG, PNG o WEBP. Máx. 5 MB.
+                </span>
+            </div>
 
             <div class="wa-form-footer">
                 <button type="submit" class="btn btn-primario">Enviar WhatsApp</button>
@@ -1312,9 +1328,24 @@ function cargarRespuestaRapidaWA(select) {
         return;
     }
 
+    const inputImagenUrl = form.querySelector("input[name='respuesta_rapida_imagen_url']");
+    const inputImagenNombre = form.querySelector("input[name='respuesta_rapida_imagen_nombre']");
+    const info = document.getElementById("respuesta-rapida-wa-info-{{ pedido.id }}");
     const option = select.options[select.selectedIndex];
 
     if (!option || !option.value) {
+        if (inputImagenUrl) {
+            inputImagenUrl.value = "";
+        }
+
+        if (inputImagenNombre) {
+            inputImagenNombre.value = "";
+        }
+
+        if (info) {
+            info.textContent = "";
+        }
+
         return;
     }
 
@@ -1323,7 +1354,14 @@ function cargarRespuestaRapidaWA(select) {
 
     const imagenUrl = option.getAttribute("data-imagen-url") || "";
     const imagenNombre = option.getAttribute("data-imagen-nombre") || "";
-    const info = document.getElementById("respuesta-rapida-wa-info-{{ pedido.id }}");
+
+    if (inputImagenUrl) {
+        inputImagenUrl.value = imagenUrl;
+    }
+
+    if (inputImagenNombre) {
+        inputImagenNombre.value = imagenNombre;
+    }
 
     if (info) {
         if (imagenUrl) {

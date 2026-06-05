@@ -10581,17 +10581,138 @@ def whatsapp_enviar_operador(id):
         ))
 
     texto = (request.form.get("mensaje") or "").strip()
-    if not texto:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="Escribí un mensaje para enviar por WhatsApp."))
+    imagen_respuesta_url = (request.form.get("respuesta_rapida_imagen_url") or "").strip()
+    imagen_respuesta_nombre = (request.form.get("respuesta_rapida_imagen_nombre") or "").strip()
+    imagen_manual = request.files.get("imagen_manual_wa")
 
-    pedido.wa_estado = "operador_manual"
-    ok, msg = _enviar_whatsapp_api_pedido(pedido, texto, autor="operador")
+    tiene_imagen_manual = bool(imagen_manual and imagen_manual.filename)
+    tiene_imagen_respuesta = bool(imagen_respuesta_url)
+
+    if tiene_imagen_manual and tiene_imagen_respuesta:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="Elegí solo una imagen: la asociada a la respuesta rápida o una imagen manual desde la PC."
+        ))
+
+    if not texto and not tiene_imagen_manual and not tiene_imagen_respuesta:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="Escribí un mensaje o adjuntá una imagen para enviar por WhatsApp."
+        ))
+
+    tel = normalizar_telefono(pedido.telefono)
+    if not tel:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="El pedido no tiene teléfono válido para WhatsApp."
+        ))
+
     try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+        from modules.whatsapp.sender import wa_enviar_texto, wa_enviar_imagen
+        from modules.whatsapp.respuestas_rapidas import subir_imagen_manual_wa_cloudinary
 
-    return redirect(url_for("detalle_pedido", id=pedido.id, ok=msg if ok else "", error="" if ok else msg))
+        ok_texto = True
+        ok_imagen = True
+        imagen_url_final = ""
+        imagen_nombre_final = ""
+
+        if texto:
+            ok_texto = wa_enviar_texto(
+                tel,
+                texto,
+                pedido=pedido,
+                autor="operador",
+            )
+
+        if tiene_imagen_manual:
+            subida = subir_imagen_manual_wa_cloudinary(
+                imagen_manual,
+                pedido_id=pedido.id,
+                usuario=session.get("username", ""),
+            )
+            imagen_url_final = subida.get("url", "")
+            imagen_nombre_final = subida.get("nombre", "") or "Imagen adjunta"
+
+        elif tiene_imagen_respuesta:
+            imagen_url_final = imagen_respuesta_url
+            imagen_nombre_final = imagen_respuesta_nombre or "Imagen de respuesta rápida"
+
+        if imagen_url_final:
+            caption = imagen_nombre_final
+            ok_imagen = wa_enviar_imagen(
+                tel,
+                imagen_url_final,
+                caption=caption,
+                pedido=pedido,
+                autor="operador",
+            )
+
+        if not ok_texto and not ok_imagen:
+            return redirect(url_for(
+                "detalle_pedido",
+                id=pedido.id,
+                error="No se pudo enviar el mensaje ni la imagen por WhatsApp."
+            ))
+
+        pedido.wa_estado = "operador_manual"
+        pedido.wa_ultimo_contacto = datetime.utcnow()
+
+        actualizar_estado_conversacional(
+            pedido,
+            owner_actual="operador",
+            canal_activo="wa",
+            estado_conversacional="operador_manual",
+            takeover_activo=True,
+            bot_pausado=True,
+        )
+
+        registrar_evento_operativo(
+            pedido=pedido,
+            tipo_evento="whatsapp_operador_envio_manual",
+            origen="operador",
+            canal="wa",
+            owner="operador",
+            estado_conversacional="operador_manual",
+            payload={
+                "texto": texto,
+                "imagen_url": imagen_url_final,
+                "imagen_nombre": imagen_nombre_final,
+                "tiene_imagen_manual": tiene_imagen_manual,
+                "tiene_imagen_respuesta": tiene_imagen_respuesta,
+                "ok_texto": ok_texto,
+                "ok_imagen": ok_imagen,
+            },
+            resultado="ok" if (ok_texto and ok_imagen) else "parcial",
+            detalle="Operador envió mensaje manual por WhatsApp.",
+            usuario=session.get("username", ""),
+            procesado=True,
+        )
+
+        db.session.commit()
+
+        if ok_texto and ok_imagen:
+            return redirect(url_for(
+                "detalle_pedido",
+                id=pedido.id,
+                ok="Mensaje enviado por WhatsApp."
+            ))
+
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            ok="Envío parcial: revisá el historial de WhatsApp."
+        ))
+
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=f"No se pudo enviar WhatsApp: {e}"
+        ))
 
 @app.route("/pedido/<int:id>/whatsapp/iniciar-operador", methods=["POST"])
 @login_required
