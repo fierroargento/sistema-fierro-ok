@@ -783,53 +783,69 @@ body { background: #f4f7f8; }
                     or m.texto.startswith('PDF recibido por WhatsApp')
                     or m.texto.startswith('Archivo recibido por WhatsApp')
                 ) %}
-                <div class="wa-msg-body" style="border-left:4px solid #2563eb; background:#eff6ff;">
-                    <div style="white-space:pre-line; font-weight:600; font-size:13px; line-height:1.35;">{{ m.texto }}</div>
-
+                <div class="wa-msg-body" style="border-left:3px solid #2563eb; background:#eff6ff; padding:7px 8px; max-width:520px;">
                     {% if media_recibida and media_recibida.cloudinary_url %}
 
-                        <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                            {% if media_recibida.mime_type and media_recibida.mime_type.startswith('image/') %}
-                            <a href="{{ media_recibida.cloudinary_url }}"
-                               target="_blank"
-                               rel="noopener noreferrer"
-                               title="Abrir imagen recibida"
-                               style="display:inline-flex; flex-shrink:0;">
-                                <img src="{{ media_recibida.cloudinary_url }}"
-                                     alt="Imagen recibida por WhatsApp"
-                                     style="width:58px; height:58px; border-radius:8px; border:1px solid #cbd5e1; object-fit:cover; display:block;">
-                            </a>
-                            {% endif %}
-
-                            <a href="{{ media_recibida.cloudinary_url }}"
-                               target="_blank"
-                               rel="noopener noreferrer"
-                               class="btn btn-secundario btn-wa-small"
-                               style="text-decoration:none; color:#ffffff; padding:6px 10px; font-size:12px;">
-                                {% if media_recibida.mime_type == "application/pdf" %}
-                                    Ver PDF
-                                {% elif media_recibida.mime_type and media_recibida.mime_type.startswith('image/') %}
-                                    Ver imagen
-                                {% else %}
-                                    Ver archivo
-                                {% endif %}
-                            </a>
-
-                            {% if media_recibida.mime_type %}
-                            <span style="font-size:11px; color:#475569;">
-                                {{ media_recibida.mime_type }}
-                            </span>
-                            {% endif %}
-
-                            {% if media_recibida.estado_scan %}
-                            <span style="font-size:11px; color:#64748b;">
-                                Revisión: {{ media_recibida.estado_scan }}
-                            </span>
-                            {% endif %}
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:nowrap;">
+                        {% if media_recibida.mime_type and media_recibida.mime_type.startswith('image/') %}
+                        <a href="{{ media_recibida.cloudinary_url }}"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           title="Abrir imagen recibida"
+                           style="display:inline-flex; flex-shrink:0;">
+                            <img src="{{ media_recibida.cloudinary_url }}"
+                                 alt="Imagen recibida por WhatsApp"
+                                 style="width:42px; height:42px; border-radius:7px; border:1px solid #cbd5e1; object-fit:cover; display:block;">
+                        </a>
+                        {% else %}
+                        <div style="width:42px; height:42px; border-radius:7px; border:1px solid #cbd5e1; background:#ffffff; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">
+                            📎
                         </div>
+                        {% endif %}
+
+                        <div style="display:flex; flex-direction:column; gap:3px; min-width:0; flex:1;">
+                            <div style="font-weight:700; font-size:12px; line-height:1.15; color:#0f172a;">
+                                {% if media_recibida.mime_type == "application/pdf" %}
+                                    PDF recibido
+                                {% elif media_recibida.mime_type and media_recibida.mime_type.startswith('image/') %}
+                                    Imagen recibida
+                                {% else %}
+                                    Archivo recibido
+                                {% endif %}
+                            </div>
+
+                            <div style="display:flex; gap:7px; align-items:center; flex-wrap:wrap;">
+                                <a href="{{ media_recibida.cloudinary_url }}"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   class="btn btn-secundario btn-wa-small"
+                                   style="text-decoration:none; color:#ffffff; padding:4px 8px; font-size:11px; line-height:1.1;">
+                                    {% if media_recibida.mime_type == "application/pdf" %}
+                                        Ver PDF
+                                    {% elif media_recibida.mime_type and media_recibida.mime_type.startswith('image/') %}
+                                        Ver imagen
+                                    {% else %}
+                                        Ver archivo
+                                    {% endif %}
+                                </a>
+
+                                {% if media_recibida.mime_type %}
+                                <span style="font-size:10.5px; color:#475569;">
+                                    {{ media_recibida.mime_type }}
+                                </span>
+                                {% endif %}
+
+                                {% if media_recibida.estado_scan %}
+                                <span style="font-size:10.5px; color:#64748b;">
+                                    Rev: {{ media_recibida.estado_scan }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
 
                     {% else %}
-                    <div style="margin-top:7px; font-size:12px; color:#991b1b;">
+                    <div style="font-size:12px; color:#991b1b;">
                         Archivo recibido, pero todavía no hay link disponible.
                     </div>
                     {% endif %}
