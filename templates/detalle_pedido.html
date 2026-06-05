@@ -786,7 +786,50 @@ body { background: #f4f7f8; }
 
         {% if normalizar_telefono(pedido.telefono) %}
         <form method="POST" action="{{ url_for('whatsapp_enviar_operador', id=pedido.id) }}" class="wa-form-enviar">
-            <textarea name="mensaje" rows="3" placeholder="Responder al cliente desde el sistema..." required></textarea>
+            {% if respuestas_rapidas_wa %}
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+                <label for="respuesta-rapida-wa-{{ pedido.id }}" style="font-size:13px; font-weight:700;">
+                    Respuesta rápida:
+                </label>
+
+                <select id="respuesta-rapida-wa-{{ pedido.id }}"
+                        style="min-width:260px; max-width:100%; padding:7px 9px; border:1px solid #cbd5e1; border-radius:8px;"
+                        onchange="cargarRespuestaRapidaWA(this)">
+                    <option value="">Seleccionar respuesta...</option>
+                    {% for r in respuestas_rapidas_wa %}
+                    <option value="{{ r.texto|e }}"
+                            data-imagen-url="{{ r.imagen_url or '' }}"
+                            data-imagen-nombre="{{ r.imagen_nombre or '' }}">
+                        {{ r.categoria or 'General' }} — {{ r.titulo }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <a href="{{ url_for('respuestas_rapidas_wa_route') }}"
+                   class="btn btn-secundario btn-wa-small"
+                   style="text-decoration:none;">
+                    Administrar
+                </a>
+
+                <span id="respuesta-rapida-wa-info-{{ pedido.id }}"
+                      style="font-size:12px; color:#64748b;"></span>
+            </div>
+            {% else %}
+            <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+                <a href="{{ url_for('respuestas_rapidas_wa_route') }}"
+                   class="btn btn-secundario btn-wa-small"
+                   style="text-decoration:none;">
+                    Crear respuestas rápidas
+                </a>
+            </div>
+            {% endif %}
+
+            <textarea id="wa-mensaje-operador-{{ pedido.id }}"
+                      name="mensaje"
+                      rows="3"
+                      placeholder="Responder al cliente desde el sistema..."
+                      required></textarea>
+
             <div class="wa-form-footer">
                 <button type="submit" class="btn btn-primario">Enviar WhatsApp</button>
             </div>
@@ -1250,6 +1293,47 @@ function abrirTrackingConCopia(event, enlace) {
     }
 
     return false;
+}
+</script>
+
+<script>
+function cargarRespuestaRapidaWA(select) {
+    if (!select) {
+        return;
+    }
+
+    const form = select.closest("form");
+    if (!form) {
+        return;
+    }
+
+    const textarea = form.querySelector("textarea[name='mensaje']");
+    if (!textarea) {
+        return;
+    }
+
+    const option = select.options[select.selectedIndex];
+
+    if (!option || !option.value) {
+        return;
+    }
+
+    textarea.value = option.value;
+    textarea.focus();
+
+    const imagenUrl = option.getAttribute("data-imagen-url") || "";
+    const imagenNombre = option.getAttribute("data-imagen-nombre") || "";
+    const info = document.getElementById("respuesta-rapida-wa-info-{{ pedido.id }}");
+
+    if (info) {
+        if (imagenUrl) {
+            info.textContent = imagenNombre
+                ? "Esta respuesta tiene imagen asociada: " + imagenNombre
+                : "Esta respuesta tiene imagen asociada.";
+        } else {
+            info.textContent = "";
+        }
+    }
 }
 </script>
 

@@ -9528,6 +9528,18 @@ def detalle_pedido(id):
         cross_sell_propuesta = None
         cross_sell_propuesta_ya_enviada = False
 
+    try:
+        from modules.whatsapp.respuestas_rapidas import obtener_respuestas_activas_wa
+
+        respuestas_rapidas_wa = obtener_respuestas_activas_wa(
+            RespuestaRapidaWA,
+            empresa_id=1,
+        )
+
+    except Exception as e:
+        print(f"[WA RESPUESTAS RAPIDAS] No se pudieron cargar respuestas pedido #{pedido.id}: {e}")
+        respuestas_rapidas_wa = []        
+
     return render_template(
         "detalle_pedido.html",
         pedido=pedido,
@@ -9544,7 +9556,8 @@ def detalle_pedido(id):
         agregados_apb=agregados_apb,
         cross_sell_manual_enabled=puede_iniciar_cross_sell,
         cross_sell_propuesta=cross_sell_propuesta,
-        cross_sell_propuesta_ya_enviada=cross_sell_propuesta_ya_enviada,        
+        cross_sell_propuesta_ya_enviada=cross_sell_propuesta_ya_enviada,
+        respuestas_rapidas_wa=respuestas_rapidas_wa,                
     )
 
 @app.route("/despacho-mobile/pedido/<int:id>/revisar-agregado")
