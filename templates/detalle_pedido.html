@@ -587,19 +587,78 @@ body { background: #f4f7f8; }
         </div>
 
         {% if cross_sell_manual_enabled and normalizar_telefono(pedido.telefono) and cross_sell_propuesta %}
-        <div style="width:100%; margin-top:12px; margin-bottom:12px; padding:12px 14px; border:1px solid #cfe8d5; border-radius:8px; background:#ffffff;">
-            <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap;">
 
-                <div style="flex:1 1 520px; min-width:320px;">
-                    <div style="font-weight:700; margin-bottom:6px; color:#064e3b;">
-                        Propuesta cross-sell sugerida
+            {% if cross_sell_propuesta_ya_enviada %}
+            <details style="width:100%; margin-top:10px; margin-bottom:10px; padding:10px 12px; border:1px solid #facc15; border-radius:8px; background:#fffbeb;">
+                <summary style="cursor:pointer; font-weight:700; color:#92400e; display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
+                    <span>Propuesta cross-sell ya enviada</span>
+                    <span style="font-size:12px; font-weight:600; color:#a16207;">Ver detalle</span>
+                </summary>
+
+                <div style="margin-top:10px; display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+                    <div style="flex:1 1 520px; min-width:320px;">
+                        <div style="white-space:pre-line; font-size:13px; line-height:1.45;">
+{{ cross_sell_propuesta.texto }}
+                        </div>
                     </div>
 
-                    {% if cross_sell_propuesta_ya_enviada %}
-                    <div style="margin-bottom:8px; padding:7px 9px; border-radius:8px; background:#fef3c7; color:#92400e; font-size:12px; font-weight:700;">
-                        Esta propuesta ya fue enviada. Reenviar solo si corresponde.
+                    <div style="flex:0 1 420px; min-width:280px;">
+                        {% if cross_sell_propuesta.productos %}
+                        <div style="font-size:12px;">
+                            <strong>Imágenes enviadas / previstas:</strong>
+                            <ul style="margin:6px 0 0 18px;">
+                                {% for prod_cross in cross_sell_propuesta.productos %}
+                                <li>
+                                    {{ prod_cross.nombre }}
+                                    {% if not prod_cross.tiene_imagen %}
+                                        <span style="color:#999;">(sin imagen configurada)</span>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}                    
+                </div>
+            </details>
+
+            {% else %}
+            <div style="width:100%; margin-top:12px; margin-bottom:12px; padding:12px 14px; border:1px solid #cfe8d5; border-radius:8px; background:#ffffff;">
+                <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+
+                    <div style="flex:1 1 520px; min-width:320px;">
+                        <div style="font-weight:700; margin-bottom:6px; color:#064e3b;">
+                            Propuesta cross-sell sugerida
+                        </div>
+
+                        <div style="white-space:pre-line; font-size:13px; line-height:1.45;">
+{{ cross_sell_propuesta.texto }}
+                        </div>
+                    </div>
+
+                    <div style="flex:0 1 420px; min-width:280px;">
+                        {% if cross_sell_propuesta.productos %}
+                        <div style="font-size:12px; margin-bottom:10px;">
+                            <strong>Imágenes que se intentarán enviar:</strong>
+                            <ul style="margin:6px 0 0 18px;">
+                                {% for prod_cross in cross_sell_propuesta.productos %}
+                                <li>
+                                    {{ prod_cross.nombre }}
+                                    {% if not prod_cross.tiene_imagen %}
+                                        <span style="color:#999;">(sin imagen configurada)</span>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+            {% endif %}
+
+        {% endif %}                    
 
                     <div style="white-space:pre-line; font-size:13px; line-height:1.45;">
 {{ cross_sell_propuesta.texto }}
