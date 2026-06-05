@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="card detalle-card">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div>
+            <h2 style="margin-bottom:4px;">Respuestas rápidas WhatsApp</h2>
+            <p class="detalle-sub">Textos reutilizables para que el operador cargue en el chat. No se envían automáticamente.</p>
+        </div>
+
+        <a href="{{ url_for('inicio') }}" class="btn btn-secundario">Volver</a>
+    </div>
+
+    {% if error %}
+    <div class="error" style="margin-top:12px;">{{ error }}</div>
+    {% endif %}
+
+    {% if ok %}
+    <div class="ok" style="margin-top:12px;">{{ ok }}</div>
+    {% endif %}
+
+    <div class="detalle-box detalle-box-full" style="margin-top:16px;">
+        <h3 style="margin-top:0;">Nueva respuesta rápida</h3>
+
+        <form method="POST" action="{{ url_for('crear_respuesta_rapida_wa_route') }}" style="display:grid; gap:10px;">
+            <div style="display:grid; grid-template-columns:1fr 180px 100px; gap:10px;">
+                <div>
+                    <label><strong>Título</strong></label>
+                    <input type="text" name="titulo" maxlength="120" required placeholder="Ej: Factura A/B" style="width:100%; padding:8px;">
+                </div>
+
+                <div>
+                    <label><strong>Categoría</strong></label>
+                    <input type="text" name="categoria" value="General" maxlength="80" style="width:100%; padding:8px;">
+                </div>
+
+                <div>
+                    <label><strong>Orden</strong></label>
+                    <input type="number" name="orden" value="100" style="width:100%; padding:8px;">
+                </div>
+            </div>
+
+            <div>
+                <label><strong>Texto</strong></label>
+                <textarea name="texto" rows="4" maxlength="2000" required placeholder="Texto de la respuesta rápida..." style="width:100%; padding:8px; box-sizing:border-box;"></textarea>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                    <label><strong>Imagen URL opcional</strong></label>
+                    <input type="url" name="imagen_url" placeholder="https://..." style="width:100%; padding:8px;">
+                    <p style="margin:4px 0 0 0; font-size:12px; color:#64748b;">Por ahora se carga URL pública. La subida manual desde PC va en el próximo bloque.</p>
+                </div>
+
+                <div>
+                    <label><strong>Nombre imagen opcional</strong></label>
+                    <input type="text" name="imagen_nombre" maxlength="255" placeholder="Ej: comprobante.jpg" style="width:100%; padding:8px;">
+                </div>
+            </div>
+
+            <div>
+                <button type="submit" class="btn btn-confirmar">Crear respuesta</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="detalle-box detalle-box-full" style="margin-top:16px;">
+        <h3 style="margin-top:0;">Respuestas existentes</h3>
+
+        {% if respuestas %}
+        <div style="display:flex; flex-direction:column; gap:12px;">
+            {% for r in respuestas %}
+            <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px; background:{% if r.activa %}#ffffff{% else %}#f8fafc{% endif %}; opacity:{% if r.activa %}1{% else %}0.65{% endif %};">
+                <form method="POST" action="{{ url_for('editar_respuesta_rapida_wa_route', respuesta_id=r.id) }}" style="display:grid; gap:10px;">
+                    <div style="display:grid; grid-template-columns:1fr 180px 100px auto; gap:10px; align-items:end;">
+                        <div>
+                            <label><strong>Título</strong></label>
+                            <input type="text" name="titulo" value="{{ r.titulo }}" maxlength="120" required style="width:100%; padding:8px;">
+                        </div>
+
+                        <div>
+                            <label><strong>Categoría</strong></label>
+                            <input type="text" name="categoria" value="{{ r.categoria or 'General' }}" maxlength="80" style="width:100%; padding:8px;">
+                        </div>
+
+                        <div>
+                            <label><strong>Orden</strong></label>
+                            <input type="number" name="orden" value="{{ r.orden or 100 }}" style="width:100%; padding:8px;">
+                        </div>
+
+                        <div style="font-size:12px; font-weight:700;">
+                            {% if r.activa %}
+                                <span style="color:#166534;">Activa</span>
+                            {% else %}
+                                <span style="color:#991b1b;">Inactiva</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label><strong>Texto</strong></label>
+                        <textarea name="texto" rows="3" maxlength="2000" required style="width:100%; padding:8px; box-sizing:border-box;">{{ r.texto }}</textarea>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div>
+                            <label><strong>Imagen URL opcional</strong></label>
+                            <input type="url" name="imagen_url" value="{{ r.imagen_url or '' }}" style="width:100%; padding:8px;">
+                        </div>
+
+                        <div>
+                            <label><strong>Nombre imagen opcional</strong></label>
+                            <input type="text" name="imagen_nombre" value="{{ r.imagen_nombre or '' }}" maxlength="255" style="width:100%; padding:8px;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="submit" class="btn btn-confirmar">Guardar</button>
+                    </div>
+                </form>
+
+                <form method="POST" action="{{ url_for('toggle_respuesta_rapida_wa_route', respuesta_id=r.id) }}" style="margin-top:8px;">
+                    <button type="submit" class="btn btn-secundario">
+                        {% if r.activa %}Desactivar{% else %}Activar{% endif %}
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="margin:0; color:#64748b;">Todavía no hay respuestas rápidas creadas.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

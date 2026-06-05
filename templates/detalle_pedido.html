@@ -788,7 +788,6 @@ body { background: #f4f7f8; }
         <form method="POST" action="{{ url_for('whatsapp_enviar_operador', id=pedido.id) }}" class="wa-form-enviar">
             <textarea name="mensaje" rows="3" placeholder="Responder al cliente desde el sistema..." required></textarea>
             <div class="wa-form-footer">
-                <span class="wa-muted">Se envía por WhatsApp API. No abre WhatsApp Web.</span>
                 <button type="submit" class="btn btn-primario">Enviar WhatsApp</button>
             </div>
         </form>

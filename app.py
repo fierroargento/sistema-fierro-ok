@@ -9283,6 +9283,115 @@ def nuevo_pedido():
         comprobante_pago_guardado="",
     )
 
+@app.route("/whatsapp/respuestas-rapidas")
+@login_required
+def respuestas_rapidas_wa_route():
+    if rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("inicio"))
+
+    from modules.whatsapp.respuestas_rapidas import listar_respuestas_rapidas_wa
+
+    respuestas = listar_respuestas_rapidas_wa(
+        RespuestaRapidaWA,
+        empresa_id=1,
+        incluir_inactivas=True,
+    )
+
+    return render_template(
+        "respuestas_rapidas_wa.html",
+        respuestas=respuestas,
+        error=(request.args.get("error") or "").strip(),
+        ok=(request.args.get("ok") or "").strip(),
+    )
+
+
+@app.route("/whatsapp/respuestas-rapidas/nueva", methods=["POST"])
+@login_required
+def crear_respuesta_rapida_wa_route():
+    if rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("inicio"))
+
+    from modules.whatsapp.respuestas_rapidas import crear_respuesta_rapida_wa
+
+    ok, mensaje, respuesta = crear_respuesta_rapida_wa(
+        RespuestaRapidaWA,
+        db,
+        empresa_id=1,
+        titulo=request.form.get("titulo", ""),
+        texto=request.form.get("texto", ""),
+        categoria=request.form.get("categoria", ""),
+        orden=request.form.get("orden", 100),
+        creado_por=session.get("username", ""),
+        imagen_url=request.form.get("imagen_url", ""),
+        imagen_nombre=request.form.get("imagen_nombre", ""),
+    )
+
+    if ok:
+        registrar_auditoria(
+            "Creó respuesta rápida WA",
+            entidad="respuesta_rapida_wa",
+            entidad_id=getattr(respuesta, "id", None),
+            detalle=request.form.get("titulo", ""),
+        )
+        return redirect(url_for("respuestas_rapidas_wa_route", ok=mensaje))
+
+    return redirect(url_for("respuestas_rapidas_wa_route", error=mensaje))
+
+
+@app.route("/whatsapp/respuestas-rapidas/<int:respuesta_id>/editar", methods=["POST"])
+@login_required
+def editar_respuesta_rapida_wa_route(respuesta_id):
+    if rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("inicio"))
+
+    respuesta = RespuestaRapidaWA.query.get_or_404(respuesta_id)
+
+    from modules.whatsapp.respuestas_rapidas import actualizar_respuesta_rapida_wa
+
+    ok, mensaje = actualizar_respuesta_rapida_wa(
+        respuesta,
+        db,
+        titulo=request.form.get("titulo", ""),
+        texto=request.form.get("texto", ""),
+        categoria=request.form.get("categoria", ""),
+        orden=request.form.get("orden", 100),
+        imagen_url=request.form.get("imagen_url", ""),
+        imagen_nombre=request.form.get("imagen_nombre", ""),
+    )
+
+    if ok:
+        registrar_auditoria(
+            "Editó respuesta rápida WA",
+            entidad="respuesta_rapida_wa",
+            entidad_id=respuesta.id,
+            detalle=respuesta.titulo,
+        )
+        return redirect(url_for("respuestas_rapidas_wa_route", ok=mensaje))
+
+    return redirect(url_for("respuestas_rapidas_wa_route", error=mensaje))
+
+
+@app.route("/whatsapp/respuestas-rapidas/<int:respuesta_id>/toggle", methods=["POST"])
+@login_required
+def toggle_respuesta_rapida_wa_route(respuesta_id):
+    if rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("inicio"))
+
+    respuesta = RespuestaRapidaWA.query.get_or_404(respuesta_id)
+
+    from modules.whatsapp.respuestas_rapidas import toggle_respuesta_rapida_wa
+
+    ok, mensaje = toggle_respuesta_rapida_wa(respuesta, db)
+
+    registrar_auditoria(
+        "Activó/desactivó respuesta rápida WA",
+        entidad="respuesta_rapida_wa",
+        entidad_id=respuesta.id,
+        detalle=f"{respuesta.titulo} -> activa={respuesta.activa}",
+    )
+
+    return redirect(url_for("respuestas_rapidas_wa_route", ok=mensaje))
+
 @app.route("/pedido/<int:id>")
 @login_required
 def detalle_pedido(id):
