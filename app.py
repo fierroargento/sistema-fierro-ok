@@ -199,6 +199,10 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 db = SQLAlchemy(app)
 
+from models.respuesta_rapida_wa import crear_modelo_respuesta_rapida_wa
+
+RespuestaRapidaWA = crear_modelo_respuesta_rapida_wa(db)
+
 ROLES_SISTEMA = ["admin", "carga", "despacho"]
 
 
