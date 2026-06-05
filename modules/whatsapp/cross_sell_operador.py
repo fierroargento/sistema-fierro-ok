@@ -33,6 +33,40 @@ def puede_usar_cross_sell_operador(pedido):
     )
 
 
+def propuesta_cross_sell_ya_enviada(pedido, evento_operativo_model):
+    """
+    Devuelve True si ya existe un evento OK de propuesta cross-sell enviada
+    para este pedido.
+
+    APB:
+    - Evita duplicar mensajes por error.
+    - No agrega columnas nuevas.
+    - Usa auditoría existente: EventoOperativo.
+    """
+    pedido_id = getattr(pedido, "id", None)
+
+    if not pedido_id or evento_operativo_model is None:
+        return False
+
+    try:
+        evento = (
+            evento_operativo_model.query
+            .filter_by(
+                pedido_id=pedido_id,
+                tipo_evento="cross_sell_propuesta_operador_enviada",
+                resultado="ok",
+            )
+            .first()
+        )
+
+        return evento is not None
+
+    except Exception as e:
+        print(f"[WA CROSS-SELL] No se pudo verificar propuesta previa pedido #{pedido_id}: {e}")
+        return False
+
+
+
 def _url_publica(imagen_relativa, host_url):
     imagen_relativa = (imagen_relativa or "").strip()
     if not imagen_relativa:
@@ -154,6 +188,8 @@ def enviar_propuesta_cross_sell_operador(
     normalizar_telefono_fn,
     actualizar_estado_conversacional_fn,
     registrar_evento_operativo_fn,
+    permitir_reenvio=False,
+    propuesta_ya_enviada_fn=None,
 ):
     """
     Envía texto + imágenes de propuesta cross-sell.
@@ -170,6 +206,20 @@ def enviar_propuesta_cross_sell_operador(
 
     if not tel:
         return False, "El pedido no tiene teléfono válido para WhatsApp."
+
+    if callable(propuesta_ya_enviada_fn):
+        try:
+            ya_enviada = propuesta_ya_enviada_fn(pedido)
+        except Exception as e:
+            print(f"[WA CROSS-SELL] Error verificando propuesta previa: {e}")
+            ya_enviada = False
+
+        if ya_enviada and not permitir_reenvio:
+            return (
+                False,
+                "La propuesta de cross-sell ya fue enviada para este pedido. "
+                "Si necesitás reenviarla, usá la opción de reenvío confirmado."
+            )
 
     productos_cross = []
     nombres_cross = []

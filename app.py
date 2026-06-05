@@ -9399,15 +9399,21 @@ def detalle_pedido(id):
         from modules.whatsapp.cross_sell_operador import (
             puede_usar_cross_sell_operador,
             preparar_propuesta_cross_sell_operador,
+            propuesta_cross_sell_ya_enviada,
         )
 
         puede_iniciar_cross_sell = puede_usar_cross_sell_operador(pedido)
         cross_sell_propuesta = preparar_propuesta_cross_sell_operador(pedido)
+        cross_sell_propuesta_ya_enviada = propuesta_cross_sell_ya_enviada(
+            pedido,
+            EventoOperativo,
+        ) if cross_sell_propuesta else False
 
     except Exception as e:
         print(f"[WA CROSS-SELL] No se pudo preparar propuesta pedido #{pedido.id}: {e}")
         puede_iniciar_cross_sell = False
         cross_sell_propuesta = None
+        cross_sell_propuesta_ya_enviada = False
 
     return render_template(
         "detalle_pedido.html",
@@ -9425,6 +9431,7 @@ def detalle_pedido(id):
         agregados_apb=agregados_apb,
         cross_sell_manual_enabled=puede_iniciar_cross_sell,
         cross_sell_propuesta=cross_sell_propuesta,
+        cross_sell_propuesta_ya_enviada=cross_sell_propuesta_ya_enviada,        
     )
 
 @app.route("/despacho-mobile/pedido/<int:id>/revisar-agregado")
@@ -10643,7 +10650,12 @@ def whatsapp_enviar_propuesta_cross_sell(id):
         ))
 
     try:
-        from modules.whatsapp.cross_sell_operador import enviar_propuesta_cross_sell_operador
+        from modules.whatsapp.cross_sell_operador import (
+            enviar_propuesta_cross_sell_operador,
+            propuesta_cross_sell_ya_enviada,
+        )
+
+        permitir_reenvio = request.form.get("forzar_reenvio") == "1"
 
         ok, mensaje = enviar_propuesta_cross_sell_operador(
             pedido,
@@ -10653,6 +10665,11 @@ def whatsapp_enviar_propuesta_cross_sell(id):
             normalizar_telefono_fn=normalizar_telefono,
             actualizar_estado_conversacional_fn=actualizar_estado_conversacional,
             registrar_evento_operativo_fn=registrar_evento_operativo,
+            permitir_reenvio=permitir_reenvio,
+            propuesta_ya_enviada_fn=lambda p: propuesta_cross_sell_ya_enviada(
+                p,
+                EventoOperativo,
+            ),
         )
 
         if ok:

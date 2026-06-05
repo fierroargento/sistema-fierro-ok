@@ -3,6 +3,7 @@ import types
 from domain.estados import Estado
 from modules.whatsapp.cross_sell_operador import (
     ESTADOS_SIN_CROSS_SELL,
+    propuesta_cross_sell_ya_enviada,    
     _url_publica,
 )
 
@@ -80,4 +81,42 @@ def test_texto_cross_sell_parrillas_es_especifico():
     assert "Kit pala y atizador" in texto
     assert "Brasero 30x40" in texto
     assert "Brasero 30x53" in texto
-    assert "te pasamos precio" in texto            
+    assert "te pasamos precio" in texto
+
+class _FakeQueryEventoOperativo:
+    def __init__(self, resultado):
+        self.resultado = resultado
+        self.filtros = None
+
+    def filter_by(self, **kwargs):
+        self.filtros = kwargs
+        return self
+
+    def first(self):
+        return self.resultado
+
+
+class _FakeEventoOperativoModel:
+    query = _FakeQueryEventoOperativo(resultado=object())
+
+
+class _FakeEventoOperativoModelSinResultado:
+    query = _FakeQueryEventoOperativo(resultado=None)
+
+
+class _PedidoFake:
+    id = 123
+
+
+def test_propuesta_cross_sell_ya_enviada_detecta_evento_ok():
+    assert propuesta_cross_sell_ya_enviada(
+        _PedidoFake(),
+        _FakeEventoOperativoModel,
+    ) is True
+
+
+def test_propuesta_cross_sell_ya_enviada_sin_evento_devuelve_false():
+    assert propuesta_cross_sell_ya_enviada(
+        _PedidoFake(),
+        _FakeEventoOperativoModelSinResultado,
+    ) is False                
