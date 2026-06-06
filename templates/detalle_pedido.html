@@ -1100,13 +1100,13 @@ body { background: #f4f7f8; }
 
     {% if agregados_apb %}
     <div class="detalle-box detalle-box-full" style="margin-top: 18px; border-left:5px solid {% if pedido.agregado_pendiente_revision %}#dc2626{% else %}#16a34a{% endif %}; background:{% if pedido.agregado_pendiente_revision %}#fef2f2{% else %}#f0fdf4{% endif %};">
-        <h3 style="margin-top:0;">Agregados APB {% if pedido.agregado_pendiente_revision %}<span style="color:#991b1b;">— pendiente revisión despacho</span>{% endif %}</h3>
+        <h3 style="margin-top:0;">Agregados al pedido {% if pedido.agregado_pendiente_revision %}<span style="color:#991b1b;">— pendiente revisión despacho</span>{% endif %}</h3>
 
         {% for agregado in agregados_apb %}
         <div style="background:#ffffff; border:1px solid #dcfce7; border-radius:10px; padding:12px; margin-top:10px;">
             <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
                 <div>
-                    <strong>Agregado #{{ agregado.id }}</strong>
+                    <strong>Agregado al pedido #{{ agregado.id }}</strong>
                     <span style="color:#4b5563; font-size:13px;">
                         | Operador: {{ agregado.usuario or '-' }}
                         {% if agregado.fecha %}
