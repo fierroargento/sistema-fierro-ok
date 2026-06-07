@@ -248,3 +248,127 @@ def puede_hacer_handoff_ml_a_whatsapp(
         True,
         "ok",
     )      
+
+from datetime import datetime, timedelta
+
+
+def _normalizar_simple(valor):
+    return str(valor or "").strip().lower()
+
+
+def _dt_naive_utc(valor):
+    if not valor:
+        return None
+
+    try:
+        if getattr(valor, "tzinfo", None) is not None:
+            return valor.replace(tzinfo=None)
+    except Exception:
+        pass
+
+    return valor
+
+
+def pedido_es_plegable_pp6040_ownership(pedido):
+    """
+    Detección simple y desacoplada de app.py.
+
+    Se usa para reglas de ownership/canales, no para pricing ni catálogo.
+    """
+    if not pedido:
+        return False
+
+    for item in (getattr(pedido, "items", None) or []):
+        sku = str(getattr(item, "sku", "") or "").upper().strip()
+        descripcion = str(getattr(item, "descripcion", "") or "").upper().strip()
+
+        if "PP6040" in sku or "PP6040" in descripcion or "PLEGABLE" in descripcion:
+            return True
+
+    return False
+
+
+def pedido_es_ml_acordas_via_cargo_ownership(pedido):
+    """
+    Regla de canal:
+    Mercado Libre / Acordás la Entrega / Vía Cargo.
+    """
+    if not pedido:
+        return False
+
+    canal = str(getattr(pedido, "canal", "") or "").strip()
+    ml_tipo = str(getattr(pedido, "ml_tipo", "") or "").strip()
+    empresa_envio = _normalizar_simple(getattr(pedido, "empresa_envio", ""))
+
+    return bool(
+        canal == "Mercado Libre"
+        and ml_tipo == "Acordás la Entrega"
+        and "via" in empresa_envio
+        and "cargo" in empresa_envio
+    )
+
+
+def ml_acordas_via_cargo_sin_sucursal(pedido):
+    """
+    Caso base:
+    ML / Acordás / Vía Cargo / no PP6040 / sin sucursal elegida.
+    """
+    return bool(
+        pedido_es_ml_acordas_via_cargo_ownership(pedido)
+        and not pedido_es_plegable_pp6040_ownership(pedido)
+        and not str(getattr(pedido, "sucursal_nombre", "") or "").strip()
+    )
+
+
+def ml_acordas_via_cargo_puede_pasar_a_wa_por_no_respuesta(
+    pedido,
+    horas_sin_respuesta=24,
+):
+    """
+    Excepción APB:
+    Si ML no responde durante X horas, se permite iniciar WA para destrabar.
+
+    Esto NO habilita cross-sell.
+    Solo habilita WA para continuar/cerrar la logística.
+    """
+    if not ml_acordas_via_cargo_sin_sucursal(pedido):
+        return False
+
+    ultimo_bot = _dt_naive_utc(getattr(pedido, "ia_ultimo_mensaje_bot", None))
+    ultimo_cliente = _dt_naive_utc(getattr(pedido, "ia_ultimo_mensaje_cliente", None))
+
+    if not ultimo_bot:
+        return False
+
+    if ultimo_cliente and ultimo_cliente >= ultimo_bot:
+        return False
+
+    try:
+        horas_sin_respuesta = int(horas_sin_respuesta or 24)
+    except Exception:
+        horas_sin_respuesta = 24
+
+    return datetime.utcnow() - ultimo_bot >= timedelta(hours=horas_sin_respuesta)
+
+
+def ml_acordas_via_cargo_bloquea_inicio_wa(pedido):
+    """
+    Bloquea inicio WA mientras ML todavía debe cerrar sucursal.
+
+    Excepción:
+    Si ML no responde pasado el plazo configurado, WA puede arrancar para destrabar.
+    """
+    return bool(
+        ml_acordas_via_cargo_sin_sucursal(pedido)
+        and not ml_acordas_via_cargo_puede_pasar_a_wa_por_no_respuesta(pedido)
+    )
+
+
+def ml_acordas_via_cargo_bloquea_cross_sell(pedido):
+    """
+    Bloquea cross-sell hasta que haya sucursal elegida.
+
+    Aunque se habilite WA por falta de respuesta ML,
+    cross-sell sigue bloqueado porque la logística todavía no está cerrada.
+    """
+    return ml_acordas_via_cargo_sin_sucursal(pedido)

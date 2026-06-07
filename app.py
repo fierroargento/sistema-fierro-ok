@@ -115,6 +115,8 @@ from services.pedidos_estado import (
 from services.canal_manager import (
     puede_enviar_mensaje,
     registrar_envio_automatico,
+    ml_acordas_via_cargo_bloquea_inicio_wa,
+    ml_acordas_via_cargo_bloquea_cross_sell,
 )
 
 from services.motor_bloqueo import (
@@ -7255,14 +7257,28 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 + ", ".join(faltantes_limpios)
             )
         else:
+            if ml_acordas_via_cargo_bloquea_inicio_wa(pedido):
+                print(
+                    f"[WA-AUTO-ML] No se inicia WhatsApp pedido #{getattr(pedido, 'id', '')}: "
+                    "ML debe cerrar sucursal primero."
+                )
+                return False, "ml_debe_cerrar_sucursal"
+
             from modules.whatsapp.flows import wa_cerrar_datos_completos, wa_iniciar_cross_sell
             ok = wa_cerrar_datos_completos(pedido)
             accion = "Inició WhatsApp con datos completos"
             detalle_extra = "datos completos"
-            try:
-                wa_iniciar_cross_sell(pedido)
-            except Exception as cross_error:
-                print(f"[WA-AUTO-ML] Cross-sell no iniciado pedido #{getattr(pedido, 'id', '')}: {cross_error}")
+
+            if not ml_acordas_via_cargo_bloquea_cross_sell(pedido):
+                try:
+                    wa_iniciar_cross_sell(pedido)
+                except Exception as cross_error:
+                    print(f"[WA-AUTO-ML] Cross-sell no iniciado pedido #{getattr(pedido, 'id', '')}: {cross_error}")
+            else:
+                print(
+                    f"[WA-AUTO-ML] Cross-sell bloqueado pedido #{getattr(pedido, 'id', '')}: "
+                    "falta sucursal elegida."
+                )
 
         if ok:
             pedido.wa_ultimo_contacto = datetime.utcnow()
@@ -10758,6 +10774,13 @@ def whatsapp_iniciar_chat_operador(id):
             error="No autorizado para operar WhatsApp."
         ))
 
+    if ml_acordas_via_cargo_bloquea_inicio_wa(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="Todavía no corresponde iniciar WhatsApp. Primero debe quedar elegida la sucursal por Mercado Libre, salvo que el cliente no responda por ese canal."
+        ))        
+
     tel = normalizar_telefono(pedido.telefono)
 
     if not tel or len(tel) < 12:
@@ -10920,6 +10943,13 @@ def whatsapp_reactivar_bot(id):
 @login_required
 def whatsapp_enviar_propuesta_cross_sell(id):
     pedido = Pedido.query.get_or_404(id)
+
+    if ml_acordas_via_cargo_bloquea_cross_sell(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No se puede ofrecer cross-sell todavía. Primero debe quedar elegida la sucursal de entrega por Mercado Libre."
+        ))    
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(

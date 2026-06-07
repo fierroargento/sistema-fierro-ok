@@ -4,6 +4,7 @@ from domain.estados import Estado
 from modules.whatsapp.config import CROSS_SELL_MANUAL_ENABLED
 from modules.whatsapp.cross_sell import obtener_productos_a_ofrecer, obtener_producto
 from modules.whatsapp.sender import wa_enviar_texto, wa_enviar_imagen
+from services.canal_manager import ml_acordas_via_cargo_bloquea_cross_sell
 
 
 ESTADOS_SIN_CROSS_SELL = {
@@ -20,16 +21,22 @@ ESTADOS_SIN_CROSS_SELL = {
 }
 
 
+
+
 def puede_usar_cross_sell_operador(pedido):
     """
     APB:
     Cross-sell manual solo antes de Despachado.
-    Desde Despachado inclusive en adelante, no se ofrece ni se ejecuta.
+
+    Además:
+    si ML/Acordás/Vía Cargo todavía no cerró sucursal,
+    no se ofrece cross-sell.
     """
     return bool(
         CROSS_SELL_MANUAL_ENABLED
         and pedido
         and getattr(pedido, "estado", None) not in ESTADOS_SIN_CROSS_SELL
+        and not ml_acordas_via_cargo_bloquea_cross_sell(pedido)
     )
 
 
@@ -198,6 +205,12 @@ def enviar_propuesta_cross_sell_operador(
 
     if not CROSS_SELL_MANUAL_ENABLED:
         return False, "Cross-sell manual deshabilitado por configuración."
+
+    if ml_acordas_via_cargo_bloquea_cross_sell(pedido):
+        return (
+            False,
+            "No se puede ofrecer cross-sell todavía. Primero debe quedar elegida la sucursal de entrega por Mercado Libre."
+        )
 
     if not puede_usar_cross_sell_operador(pedido):
         return False, "No se puede enviar propuesta de cross-sell porque el pedido ya fue despachado o está en una etapa posterior."
