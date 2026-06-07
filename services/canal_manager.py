@@ -137,6 +137,39 @@ def registrar_envio_automatico(
             e
         )
 
+def wa_automatismo_bloqueado_por_operador(pedido):
+    """
+    APB / SaaS:
+    Devuelve True si el operador tomó la conversación y, por lo tanto,
+    ningún automatismo WA debe enviar mensajes al cliente.
+
+    Importante:
+    - No borra datos.
+    - No cambia estados.
+    - Solo actúa como guard central para módulos automáticos.
+    """
+    wa_estado = str(
+        getattr(pedido, "wa_estado", "") or ""
+    ).strip().lower()
+
+    if wa_estado == "operador_manual":
+        return True
+
+    return False
+
+def wa_operador_tiene_toma_activa(pedido):
+    """
+    APB / SaaS:
+    Devuelve True si el operador tomó actualmente la conversación de WhatsApp.
+
+    Esta función NO cancela el flujo operativo.
+    Solo sirve como guard para evitar automatismos conversacionales
+    mientras el operador está a cargo.
+    """
+    return str(
+        getattr(pedido, "wa_estado", "") or ""
+    ).strip().lower() == "operador_manual"
+
 def wa_puede_gobernar_timeout(pedido):
     """
     Devuelve True solo si WhatsApp
@@ -153,6 +186,12 @@ def wa_puede_gobernar_timeout(pedido):
     ).strip()
 
     # APB:
+    # Si el operador tomó la conversación,
+    # ningún timeout automático de WA gobierna.
+    if wa_operador_tiene_toma_activa(pedido):
+        return False
+
+    # APB:
     # Si el canal activo no es WhatsApp,
     # WA no gobierna.
     if canal not in ("whatsapp", "wa"):
@@ -163,7 +202,7 @@ def wa_puede_gobernar_timeout(pedido):
     if not wa_estado:
         return False
 
-    return True  
+    return True
 
 def ml_puede_gobernar_timeout(pedido):
     """

@@ -9,6 +9,7 @@ No reemplaza el flujo validado del sistema: solo reacciona ante cambios claros d
 from datetime import datetime, UTC
 
 from domain.estados import Estado
+from services.canal_manager import wa_operador_tiene_toma_activa
 
 from .flows import wa_enviar_listo_para_retirar, wa_enviar_postventa
 
@@ -50,6 +51,33 @@ def procesar_evento_tracking_pedido(pedido, clasificacion, estado_externo, orige
     acciones = []
     try:
         from app import db
+
+        origen_norm = str(origen or "").strip().lower()
+
+        # APB quirúrgico:
+        # Si el tracking automático detecta un evento que enviaría mensaje WA
+        # mientras el operador tiene tomada la conversación, no enviamos nada.
+        # Solo marcamos pendiente para que el operador lo gestione.
+        #
+        # Importante:
+        # - No bloquea acciones manuales.
+        # - No bloquea postventa manual al cerrar pedido.
+        # - No cancela el flujo: al reactivar bot, los automatismos pueden seguir.
+        if (
+            origen_norm == "scheduler"
+            and wa_operador_tiene_toma_activa(pedido)
+            and clasificacion in ["sucursal", "entregado"]
+        ):
+            pedido.ia_requiere_operador = True
+            pedido.ml_mensajes_pendientes = True
+
+            resumen = (getattr(pedido, "ia_resumen", "") or "").strip()
+            marca = f"TRACKING: {clasificacion} detectado automáticamente mientras operador tenía tomada la conversación WA"
+            if marca not in resumen:
+                pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
+
+            acciones.append("bloqueado_operador_manual")
+            return acciones
 
         # Listo para retirar: avisar una sola vez.
         if clasificacion == "sucursal":
