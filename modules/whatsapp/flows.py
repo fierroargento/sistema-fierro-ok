@@ -14,6 +14,7 @@ Alcance de esta etapa:
 import json
 import re
 from datetime import datetime, UTC
+from domain.estados import Estado
 
 from .config import (
     CROSS_SELL_MANUAL_ENABLED,
@@ -488,19 +489,21 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
             return False
 
     estados_sin_cross_sell = {
-        "Despachado",
-        "Verificar destino",
-        "Listo para retirar",
-        "Con demora de entrega",
-        "Reclamo transporte",
-        "No entregado",
-        "Entregado",
-        "Finalizado",
-        "Cancelado",
-        "Reclamar ML",
+        Estado.DESPACHADO,
+        Estado.VERIFICAR_DESTINO,
+        Estado.LISTO_RETIRAR,
+        Estado.DEMORA,
+        Estado.RECLAMO,
+        Estado.NO_ENTREGADO,
+        Estado.ENTREGADO,
+        Estado.FINALIZADO,
+        Estado.CANCELADO,
+        Estado.RECLAMAR_ML,
     }
 
-    if str(getattr(pedido, "estado", "") or "").strip() in estados_sin_cross_sell:
+    estado_pedido = str(getattr(pedido, "estado", "") or "").strip()
+
+    if estado_pedido in estados_sin_cross_sell:
         return False
 
     tel = normalizar_telefono_service(pedido.telefono)
