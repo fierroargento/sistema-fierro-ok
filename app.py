@@ -5488,7 +5488,7 @@ def ia_campo_vacio(valor):
 
 def ia_dni_valido(valor):
     limpio = re.sub(r"\D+", "", str(valor or ""))
-    return limpio if 7 <= len(limpio) <= 11 else ""
+    return limpio if len(limpio) in (7, 8) else ""
 
 
 def ia_cp_valido(valor):
@@ -5541,13 +5541,118 @@ def ia_extraer_datos_clasico_fierro(texto_cliente, datos_previos=None):
     if solo_numero and falta("codigo_postal"):
         extraidos.setdefault("codigo_postal", solo_numero.group(1))
 
-    # Respuesta suelta: "32339954" cuando falta DNI.
-    # Solo se usa si el mensaje es un único número/documento de 7 a 11 dígitos.
-    solo_dni = re.fullmatch(r"\s*([0-9][0-9\.\s-]{5,15}[0-9])\s*", texto_original)
+    # Respuesta suelta: "32339954" / "32.339.954" cuando falta DNI.
+    # En Argentina lo tratamos como DNI solo si, al limpiar separadores,
+    # queda con 7 u 8 dígitos.
+    solo_dni = re.fullmatch(r"\s*([0-9][0-9\s.,-]{5,16}[0-9])\s*", texto_original)
     if solo_dni and falta("dni"):
         dni = ia_dni_valido(solo_dni.group(1))
-        if dni and len(dni) >= 7:
+        if dni:
             extraidos.setdefault("dni", dni)
+
+    # Teléfono etiquetado: tel: 3624100059 / teléfono 2923... / cel 11...
+    m_tel = re.search(
+        r"(?:\btel[eé]fono\b|\btel\.?\b|\bcelular\b|\bcel\.?\b|\bcontacto\b)\s*[:#-]?\s*(\+?[0-9][0-9\s().-]{5,22}[0-9])",
+        texto_original,
+        flags=re.IGNORECASE,
+    )
+
+    tel_detectado = ""
+    tel_span = None
+
+    if m_tel:
+        tel_detectado = normalizar_telefono(m_tel.group(1))
+        tel_span = m_tel.span(1)
+
+        if tel_detectado and falta("telefono"):
+            extraidos.setdefault("telefono", tel_detectado)
+
+    # DNI embebido en mensaje compacto:
+    # "Nombre Apellido - 40.789.161 - Dirección - tel: 3624..."
+    # Permitimos puntos, espacios, comas o guiones, pero validamos
+    # que limpio tenga 7 u 8 dígitos.
+    if falta("dni") and not extraidos.get("dni"):
+        candidatos_dni = []
+
+        for m in re.finditer(r"\b([0-9][0-9\s.,-]{5,16}[0-9])\b", texto_original):
+            if tel_span and tel_span[0] <= m.start(1) <= tel_span[1]:
+                continue
+
+            valor = ia_dni_valido(m.group(1))
+            if valor:
+                candidatos_dni.append((valor, m.span(1)))
+
+        if len(candidatos_dni) == 1:
+            extraidos.setdefault("dni", candidatos_dni[0][0])
+
+    # Dirección/localidad en formato compacto de alta confianza:
+    # "Nombre - DNI - Mayor Torres 634 Zapala Neuquén - tel: 3624..."
+    # Solo se usa si hay DNI y teléfono, para no inventar datos en mensajes ambiguos.
+    try:
+        dni_para_segmento = extraidos.get("dni") or ""
+
+        if dni_para_segmento and tel_span and (falta("direccion") or falta("localidad")):
+            # Buscamos el DNI original en el texto, permitiendo separadores.
+            dni_regex = r"\s*[.\s,-]*".join(list(dni_para_segmento))
+            m_dni_original = re.search(dni_regex, texto_original)
+
+            if m_dni_original:
+                idx_fin_dni = m_dni_original.end()
+                idx_tel = tel_span[0]
+
+                if idx_tel > idx_fin_dni:
+                    segmento = texto_original[idx_fin_dni:idx_tel]
+                    segmento = re.sub(r"^[\s\-:|,]+", "", segmento)
+                    segmento = re.sub(r"[\s\-:|,]+$", "", segmento)
+                    segmento = re.sub(r"\s+", " ", segmento).strip()
+
+                    provincias = [
+                        "Buenos Aires", "CABA", "Capital Federal", "Catamarca", "Chaco",
+                        "Chubut", "Córdoba", "Cordoba", "Corrientes", "Entre Ríos",
+                        "Entre Rios", "Formosa", "Jujuy", "La Pampa", "La Rioja",
+                        "Mendoza", "Misiones", "Neuquén", "Neuquen", "Río Negro",
+                        "Rio Negro", "Salta", "San Juan", "San Luis", "Santa Cruz",
+                        "Santa Fe", "Santiago del Estero", "Tierra del Fuego", "Tucumán",
+                        "Tucuman",
+                    ]
+
+                    segmento_sin_provincia = segmento
+
+                    for provincia in sorted(provincias, key=len, reverse=True):
+                        if re.search(
+                            rf"\b{re.escape(provincia)}\b\s*$",
+                            segmento_sin_provincia,
+                            flags=re.IGNORECASE,
+                        ):
+                            segmento_sin_provincia = re.sub(
+                                rf"\b{re.escape(provincia)}\b\s*$",
+                                "",
+                                segmento_sin_provincia,
+                                flags=re.IGNORECASE,
+                            ).strip(" -,.")
+                            break
+
+                    # Buscar número de calle.
+                    # Todo hasta el número queda como dirección.
+                    # Lo posterior, si existe, se toma como localidad.
+                    m_numero_calle = re.search(r"\b\d{1,6}\b", segmento_sin_provincia)
+
+                    if m_numero_calle:
+                        fin_numero = m_numero_calle.end()
+                        direccion = segmento_sin_provincia[:fin_numero].strip(" -,.")
+                        localidad = segmento_sin_provincia[fin_numero:].strip(" -,.")
+
+                        if direccion and falta("direccion"):
+                            extraidos.setdefault("direccion", direccion)
+
+                        if localidad and falta("localidad"):
+                            extraidos.setdefault("localidad", localidad)
+
+                    elif segmento_sin_provincia and falta("direccion"):
+                        extraidos.setdefault("direccion", segmento_sin_provincia)
+
+    except Exception:
+        pass
 
     return extraidos
 
@@ -5968,11 +6073,21 @@ def ia_auto_responder_post_analisis(pedido):
         return False, f"wa_activo_{wa_estado_actual}"
 
     texto = ""
-    if getattr(pedido, "ia_requiere_operador", False) or pedido.ia_recolector_estado == "requiere_operador":
-        texto = ia_generar_cta_operador_pedido(pedido)
-    else:
-        faltantes = ia_faltantes_pedido(pedido)
 
+    requiere_operador_actual = bool(
+        getattr(pedido, "ia_requiere_operador", False)
+        or pedido.ia_recolector_estado == "requiere_operador"
+    )
+
+    faltantes = ia_faltantes_pedido(pedido) or []
+
+    if requiere_operador_actual and faltantes:
+        texto = ia_generar_respuesta_derivacion_y_faltantes_pedido(pedido)
+
+    elif requiere_operador_actual:
+        texto = ia_generar_cta_operador_pedido(pedido)
+
+    else:
         if not faltantes:
             # Datos del cliente completos.
             # ML Acordás la Entrega que NO es plegable PP6040 → siempre Via Cargo sucursal.
@@ -6084,9 +6199,24 @@ def ia_auto_responder_post_analisis(pedido):
         pedido.ia_respuesta_sugerida = texto
         pedido.ia_respuesta_enviada_hash = ia_hash_texto(texto)
         pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
-        pedido.ml_mensajes_pendientes = False
-        pedido.ml_mensajes_pendientes_count = 0
-        pedido.ia_resumen = ((pedido.ia_resumen or "") + " | IA respondió automáticamente").strip(" |")
+
+        if requiere_operador_actual:
+            pedido.ml_mensajes_pendientes = True
+            pedido.ml_mensajes_pendientes_count = max(
+                int(pedido.ml_mensajes_pendientes_count or 0),
+                1,
+            )
+            pedido.ia_resumen = (
+                (pedido.ia_resumen or "")
+                + " | IA respondió y dejó consulta pendiente para operador"
+            ).strip(" |")
+        else:
+            pedido.ml_mensajes_pendientes = False
+            pedido.ml_mensajes_pendientes_count = 0
+            pedido.ia_resumen = (
+                (pedido.ia_resumen or "")
+                + " | IA respondió automáticamente"
+            ).strip(" |")
 
         print(
             f"[IA-AUTO-RESPUESTA] OK pedido #{pedido.id}: {texto[:120]}"
@@ -7518,6 +7648,56 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
     # ML postventa suele ser sensible a mensajes largos. Lo mantenemos compacto y APB.
     if len(texto) > 650:
         texto = texto[:647] + "..."
+    return texto
+
+def ia_generar_respuesta_derivacion_y_faltantes_pedido(pedido):
+    """
+    APB:
+    Si el comprador hace una consulta que el bot no debe resolver
+    pero todavía faltan datos, no se corta la recolección.
+
+    Responde:
+    - derivo la consulta a operador;
+    - mientras tanto, sigo pidiendo los faltantes reales.
+    """
+    if not pedido or not es_ml_acordas_entrega(pedido):
+        return ""
+
+    faltantes = ia_faltantes_pedido(pedido) or []
+    if not faltantes:
+        return ia_generar_cta_operador_pedido(pedido)
+
+    datos = ia_datos_detectados_pedido(pedido)
+    nombre_raw = (
+        str(datos.get("nombre") or "").strip()
+        or str(getattr(pedido, "cliente", "") or "").strip()
+    )
+
+    nombre_corto = nombre_raw.split()[0] if nombre_raw else ""
+    saludo = f"Gracias, {nombre_corto} 😊" if nombre_corto else "Gracias 😊"
+
+    lineas = [
+        f"- {ia_etiqueta_faltante(c)}"
+        for c in faltantes
+    ]
+
+    bloque_faltantes = "\n".join(lineas)
+
+    texto = (
+        saludo
+        + "\n\n"
+        + "Para no darte una información incorrecta sobre tu consulta, "
+        + "le paso el tema a un operador para que revise tu pedido y te responda por acá."
+        + "\n\n"
+        + "Mientras tanto, para poder avanzar con el envío nos falta:\n\n"
+        + bloque_faltantes
+        + "\n\n"
+        + "Con eso ya podemos seguir adelante."
+    )
+
+    if len(texto) > 650:
+        texto = texto[:647] + "..."
+
     return texto
 
 def ia_generar_cta_operador_pedido(pedido):
