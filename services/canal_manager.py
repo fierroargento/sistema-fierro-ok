@@ -329,21 +329,28 @@ def pedido_es_plegable_pp6040_ownership(pedido):
 
 def pedido_es_ml_acordas_via_cargo_ownership(pedido):
     """
-    Regla de canal:
-    Mercado Libre / Acordás la Entrega / Vía Cargo.
+    Regla de canal APB:
+
+    En Sistema Fierro, Mercado Libre / Acordás la Entrega / no PP6040
+    debe cerrar sucursal antes de pasar a WhatsApp o cross-sell.
+
+    Importante:
+    No dependemos de empresa_envio acá, porque en el arranque del flujo
+    ese campo puede estar vacío todavía. Operativamente, si es Acordás
+    y no es PP6040, el camino esperado es Vía Cargo / sucursal.
     """
     if not pedido:
         return False
 
-    canal = str(getattr(pedido, "canal", "") or "").strip()
-    ml_tipo = str(getattr(pedido, "ml_tipo", "") or "").strip()
-    empresa_envio = _normalizar_simple(getattr(pedido, "empresa_envio", ""))
+    canal = _normalizar_simple(getattr(pedido, "canal", ""))
+    ml_tipo = _normalizar_simple(getattr(pedido, "ml_tipo", ""))
+
+    es_mercado_libre = canal == "mercado libre"
+    es_acordas_entrega = "acord" in ml_tipo and "entrega" in ml_tipo
 
     return bool(
-        canal == "Mercado Libre"
-        and ml_tipo == "Acordás la Entrega"
-        and "via" in empresa_envio
-        and "cargo" in empresa_envio
+        es_mercado_libre
+        and es_acordas_entrega
     )
 
 
