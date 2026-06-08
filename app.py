@@ -4932,6 +4932,53 @@ def ml_ultimo_mensaje_comprador(mensajes, seller_id=""):
     return candidatos[-1]
 
 
+def ml_bloque_mensajes_comprador_pendientes(mensajes, seller_id=""):
+    """
+    APB Recolector ML:
+    Devuelve el bloque de mensajes del comprador posteriores
+    al último mensaje del vendedor/bot.
+
+    Esto evita analizar solo la última pregunta cuando el comprador antes
+    mandó datos útiles en otro mensaje.
+
+    Ejemplo:
+    Mensaje 1 comprador: datos personales
+    Mensaje 2 comprador: pregunta logística
+    → el recolector analiza ambos juntos.
+    """
+    if not mensajes:
+        return ""
+
+    ordenados = list(mensajes or [])
+
+    try:
+        ordenados.sort(key=ml_fecha_mensaje_valor)
+    except Exception:
+        pass
+
+    ultimo_idx_vendedor = -1
+
+    for idx, m in enumerate(ordenados):
+        if ml_mensaje_es_del_vendedor(m, seller_id=seller_id):
+            ultimo_idx_vendedor = idx
+
+    textos = []
+
+    for m in ordenados[ultimo_idx_vendedor + 1:]:
+        if not ml_mensaje_es_del_comprador(m, seller_id=seller_id):
+            continue
+
+        texto = ml_texto_mensaje_ml(m)
+        if texto:
+            textos.append(texto.strip())
+
+    bloque = "\n\n".join(textos).strip()
+
+    if len(bloque) > 3000:
+        bloque = bloque[-3000:]
+
+    return bloque
+
 def ia_hash_texto(texto):
     return hashlib.sha256(str(texto or "").encode("utf-8", errors="ignore")).hexdigest()
 
@@ -5858,7 +5905,12 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     if not ultimo:
         return None
 
-    texto = ml_texto_mensaje_ml(ultimo)
+    texto_ultimo = ml_texto_mensaje_ml(ultimo)
+
+    texto = ml_bloque_mensajes_comprador_pendientes(
+        mensajes,
+        seller_id=seller_id,
+    ) or texto_ultimo
 
     if texto:
         ia_marcar_respuesta_cliente(
@@ -5946,6 +5998,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             )                
 
         # DETECTAR SUCURSAL
+        texto_para_sucursal = texto_ultimo or texto        
         # PP6040 va por Andreani/Correo a domicilio → nunca detectar sucursal Via Cargo
         # Solo detectar elección si el sistema YA ofreció opciones al cliente (ia_sucursales_ofrecidas)
         # Evita que el texto con los datos del cliente (localidad, dirección) se confunda con una elección
@@ -5959,19 +6012,19 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             except Exception:
                 pass
 
-            if candidatas_ids_check and texto and _es_consulta_no_eleccion(texto.lower()):
+            if candidatas_ids_check and texto_para_sucursal and _es_consulta_no_eleccion(texto_para_sucursal.lower()):
                 try:
                     pedido.ml_mensajes_pendientes = True
                     pedido.ia_requiere_operador = True
                     resumen = (pedido.ia_resumen or "").strip()
-                    pedido.ia_resumen = f"{resumen} | Cliente consultó sobre sucursal: {texto[:100]}".strip(" |")
+                    pedido.ia_resumen = f"{resumen} | Cliente consultó sobre sucursal: {texto_para_sucursal[:100]}".strip(" |")
                     db.session.commit()
                     print(f"[VIA CARGO] Pedido #{pedido.id} escalado: consulta de sucursal no resuelta")
                 except Exception as e:
                     print(f"[VIA CARGO] Error escalando consulta sucursal:", e)
                 return None
 
-            suc = detectar_sucursal(pedido, texto)
+            suc = detectar_sucursal(pedido, texto_para_sucursal)
             if suc and not getattr(pedido, "sucursal_nombre", None):
                 pedido.sucursal_nombre = suc.get("nombre")
                 pedido.direccion = suc.get("direccion")
