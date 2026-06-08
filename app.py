@@ -5746,35 +5746,12 @@ def ia_extraer_datos_clasico_fierro(texto_cliente, datos_previos=None):
                         if direccion and falta("direccion"):
                             extraidos.setdefault("direccion", direccion)
 
-                        # APB:
-                        # No guardar como localidad restos del mensaje que en realidad
-                        # son etiquetas o datos posteriores: teléfono, DNI, CP, etc.
-                        # Ejemplo que rompía:
-                        # "Dirección 25 de mayo 670 Teléfono 3445..."
-                        # terminaba como localidad "de mayo 670 teléfono".
-                        localidad_limpia = str(localidad or "").strip()
-
-                        localidad_invalida = bool(
-                            not localidad_limpia
-                            or re.search(
-                                r"\b("
-                                r"tel|telefono|teléfono|cel|celular|whatsapp|"
-                                r"dni|documento|doc|cuit|cuil|"
-                                r"cp|codigo postal|código postal|postal|"
-                                r"direccion|dirección|dir|calle|altura"
-                                r")\b",
-                                localidad_limpia,
-                                flags=re.IGNORECASE,
-                            )
-                            or re.search(r"\b\d{3,}\b", localidad_limpia)
-                        )
-
-                        if (
-                            localidad_limpia
-                            and not localidad_invalida
-                            and falta("localidad")
-                        ):
-                            extraidos.setdefault("localidad", localidad_limpia)
+                        # APB / modularización:
+                        # El parser clásico solo propone una localidad candidata.
+                        # La validación final vive en services.ubicacion_cp para no
+                        # duplicar reglas dentro de app.py.
+                        if localidad and falta("localidad"):
+                            extraidos.setdefault("localidad", localidad)
 
                     elif segmento_sin_provincia and falta("direccion"):
                         extraidos.setdefault("direccion", segmento_sin_provincia)
@@ -5985,6 +5962,25 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
     for c, v in datos_clasicos.items():
         if v and not str(datos.get(c) or "").strip():
             datos[c] = v
+
+    # APB / modularización:
+    # Antes de guardar, recalcular faltantes o persistir ia_datos_detectados,
+    # limpiamos ubicación detectada desde texto libre en services.ubicacion_cp.
+    # Esto evita que una localidad basura quede guardada como dato previo y
+    # contamine el siguiente análisis.
+    try:
+        from services.ubicacion_cp import normalizar_datos_ubicacion_detectados
+
+        datos = normalizar_datos_ubicacion_detectados(
+            datos,
+            texto_cliente=texto_cliente,
+        )
+
+    except Exception as e:
+        print(
+            f"[UBICACION] No se pudieron normalizar datos detectados "
+            f"pedido #{getattr(pedido, 'id', '?')}: {e}"
+        )
 
     completados = ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=texto_cliente)
 

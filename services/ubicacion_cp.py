@@ -293,6 +293,47 @@ def limpiar_localidad_detectada(localidad, texto_cliente=""):
     return localidad
 
 
+def normalizar_datos_ubicacion_detectados(datos, texto_cliente=""):
+    """
+    APB / Sistema Fierro:
+    Limpia campos de ubicación detectados por IA/parser antes de que app.py
+    los guarde, los use para recalcular faltantes o los persista en
+    ia_datos_detectados.
+
+    Motivo:
+    La IA o el parser clásico pueden proponer una localidad contaminada por
+    restos del mensaje del comprador.
+
+    Ejemplo real:
+    - dirección: "25 de Mayo 670"
+    - teléfono: "3445 654333"
+    - localidad errónea detectada: "de Mayo 670 Teléfono"
+
+    Regla:
+    - La validación vive acá, no duplicada en app.py.
+    - Si la localidad detectada no es confiable, se elimina del diccionario.
+    - Las fuentes estructuradas, como Correo/Vía Cargo/ML shipping/Tienda Nube,
+      no pasan por esta función.
+    """
+    if not isinstance(datos, dict):
+        return {}
+
+    normalizados = dict(datos)
+
+    if "localidad" in normalizados:
+        localidad = limpiar_localidad_detectada(
+            normalizados.get("localidad"),
+            texto_cliente=texto_cliente,
+        )
+
+        if localidad:
+            normalizados["localidad"] = localidad
+        else:
+            normalizados.pop("localidad", None)
+
+    return normalizados
+
+
 def extraer_calle_altura(direccion):
     """
     Intenta separar calle y altura desde una dirección textual.
