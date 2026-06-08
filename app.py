@@ -5914,6 +5914,25 @@ def ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=""):
         completados.append("direccion")
 
     localidad = str(datos.get("localidad") or "").strip()
+
+    # APB / modularización:
+    # La localidad detectada por IA/parser clásico NO se guarda cruda.
+    # Pasa por services.ubicacion_cp para evitar contaminar el pedido con
+    # restos del mensaje como "de Mayo 670 Teléfono".
+    try:
+        from services.ubicacion_cp import limpiar_localidad_detectada
+
+        localidad = limpiar_localidad_detectada(
+            localidad,
+            texto_cliente=texto_cliente,
+        )
+
+    except Exception as e:
+        print(
+            f"[UBICACION] No se pudo validar localidad detectada "
+            f"pedido #{getattr(pedido, 'id', '?')}: {e}"
+        )
+
     if localidad and ia_campo_vacio(getattr(pedido, "localidad", "")):
         pedido.localidad = localidad
         completados.append("localidad")

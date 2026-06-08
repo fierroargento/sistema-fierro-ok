@@ -228,6 +228,70 @@ def resolver_ubicacion_por_cp(cp, provincia="", localidad=""):
 
     return None
 
+def limpiar_localidad_detectada(localidad, texto_cliente=""):
+    """
+    APB / Sistema Fierro:
+    Valida una localidad detectada por IA o parser clásico antes de guardarla
+    en el pedido.
+
+    Motivo:
+    En mensajes compactos de ML, la IA o el parser pueden confundir restos de
+    dirección/etiquetas con localidad.
+
+    Ejemplo real que NO debe guardarse:
+    - "de Mayo 670 Teléfono"
+
+    Regla:
+    - Esta función solo valida localidades detectadas desde texto libre.
+    - No se usa para localidades confiables provenientes de fuentes estructuradas
+      como Correo, Vía Cargo o sucursales ya elegidas.
+    - app.py debe usar esta función como compuerta antes de asignar
+      pedido.localidad desde datos detectados.
+    """
+    localidad = _normalizar_texto(localidad)
+
+    if not localidad:
+        return ""
+
+    localidad_norm = _norm(localidad)
+
+    if not localidad_norm:
+        return ""
+
+    # Etiquetas/campos que indican que el texto no es una localidad sino
+    # un resto del mensaje del cliente.
+    if re.search(
+        r"\b("
+        r"tel|telefono|telefonos|teléfono|teléfonos|cel|celular|whatsapp|"
+        r"dni|documento|doc|cuit|cuil|"
+        r"cp|codigo postal|código postal|postal|"
+        r"direccion|dirección|dir|calle|altura|"
+        r"mail|email|correo"
+        r")\b",
+        localidad_norm,
+        flags=re.IGNORECASE,
+    ):
+        return ""
+
+    # Si contiene un número de 3 o más cifras, muy probablemente es resto
+    # de dirección o teléfono, no localidad.
+    # Permite localidades reales como "25 de Mayo" o "9 de Julio".
+    if re.search(r"\b\d{3,}\b", localidad_norm):
+        return ""
+
+    # Si es demasiado larga para localidad detectada desde IA/parser,
+    # preferimos no guardar antes que contaminar el pedido.
+    if len(localidad_norm) > 60:
+        return ""
+
+    # Si contiene muchas palabras, suele ser texto arrastrado del mensaje.
+    # Localidades compuestas existen, pero más de 5 palabras desde texto libre
+    # es riesgoso.
+    if len(localidad_norm.split()) > 5:
+        return ""
+
+    return localidad
+
 
 def extraer_calle_altura(direccion):
     """
