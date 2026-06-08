@@ -5746,8 +5746,35 @@ def ia_extraer_datos_clasico_fierro(texto_cliente, datos_previos=None):
                         if direccion and falta("direccion"):
                             extraidos.setdefault("direccion", direccion)
 
-                        if localidad and falta("localidad"):
-                            extraidos.setdefault("localidad", localidad)
+                        # APB:
+                        # No guardar como localidad restos del mensaje que en realidad
+                        # son etiquetas o datos posteriores: teléfono, DNI, CP, etc.
+                        # Ejemplo que rompía:
+                        # "Dirección 25 de mayo 670 Teléfono 3445..."
+                        # terminaba como localidad "de mayo 670 teléfono".
+                        localidad_limpia = str(localidad or "").strip()
+
+                        localidad_invalida = bool(
+                            not localidad_limpia
+                            or re.search(
+                                r"\b("
+                                r"tel|telefono|teléfono|cel|celular|whatsapp|"
+                                r"dni|documento|doc|cuit|cuil|"
+                                r"cp|codigo postal|código postal|postal|"
+                                r"direccion|dirección|dir|calle|altura"
+                                r")\b",
+                                localidad_limpia,
+                                flags=re.IGNORECASE,
+                            )
+                            or re.search(r"\b\d{3,}\b", localidad_limpia)
+                        )
+
+                        if (
+                            localidad_limpia
+                            and not localidad_invalida
+                            and falta("localidad")
+                        ):
+                            extraidos.setdefault("localidad", localidad_limpia)
 
                     elif segmento_sin_provincia and falta("direccion"):
                         extraidos.setdefault("direccion", segmento_sin_provincia)
