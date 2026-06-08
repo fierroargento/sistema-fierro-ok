@@ -248,11 +248,35 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
             )
 
             try:
+                _guardar_estado_wa(
+                    pedido,
+                    WA_DESPACHO_EN_PROCESO,
+                    tel
+                )
+
                 db.session.commit()
             except Exception:
                 db.session.rollback()
 
-            wa_enviar_confirmacion_sucursal(pedido)
+            wa_enviar_texto(
+                tel,
+                "Perfecto, ya tenemos todo para avanzar con el despacho.\n\n"
+                "En breve te pasamos los detalles del envío y el seguimiento.",
+                pedido=pedido,
+                fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
+                fallback_parametros=[
+                    (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+                    pedido.id_venta or pedido.id or "",
+                ],
+            )
+
+            try:
+                from modules.whatsapp.flows import wa_iniciar_cross_sell
+
+                wa_iniciar_cross_sell(pedido)
+            except Exception as e:
+                print("[WA] Error iniciando cross sell luego de confirmar sucursal única:", e)
+
             return
 
         wa_enviar_texto(
