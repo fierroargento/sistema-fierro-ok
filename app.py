@@ -5165,7 +5165,12 @@ def ia_marcar_respuesta_cliente(pedido, canal=None, commit=True):
         return False
 
 
-def ia_puede_enviar_automatico(pedido, canal, texto=None):
+def ia_puede_enviar_automatico(
+    pedido,
+    canal,
+    texto=None,
+    permitir_requiere_operador=False,
+):
     """Candado global anti-acoso para ML y WhatsApp."""
     if not pedido:
         return True, "sin_pedido"
@@ -5173,7 +5178,7 @@ def ia_puede_enviar_automatico(pedido, canal, texto=None):
     canal = str(canal or "").strip().lower()
     canal_activo = str(getattr(pedido, "ia_canal_activo", "") or "").strip().lower()
 
-    if getattr(pedido, "ia_requiere_operador", False):
+    if getattr(pedido, "ia_requiere_operador", False) and not permitir_requiere_operador:
         return False, "requiere_operador"
 
     if getattr(pedido, "ia_esperando_respuesta", False):
@@ -6241,7 +6246,11 @@ def ia_auto_responder_post_analisis(pedido):
             )
             return False, motivo
 
-        ml_enviar_mensaje_acordas(pedido, texto)
+        ml_enviar_mensaje_acordas(
+            pedido,
+            texto,
+            permitir_requiere_operador=bool(requiere_operador_actual and faltantes),
+        )
 
         registrar_envio_automatico(
             pedido=pedido,
@@ -6590,7 +6599,11 @@ def generar_mensaje_contacto_ml_api(pedido):
         texto = texto[:345] + "..."
 
     return texto
-def ml_enviar_mensaje_acordas(pedido, texto):
+def ml_enviar_mensaje_acordas(
+    pedido,
+    texto,
+    permitir_requiere_operador=False,
+):
     if not pedido or pedido.canal != "Mercado Libre" or not es_ml_acordas_entrega(pedido):
         raise ValueError("El pedido no corresponde a Mercado Libre / Acordás la Entrega.")
 
@@ -6598,7 +6611,12 @@ def ml_enviar_mensaje_acordas(pedido, texto):
     if not texto:
         raise ValueError("No hay mensaje para enviar.")
 
-    puede_enviar, motivo_apb = ia_puede_enviar_automatico(pedido, "mercadolibre", texto)
+    puede_enviar, motivo_apb = ia_puede_enviar_automatico(
+        pedido,
+        "mercadolibre",
+        texto,
+        permitir_requiere_operador=permitir_requiere_operador,
+    )
     if not puede_enviar:
         raise ValueError(f"APB: no se envía mensaje automático ML ({motivo_apb}).")
 
@@ -10334,14 +10352,19 @@ def ia_enviar_respuesta_faltantes_pedido(id):
     if not getattr(pedido, "contacto_iniciado", False):
         return redirect(url_for("detalle_pedido", id=pedido.id, error="Primero debe existir contacto inicial enviado."))
 
-    if getattr(pedido, "ia_requiere_operador", False) or pedido.ia_recolector_estado == "requiere_operador":
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="La IA marcó que requiere operador. No se envía respuesta automática."))
+    requiere_operador_actual = bool(
+        getattr(pedido, "ia_requiere_operador", False)
+        or pedido.ia_recolector_estado == "requiere_operador"
+    )
 
     faltantes = ia_faltantes_pedido(pedido)
     if not faltantes:
         return redirect(url_for("detalle_pedido", id=pedido.id, error="No hay datos faltantes para pedir."))
 
-    texto = ia_generar_respuesta_faltantes_pedido(pedido)
+    if requiere_operador_actual:
+        texto = ia_generar_respuesta_derivacion_y_faltantes_pedido(pedido)
+    else:
+        texto = ia_generar_respuesta_faltantes_pedido(pedido)
     if not texto:
         return redirect(url_for("detalle_pedido", id=pedido.id, error="No se pudo generar respuesta IA."))
 
@@ -10349,12 +10372,23 @@ def ia_enviar_respuesta_faltantes_pedido(id):
         return redirect(url_for("detalle_pedido", id=pedido.id, error="Esta respuesta IA ya fue enviada después del último análisis. Esperá una nueva respuesta del comprador."))
 
     try:
-        ml_enviar_mensaje_acordas(pedido, texto)
+        ml_enviar_mensaje_acordas(
+            pedido,
+            texto,
+            permitir_requiere_operador=bool(requiere_operador_actual and faltantes),
+        )
         pedido.ia_respuesta_sugerida = texto
         pedido.ia_respuesta_enviada_hash = ia_hash_texto(texto)
         pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
-        pedido.ml_mensajes_pendientes = False
-        pedido.ml_mensajes_pendientes_count = 0
+        if requiere_operador_actual:
+            pedido.ml_mensajes_pendientes = True
+            pedido.ml_mensajes_pendientes_count = max(
+                int(pedido.ml_mensajes_pendientes_count or 0),
+                1,
+            )
+        else:
+            pedido.ml_mensajes_pendientes = False
+            pedido.ml_mensajes_pendientes_count = 0
         db.session.commit()
         return redirect(url_for("detalle_pedido", id=pedido.id, ok="Respuesta IA enviada a Mercado Libre pidiendo solo los datos faltantes."))
     except Exception as e:
