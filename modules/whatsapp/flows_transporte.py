@@ -155,10 +155,15 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
 
     sucs = _cargar_sucursales_ofrecidas(pedido)
 
-    m = re.search(r"\b([1-3])\b", texto)
+    from services.mensajes_sucursales import (
+        normalizar_numero_opcion_sucursal,
+        texto_pide_opcion_numerica_sucursal,
+    )
 
-    if m and sucs:
-        idx = int(m.group(1)) - 1
+    idx_normalizado = normalizar_numero_opcion_sucursal(texto)
+
+    if idx_normalizado is not None and sucs:
+        idx = idx_normalizado
 
         if 0 <= idx < len(sucs):
             suc = sucs[idx]
@@ -210,12 +215,50 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
             return
 
     if _es_afirmativo(texto) and sucs:
-        _escalar_operador(
-            pedido,
-            "Cliente confirmó sucursal sin indicar número claro",
-            "Perfecto, lo revisamos y te confirmamos el despacho."
-        )
+        if len(sucs) == 1:
+            suc = sucs[0]
 
+            if not (pedido.empresa_envio or "").strip():
+                pedido.empresa_envio = "Vía Cargo"
+
+            pedido.tipo_entrega = "Sucursal"
+
+            pedido.sucursal_nombre = (
+                suc.get("nombre")
+                or suc.get("name")
+                or pedido.sucursal_nombre
+            )
+
+            pedido.direccion = (
+                suc.get("direccion")
+                or suc.get("address")
+                or pedido.direccion
+            )
+
+            pedido.localidad = (
+                suc.get("localidad")
+                or suc.get("city")
+                or pedido.localidad
+            )
+
+            pedido.provincia = (
+                suc.get("provincia")
+                or suc.get("state")
+                or pedido.provincia
+            )
+
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            wa_enviar_confirmacion_sucursal(pedido)
+            return
+
+        wa_enviar_texto(
+            tel,
+            texto_pide_opcion_numerica_sucursal()
+        )
         return
 
     _escalar_operador(

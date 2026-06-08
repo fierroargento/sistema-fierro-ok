@@ -1426,18 +1426,9 @@ def sugerir_sucursales(pedido):
     except Exception as e:
         print("[VIA CARGO] Error guardando sucursales ofrecidas:", e)
 
-    lista = ""
-    for i, s in enumerate(sucs, 1):
-        nombre = s.get("nombre") or "Sucursal"
-        dir_suc = s.get("direccion") or ""
-        lista += f"{i}) {nombre}\n{dir_suc}\n\n"
+    from services.mensajes_sucursales import armar_mensaje_sucursales
 
-    return (
-        "Genial 👍\n\n"
-        "Te paso sucursales cercanas para que elijas:\n\n"
-        f"{lista}"
-        "Decime cuál preferís y despachamos 🚀"
-    )
+    return armar_mensaje_sucursales(sucs, transporte="Vía Cargo")
 
 
 def _es_consulta_no_eleccion(texto):
@@ -6159,6 +6150,23 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 except Exception as e:
                     print(f"[VIA CARGO] Error escalando consulta sucursal:", e)
                 return None
+
+
+            from services.mensajes_sucursales import normalizar_numero_opcion_sucursal
+
+            if candidatas_ids_check and texto_para_sucursal:
+                try:
+                    _texto_confirmacion = str(texto_para_sucursal or "").strip().lower()
+                    _idx_opcion = normalizar_numero_opcion_sucursal(_texto_confirmacion)
+
+                    if _idx_opcion is not None and 0 <= _idx_opcion < len(candidatas_ids_check):
+                        texto_para_sucursal = str(_idx_opcion + 1)
+
+                    elif len(candidatas_ids_check) == 1 and _es_afirmativo(_texto_confirmacion):
+                        texto_para_sucursal = "1"
+
+                except Exception as e:
+                    print("[VIA CARGO] Error normalizando elección de sucursal:", e)
 
             suc = detectar_sucursal(pedido, texto_para_sucursal)
             if suc and not getattr(pedido, "sucursal_nombre", None):
