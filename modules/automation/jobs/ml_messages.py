@@ -29,6 +29,7 @@ def ejecutar_job_ml_mensajes(app, db):
                 Pedido.query
                 .filter(Pedido.canal == "Mercado Libre")
                 .filter(Pedido.ia_esperando_respuesta == True)
+                .filter(Pedido.ml_mensajes_pendientes == False)
                 .filter(Pedido.estado.notin_([
                     Estado.DESPACHADO,
                     Estado.ENTREGADO,

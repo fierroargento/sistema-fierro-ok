@@ -5222,8 +5222,13 @@ def ia_escalar_si_timeout_operativo(pedido, canal="", motivo="Sin respuesta del 
         marca = f"BOT: sin respuesta del comprador tras 2 hs operativas ({canal_txt})"
         if marca not in resumen:
             pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
+        # APB:
+        # Solo WhatsApp debe escribir wa_estado.
+        # Un timeout de Mercado Libre no debe contaminar el estado WA.
         try:
-            pedido.wa_estado = "requiere_operador"
+            canal_timeout = str(canal_txt or "").strip().lower()
+            if canal_timeout in ("whatsapp", "wa"):
+                pedido.wa_estado = "requiere_operador"
         except Exception:
             pass
 
