@@ -4,7 +4,7 @@ from domain.estados import Estado
 from modules.whatsapp.config import CROSS_SELL_MANUAL_ENABLED
 from modules.whatsapp.cross_sell import obtener_productos_a_ofrecer, obtener_producto
 from modules.whatsapp.sender import wa_enviar_texto, wa_enviar_imagen
-from services.canal_manager import ml_acordas_via_cargo_bloquea_cross_sell
+from services.cross_sell_rules import puede_iniciar_cross_sell_pedido, motivo_bloqueo_cross_sell
 
 
 ESTADOS_SIN_CROSS_SELL = {
@@ -26,17 +26,13 @@ ESTADOS_SIN_CROSS_SELL = {
 def puede_usar_cross_sell_operador(pedido):
     """
     APB:
-    Cross-sell manual solo antes de Despachado.
-
-    Además:
-    si ML/Acordás/Vía Cargo todavía no cerró sucursal,
-    no se ofrece cross-sell.
+    Cross-sell manual solo si la regla central permite iniciar cross-sell.
     """
-    return bool(
-        CROSS_SELL_MANUAL_ENABLED
-        and pedido
-        and getattr(pedido, "estado", None) not in ESTADOS_SIN_CROSS_SELL
-        and not ml_acordas_via_cargo_bloquea_cross_sell(pedido)
+    return puede_iniciar_cross_sell_pedido(
+        pedido,
+        modo="operador",
+        manual_enabled=CROSS_SELL_MANUAL_ENABLED,
+        forzar=False,
     )
 
 
@@ -203,17 +199,25 @@ def enviar_propuesta_cross_sell_operador(
     Deja la conversación en operador_manual y pausa el bot.
     """
 
-    if not CROSS_SELL_MANUAL_ENABLED:
-        return False, "Cross-sell manual deshabilitado por configuración."
+    motivo_bloqueo = motivo_bloqueo_cross_sell(
+        pedido,
+        modo="operador",
+        manual_enabled=CROSS_SELL_MANUAL_ENABLED,
+        forzar=False,
+    )
 
-    if ml_acordas_via_cargo_bloquea_cross_sell(pedido):
-        return (
-            False,
-            "No se puede ofrecer cross-sell todavía. Primero debe quedar elegida la sucursal de entrega por Mercado Libre."
+    if motivo_bloqueo:
+        mensajes = {
+            "cross_sell_manual_deshabilitado": "Cross-sell manual deshabilitado por configuración.",
+            "logistica_abierta": "No se puede ofrecer cross-sell todavía. Primero debe quedar definida la logística del pedido.",
+            "pedido_en_etapa_posterior": "No se puede enviar propuesta de cross-sell porque el pedido ya fue despachado o está en una etapa posterior.",
+            "sin_pedido": "No se pudo identificar el pedido.",
+        }
+
+        return False, mensajes.get(
+            motivo_bloqueo,
+            "No se puede enviar propuesta de cross-sell para este pedido."
         )
-
-    if not puede_usar_cross_sell_operador(pedido):
-        return False, "No se puede enviar propuesta de cross-sell porque el pedido ya fue despachado o está en una etapa posterior."
 
     tel = normalizar_telefono_fn(getattr(pedido, "telefono", ""))
 

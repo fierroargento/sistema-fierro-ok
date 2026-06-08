@@ -481,29 +481,17 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
 
     origen = (origen or "bot").strip().lower()
 
-    if origen == "operador":
-        if not CROSS_SELL_MANUAL_ENABLED and not forzar:
-            return False
-    else:
-        if not CROSS_SELL_AUTO_ENABLED:
-            return False
+    from services.cross_sell_rules import puede_iniciar_cross_sell_pedido
 
-    estados_sin_cross_sell = {
-        Estado.DESPACHADO,
-        Estado.VERIFICAR_DESTINO,
-        Estado.LISTO_RETIRAR,
-        Estado.DEMORA,
-        Estado.RECLAMO,
-        Estado.NO_ENTREGADO,
-        Estado.ENTREGADO,
-        Estado.FINALIZADO,
-        Estado.CANCELADO,
-        Estado.RECLAMAR_ML,
-    }
+    modo_cross_sell = "operador" if origen == "operador" else "auto"
 
-    estado_pedido = str(getattr(pedido, "estado", "") or "").strip()
-
-    if estado_pedido in estados_sin_cross_sell:
+    if not puede_iniciar_cross_sell_pedido(
+        pedido,
+        modo=modo_cross_sell,
+        auto_enabled=CROSS_SELL_AUTO_ENABLED,
+        manual_enabled=CROSS_SELL_MANUAL_ENABLED,
+        forzar=forzar,
+    ):
         return False
 
     tel = normalizar_telefono_service(pedido.telefono)
