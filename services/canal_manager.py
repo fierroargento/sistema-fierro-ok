@@ -96,17 +96,30 @@ def puede_enviar_mensaje(
     ):
         ahora = datetime.now(UTC)
 
-        diferencia = (
-            ahora - fecha_ultimo
-        )
+        # APB fechas:
+        # Algunas fechas internas vienen naive desde SQLAlchemy/Postgres,
+        # pero este service usa datetime.now(UTC), que es aware.
+        # Antes de restar, normalizamos fecha_ultimo a UTC aware.
+        try:
+            if getattr(fecha_ultimo, "tzinfo", None) is None:
+                fecha_ultimo_cmp = fecha_ultimo.replace(tzinfo=UTC)
+            else:
+                fecha_ultimo_cmp = fecha_ultimo.astimezone(UTC)
+        except Exception:
+            fecha_ultimo_cmp = None
 
-        if diferencia < timedelta(
-            minutes=COOLDOWN_MINUTOS
-        ):
-            return (
-                False,
-                f"Cooldown activo ({COOLDOWN_MINUTOS} min)"
+        if fecha_ultimo_cmp:
+            diferencia = (
+                ahora - fecha_ultimo_cmp
             )
+
+            if diferencia < timedelta(
+                minutes=COOLDOWN_MINUTOS
+            ):
+                return (
+                    False,
+                    f"Cooldown activo ({COOLDOWN_MINUTOS} min)"
+                )
 
     return (
         True,

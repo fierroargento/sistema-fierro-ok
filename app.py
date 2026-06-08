@@ -5746,10 +5746,19 @@ def ia_calcular_faltantes_reales_pedido(pedido, datos=None):
         faltantes.append("telefono")
     if not valor("direccion"):
         faltantes.append("direccion")
-    if not valor("localidad"):
+
+    codigo_postal_valido = ia_cp_valido(valor("codigo_postal"))
+
+    # APB logística:
+    # Si ya tenemos CP válido, no le pedimos localidad al cliente.
+    # Localidad/provincia deben resolverse internamente por CP o por operador,
+    # pero no deben frenar la recolección ML.
+    if not codigo_postal_valido and not valor("localidad"):
         faltantes.append("localidad")
-    if not ia_cp_valido(valor("codigo_postal")):
+
+    if not codigo_postal_valido:
         faltantes.append("codigo_postal")
+
     return faltantes
 
 
