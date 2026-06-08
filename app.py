@@ -5223,31 +5223,42 @@ def ia_escalar_si_timeout_operativo(pedido, canal="", motivo="Sin respuesta del 
         if marca not in resumen:
             pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
         # APB:
-        # Solo WhatsApp debe escribir wa_estado.
-        # Un timeout de Mercado Libre no debe contaminar el estado WA.
-        try:
-            canal_timeout = str(canal_txt or "").strip().lower()
-            if canal_timeout in ("whatsapp", "wa"):
-                pedido.wa_estado = "requiere_operador"
-        except Exception:
-            pass
+        # Solo WhatsApp debe escribir wa_estado y tomar ownership conversacional.
+        # Un timeout de Mercado Libre NO debe contaminar WhatsApp ni pausar el bot global.
+        canal_timeout = str(canal_txt or "").strip().lower()
+        es_timeout_wa = canal_timeout in ("whatsapp", "wa")
 
-        actualizar_estado_conversacional(
-            pedido,
-            owner_actual="operador",
-            canal_activo=canal_txt,
-            estado_conversacional="takeover_operador",
-            takeover_activo=True,
-            bot_pausado=True,
-        )
+        if es_timeout_wa:
+            try:
+                pedido.wa_estado = "requiere_operador"
+            except Exception:
+                pass
+
+            actualizar_estado_conversacional(
+                pedido,
+                owner_actual="operador",
+                canal_activo=canal_txt,
+                estado_conversacional="takeover_operador",
+                takeover_activo=True,
+                bot_pausado=True,
+            )
+
+            evento_owner = "operador"
+            evento_estado_conversacional = "takeover_operador"
+
+        else:
+            # Timeout ML:
+            # queda pendiente para operador, pero ML no pierde ownership por culpa de WA.
+            evento_owner = "operador"
+            evento_estado_conversacional = "pendiente_operador_ml"
 
         registrar_evento_operativo(
             pedido=pedido,
             tipo_evento="timeout_respuesta_cliente",
             origen="scheduler",
             canal=canal_txt,
-            owner="operador",
-            estado_conversacional="takeover_operador",
+            owner=evento_owner,
+            estado_conversacional=evento_estado_conversacional,
             payload={
                 "motivo": motivo,
                 "canal": canal_txt,

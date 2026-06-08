@@ -29,7 +29,13 @@ def ejecutar_job_ml_mensajes(app, db):
                 Pedido.query
                 .filter(Pedido.canal == "Mercado Libre")
                 .filter(Pedido.ia_esperando_respuesta == True)
-                .filter(Pedido.ml_mensajes_pendientes == False)
+                # APB:
+                # No escalar por timeout si ya hay mensajes pendientes del comprador.
+                # Primero se deben procesar esos mensajes.
+                .filter(
+                    (Pedido.ml_mensajes_pendientes == False)
+                    | (Pedido.ml_mensajes_pendientes == None)
+                )
                 .filter(Pedido.estado.notin_([
                     Estado.DESPACHADO,
                     Estado.ENTREGADO,
