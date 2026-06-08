@@ -10089,17 +10089,10 @@ def detalle_pedido(id):
             })
 
     try:
-        from modules.whatsapp.cross_sell import obtener_productos_a_ofrecer, obtener_skus_pedido
-        from modules.whatsapp.config import CROSS_SELL_MANUAL_ENABLED
         from modules.whatsapp.cross_sell_operador import (
             puede_usar_cross_sell_operador,
             preparar_propuesta_cross_sell_operador,
             propuesta_cross_sell_ya_enviada,
-        )
-        from services.cross_sell_rules import (
-            motivo_bloqueo_cross_sell,
-            pedido_tiene_datos_completos_para_cross_sell,
-            cross_sell_tiene_productos_configurados,
         )
 
         puede_iniciar_cross_sell = puede_usar_cross_sell_operador(pedido)
@@ -10108,23 +10101,6 @@ def detalle_pedido(id):
             pedido,
             EventoOperativo,
         ) if cross_sell_propuesta else False
-
-        print(
-            f"[WA CROSS-SELL DEBUG DETALLE] pedido=#{pedido.id} "
-            f"estado={getattr(pedido, 'estado', '')!r} "
-            f"manual_enabled={CROSS_SELL_MANUAL_ENABLED} "
-            f"tel_raw={getattr(pedido, 'telefono', '')!r} "
-            f"tel_norm={normalizar_telefono(getattr(pedido, 'telefono', ''))!r} "
-            f"skus={obtener_skus_pedido(pedido)!r} "
-            f"productos={obtener_productos_a_ofrecer(pedido)!r} "
-            f"datos_ok={pedido_tiene_datos_completos_para_cross_sell(pedido)} "
-            f"productos_ok={cross_sell_tiene_productos_configurados(pedido)} "
-            f"motivo={motivo_bloqueo_cross_sell(pedido, modo='operador', manual_enabled=CROSS_SELL_MANUAL_ENABLED)!r} "
-            f"puede={puede_iniciar_cross_sell} "
-            f"propuesta={bool(cross_sell_propuesta)} "
-            f"ia_faltantes={getattr(pedido, 'ia_faltantes', '')!r} "
-            f"ml_faltantes={getattr(pedido, 'ml_campos_faltantes', '')!r}"
-        )
 
     except Exception as e:
         print(f"[WA CROSS-SELL] No se pudo preparar propuesta pedido #{pedido.id}: {e}")

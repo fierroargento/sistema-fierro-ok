@@ -255,4 +255,44 @@ def test_bloquea_cross_sell_si_falta_dni_comercial():
         pedido,
         modo="auto",
         auto_enabled=True,
-    ) == "datos_incompletos"    
+    ) == "datos_incompletos"
+
+
+
+def test_no_bloquea_cross_sell_si_falta_datos_de_entrega_logistica():
+    pedido = PedidoFake(
+        estado=Estado.CARGANDO,
+        ml_campos_faltantes="datos de entrega",
+    )
+
+    assert motivo_bloqueo_cross_sell(
+        pedido,
+        modo="operador",
+        manual_enabled=True,
+    ) == ""
+
+
+def test_no_bloquea_cross_sell_si_falta_tipo_de_entrega_logistica():
+    pedido = PedidoFake(
+        estado=Estado.CARGANDO,
+        ml_campos_faltantes="tipo de entrega",
+    )
+
+    assert motivo_bloqueo_cross_sell(
+        pedido,
+        modo="operador",
+        manual_enabled=True,
+    ) == ""
+
+
+def test_no_bloquea_cross_sell_si_falta_ubicacion_logistica():
+    pedido = PedidoFake(
+        estado=Estado.CARGANDO,
+        ia_faltantes='["provincia", "localidad", "código postal", "dirección"]',
+    )
+
+    assert motivo_bloqueo_cross_sell(
+        pedido,
+        modo="operador",
+        manual_enabled=True,
+    ) == ""        
