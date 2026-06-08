@@ -11,6 +11,7 @@ Objetivo:
 - centralizar reglas mínimas de envío.
 """
 
+import json
 from datetime import datetime, timedelta, UTC
 
 from domain.estados import Estado, ESTADOS_CERRADOS
@@ -288,7 +289,7 @@ def puede_hacer_handoff_ml_a_whatsapp(
         "ok",
     )      
 
-from datetime import datetime, timedelta
+
 
 
 def _normalizar_simple(valor):
@@ -308,6 +309,43 @@ def _dt_naive_utc(valor):
     return valor
 
 
+def _faltantes_recolector_pedido(pedido):
+    """
+    Devuelve la lista de faltantes reales del recolector ML.
+
+    APB:
+    No importa funciones de app.py.
+    Lee el campo persistido pedido.ia_faltantes.
+    """
+    if not pedido:
+        return []
+
+    raw = getattr(pedido, "ia_faltantes", None)
+
+    if not raw:
+        return []
+
+    if isinstance(raw, list):
+        return [
+            str(x or "").strip()
+            for x in raw
+            if str(x or "").strip()
+        ]
+
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            return [
+                str(x or "").strip()
+                for x in data
+                if str(x or "").strip()
+            ]
+    except Exception:
+        pass
+
+    return []
+
+
 def pedido_es_plegable_pp6040_ownership(pedido):
     """
     Detección simple y desacoplada de app.py.
@@ -325,6 +363,23 @@ def pedido_es_plegable_pp6040_ownership(pedido):
             return True
 
     return False
+
+def pedido_es_ml_acordas_ownership(pedido):
+    """
+    Regla general de ownership:
+    Mercado Libre / Acordás la Entrega.
+    """
+    if not pedido:
+        return False
+
+    canal = _normalizar_simple(getattr(pedido, "canal", ""))
+    ml_tipo = _normalizar_simple(getattr(pedido, "ml_tipo", ""))
+
+    return bool(
+        canal == "mercado libre"
+        and "acord" in ml_tipo
+        and "entrega" in ml_tipo
+    )
 
 
 def pedido_es_ml_acordas_via_cargo_ownership(pedido):
@@ -410,11 +465,75 @@ def ml_acordas_via_cargo_bloquea_inicio_wa(pedido):
     )
 
 
+def ml_acordas_logistica_abierta_bloquea_cross_sell(pedido):
+    """
+    APB Comercial:
+    No se ofrece cross-sell si la logística todavía no está definida.
+
+    Regla:
+    Antes de vender agregados, el pedido debe estar encaminado.
+
+    Cubre:
+    - ML / Acordás con faltantes reales del recolector.
+    - ML / Acordás / no PP6040 sin sucursal elegida.
+    - ML / Acordás / PP6040 sin CP o sin transporte definido.
+    - Consulta logística pendiente para operador mientras la logística no está cerrada.
+    """
+    if not pedido_es_ml_acordas_ownership(pedido):
+        return False
+
+    faltantes = _faltantes_recolector_pedido(pedido)
+    if faltantes:
+        return True
+
+    es_pp6040 = pedido_es_plegable_pp6040_ownership(pedido)
+
+    empresa_envio = str(
+        getattr(pedido, "empresa_envio", "") or ""
+    ).strip()
+
+    sucursal = str(
+        getattr(pedido, "sucursal_nombre", "") or ""
+    ).strip()
+
+    codigo_postal = str(
+        getattr(pedido, "codigo_postal", "") or ""
+    ).strip()
+
+    # No PP6040: por regla operativa va por Vía Cargo / sucursal.
+    # Sin sucursal elegida, la logística sigue abierta.
+    if not es_pp6040 and not sucursal:
+        return True
+
+    # PP6040: no requiere sucursal Vía Cargo,
+    # pero sí necesita CP y transporte definido para considerar logística encaminada.
+    if es_pp6040:
+        if not codigo_postal:
+            return True
+
+        if not empresa_envio:
+            return True
+
+    # Si hay consulta pendiente para operador y todavía no hay definición logística,
+    # no corresponde mostrar cross-sell.
+    requiere_operador = bool(
+        getattr(pedido, "ia_requiere_operador", False)
+        or str(getattr(pedido, "ia_recolector_estado", "") or "").strip() == "requiere_operador"
+    )
+
+    if requiere_operador and not empresa_envio and not sucursal:
+        return True
+
+    return False
+
 def ml_acordas_via_cargo_bloquea_cross_sell(pedido):
     """
-    Bloquea cross-sell hasta que haya sucursal elegida.
+    Compatibilidad con módulos existentes.
 
-    Aunque se habilite WA por falta de respuesta ML,
-    cross-sell sigue bloqueado porque la logística todavía no está cerrada.
+    Antes bloqueaba solo ML/Acordás/no PP6040/sin sucursal.
+    Ahora bloquea cualquier ML/Acordás con logística abierta.
+
+    APB:
+    Antes de vender agregados, la logística debe estar definida.
     """
-    return ml_acordas_via_cargo_sin_sucursal(pedido)
+    return ml_acordas_logistica_abierta_bloquea_cross_sell(pedido)
