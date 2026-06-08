@@ -10351,41 +10351,107 @@ def ia_analizar_respuesta_pedido(id):
         ))
 
     if not es_ml_acordas_entrega(pedido):
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="La IA recolector solo aplica a Mercado Libre / Acordás la Entrega."))
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="La IA recolector solo aplica a Mercado Libre / Acordás la Entrega."
+        ))
 
     if not getattr(pedido, "contacto_iniciado", False):
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="Primero debe existir contacto inicial enviado."))
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="Primero debe existir contacto inicial enviado."
+        ))
 
     cuenta = MercadoLibreCuenta.query.first()
     seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+
     ids_chat = []
-    for posible in [getattr(pedido, "ml_pack_id", None), getattr(pedido, "id_venta", None)]:
+
+    for posible in [
+        getattr(pedido, "ml_pack_id", None),
+        getattr(pedido, "id_venta", None),
+    ]:
         posible = str(posible or "").strip()
         if posible and posible not in ids_chat:
             ids_chat.append(posible)
 
     mensajes = []
+
     for id_chat in ids_chat:
-        mensajes = ml_obtener_mensajes_pack_para_ia(id_chat, seller_id=seller_id)
+        mensajes = ml_obtener_mensajes_pack_para_ia(
+            id_chat,
+            seller_id=seller_id,
+        )
+
         if mensajes:
             break
 
     if not mensajes:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No se pudieron leer mensajes del comprador para analizar."))
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No se pudieron leer mensajes del comprador para analizar."
+        ))
 
-    resultado = ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id=seller_id, forzar=True)
+    resultado = ia_analizar_ultimo_mensaje_pedido(
+        pedido,
+        mensajes,
+        seller_id=seller_id,
+        forzar=True,
+    )
+
     try:
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo guardar el análisis IA: {e}"))
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=f"No se pudo guardar el análisis IA: {e}"
+        ))
 
     if not resultado:
-        return redirect(url_for("detalle_pedido", id=pedido.id, error="No hay mensaje nuevo del comprador para analizar."))
-    if not resultado.get("ok"):
-        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"IA no disponible: {resultado.get('error', 'error desconocido')}"))
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No hay mensaje nuevo del comprador para analizar."
+        ))
 
-    return redirect(url_for("detalle_pedido", id=pedido.id, ok="IA analizó la última respuesta, autocompletó campos vacíos y aplicó respuesta automática si correspondía."))
+    if not resultado.get("ok"):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=f"IA no disponible: {resultado.get('error', 'error desconocido')}"
+        ))
+
+    envio_auto_ok = False
+    envio_auto_motivo = ""
+
+    try:
+        envio_auto_ok, envio_auto_motivo = ia_auto_responder_post_analisis(pedido)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=f"El análisis IA se realizó, pero no se pudo enviar la respuesta automática: {e}"
+        ))
+
+    if envio_auto_ok:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            ok="Análisis IA actualizado y respuesta enviada a Mercado Libre."
+        ))
+
+    return redirect(url_for(
+        "detalle_pedido",
+        id=pedido.id,
+        ok=f"Análisis IA actualizado. No se envió respuesta automática: {envio_auto_motivo or 'sin motivo informado'}."
+    ))
 
 
 @app.route("/pedido/<int:id>/ia-enviar-respuesta-faltantes", methods=["POST"])
