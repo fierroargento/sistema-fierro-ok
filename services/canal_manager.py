@@ -537,3 +537,135 @@ def ml_acordas_via_cargo_bloquea_cross_sell(pedido):
     Antes de vender agregados, la logística debe estar definida.
     """
     return ml_acordas_logistica_abierta_bloquea_cross_sell(pedido)
+
+def pedido_puede_reencauzarse_a_ml(
+    pedido,
+    WhatsAppMensaje=None,
+    EstadoConversacionalPedido=None,
+):
+    """
+    APB / reparación de ownership:
+
+    Devuelve True solo si el pedido parece estar contaminado con
+    wa_estado='requiere_operador' sin WhatsApp real.
+
+    Uso:
+    - herramienta admin;
+    - casos heredados/contaminados;
+    - no forma parte del flujo operativo normal.
+
+    Regla segura:
+    - canal Mercado Libre;
+    - wa_estado == requiere_operador;
+    - sin mensajes WhatsApp reales;
+    - sin canal conversacional WA real.
+    """
+    if not pedido:
+        return False
+
+    canal = str(
+        getattr(pedido, "canal", "") or ""
+    ).strip()
+
+    if canal != "Mercado Libre":
+        return False
+
+    wa_estado = str(
+        getattr(pedido, "wa_estado", "") or ""
+    ).strip().lower()
+
+    if wa_estado != "requiere_operador":
+        return False
+
+    if WhatsAppMensaje is not None:
+        try:
+            tiene_wa_real = (
+                WhatsAppMensaje.query
+                .filter_by(pedido_id=pedido.id)
+                .first()
+                is not None
+            )
+
+            if tiene_wa_real:
+                return False
+
+        except Exception:
+            return False
+
+    if EstadoConversacionalPedido is not None:
+        try:
+            estado_conv = (
+                EstadoConversacionalPedido.query
+                .filter_by(pedido_id=pedido.id)
+                .first()
+            )
+
+            if estado_conv:
+                canal_activo = str(
+                    getattr(estado_conv, "canal_activo", "") or ""
+                ).strip().lower()
+
+                # Si el canal activo real es WhatsApp, no se toca.
+                if canal_activo in ("wa", "whatsapp"):
+                    return False
+
+        except Exception:
+            return False
+
+    return True
+
+
+def devolver_conversacion_a_ml(
+    pedido,
+    WhatsAppMensaje=None,
+    EstadoConversacionalPedido=None,
+    nota="",
+):
+    """
+    Reencauza un pedido Mercado Libre contaminado por ownership WhatsApp.
+
+    APB:
+    - No borra datos.
+    - No borra historial.
+    - No cambia estado operativo del pedido.
+    - No limpia si hubo WhatsApp real.
+    - Deja trazabilidad en ia_resumen.
+    """
+    if not pedido:
+        return False, "sin_pedido"
+
+    if not pedido_puede_reencauzarse_a_ml(
+        pedido,
+        WhatsAppMensaje=WhatsAppMensaje,
+        EstadoConversacionalPedido=EstadoConversacionalPedido,
+    ):
+        return False, "no_es_reencauce_seguro"
+
+    try:
+        pedido.wa_estado = ""
+    except Exception:
+        pass
+
+    try:
+        pedido.ia_canal_activo = "mercadolibre"
+    except Exception:
+        pass
+
+    try:
+        resumen = str(
+            getattr(pedido, "ia_resumen", "") or ""
+        ).strip()
+
+        marca = "REENCAUCE: conversación devuelta a Mercado Libre por admin"
+
+        nota = str(nota or "").strip()
+        if nota:
+            marca = f"{marca} ({nota[:80]})"
+
+        if marca not in resumen:
+            pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
+
+    except Exception:
+        pass
+
+    return True, "reencauzado_a_ml"    

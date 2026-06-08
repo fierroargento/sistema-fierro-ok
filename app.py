@@ -11590,6 +11590,98 @@ def cerrar_ml(id):
     # Compatibilidad con enlaces anteriores: ahora el cierre pasa por checklist APB.
     return redirect(url_for("cerrar_pedido", id=id))
 
+
+@app.route("/pedido/<int:id>/devolver-a-ml", methods=["POST"])
+@login_required
+def devolver_pedido_a_ml(id):
+    """
+    Herramienta APB admin:
+    reencauza un pedido Mercado Libre contaminado con wa_estado='requiere_operador'.
+
+    La lógica vive en services/canal_manager.py.
+    Esta ruta solo valida, llama al service, registra evento y guarda.
+    """
+    pedido = Pedido.query.get_or_404(id)
+
+    if rol_actual() != "admin":
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="Solo un administrador puede devolver una conversación a Mercado Libre."
+        ))
+
+    from services.canal_manager import devolver_conversacion_a_ml
+
+    nota = str(
+        request.form.get("nota") or ""
+    ).strip()[:80]
+
+    ok, motivo = devolver_conversacion_a_ml(
+        pedido,
+        WhatsAppMensaje=WhatsAppMensaje,
+        EstadoConversacionalPedido=EstadoConversacionalPedido,
+        nota=nota,
+    )
+
+    if not ok:
+        mensajes_error = {
+            "sin_pedido": "Pedido no encontrado.",
+            "no_es_reencauce_seguro": (
+                "No se pudo devolver a ML: el pedido no está contaminado de forma segura "
+                "o tuvo actividad real de WhatsApp."
+            ),
+        }
+
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=mensajes_error.get(motivo, f"No se pudo devolver a ML: {motivo}")
+        ))
+
+    try:
+        actualizar_estado_conversacional(
+            pedido,
+            owner_actual="bot",
+            canal_activo="ml",
+            estado_conversacional="reencauzado_ml",
+            takeover_activo=False,
+            bot_pausado=False,
+        )
+
+        registrar_evento_operativo(
+            pedido=pedido,
+            tipo_evento="reencauce_ml",
+            origen="admin",
+            canal="ml",
+            owner="bot",
+            estado_conversacional="reencauzado_ml",
+            payload={
+                "wa_estado_limpiado": True,
+                "nota": nota,
+            },
+            resultado="ok",
+            detalle="Admin devolvió la conversación a Mercado Libre tras contaminación de ownership WA.",
+            usuario=session.get("username", ""),
+            procesado=True,
+        )
+
+        db.session.commit()
+
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=f"No se pudo guardar el reencauce a ML: {e}"
+        ))
+
+    return redirect(url_for(
+        "detalle_pedido",
+        id=pedido.id,
+        ok="Conversación devuelta a Mercado Libre. El recolector ML puede retomar el flujo."
+    ))
+
+
 @app.route("/pedido/<int:id>/marcar-no-entregado")
 @login_required
 def marcar_no_entregado(id):
