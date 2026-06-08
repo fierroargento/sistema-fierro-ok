@@ -19,12 +19,6 @@ from modules.whatsapp.config import (
 )
 
 from modules.whatsapp.sender import wa_enviar_texto
-
-from modules.whatsapp.config import (
-    WA_DESPACHO_EN_PROCESO,
-    WA_FALTA_ELEGIR_TRANSPORTE,
-    WA_TEMPLATE_INICIO_CHAT_OPERADOR,
-)
 def _cargar_sucursales_ofrecidas(pedido):
     raw = getattr(pedido, "correo_sucursales_ofrecidas", None) or getattr(pedido, "ia_sucursales_ofrecidas", "") or ""
     try:
@@ -32,6 +26,97 @@ def _cargar_sucursales_ofrecidas(pedido):
         return data if isinstance(data, list) else []
     except Exception:
         return []
+    
+
+def _aplicar_sucursal_pedido(pedido, sucursal):
+    """
+    APB logística:
+    aplica al pedido la sucursal confirmada/elegida por el cliente.
+
+    No decide la sucursal. Solo persiste una sucursal que ya fue elegida
+    explícitamente por número o confirmada cuando era la única opción ofrecida.
+    """
+    if not isinstance(sucursal, dict):
+        sucursal = {}
+
+    if not (pedido.empresa_envio or "").strip():
+        pedido.empresa_envio = "Vía Cargo"
+
+    pedido.tipo_entrega = "Sucursal"
+
+    pedido.sucursal_nombre = (
+        sucursal.get("nombre")
+        or sucursal.get("name")
+        or pedido.sucursal_nombre
+    )
+
+    pedido.direccion = (
+        sucursal.get("direccion")
+        or sucursal.get("address")
+        or pedido.direccion
+    )
+
+    pedido.localidad = (
+        sucursal.get("localidad")
+        or sucursal.get("city")
+        or pedido.localidad
+    )
+
+    pedido.provincia = (
+        sucursal.get("provincia")
+        or sucursal.get("state")
+        or pedido.provincia
+    )
+
+
+def _mensaje_despacho_en_proceso():
+    return (
+        "Perfecto, ya tenemos todo para avanzar con el despacho.\n\n"
+        "En breve te pasamos los detalles del envío y el seguimiento."
+    )
+
+
+def _cerrar_despacho_en_proceso_wa(pedido, tel, iniciar_cross_sell=False):
+    """
+    Cierra el flujo WA dejando el pedido en despacho en proceso.
+
+    APB:
+    - Centraliza el mismo cierre usado por varias ramas de transporte.
+    - Evita mensajes duplicados y estados inconsistentes.
+    - El cross-sell se inicia solo cuando la rama llamadora lo habilita.
+    """
+    from app import db
+    from modules.whatsapp.flows import _guardar_estado_wa
+
+    _guardar_estado_wa(
+        pedido,
+        WA_DESPACHO_EN_PROCESO,
+        tel
+    )
+
+    db.session.commit()
+
+    wa_enviar_texto(
+        tel,
+        _mensaje_despacho_en_proceso(),
+        pedido=pedido,
+        fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
+        fallback_parametros=[
+            (getattr(pedido, "cliente", "") or "Cliente").split()[0],
+            pedido.id_venta or pedido.id or "",
+        ],
+    )
+
+    if iniciar_cross_sell:
+        try:
+            from modules.whatsapp.flows import wa_iniciar_cross_sell
+
+            wa_iniciar_cross_sell(pedido)
+        except Exception as e:
+            print("[WA] Error iniciando cross sell luego de cierre de despacho:", e)
+
+    return True
+
     
 def wa_enviar_confirmacion_sucursal(pedido):
     
@@ -101,7 +186,6 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
         _es_queja_o_problema,
         _escalar_operador,
         _responder_factura_o_escalar,
-        _guardar_estado_wa,
     )
 
     tel = normalizar_telefono_service(pedido.telefono)
@@ -168,48 +252,11 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
         if 0 <= idx < len(sucs):
             suc = sucs[idx]
 
-            if not (pedido.empresa_envio or "").strip():
-                pedido.empresa_envio = "Vía Cargo"
-
-            pedido.tipo_entrega = "Sucursal"
-
-            pedido.sucursal_nombre = (
-                suc.get("nombre")
-                or suc.get("name")
-                or pedido.sucursal_nombre
-            )
-
-            pedido.direccion = (
-                suc.get("direccion")
-                or suc.get("address")
-                or pedido.direccion
-            )
-
-            pedido.localidad = (
-                suc.get("localidad")
-                or suc.get("city")
-                or pedido.localidad
-            )
-
-            pedido.provincia = (
-                suc.get("provincia")
-                or pedido.provincia
-            )
-
-            pedido.wa_estado = WA_DESPACHO_EN_PROCESO
-            pedido.wa_ultimo_contacto = datetime.now(UTC)
-
-            db.session.commit()
-
-            wa_enviar_texto(
+            _aplicar_sucursal_pedido(pedido, suc)
+            _cerrar_despacho_en_proceso_wa(
+                pedido,
                 tel,
-                "Perfecto, ya tenemos todo para avanzar con el despacho.\n\nEn breve te pasamos los detalles del envío y el seguimiento.",
-                pedido=pedido,
-                fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
-                fallback_parametros=[
-                    (getattr(pedido, "cliente", "") or "Cliente").split()[0],
-                    pedido.id_venta or pedido.id or "",
-                ],
+                iniciar_cross_sell=True
             )
 
             return
@@ -218,64 +265,16 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
         if len(sucs) == 1:
             suc = sucs[0]
 
-            if not (pedido.empresa_envio or "").strip():
-                pedido.empresa_envio = "Vía Cargo"
-
-            pedido.tipo_entrega = "Sucursal"
-
-            pedido.sucursal_nombre = (
-                suc.get("nombre")
-                or suc.get("name")
-                or pedido.sucursal_nombre
-            )
-
-            pedido.direccion = (
-                suc.get("direccion")
-                or suc.get("address")
-                or pedido.direccion
-            )
-
-            pedido.localidad = (
-                suc.get("localidad")
-                or suc.get("city")
-                or pedido.localidad
-            )
-
-            pedido.provincia = (
-                suc.get("provincia")
-                or suc.get("state")
-                or pedido.provincia
-            )
-
             try:
-                _guardar_estado_wa(
+                _aplicar_sucursal_pedido(pedido, suc)
+                _cerrar_despacho_en_proceso_wa(
                     pedido,
-                    WA_DESPACHO_EN_PROCESO,
-                    tel
+                    tel,
+                    iniciar_cross_sell=True
                 )
-
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-
-            wa_enviar_texto(
-                tel,
-                "Perfecto, ya tenemos todo para avanzar con el despacho.\n\n"
-                "En breve te pasamos los detalles del envío y el seguimiento.",
-                pedido=pedido,
-                fallback_template=WA_TEMPLATE_INICIO_CHAT_OPERADOR,
-                fallback_parametros=[
-                    (getattr(pedido, "cliente", "") or "Cliente").split()[0],
-                    pedido.id_venta or pedido.id or "",
-                ],
-            )
-
-            try:
-                from modules.whatsapp.flows import wa_iniciar_cross_sell
-
-                wa_iniciar_cross_sell(pedido)
             except Exception as e:
-                print("[WA] Error iniciando cross sell luego de confirmar sucursal única:", e)
+                db.session.rollback()
+                print("[WA] Error cerrando sucursal única confirmada:", e)
 
             return
 
