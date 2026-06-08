@@ -6132,10 +6132,7 @@ def ia_auto_responder_post_analisis(pedido):
 
     texto = ""
 
-    requiere_operador_actual = bool(
-        getattr(pedido, "ia_requiere_operador", False)
-        or pedido.ia_recolector_estado == "requiere_operador"
-    )
+    requiere_operador_actual = ia_tiene_consulta_pendiente_operador_recolector(pedido)
 
     faltantes = ia_faltantes_pedido(pedido) or []
 
@@ -6263,6 +6260,8 @@ def ia_auto_responder_post_analisis(pedido):
         pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
 
         if requiere_operador_actual:
+            pedido.ia_requiere_operador = True
+            pedido.ia_recolector_estado = "requiere_operador"
             pedido.ml_mensajes_pendientes = True
             pedido.ml_mensajes_pendientes_count = max(
                 int(pedido.ml_mensajes_pendientes_count or 0),
@@ -7720,6 +7719,61 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
     if len(texto) > 650:
         texto = texto[:647] + "..."
     return texto
+
+def ia_tiene_consulta_pendiente_operador_recolector(pedido):
+    """
+    APB Recolector ML:
+    Detecta consultas que deben quedar pendientes para operador,
+    aunque la IA no haya seteado ia_requiere_operador=True.
+
+    No corta la recolección.
+    Solo sirve para responder:
+    - paso tu consulta a operador;
+    - mientras tanto sigo pidiendo faltantes.
+    """
+    if not pedido:
+        return False
+
+    if getattr(pedido, "ia_requiere_operador", False):
+        return True
+
+    estado = str(
+        getattr(pedido, "ia_recolector_estado", "") or ""
+    ).strip().lower()
+
+    if estado == "requiere_operador":
+        return True
+
+    resumen = str(
+        getattr(pedido, "ia_resumen", "") or ""
+    ).strip().lower()
+
+    if not resumen:
+        return False
+
+    menciona_pregunta = any(x in resumen for x in [
+        "pregunta",
+        "consulta",
+        "consultó",
+        "consulto",
+    ])
+
+    menciona_logistica = any(x in resumen for x in [
+        "medio de entrega",
+        "medio de envio",
+        "medio de envío",
+        "transporte",
+        "andreani",
+        "correo",
+        "via cargo",
+        "vía cargo",
+        "entrega",
+        "envio",
+        "envío",
+    ])
+
+    return bool(menciona_pregunta and menciona_logistica)
+
 
 def ia_generar_respuesta_derivacion_y_faltantes_pedido(pedido):
     """
@@ -10352,10 +10406,7 @@ def ia_enviar_respuesta_faltantes_pedido(id):
     if not getattr(pedido, "contacto_iniciado", False):
         return redirect(url_for("detalle_pedido", id=pedido.id, error="Primero debe existir contacto inicial enviado."))
 
-    requiere_operador_actual = bool(
-        getattr(pedido, "ia_requiere_operador", False)
-        or pedido.ia_recolector_estado == "requiere_operador"
-    )
+    requiere_operador_actual = ia_tiene_consulta_pendiente_operador_recolector(pedido)
 
     faltantes = ia_faltantes_pedido(pedido)
     if not faltantes:
@@ -10381,6 +10432,8 @@ def ia_enviar_respuesta_faltantes_pedido(id):
         pedido.ia_respuesta_enviada_hash = ia_hash_texto(texto)
         pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
         if requiere_operador_actual:
+            pedido.ia_requiere_operador = True
+            pedido.ia_recolector_estado = "requiere_operador"
             pedido.ml_mensajes_pendientes = True
             pedido.ml_mensajes_pendientes_count = max(
                 int(pedido.ml_mensajes_pendientes_count or 0),
