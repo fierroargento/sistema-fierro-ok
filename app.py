@@ -116,7 +116,6 @@ from services.canal_manager import (
     puede_enviar_mensaje,
     registrar_envio_automatico,
     ml_acordas_via_cargo_bloquea_inicio_wa,
-    ml_acordas_via_cargo_bloquea_cross_sell,
 )
 
 from services.motor_bloqueo import (
@@ -1862,6 +1861,30 @@ def debe_pasar_a_demora_entrega(pedido):
 
 
 def actualizar_estado_automatico(pedido):
+    """
+    APB comercial:
+    no autoavanzar a Etiqueta Lista si la instancia de cross-sell
+    todavía no fue iniciada/gestionada.
+    """
+    try:
+        from modules.whatsapp.config import CROSS_SELL_AUTO_ENABLED, CROSS_SELL_MANUAL_ENABLED
+        from services.cross_sell_rules import debe_bloquear_etiqueta_lista_por_cross_sell
+
+        if debe_bloquear_etiqueta_lista_por_cross_sell(
+            pedido,
+            auto_enabled=CROSS_SELL_AUTO_ENABLED,
+            manual_enabled=CROSS_SELL_MANUAL_ENABLED,
+            evento_operativo_model=EventoOperativo,
+        ):
+            print(
+                f"[CROSS-SELL-APB] Autoavance a Etiqueta Lista bloqueado "
+                f"pedido #{getattr(pedido, 'id', '?')}: cross-sell pendiente."
+            )
+            return
+
+    except Exception as e:
+        print("[CROSS-SELL-APB] Error evaluando bloqueo de autoavance:", e)
+
     actualizar_estado_automatico_service(
         pedido,
         puede_imprimir_etiqueta_directamente,
@@ -3012,6 +3035,26 @@ def puede_avanzar_pedido(pedido):
             return False, ["En Vía Cargo el seguimiento se carga después del despacho."]
 
     nuevo_estado = siguiente_estado(pedido.estado)
+
+    if nuevo_estado == Estado.ETIQUETA_LISTA:
+        try:
+            from modules.whatsapp.config import CROSS_SELL_AUTO_ENABLED, CROSS_SELL_MANUAL_ENABLED
+            from services.cross_sell_rules import debe_bloquear_etiqueta_lista_por_cross_sell
+
+            if debe_bloquear_etiqueta_lista_por_cross_sell(
+                pedido,
+                auto_enabled=CROSS_SELL_AUTO_ENABLED,
+                manual_enabled=CROSS_SELL_MANUAL_ENABLED,
+                evento_operativo_model=EventoOperativo,
+            ):
+                return False, [
+                    "CROSS-SELL PENDIENTE: antes de pasar a Etiqueta Lista, "
+                    "iniciá la propuesta de agregado por WhatsApp o registrá una excepción trazable."
+                ]
+
+        except Exception as e:
+            print("[CROSS-SELL-APB] Error evaluando bloqueo de avance manual:", e)
+
     if (
         nuevo_estado == Estado.DESPACHADO
         and getattr(pedido, "agregado_pendiente_revision", False)
@@ -11517,13 +11560,6 @@ def whatsapp_reactivar_bot(id):
 @login_required
 def whatsapp_enviar_propuesta_cross_sell(id):
     pedido = Pedido.query.get_or_404(id)
-
-    if ml_acordas_via_cargo_bloquea_cross_sell(pedido):
-        return redirect(url_for(
-            "detalle_pedido",
-            id=pedido.id,
-            error="No se puede ofrecer cross-sell todavía. Primero debe quedar elegida la sucursal de entrega por Mercado Libre."
-        ))    
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(

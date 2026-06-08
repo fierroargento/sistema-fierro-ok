@@ -617,6 +617,35 @@ def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_a
 
         pedido.ia_requiere_operador = True
 
+        if pedido.estado in [Estado.ETIQUETA_LISTA, Estado.ETIQUETA_IMPRESA, Estado.EMBALADO]:
+            try:
+                from app import db
+
+                pedido.agregado_pendiente_revision = True
+                pedido.agregado_revision_fecha = None
+                pedido.agregado_revision_usuario = None
+                db.session.commit()
+
+                registrar_evento_operativo_wa(
+                    pedido=pedido,
+                    tipo_evento="cross_sell_cliente_interesado_preparacion",
+                    origen="cliente",
+                    canal="wa",
+                    owner="bot",
+                    estado_conversacional="cross_sell",
+                    payload={
+                        "sku": sku_actual,
+                        "cantidad": cantidad,
+                        "estado_pedido": pedido.estado,
+                    },
+                    resultado="ok",
+                    detalle="Cliente mostró interés en cross-sell con pedido en preparación. Se marca agregado pendiente para frenar despacho.",
+                    procesado=True,
+                )
+
+            except Exception as e:
+                print("[WA CROSS-SELL] Error marcando agregado pendiente en preparación:", e)
+
         _guardar_estado_wa(
             pedido,
             f"cross_sell:{sku_actual}:cliente_interesado:{cantidad}",
