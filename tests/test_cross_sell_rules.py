@@ -218,3 +218,41 @@ def test_no_bloquea_etiqueta_lista_si_cross_sell_deshabilitado_total():
         auto_enabled=False,
         manual_enabled=False,
     ) is False
+
+def test_no_bloquea_cross_sell_si_solo_falta_sucursal_logistica():
+    pedido = PedidoFake(
+        estado=Estado.CARGANDO,
+        ml_campos_faltantes="sucursal",
+    )
+
+    assert motivo_bloqueo_cross_sell(
+        pedido,
+        modo="operador",
+        manual_enabled=True,
+    ) == ""
+
+
+def test_no_bloquea_cross_sell_si_faltante_logistico_esta_en_json():
+    pedido = PedidoFake(
+        estado=Estado.CARGANDO,
+        ia_faltantes='["sucursal", "transporte"]',
+    )
+
+    assert motivo_bloqueo_cross_sell(
+        pedido,
+        modo="auto",
+        auto_enabled=True,
+    ) == ""
+
+
+def test_bloquea_cross_sell_si_falta_dni_comercial():
+    pedido = PedidoFake(
+        estado=Estado.CARGANDO,
+        ia_faltantes='["dni"]',
+    )
+
+    assert motivo_bloqueo_cross_sell(
+        pedido,
+        modo="auto",
+        auto_enabled=True,
+    ) == "datos_incompletos"    

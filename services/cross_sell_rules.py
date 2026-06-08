@@ -73,6 +73,84 @@ def pedido_en_etapa_sin_cross_sell_manual(pedido):
     return estado in ESTADOS_BLOQUEAN_CROSS_SELL_MANUAL
 
 
+def _normalizar_texto_faltante(valor):
+    return str(valor or "").strip().lower()
+
+
+def _faltante_es_logistico(valor):
+    """
+    APB:
+    La falta de elección logística no bloquea cross-sell.
+
+    Cross-sell nace desde datos completos comerciales. Si falta sucursal,
+    transporte, tipo de entrega, seguimiento o etiqueta, eso debe resolverse
+    en el flujo logístico, pero no debe ocultar la opción comercial/manual.
+    """
+    texto = _normalizar_texto_faltante(valor)
+
+    if not texto:
+        return False
+
+    palabras_logisticas = [
+        "sucursal",
+        "transporte",
+        "tipo_entrega",
+        "tipo entrega",
+        "empresa_envio",
+        "empresa envio",
+        "envio",
+        "envío",
+        "seguimiento",
+        "etiqueta",
+        "correo",
+        "via cargo",
+        "vía cargo",
+        "andreani",
+        "mercado envios",
+        "mercado envíos",
+    ]
+
+    return any(palabra in texto for palabra in palabras_logisticas)
+
+
+def _hay_faltante_comercial_real(valor):
+    """
+    Devuelve True si el faltante representa datos comerciales/personales
+    necesarios para operar cross-sell.
+
+    Si el faltante es logístico, no bloquea.
+    """
+    texto = _normalizar_texto_faltante(valor)
+
+    if not texto:
+        return False
+
+    try:
+        import json
+
+        data = json.loads(texto)
+
+        if isinstance(data, list):
+            return any(
+                _normalizar_texto_faltante(item)
+                and not _faltante_es_logistico(item)
+                for item in data
+            )
+
+        if isinstance(data, dict):
+            return any(
+                _normalizar_texto_faltante(k)
+                and not _faltante_es_logistico(k)
+                for k, v in data.items()
+                if v
+            )
+
+    except Exception:
+        pass
+
+    return not _faltante_es_logistico(texto)
+
+
 def pedido_tiene_datos_completos_para_cross_sell(pedido):
     """
     Regla mínima defensiva: cross-sell nace después de datos completos.
@@ -89,10 +167,10 @@ def pedido_tiene_datos_completos_para_cross_sell(pedido):
         getattr(pedido, "ml_campos_faltantes", ""),
     ]
 
-    if any(str(valor or "").strip() for valor in campos_faltantes):
-        return False
-
-    return True
+    return not any(
+        _hay_faltante_comercial_real(valor)
+        for valor in campos_faltantes
+    )
 
 
 def cross_sell_tiene_productos_configurados(pedido):
