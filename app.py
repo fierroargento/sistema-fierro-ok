@@ -6196,6 +6196,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
 
 
             from services.mensajes_sucursales import normalizar_numero_opcion_sucursal
+            from modules.whatsapp.text_utils import es_afirmativo
 
             if candidatas_ids_check and texto_para_sucursal:
                 try:
@@ -6205,7 +6206,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     if _idx_opcion is not None and 0 <= _idx_opcion < len(candidatas_ids_check):
                         texto_para_sucursal = str(_idx_opcion + 1)
 
-                    elif len(candidatas_ids_check) == 1 and _es_afirmativo(_texto_confirmacion):
+                    elif len(candidatas_ids_check) == 1 and es_afirmativo(_texto_confirmacion):
                         texto_para_sucursal = "1"
 
                 except Exception as e:
