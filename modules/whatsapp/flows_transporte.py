@@ -109,11 +109,14 @@ def _cerrar_despacho_en_proceso_wa(pedido, tel, iniciar_cross_sell=False):
 
     if iniciar_cross_sell:
         try:
-            from modules.whatsapp.flows import wa_iniciar_cross_sell
+            from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
 
-            wa_iniciar_cross_sell(pedido)
+            intentar_cross_sell_automatico(
+                pedido,
+                origen_disparo="wa_logistica_cerrada"
+            )
         except Exception as e:
-            print("[WA] Error iniciando cross sell luego de cierre de despacho:", e)
+            print("[WA] Error intentando cross sell automático luego de cierre de despacho:", e)
 
     return True
 
@@ -148,7 +151,6 @@ def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
         _wa_responder_con_ia,
         _guardar_estado_wa,
         _escalar_operador,
-        wa_iniciar_cross_sell,
     )
 
     tel = normalizar_telefono_service(pedido.telefono)
@@ -168,7 +170,17 @@ def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
                 pedido.id_venta or pedido.id or "",
             ],
         )
-        wa_iniciar_cross_sell(pedido)
+
+        try:
+            from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
+
+            intentar_cross_sell_automatico(
+                pedido,
+                origen_disparo="wa_confirmacion_sucursal"
+            )
+        except Exception as e:
+            print("[WA] Error intentando cross sell automático luego de confirmar sucursal:", e)
+
         return
 
     if _es_negativo(texto_cliente):

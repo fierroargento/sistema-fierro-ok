@@ -426,18 +426,37 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
 
         # APB:
         # ML Acordás SIEMPRE continúa por WhatsApp.
+        # El cross-sell automático no se dispara directo desde acá:
+        # se intenta mediante el disparador central, que valida reglas comunes
+        # de logística, estado, configuración y no repetición.
         if es_ml_acordas:
 
             wa_cerrar_datos_completos(pedido)
 
             try:
-                wa_iniciar_cross_sell(pedido)
+                from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
+
+                intentar_cross_sell_automatico(
+                    pedido,
+                    origen_disparo="wa_datos_completos_ml_acordas"
+                )
             except Exception as e:
-                print("[WA] Error iniciando cross sell:", e)
+                print("[WA] Error intentando cross sell automático:", e)
 
             return
 
         wa_cerrar_datos_completos(pedido)
+
+        try:
+            from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
+
+            intentar_cross_sell_automatico(
+                pedido,
+                origen_disparo="wa_datos_completos"
+            )
+        except Exception as e:
+            print("[WA] Error intentando cross sell automático:", e)
+
         return
 
     campos = {

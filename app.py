@@ -7652,21 +7652,17 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 )
                 return False, "ml_debe_cerrar_sucursal"
 
-            from modules.whatsapp.flows import wa_cerrar_datos_completos, wa_iniciar_cross_sell
+            from modules.whatsapp.flows import wa_cerrar_datos_completos
+            from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
+
             ok = wa_cerrar_datos_completos(pedido)
             accion = "Inició WhatsApp con datos completos"
             detalle_extra = "datos completos"
 
-            if not ml_acordas_via_cargo_bloquea_cross_sell(pedido):
-                try:
-                    wa_iniciar_cross_sell(pedido)
-                except Exception as cross_error:
-                    print(f"[WA-AUTO-ML] Cross-sell no iniciado pedido #{getattr(pedido, 'id', '')}: {cross_error}")
-            else:
-                print(
-                    f"[WA-AUTO-ML] Cross-sell bloqueado pedido #{getattr(pedido, 'id', '')}: "
-                    "falta sucursal elegida."
-                )
+            intentar_cross_sell_automatico(
+                pedido,
+                origen_disparo="handoff_ml_a_wa_datos_completos"
+            )
 
         if ok:
             pedido.wa_ultimo_contacto = datetime.utcnow()
