@@ -5863,6 +5863,24 @@ def ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=""):
         pedido.codigo_postal = codigo_postal
         completados.append("codigo_postal")
 
+    # APB logística / SaaS:
+    # Si tenemos CP válido, intentamos completar localidad/provincia internamente.
+    # No se le pide al cliente un dato que el sistema puede resolver.
+    try:
+        from services.ubicacion_cp import autocompletar_pedido_por_cp
+
+        completados_cp = autocompletar_pedido_por_cp(pedido)
+
+        for campo in completados_cp:
+            if campo not in completados:
+                completados.append(campo)
+
+    except Exception as e:
+        print(
+            f"[UBICACION CP] No se pudo autocompletar ubicación "
+            f"pedido #{getattr(pedido, 'id', '?')}: {e}"
+        )
+
     return completados
 
 
@@ -5981,6 +5999,17 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
 
     if cp_detectado:
         pedido.codigo_postal = cp_detectado
+
+        try:
+            from services.ubicacion_cp import autocompletar_pedido_por_cp
+
+            autocompletar_pedido_por_cp(pedido)
+
+        except Exception as e:
+            print(
+                f"[UBICACION CP] No se pudo autocompletar ubicación "
+                f"pedido #{getattr(pedido, 'id', '?')}: {e}"
+            )
 
         try:
             db.session.commit()
