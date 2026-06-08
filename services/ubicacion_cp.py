@@ -1,17 +1,23 @@
 """
 services/ubicacion_cp.py
 
-Resolución interna de ubicación por código postal.
+Normalización postal y ubicación de pedidos.
 
 Objetivo SaaS/CRM:
 - Mantener la lógica fuera de app.py.
-- Permitir que mañana la fuente sea una tabla por empresa, una API,
-  un JSON completo de CP argentinos o una configuración por cliente.
-- No inventar datos si el CP no se puede resolver con seguridad.
+- Permitir varias fuentes:
+  1. JSON local propio.
+  2. Localidades descargadas de Correo.
+  3. Correo CPA puntual con cache.
+  4. Fallback Vía Cargo.
+- No inventar datos si hay ambigüedad.
+- No bloquear el flujo si falla una fuente externa.
 """
 
 import json
 import os
+import re
+import unicodedata
 
 
 def _normalizar_cp(cp):
@@ -24,12 +30,20 @@ def _normalizar_texto(valor):
     return str(valor or "").strip()
 
 
+def _norm(valor):
+    valor = str(valor or "").strip().lower()
+    valor = unicodedata.normalize("NFD", valor)
+    valor = "".join(ch for ch in valor if unicodedata.category(ch) != "Mn")
+    valor = re.sub(r"[^a-z0-9\s]", " ", valor)
+    return " ".join(valor.split())
+
+
 def _cargar_json_seguro(path):
     try:
         if not os.path.exists(path):
             return None
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8-sig") as f:
             data = json.load(f)
 
         return data
@@ -39,18 +53,6 @@ def _cargar_json_seguro(path):
 
 
 def _resolver_desde_codigos_postales_ar(cp):
-    """
-    Fuente futura recomendada:
-    data/codigos_postales_ar.json
-
-    Formatos aceptados:
-    [
-      {"cp": "3514", "localidad": "Makallé", "provincia": "Chaco"},
-      {"codigo_postal": "3514", "localidad": "Makallé", "provincia": "Chaco"}
-    ]
-
-    Solo devuelve resultado si hay una única coincidencia clara.
-    """
     data = _cargar_json_seguro(os.path.join("data", "codigos_postales_ar.json"))
 
     if not isinstance(data, list):
@@ -85,44 +87,30 @@ def _resolver_desde_codigos_postales_ar(cp):
             or item.get("state")
         )
 
+        latitud = item.get("latitud") or item.get("lat") or item.get("latitude")
+        longitud = item.get("longitud") or item.get("lng") or item.get("lon") or item.get("longitude")
+
         if localidad or provincia:
             coincidencias.append({
                 "codigo_postal": cp,
                 "localidad": localidad,
                 "provincia": provincia,
+                "latitud": latitud,
+                "longitud": longitud,
                 "fuente": "codigos_postales_ar",
+                "confianza": "media",
             })
 
-    coincidencias_unicas = []
-    vistos = set()
-
-    for item in coincidencias:
-        clave = (
-            item.get("localidad", "").lower(),
-            item.get("provincia", "").lower(),
-        )
-
-        if clave in vistos:
-            continue
-
-        vistos.add(clave)
-        coincidencias_unicas.append(item)
-
-    if len(coincidencias_unicas) == 1:
-        return coincidencias_unicas[0]
-
-    return None
+    return _resultado_unico_ubicacion(coincidencias)
 
 
 def _resolver_desde_via_cargo_sucursales(cp):
     """
-    Fallback temporal:
+    Fallback:
     usa via_cargo_sucursales.json si existe.
 
-    APB:
     Esta fuente representa sucursales, no una base completa de CP argentinos.
     Solo se usa si el CP tiene una única localidad/provincia asociada.
-    Si hay varias, no inventa.
     """
     data = _cargar_json_seguro("via_cargo_sucursales.json")
 
@@ -158,21 +146,35 @@ def _resolver_desde_via_cargo_sucursales(cp):
             or item.get("state")
         )
 
+        latitud = item.get("latitud") or item.get("lat") or item.get("latitude")
+        longitud = item.get("longitud") or item.get("lng") or item.get("lon") or item.get("longitude")
+
         if localidad or provincia:
             coincidencias.append({
                 "codigo_postal": cp,
                 "localidad": localidad,
                 "provincia": provincia,
+                "latitud": latitud,
+                "longitud": longitud,
                 "fuente": "via_cargo_sucursales",
+                "confianza": "baja",
             })
+
+    return _resultado_unico_ubicacion(coincidencias)
+
+
+def _resultado_unico_ubicacion(coincidencias):
+    if not coincidencias:
+        return None
 
     coincidencias_unicas = []
     vistos = set()
 
     for item in coincidencias:
         clave = (
-            item.get("localidad", "").lower(),
-            item.get("provincia", "").lower(),
+            _norm(item.get("localidad")),
+            _norm(item.get("provincia")),
+            _normalizar_cp(item.get("codigo_postal") or item.get("cp")),
         )
 
         if clave in vistos:
@@ -187,31 +189,39 @@ def _resolver_desde_via_cargo_sucursales(cp):
     return None
 
 
-def resolver_ubicacion_por_cp(cp):
+def resolver_ubicacion_por_cp(cp, provincia="", localidad=""):
     """
-    Resuelve localidad/provincia por código postal.
+    Resuelve localidad/provincia/coordenadas por CP.
 
-    Retorna:
-    {
-        "codigo_postal": "3514",
-        "localidad": "...",
-        "provincia": "...",
-        "fuente": "..."
-    }
-
-    o None si no puede resolver de forma segura.
+    Orden:
+    1. JSON local propio.
+    2. Localidades Correo descargadas.
+    3. Fallback Vía Cargo.
     """
     cp = _normalizar_cp(cp)
 
     if not cp:
         return None
 
-    # Fuente prioritaria SaaS/futura.
     resultado = _resolver_desde_codigos_postales_ar(cp)
     if resultado:
         return resultado
 
-    # Fallback temporal con lo que ya tiene el sistema.
+    try:
+        from services.cpa_correo import resolver_ubicacion_correo
+
+        resultado = resolver_ubicacion_correo(
+            provincia=provincia,
+            localidad=localidad,
+            cp=cp,
+        )
+
+        if resultado:
+            return resultado
+
+    except Exception as e:
+        print(f"[UBICACION CORREO] No se pudo resolver por CP: {e}")
+
     resultado = _resolver_desde_via_cargo_sucursales(cp)
     if resultado:
         return resultado
@@ -219,41 +229,328 @@ def resolver_ubicacion_por_cp(cp):
     return None
 
 
-def autocompletar_pedido_por_cp(pedido):
+def extraer_calle_altura(direccion):
     """
-    Completa localidad/provincia del pedido usando codigo_postal.
+    Intenta separar calle y altura desde una dirección textual.
 
-    No pisa datos existentes.
-    No inventa si el CP no se puede resolver.
-    Devuelve lista de campos completados.
+    - "French 123" -> ("French", "123")
+    - "Av. San Martín 1450" -> ("Av. San Martín", "1450")
+    - "French s/n" -> ("French", "")
+    - "Ruta 3 km 960" -> ("Ruta 3 km 960", "")
     """
-    if not pedido:
-        return []
+    texto = str(direccion or "").strip()
 
-    cp = _normalizar_cp(getattr(pedido, "codigo_postal", ""))
+    if not texto:
+        return "", ""
 
-    if not cp:
-        return []
+    texto = " ".join(texto.split())
 
-    ubicacion = resolver_ubicacion_por_cp(cp)
+    if re.search(r"\b(s/n|sn|sin numero|sin número)\b", texto, flags=re.IGNORECASE):
+        calle = re.sub(
+            r"\b(s/n|sn|sin numero|sin número)\b",
+            "",
+            texto,
+            flags=re.IGNORECASE,
+        ).strip(" ,.-")
+        return calle, ""
 
-    if not ubicacion:
-        return []
+    if re.search(r"\b(ruta|km|kilometro|kilómetro)\b", texto, flags=re.IGNORECASE):
+        return texto, ""
 
+    candidatos = list(re.finditer(r"\b\d{1,5}\b", texto))
+
+    if not candidatos:
+        return texto, ""
+
+    ultimo = candidatos[-1]
+    altura = ultimo.group(0)
+
+    calle = texto[:ultimo.start()].strip(" ,.-")
+    resto = texto[ultimo.end():].strip(" ,.-")
+
+    if resto and len(resto.split()) > 3:
+        return texto, ""
+
+    if not calle:
+        return texto, ""
+
+    return calle, altura
+
+
+def _resolver_cpa_desde_json_local(provincia, localidad, calle, altura):
+    """
+    Fuente local futura:
+    data/cpa_ar.json
+    """
+    provincia_n = _norm(provincia)
+    localidad_n = _norm(localidad)
+    calle_n = _norm(calle)
+
+    try:
+        altura_int = int(str(altura or "").strip())
+    except Exception:
+        altura_int = None
+
+    if not provincia_n or not localidad_n or not calle_n or altura_int is None:
+        return None
+
+    data = _cargar_json_seguro(os.path.join("data", "cpa_ar.json"))
+
+    if not isinstance(data, list):
+        return None
+
+    coincidencias = []
+
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+
+        if _norm(item.get("provincia")) != provincia_n:
+            continue
+
+        if _norm(item.get("localidad")) != localidad_n:
+            continue
+
+        if _norm(item.get("calle")) != calle_n:
+            continue
+
+        try:
+            desde = int(item.get("desde") or 0)
+            hasta = int(item.get("hasta") or 999999)
+        except Exception:
+            continue
+
+        if not (desde <= altura_int <= hasta):
+            continue
+
+        paridad = _norm(item.get("paridad") or "ambos")
+
+        if paridad in ("par", "pares") and altura_int % 2 != 0:
+            continue
+
+        if paridad in ("impar", "impares") and altura_int % 2 == 0:
+            continue
+
+        cpa = str(item.get("cpa") or "").strip().upper()
+
+        if cpa:
+            coincidencias.append({
+                "cpa": cpa,
+                "fuente": "cpa_ar_json",
+                "confianza": "alta",
+            })
+
+    cpas = []
+    vistos = set()
+
+    for item in coincidencias:
+        cpa = item["cpa"]
+        if cpa in vistos:
+            continue
+        vistos.add(cpa)
+        cpas.append(item)
+
+    if len(cpas) == 1:
+        return cpas[0]
+
+    return None
+
+
+def resolver_cpa_por_direccion(provincia, localidad, calle, altura, cp=""):
+    """
+    Resuelve CPA alfanumérico.
+
+    Orden:
+    1. JSON local.
+    2. Correo Argentino puntual con cache.
+    """
+    provincia = _normalizar_texto(provincia)
+    localidad = _normalizar_texto(localidad)
+    calle = _normalizar_texto(calle)
+    altura = _normalizar_texto(altura)
+    cp = _normalizar_cp(cp)
+
+    if not provincia or not localidad or not calle or not altura:
+        return None
+
+    resultado = _resolver_cpa_desde_json_local(
+        provincia=provincia,
+        localidad=localidad,
+        calle=calle,
+        altura=altura,
+    )
+
+    if resultado:
+        return resultado
+
+    try:
+        from services.cpa_correo import resolver_cpa_correo
+
+        resultado = resolver_cpa_correo(
+            provincia=provincia,
+            localidad=localidad,
+            calle=calle,
+            altura=altura,
+            cp=cp,
+        )
+
+        if resultado:
+            return resultado
+
+    except Exception as e:
+        print(f"[CPA CORREO] No se pudo resolver CPA: {e}")
+
+    return None
+
+
+def _aplicar_ubicacion_a_pedido(pedido, ubicacion):
     completados = []
 
-    localidad_actual = _normalizar_texto(getattr(pedido, "localidad", ""))
-    provincia_actual = _normalizar_texto(getattr(pedido, "provincia", ""))
+    if not pedido or not ubicacion:
+        return completados
 
     localidad = _normalizar_texto(ubicacion.get("localidad"))
     provincia = _normalizar_texto(ubicacion.get("provincia"))
+    codigo_postal = _normalizar_cp(ubicacion.get("codigo_postal") or ubicacion.get("cp"))
 
-    if localidad and not localidad_actual:
+    latitud = ubicacion.get("latitud")
+    longitud = ubicacion.get("longitud")
+    fuente = _normalizar_texto(ubicacion.get("fuente"))
+    confianza = _normalizar_texto(ubicacion.get("confianza"))
+
+    if codigo_postal and not _normalizar_cp(getattr(pedido, "codigo_postal", "")):
+        pedido.codigo_postal = codigo_postal[:10]
+        completados.append("codigo_postal")
+
+    if localidad and not _normalizar_texto(getattr(pedido, "localidad", "")):
         pedido.localidad = localidad[:100]
         completados.append("localidad")
 
-    if provincia and not provincia_actual:
+    if provincia and not _normalizar_texto(getattr(pedido, "provincia", "")):
         pedido.provincia = provincia[:100]
         completados.append("provincia")
 
+    if latitud and hasattr(pedido, "latitud_cliente"):
+        try:
+            if getattr(pedido, "latitud_cliente", None) in (None, ""):
+                pedido.latitud_cliente = float(latitud)
+                completados.append("latitud_cliente")
+        except Exception:
+            pass
+
+    if longitud and hasattr(pedido, "longitud_cliente"):
+        try:
+            if getattr(pedido, "longitud_cliente", None) in (None, ""):
+                pedido.longitud_cliente = float(longitud)
+                completados.append("longitud_cliente")
+        except Exception:
+            pass
+
+    if fuente and hasattr(pedido, "ubicacion_fuente"):
+        try:
+            if not _normalizar_texto(getattr(pedido, "ubicacion_fuente", "")):
+                pedido.ubicacion_fuente = fuente[:50]
+        except Exception:
+            pass
+
+    if confianza and hasattr(pedido, "ubicacion_confianza"):
+        try:
+            if not _normalizar_texto(getattr(pedido, "ubicacion_confianza", "")):
+                pedido.ubicacion_confianza = confianza[:30]
+        except Exception:
+            pass
+
     return completados
+
+
+def normalizar_ubicacion_pedido(pedido):
+    """
+    Normaliza ubicación del pedido de forma no destructiva.
+
+    Hace:
+    1. Si hay CP, intenta completar localidad/provincia/coordenadas.
+    2. Si hay dirección + localidad + provincia + altura, intenta CPA.
+    3. No bloquea si falla.
+    """
+    resultado = {
+        "completados": [],
+        "cpa": "",
+        "fuente": "",
+        "confianza": "",
+    }
+
+    if not pedido:
+        return resultado
+
+    cp = _normalizar_cp(getattr(pedido, "codigo_postal", ""))
+    localidad = _normalizar_texto(getattr(pedido, "localidad", ""))
+    provincia = _normalizar_texto(getattr(pedido, "provincia", ""))
+
+    if cp:
+        ubicacion = resolver_ubicacion_por_cp(
+            cp=cp,
+            provincia=provincia,
+            localidad=localidad,
+        )
+
+        completados = _aplicar_ubicacion_a_pedido(pedido, ubicacion)
+
+        for campo in completados:
+            if campo not in resultado["completados"]:
+                resultado["completados"].append(campo)
+
+    direccion = _normalizar_texto(getattr(pedido, "direccion", ""))
+    localidad = _normalizar_texto(getattr(pedido, "localidad", ""))
+    provincia = _normalizar_texto(getattr(pedido, "provincia", ""))
+    cp = _normalizar_cp(getattr(pedido, "codigo_postal", ""))
+
+    calle, altura = extraer_calle_altura(direccion)
+
+    cpa_resultado = resolver_cpa_por_direccion(
+        provincia=provincia,
+        localidad=localidad,
+        calle=calle,
+        altura=altura,
+        cp=cp,
+    )
+
+    if cpa_resultado:
+        cpa = str(cpa_resultado.get("cpa") or "").strip().upper()
+
+        if cpa and hasattr(pedido, "cpa"):
+            actual = _normalizar_texto(getattr(pedido, "cpa", ""))
+            if not actual:
+                try:
+                    pedido.cpa = cpa[:20]
+                    resultado["completados"].append("cpa")
+                except Exception:
+                    pass
+
+        fuente = _normalizar_texto(cpa_resultado.get("fuente"))
+        confianza = _normalizar_texto(cpa_resultado.get("confianza"))
+
+        if fuente and hasattr(pedido, "ubicacion_fuente"):
+            try:
+                pedido.ubicacion_fuente = fuente[:50]
+            except Exception:
+                pass
+
+        if confianza and hasattr(pedido, "ubicacion_confianza"):
+            try:
+                pedido.ubicacion_confianza = confianza[:30]
+            except Exception:
+                pass
+
+        resultado["cpa"] = cpa
+        resultado["fuente"] = fuente
+        resultado["confianza"] = confianza
+
+    return resultado
+
+
+def autocompletar_pedido_por_cp(pedido):
+    """
+    Compatibilidad hacia atrás.
+    """
+    resultado = normalizar_ubicacion_pedido(pedido)
+    return resultado.get("completados", [])

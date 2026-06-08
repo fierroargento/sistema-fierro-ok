@@ -1,0 +1,13 @@
+[
+  {
+    "id": 5001,
+    "nombre": "CIUDAD AUTONOMA BUENOS AIRES",
+    "partido": "CAPITAL FEDERAL",
+    "municipio": "",
+    "cp": "",
+    "latitud": null,
+    "longitud": null,
+    "provincia_codigo": "C",
+    "provincia": "CABA"
+  }
+]

@@ -364,6 +364,11 @@ class Pedido(db.Model):
     codigo_postal = db.Column(db.String(10))
     localidad = db.Column(db.String(100))
     provincia = db.Column(db.String(100))
+    cpa = db.Column(db.String(20))
+    ubicacion_fuente = db.Column(db.String(50))
+    ubicacion_confianza = db.Column(db.String(30))
+    latitud_cliente = db.Column(db.Float)
+    longitud_cliente = db.Column(db.Float)
     observaciones = db.Column(db.String(300))
 
     sucursal_nombre = db.Column(db.String(150))
@@ -758,6 +763,15 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ml_mensajes_pendientes", "BOOLEAN DEFAULT FALSE")
     asegurar_columna_si_no_existe("ml_mensajes_pendientes_count", "INTEGER DEFAULT 0")
     asegurar_columna_si_no_existe("ultima_sync_mensajes_ml", "TIMESTAMP")
+
+    # =====================
+    # UBICACIÓN POSTAL / CPA
+    # =====================
+    asegurar_columna_si_no_existe("cpa", "VARCHAR(20)")
+    asegurar_columna_si_no_existe("ubicacion_fuente", "VARCHAR(50)")
+    asegurar_columna_si_no_existe("ubicacion_confianza", "VARCHAR(30)")
+    asegurar_columna_si_no_existe("latitud_cliente", "FLOAT")
+    asegurar_columna_si_no_existe("longitud_cliente", "FLOAT")
 
     # =====================
     # IA RECOLECTOR ML / ACORDÁS (FASE 4 - ANÁLISIS + AUTOCOMPLETADO SEGURO)
@@ -1374,8 +1388,27 @@ def sugerir_sucursales(pedido):
     # Ordenar por distancia
     candidatas_con_coords = [s for s in candidatas if s.get("lat") and s.get("lng")]
     if candidatas_con_coords:
-        lat_cli, lng_cli, metodo = _obtener_coords_cliente(cp, direccion, pedido.localidad, pedido.provincia)
+        lat_cli = getattr(pedido, "latitud_cliente", None)
+        lng_cli = getattr(pedido, "longitud_cliente", None)
+        metodo = "pedido_lat_lng"
+
+        try:
+            lat_cli = float(lat_cli) if lat_cli not in (None, "") else None
+            lng_cli = float(lng_cli) if lng_cli not in (None, "") else None
+        except Exception:
+            lat_cli = None
+            lng_cli = None
+
+        if not (lat_cli and lng_cli):
+            lat_cli, lng_cli, metodo = _obtener_coords_cliente(
+                cp,
+                direccion,
+                pedido.localidad,
+                pedido.provincia,
+            )
+
         print(f"[VIA CARGO] Ubicación cliente: método={metodo} lat={lat_cli} lng={lng_cli} cp={cp}")
+
         if lat_cli and lng_cli:
             candidatas_con_coords.sort(
                 key=lambda s: _distancia_km(lat_cli, lng_cli, float(s["lat"]), float(s["lng"]))
@@ -5864,20 +5897,22 @@ def ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=""):
         completados.append("codigo_postal")
 
     # APB logística / SaaS:
-    # Si tenemos CP válido, intentamos completar localidad/provincia internamente.
+    # Si tenemos CP/dirección, intentamos normalizar ubicación internamente.
+    # Esto puede completar localidad/provincia, coordenadas y CPA si corresponde.
     # No se le pide al cliente un dato que el sistema puede resolver.
     try:
-        from services.ubicacion_cp import autocompletar_pedido_por_cp
+        from services.ubicacion_cp import normalizar_ubicacion_pedido
 
-        completados_cp = autocompletar_pedido_por_cp(pedido)
+        resultado_ubicacion = normalizar_ubicacion_pedido(pedido)
+        completados_ubicacion = resultado_ubicacion.get("completados", [])
 
-        for campo in completados_cp:
+        for campo in completados_ubicacion:
             if campo not in completados:
                 completados.append(campo)
 
     except Exception as e:
         print(
-            f"[UBICACION CP] No se pudo autocompletar ubicación "
+            f"[UBICACION] No se pudo normalizar ubicación "
             f"pedido #{getattr(pedido, 'id', '?')}: {e}"
         )
 
@@ -6001,13 +6036,13 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         pedido.codigo_postal = cp_detectado
 
         try:
-            from services.ubicacion_cp import autocompletar_pedido_por_cp
+            from services.ubicacion_cp import normalizar_ubicacion_pedido
 
-            autocompletar_pedido_por_cp(pedido)
+            normalizar_ubicacion_pedido(pedido)
 
         except Exception as e:
             print(
-                f"[UBICACION CP] No se pudo autocompletar ubicación "
+                f"[UBICACION] No se pudo normalizar ubicación "
                 f"pedido #{getattr(pedido, 'id', '?')}: {e}"
             )
 
@@ -10628,6 +10663,7 @@ ADMIN_PEDIDO_CAMPOS_GRUPOS = [
     ]),
     ("Envío / autorizado / tracking", [
         "empresa_envio", "tipo_entrega", "direccion", "codigo_postal", "localidad", "provincia",
+        "cpa", "ubicacion_fuente", "ubicacion_confianza", "latitud_cliente", "longitud_cliente",
         "observaciones", "sucursal_nombre", "autorizado_nombre", "autorizado_dni", "autorizado_telefono",
         "seguimiento", "andreani_estado", "andreani_ultima_sync", "andreani_eventos_json",
         "tracking_estado_externo", "tracking_ultima_sync", "tracking_error", "tracking_transportista",
@@ -10657,7 +10693,10 @@ ADMIN_PEDIDO_LABELS = {
     "cliente": "Cliente / titular", "dni": "DNI / CUIT", "telefono": "Teléfono", "mail": "Mail",
     "canal": "Canal", "id_venta": "ID venta", "ml_tipo": "Tipo ML", "empresa_envio": "Empresa envío",
     "tipo_entrega": "Tipo entrega", "direccion": "Dirección", "codigo_postal": "Código postal",
-    "localidad": "Localidad", "provincia": "Provincia", "observaciones": "Observaciones",
+    "localidad": "Localidad", "provincia": "Provincia", "cpa": "CPA",
+    "ubicacion_fuente": "Fuente ubicación", "ubicacion_confianza": "Confianza ubicación",
+    "latitud_cliente": "Latitud cliente", "longitud_cliente": "Longitud cliente",
+    "observaciones": "Observaciones",
     "sucursal_nombre": "Sucursal", "autorizado_nombre": "Autorizado nombre",
     "autorizado_dni": "Autorizado DNI", "autorizado_telefono": "Autorizado teléfono",
     "seguimiento": "Seguimiento", "estado": "Estado Fierro", "etiqueta_archivo": "Etiqueta archivo/URL",
