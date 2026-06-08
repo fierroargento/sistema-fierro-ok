@@ -6120,10 +6120,47 @@ def ia_auto_responder_post_analisis(pedido):
     if str(getattr(pedido, "ia_recolector_estado", "") or "") == "error":
         return False, "error_ia"
 
-    # APB CANAL: si WhatsApp ya tomó la posta, Mercado Libre queda pasivo.
-    # Evita pedir los mismos faltantes por ML después de haberlos pedido por WA.
-    wa_estado_actual = str(getattr(pedido, "wa_estado", "") or "").strip()
-    if wa_estado_actual:
+    # APB CANAL:
+    # Si WhatsApp realmente tomó la posta, Mercado Libre queda pasivo.
+    #
+    # Importante:
+    # "requiere_operador" puede ser solo una alerta humana del recolector,
+    # no necesariamente un flujo activo de WhatsApp.
+    # No abrimos el bloqueo para estados WA reales.
+    wa_estado_actual = str(getattr(pedido, "wa_estado", "") or "").strip().lower()
+    canal_activo_actual = str(getattr(pedido, "ia_canal_activo", "") or "").strip().lower()
+
+    wa_tiene_ownership_real = bool(
+        wa_estado_actual
+        and wa_estado_actual != "requiere_operador"
+    )
+
+    try:
+        estado_conv = obtener_estado_conversacional(
+            pedido,
+            crear_si_no_existe=False,
+        )
+    except Exception:
+        estado_conv = None
+
+    if estado_conv:
+        canal_conv = str(
+            getattr(estado_conv, "canal_activo", "") or ""
+        ).strip().lower()
+
+        if canal_conv in ("wa", "whatsapp"):
+            wa_tiene_ownership_real = True
+
+        if getattr(estado_conv, "takeover_activo", False):
+            wa_tiene_ownership_real = True
+
+        if getattr(estado_conv, "bot_pausado", False):
+            wa_tiene_ownership_real = True
+
+    if canal_activo_actual in ("wa", "whatsapp"):
+        wa_tiene_ownership_real = True
+
+    if wa_tiene_ownership_real:
         print(
             f"[IA-AUTO-RESPUESTA] ML no responde pedido #{getattr(pedido, 'id', '?')}: "
             f"WhatsApp activo ({wa_estado_actual})"
