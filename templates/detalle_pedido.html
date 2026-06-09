@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
 
@@ -894,7 +894,7 @@ body { background: #f4f7f8; }
         </div>
 
         {% if normalizar_telefono(pedido.telefono) %}
-        <form method="POST" action="{{ url_for('whatsapp_enviar_operador', id=pedido.id) }}" class="wa-form-enviar" enctype="multipart/form-data">
+        <form method="POST" action="{{ url_for('whatsapp_enviar_operador', id=pedido.id) }}" class="wa-form-enviar" enctype="multipart/form-data" onsubmit="return bloquearEnvioWhatsAppOperador(this);">
             {% if respuestas_rapidas_wa %}
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
                 <label for="respuesta-rapida-wa-{{ pedido.id }}" style="font-size:13px; font-weight:700;">
@@ -956,7 +956,7 @@ body { background: #f4f7f8; }
             </div>
 
             <div class="wa-form-footer">
-                <button type="submit" class="btn btn-primario">Enviar WhatsApp</button>
+                <button type="submit" class="btn btn-primario" data-wa-submit="1">Enviar WhatsApp</button>
             </div>
         </form>
         {% else %}
@@ -1484,4 +1484,29 @@ function cargarRespuestaRapidaWA(select) {
 }
 </script>
 
+
+<script>
+function bloquearEnvioWhatsAppOperador(form) {
+    if (!form) {
+        return true;
+    }
+
+    if (form.dataset.enviandoWa === "1") {
+        return false;
+    }
+
+    form.dataset.enviandoWa = "1";
+
+    const boton = form.querySelector("[data-wa-submit='1']");
+    if (boton) {
+        boton.disabled = true;
+        boton.dataset.textoOriginal = boton.textContent;
+        boton.textContent = "Enviando...";
+    }
+
+    return true;
+}
+</script>
 {% endblock %}
+
+

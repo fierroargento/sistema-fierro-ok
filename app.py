@@ -11355,6 +11355,33 @@ def whatsapp_enviar_operador(id):
             error="El pedido no tiene teléfono válido para WhatsApp."
         ))
 
+    if texto:
+        try:
+            from services.whatsapp_idempotencia import ya_existe_mensaje_operador_reciente
+
+            if ya_existe_mensaje_operador_reciente(
+                WhatsAppMensaje,
+                pedido,
+                texto,
+                ventana_segundos=10,
+            ):
+                print(
+                    f"[WA-IDEMPOTENCIA] Envío manual duplicado evitado "
+                    f"pedido #{pedido.id}"
+                )
+
+                return redirect(url_for(
+                    "detalle_pedido",
+                    id=pedido.id,
+                    ok="Mensaje ya enviado recientemente. Se evitó un duplicado."
+                ))
+
+        except Exception as e:
+            print(
+                f"[WA-IDEMPOTENCIA] Error evaluando duplicado pedido "
+                f"#{getattr(pedido, 'id', '')}: {e}"
+            )
+
     try:
         from modules.whatsapp.sender import wa_enviar_texto, wa_enviar_imagen
         from modules.whatsapp.respuestas_rapidas import subir_imagen_manual_wa_cloudinary
