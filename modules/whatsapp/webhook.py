@@ -10,6 +10,7 @@ from flask import request, jsonify
 
 from .config import (
     WA_VERIFY_TOKEN,
+    WA_APP_SECRET,
     modulo_activo,
     WA_ESPERANDO_OK_INICIO,
     WA_ESPERANDO_DATOS,
@@ -332,6 +333,15 @@ def registrar_webhook(app):
 
         # ── Mensajes entrantes ──
         try:
+            from modules.whatsapp.security import validar_signature_meta
+
+            raw_body = request.get_data() or b""
+            signature_header = request.headers.get("X-Hub-Signature-256", "")
+
+            if not validar_signature_meta(raw_body, signature_header, WA_APP_SECRET):
+                logger.warning("[WA] Webhook rechazado: firma Meta inválida o ausente")
+                return jsonify({"status": "forbidden"}), 403
+
             data = request.get_json(silent=True) or {}
             print("[WA] Webhook:", json.dumps(data)[:300])
 

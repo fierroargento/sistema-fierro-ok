@@ -15,6 +15,11 @@ import os
 WA_TOKEN            = os.getenv("WHATSAPP_TOKEN", "")
 WA_PHONE_NUMBER_ID  = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
 WA_VERIFY_TOKEN     = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
+WA_APP_SECRET       = (
+    os.getenv("WHATSAPP_APP_SECRET", "")
+    or os.getenv("WA_APP_SECRET", "")
+    or os.getenv("META_APP_SECRET", "")
+)
 WA_API_URL          = f"https://graph.facebook.com/v19.0/{WA_PHONE_NUMBER_ID}/messages"
 
 # ── Alias de pago ──────────────────────────────────────────────────
