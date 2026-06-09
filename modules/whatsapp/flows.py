@@ -1,4 +1,4 @@
-"""
+﻿"""
 modules/whatsapp/flows.py
 ─────────────────────────
 Flujos conversacionales WhatsApp — APB.
@@ -78,6 +78,7 @@ from modules.whatsapp.flows_transporte import (
 )
 
 from services.telefonos import normalizar_telefono_service
+from services.wa_recolector_apb import armar_mensaje_faltantes_recolector
 
 
 # ─────────────────────────────────────────────
@@ -468,11 +469,16 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
         "provincia": "provincia",
         "codigo_postal": "código postal",
     }
+
+    mensaje_faltantes = armar_mensaje_faltantes_recolector(
+        faltantes,
+        campos,
+        texto_cliente=texto_cliente,
+    )
+
     wa_enviar_texto(
         tel,
-        "Perfecto, gracias.\n\nTodavía me faltaría confirmar:\n\n" +
-        "\n".join(f"• {campos.get(f, f)}" for f in faltantes) +
-        "\n\nMe lo pasás por acá?",
+        mensaje_faltantes,
         pedido=pedido,
         fallback_template=WA_TEMPLATE_PEDIDO_DATO,
         fallback_parametros=[
