@@ -59,12 +59,25 @@ def _wa_post(payload):
             print(f"[WA] Enviado a {payload.get('to')}: {data}")
             return True, data
     except HTTPError as e:
-        detalle = e.read().decode()
-        logger.exception(
-    "[WA] Error HTTP enviando mensaje. Codigo: %s",
-    getattr(e, "code", ""),
-)
-        return False, detalle
+        try:
+            detalle = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            detalle = ""
+
+        codigo = getattr(e, "code", "")
+        payload_seguro = dict(payload or {})
+
+        if "to" in payload_seguro:
+            payload_seguro["to"] = "***"
+
+        logger.error(
+            "[WA] Error HTTP enviando mensaje. Codigo: %s | Respuesta Meta: %s | Payload: %s",
+            codigo,
+            detalle[:2000],
+            json.dumps(payload_seguro, ensure_ascii=False)[:2000],
+        )
+
+        return False, detalle or f"HTTPError {codigo}"
     except Exception as e:
         logger.exception("[WA] Error enviando mensaje")
         return False, str(e)
