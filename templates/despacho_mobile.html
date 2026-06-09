@@ -229,17 +229,11 @@
                 {% if pedido.agregado_pendiente_revision %}
                     <div class="mobile-alerta-agregado">
                         ⚠️ AGREGADO PENDIENTE<br>
-                        Revisá los items agregados antes de despachar.
+                        Carga debe gestionar el agregado antes de continuar.
                     </div>
                     <div class="mobile-action-disabled">
-                        Despacho bloqueado hasta confirmar revisión
+                        Despacho bloqueado hasta que Carga libere el pedido
                     </div>
-                    <button
-                        type="button"
-                        class="mobile-action-secundaria"
-                        onclick="window.location.href='{{ url_for('revisar_agregado_mobile', id=pedido.id) }}';">
-                        Abrir detalle y confirmar revisión
-                    </button>
                 {% elif accion %}
                     <a class="mobile-action" href="{{ accion.url }}">
 

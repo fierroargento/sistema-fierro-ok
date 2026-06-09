@@ -1,4 +1,4 @@
-import os
+﻿import os
 import re
 import json
 import hashlib
@@ -2032,11 +2032,14 @@ def accion_sugerida_pedido(pedido):
     if tn_pedido_bloqueado_cancelado(pedido):
         return "⚠️ NO DESPACHAR - Cancelado TN"
 
-    if (
-        getattr(pedido, "agregado_pendiente_revision", False)
-        and pedido.estado in ESTADOS_DESPACHO_OPERATIVO
-    ):
-        return "⚠️ Revisar agregado pendiente"
+    try:
+        from services.cross_sell_preparacion import tiene_agregado_pendiente_en_preparacion
+
+        if tiene_agregado_pendiente_en_preparacion(pedido):
+            return "⚠️ Gestionar agregado pendiente"
+
+    except Exception as e:
+        print("[CROSS-SELL PREPARACION] Error evaluando acción sugerida:", e)
 
     if pedido.estado == "Cargando Pedido":
         if not pedido.cliente:
@@ -2448,10 +2451,22 @@ def prioridad_pedido(pedido):
 
 
 def pedido_con_datos_pendientes(pedido):
-    return bool(
-        pedido
-        and pedido.estado == "Cargando Pedido"
-    )
+    if not pedido:
+        return False
+
+    if pedido.estado == "Cargando Pedido":
+        return True
+
+    try:
+        from services.cross_sell_preparacion import debe_mostrar_en_inicio_carga_por_agregado
+
+        if debe_mostrar_en_inicio_carga_por_agregado(pedido):
+            return True
+
+    except Exception as e:
+        print("[CROSS-SELL PREPARACION] Error evaluando pedido pendiente para carga:", e)
+
+    return False
 
 
 def orden_inicio_pedido(pedido):
@@ -3055,13 +3070,19 @@ def puede_avanzar_pedido(pedido):
         except Exception as e:
             print("[CROSS-SELL-APB] Error evaluando bloqueo de avance manual:", e)
 
-    if (
-        nuevo_estado == Estado.DESPACHADO
-        and getattr(pedido, "agregado_pendiente_revision", False)
-    ):
-        return False, [
-            "AGREGADO PENDIENTE: antes de marcar despachado, despacho debe revisar los items agregados y confirmar la revisión."
-        ]
+    try:
+        from services.cross_sell_preparacion import (
+            debe_bloquear_avance_por_agregado,
+            mensaje_bloqueo_agregado_pendiente,
+        )
+
+        if debe_bloquear_avance_por_agregado(pedido):
+            return False, [
+                mensaje_bloqueo_agregado_pendiente()
+            ]
+
+    except Exception as e:
+        print("[CROSS-SELL PREPARACION] Error evaluando bloqueo de avance:", e)
 
     puede_por_rol, errores_rol = puede_avanzar_segun_rol(pedido)
     if not puede_por_rol:
@@ -8276,7 +8297,23 @@ def inicio():
 
     estados = estados_visibles_inicio()
     if estados is not None:
-        pedidos = [p for p in pedidos if p.estado in estados]
+        if rol_actual() == "carga":
+            try:
+                from services.cross_sell_preparacion import debe_mostrar_en_inicio_carga_por_agregado
+
+                pedidos = [
+                    p for p in pedidos
+                    if (
+                        p.estado in estados
+                        or debe_mostrar_en_inicio_carga_por_agregado(p)
+                    )
+                ]
+
+            except Exception as e:
+                print("[CROSS-SELL PREPARACION] Error filtrando Inicio Carga:", e)
+                pedidos = [p for p in pedidos if p.estado in estados]
+        else:
+            pedidos = [p for p in pedidos if p.estado in estados]
 
     pedidos.sort(key=orden_inicio_pedido)
 
@@ -9399,6 +9436,27 @@ def imprimir_etiqueta(id):
     actualizar_estado_automatico(pedido)
 
     if es_via_cargo(pedido.empresa_envio) and not es_mercado_envios(pedido):
+        try:
+            from services.cross_sell_preparacion import (
+                debe_bloquear_avance_por_agregado,
+                mensaje_bloqueo_agregado_pendiente,
+            )
+
+            if debe_bloquear_avance_por_agregado(pedido):
+                mensaje_bloqueo = mensaje_bloqueo_agregado_pendiente()
+
+                if origen == "mobile" and rol_actual() == "despacho":
+                    return redirect(url_for("despacho_mobile", ok=mensaje_bloqueo))
+
+                return redirect(url_for(
+                    "detalle_pedido",
+                    id=pedido.id,
+                    error=mensaje_bloqueo,
+                ))
+
+        except Exception as e:
+            print("[CROSS-SELL PREPARACION] Error bloqueando impresión Vía Cargo:", e)
+
         aplicar_estado_y_fechas(pedido, "Etiqueta Impresa")
         db.session.commit()
         es_mobile = origen == "mobile" and rol_actual() == "despacho"
@@ -9506,6 +9564,27 @@ def imprimir_etiqueta(id):
             url_archivo = url_for("ver_etiqueta", nombre_archivo=nombre_preview or archivo_local)
         else:
             url_archivo = url_for("ver_etiqueta", nombre_archivo=archivo_local)
+
+    try:
+        from services.cross_sell_preparacion import (
+            debe_bloquear_avance_por_agregado,
+            mensaje_bloqueo_agregado_pendiente,
+        )
+
+        if debe_bloquear_avance_por_agregado(pedido):
+            mensaje_bloqueo = mensaje_bloqueo_agregado_pendiente()
+
+            if origen == "mobile" and rol_actual() == "despacho":
+                return redirect(url_for("despacho_mobile", ok=mensaje_bloqueo))
+
+            return redirect(url_for(
+                "detalle_pedido",
+                id=pedido.id,
+                error=mensaje_bloqueo,
+            ))
+
+    except Exception as e:
+        print("[CROSS-SELL PREPARACION] Error bloqueando impresión de etiqueta:", e)
 
     aplicar_estado_y_fechas(pedido, "Etiqueta Impresa")
     db.session.commit()
@@ -12141,44 +12220,46 @@ def confirmar_revision_agregado(id):
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
 
-    if rol_actual() not in ["admin", "despacho"]:
+    if rol_actual() not in ["admin", "carga"]:
         return redirect(url_for(
             "detalle_pedido",
             id=pedido.id,
-            error="Solo despacho o admin pueden confirmar la revisión del agregado."
+            error="Solo Carga o Admin pueden resolver el agregado pendiente."
         ))
 
-    if not getattr(pedido, "agregado_pendiente_revision", False):
+    resultado = (request.form.get("resultado_agregado_pendiente") or "").strip()
+    observacion = (request.form.get("observacion_agregado_pendiente") or "").strip()
+    usuario = usuario_actual().username if usuario_actual() else ""
+
+    try:
+        from services.cross_sell_preparacion import resolver_agregado_pendiente
+
+        ok, mensaje = resolver_agregado_pendiente(
+            pedido,
+            db,
+            usuario=usuario,
+            resultado=resultado,
+            observacion=observacion,
+            registrar_evento=registrar_evento_operativo,
+            registrar_auditoria=registrar_auditoria,
+        )
+
+    except Exception as e:
+        print("[CROSS-SELL PREPARACION] Error resolviendo agregado pendiente:", e)
+        ok = False
+        mensaje = "No se pudo resolver el agregado pendiente."
+
+    if not ok:
         return redirect(url_for(
             "detalle_pedido",
             id=pedido.id,
-            ok="El pedido no tiene agregados pendientes de revisión."
-        ))
-
-    pedido.agregado_pendiente_revision = False
-    pedido.agregado_revision_fecha = datetime.utcnow()
-    pedido.agregado_revision_usuario = usuario_actual().username if usuario_actual() else ""
-
-    registrar_auditoria(
-        "Confirmó revisión de agregado APB",
-        entidad="pedido",
-        entidad_id=pedido.id,
-        detalle="Despacho confirmó que revisó los items agregados antes de despachar."
-    )
-
-    db.session.commit()
-
-    if rol_actual() == "despacho" and es_dispositivo_movil():
-
-        return redirect(url_for(
-            "despacho_mobile",
-            ok="Agregado revisado por despacho. Ya se puede continuar el despacho."
+            error=mensaje,
         ))
 
     return redirect(url_for(
         "detalle_pedido",
         id=pedido.id,
-        ok="Agregado revisado por despacho. Ya se puede continuar el despacho."
+        ok=mensaje,
     ))
 
 @app.route("/pedido/<int:id>/avanzar")

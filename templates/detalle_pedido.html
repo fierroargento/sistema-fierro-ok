@@ -200,23 +200,44 @@ body { background: #f4f7f8; }
 
     {% if pedido.agregado_pendiente_revision %}
     <div class="detalle-box detalle-box-full" style="margin-top:14px; border-left:6px solid #dc2626; background:#fef2f2;">
-        <h3 style="margin-top:0; color:#991b1b;">⚠️ AGREGADO PENDIENTE DE REVISIÓN</h3>
+        <h3 style="margin-top:0; color:#991b1b;">⚠️ AGREGADO PENDIENTE DE GESTIÓN</h3>
         <p style="margin-bottom:10px;">
-            Este pedido tiene productos agregados después de haber pasado a preparación.
-            <strong>Despacho debe revisar los items agregados antes de marcarlo como despachado.</strong>
+            El cliente mostró interés en un agregado/cross-sell cuando el pedido ya estaba en preparación.
+            <strong>Carga debe resolver este pendiente antes de que Despacho continúe con impresión, embalado o despacho.</strong>
         </p>
 
-        {% if rol_actual in ["admin", "despacho"] %}
+        {% if rol_actual in ["admin", "carga"] %}
         <form method="POST" action="{{ url_for('confirmar_revision_agregado', id=pedido.id) }}" style="margin-top:10px;">
+            <label style="display:block; font-weight:700; margin-bottom:6px;">Resultado de la gestión:</label>
+
+            <select name="resultado_agregado_pendiente" required style="width:100%; max-width:420px; padding:8px; margin-bottom:8px;">
+                <option value="">Seleccionar resultado</option>
+                <option value="agregado_confirmado">Cliente agregó producto</option>
+                <option value="sin_agregado">Cliente no agrega nada</option>
+                <option value="sin_respuesta">Sin respuesta / continuar despacho</option>
+                <option value="excepcion_operador">Excepción operador</option>
+            </select>
+
+            <textarea
+                name="observacion_agregado_pendiente"
+                rows="3"
+                placeholder="Observación opcional"
+                style="width:100%; max-width:620px; display:block; padding:8px; margin-bottom:10px;"
+            ></textarea>
+
             <button type="submit" class="btn btn-confirmar">
-                Confirmé revisión del agregado
+                Resolver agregado pendiente y liberar despacho
             </button>
         </form>
+        {% else %}
+        <p style="margin:10px 0 0 0; color:#991b1b; font-weight:700;">
+            Despacho bloqueado: Carga debe gestionar este agregado pendiente.
+        </p>
         {% endif %}
     </div>
     {% elif pedido.agregado_revision_fecha %}
     <div class="detalle-box detalle-box-full" style="margin-top:14px; border-left:5px solid #16a34a; background:#f0fdf4;">
-        <strong>✓ Agregado revisado por despacho</strong>
+        <strong>✓ Agregado pendiente resuelto por Carga</strong>
         {% if pedido.agregado_revision_usuario %}
             — {{ pedido.agregado_revision_usuario }}
         {% endif %}
@@ -1109,7 +1130,7 @@ body { background: #f4f7f8; }
 
     {% if agregados_apb %}
     <div class="detalle-box detalle-box-full" style="margin-top: 18px; border-left:5px solid {% if pedido.agregado_pendiente_revision %}#dc2626{% else %}#16a34a{% endif %}; background:{% if pedido.agregado_pendiente_revision %}#fef2f2{% else %}#f0fdf4{% endif %};">
-        <h3 style="margin-top:0;">Agregados al pedido {% if pedido.agregado_pendiente_revision %}<span style="color:#991b1b;">— pendiente revisión despacho</span>{% endif %}</h3>
+        <h3 style="margin-top:0;">Agregados al pedido {% if pedido.agregado_pendiente_revision %}<span style="color:#991b1b;">— pendiente gestión Carga</span>{% endif %}</h3>
 
         {% for agregado in agregados_apb %}
         <div style="background:#ffffff; border:1px solid #dcfce7; border-radius:10px; padding:12px; margin-top:10px;">
