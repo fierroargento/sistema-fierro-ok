@@ -7718,16 +7718,10 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 return False, "ml_debe_cerrar_sucursal"
 
             from modules.whatsapp.flows import wa_cerrar_datos_completos
-            from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
 
             ok = wa_cerrar_datos_completos(pedido)
             accion = "Inició WhatsApp con datos completos"
-            detalle_extra = "datos completos"
-
-            intentar_cross_sell_automatico(
-                pedido,
-                origen_disparo="handoff_ml_a_wa_datos_completos"
-            )
+            detalle_extra = "datos completos | cross-sell pendiente hasta respuesta WA"
 
         if ok:
             pedido.wa_ultimo_contacto = datetime.utcnow()
@@ -7736,10 +7730,15 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
 
             # APB UX: avisar una sola vez por ML que el canal operativo pasa a WhatsApp.
             # No bloquea el flujo si Mercado Libre rechaza/falla el mensaje.
-            marca_transicion_ml = "ML avisó migración a WhatsApp"
-            if marca_transicion_ml not in resumen:
+            from services.ml_wa_handoff import (
+                debe_avisar_transicion_ml_wa,
+                marcar_transicion_ml_wa_en_resumen,
+                texto_transicion_ml_wa_datos_completos,
+            )
+
+            if debe_avisar_transicion_ml_wa(pedido):
                 try:
-                    texto_transicion_ml = "Te escribimos por WhatsApp para coordinar el envío."
+                    texto_transicion_ml = texto_transicion_ml_wa_datos_completos()
 
                     # ---------------------------------------------------
                     # APB CANAL MANAGER
@@ -7767,7 +7766,7 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                             texto=texto_transicion_ml,
                         )
 
-                        resumen = f"{resumen} | {marca_transicion_ml}".strip(" |")
+                        resumen = marcar_transicion_ml_wa_en_resumen(pedido)
 
                 except Exception as e:
                     print(
@@ -12802,4 +12801,6 @@ try:
         print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")
 except Exception as e:
     print("[SCHEDULER] No se pudo iniciar:", e)
+
+
 
