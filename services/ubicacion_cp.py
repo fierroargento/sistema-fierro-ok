@@ -1,4 +1,4 @@
-"""
+﻿"""
 services/ubicacion_cp.py
 
 Normalización postal y ubicación de pedidos.
@@ -223,6 +223,166 @@ def resolver_ubicacion_por_cp(cp, provincia="", localidad=""):
         print(f"[UBICACION CORREO] No se pudo resolver por CP: {e}")
 
     resultado = _resolver_desde_via_cargo_sucursales(cp)
+    if resultado:
+        return resultado
+
+    return None
+
+
+def _localidad_coincide_para_cp(localidad_buscada, localidad_item, provincia_buscada=""):
+    """
+    Match conservador para completar CP desde localidad/provincia.
+
+    APB:
+    - No inventar si hay ambigüedad.
+    - Permitir alias frecuentes como "La Rioja Capital" -> "La Rioja".
+    - La provincia debe coincidir cuando viene informada.
+    """
+    buscada = _norm(localidad_buscada)
+    item = _norm(localidad_item)
+    provincia = _norm(provincia_buscada)
+
+    if not buscada or not item:
+        return False
+
+    if buscada == item:
+        return True
+
+    alias_buscada = buscada
+
+    for sufijo in (" capital", " ciudad", " ciudad capital"):
+        if alias_buscada.endswith(sufijo):
+            alias_buscada = alias_buscada[: -len(sufijo)].strip()
+
+    if alias_buscada and alias_buscada == item:
+        return True
+
+    # Caso frecuente: localidad "La Rioja Capital", provincia "La Rioja",
+    # base local con localidad "La Rioja".
+    if provincia and alias_buscada == provincia and item == provincia:
+        return True
+
+    return False
+
+
+def _extraer_ubicacion_item_generico(item, fuente, confianza):
+    if not isinstance(item, dict):
+        return None
+
+    cp = _normalizar_cp(
+        item.get("cp")
+        or item.get("codigo_postal")
+        or item.get("codigoPostal")
+        or item.get("postal_code")
+    )
+
+    localidad = _normalizar_texto(
+        item.get("localidad")
+        or item.get("locality")
+        or item.get("ciudad")
+        or item.get("city")
+    )
+
+    provincia = _normalizar_texto(
+        item.get("provincia")
+        or item.get("province")
+        or item.get("state")
+    )
+
+    latitud = item.get("latitud") or item.get("lat") or item.get("latitude")
+    longitud = item.get("longitud") or item.get("lng") or item.get("lon") or item.get("longitude")
+
+    if not cp or not localidad:
+        return None
+
+    return {
+        "codigo_postal": cp,
+        "localidad": localidad,
+        "provincia": provincia,
+        "latitud": latitud,
+        "longitud": longitud,
+        "fuente": fuente,
+        "confianza": confianza,
+    }
+
+
+def _resolver_cp_en_lista(data, localidad, provincia, fuente, confianza):
+    if not isinstance(data, list):
+        return None
+
+    localidad_n = _normalizar_texto(localidad)
+    provincia_n = _norm(provincia)
+
+    if not localidad_n:
+        return None
+
+    coincidencias = []
+
+    for item in data:
+        ubicacion = _extraer_ubicacion_item_generico(
+            item,
+            fuente=fuente,
+            confianza=confianza,
+        )
+
+        if not ubicacion:
+            continue
+
+        item_provincia_n = _norm(ubicacion.get("provincia"))
+
+        if provincia_n and item_provincia_n and provincia_n != item_provincia_n:
+            continue
+
+        if not _localidad_coincide_para_cp(
+            localidad_n,
+            ubicacion.get("localidad"),
+            provincia_buscada=provincia,
+        ):
+            continue
+
+        coincidencias.append(ubicacion)
+
+    return _resultado_unico_ubicacion(coincidencias)
+
+
+def resolver_cp_por_localidad_provincia(localidad, provincia=""):
+    """
+    Resuelve CP desde localidad + provincia cuando falta codigo_postal.
+
+    Orden:
+    1. data/codigos_postales_ar.json
+    2. via_cargo_sucursales.json como fallback de baja confianza
+
+    Regla APB:
+    Solo devuelve resultado si hay una única combinación localidad/provincia/CP.
+    """
+    localidad = _normalizar_texto(localidad)
+    provincia = _normalizar_texto(provincia)
+
+    if not localidad:
+        return None
+
+    data = _cargar_json_seguro(os.path.join("data", "codigos_postales_ar.json"))
+    resultado = _resolver_cp_en_lista(
+        data,
+        localidad=localidad,
+        provincia=provincia,
+        fuente="codigos_postales_ar_localidad",
+        confianza="media",
+    )
+
+    if resultado:
+        return resultado
+
+    data = _cargar_json_seguro("via_cargo_sucursales.json")
+    resultado = _resolver_cp_en_lista(
+        data,
+        localidad=localidad,
+        provincia=provincia,
+        fuente="via_cargo_sucursales_localidad",
+        confianza="baja",
+    )
+
     if resultado:
         return resultado
 
@@ -591,6 +751,20 @@ def normalizar_ubicacion_pedido(pedido):
     localidad = _normalizar_texto(getattr(pedido, "localidad", ""))
     provincia = _normalizar_texto(getattr(pedido, "provincia", ""))
 
+    if not cp and localidad:
+        ubicacion = resolver_cp_por_localidad_provincia(
+            localidad=localidad,
+            provincia=provincia,
+        )
+
+        completados = _aplicar_ubicacion_a_pedido(pedido, ubicacion)
+
+        for campo in completados:
+            if campo not in resultado["completados"]:
+                resultado["completados"].append(campo)
+
+        cp = _normalizar_cp(getattr(pedido, "codigo_postal", ""))
+
     if cp:
         ubicacion = resolver_ubicacion_por_cp(
             cp=cp,
@@ -659,3 +833,5 @@ def autocompletar_pedido_por_cp(pedido):
     """
     resultado = normalizar_ubicacion_pedido(pedido)
     return resultado.get("completados", [])
+
+

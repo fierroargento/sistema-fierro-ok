@@ -5462,7 +5462,7 @@ REGLAS DE NEGOCIO ML / ACORDÁS:
 3. La demora habitual es de entre 3 y 5 días hábiles a partir del despacho. Si pregunta cuánto demora o cuándo llega, resumí que pregunta por demora.
 4. Si pregunta por qué pedimos los datos, resumí que pide explicación sobre los datos.
 5. Si dice "ya los pasé", verificá contra datos_previos + mensaje nuevo. Si siguen faltando datos, mantené solo los faltantes reales.
-6. Si falta código postal pero hay localidad clara, mantené codigo_postal como faltante salvo que el comprador lo haya escrito explícitamente.
+6. Si falta código postal pero hay localidad clara, extraé y conservá la localidad. El sistema intentará completar el código postal automáticamente con la base local si la localidad/provincia son confiables.
 7. Si el comprador solo quiere que lo llamen o pasar WhatsApp, extraé el teléfono si está, pero seguí marcando los datos faltantes.
 8. Si el mensaje mezcla datos del titular y de un autorizado, mantené separados: titular en nombre/apellido/dni/teléfono; autorizado en autorizado_nombre/autorizado_dni/autorizado_telefono.
 9. No reemplaces el titular por el autorizado.
@@ -12802,3 +12802,4 @@ try:
         print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")
 except Exception as e:
     print("[SCHEDULER] No se pudo iniciar:", e)
+
