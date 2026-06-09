@@ -1,4 +1,4 @@
-"""
+﻿"""
 modules/whatsapp/config.py
 ──────────────────────────
 Configuración del módulo WhatsApp + flujo Correo Argentino.
@@ -54,6 +54,13 @@ MAX_PORCENTAJE_DOMICILIO_DEFAULT = float(os.getenv("MAX_PORCENTAJE_DOMICILIO_DEF
 
 # Pack AR clásico: a efectos operativos, sucursal / punto Correo.
 CORREO_SERVICIO_PP6040 = "Pack AR Clásico"
+
+# Integración Correo PP6040.
+# APB: apagada por defecto hasta tener credenciales/flujo operativo validado.
+CORREO_PP6040_ENABLED = (
+    os.getenv("CORREO_PP6040_ENABLED", "false").strip().lower()
+    in ("1", "true", "yes", "si", "sí", "on")
+)
 
 # ── Estados WA normalizados ────────────────────────────────────────
 WA_ESPERANDO_DATOS = "esperando_datos"
@@ -156,3 +163,4 @@ CROSS_SELL_POR_SKU = {
 def modulo_activo():
     """Devuelve True solo si las credenciales están configuradas en el .env."""
     return bool(WA_TOKEN and WA_PHONE_NUMBER_ID and WA_VERIFY_TOKEN)
+

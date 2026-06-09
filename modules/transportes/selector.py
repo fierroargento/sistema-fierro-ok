@@ -1,4 +1,4 @@
-"""
+﻿"""
 modules/transportes/selector.py
 ────────────────────────────────
 Selector APB de transporte para PP6040.
@@ -17,6 +17,21 @@ import re
 from datetime import datetime
 
 from .correo_argentino import cotizar_correo, obtener_sucursales_correo_por_pedido
+
+
+def correo_pp6040_habilitado():
+    """
+    Feature flag operativo para integración Correo PP6040.
+
+    APB:
+    - Si está apagado, no cotiza, no busca sucursales y no ensucia resumen.
+    - Se habilita por env CORREO_PP6040_ENABLED=true cuando la integración esté validada.
+    """
+    try:
+        from modules.whatsapp.config import CORREO_PP6040_ENABLED
+        return bool(CORREO_PP6040_ENABLED)
+    except Exception:
+        return False
 
 
 def _cfg_float(clave, default):
@@ -149,9 +164,8 @@ def asignar_transporte_pedido(pedido, preferencia_cliente="sucursal"):
     APB: deshabilitado hasta confirmar credenciales Correo Argentino en Render.
     Reactivar eliminando el return de abajo cuando estén las credenciales.
     """
-    # APB: cotización Correo deshabilitada hasta tener credenciales configuradas.
-    # Quitar este return cuando CORREO_USER y CORREO_PASS estén en Render.
-    return False, "Cotización Correo temporalmente deshabilitada"
+    if not correo_pp6040_habilitado():
+        return False, "Cotización Correo temporalmente deshabilitada"
 
     if not pedido_contiene_pp6040(pedido):
         return False, "El pedido no contiene PP6040"
@@ -191,6 +205,10 @@ def asignar_transporte_pedido(pedido, preferencia_cliente="sucursal"):
 
 def sugerir_sucursales_correo_pedido(pedido):
     """Genera mensaje con 3 puntos Correo cercanos usando la misma lógica geográfica validada para Via Cargo."""
+    if not correo_pp6040_habilitado():
+        print("[CORREO SELECTOR] PP6040 deshabilitado por feature flag. No se buscan sucursales.")
+        return None
+
     try:
         sucursales = obtener_sucursales_correo_por_pedido(pedido)
     except Exception as e:
@@ -245,3 +263,6 @@ def _marcar_escalado(pedido, motivo):
         db.session.commit()
     except Exception as e:
         print("[SELECTOR] Error escalando:", e)
+
+
+

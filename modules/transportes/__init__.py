@@ -1,10 +1,10 @@
-"""
+﻿"""
 modules/transportes/__init__.py
 ────────────────────────────────
 Módulo de transporte.
 
 Estado actual:
-- Correo Argentino activo para PP6040.
+- Correo Argentino PP6040 queda controlado por feature flag CORREO_PP6040_ENABLED.
 - Andreani queda en standby hasta credenciales.
 """
 
@@ -28,3 +28,4 @@ __all__ = [
     "asignar_transporte_pedido",
     "sugerir_sucursales_correo_pedido",
 ]
+
