@@ -1,4 +1,4 @@
-"""
+﻿"""
 modules/whatsapp/sender.py
 # ------------------------------------------------------------
 Funciones de bajo nivel para enviar mensajes por WhatsApp Business API.
@@ -16,6 +16,7 @@ from urllib.error import HTTPError
 
 from .config import WA_TOKEN, WA_API_URL
 from services.logger import get_app_logger
+from services.whatsapp_template_params import sanitizar_parametros_template_meta
 
 logger = get_app_logger(__name__)
 
@@ -101,7 +102,7 @@ def wa_enviar_template(telefono, template_name, parametros=None, pedido=None, au
 
     telefono = re.sub(r"\D", "", str(telefono or ""))
     template_name = str(template_name or "").strip()
-    parametros = parametros or []
+    parametros = sanitizar_parametros_template_meta(parametros or [])
 
     if not telefono or not template_name:
         if registrar:
@@ -358,4 +359,6 @@ def wa_enviar_producto(telefono, texto, imagen_url="", pedido=None, autor="bot")
     if imagen_url:
         return wa_enviar_imagen(telefono, imagen_url, caption=texto, pedido=pedido, autor=autor)
     return wa_enviar_texto(telefono, texto, pedido=pedido, autor=autor)
+
+
 
