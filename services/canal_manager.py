@@ -1,4 +1,4 @@
-"""
+﻿"""
 services/canal_manager.py
 ─────────────────────────
 Autoridad APB mínima para mensajes automáticos.
@@ -467,15 +467,16 @@ def ml_acordas_via_cargo_puede_pasar_a_wa_por_no_respuesta(
 
 def ml_acordas_via_cargo_bloquea_inicio_wa(pedido):
     """
-    Bloquea inicio WA mientras ML todavía debe cerrar sucursal.
+    Regla APB actualizada:
+    la falta de sucursal Vía Cargo NO debe bloquear el inicio de WhatsApp.
 
-    Excepción:
-    Si ML no responde pasado el plazo configurado, WA puede arrancar para destrabar.
+    Motivo:
+    - Si los datos básicos ya están completos, WhatsApp puede usarse para destrabar
+      la elección de sucursal o continuar la coordinación.
+    - La logística abierta sí debe seguir bloqueando cross-sell y avance operativo,
+      pero eso lo controla ml_acordas_logistica_abierta_bloquea_cross_sell().
     """
-    return bool(
-        ml_acordas_via_cargo_sin_sucursal(pedido)
-        and not ml_acordas_via_cargo_puede_pasar_a_wa_por_no_respuesta(pedido)
-    )
+    return False
 
 
 def ml_acordas_logistica_abierta_bloquea_cross_sell(pedido):
