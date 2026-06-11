@@ -1,4 +1,4 @@
-"""
+﻿"""
 services/mensajes_sucursales.py
 ────────────────────────────────
 Mensajes y utilidades conversacionales para elección de sucursales.
@@ -136,3 +136,57 @@ def normalizar_numero_opcion_sucursal(texto):
             return equivalencias[palabra]
 
     return None
+
+
+def extraer_opcion_sucursal_explicita(texto, cantidad_opciones=0):
+    """
+    Detecta una elección explícita de sucursal dentro de un texto más largo.
+
+    APB:
+    - Permite mensajes mixtos: "sucede 1, llega para el día del padre?"
+    - No inventa si hay más de una opción o si está fuera de rango.
+    - Devuelve índice 0-based o None.
+    """
+    import re
+    import unicodedata
+
+    texto = str(texto or "").strip().lower()
+    if not texto:
+        return None
+
+    normalizado = unicodedata.normalize("NFD", texto)
+    normalizado = "".join(ch for ch in normalizado if unicodedata.category(ch) != "Mn")
+    normalizado = re.sub(r"[^a-z0-9\s]", " ", normalizado)
+    normalizado = " ".join(normalizado.split())
+
+    candidatos = []
+
+    patrones = [
+        (r"\b(?:opcion|op|sucursal|numero|nro|la|el)?\s*1\b", 0),
+        (r"\b(?:opcion|op|sucursal|numero|nro|la|el)?\s*2\b", 1),
+        (r"\b(?:opcion|op|sucursal|numero|nro|la|el)?\s*3\b", 2),
+        (r"\b(?:uno|una|primera|primer)\b", 0),
+        (r"\b(?:dos|segunda|segundo)\b", 1),
+        (r"\b(?:tres|tercera|tercero)\b", 2),
+    ]
+
+    for patron, indice in patrones:
+        if re.search(patron, normalizado):
+            candidatos.append(indice)
+
+    candidatos_unicos = sorted(set(candidatos))
+
+    if len(candidatos_unicos) != 1:
+        return None
+
+    indice = candidatos_unicos[0]
+
+    try:
+        cantidad_opciones = int(cantidad_opciones or 0)
+    except Exception:
+        cantidad_opciones = 0
+
+    if cantidad_opciones and indice >= cantidad_opciones:
+        return None
+
+    return indice
