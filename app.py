@@ -6047,6 +6047,16 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
             f"pedido #{getattr(pedido, 'id', '?')}: {e}"
         )
 
+    # APB defensivo:
+    # ia_calcular_faltantes_reales_pedido() puede considerar completo un dato
+    # si viene en datos detectados, pero WhatsApp necesita que el teléfono
+    # quede persistido en pedido.telefono para iniciar el handoff ML -> WA.
+    telefono_detectado = normalizar_telefono(datos.get("telefono"))
+    if telefono_detectado and ia_campo_vacio(getattr(pedido, "telefono", "")):
+        pedido.telefono = telefono_detectado
+        if "telefono" not in completados:
+            completados.append("telefono")
+
     # Importante: no usar a ciegas los faltantes que devolvió la IA antes de autocompletar.
     # Se recalculan contra el pedido actualizado para no pedir DNI/CP dos veces.
     faltantes = ia_calcular_faltantes_reales_pedido(pedido, datos)
@@ -6493,8 +6503,21 @@ def ia_auto_responder_post_analisis(pedido):
                         pass
                     return False, "error_sucursales"
                 return True, "sucursales_enviadas"
-            # No es Via Cargo o ya tiene sucursal: no hay nada más que hacer
-            return False, "datos_completos"
+            # APB ML -> WA:
+            # Si no hay sucursales para ofrecer por ML porque el pedido ya quedó
+            # operativo/completo, intentamos avisar transición por ML e iniciar WhatsApp.
+            ok_wa, motivo_wa = wa_auto_iniciar_desde_ml_si_corresponde(
+                pedido,
+                faltantes=[],
+                motivo="ia_auto_responder_post_analisis_datos_completos",
+            )
+
+            if ok_wa:
+                return True, "wa_iniciado_datos_completos"
+
+            # No es Via Cargo, todavía falta una condición de handoff, o ya quedó bloqueado
+            # por regla de canal. No generamos texto ML adicional desde acá.
+            return False, motivo_wa or "datos_completos"
 
         texto = ia_generar_respuesta_faltantes_pedido(pedido)
 
