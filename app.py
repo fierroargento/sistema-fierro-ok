@@ -2180,19 +2180,14 @@ def accion_principal_pedido(pedido, origen="inicio"):
     if tn_pedido_bloqueado_cancelado(pedido):
         return None
 
-    if tn_necesita_completar_carga(pedido):
-        return {
-            "tipo": "completar_carga",
-            "texto": "Completar carga",
-            "url": url_for("editar_pedido", id=pedido.id, paso=primer_paso_pendiente_carga(pedido)),
-            "clases": clase_confirmar,
-            "target": "",
-        }
+    from services.pedidos_acciones import debe_mostrar_accion_completar_carga
 
-    if requiere_contacto_cliente(pedido) and pedido.estado not in (
-        ESTADOS_POST_DESPACHO
-        + ESTADOS_DESPACHO_OPERATIVO
-        + ["Entregado", "Finalizado"]
+    if debe_mostrar_accion_completar_carga(
+        pedido,
+        necesita_completar_carga_tn=tn_necesita_completar_carga(pedido),
+        requiere_contacto=requiere_contacto_cliente(pedido),
+        estados_post_despacho=ESTADOS_POST_DESPACHO,
+        estados_despacho_operativo=ESTADOS_DESPACHO_OPERATIVO,
     ):
         return {
             "tipo": "completar_carga",
