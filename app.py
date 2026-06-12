@@ -2715,10 +2715,9 @@ def registrar_auditoria(accion, entidad=None, entidad_id=None, detalle=None, usu
 
 
 ACCIONES_GET_AUDITADAS = {
-    "avanzar_pedido", "lanzar_impresion", "imprimir_etiqueta", "imprimir_etiqueta_interna",
-    "confirmar_entrega", "cerrar_ml", "test_tienda_nube", "sync_tienda_nube",
-    "registrar_webhooks_tienda_nube", "borrar_pedidos_tn_prueba", "ml_sync_manual",
-    "ml_borrar_prueba", "ml_reset_total", "ml_desconectar",
+    "lanzar_impresion",
+    "imprimir_etiqueta",
+    "imprimir_etiqueta_interna",
 }
 
 
