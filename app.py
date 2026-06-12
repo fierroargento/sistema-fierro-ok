@@ -9285,7 +9285,7 @@ def reset_total_mercadolibre():
         return redirect(url_for("admin_integraciones", error=f"No se pudo hacer reset total ML: {e}"))
 
 
-@app.route("/admin/reset_ml")
+@app.route("/admin/reset_ml", methods=["POST"])
 @login_required
 def reset_ml_directo():
     if not puede_administrar_integraciones():
