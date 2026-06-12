@@ -2248,6 +2248,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "tipo": "marcar_listo_retirar",
             "texto": "Marcar listo para retirar",
             "url": url_for("confirmar_entrega", id=pedido.id),
+            "method": "POST",
             "clases": clase_confirmar,
             "target": "",
         }
@@ -11827,7 +11828,7 @@ def whatsapp_omitir_cross_sell(id):
         ))
 
 
-@app.route("/pedido/<int:id>/confirmar-entrega")
+@app.route("/pedido/<int:id>/confirmar-entrega", methods=["POST"])
 @login_required
 def confirmar_entrega(id):
     pedido = Pedido.query.get_or_404(id)
