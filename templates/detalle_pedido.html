@@ -1232,9 +1232,11 @@ body { background: #f4f7f8; }
         {% endif %}
 
         {% if pedido.estado == "Con reclamo en transporte" %}
-        <a href="{{ url_for('revisar_reclamo', id=pedido.id) }}" class="btn btn-secundario">
-            Revisado hoy
-        </a>
+        <form method="POST" action="{{ url_for('revisar_reclamo', id=pedido.id) }}" style="display:inline;">
+            <button type="submit" class="btn btn-secundario">
+                Revisado hoy
+            </button>
+        </form>
         {% endif %}
 
         {% if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"] %}
