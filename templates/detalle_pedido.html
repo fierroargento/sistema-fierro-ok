@@ -1238,9 +1238,11 @@ body { background: #f4f7f8; }
         {% endif %}
 
         {% if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar"] %}
-        <a href="{{ url_for('marcar_no_entregado', id=pedido.id) }}" class="btn btn-secundario">
-            No entregado
-        </a>
+        <form method="POST" action="{{ url_for('marcar_no_entregado', id=pedido.id) }}" style="display:inline;">
+            <button type="submit" class="btn btn-secundario">
+                No entregado
+            </button>
+        </form>
         {% endif %}
 
         {% if not accion %}

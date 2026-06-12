@@ -12069,7 +12069,7 @@ def devolver_pedido_a_ml(id):
     ))
 
 
-@app.route("/pedido/<int:id>/marcar-no-entregado")
+@app.route("/pedido/<int:id>/marcar-no-entregado", methods=["POST"])
 @login_required
 def marcar_no_entregado(id):
     pedido = Pedido.query.get_or_404(id)
