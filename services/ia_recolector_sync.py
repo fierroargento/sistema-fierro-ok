@@ -8,7 +8,11 @@ Problema que resuelve:
 - Luego el sistema autocompleta CP/localidad/provincia en el pedido.
 - Si ia_datos_detectados no se consolida con el pedido real, el panel IA queda viejo
   y el flujo puede seguir como si faltaran datos.
+- Si la IA detecta teléfono pero todavía no quedó persistido en pedido.telefono,
+  el recolector puede marcar datos completos, pero WhatsApp no puede iniciar handoff.
 """
+
+from services.telefonos import normalizar_telefono_service
 
 
 def _texto(valor):
@@ -55,3 +59,38 @@ def consolidar_datos_recolector_con_pedido(pedido, datos_detectados=None):
             datos[campo_dato] = valor
 
     return datos
+
+
+def persistir_telefono_detectado_recolector(pedido, datos_detectados=None):
+    """
+    Persiste en pedido.telefono un teléfono detectado por el recolector IA.
+
+    APB ML -> WA:
+    ia_calcular_faltantes_reales_pedido() puede considerar completo un teléfono
+    si viene en datos_detectados, pero el handoff a WhatsApp necesita que el dato
+    exista realmente en pedido.telefono.
+
+    Devuelve:
+    - ["telefono"] si completó el campo.
+    - [] si no modificó nada.
+    """
+    if not pedido:
+        return []
+
+    if not isinstance(datos_detectados, dict):
+        return []
+
+    if _texto(getattr(pedido, "telefono", "")):
+        return []
+
+    telefono_detectado = normalizar_telefono_service(
+        datos_detectados.get("telefono")
+    )
+
+    if not telefono_detectado:
+        return []
+
+    pedido.telefono = telefono_detectado
+    datos_detectados["telefono"] = telefono_detectado
+
+    return ["telefono"]

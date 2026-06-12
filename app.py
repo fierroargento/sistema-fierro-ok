@@ -6047,15 +6047,12 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
             f"pedido #{getattr(pedido, 'id', '?')}: {e}"
         )
 
-    # APB defensivo:
-    # ia_calcular_faltantes_reales_pedido() puede considerar completo un dato
-    # si viene en datos detectados, pero WhatsApp necesita que el teléfono
-    # quede persistido en pedido.telefono para iniciar el handoff ML -> WA.
-    telefono_detectado = normalizar_telefono(datos.get("telefono"))
-    if telefono_detectado and ia_campo_vacio(getattr(pedido, "telefono", "")):
-        pedido.telefono = telefono_detectado
-        if "telefono" not in completados:
-            completados.append("telefono")
+    from services.ia_recolector_sync import persistir_telefono_detectado_recolector
+
+    for campo in persistir_telefono_detectado_recolector(pedido, datos):
+        if campo not in completados:
+            completados.append(campo)
+
 
     # Importante: no usar a ciegas los faltantes que devolvió la IA antes de autocompletar.
     # Se recalculan contra el pedido actualizado para no pedir DNI/CP dos veces.

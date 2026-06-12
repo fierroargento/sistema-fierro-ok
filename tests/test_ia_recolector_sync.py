@@ -1,4 +1,7 @@
-﻿from services.ia_recolector_sync import consolidar_datos_recolector_con_pedido
+﻿from services.ia_recolector_sync import (
+    consolidar_datos_recolector_con_pedido,
+    persistir_telefono_detectado_recolector,
+)
 
 
 class PedidoFake:
@@ -54,3 +57,46 @@ def test_consolidar_datos_recolector_respeta_nombre_detectado():
 
     assert resultado["nombre"] == "Javi"
     assert resultado["apellido"] == "Z"
+
+
+def test_persistir_telefono_detectado_recolector_completa_pedido_vacio():
+    pedido = PedidoFake()
+    pedido.telefono = ""
+
+    datos = {
+        "telefono": "2346513896",
+    }
+
+    completados = persistir_telefono_detectado_recolector(pedido, datos)
+
+    assert completados == ["telefono"]
+    assert pedido.telefono == "5492346513896"
+    assert datos["telefono"] == "5492346513896"
+
+
+def test_persistir_telefono_detectado_recolector_no_pisa_telefono_existente():
+    pedido = PedidoFake()
+    pedido.telefono = "5492314414526"
+
+    datos = {
+        "telefono": "2346513896",
+    }
+
+    completados = persistir_telefono_detectado_recolector(pedido, datos)
+
+    assert completados == []
+    assert pedido.telefono == "5492314414526"
+    assert datos["telefono"] == "2346513896"
+
+
+def test_persistir_telefono_detectado_recolector_no_inventa_si_no_hay_telefono():
+    pedido = PedidoFake()
+    pedido.telefono = ""
+
+    datos = {}
+
+    completados = persistir_telefono_detectado_recolector(pedido, datos)
+
+    assert completados == []
+    assert pedido.telefono == ""
+    assert "telefono" not in datos
