@@ -12322,10 +12322,7 @@ def cerrar_reclamo_ml_devolucion(id):
         error=""
     )
 
-    pedido.estado = "Finalizado"
-    db.session.commit()
 
-    return redirect(url_for("detalle_pedido", id=pedido.id))
     
 @app.route("/pedido/<int:id>/revisar-reclamo", methods=["POST"])
 @login_required
