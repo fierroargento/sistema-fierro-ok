@@ -3752,11 +3752,22 @@ def link_detalle_venta(pedido):
 
 
 def tn_necesita_completar_carga(pedido):
+    """
+    APB Tienda Nube:
+    Solo manda a Completar carga si realmente faltan datos operativos.
+
+    No se debe usar puede_imprimir_pedido() acá, porque esa función depende
+    del estado Etiqueta Lista. En Cargando Pedido siempre puede dar False,
+    aunque la carga ya esté completa, y eso deja pegado el botón en
+    "Completar carga".
+    """
     if not pedido or pedido.canal != "Tienda Nube" or pedido.estado != "Cargando Pedido":
         return False
+
     if tn_pedido_bloqueado_cancelado(pedido):
         return False
-    return bool(motor_bloqueo(pedido)) or not puede_imprimir_pedido(pedido)
+
+    return bool(motor_bloqueo(pedido))
 
 
 def tn_pedido_apto_para_fierro(order):
