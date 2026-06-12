@@ -1203,6 +1203,12 @@ body { background: #f4f7f8; }
                 <a href="{{ accion.url }}" class="{{ accion.clases }}" onclick="return imprimirDesdeDetalle(this.href, '{{ url_for('detalle_pedido', id=pedido.id) }}');">
                     {{ accion.texto }}
                 </a>
+            {% elif accion.tipo == "marcar_listo_retirar" and accion.method == "POST" %}
+                <form method="POST" action="{{ accion.url }}" style="display:inline;">
+                    <button type="submit" class="{{ accion.clases }}">
+                        {{ accion.texto }}
+                    </button>
+                </form>
             {% elif accion.tipo == "marcar_listo_retirar" %}
                 <a href="{{ accion.url }}" class="{{ accion.clases }}">
                     {{ accion.texto }}
