@@ -5642,9 +5642,9 @@ def ia_dni_valido(valor):
 
 
 def ia_cp_valido(valor):
-    limpio = str(valor or "").strip()
-    # Acepta CP numérico argentino y también formatos alfanuméricos, sin ser demasiado agresivo.
-    return limpio if 3 <= len(limpio) <= 12 else ""
+    from services.ia_recolector_sync import ia_cp_valido_recolector
+
+    return ia_cp_valido_recolector(valor)
 
 
 def ia_extraer_datos_clasico_fierro(texto_cliente, datos_previos=None):
@@ -5812,40 +5812,9 @@ def ia_extraer_datos_clasico_fierro(texto_cliente, datos_previos=None):
 
 
 def ia_calcular_faltantes_reales_pedido(pedido, datos=None):
-    """Recalcula faltantes contra el pedido ya actualizado, no contra la respuesta vieja de IA."""
-    datos = datos if isinstance(datos, dict) else {}
+    from services.ia_recolector_sync import calcular_faltantes_reales_recolector
 
-    def valor(campo):
-        v = getattr(pedido, campo, "") if pedido else ""
-        if str(v or "").strip():
-            return str(v or "").strip()
-        return str(datos.get(campo) or "").strip()
-
-    faltantes = []
-    if not valor("nombre") and not valor("cliente"):
-        # Si el cliente ya está cargado como nombre completo, no forzar nombre/apellido por separado.
-        if not str(getattr(pedido, "cliente", "") or "").strip():
-            faltantes.append("nombre")
-    if not valor("dni") and not str(getattr(pedido, "ml_billing_documento", "") or "").strip():
-        faltantes.append("dni")
-    if not normalizar_telefono(valor("telefono")):
-        faltantes.append("telefono")
-    if not valor("direccion"):
-        faltantes.append("direccion")
-
-    codigo_postal_valido = ia_cp_valido(valor("codigo_postal"))
-
-    # APB logística:
-    # Si ya tenemos CP válido, no le pedimos localidad al cliente.
-    # Localidad/provincia deben resolverse internamente por CP o por operador,
-    # pero no deben frenar la recolección ML.
-    if not codigo_postal_valido and not valor("localidad"):
-        faltantes.append("localidad")
-
-    if not codigo_postal_valido:
-        faltantes.append("codigo_postal")
-
-    return faltantes
+    return calcular_faltantes_reales_recolector(pedido, datos)
 
 
 def ia_texto_menciona_autorizado(texto):

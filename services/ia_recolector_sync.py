@@ -19,6 +19,19 @@ def _texto(valor):
     return str(valor or "").strip()
 
 
+def ia_cp_valido_recolector(valor):
+    """
+    Valida CP para el recolector IA.
+
+    APB:
+    - Acepta CP numérico argentino.
+    - Acepta formatos alfanuméricos simples.
+    - No intenta normalizar ni inventar CP.
+    """
+    limpio = _texto(valor)
+    return limpio if 3 <= len(limpio) <= 12 else ""
+
+
 def consolidar_datos_recolector_con_pedido(pedido, datos_detectados=None):
     """
     Devuelve datos del recolector consolidados con el pedido real.
@@ -94,3 +107,47 @@ def persistir_telefono_detectado_recolector(pedido, datos_detectados=None):
     datos_detectados["telefono"] = telefono_detectado
 
     return ["telefono"]
+
+
+def calcular_faltantes_reales_recolector(pedido, datos_detectados=None):
+    """
+    Calcula faltantes reales del recolector contra el pedido actualizado.
+
+    APB:
+    - Prioriza el valor real del pedido.
+    - Si el pedido no tiene el dato, permite considerar datos_detectados.
+    - No pide localidad si ya hay CP válido: localidad/provincia pueden resolverse internamente.
+    - No pide DNI si existe ml_billing_documento.
+    """
+    datos = datos_detectados if isinstance(datos_detectados, dict) else {}
+
+    def valor(campo):
+        v = getattr(pedido, campo, "") if pedido else ""
+        if _texto(v):
+            return _texto(v)
+        return _texto(datos.get(campo))
+
+    faltantes = []
+
+    if not valor("nombre") and not valor("cliente"):
+        if not _texto(getattr(pedido, "cliente", "")):
+            faltantes.append("nombre")
+
+    if not valor("dni") and not _texto(getattr(pedido, "ml_billing_documento", "")):
+        faltantes.append("dni")
+
+    if not normalizar_telefono_service(valor("telefono")):
+        faltantes.append("telefono")
+
+    if not valor("direccion"):
+        faltantes.append("direccion")
+
+    codigo_postal_valido = ia_cp_valido_recolector(valor("codigo_postal"))
+
+    if not codigo_postal_valido and not valor("localidad"):
+        faltantes.append("localidad")
+
+    if not codigo_postal_valido:
+        faltantes.append("codigo_postal")
+
+    return faltantes

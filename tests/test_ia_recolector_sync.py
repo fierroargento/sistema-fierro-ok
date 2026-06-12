@@ -1,5 +1,7 @@
 ﻿from services.ia_recolector_sync import (
+    calcular_faltantes_reales_recolector,
     consolidar_datos_recolector_con_pedido,
+    ia_cp_valido_recolector,
     persistir_telefono_detectado_recolector,
 )
 
@@ -13,6 +15,7 @@ class PedidoFake:
         self.localidad = "La Plata"
         self.provincia = "Buenos Aires"
         self.codigo_postal = "1900"
+        self.ml_billing_documento = ""
         self.autorizado_nombre = ""
         self.autorizado_dni = ""
         self.autorizado_telefono = ""
@@ -100,3 +103,73 @@ def test_persistir_telefono_detectado_recolector_no_inventa_si_no_hay_telefono()
     assert completados == []
     assert pedido.telefono == ""
     assert "telefono" not in datos
+
+
+def test_ia_cp_valido_recolector_acepta_cp_normal():
+    assert ia_cp_valido_recolector("6620") == "6620"
+
+
+def test_ia_cp_valido_recolector_rechaza_vacio_o_muy_corto():
+    assert ia_cp_valido_recolector("") == ""
+    assert ia_cp_valido_recolector("12") == ""
+
+
+def test_calcular_faltantes_reales_recolector_sin_faltantes_con_pedido_completo():
+    pedido = PedidoFake()
+
+    faltantes = calcular_faltantes_reales_recolector(pedido, {})
+
+    assert faltantes == []
+
+
+def test_calcular_faltantes_reales_recolector_usa_telefono_detectado():
+    pedido = PedidoFake()
+    pedido.telefono = ""
+
+    faltantes = calcular_faltantes_reales_recolector(
+        pedido,
+        {"telefono": "2346513896"},
+    )
+
+    assert "telefono" not in faltantes
+
+
+def test_calcular_faltantes_reales_recolector_falta_telefono_si_no_esta_en_pedido_ni_datos():
+    pedido = PedidoFake()
+    pedido.telefono = ""
+
+    faltantes = calcular_faltantes_reales_recolector(pedido, {})
+
+    assert "telefono" in faltantes
+
+
+def test_calcular_faltantes_reales_recolector_falta_cp_y_localidad_si_no_hay_ninguno():
+    pedido = PedidoFake()
+    pedido.codigo_postal = ""
+    pedido.localidad = ""
+
+    faltantes = calcular_faltantes_reales_recolector(pedido, {})
+
+    assert "codigo_postal" in faltantes
+    assert "localidad" in faltantes
+
+
+def test_calcular_faltantes_reales_recolector_cp_valido_no_pide_localidad():
+    pedido = PedidoFake()
+    pedido.codigo_postal = "6620"
+    pedido.localidad = ""
+
+    faltantes = calcular_faltantes_reales_recolector(pedido, {})
+
+    assert "codigo_postal" not in faltantes
+    assert "localidad" not in faltantes
+
+
+def test_calcular_faltantes_reales_recolector_ml_billing_documento_cubre_dni():
+    pedido = PedidoFake()
+    pedido.dni = ""
+    pedido.ml_billing_documento = "31991373"
+
+    faltantes = calcular_faltantes_reales_recolector(pedido, {})
+
+    assert "dni" not in faltantes
