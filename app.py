@@ -1,4 +1,4 @@
-﻿import os
+import os
 import re
 import json
 import hashlib
@@ -2257,6 +2257,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "tipo": "marcar_entregado",
             "texto": "Marcar entregado",
             "url": url_for("avanzar_pedido", id=pedido.id),
+            "method": "POST",
             "clases": clase_confirmar,
             "target": "",
         }
@@ -2266,6 +2267,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "tipo": "marcar_entregado",
             "texto": "Marcar entregado",
             "url": url_for("avanzar_pedido", id=pedido.id),
+            "method": "POST",
             "clases": clase_confirmar,
             "target": "",
         }
@@ -2344,6 +2346,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
             "tipo": "accion_estado",
             "texto": texto,
             "url": url,
+            "method": "POST" if url == url_for("avanzar_pedido", id=pedido.id) else "GET",
             "clases": clase_confirmar,
             "target": "",
         }
@@ -12394,7 +12397,7 @@ def confirmar_revision_agregado(id):
         ok=mensaje,
     ))
 
-@app.route("/pedido/<int:id>/avanzar")
+@app.route("/pedido/<int:id>/avanzar", methods=["POST"])
 @login_required
 def avanzar_pedido(id):
     pedido = Pedido.query.get_or_404(id)

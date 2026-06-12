@@ -95,6 +95,18 @@
             {{ pedido.cliente }}
         </div>
 
+        {% if accion.method == "POST" %}
+        <form method="POST" action="{{ accion.url }}" style="margin:0;">
+            <button
+                type="submit"
+                class="mobile-btn"
+                style="cursor:pointer; font:inherit;">
+
+                {{ accion.texto }}
+
+            </button>
+        </form>
+        {% else %}
         <a
             class="mobile-btn"
             href="{{ accion.url }}">
@@ -102,6 +114,7 @@
             {{ accion.texto }}
 
         </a>
+        {% endif %}
 
         <a
             class="mobile-btn-sec"
