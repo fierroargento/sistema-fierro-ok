@@ -6028,12 +6028,12 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
     faltantes = ia_calcular_faltantes_reales_pedido(pedido, datos)
     requiere_operador = bool(resultado.get("requiere_operador"))
 
-    if requiere_operador:
-        estado = "requiere_operador"
-    elif not faltantes:
-        estado = "datos_completos"
-    else:
-        estado = "juntando_datos"
+    from services.ia_recolector_sync import decidir_estado_recolector
+
+    estado = decidir_estado_recolector(
+        faltantes=faltantes,
+        requiere_operador=requiere_operador,
+    )
 
     pedido.ia_recolector_estado = estado
     pedido.ia_datos_detectados = json.dumps(datos, ensure_ascii=False)

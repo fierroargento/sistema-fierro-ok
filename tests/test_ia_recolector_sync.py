@@ -173,3 +173,30 @@ def test_calcular_faltantes_reales_recolector_ml_billing_documento_cubre_dni():
     faltantes = calcular_faltantes_reales_recolector(pedido, {})
 
     assert "dni" not in faltantes
+
+
+def test_decidir_estado_recolector_requiere_operador_prioriza():
+    from services.ia_recolector_sync import decidir_estado_recolector
+
+    assert decidir_estado_recolector(
+        faltantes=[],
+        requiere_operador=True,
+    ) == "requiere_operador"
+
+
+def test_decidir_estado_recolector_datos_completos_sin_faltantes():
+    from services.ia_recolector_sync import decidir_estado_recolector
+
+    assert decidir_estado_recolector(
+        faltantes=[],
+        requiere_operador=False,
+    ) == "datos_completos"
+
+
+def test_decidir_estado_recolector_juntando_datos_con_faltantes():
+    from services.ia_recolector_sync import decidir_estado_recolector
+
+    assert decidir_estado_recolector(
+        faltantes=["telefono"],
+        requiere_operador=False,
+    ) == "juntando_datos"

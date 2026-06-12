@@ -151,3 +151,20 @@ def calcular_faltantes_reales_recolector(pedido, datos_detectados=None):
         faltantes.append("codigo_postal")
 
     return faltantes
+
+def decidir_estado_recolector(faltantes=None, requiere_operador=False):
+    """
+    Decide el estado del recolector IA a partir de faltantes reales.
+
+    APB:
+    - Si requiere operador, manda sobre cualquier otro estado.
+    - Si no hay faltantes, los datos están completos.
+    - Si hay faltantes, sigue juntando datos.
+    """
+    if requiere_operador:
+        return "requiere_operador"
+
+    if not faltantes:
+        return "datos_completos"
+
+    return "juntando_datos"
