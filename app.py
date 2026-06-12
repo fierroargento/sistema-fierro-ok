@@ -6039,6 +6039,20 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
 
     completados = ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=texto_cliente)
 
+    # APB:
+    # Después de autocompletar ubicación/CP en el pedido, consolidamos ia_datos_detectados
+    # con el pedido real. Esto evita que el panel IA muestre CP vacío o faltantes viejos.
+    try:
+        from services.ia_recolector_sync import consolidar_datos_recolector_con_pedido
+
+        datos = consolidar_datos_recolector_con_pedido(pedido, datos)
+
+    except Exception as e:
+        print(
+            f"[IA-RECOLECTOR-SYNC] No se pudo consolidar datos "
+            f"pedido #{getattr(pedido, 'id', '?')}: {e}"
+        )
+
     # Importante: no usar a ciegas los faltantes que devolvió la IA antes de autocompletar.
     # Se recalculan contra el pedido actualizado para no pedir DNI/CP dos veces.
     faltantes = ia_calcular_faltantes_reales_pedido(pedido, datos)
@@ -6066,7 +6080,11 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
     # WhatsApp puede tomar la posta:
     # - con datos completos,
     # - o con faltantes si ML quedó cortado / timeout / escalado.
-    if not requiere_operador:
+    # APB flujo ML→WA:
+    # Si ya no faltan datos, NO iniciar WhatsApp desde acá.
+    # Primero debe correr ia_auto_responder_post_analisis(), que para Via Cargo
+    # ofrece sucursales por ML antes de cualquier handoff.
+    if not requiere_operador and faltantes:
         wa_auto_iniciar_desde_ml_si_corresponde(
             pedido,
             faltantes=faltantes,
@@ -12816,6 +12834,7 @@ try:
         print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")
 except Exception as e:
     print("[SCHEDULER] No se pudo iniciar:", e)
+
 
 
 
