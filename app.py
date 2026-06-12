@@ -1862,28 +1862,14 @@ def debe_pasar_a_demora_entrega(pedido):
 
 def actualizar_estado_automatico(pedido):
     """
-    APB comercial:
-    no autoavanzar a Etiqueta Lista si la instancia de cross-sell
-    todavía no fue iniciada/gestionada.
+    APB operativo:
+    El autoavance solo debe evaluar si el pedido ya tiene la carga operativa completa.
+
+    Importante:
+    - No se bloquea Cargando Pedido -> Etiqueta Lista por cross-sell.
+    - El cross-sell pendiente se controla en el avance manual mediante puede_avanzar_pedido().
+    - Así evitamos que pedidos completos queden pegados visualmente en "Cargando Pedido".
     """
-    try:
-        from modules.whatsapp.config import CROSS_SELL_AUTO_ENABLED, CROSS_SELL_MANUAL_ENABLED
-        from services.cross_sell_rules import debe_bloquear_etiqueta_lista_por_cross_sell
-
-        if debe_bloquear_etiqueta_lista_por_cross_sell(
-            pedido,
-            auto_enabled=CROSS_SELL_AUTO_ENABLED,
-            manual_enabled=CROSS_SELL_MANUAL_ENABLED,
-            evento_operativo_model=EventoOperativo,
-        ):
-            print(
-                f"[CROSS-SELL-APB] Autoavance a Etiqueta Lista bloqueado "
-                f"pedido #{getattr(pedido, 'id', '?')}: cross-sell pendiente."
-            )
-            return
-
-    except Exception as e:
-        print("[CROSS-SELL-APB] Error evaluando bloqueo de autoavance:", e)
 
     actualizar_estado_automatico_service(
         pedido,
@@ -1891,7 +1877,6 @@ def actualizar_estado_automatico(pedido):
         puede_imprimir_acordas_entrega,
         debe_pasar_a_demora_entrega,
     )
-
 
 def aplicar_autoavance_post_despacho(pedido):
     aplicar_autoavance_post_despacho_service(pedido)
@@ -12911,6 +12896,7 @@ try:
         print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")
 except Exception as e:
     print("[SCHEDULER] No se pudo iniciar:", e)
+
 
 
 
