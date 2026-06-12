@@ -168,3 +168,59 @@ def decidir_estado_recolector(faltantes=None, requiere_operador=False):
         return "datos_completos"
 
     return "juntando_datos"
+
+def json_loads_seguro_recolector(texto):
+    """
+    Lee JSON persistido por el recolector IA de forma tolerante.
+
+    APB:
+    - Si viene vacío, devuelve {}.
+    - Si viene JSON válido, lo devuelve.
+    - Si viene texto con un JSON embebido, intenta extraer el primer objeto.
+    - Si falla, devuelve {}.
+    """
+    import json
+
+    texto = str(texto or "").strip()
+    if not texto:
+        return {}
+
+    try:
+        return json.loads(texto)
+    except Exception:
+        pass
+
+    ini = texto.find("{")
+    fin = texto.rfind("}")
+
+    if ini >= 0 and fin > ini:
+        try:
+            return json.loads(texto[ini:fin + 1])
+        except Exception:
+            return {}
+
+    return {}
+
+
+def datos_detectados_pedido_recolector(pedido):
+    """
+    Devuelve ia_datos_detectados como dict seguro.
+    """
+    if not pedido or not getattr(pedido, "ia_datos_detectados", None):
+        return {}
+
+    data = json_loads_seguro_recolector(pedido.ia_datos_detectados)
+
+    return data if isinstance(data, dict) else {}
+
+
+def faltantes_pedido_recolector(pedido):
+    """
+    Devuelve ia_faltantes como list segura.
+    """
+    if not pedido or not getattr(pedido, "ia_faltantes", None):
+        return []
+
+    data = json_loads_seguro_recolector(pedido.ia_faltantes)
+
+    return data if isinstance(data, list) else []

@@ -200,3 +200,66 @@ def test_decidir_estado_recolector_juntando_datos_con_faltantes():
         faltantes=["telefono"],
         requiere_operador=False,
     ) == "juntando_datos"
+
+
+def test_json_loads_seguro_recolector_parsea_json_valido():
+    from services.ia_recolector_sync import json_loads_seguro_recolector
+
+    assert json_loads_seguro_recolector("{\"telefono\": \"123\"}") == {
+        "telefono": "123",
+    }
+
+
+def test_json_loads_seguro_recolector_extrae_json_embebido():
+    from services.ia_recolector_sync import json_loads_seguro_recolector
+
+    assert json_loads_seguro_recolector("texto previo {\"a\": 1} texto posterior") == {
+        "a": 1,
+    }
+
+
+def test_json_loads_seguro_recolector_devuelve_dict_vacio_si_falla():
+    from services.ia_recolector_sync import json_loads_seguro_recolector
+
+    assert json_loads_seguro_recolector("no es json") == {}
+
+
+def test_datos_detectados_pedido_recolector_devuelve_dict():
+    from services.ia_recolector_sync import datos_detectados_pedido_recolector
+
+    pedido = PedidoFake()
+    pedido.ia_datos_detectados = "{\"telefono\": \"5492346513896\"}"
+
+    assert datos_detectados_pedido_recolector(pedido) == {
+        "telefono": "5492346513896",
+    }
+
+
+def test_datos_detectados_pedido_recolector_descarta_no_dict():
+    from services.ia_recolector_sync import datos_detectados_pedido_recolector
+
+    pedido = PedidoFake()
+    pedido.ia_datos_detectados = "[\"telefono\"]"
+
+    assert datos_detectados_pedido_recolector(pedido) == {}
+
+
+def test_faltantes_pedido_recolector_devuelve_lista():
+    from services.ia_recolector_sync import faltantes_pedido_recolector
+
+    pedido = PedidoFake()
+    pedido.ia_faltantes = "[\"telefono\", \"direccion\"]"
+
+    assert faltantes_pedido_recolector(pedido) == [
+        "telefono",
+        "direccion",
+    ]
+
+
+def test_faltantes_pedido_recolector_descarta_no_lista():
+    from services.ia_recolector_sync import faltantes_pedido_recolector
+
+    pedido = PedidoFake()
+    pedido.ia_faltantes = "{\"telefono\": true}"
+
+    assert faltantes_pedido_recolector(pedido) == []

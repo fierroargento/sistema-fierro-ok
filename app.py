@@ -5365,21 +5365,9 @@ def ia_escalar_si_timeout_operativo(pedido, canal="", motivo="Sin respuesta del 
 
 
 def ia_json_loads_seguro(texto):
-    texto = str(texto or "").strip()
-    if not texto:
-        return {}
-    try:
-        return json.loads(texto)
-    except Exception:
-        pass
-    ini = texto.find("{")
-    fin = texto.rfind("}")
-    if ini >= 0 and fin > ini:
-        try:
-            return json.loads(texto[ini:fin + 1])
-        except Exception:
-            return {}
-    return {}
+    from services.ia_recolector_sync import json_loads_seguro_recolector
+
+    return json_loads_seguro_recolector(texto)
 
 
 def ia_datos_previos_pedido(pedido):
@@ -7564,18 +7552,15 @@ def ml_sync_manual(limit=20, incluir_auxiliares=False):
 
 
 def ia_datos_detectados_pedido(pedido):
-    if not pedido or not getattr(pedido, "ia_datos_detectados", None):
-        return {}
-    data = ia_json_loads_seguro(pedido.ia_datos_detectados)
-    return data if isinstance(data, dict) else {}
+    from services.ia_recolector_sync import datos_detectados_pedido_recolector
+
+    return datos_detectados_pedido_recolector(pedido)
 
 
 def ia_faltantes_pedido(pedido):
-    if not pedido or not getattr(pedido, "ia_faltantes", None):
-        return []
-    data = ia_json_loads_seguro(pedido.ia_faltantes)
-    return data if isinstance(data, list) else []
+    from services.ia_recolector_sync import faltantes_pedido_recolector
 
+    return faltantes_pedido_recolector(pedido)
 
 
 def ml_conversacion_cortada_para_handoff_wa(pedido, motivo_handoff=""):
