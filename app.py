@@ -11138,9 +11138,15 @@ def editar_pedido(id):
             aplicar_autoavance_post_despacho(pedido)
 
             if (
-                es_via_cargo(pedido.empresa_envio)
-                and pedido.telefono
+                pedido.telefono
                 and pedido.seguimiento
+                and pedido.wa_estado != "despachado"
+                and despacho_completo(pedido)
+                and (
+                    usa_flujo_acordas_entrega(pedido)
+                    or pedido.canal == "Tienda Nube"
+                    or es_via_cargo(pedido.empresa_envio)
+                )
             ):
                 try:
                     from modules.whatsapp.flows import wa_enviar_numero_seguimiento
@@ -11148,7 +11154,7 @@ def editar_pedido(id):
                     wa_enviar_numero_seguimiento(pedido)
 
                 except Exception as e:
-                    print(f"[WA-DESPACHO] Error enviando seguimiento Vía Cargo: {e}")
+                    print(f"[WA-DESPACHO] Error enviando seguimiento al guardar tracking: {e}")
 
             db.session.commit()
 
@@ -11228,9 +11234,15 @@ def editar_pedido(id):
         pedido.seguimiento = seguimiento_valor
 
         if (
-            es_via_cargo(pedido.empresa_envio)
-            and pedido.telefono
+            pedido.telefono
             and pedido.seguimiento
+            and pedido.wa_estado != "despachado"
+            and despacho_completo(pedido)
+            and (
+                usa_flujo_acordas_entrega(pedido)
+                or pedido.canal == "Tienda Nube"
+                or es_via_cargo(pedido.empresa_envio)
+            )
         ):
             try:
                 from modules.whatsapp.flows import wa_enviar_numero_seguimiento
@@ -11238,7 +11250,7 @@ def editar_pedido(id):
                 wa_enviar_numero_seguimiento(pedido)
 
             except Exception as e:
-                print(f"[WA-DESPACHO] Error enviando seguimiento Vía Cargo desde edición: {e}")
+                print(f"[WA-DESPACHO] Error enviando seguimiento al guardar tracking desde edición: {e}")
 
         pedido.etiqueta_archivo = etiqueta_actual
         pedido.comprobante_dux_archivo = comprobante_dux_actual
@@ -12896,9 +12908,4 @@ try:
         print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")
 except Exception as e:
     print("[SCHEDULER] No se pudo iniciar:", e)
-
-
-
-
-
 
