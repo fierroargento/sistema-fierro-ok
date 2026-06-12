@@ -167,6 +167,43 @@ def _hay_faltante_comercial_real(valor):
     return not _faltante_es_logistico(texto)
 
 
+def canal_es_elegible_para_cross_sell_obligatorio(pedido):
+    """
+    APB comercial / modular:
+    Define si el canal entra en la regla obligatoria de gestionar cross-sell.
+
+    Incluye:
+    - Tienda Nube
+    - Mercado Libre + Acordás la Entrega
+
+    Excluye:
+    - Presencial
+    - Mayorista
+    - Mercado Libre + Mercado Envíos, por ahora
+
+    Importante:
+    Esta función solo decide elegibilidad por canal.
+    La obligación real se resuelve combinando esta regla con:
+    - etapa del pedido;
+    - productos configurados;
+    - datos completos;
+    - gestión previa del cross-sell.
+    """
+    if not pedido:
+        return False
+
+    canal = str(getattr(pedido, "canal", "") or "").strip()
+    ml_tipo = str(getattr(pedido, "ml_tipo", "") or "").strip()
+
+    if canal == "Tienda Nube":
+        return True
+
+    if canal == "Mercado Libre" and ml_tipo == "Acordás la Entrega":
+        return True
+
+    return False
+
+
 def pedido_tiene_datos_completos_para_cross_sell(pedido):
     """
     Regla mínima defensiva: cross-sell nace después de datos completos.
@@ -273,6 +310,9 @@ def motivo_bloqueo_cross_sell(
     if not pedido:
         return "sin_pedido"
 
+    if not canal_es_elegible_para_cross_sell_obligatorio(pedido):
+        return "canal_no_obliga_cross_sell"
+
     if modo == "operador":
         if not manual_enabled and not forzar:
             return "cross_sell_manual_deshabilitado"
@@ -327,6 +367,9 @@ def debe_bloquear_etiqueta_lista_por_cross_sell(
     if not pedido:
         return False
 
+    if not canal_es_elegible_para_cross_sell_obligatorio(pedido):
+        return False
+
     if getattr(pedido, "estado", None) != Estado.CARGANDO:
         return False
 
@@ -346,3 +389,4 @@ def debe_bloquear_etiqueta_lista_por_cross_sell(
         return False
 
     return True
+
