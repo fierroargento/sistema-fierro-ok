@@ -10204,6 +10204,7 @@ def detalle_pedido(id):
             puede_usar_cross_sell_operador,
             preparar_propuesta_cross_sell_operador,
             propuesta_cross_sell_ya_enviada,
+            propuesta_cross_sell_omitida,
         )
 
         puede_iniciar_cross_sell = puede_usar_cross_sell_operador(pedido)
@@ -10212,12 +10213,21 @@ def detalle_pedido(id):
             pedido,
             EventoOperativo,
         ) if cross_sell_propuesta else False
+        cross_sell_propuesta_omitida = propuesta_cross_sell_omitida(
+            pedido,
+            EventoOperativo,
+        ) if cross_sell_propuesta else False
+
+        if cross_sell_propuesta_omitida:
+            puede_iniciar_cross_sell = False
+            cross_sell_propuesta = None
 
     except Exception as e:
         print(f"[WA CROSS-SELL] No se pudo preparar propuesta pedido #{pedido.id}: {e}")
         puede_iniciar_cross_sell = False
         cross_sell_propuesta = None
         cross_sell_propuesta_ya_enviada = False
+        cross_sell_propuesta_omitida = False
 
     try:
         from modules.whatsapp.respuestas_rapidas import obtener_respuestas_activas_wa
@@ -10249,6 +10259,7 @@ def detalle_pedido(id):
         cross_sell_manual_enabled=puede_iniciar_cross_sell,
         cross_sell_propuesta=cross_sell_propuesta,
         cross_sell_propuesta_ya_enviada=cross_sell_propuesta_ya_enviada,
+        cross_sell_propuesta_omitida=cross_sell_propuesta_omitida,
         respuestas_rapidas_wa=respuestas_rapidas_wa,                
     )
 
@@ -11751,6 +11762,60 @@ def whatsapp_enviar_propuesta_cross_sell(id):
             error=f"No se pudo enviar propuesta de cross-sell: {e}"
         ))
 
+@app.route("/pedido/<int:id>/whatsapp/omitir-cross-sell", methods=["POST"])
+@login_required
+def whatsapp_omitir_cross_sell(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if not puede_operar_whatsapp(pedido):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error="No autorizado para operar WhatsApp."
+        ))
+
+    usuario = usuario_actual().username if usuario_actual() else session.get("username", "")
+
+    try:
+        registrar_evento_operativo(
+            pedido=pedido,
+            tipo_evento="cross_sell_exceptuado",
+            origen="operador",
+            canal="sistema",
+            owner="operador",
+            estado_conversacional="cross_sell_omitido",
+            payload={
+                "estado_pedido": getattr(pedido, "estado", ""),
+                "motivo": "omitido_manualmente_por_carga",
+            },
+            resultado="ok",
+            detalle="Carga/Admin omitió manualmente la oportunidad de cross-sell para liberar el flujo operativo.",
+            usuario=usuario,
+            procesado=True,
+        )
+
+        actualizar_estado_conversacional(
+            pedido,
+            cross_sell_activo=False,
+        )
+
+        db.session.commit()
+
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            ok="Cross-sell omitido. El flujo operativo puede continuar."
+        ))
+
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=f"No se pudo omitir cross-sell: {e}"
+        ))
+
+
 @app.route("/pedido/<int:id>/confirmar-entrega")
 @login_required
 def confirmar_entrega(id):
@@ -12332,20 +12397,21 @@ def avanzar_pedido(id):
     puede_avanzar, errores = puede_avanzar_pedido(pedido)
 
     if not puede_avanzar:
+        mensaje_error = "<br>".join(errores)
+
         if rol_actual() == "despacho" and es_dispositivo_movil():
             return redirect(url_for("despacho_mobile", ok="No se pudo avanzar: " + " / ".join(errores)))
-        return render_template(
-            "detalle_pedido.html",
-            pedido=pedido,
-            error="<br>".join(errores),
-            ok_feedback="",
-            accion_sugerida=accion_sugerida_pedido(pedido),
-            texto_boton=texto_boton_estado(pedido),
-            hay_autorizado=hay_autorizado,
-            puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,            
-            notas_pedido=[]
-        )
-    
+
+        # APB:
+        # No renderizar detalle_pedido.html parcialmente desde acá.
+        # El detalle necesita preparar historial WA, media, agregados APB,
+        # propuesta cross-sell y respuestas rápidas.
+        # Si renderizamos directo, el banner aparece pero se rompe/oculta el módulo WA.
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=mensaje_error,
+        ))
     estado_anterior = pedido.estado
     nuevo = siguiente_estado(pedido.estado)
 
@@ -12834,6 +12900,7 @@ try:
         print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")
 except Exception as e:
     print("[SCHEDULER] No se pudo iniciar:", e)
+
 
 
 

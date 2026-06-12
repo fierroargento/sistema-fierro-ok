@@ -196,6 +196,15 @@ body { background: #f4f7f8; }
 
     {% if error %}
     <div class="error">{{ error|safe }}</div>
+    {% if error and "CROSS-SELL PENDIENTE" in error and rol_actual in ["admin", "carga"] and not cross_sell_propuesta_omitida %}
+    <div style="margin:8px 0 14px 0;">
+        <form method="POST" action="{{ url_for('whatsapp_omitir_cross_sell', id=pedido.id) }}" style="display:inline;" onsubmit="return confirm('¿Confirmás omitir el Cross-Sell para este pedido? Esta acción queda registrada y libera el avance operativo.');">
+            <button type="submit" class="btn btn-secundario" style="border-color:#991b1b; background:#991b1b; color:#ffffff;">
+                Omitir Cross-Sell
+            </button>
+        </form>
+    </div>
+    {% endif %}
     {% endif %}
 
     {% if pedido.agregado_pendiente_revision %}

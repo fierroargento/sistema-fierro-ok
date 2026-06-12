@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 
 from domain.estados import Estado
 from modules.whatsapp.config import CROSS_SELL_MANUAL_ENABLED
@@ -69,6 +69,39 @@ def propuesta_cross_sell_ya_enviada(pedido, evento_operativo_model):
         return False
 
 
+
+
+
+def propuesta_cross_sell_omitida(pedido, evento_operativo_model):
+    """
+    Devuelve True si Carga/Admin omitió la oportunidad de cross-sell.
+
+    APB:
+    - No agrega columnas.
+    - Usa EventoOperativo como trazabilidad.
+    - Permite liberar el avance operativo sin enviar propuesta al cliente.
+    """
+    pedido_id = getattr(pedido, "id", None)
+
+    if not pedido_id or evento_operativo_model is None:
+        return False
+
+    try:
+        evento = (
+            evento_operativo_model.query
+            .filter_by(
+                pedido_id=pedido_id,
+                tipo_evento="cross_sell_exceptuado",
+                resultado="ok",
+            )
+            .first()
+        )
+
+        return evento is not None
+
+    except Exception as e:
+        print(f"[WA CROSS-SELL] No se pudo verificar omisión previa pedido #{pedido_id}: {e}")
+        return False
 
 def _url_publica(imagen_relativa, host_url):
     imagen_relativa = (imagen_relativa or "").strip()
