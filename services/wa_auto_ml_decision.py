@@ -98,3 +98,30 @@ def decidir_resultado_ml_sigue_recolectando(ml_cortado):
         "ok": False,
         "motivo": "ml_sigue_recolectando",
     }
+
+def decidir_flujo_wa_desde_ml(faltantes_limpios):
+    """
+    Decide que flujo de WhatsApp corresponde luego del disparo desde ML.
+
+    - Si hay faltantes: WhatsApp debe continuar la recoleccion.
+    - Si no hay faltantes: WhatsApp debe cerrar datos completos.
+    """
+    faltantes = []
+
+    for campo in (faltantes_limpios or []):
+        campo = str(campo or "").strip()
+        if campo:
+            faltantes.append(campo)
+
+    if faltantes:
+        return {
+            "flujo": "faltantes",
+            "accion": "Inició WhatsApp desde ML",
+            "detalle_extra": "handoff ML→WA con ML cortado | " + ", ".join(faltantes),
+        }
+
+    return {
+        "flujo": "datos_completos",
+        "accion": "Inició WhatsApp con datos completos",
+        "detalle_extra": "datos completos | cross-sell evaluado post handoff ML",
+    }

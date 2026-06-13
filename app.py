@@ -6905,16 +6905,17 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             return decision_ml_sigue["ok"], decision_ml_sigue["motivo"]
 
     try:
+        from services.wa_auto_ml_decision import decidir_flujo_wa_desde_ml
+
+        decision_flujo_wa = decidir_flujo_wa_desde_ml(faltantes_limpios)
+
         if faltantes_limpios:
             from modules.whatsapp.flows import wa_iniciar_desde_ml
 
             ok = wa_iniciar_desde_ml(pedido)
 
-            accion = "Inició WhatsApp desde ML"
-            detalle_extra = (
-                "handoff ML→WA con ML cortado | "
-                + ", ".join(faltantes_limpios)
-            )
+            accion = decision_flujo_wa["accion"]
+            detalle_extra = decision_flujo_wa["detalle_extra"]
         else:
             if ml_acordas_via_cargo_bloquea_inicio_wa(pedido):
                 print(
@@ -6938,8 +6939,8 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 except Exception as e:
                     print("[WA-AUTO-ML] Error intentando cross sell automático:", e)
 
-            accion = "Inició WhatsApp con datos completos"
-            detalle_extra = "datos completos | cross-sell evaluado post handoff ML"
+            accion = decision_flujo_wa["accion"]
+            detalle_extra = decision_flujo_wa["detalle_extra"]
 
         if ok:
             pedido.wa_ultimo_contacto = datetime.utcnow()

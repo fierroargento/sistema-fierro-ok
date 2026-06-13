@@ -1,6 +1,7 @@
 from services.wa_auto_ml_decision import (
     agregar_marca_a_resumen_si_falta,
     construir_marca_ml_sigue_recolectando,
+    decidir_flujo_wa_desde_ml,
     decidir_resultado_ml_sigue_recolectando,
     limpiar_faltantes_para_handoff_wa,
 )
@@ -164,3 +165,42 @@ def test_decidir_resultado_ml_sigue_recolectando_devuelve_none_si_ml_cortado():
     resultado = decidir_resultado_ml_sigue_recolectando(True)
 
     assert resultado is None
+
+def test_decidir_flujo_wa_desde_ml_con_faltantes():
+    resultado = decidir_flujo_wa_desde_ml(["dni", "direccion"])
+
+    assert resultado == {
+        "flujo": "faltantes",
+        "accion": "Inició WhatsApp desde ML",
+        "detalle_extra": "handoff ML→WA con ML cortado | dni, direccion",
+    }
+
+
+def test_decidir_flujo_wa_desde_ml_limpia_faltantes_vacios():
+    resultado = decidir_flujo_wa_desde_ml(["dni", "", None, "telefono"])
+
+    assert resultado == {
+        "flujo": "faltantes",
+        "accion": "Inició WhatsApp desde ML",
+        "detalle_extra": "handoff ML→WA con ML cortado | dni, telefono",
+    }
+
+
+def test_decidir_flujo_wa_desde_ml_sin_faltantes():
+    resultado = decidir_flujo_wa_desde_ml([])
+
+    assert resultado == {
+        "flujo": "datos_completos",
+        "accion": "Inició WhatsApp con datos completos",
+        "detalle_extra": "datos completos | cross-sell evaluado post handoff ML",
+    }
+
+
+def test_decidir_flujo_wa_desde_ml_con_none():
+    resultado = decidir_flujo_wa_desde_ml(None)
+
+    assert resultado == {
+        "flujo": "datos_completos",
+        "accion": "Inició WhatsApp con datos completos",
+        "detalle_extra": "datos completos | cross-sell evaluado post handoff ML",
+    }
