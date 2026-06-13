@@ -4,6 +4,7 @@ from services.wa_auto_ml_decision import (
     construir_marca_ml_sigue_recolectando,
     decidir_flujo_wa_desde_ml,
     decidir_resultado_final_wa_desde_ml,
+    decidir_resultado_ml_debe_cerrar_sucursal,
     decidir_resultado_ml_sigue_recolectando,
     limpiar_faltantes_para_handoff_wa,
     limpiar_pendientes_ml_post_handoff,
@@ -295,3 +296,17 @@ def test_decidir_resultado_final_wa_desde_ml_ok():
 
 def test_decidir_resultado_final_wa_desde_ml_no_ok():
     assert decidir_resultado_final_wa_desde_ml(False) == (False, "wa_no_enviado")
+
+def test_decidir_resultado_ml_debe_cerrar_sucursal_devuelve_bloqueo():
+    resultado = decidir_resultado_ml_debe_cerrar_sucursal(True)
+
+    assert resultado == {
+        "ok": False,
+        "motivo": "ml_debe_cerrar_sucursal",
+    }
+
+
+def test_decidir_resultado_ml_debe_cerrar_sucursal_devuelve_none_si_no_bloquea():
+    resultado = decidir_resultado_ml_debe_cerrar_sucursal(False)
+
+    assert resultado is None

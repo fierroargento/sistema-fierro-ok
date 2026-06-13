@@ -6920,12 +6920,18 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             accion = decision_flujo_wa["accion"]
             detalle_extra = decision_flujo_wa["detalle_extra"]
         else:
-            if ml_acordas_via_cargo_bloquea_inicio_wa(pedido):
+            from services.wa_auto_ml_decision import decidir_resultado_ml_debe_cerrar_sucursal
+
+            decision_sucursal = decidir_resultado_ml_debe_cerrar_sucursal(
+                ml_acordas_via_cargo_bloquea_inicio_wa(pedido)
+            )
+
+            if decision_sucursal:
                 print(
                     f"[WA-AUTO-ML] No se inicia WhatsApp pedido #{getattr(pedido, 'id', '')}: "
                     "ML debe cerrar sucursal primero."
                 )
-                return False, "ml_debe_cerrar_sucursal"
+                return decision_sucursal["ok"], decision_sucursal["motivo"]
 
             from modules.whatsapp.flows import wa_cerrar_datos_completos
 

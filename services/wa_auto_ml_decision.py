@@ -165,3 +165,17 @@ def decidir_resultado_final_wa_desde_ml(ok):
         return True, "enviado"
 
     return False, "wa_no_enviado"
+
+def decidir_resultado_ml_debe_cerrar_sucursal(bloqueado):
+    """
+    Decide si el flujo WA debe frenarse porque ML/Acordás debe cerrar sucursal primero.
+
+    Retorna None si no hay bloqueo.
+    """
+    if not bloqueado:
+        return None
+
+    return {
+        "ok": False,
+        "motivo": "ml_debe_cerrar_sucursal",
+    }
