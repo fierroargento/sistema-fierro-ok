@@ -6880,8 +6880,13 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 from services.wa_auto_ml_decision import construir_marca_ml_sigue_recolectando
 
                 marca = construir_marca_ml_sigue_recolectando(faltantes_limpios)
-                if marca not in resumen:
-                    pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
+                from services.wa_auto_ml_decision import agregar_marca_a_resumen_si_falta
+
+                pedido.ia_resumen = agregar_marca_a_resumen_si_falta(
+                    resumen,
+                    marca,
+                    limite=1000,
+                )
                 db.session.commit()
             except Exception:
                 try:

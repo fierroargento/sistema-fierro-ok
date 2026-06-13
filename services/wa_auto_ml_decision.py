@@ -64,3 +64,23 @@ def construir_marca_ml_sigue_recolectando(faltantes_limpios):
         "ML sigue recolectando datos; WA no iniciado por faltantes: "
         + ", ".join(faltantes)
     )
+
+def agregar_marca_a_resumen_si_falta(resumen_actual, marca, limite=1000):
+    """
+    Agrega una marca al resumen solo si todavia no existe.
+
+    Mantiene la logica historica de app.py:
+    - usa separador " | "
+    - limpia separadores sobrantes
+    - recorta al limite indicado
+    """
+    resumen = str(resumen_actual or "").strip()
+    marca = str(marca or "").strip()
+
+    if not marca:
+        return resumen[:limite]
+
+    if marca in resumen:
+        return resumen[:limite]
+
+    return f"{resumen} | {marca}".strip(" |")[:limite]

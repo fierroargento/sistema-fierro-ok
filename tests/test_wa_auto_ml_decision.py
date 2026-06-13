@@ -1,4 +1,5 @@
 from services.wa_auto_ml_decision import (
+    agregar_marca_a_resumen_si_falta,
     construir_marca_ml_sigue_recolectando,
     limpiar_faltantes_para_handoff_wa,
 )
@@ -103,3 +104,48 @@ def test_construir_marca_ml_sigue_recolectando_sin_faltantes():
     marca = construir_marca_ml_sigue_recolectando([])
 
     assert marca == "ML sigue recolectando datos; WA no iniciado por faltantes"
+
+def test_agregar_marca_a_resumen_si_falta_agrega_con_separador():
+    resultado = agregar_marca_a_resumen_si_falta(
+        "Resumen previo",
+        "Marca nueva",
+    )
+
+    assert resultado == "Resumen previo | Marca nueva"
+
+
+def test_agregar_marca_a_resumen_si_falta_no_duplica():
+    resultado = agregar_marca_a_resumen_si_falta(
+        "Resumen previo | Marca nueva",
+        "Marca nueva",
+    )
+
+    assert resultado == "Resumen previo | Marca nueva"
+
+
+def test_agregar_marca_a_resumen_si_falta_soporta_resumen_vacio():
+    resultado = agregar_marca_a_resumen_si_falta(
+        "",
+        "Marca nueva",
+    )
+
+    assert resultado == "Marca nueva"
+
+
+def test_agregar_marca_a_resumen_si_falta_ignora_marca_vacia():
+    resultado = agregar_marca_a_resumen_si_falta(
+        "Resumen previo",
+        "",
+    )
+
+    assert resultado == "Resumen previo"
+
+
+def test_agregar_marca_a_resumen_si_falta_respeta_limite():
+    resultado = agregar_marca_a_resumen_si_falta(
+        "A" * 20,
+        "B" * 20,
+        limite=10,
+    )
+
+    assert resultado == "A" * 10
