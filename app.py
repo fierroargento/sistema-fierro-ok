@@ -7721,8 +7721,20 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             from modules.whatsapp.flows import wa_cerrar_datos_completos
 
             ok = wa_cerrar_datos_completos(pedido)
+
+            if ok:
+                try:
+                    from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
+
+                    intentar_cross_sell_automatico(
+                        pedido,
+                        origen_disparo="ml_datos_completos",
+                    )
+                except Exception as e:
+                    print("[WA-AUTO-ML] Error intentando cross sell automático:", e)
+
             accion = "Inició WhatsApp con datos completos"
-            detalle_extra = "datos completos | cross-sell pendiente hasta respuesta WA"
+            detalle_extra = "datos completos | cross-sell evaluado post handoff ML"
 
         if ok:
             pedido.wa_ultimo_contacto = datetime.utcnow()
