@@ -6811,62 +6811,15 @@ def ia_faltantes_pedido(pedido):
     return faltantes_pedido_recolector(pedido)
 
 
+from services.ml_wa_handoff import ml_conversacion_cortada_para_handoff_wa_service
+
+
 def ml_conversacion_cortada_para_handoff_wa(pedido, motivo_handoff=""):
-    """Check APB para permitir ML -> WhatsApp con datos faltantes.
-
-    WhatsApp puede continuar la recolección con faltantes solo si Mercado Libre
-    dejó de ser un canal útil o seguro. Si ML está activo y el cliente viene
-    respondiendo, la recolección debe seguir por ML.
-    """
-    if not pedido:
-        return False, "sin_pedido"
-
-    if getattr(pedido, "ia_ultimo_timeout_operador", None):
-        return True, "timeout_ml_registrado"
-
-    if getattr(pedido, "ia_requiere_operador", False):
-        return True, "requiere_operador"
-
-    canal_ia = str(getattr(pedido, "ia_canal_activo", "") or "").strip().lower()
-    if canal_ia and canal_ia not in ["ml", "mercadolibre", "mercado_libre"]:
-        return True, f"canal_ia_no_ml:{canal_ia}"
-
-    try:
-        estado_conv = obtener_estado_conversacional(
-            pedido,
-            crear_si_no_existe=False,
-        )
-    except Exception:
-        estado_conv = None
-
-    if estado_conv:
-        canal_conv = str(getattr(estado_conv, "canal_activo", "") or "").strip().lower()
-        if canal_conv and canal_conv not in ["ml", "mercadolibre", "mercado_libre"]:
-            return True, f"canal_conversacional_no_ml:{canal_conv}"
-
-        if getattr(estado_conv, "bot_pausado", False):
-            return True, "bot_pausado"
-
-        if getattr(estado_conv, "takeover_activo", False):
-            return True, "takeover_operador"
-
-    motivo_txt = str(motivo_handoff or "").strip().lower()
-    motivos_corte = [
-        "timeout",
-        "bloqueado",
-        "blocked",
-        "rechazado",
-        "fallo_ml",
-        "error_ml",
-        "ml_no_disponible",
-        "canal_no_disponible",
-    ]
-
-    if motivo_txt and any(m in motivo_txt for m in motivos_corte):
-        return True, f"motivo_handoff:{motivo_handoff}"
-
-    return False, "ml_activo_sigue_recolectando"
-
+    return ml_conversacion_cortada_para_handoff_wa_service(
+        pedido,
+        motivo_handoff=motivo_handoff,
+        obtener_estado_conversacional_fn=obtener_estado_conversacional,
+    )
 
 
 def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
