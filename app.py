@@ -4273,27 +4273,18 @@ def tracking_info_pedido(pedido):
     )
 
 
+from modules.bot_ml.links import (
+    ml_link_detalle_venta as ml_link_detalle_venta_helper,
+    ml_link_chat_venta as ml_link_chat_venta_helper,
+)
+
+
 def ml_link_detalle_venta(pedido):
-    if not pedido or pedido.canal != "Mercado Libre" or not pedido.id_venta:
-        return ""
-    return f"https://www.mercadolibre.com.ar/ventas/{pedido.id_venta}/detalle"
+    return ml_link_detalle_venta_helper(pedido)
 
 
 def ml_link_chat_venta(pedido):
-    if not pedido or pedido.canal != "Mercado Libre":
-        return ""
-
-    # El chat de ML puede requerir pack_id en lugar del ID de venta.
-    # El detalle de venta sigue usando id_venta; la mensajeria usa ml_pack_id con fallback a id_venta.
-    id_chat = str(getattr(pedido, "ml_pack_id", None) or getattr(pedido, "id_venta", None) or "").strip()
-    if not id_chat:
-        return ""
-
-    return (
-        f"https://www.mercadolibre.com.ar/ventas/nueva/mensajeria/{id_chat}"
-        "?source=ml&callbackWording=Ventas"
-        "&callbackUrl=https%3A%2F%2Fwww.mercadolibre.com.ar%2Fventas%2Fomni%2Flistado"
-    )
+    return ml_link_chat_venta_helper(pedido)
 
 
 from modules.bot_ml.mensajes import (
