@@ -131,3 +131,18 @@ def marca_wa_iniciado_desde_ml():
     Marca historica usada en el resumen cuando WhatsApp inicia automaticamente desde ML.
     """
     return "WA iniciado automáticamente desde ML"
+
+def limpiar_pendientes_ml_post_handoff(pedido):
+    """
+    Limpia flags de mensajes pendientes ML luego de iniciar WhatsApp desde ML.
+
+    No escribe DB.
+    No hace commit.
+    Solo muta el objeto pedido en memoria.
+    """
+    try:
+        pedido.ml_mensajes_pendientes = False
+        pedido.ml_mensajes_pendientes_count = 0
+        return True
+    except Exception:
+        return False

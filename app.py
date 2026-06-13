@@ -7003,11 +7003,9 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 marca,
                 limite=1000,
             )
-            try:
-                pedido.ml_mensajes_pendientes = False
-                pedido.ml_mensajes_pendientes_count = 0
-            except Exception:
-                pass
+            from services.wa_auto_ml_decision import limpiar_pendientes_ml_post_handoff
+
+            limpiar_pendientes_ml_post_handoff(pedido)
             db.session.commit()
             try:
                 registrar_auditoria(

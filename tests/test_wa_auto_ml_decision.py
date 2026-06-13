@@ -4,6 +4,7 @@ from services.wa_auto_ml_decision import (
     decidir_flujo_wa_desde_ml,
     decidir_resultado_ml_sigue_recolectando,
     limpiar_faltantes_para_handoff_wa,
+    limpiar_pendientes_ml_post_handoff,
     marca_wa_iniciado_desde_ml,
 )
 
@@ -230,3 +231,35 @@ def test_agregar_marca_wa_iniciado_desde_ml_no_duplica():
     )
 
     assert resultado == "Resumen previo | WA iniciado automáticamente desde ML"
+
+class PedidoPendientesMlFake:
+    def __init__(self):
+        self.ml_mensajes_pendientes = True
+        self.ml_mensajes_pendientes_count = 3
+
+
+def test_limpiar_pendientes_ml_post_handoff_limpia_flags():
+    pedido = PedidoPendientesMlFake()
+
+    resultado = limpiar_pendientes_ml_post_handoff(pedido)
+
+    assert resultado is True
+    assert pedido.ml_mensajes_pendientes is False
+    assert pedido.ml_mensajes_pendientes_count == 0
+
+
+def test_limpiar_pendientes_ml_post_handoff_devuelve_false_si_no_puede_mutar():
+    class PedidoRoto:
+        @property
+        def ml_mensajes_pendientes(self):
+            return True
+
+        @ml_mensajes_pendientes.setter
+        def ml_mensajes_pendientes(self, valor):
+            raise RuntimeError("no se puede escribir")
+
+    pedido = PedidoRoto()
+
+    resultado = limpiar_pendientes_ml_post_handoff(pedido)
+
+    assert resultado is False
