@@ -6877,10 +6877,9 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
         if not ml_cortado:
             try:
                 resumen = (pedido.ia_resumen or "").strip()
-                marca = (
-                    "ML sigue recolectando datos; WA no iniciado por faltantes: "
-                    + ", ".join(faltantes_limpios)
-                )
+                from services.wa_auto_ml_decision import construir_marca_ml_sigue_recolectando
+
+                marca = construir_marca_ml_sigue_recolectando(faltantes_limpios)
                 if marca not in resumen:
                     pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
                 db.session.commit()

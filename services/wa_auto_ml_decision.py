@@ -44,3 +44,23 @@ def limpiar_faltantes_para_handoff_wa(
             faltantes_limpios.append(campo)
 
     return faltantes_limpios
+
+def construir_marca_ml_sigue_recolectando(faltantes_limpios):
+    """
+    Construye la marca de resumen cuando ML sigue recolectando
+    y WhatsApp no debe tomar la posta todavia.
+    """
+    faltantes = []
+
+    for campo in (faltantes_limpios or []):
+        campo = str(campo or "").strip()
+        if campo:
+            faltantes.append(campo)
+
+    if not faltantes:
+        return "ML sigue recolectando datos; WA no iniciado por faltantes"
+
+    return (
+        "ML sigue recolectando datos; WA no iniciado por faltantes: "
+        + ", ".join(faltantes)
+    )

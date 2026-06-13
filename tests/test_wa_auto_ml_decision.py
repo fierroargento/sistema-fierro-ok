@@ -1,4 +1,7 @@
-from services.wa_auto_ml_decision import limpiar_faltantes_para_handoff_wa
+from services.wa_auto_ml_decision import (
+    construir_marca_ml_sigue_recolectando,
+    limpiar_faltantes_para_handoff_wa,
+)
 
 
 class PedidoFake:
@@ -77,3 +80,26 @@ def test_limpiar_faltantes_devuelve_lista_vacia_sin_faltantes():
     )
 
     assert resultado == []
+
+def test_construir_marca_ml_sigue_recolectando_con_faltantes():
+    marca = construir_marca_ml_sigue_recolectando(["dni", "direccion"])
+
+    assert marca == (
+        "ML sigue recolectando datos; WA no iniciado por faltantes: "
+        "dni, direccion"
+    )
+
+
+def test_construir_marca_ml_sigue_recolectando_limpia_vacios():
+    marca = construir_marca_ml_sigue_recolectando(["dni", "", None, "telefono"])
+
+    assert marca == (
+        "ML sigue recolectando datos; WA no iniciado por faltantes: "
+        "dni, telefono"
+    )
+
+
+def test_construir_marca_ml_sigue_recolectando_sin_faltantes():
+    marca = construir_marca_ml_sigue_recolectando([])
+
+    assert marca == "ML sigue recolectando datos; WA no iniciado por faltantes"
