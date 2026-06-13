@@ -6860,17 +6860,13 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
     if not tel or len(tel) < 12:
         return False, "sin_telefono_valido"
 
-    faltantes_limpios = []
-    for campo in (faltantes or ia_faltantes_pedido(pedido) or []):
-        campo = str(campo or "").strip()
-        if not campo:
-            continue
-        if campo == "telefono" and tel:
-            continue
-        if campo in ["localidad", "provincia"] and getattr(pedido, campo, None):
-            continue
-        if campo not in faltantes_limpios:
-            faltantes_limpios.append(campo)
+    from services.wa_auto_ml_decision import limpiar_faltantes_para_handoff_wa
+
+    faltantes_limpios = limpiar_faltantes_para_handoff_wa(
+        pedido,
+        faltantes=faltantes or ia_faltantes_pedido(pedido) or [],
+        telefono_normalizado=tel,
+    )
 
     if faltantes_limpios:
         ml_cortado, motivo_corte_ml = ml_conversacion_cortada_para_handoff_wa(
