@@ -6899,7 +6899,6 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             motivo_handoff=motivo_handoff,
         )
 
-
         decision_ml_sigue = decidir_resultado_ml_sigue_recolectando(ml_cortado)
 
         if decision_ml_sigue:
@@ -6929,18 +6928,9 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             return decision_ml_sigue["ok"], decision_ml_sigue["motivo"]
 
     try:
-
         decision_flujo_wa = decidir_flujo_wa_desde_ml(faltantes_limpios)
 
-        if faltantes_limpios:
-            from modules.whatsapp.flows import wa_iniciar_desde_ml
-
-            ok = wa_iniciar_desde_ml(pedido)
-
-            accion = decision_flujo_wa["accion"]
-            detalle_extra = decision_flujo_wa["detalle_extra"]
-        else:
-
+        if not faltantes_limpios:
             decision_sucursal = decidir_resultado_ml_debe_cerrar_sucursal(
                 ml_acordas_via_cargo_bloquea_inicio_wa(pedido)
             )
@@ -6953,21 +6943,25 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 )
                 return decision_sucursal["ok"], decision_sucursal["motivo"]
 
-            from modules.whatsapp.flows import wa_cerrar_datos_completos
+        from modules.whatsapp.flows import wa_cerrar_datos_completos, wa_iniciar_desde_ml
+        from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
+        from services.wa_auto_ml_cross_sell import intentar_cross_sell_post_datos_completos
+        from services.wa_auto_ml_ejecucion import ejecutar_flujo_wa_desde_ml
 
-            ok = wa_cerrar_datos_completos(pedido)
+        resultado_ejecucion_wa = ejecutar_flujo_wa_desde_ml(
+            pedido=pedido,
+            faltantes_limpios=faltantes_limpios,
+            decision_flujo_wa=decision_flujo_wa,
+            wa_iniciar_desde_ml_fn=wa_iniciar_desde_ml,
+            wa_cerrar_datos_completos_fn=wa_cerrar_datos_completos,
+            cross_sell_post_datos_completos_fn=intentar_cross_sell_post_datos_completos,
+            intentar_cross_sell_fn=intentar_cross_sell_automatico,
+            construir_log_error_cross_sell_fn=construir_log_error_cross_sell_wa_auto_ml,
+        )
 
-            from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
-            from services.wa_auto_ml_cross_sell import intentar_cross_sell_post_datos_completos
-
-            intentar_cross_sell_post_datos_completos(
-                pedido=pedido,
-                ok=ok,
-                intentar_cross_sell_fn=intentar_cross_sell_automatico,
-                construir_log_error_fn=construir_log_error_cross_sell_wa_auto_ml,
-            )
-            accion = decision_flujo_wa["accion"]
-            detalle_extra = decision_flujo_wa["detalle_extra"]
+        ok = resultado_ejecucion_wa["ok"]
+        accion = resultado_ejecucion_wa["accion"]
+        detalle_extra = resultado_ejecucion_wa["detalle_extra"]
 
         if ok:
             resumen = (pedido.ia_resumen or "").strip()
