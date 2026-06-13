@@ -7041,7 +7041,9 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
         except Exception:
             pass
         print(f"[WA-AUTO-ML] Error pedido #{getattr(pedido, 'id', '')}: {e}")
-        return False, str(e)
+        from services.wa_auto_ml_decision import decidir_resultado_error_wa_desde_ml
+
+        return decidir_resultado_error_wa_desde_ml(e)
 
 
 def ia_etiqueta_faltante(campo):

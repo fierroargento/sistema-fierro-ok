@@ -3,6 +3,7 @@ from services.wa_auto_ml_decision import (
     construir_detalle_auditoria_wa_desde_ml,
     construir_marca_ml_sigue_recolectando,
     decidir_flujo_wa_desde_ml,
+    decidir_resultado_error_wa_desde_ml,
     decidir_resultado_final_wa_desde_ml,
     decidir_resultado_ml_debe_cerrar_sucursal,
     decidir_resultado_ml_sigue_recolectando,
@@ -310,3 +311,12 @@ def test_decidir_resultado_ml_debe_cerrar_sucursal_devuelve_none_si_no_bloquea()
     resultado = decidir_resultado_ml_debe_cerrar_sucursal(False)
 
     assert resultado is None
+
+def test_decidir_resultado_error_wa_desde_ml_con_exception():
+    error = RuntimeError("fallo general")
+
+    assert decidir_resultado_error_wa_desde_ml(error) == (False, "fallo general")
+
+
+def test_decidir_resultado_error_wa_desde_ml_con_texto():
+    assert decidir_resultado_error_wa_desde_ml("error simple") == (False, "error simple")

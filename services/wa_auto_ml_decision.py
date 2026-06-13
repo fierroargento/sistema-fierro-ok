@@ -179,3 +179,9 @@ def decidir_resultado_ml_debe_cerrar_sucursal(bloqueado):
         "ok": False,
         "motivo": "ml_debe_cerrar_sucursal",
     }
+
+def decidir_resultado_error_wa_desde_ml(error):
+    """
+    Decide el resultado historico ante error general del disparo WA desde ML.
+    """
+    return False, str(error)
