@@ -4040,95 +4040,47 @@ def ml_guardar_etiqueta_pdf(shipping_id):
     return None
 
 
+from modules.bot_ml.orders_api import (
+    ml_obtener_usuario_actual_api,
+    ml_obtener_orders_recientes_api,
+    ml_obtener_order_api,
+    ml_obtener_shipment_api,
+    ml_obtener_billing_info_api,
+)
+
 def ml_obtener_usuario_actual():
-    return ml_api_get("/users/me")
+    return ml_obtener_usuario_actual_api(ml_api_get)
 
 
 def ml_obtener_orders_recientes(cuenta, limit=None, horas=168, max_paginas=100):
-    """
-    Trae órdenes operativas recientes de ML con paginación por ventana de tiempo.
-    Evita depender de un límite fijo que puede quedar tapado por ventas Full/omitidas.
-    """
-    if not cuenta or not cuenta.user_id_ml:
-        raise ValueError("La cuenta de Mercado Libre no tiene user_id asociado.")
+    return ml_obtener_orders_recientes_api(
+        cuenta,
+        ml_api_get,
+        horas=horas,
+        max_paginas=max_paginas,
+    )
 
-    hasta = datetime.utcnow()
-    desde = hasta - timedelta(hours=horas)
-    limit = 50
-    offset = 0
-    orders = []
-
-    for _ in range(max_paginas):
-        data = ml_api_get(
-            "/orders/search",
-            params={
-                "seller": cuenta.user_id_ml,
-                "sort": "date_desc",
-                "limit": limit,
-                "offset": offset,
-                "order.date_created.from": desde.strftime("%Y-%m-%dT%H:%M:%S.000-00:00"),
-                "order.date_created.to": hasta.strftime("%Y-%m-%dT%H:%M:%S.999-00:00"),
-            },
-        )
-
-        resultados = data.get("results") or []
-        if not resultados:
-            break
-
-        orders.extend(resultados)
-
-        paging = data.get("paging") or {}
-        total = int(paging.get("total") or 0)
-        offset += limit
-        if offset >= total:
-            break
-
-    return orders
 
 def ml_obtener_order(order_id):
-    order_id = str(order_id or "").strip()
-    if not order_id:
-        return {}
-    try:
-        return ml_api_get(f"/orders/{order_id}")
-    except Exception as e:
-        print("No se pudo consultar order ML:", e)
-        return {}
-
+    return ml_obtener_order_api(
+        order_id,
+        ml_api_get,
+    )
 
 
 def ml_obtener_shipment(shipping_id):
-    if not shipping_id:
-        return {}
-
-    try:
-        return ml_api_get(f"/shipments/{shipping_id}")
-    except Exception as e:
-        print("No se pudo consultar shipment ML:", e)
-        return {}
+    return ml_obtener_shipment_api(
+        shipping_id,
+        ml_api_get,
+    )
 
 
 def ml_obtener_billing_info(order_id):
-    order_id = str(order_id or "").strip()
-    if not order_id:
-        return {}
+    return ml_obtener_billing_info_api(
+        order_id,
+        ml_access_token_vigente(),
+    )
 
-    try:
-        token = ml_access_token_vigente()
-        url = f"https://api.mercadolibre.com/orders/{order_id}/billing_info"
-        req = Request(url, method="GET")
-        req.add_header("Authorization", f"Bearer {token}")
-        req.add_header("Accept", "application/json")
-        req.add_header("x-version", "2")
-
-        with urlopen(req) as response:
-            raw = response.read().decode("utf-8")
-            if not raw.strip():
-                return {}
-            return json.loads(raw)
-    except Exception as e:
-        print("No se pudo consultar billing_info ML:", e)
-        return {}
 
 
 from modules.bot_ml.billing import (
