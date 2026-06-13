@@ -6901,31 +6901,20 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
 
         decision_ml_sigue = decidir_resultado_ml_sigue_recolectando(ml_cortado)
 
-        if decision_ml_sigue:
-            try:
-                resumen = (pedido.ia_resumen or "").strip()
+        from services.wa_auto_ml_recoleccion import manejar_ml_sigue_recolectando_si_corresponde
 
-                marca = construir_marca_ml_sigue_recolectando(faltantes_limpios)
+        resultado_ml_sigue = manejar_ml_sigue_recolectando_si_corresponde(
+            pedido=pedido,
+            faltantes_limpios=faltantes_limpios,
+            decision_ml_sigue=decision_ml_sigue,
+            db_session=db.session,
+            construir_marca_fn=construir_marca_ml_sigue_recolectando,
+            agregar_marca_resumen_fn=agregar_marca_a_resumen_si_falta,
+            construir_log_fn=construir_log_ml_sigue_recolectando,
+        )
 
-                pedido.ia_resumen = agregar_marca_a_resumen_si_falta(
-                    resumen,
-                    marca,
-                    limite=1000,
-                )
-                db.session.commit()
-            except Exception:
-                try:
-                    db.session.rollback()
-                except Exception:
-                    pass
-
-            print(
-                construir_log_ml_sigue_recolectando(
-                    getattr(pedido, "id", ""),
-                    faltantes_limpios,
-                )
-            )
-            return decision_ml_sigue["ok"], decision_ml_sigue["motivo"]
+        if resultado_ml_sigue:
+            return resultado_ml_sigue
 
     try:
         decision_flujo_wa = decidir_flujo_wa_desde_ml(faltantes_limpios)
