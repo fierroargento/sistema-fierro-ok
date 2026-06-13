@@ -156,3 +156,12 @@ def construir_detalle_auditoria_wa_desde_ml(tel, detalle_extra, motivo):
     motivo = str(motivo or "").strip()
 
     return f"Origen ML/Acordás. Teléfono: {tel}. {detalle_extra}. Motivo: {motivo}"
+
+def decidir_resultado_final_wa_desde_ml(ok):
+    """
+    Decide el resultado final historico del disparo automatico WA desde ML.
+    """
+    if ok:
+        return True, "enviado"
+
+    return False, "wa_no_enviado"

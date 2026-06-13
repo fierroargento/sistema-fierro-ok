@@ -6905,7 +6905,10 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             return decision_ml_sigue["ok"], decision_ml_sigue["motivo"]
 
     try:
-        from services.wa_auto_ml_decision import decidir_flujo_wa_desde_ml
+        from services.wa_auto_ml_decision import (
+            decidir_flujo_wa_desde_ml,
+            decidir_resultado_final_wa_desde_ml,
+        )
 
         decision_flujo_wa = decidir_flujo_wa_desde_ml(faltantes_limpios)
 
@@ -7023,9 +7026,9 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             except Exception as audit_error:
                 print(f"[WA-AUTO-ML] No se pudo auditar pedido #{getattr(pedido, 'id', '')}: {audit_error}")
             print(f"[WA-AUTO-ML] OK pedido #{getattr(pedido, 'id', '')}: {accion} ({detalle_extra})")
-            return True, "enviado"
+            return decidir_resultado_final_wa_desde_ml(True)
 
-        return False, "wa_no_enviado"
+        return decidir_resultado_final_wa_desde_ml(False)
     except Exception as e:
         try:
             db.session.rollback()

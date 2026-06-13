@@ -3,6 +3,7 @@ from services.wa_auto_ml_decision import (
     construir_detalle_auditoria_wa_desde_ml,
     construir_marca_ml_sigue_recolectando,
     decidir_flujo_wa_desde_ml,
+    decidir_resultado_final_wa_desde_ml,
     decidir_resultado_ml_sigue_recolectando,
     limpiar_faltantes_para_handoff_wa,
     limpiar_pendientes_ml_post_handoff,
@@ -287,3 +288,10 @@ def test_construir_detalle_auditoria_wa_desde_ml_normaliza_vacios():
     )
 
     assert detalle == "Origen ML/Acordás. Teléfono: . . Motivo: "
+
+def test_decidir_resultado_final_wa_desde_ml_ok():
+    assert decidir_resultado_final_wa_desde_ml(True) == (True, "enviado")
+
+
+def test_decidir_resultado_final_wa_desde_ml_no_ok():
+    assert decidir_resultado_final_wa_desde_ml(False) == (False, "wa_no_enviado")
