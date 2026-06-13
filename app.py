@@ -6984,50 +6984,20 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 marcar_transicion_ml_wa_en_resumen,
                 texto_transicion_ml_wa_datos_completos,
             )
+            from services.wa_auto_ml_transicion import intentar_avisar_transicion_ml_wa
 
-            if debe_avisar_transicion_ml_wa(pedido):
-                try:
-                    texto_transicion_ml = texto_transicion_ml_wa_datos_completos()
-
-                    # ---------------------------------------------------
-                    # APB CANAL MANAGER
-                    # ---------------------------------------------------
-
-                    permitido, motivo = puede_enviar_mensaje(
-                        pedido=pedido,
-                        canal="ml",
-                        texto=texto_transicion_ml,
-                    )
-
-                    if not permitido:
-                        print(
-                            construir_log_canal_manager_ml_bloqueado(
-                                pedido.id,
-                                motivo,
-                            )
-                        )
-                    else:
-                        ml_enviar_mensaje_acordas(
-                            pedido,
-                            texto_transicion_ml,
-                        )
-
-                        registrar_envio_automatico(
-                            pedido=pedido,
-                            canal="ml",
-                            texto=texto_transicion_ml,
-                        )
-
-                        resumen = marcar_transicion_ml_wa_en_resumen(pedido)
-
-                except Exception as e:
-                    print(
-                        construir_log_error_aviso_migracion_ml_wa(
-                            getattr(pedido, "id", ""),
-                            e,
-                        )
-                    )
-
+            resumen = intentar_avisar_transicion_ml_wa(
+                pedido=pedido,
+                resumen_actual=resumen,
+                debe_avisar_fn=debe_avisar_transicion_ml_wa,
+                texto_transicion_fn=texto_transicion_ml_wa_datos_completos,
+                puede_enviar_mensaje_fn=puede_enviar_mensaje,
+                enviar_mensaje_ml_fn=ml_enviar_mensaje_acordas,
+                registrar_envio_automatico_fn=registrar_envio_automatico,
+                marcar_transicion_resumen_fn=marcar_transicion_ml_wa_en_resumen,
+                construir_log_bloqueado_fn=construir_log_canal_manager_ml_bloqueado,
+                construir_log_error_fn=construir_log_error_aviso_migracion_ml_wa,
+            )
             pedido.ia_resumen = agregar_marca_a_resumen_si_falta(
                 resumen,
                 marca,
