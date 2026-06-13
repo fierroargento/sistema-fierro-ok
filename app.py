@@ -6957,17 +6957,15 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
 
             ok = wa_cerrar_datos_completos(pedido)
 
-            if ok:
-                try:
-                    from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
+            from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
+            from services.wa_auto_ml_cross_sell import intentar_cross_sell_post_datos_completos
 
-                    intentar_cross_sell_automatico(
-                        pedido,
-                        origen_disparo="ml_datos_completos",
-                    )
-                except Exception as e:
-                    print(construir_log_error_cross_sell_wa_auto_ml(e))
-
+            intentar_cross_sell_post_datos_completos(
+                pedido=pedido,
+                ok=ok,
+                intentar_cross_sell_fn=intentar_cross_sell_automatico,
+                construir_log_error_fn=construir_log_error_cross_sell_wa_auto_ml,
+            )
             accion = decision_flujo_wa["accion"]
             detalle_extra = decision_flujo_wa["detalle_extra"]
 
