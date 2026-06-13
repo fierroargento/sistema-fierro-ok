@@ -7008,11 +7008,17 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             limpiar_pendientes_ml_post_handoff(pedido)
             db.session.commit()
             try:
+                from services.wa_auto_ml_decision import construir_detalle_auditoria_wa_desde_ml
+
                 registrar_auditoria(
                     accion=accion,
                     entidad="pedido",
                     entidad_id=str(pedido.id),
-                    detalle=f"Origen ML/Acordás. Teléfono: {tel}. {detalle_extra}. Motivo: {motivo}",
+                    detalle=construir_detalle_auditoria_wa_desde_ml(
+                        tel,
+                        detalle_extra,
+                        motivo,
+                    ),
                 )
             except Exception as audit_error:
                 print(f"[WA-AUTO-ML] No se pudo auditar pedido #{getattr(pedido, 'id', '')}: {audit_error}")

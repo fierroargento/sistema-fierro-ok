@@ -1,5 +1,6 @@
 from services.wa_auto_ml_decision import (
     agregar_marca_a_resumen_si_falta,
+    construir_detalle_auditoria_wa_desde_ml,
     construir_marca_ml_sigue_recolectando,
     decidir_flujo_wa_desde_ml,
     decidir_resultado_ml_sigue_recolectando,
@@ -263,3 +264,26 @@ def test_limpiar_pendientes_ml_post_handoff_devuelve_false_si_no_puede_mutar():
     resultado = limpiar_pendientes_ml_post_handoff(pedido)
 
     assert resultado is False
+
+def test_construir_detalle_auditoria_wa_desde_ml():
+    detalle = construir_detalle_auditoria_wa_desde_ml(
+        "5492920123456",
+        "handoff ML→WA con ML cortado | dni",
+        "datos_incompletos",
+    )
+
+    assert detalle == (
+        "Origen ML/Acordás. Teléfono: 5492920123456. "
+        "handoff ML→WA con ML cortado | dni. "
+        "Motivo: datos_incompletos"
+    )
+
+
+def test_construir_detalle_auditoria_wa_desde_ml_normaliza_vacios():
+    detalle = construir_detalle_auditoria_wa_desde_ml(
+        None,
+        "",
+        None,
+    )
+
+    assert detalle == "Origen ML/Acordás. Teléfono: . . Motivo: "

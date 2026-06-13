@@ -146,3 +146,13 @@ def limpiar_pendientes_ml_post_handoff(pedido):
         return True
     except Exception:
         return False
+
+def construir_detalle_auditoria_wa_desde_ml(tel, detalle_extra, motivo):
+    """
+    Construye el detalle historico de auditoria para el handoff ML -> WA.
+    """
+    tel = str(tel or "").strip()
+    detalle_extra = str(detalle_extra or "").strip()
+    motivo = str(motivo or "").strip()
+
+    return f"Origen ML/Acordás. Teléfono: {tel}. {detalle_extra}. Motivo: {motivo}"
