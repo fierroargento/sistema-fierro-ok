@@ -1,6 +1,10 @@
 from services.wa_auto_ml_decision import (
     agregar_marca_a_resumen_si_falta,
     construir_detalle_auditoria_wa_desde_ml,
+    construir_log_error_wa_auto_ml,
+    construir_log_ml_debe_cerrar_sucursal,
+    construir_log_ml_sigue_recolectando,
+    construir_log_wa_auto_ml_ok,
     construir_marca_ml_sigue_recolectando,
     decidir_flujo_wa_desde_ml,
     decidir_resultado_error_wa_desde_ml,
@@ -320,3 +324,32 @@ def test_decidir_resultado_error_wa_desde_ml_con_exception():
 
 def test_decidir_resultado_error_wa_desde_ml_con_texto():
     assert decidir_resultado_error_wa_desde_ml("error simple") == (False, "error simple")
+
+def test_construir_log_ml_sigue_recolectando():
+    assert construir_log_ml_sigue_recolectando(123, ["dni", "direccion"]) == (
+        "[WA-AUTO-ML] NO inicia WA pedido #123: ML activo sigue recolectando (dni, direccion)"
+    )
+
+
+def test_construir_log_ml_sigue_recolectando_sin_faltantes():
+    assert construir_log_ml_sigue_recolectando(123, []) == (
+        "[WA-AUTO-ML] NO inicia WA pedido #123: ML activo sigue recolectando ()"
+    )
+
+
+def test_construir_log_ml_debe_cerrar_sucursal():
+    assert construir_log_ml_debe_cerrar_sucursal(456) == (
+        "[WA-AUTO-ML] No se inicia WhatsApp pedido #456: ML debe cerrar sucursal primero."
+    )
+
+
+def test_construir_log_wa_auto_ml_ok():
+    assert construir_log_wa_auto_ml_ok(789, "Inició WhatsApp", "datos completos") == (
+        "[WA-AUTO-ML] OK pedido #789: Inició WhatsApp (datos completos)"
+    )
+
+
+def test_construir_log_error_wa_auto_ml():
+    assert construir_log_error_wa_auto_ml(321, "fallo") == (
+        "[WA-AUTO-ML] Error pedido #321: fallo"
+    )

@@ -5831,7 +5831,12 @@ def ia_auto_responder_post_analisis(pedido):
     
     except Exception as e:
         pedido.ia_error = f"No se pudo enviar respuesta automática IA: {str(e)[:400]}"
-        print(f"[IA-AUTO-RESPUESTA] Error pedido #{getattr(pedido, 'id', '?')}: {e}")
+        print(
+            construir_log_error_wa_auto_ml(
+                getattr(pedido, "id", ""),
+                e,
+            )
+        )
         return False, "error_envio"
 
 def ml_hay_mensaje_pendiente_en_thread(mensajes, seller_id=""):
@@ -6863,6 +6868,10 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
     from services.wa_auto_ml_decision import (
         agregar_marca_a_resumen_si_falta,
         construir_detalle_auditoria_wa_desde_ml,
+        construir_log_error_wa_auto_ml,
+        construir_log_ml_debe_cerrar_sucursal,
+        construir_log_ml_sigue_recolectando,
+        construir_log_wa_auto_ml_ok,
         construir_marca_ml_sigue_recolectando,
         decidir_flujo_wa_desde_ml,
         decidir_resultado_error_wa_desde_ml,
@@ -6908,8 +6917,10 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                     pass
 
             print(
-                f"[WA-AUTO-ML] NO inicia WA pedido #{getattr(pedido, 'id', '')}: "
-                f"ML activo sigue recolectando ({', '.join(faltantes_limpios)})"
+                construir_log_ml_sigue_recolectando(
+                    getattr(pedido, "id", ""),
+                    faltantes_limpios,
+                )
             )
             return decision_ml_sigue["ok"], decision_ml_sigue["motivo"]
 
@@ -6932,8 +6943,9 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
 
             if decision_sucursal:
                 print(
-                    f"[WA-AUTO-ML] No se inicia WhatsApp pedido #{getattr(pedido, 'id', '')}: "
-                    "ML debe cerrar sucursal primero."
+                    construir_log_ml_debe_cerrar_sucursal(
+                        getattr(pedido, "id", "")
+                    )
                 )
                 return decision_sucursal["ok"], decision_sucursal["motivo"]
 
@@ -7029,7 +7041,13 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 )
             except Exception as audit_error:
                 print(f"[WA-AUTO-ML] No se pudo auditar pedido #{getattr(pedido, 'id', '')}: {audit_error}")
-            print(f"[WA-AUTO-ML] OK pedido #{getattr(pedido, 'id', '')}: {accion} ({detalle_extra})")
+            print(
+                construir_log_wa_auto_ml_ok(
+                    getattr(pedido, "id", ""),
+                    accion,
+                    detalle_extra,
+                )
+            )
             return decidir_resultado_final_wa_desde_ml(True)
 
         return decidir_resultado_final_wa_desde_ml(False)
@@ -7038,7 +7056,12 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             db.session.rollback()
         except Exception:
             pass
-        print(f"[WA-AUTO-ML] Error pedido #{getattr(pedido, 'id', '')}: {e}")
+        print(
+            construir_log_error_wa_auto_ml(
+                getattr(pedido, "id", ""),
+                e,
+            )
+        )
 
         return decidir_resultado_error_wa_desde_ml(e)
 

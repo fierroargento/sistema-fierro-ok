@@ -185,3 +185,34 @@ def decidir_resultado_error_wa_desde_ml(error):
     Decide el resultado historico ante error general del disparo WA desde ML.
     """
     return False, str(error)
+
+def construir_log_ml_sigue_recolectando(pedido_id, faltantes_limpios):
+    """
+    Construye el log historico cuando ML sigue recolectando y WA no debe iniciar.
+    """
+    faltantes = ", ".join(faltantes_limpios or [])
+    return f"[WA-AUTO-ML] NO inicia WA pedido #{pedido_id}: ML activo sigue recolectando ({faltantes})"
+
+
+def construir_log_ml_debe_cerrar_sucursal(pedido_id):
+    """
+    Construye el log historico cuando ML/Acordas debe cerrar sucursal primero.
+    """
+    return (
+        f"[WA-AUTO-ML] No se inicia WhatsApp pedido #{pedido_id}: "
+        "ML debe cerrar sucursal primero."
+    )
+
+
+def construir_log_wa_auto_ml_ok(pedido_id, accion, detalle_extra):
+    """
+    Construye el log historico de exito del inicio automatico WA desde ML.
+    """
+    return f"[WA-AUTO-ML] OK pedido #{pedido_id}: {accion} ({detalle_extra})"
+
+
+def construir_log_error_wa_auto_ml(pedido_id, error):
+    """
+    Construye el log historico de error general del inicio automatico WA desde ML.
+    """
+    return f"[WA-AUTO-ML] Error pedido #{pedido_id}: {error}"
