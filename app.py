@@ -10865,7 +10865,11 @@ def whatsapp_reactivar_bot(id):
             error="No autorizado para operar WhatsApp."
         ))
 
-    pedido.wa_estado = pedido.wa_estado if pedido.wa_estado and pedido.wa_estado != "operador_manual" else "esperando_datos"
+    from services.wa_reactivacion_bot import decidir_reactivacion_bot_wa
+
+    decision_reactivacion = decidir_reactivacion_bot_wa(pedido)
+
+    pedido.wa_estado = decision_reactivacion["wa_estado"]
     pedido.ia_requiere_operador = False
     pedido.wa_ultimo_contacto = datetime.utcnow()
     db.session.commit()
@@ -10874,7 +10878,7 @@ def whatsapp_reactivar_bot(id):
         pedido,
         owner_actual="bot",
         canal_activo="wa",
-        estado_conversacional="recolectando_datos",
+        estado_conversacional=decision_reactivacion["estado_conversacional"],
         takeover_activo=False,
         bot_pausado=False,
     )
@@ -10885,9 +10889,11 @@ def whatsapp_reactivar_bot(id):
         origen="operador",
         canal="wa",
         owner="bot",
-        estado_conversacional="recolectando_datos",
+        estado_conversacional=decision_reactivacion["estado_conversacional"],
         payload={
             "wa_estado": pedido.wa_estado,
+            "estado_conversacional": decision_reactivacion["estado_conversacional"],
+            "motivo_reactivacion": decision_reactivacion["motivo"],
             "ia_requiere_operador": pedido.ia_requiere_operador,
         },
         resultado="ok",
