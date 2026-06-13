@@ -6860,7 +6860,19 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
     if not tel or len(tel) < 12:
         return False, "sin_telefono_valido"
 
-    from services.wa_auto_ml_decision import limpiar_faltantes_para_handoff_wa
+    from services.wa_auto_ml_decision import (
+        agregar_marca_a_resumen_si_falta,
+        construir_detalle_auditoria_wa_desde_ml,
+        construir_marca_ml_sigue_recolectando,
+        decidir_flujo_wa_desde_ml,
+        decidir_resultado_error_wa_desde_ml,
+        decidir_resultado_final_wa_desde_ml,
+        decidir_resultado_ml_debe_cerrar_sucursal,
+        decidir_resultado_ml_sigue_recolectando,
+        limpiar_faltantes_para_handoff_wa,
+        limpiar_pendientes_ml_post_handoff,
+        marca_wa_iniciado_desde_ml,
+    )
 
     faltantes_limpios = limpiar_faltantes_para_handoff_wa(
         pedido,
@@ -6874,17 +6886,14 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             motivo_handoff=motivo_handoff,
         )
 
-        from services.wa_auto_ml_decision import decidir_resultado_ml_sigue_recolectando
 
         decision_ml_sigue = decidir_resultado_ml_sigue_recolectando(ml_cortado)
 
         if decision_ml_sigue:
             try:
                 resumen = (pedido.ia_resumen or "").strip()
-                from services.wa_auto_ml_decision import construir_marca_ml_sigue_recolectando
 
                 marca = construir_marca_ml_sigue_recolectando(faltantes_limpios)
-                from services.wa_auto_ml_decision import agregar_marca_a_resumen_si_falta
 
                 pedido.ia_resumen = agregar_marca_a_resumen_si_falta(
                     resumen,
@@ -6905,10 +6914,6 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             return decision_ml_sigue["ok"], decision_ml_sigue["motivo"]
 
     try:
-        from services.wa_auto_ml_decision import (
-            decidir_flujo_wa_desde_ml,
-            decidir_resultado_final_wa_desde_ml,
-        )
 
         decision_flujo_wa = decidir_flujo_wa_desde_ml(faltantes_limpios)
 
@@ -6920,7 +6925,6 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             accion = decision_flujo_wa["accion"]
             detalle_extra = decision_flujo_wa["detalle_extra"]
         else:
-            from services.wa_auto_ml_decision import decidir_resultado_ml_debe_cerrar_sucursal
 
             decision_sucursal = decidir_resultado_ml_debe_cerrar_sucursal(
                 ml_acordas_via_cargo_bloquea_inicio_wa(pedido)
@@ -6954,10 +6958,6 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
         if ok:
             pedido.wa_ultimo_contacto = datetime.utcnow()
             resumen = (pedido.ia_resumen or "").strip()
-            from services.wa_auto_ml_decision import (
-                agregar_marca_a_resumen_si_falta,
-                marca_wa_iniciado_desde_ml,
-            )
 
             marca = marca_wa_iniciado_desde_ml()
 
@@ -7012,12 +7012,10 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 marca,
                 limite=1000,
             )
-            from services.wa_auto_ml_decision import limpiar_pendientes_ml_post_handoff
 
             limpiar_pendientes_ml_post_handoff(pedido)
             db.session.commit()
             try:
-                from services.wa_auto_ml_decision import construir_detalle_auditoria_wa_desde_ml
 
                 registrar_auditoria(
                     accion=accion,
@@ -7041,7 +7039,6 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
         except Exception:
             pass
         print(f"[WA-AUTO-ML] Error pedido #{getattr(pedido, 'id', '')}: {e}")
-        from services.wa_auto_ml_decision import decidir_resultado_error_wa_desde_ml
 
         return decidir_resultado_error_wa_desde_ml(e)
 
