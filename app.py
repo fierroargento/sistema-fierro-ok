@@ -6868,6 +6868,10 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
     from services.wa_auto_ml_decision import (
         agregar_marca_a_resumen_si_falta,
         construir_detalle_auditoria_wa_desde_ml,
+        construir_log_canal_manager_ml_bloqueado,
+        construir_log_error_auditoria_wa_auto_ml,
+        construir_log_error_aviso_migracion_ml_wa,
+        construir_log_error_cross_sell_wa_auto_ml,
         construir_log_error_wa_auto_ml,
         construir_log_ml_debe_cerrar_sucursal,
         construir_log_ml_sigue_recolectando,
@@ -6962,7 +6966,7 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                         origen_disparo="ml_datos_completos",
                     )
                 except Exception as e:
-                    print("[WA-AUTO-ML] Error intentando cross sell automático:", e)
+                    print(construir_log_error_cross_sell_wa_auto_ml(e))
 
             accion = decision_flujo_wa["accion"]
             detalle_extra = decision_flujo_wa["detalle_extra"]
@@ -6997,7 +7001,10 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
 
                     if not permitido:
                         print(
-                            f"[CANAL-MANAGER] ML bloqueado pedido #{pedido.id}: {motivo}"
+                            construir_log_canal_manager_ml_bloqueado(
+                                pedido.id,
+                                motivo,
+                            )
                         )
                     else:
                         ml_enviar_mensaje_acordas(
@@ -7015,8 +7022,10 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
 
                 except Exception as e:
                     print(
-                        f"[WA-AUTO-ML] No se pudo avisar migración por ML "
-                        f"pedido #{getattr(pedido, 'id', '')}: {e}"
+                        construir_log_error_aviso_migracion_ml_wa(
+                            getattr(pedido, "id", ""),
+                            e,
+                        )
                     )
 
             pedido.ia_resumen = agregar_marca_a_resumen_si_falta(
@@ -7040,7 +7049,12 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                     ),
                 )
             except Exception as audit_error:
-                print(f"[WA-AUTO-ML] No se pudo auditar pedido #{getattr(pedido, 'id', '')}: {audit_error}")
+                print(
+                    construir_log_error_auditoria_wa_auto_ml(
+                        getattr(pedido, "id", ""),
+                        audit_error,
+                    )
+                )
             print(
                 construir_log_wa_auto_ml_ok(
                     getattr(pedido, "id", ""),

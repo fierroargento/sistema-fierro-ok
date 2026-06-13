@@ -216,3 +216,30 @@ def construir_log_error_wa_auto_ml(pedido_id, error):
     Construye el log historico de error general del inicio automatico WA desde ML.
     """
     return f"[WA-AUTO-ML] Error pedido #{pedido_id}: {error}"
+
+def construir_log_error_cross_sell_wa_auto_ml(error):
+    """
+    Construye el log historico cuando falla el intento de cross sell automatico.
+    """
+    return f"[WA-AUTO-ML] Error intentando cross sell automático: {error}"
+
+
+def construir_log_canal_manager_ml_bloqueado(pedido_id, motivo):
+    """
+    Construye el log historico cuando Canal Manager bloquea el mensaje ML.
+    """
+    return f"[CANAL-MANAGER] ML bloqueado pedido #{pedido_id}: {motivo}"
+
+
+def construir_log_error_aviso_migracion_ml_wa(pedido_id, error):
+    """
+    Construye el log historico cuando falla el aviso de migracion ML a WA.
+    """
+    return f"[WA-AUTO-ML] No se pudo avisar migración por ML pedido #{pedido_id}: {error}"
+
+
+def construir_log_error_auditoria_wa_auto_ml(pedido_id, error):
+    """
+    Construye el log historico cuando falla la auditoria del inicio WA desde ML.
+    """
+    return f"[WA-AUTO-ML] No se pudo auditar pedido #{pedido_id}: {error}"

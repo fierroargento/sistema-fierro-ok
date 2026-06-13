@@ -1,6 +1,10 @@
 from services.wa_auto_ml_decision import (
     agregar_marca_a_resumen_si_falta,
     construir_detalle_auditoria_wa_desde_ml,
+    construir_log_canal_manager_ml_bloqueado,
+    construir_log_error_auditoria_wa_auto_ml,
+    construir_log_error_aviso_migracion_ml_wa,
+    construir_log_error_cross_sell_wa_auto_ml,
     construir_log_error_wa_auto_ml,
     construir_log_ml_debe_cerrar_sucursal,
     construir_log_ml_sigue_recolectando,
@@ -352,4 +356,27 @@ def test_construir_log_wa_auto_ml_ok():
 def test_construir_log_error_wa_auto_ml():
     assert construir_log_error_wa_auto_ml(321, "fallo") == (
         "[WA-AUTO-ML] Error pedido #321: fallo"
+    )
+
+def test_construir_log_error_cross_sell_wa_auto_ml():
+    assert construir_log_error_cross_sell_wa_auto_ml("fallo cross") == (
+        "[WA-AUTO-ML] Error intentando cross sell automático: fallo cross"
+    )
+
+
+def test_construir_log_canal_manager_ml_bloqueado():
+    assert construir_log_canal_manager_ml_bloqueado(123, "bloqueado por ownership") == (
+        "[CANAL-MANAGER] ML bloqueado pedido #123: bloqueado por ownership"
+    )
+
+
+def test_construir_log_error_aviso_migracion_ml_wa():
+    assert construir_log_error_aviso_migracion_ml_wa(456, "fallo ML") == (
+        "[WA-AUTO-ML] No se pudo avisar migración por ML pedido #456: fallo ML"
+    )
+
+
+def test_construir_log_error_auditoria_wa_auto_ml():
+    assert construir_log_error_auditoria_wa_auto_ml(789, "fallo auditoria") == (
+        "[WA-AUTO-ML] No se pudo auditar pedido #789: fallo auditoria"
     )
