@@ -6839,31 +6839,24 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
     - No pisa conversaciones WA ya iniciadas ni operador_manual.
     - No actúa sobre pedidos cerrados/finalizados/cancelados.
     """
-    if not pedido or not es_ml_acordas_entrega(pedido):
-        return False, "no_aplica"
-
-    if os.getenv("WA_AUTO_DESDE_ML", "1").strip().lower() in ["0", "false", "no", "off"]:
-        return False, "apagado"
-
-    if not getattr(pedido, "contacto_iniciado", False):
-        return False, "ml_no_iniciado"
-
     from services.canal_manager import (
         puede_hacer_handoff_ml_a_whatsapp,
     )
+    from services.wa_auto_ml_precondiciones import evaluar_precondiciones_wa_auto_ml
 
-    permitido_handoff, motivo_handoff = (
-        puede_hacer_handoff_ml_a_whatsapp(
-            pedido
-        )
+    precondiciones = evaluar_precondiciones_wa_auto_ml(
+        pedido=pedido,
+        flag_wa_auto_desde_ml=os.getenv("WA_AUTO_DESDE_ML", "1"),
+        es_ml_acordas_entrega_fn=es_ml_acordas_entrega,
+        puede_hacer_handoff_fn=puede_hacer_handoff_ml_a_whatsapp,
+        normalizar_telefono_fn=normalizar_telefono,
     )
 
-    if not permitido_handoff:
-        return False, motivo_handoff
+    if not precondiciones["ok"]:
+        return False, precondiciones["motivo"]
 
-    tel = normalizar_telefono(getattr(pedido, "telefono", ""))
-    if not tel or len(tel) < 12:
-        return False, "sin_telefono_valido"
+    tel = precondiciones["tel"]
+    motivo_handoff = precondiciones["motivo_handoff"]
 
     from services.wa_auto_ml_decision import (
         agregar_marca_a_resumen_si_falta,
