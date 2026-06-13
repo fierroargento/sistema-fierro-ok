@@ -6945,7 +6945,12 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
         if ok:
             pedido.wa_ultimo_contacto = datetime.utcnow()
             resumen = (pedido.ia_resumen or "").strip()
-            marca = "WA iniciado automáticamente desde ML"
+            from services.wa_auto_ml_decision import (
+                agregar_marca_a_resumen_si_falta,
+                marca_wa_iniciado_desde_ml,
+            )
+
+            marca = marca_wa_iniciado_desde_ml()
 
             # APB UX: avisar una sola vez por ML que el canal operativo pasa a WhatsApp.
             # No bloquea el flujo si Mercado Libre rechaza/falla el mensaje.
@@ -6993,7 +6998,11 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                         f"pedido #{getattr(pedido, 'id', '')}: {e}"
                     )
 
-            pedido.ia_resumen = f"{resumen} | {marca}".strip(" |") if marca not in resumen else resumen
+            pedido.ia_resumen = agregar_marca_a_resumen_si_falta(
+                resumen,
+                marca,
+                limite=1000,
+            )
             try:
                 pedido.ml_mensajes_pendientes = False
                 pedido.ml_mensajes_pendientes_count = 0

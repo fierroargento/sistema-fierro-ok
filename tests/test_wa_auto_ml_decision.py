@@ -4,6 +4,7 @@ from services.wa_auto_ml_decision import (
     decidir_flujo_wa_desde_ml,
     decidir_resultado_ml_sigue_recolectando,
     limpiar_faltantes_para_handoff_wa,
+    marca_wa_iniciado_desde_ml,
 )
 
 
@@ -204,3 +205,28 @@ def test_decidir_flujo_wa_desde_ml_con_none():
         "accion": "Inició WhatsApp con datos completos",
         "detalle_extra": "datos completos | cross-sell evaluado post handoff ML",
     }
+
+def test_marca_wa_iniciado_desde_ml():
+    assert marca_wa_iniciado_desde_ml() == "WA iniciado automáticamente desde ML"
+
+
+def test_agregar_marca_wa_iniciado_desde_ml_a_resumen():
+    marca = marca_wa_iniciado_desde_ml()
+
+    resultado = agregar_marca_a_resumen_si_falta(
+        "Resumen previo",
+        marca,
+    )
+
+    assert resultado == "Resumen previo | WA iniciado automáticamente desde ML"
+
+
+def test_agregar_marca_wa_iniciado_desde_ml_no_duplica():
+    marca = marca_wa_iniciado_desde_ml()
+
+    resultado = agregar_marca_a_resumen_si_falta(
+        "Resumen previo | WA iniciado automáticamente desde ML",
+        marca,
+    )
+
+    assert resultado == "Resumen previo | WA iniciado automáticamente desde ML"

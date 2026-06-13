@@ -125,3 +125,9 @@ def decidir_flujo_wa_desde_ml(faltantes_limpios):
         "accion": "Inició WhatsApp con datos completos",
         "detalle_extra": "datos completos | cross-sell evaluado post handoff ML",
     }
+
+def marca_wa_iniciado_desde_ml():
+    """
+    Marca historica usada en el resumen cuando WhatsApp inicia automaticamente desde ML.
+    """
+    return "WA iniciado automáticamente desde ML"
