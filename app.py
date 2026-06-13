@@ -3945,6 +3945,9 @@ from modules.bot_ml.api_client import (
     ml_exchange_code_for_token,
     ml_guardar_token_en_cuenta,
     ml_refresh_access_token,
+    ml_api_get_con_token,
+    ml_api_post_json_con_token,
+    ml_api_get_binario_con_token,
 )
 
 
@@ -3964,51 +3967,28 @@ def ml_access_token_vigente():
 
 
 def ml_api_get(path, params=None):
-    token = ml_access_token_vigente()
-    params = params or {}
-    query = urlencode(params)
-    url = f"https://api.mercadolibre.com{path}"
-    if query:
-        url = f"{url}?{query}"
-    return ml_http_json("GET", url, headers={"Authorization": f"Bearer {token}"})
-
+    return ml_api_get_con_token(
+        ml_access_token_vigente(),
+        path,
+        params=params,
+    )
 
 
 def ml_api_post_json(path, payload=None):
-    token = ml_access_token_vigente()
-    url = f"https://api.mercadolibre.com{path}"
-    data = json.dumps(payload or {}).encode("utf-8")
-
-    req = Request(url, data=data, method="POST")
-    req.add_header("Authorization", f"Bearer {token}")
-    req.add_header("Content-Type", "application/json")
-    req.add_header("Accept", "application/json")
-
-    try:
-        with urlopen(req) as response:
-            raw = response.read().decode("utf-8")
-            return json.loads(raw) if raw.strip() else {}
-    except HTTPError as e:
-        detalle = e.read().decode("utf-8", errors="ignore")
-        raise ValueError(f"Mercado Libre rechazó el mensaje: {detalle or e}")
+    return ml_api_post_json_con_token(
+        ml_access_token_vigente(),
+        path,
+        payload=payload,
+    )
 
 
 def ml_api_get_binario(path, params=None, accept="application/pdf"):
-    token = ml_access_token_vigente()
-    params = params or {}
-    query = urlencode(params)
-    url = f"https://api.mercadolibre.com{path}"
-    if query:
-        url = f"{url}?{query}"
-
-    req = Request(url, method="GET")
-    req.add_header("Authorization", f"Bearer {token}")
-    req.add_header("Accept", accept)
-
-    with urlopen(req) as response:
-        contenido = response.read()
-        content_type = response.headers.get("Content-Type", "")
-        return contenido, content_type
+    return ml_api_get_binario_con_token(
+        ml_access_token_vigente(),
+        path,
+        params=params,
+        accept=accept,
+    )
 
 
 def ml_guardar_etiqueta_pdf(shipping_id):

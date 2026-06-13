@@ -1,10 +1,10 @@
 """
 modules.bot_ml.api_client
-─────────────────────────
+-------------------------
 Cliente base de Mercado Libre para Sistema Fierro.
 
 APB / SaaS:
-- Este módulo concentra configuración, OAuth y llamadas HTTP base de ML.
+- Este modulo concentra configuracion, OAuth y llamadas HTTP base de ML.
 - No debe depender de Flask routes.
 - No debe depender directamente de modelos SQLAlchemy ni db.session.
 - Las funciones que necesitan persistir en DB deben recibir objetos ya obtenidos
@@ -82,7 +82,7 @@ def ml_http_json(method, url, data=None, headers=None):
         raise ValueError(f"ML API {e.code}: {body_error[:200]}")
 
     except URLError as e:
-        raise ValueError(f"ML conexión fallida: {e.reason}")
+        raise ValueError(f"ML conexion fallida: {e.reason}")
 
 
 def ml_exchange_code_for_token(code):
@@ -133,3 +133,87 @@ def ml_refresh_access_token(cuenta):
     ml_guardar_token_en_cuenta(cuenta, token_data)
 
     return cuenta
+
+
+def ml_api_get_con_token(access_token, path, params=None):
+    """
+    GET autenticado a Mercado Libre usando un access token ya resuelto.
+
+    APB / SaaS:
+    - No busca cuenta.
+    - No refresca token.
+    - No commitea DB.
+    - La capa orquestadora decide como obtener/persistir el token.
+    """
+    access_token = str(access_token or "").strip()
+    if not access_token:
+        raise ValueError("No hay access token valido para consultar Mercado Libre.")
+
+    params = params or {}
+    query = urlencode(params)
+
+    url = f"https://api.mercadolibre.com{path}"
+    if query:
+        url = f"{url}?{query}"
+
+    return ml_http_json(
+        "GET",
+        url,
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+
+def ml_api_post_json_con_token(access_token, path, payload=None):
+    """
+    POST JSON autenticado a Mercado Libre usando un access token ya resuelto.
+    """
+    access_token = str(access_token or "").strip()
+    if not access_token:
+        raise ValueError("No hay access token valido para enviar a Mercado Libre.")
+
+    url = f"https://api.mercadolibre.com{path}"
+    data = json.dumps(payload or {}).encode("utf-8")
+
+    req = Request(url, data=data, method="POST")
+    req.add_header("Authorization", f"Bearer {access_token}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Accept", "application/json")
+
+    try:
+        with urlopen(req) as response:
+            raw = response.read().decode("utf-8")
+            return json.loads(raw) if raw.strip() else {}
+
+    except HTTPError as e:
+        detalle = e.read().decode("utf-8", errors="ignore")
+        raise ValueError(f"Mercado Libre rechazo el mensaje: {detalle or e}")
+
+
+def ml_api_get_binario_con_token(
+    access_token,
+    path,
+    params=None,
+    accept="application/pdf",
+):
+    """
+    GET binario autenticado a Mercado Libre usando un access token ya resuelto.
+    """
+    access_token = str(access_token or "").strip()
+    if not access_token:
+        raise ValueError("No hay access token valido para descargar desde Mercado Libre.")
+
+    params = params or {}
+    query = urlencode(params)
+
+    url = f"https://api.mercadolibre.com{path}"
+    if query:
+        url = f"{url}?{query}"
+
+    req = Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {access_token}")
+    req.add_header("Accept", accept)
+
+    with urlopen(req) as response:
+        contenido = response.read()
+        content_type = response.headers.get("Content-Type", "")
+        return contenido, content_type

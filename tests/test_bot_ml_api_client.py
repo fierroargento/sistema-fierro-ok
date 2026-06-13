@@ -138,3 +138,46 @@ def test_ml_refresh_access_token_actualiza_cuenta(monkeypatch):
     assert cuenta.refresh_token == "refresh-nuevo"
     assert cuenta.scope == "offline_access"
     assert cuenta.estado_conexion == "conectada"
+
+def test_ml_api_get_con_token_arma_url_y_header(monkeypatch):
+    llamadas = {}
+
+    def fake_http_json(method, url, data=None, headers=None):
+        llamadas["method"] = method
+        llamadas["url"] = url
+        llamadas["headers"] = headers
+        return {"ok": True}
+
+    monkeypatch.setattr(api_client, "ml_http_json", fake_http_json)
+
+    resultado = api_client.ml_api_get_con_token(
+        "token-123",
+        "/orders/search",
+        params={"seller": "10", "limit": 5},
+    )
+
+    assert resultado == {"ok": True}
+    assert llamadas["method"] == "GET"
+    assert llamadas["url"] == "https://api.mercadolibre.com/orders/search?seller=10&limit=5"
+    assert llamadas["headers"] == {"Authorization": "Bearer token-123"}
+
+
+def test_ml_api_get_con_token_requiere_token():
+    with pytest.raises(ValueError) as exc:
+        api_client.ml_api_get_con_token("", "/orders/search")
+
+    assert "access token" in str(exc.value)
+
+
+def test_ml_api_post_json_con_token_requiere_token():
+    with pytest.raises(ValueError) as exc:
+        api_client.ml_api_post_json_con_token("", "/messages", payload={})
+
+    assert "access token" in str(exc.value)
+
+
+def test_ml_api_get_binario_con_token_requiere_token():
+    with pytest.raises(ValueError) as exc:
+        api_client.ml_api_get_binario_con_token("", "/shipment_labels")
+
+    assert "access token" in str(exc.value)
