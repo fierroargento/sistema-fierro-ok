@@ -6972,9 +6972,7 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             detalle_extra = decision_flujo_wa["detalle_extra"]
 
         if ok:
-            pedido.wa_ultimo_contacto = datetime.utcnow()
             resumen = (pedido.ia_resumen or "").strip()
-
             marca = marca_wa_iniciado_desde_ml()
 
             # APB UX: avisar una sola vez por ML que el canal operativo pasa a WhatsApp.
@@ -6985,6 +6983,7 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 texto_transicion_ml_wa_datos_completos,
             )
             from services.wa_auto_ml_transicion import intentar_avisar_transicion_ml_wa
+            from services.wa_auto_ml_finalizacion import finalizar_wa_auto_ml_ok
 
             resumen = intentar_avisar_transicion_ml_wa(
                 pedido=pedido,
@@ -6998,41 +6997,25 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 construir_log_bloqueado_fn=construir_log_canal_manager_ml_bloqueado,
                 construir_log_error_fn=construir_log_error_aviso_migracion_ml_wa,
             )
-            pedido.ia_resumen = agregar_marca_a_resumen_si_falta(
-                resumen,
-                marca,
-                limite=1000,
-            )
 
-            limpiar_pendientes_ml_post_handoff(pedido)
-            db.session.commit()
-            try:
-
-                registrar_auditoria(
-                    accion=accion,
-                    entidad="pedido",
-                    entidad_id=str(pedido.id),
-                    detalle=construir_detalle_auditoria_wa_desde_ml(
-                        tel,
-                        detalle_extra,
-                        motivo,
-                    ),
-                )
-            except Exception as audit_error:
-                print(
-                    construir_log_error_auditoria_wa_auto_ml(
-                        getattr(pedido, "id", ""),
-                        audit_error,
-                    )
-                )
-            print(
-                construir_log_wa_auto_ml_ok(
-                    getattr(pedido, "id", ""),
-                    accion,
-                    detalle_extra,
-                )
+            return finalizar_wa_auto_ml_ok(
+                pedido=pedido,
+                resumen=resumen,
+                marca=marca,
+                tel=tel,
+                accion=accion,
+                detalle_extra=detalle_extra,
+                motivo=motivo,
+                now_fn=datetime.utcnow,
+                agregar_marca_a_resumen_fn=agregar_marca_a_resumen_si_falta,
+                limpiar_pendientes_fn=limpiar_pendientes_ml_post_handoff,
+                db_session=db.session,
+                registrar_auditoria_fn=registrar_auditoria,
+                construir_detalle_auditoria_fn=construir_detalle_auditoria_wa_desde_ml,
+                construir_log_error_auditoria_fn=construir_log_error_auditoria_wa_auto_ml,
+                construir_log_ok_fn=construir_log_wa_auto_ml_ok,
+                decidir_resultado_final_fn=decidir_resultado_final_wa_desde_ml,
             )
-            return decidir_resultado_final_wa_desde_ml(True)
 
         return decidir_resultado_final_wa_desde_ml(False)
     except Exception as e:
