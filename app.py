@@ -6874,7 +6874,11 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
             motivo_handoff=motivo_handoff,
         )
 
-        if not ml_cortado:
+        from services.wa_auto_ml_decision import decidir_resultado_ml_sigue_recolectando
+
+        decision_ml_sigue = decidir_resultado_ml_sigue_recolectando(ml_cortado)
+
+        if decision_ml_sigue:
             try:
                 resumen = (pedido.ia_resumen or "").strip()
                 from services.wa_auto_ml_decision import construir_marca_ml_sigue_recolectando
@@ -6898,7 +6902,7 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
                 f"[WA-AUTO-ML] NO inicia WA pedido #{getattr(pedido, 'id', '')}: "
                 f"ML activo sigue recolectando ({', '.join(faltantes_limpios)})"
             )
-            return False, motivo_corte_ml
+            return decision_ml_sigue["ok"], decision_ml_sigue["motivo"]
 
     try:
         if faltantes_limpios:

@@ -1,6 +1,7 @@
 from services.wa_auto_ml_decision import (
     agregar_marca_a_resumen_si_falta,
     construir_marca_ml_sigue_recolectando,
+    decidir_resultado_ml_sigue_recolectando,
     limpiar_faltantes_para_handoff_wa,
 )
 
@@ -149,3 +150,17 @@ def test_agregar_marca_a_resumen_si_falta_respeta_limite():
     )
 
     assert resultado == "A" * 10
+
+def test_decidir_resultado_ml_sigue_recolectando_devuelve_corte_si_ml_no_cortado():
+    resultado = decidir_resultado_ml_sigue_recolectando(False)
+
+    assert resultado == {
+        "ok": False,
+        "motivo": "ml_sigue_recolectando",
+    }
+
+
+def test_decidir_resultado_ml_sigue_recolectando_devuelve_none_si_ml_cortado():
+    resultado = decidir_resultado_ml_sigue_recolectando(True)
+
+    assert resultado is None

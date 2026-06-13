@@ -84,3 +84,17 @@ def agregar_marca_a_resumen_si_falta(resumen_actual, marca, limite=1000):
         return resumen[:limite]
 
     return f"{resumen} | {marca}".strip(" |")[:limite]
+
+def decidir_resultado_ml_sigue_recolectando(ml_cortado):
+    """
+    Decide si WhatsApp debe frenar porque Mercado Libre sigue recolectando.
+
+    Retorna None si ML esta cortado y el flujo puede continuar.
+    """
+    if ml_cortado:
+        return None
+
+    return {
+        "ok": False,
+        "motivo": "ml_sigue_recolectando",
+    }
