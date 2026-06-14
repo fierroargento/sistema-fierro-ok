@@ -7008,17 +7008,9 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
 
 
 def ia_etiqueta_faltante(campo):
-    mapa = {
-        "nombre": "Nombre",
-        "apellido": "Apellido",
-        "dni": "DNI",
-        "telefono": "Teléfono",
-        "direccion": "Dirección completa",
-        "localidad": "Localidad",
-        "codigo_postal": "Código postal",
-    }
-    return mapa.get(str(campo or "").strip(), str(campo or "").replace("_", " ").capitalize())
+    from services.ia_respuestas import ia_etiqueta_faltante_service
 
+    return ia_etiqueta_faltante_service(campo)
 
 def ia_generar_respuesta_faltantes_pedido(pedido):
     """Fase 4.5 segura: genera texto humano para pedir faltantes. No envía nada por sí sola."""
