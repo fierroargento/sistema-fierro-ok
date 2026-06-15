@@ -7039,72 +7039,17 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
 
     resumen = str(getattr(pedido, "ia_resumen", "") or "").lower()
 
-    # Detectores de intención. Importante: usamos frases específicas para no disparar textos largos
-    # cuando el comprador simplemente manda datos incompletos.
-    resumen_ml_explicito = any(k in resumen for k in [
-        "datos en mercado libre",
-        "datos están en mercado libre",
-        "datos estan en mercado libre",
-        "datos ya están en mercado libre",
-        "datos ya estan en mercado libre",
-        "son los mismos de la compra",
-        "datos de mi cuenta",
-    ])
+    from services.ia_respuestas import detectar_contexto_resumen_faltantes_service
 
-    pregunta_por_que = any(k in resumen for k in [
-        "por qué", "por que", "pide explicación", "pide explicacion",
-        "por qué pedimos", "por que pedimos", "por qué piden", "por que piden"
-    ])
-
-    pregunta_costo_envio = any(k in resumen for k in [
-        "costo de envío", "costo de envio", "cuánto sale", "cuanto sale",
-        "sale el envío", "sale el envio", "valor del envío", "valor del envio"
-    ])
-
-    # Diferenciar intención:
-    # - "cuándo lo envían / despachan" => falta acción de Fierro; empujar a completar datos.
-    # - "cuánto tarda / demora" => informar plazo habitual desde el despacho.
-    pregunta_cuando_sale = any(k in resumen for k in [
-        "cuándo lo envían", "cuando lo envian",
-        "cuándo envían", "cuando envian",
-        "cuándo lo mandan", "cuando lo mandan",
-        "cuándo despachan", "cuando despachan",
-        "cuando la despachan", "cuándo la despachan",
-        "cuando la envias", "cuándo la envias",
-        "cuando la envían", "cuándo la envían",
-        "cuando lo envias", "cuándo lo envias",
-        "fecha de envío", "fecha de envio",
-        "cuando sale", "cuándo sale",
-    ])
-
-    pregunta_cuanto_tarda = any(k in resumen for k in [
-        "cuánto tarda", "cuanto tarda",
-        "cuánto demora", "cuanto demora",
-        "demora", "tiempo de entrega",
-        "cuándo llega", "cuando llega",
-        "cuando me llega", "cuándo me llega",
-    ])
-
-    cliente_dice_ya_los_pase = any(k in resumen for k in [
-        "ya los pasé", "ya los pase", "ya pasó", "ya paso", "ya envié", "ya envie"
-    ])
-
-    # Solo si el cliente pide explícitamente llamada/WhatsApp. No usar "telefono" solo,
-    # porque muchas veces aparece en el resumen simplemente porque el comprador pasó su teléfono.
-    pide_llamada_o_whatsapp = any(k in resumen for k in [
-        "llamada", "llamar", "llamame", "llámame", "hablar por whatsapp",
-        "te paso mi whatsapp", "por whatsapp", "mandame whatsapp", "mandame un whatsapp"
-    ])
-
-    hay_contexto_especial = any([
-        resumen_ml_explicito,
-        pregunta_por_que,
-        pregunta_costo_envio,
-        pregunta_cuando_sale,
-        pregunta_cuanto_tarda,
-        cliente_dice_ya_los_pase,
-        pide_llamada_o_whatsapp,
-    ])
+    contexto_resumen = detectar_contexto_resumen_faltantes_service(resumen)
+    resumen_ml_explicito = contexto_resumen["resumen_ml_explicito"]
+    pregunta_por_que = contexto_resumen["pregunta_por_que"]
+    pregunta_costo_envio = contexto_resumen["pregunta_costo_envio"]
+    pregunta_cuando_sale = contexto_resumen["pregunta_cuando_sale"]
+    pregunta_cuanto_tarda = contexto_resumen["pregunta_cuanto_tarda"]
+    cliente_dice_ya_los_pase = contexto_resumen["cliente_dice_ya_los_pase"]
+    pide_llamada_o_whatsapp = contexto_resumen["pide_llamada_o_whatsapp"]
+    hay_contexto_especial = contexto_resumen["hay_contexto_especial"]
 
     # Caso muy común: el comprador colaboró y solo quedó 1 dato pendiente.
     # Respuesta ultra corta y humana, sin explicación extra.
