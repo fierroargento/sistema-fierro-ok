@@ -5684,8 +5684,15 @@ def ia_auto_responder_post_analisis(pedido):
                             # Sin cobertura → escalar al operador
                             pedido.ml_mensajes_pendientes = True
                             pedido.ia_requiere_operador = True
+                            from services.ia_respuestas import agregar_marca_resumen_unica_service
+
                             resumen = (pedido.ia_resumen or "").strip()
-                            pedido.ia_resumen = f"{resumen} | Sin cobertura transportes CP {pedido.codigo_postal}".strip(" |")
+                            marca = f"Sin cobertura transportes CP {pedido.codigo_postal}"
+                            pedido.ia_resumen = agregar_marca_resumen_unica_service(
+                                resumen,
+                                marca,
+                                limite=1000,
+                            )
                             db.session.commit()
                     except Exception as e:
                         print(f"[TRANSPORTES] Error asignando transporte pedido #{pedido.id}:", e)
