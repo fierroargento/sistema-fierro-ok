@@ -7054,20 +7054,16 @@ def ia_generar_respuesta_faltantes_pedido(pedido):
     # Caso muy común: el comprador colaboró y solo quedó 1 dato pendiente.
     # Respuesta ultra corta y humana, sin explicación extra.
     if len(faltantes) == 1 and not hay_contexto_especial:
-        etiqueta = ia_etiqueta_faltante(faltantes[0]).strip().lower()
-        articulo = "el"
-        if etiqueta in ["localidad", "dirección", "direccion"]:
-            articulo = "la"
-        elif etiqueta.startswith("código") or etiqueta.startswith("codigo"):
-            articulo = "el"
-        elif etiqueta.startswith("teléfono") or etiqueta.startswith("telefono"):
-            articulo = "el"
-        elif etiqueta.startswith("dni") or etiqueta.startswith("documento"):
-            articulo = "el"
+        from services.ia_respuestas import generar_respuesta_un_faltante_service
 
-        if nombre_corto:
-            return f"Excelente, gracias {nombre_corto} 😊\n\nSolo me falta {articulo} {etiqueta} para completar los datos."
-        return f"Excelente, gracias 😊\n\nSolo me falta {articulo} {etiqueta} para completar los datos."
+        respuesta_un_faltante = generar_respuesta_un_faltante_service(
+            faltantes,
+            nombre_corto,
+            ia_etiqueta_faltante,
+        )
+
+        if respuesta_un_faltante:
+            return respuesta_un_faltante
 
     partes = []
 

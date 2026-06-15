@@ -1,6 +1,7 @@
 from services.ia_respuestas import (
     agregar_marca_resumen_unica_service,
     detectar_contexto_resumen_faltantes_service,
+    generar_respuesta_un_faltante_service,
     ia_etiqueta_faltante_service,
 )
 
@@ -114,3 +115,52 @@ def test_detectar_contexto_resumen_faltantes_service_detecta_whatsapp():
 
     assert resultado["pide_llamada_o_whatsapp"] is True
     assert resultado["hay_contexto_especial"] is True
+
+def test_generar_respuesta_un_faltante_service_con_nombre():
+    resultado = generar_respuesta_un_faltante_service(
+        ["localidad"],
+        "Juan",
+        ia_etiqueta_faltante_service,
+    )
+
+    assert resultado == "Excelente, gracias Juan 😊\n\nSolo me falta la localidad para completar los datos."
+
+
+def test_generar_respuesta_un_faltante_service_sin_nombre():
+    resultado = generar_respuesta_un_faltante_service(
+        ["dni"],
+        "",
+        ia_etiqueta_faltante_service,
+    )
+
+    assert resultado == "Excelente, gracias 😊\n\nSolo me falta el dni para completar los datos."
+
+
+def test_generar_respuesta_un_faltante_service_codigo_postal():
+    resultado = generar_respuesta_un_faltante_service(
+        ["codigo_postal"],
+        "Ana",
+        ia_etiqueta_faltante_service,
+    )
+
+    assert resultado == "Excelente, gracias Ana 😊\n\nSolo me falta el código postal para completar los datos."
+
+
+def test_generar_respuesta_un_faltante_service_no_aplica_si_hay_mas_de_un_faltante():
+    resultado = generar_respuesta_un_faltante_service(
+        ["dni", "localidad"],
+        "Ana",
+        ia_etiqueta_faltante_service,
+    )
+
+    assert resultado == ""
+
+
+def test_generar_respuesta_un_faltante_service_no_aplica_si_no_hay_faltantes():
+    resultado = generar_respuesta_un_faltante_service(
+        [],
+        "Ana",
+        ia_etiqueta_faltante_service,
+    )
+
+    assert resultado == ""

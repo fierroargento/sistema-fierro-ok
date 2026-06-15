@@ -135,3 +135,28 @@ def detectar_contexto_resumen_faltantes_service(resumen):
             pide_llamada_o_whatsapp,
         ]),
     }
+
+def generar_respuesta_un_faltante_service(faltantes, nombre_corto, etiqueta_faltante_fn):
+    faltantes = list(faltantes or [])
+
+    if len(faltantes) != 1:
+        return ""
+
+    etiqueta = str(etiqueta_faltante_fn(faltantes[0]) or "").strip().lower()
+    articulo = "el"
+
+    if etiqueta in ["localidad", "dirección", "direccion"]:
+        articulo = "la"
+    elif etiqueta.startswith("código") or etiqueta.startswith("codigo"):
+        articulo = "el"
+    elif etiqueta.startswith("teléfono") or etiqueta.startswith("telefono"):
+        articulo = "el"
+    elif etiqueta.startswith("dni") or etiqueta.startswith("documento"):
+        articulo = "el"
+
+    nombre_corto = str(nombre_corto or "").strip()
+
+    if nombre_corto:
+        return f"Excelente, gracias {nombre_corto} 😊\n\nSolo me falta {articulo} {etiqueta} para completar los datos."
+
+    return f"Excelente, gracias 😊\n\nSolo me falta {articulo} {etiqueta} para completar los datos."
