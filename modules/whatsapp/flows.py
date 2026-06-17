@@ -498,12 +498,11 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
     """
     Inicia el flujo de cross-sell por WhatsApp.
 
-    Seguridad APB:
-    - El automático queda apagado salvo CROSS_SELL_AUTO_ENABLED=true.
-    - El manual queda apagado salvo CROSS_SELL_MANUAL_ENABLED=true.
-    - El operador puede forzar el inicio aunque la conversación esté en modo manual.
+    APB:
+    - No marca estado cross_sell antes de confirmar envio real.
+    - Si WhatsApp bloquea por ventana cerrada o falla el envio, no deja al
+      pedido esperando una respuesta que el cliente nunca recibio.
     """
-
     origen = (origen or "bot").strip().lower()
 
     from services.cross_sell_rules import puede_iniciar_cross_sell_pedido
@@ -531,16 +530,6 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
 
     primer_sku = productos[0]
 
-    actualizar_estado_conversacional_wa(
-        pedido,
-        owner_actual="bot",
-        canal_activo="wa",
-        estado_conversacional="cross_sell",
-        takeover_activo=False,
-        bot_pausado=False,
-        cross_sell_activo=True,
-    )
-
     pedido.ia_requiere_operador = False
 
     texto_operativo = (
@@ -551,13 +540,15 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
         texto_operativo += f"El envío va a salir por *{empresa}*"
         if tipo_entrega:
             texto_operativo += f" con entrega en *{tipo_entrega}*"
-        texto_operativo += ".\n"
+        texto_operativo += "."
+    else:
+        texto_operativo += "Ya dejamos el pedido encaminado para despacho."
 
     if sucursal:
-        texto_operativo += f"\nSucursal seleccionada: *{sucursal}*.\n"
+        texto_operativo += f"\nSucursal seleccionada: *{sucursal}*."
 
     texto_operativo += (
-        "\nEn cuanto tengamos el número de seguimiento, te lo compartimos por acá."
+        "\n\nEn cuanto tengamos el número de seguimiento, te lo compartimos por acá."
     )
 
     ok_1 = wa_enviar_texto(
@@ -574,9 +565,9 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
         autor=origen,
     )
 
-    _guardar_estado_wa(pedido, f"cross_sell:{primer_sku}:0", tel)
-
     ok_3 = wa_ofrecer_producto(tel, primer_sku)
+
+    envio_ok = bool(ok_1 or ok_2 or ok_3)
 
     registrar_evento_operativo_wa(
         pedido=pedido,
@@ -584,7 +575,7 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
         origen=origen,
         canal="wa",
         owner="bot",
-        estado_conversacional="cross_sell",
+        estado_conversacional="cross_sell" if envio_ok else "",
         payload={
             "primer_sku": primer_sku,
             "productos": productos,
@@ -592,14 +583,35 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
             "tipo_entrega": tipo_entrega,
             "sucursal": sucursal,
             "forzar": forzar,
+            "ok_1": bool(ok_1),
+            "ok_2": bool(ok_2),
+            "ok_3": bool(ok_3),
         },
-        resultado="ok" if (ok_1 or ok_2 or ok_3) else "error",
-        detalle=f"Se inició oferta de agregados por WhatsApp. Origen: {origen}.",
+        resultado="ok" if envio_ok else "error",
+        detalle=(
+            f"Se inició oferta de agregados por WhatsApp. Origen: {origen}."
+            if envio_ok
+            else f"No se pudo iniciar oferta de agregados por WhatsApp. Origen: {origen}."
+        ),
         procesado=True,
     )
 
-    return bool(ok_1 or ok_2 or ok_3)
+    if not envio_ok:
+        return False
 
+    actualizar_estado_conversacional_wa(
+        pedido,
+        owner_actual="bot",
+        canal_activo="wa",
+        estado_conversacional="cross_sell",
+        takeover_activo=False,
+        bot_pausado=False,
+        cross_sell_activo=True,
+    )
+
+    _guardar_estado_wa(pedido, f"cross_sell:{primer_sku}:0", tel)
+
+    return True
 
 def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_actual):
     
