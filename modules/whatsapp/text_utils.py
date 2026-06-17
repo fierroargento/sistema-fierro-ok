@@ -10,6 +10,32 @@ def es_afirmativo(texto):
     ])
 
 
+
+
+def es_agradecimiento_simple(texto):
+    texto = (texto or "").lower().strip()
+
+    if not texto:
+        return False
+
+    texto_limpio = re.sub(r"[^a-záéíóúñü\s]", " ", texto)
+    texto_limpio = re.sub(r"\s+", " ", texto_limpio).strip()
+
+    agradecimientos = [
+        "gracias",
+        "muchas gracias",
+        "ok gracias",
+        "dale gracias",
+        "perfecto gracias",
+        "listo gracias",
+        "genial gracias",
+        "buenisimo gracias",
+        "buenísimo gracias",
+        "joya gracias",
+    ]
+
+    return texto_limpio in agradecimientos
+
 def es_negativo(texto):
     texto = texto.lower().strip()
     return any(x in texto for x in [

@@ -26,6 +26,7 @@ from .flows import (
 )
 
 from .sender import wa_enviar_texto
+from .text_utils import es_agradecimiento_simple
 
 from services.telefonos import normalizar_telefono_service
 
@@ -187,6 +188,15 @@ def routear_mensaje(
         
 
         tel = normalizar_telefono_service(telefono)
+
+        if es_agradecimiento_simple(texto):
+            wa_enviar_texto(
+                tel,
+                "Gracias a vos! 😊",
+                pedido=pedido,
+            )
+
+            return
 
         if any(
             x in texto_lower
