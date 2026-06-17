@@ -51,6 +51,8 @@ from services.ml_importacion import (
     ml_aplicar_datos_envio_service,
     ml_datos_apb_pedido_service,
     ml_aplicar_apb_en_pedido_service,
+    ml_pedido_existente_por_order_id_service,
+    ml_pedido_existente_operativo_service,
 )    
 
 from services.telefonos import normalizar_telefono_service
@@ -6284,78 +6286,20 @@ def ml_aplicar_datos_envio(pedido, order, shipment):
 
 
 def ml_pedido_existente_por_order_id(order_id):
-    if not order_id:
-        return None
-
-    pedido = (
-        Pedido.query
-        .filter_by(canal="Mercado Libre", id_venta=order_id)
-        .order_by(Pedido.id.asc())
-        .first()
+    return ml_pedido_existente_por_order_id_service(
+        order_id,
+        Pedido,
     )
 
-    if pedido:
-        return pedido
-
-    return (
-        Pedido.query
-        .filter_by(id_venta=order_id)
-        .order_by(Pedido.id.asc())
-        .first()
-    )
 
 def ml_pedido_existente_operativo(order, shipment=None):
-    """
-    APB Mercado Libre:
-    - Mercado Envíos se opera por paquete/envío.
-      Un pack/shipment puede contener varias órdenes/items.
-    - Acordás la Entrega sigue operando por order_id.
-    """
-
-    order = order or {}
-    shipment = shipment or {}
-
-    order_id = str(order.get("id") or "").strip()
-    pack_id = str(order.get("pack_id") or "").strip()
-
-    shipping = order.get("shipping") or {}
-    shipping_id = str(
-        shipping.get("id")
-        or shipment.get("id")
-        or ""
-    ).strip()
-
-    if ml_es_mercado_envios_order(order, shipment):
-
-        if pack_id:
-            pedido = (
-                Pedido.query
-                .filter_by(
-                    canal="Mercado Libre",
-                    ml_pack_id=pack_id,
-                )
-                .order_by(Pedido.id.asc())
-                .first()
-            )
-
-            if pedido:
-                return pedido
-
-        if shipping_id:
-            pedido = (
-                Pedido.query
-                .filter_by(
-                    canal="Mercado Libre",
-                    ml_shipping_id=shipping_id,
-                )
-                .order_by(Pedido.id.asc())
-                .first()
-            )
-
-            if pedido:
-                return pedido
-
-    return ml_pedido_existente_por_order_id(order_id)
+    return ml_pedido_existente_operativo_service(
+        order,
+        shipment,
+        Pedido,
+        ml_es_mercado_envios_order,
+        ml_pedido_existente_por_order_id,
+    )
 
 
 def ml_logistica_no_operable(order, shipment):

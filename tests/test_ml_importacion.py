@@ -325,3 +325,130 @@ def test_ml_aplicar_apb_en_pedido_service_usa_billing_si_cliente_es_nickname():
     assert pedido.ml_mensaje_contacto == ""
     assert pedido.ml_campos_faltantes == ""
 
+
+from services.ml_importacion import (
+    ml_pedido_existente_operativo_service as _ml_pedido_existente_operativo_service,
+    ml_pedido_existente_por_order_id_service as _ml_pedido_existente_por_order_id_service,
+)
+
+
+class _FakeId:
+    @staticmethod
+    def asc():
+        return "id_asc"
+
+
+class _FakeQuery:
+    def __init__(self, pedidos):
+        self.pedidos = pedidos
+
+    def filter_by(self, **kwargs):
+        filtrados = []
+        for pedido in self.pedidos:
+            if all(getattr(pedido, clave, None) == valor for clave, valor in kwargs.items()):
+                filtrados.append(pedido)
+        return _FakeQuery(filtrados)
+
+    def order_by(self, *args, **kwargs):
+        return self
+
+    def first(self):
+        return self.pedidos[0] if self.pedidos else None
+
+
+class _PedidoFake:
+    id = _FakeId()
+    query = _FakeQuery([])
+
+
+def _configurar_pedidos_fake(pedidos):
+    _PedidoFake.query = _FakeQuery(pedidos)
+
+
+def test_ml_pedido_existente_por_order_id_service_prioriza_canal_ml():
+    pedido_ml = _SimpleNamespace(
+        canal="Mercado Libre",
+        id_venta="ORDER1",
+    )
+    pedido_otro = _SimpleNamespace(
+        canal="Tienda Nube",
+        id_venta="ORDER1",
+    )
+    _configurar_pedidos_fake([pedido_ml, pedido_otro])
+
+    resultado = _ml_pedido_existente_por_order_id_service(
+        "ORDER1",
+        _PedidoFake,
+    )
+
+    assert resultado is pedido_ml
+
+
+def test_ml_pedido_existente_por_order_id_service_hace_fallback_por_id_venta():
+    pedido_otro = _SimpleNamespace(
+        canal="Tienda Nube",
+        id_venta="ORDER1",
+    )
+    _configurar_pedidos_fake([pedido_otro])
+
+    resultado = _ml_pedido_existente_por_order_id_service(
+        "ORDER1",
+        _PedidoFake,
+    )
+
+    assert resultado is pedido_otro
+
+
+def test_ml_pedido_existente_operativo_service_mercado_envios_busca_por_pack():
+    pedido_pack = _SimpleNamespace(
+        canal="Mercado Libre",
+        ml_pack_id="PACK1",
+        ml_shipping_id="SHIP1",
+        id_venta="ORDER_ANTERIOR",
+    )
+    _configurar_pedidos_fake([pedido_pack])
+
+    resultado = _ml_pedido_existente_operativo_service(
+        {"id": "ORDER1", "pack_id": "PACK1", "shipping": {"id": "SHIP1"}},
+        {},
+        _PedidoFake,
+        ml_es_mercado_envios_order_fn=lambda order, shipment: True,
+        ml_pedido_existente_por_order_id_fn=lambda order_id: None,
+    )
+
+    assert resultado is pedido_pack
+
+
+def test_ml_pedido_existente_operativo_service_mercado_envios_busca_por_shipping_si_no_hay_pack():
+    pedido_shipping = _SimpleNamespace(
+        canal="Mercado Libre",
+        ml_pack_id="",
+        ml_shipping_id="SHIP1",
+        id_venta="ORDER_ANTERIOR",
+    )
+    _configurar_pedidos_fake([pedido_shipping])
+
+    resultado = _ml_pedido_existente_operativo_service(
+        {"id": "ORDER1", "shipping": {"id": "SHIP1"}},
+        {},
+        _PedidoFake,
+        ml_es_mercado_envios_order_fn=lambda order, shipment: True,
+        ml_pedido_existente_por_order_id_fn=lambda order_id: None,
+    )
+
+    assert resultado is pedido_shipping
+
+
+def test_ml_pedido_existente_operativo_service_acordas_usa_order_id():
+    _configurar_pedidos_fake([])
+
+    resultado = _ml_pedido_existente_operativo_service(
+        {"id": "ORDER1", "shipping": {"id": "SHIP1"}},
+        {},
+        _PedidoFake,
+        ml_es_mercado_envios_order_fn=lambda order, shipment: False,
+        ml_pedido_existente_por_order_id_fn=lambda order_id: f"pedido:{order_id}",
+    )
+
+    assert resultado == "pedido:ORDER1"
+

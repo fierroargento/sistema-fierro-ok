@@ -783,3 +783,80 @@ def ml_aplicar_apb_en_pedido_service(
 
     return pedido
 
+
+def ml_pedido_existente_por_order_id_service(
+    order_id,
+    Pedido,
+):
+    if not order_id:
+        return None
+
+    pedido = (
+        Pedido.query
+        .filter_by(canal="Mercado Libre", id_venta=order_id)
+        .order_by(Pedido.id.asc())
+        .first()
+    )
+
+    if pedido:
+        return pedido
+
+    return (
+        Pedido.query
+        .filter_by(id_venta=order_id)
+        .order_by(Pedido.id.asc())
+        .first()
+    )
+
+
+def ml_pedido_existente_operativo_service(
+    order,
+    shipment,
+    Pedido,
+    ml_es_mercado_envios_order_fn,
+    ml_pedido_existente_por_order_id_fn,
+):
+    order = order or {}
+    shipment = shipment or {}
+
+    order_id = str(order.get("id") or "").strip()
+    pack_id = str(order.get("pack_id") or "").strip()
+
+    shipping = order.get("shipping") or {}
+    shipping_id = str(
+        shipping.get("id")
+        or shipment.get("id")
+        or ""
+    ).strip()
+
+    if ml_es_mercado_envios_order_fn(order, shipment):
+        if pack_id:
+            pedido = (
+                Pedido.query
+                .filter_by(
+                    canal="Mercado Libre",
+                    ml_pack_id=pack_id,
+                )
+                .order_by(Pedido.id.asc())
+                .first()
+            )
+
+            if pedido:
+                return pedido
+
+        if shipping_id:
+            pedido = (
+                Pedido.query
+                .filter_by(
+                    canal="Mercado Libre",
+                    ml_shipping_id=shipping_id,
+                )
+                .order_by(Pedido.id.asc())
+                .first()
+            )
+
+            if pedido:
+                return pedido
+
+    return ml_pedido_existente_por_order_id_fn(order_id)
+
