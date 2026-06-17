@@ -2,6 +2,19 @@ import json
 import os
 
 
+def etiqueta_archivo_local_disponible_service(
+    etiqueta_archivo,
+    upload_folder,
+):
+    archivo = os.path.basename(str(etiqueta_archivo or ""))
+    if not archivo:
+        return False
+
+    return os.path.exists(
+        os.path.join(upload_folder, archivo)
+    )
+
+
 def ml_guardar_etiqueta_pdf_service(
     shipping_id,
     upload_folder,
@@ -11,7 +24,7 @@ def ml_guardar_etiqueta_pdf_service(
     logger_fn=None,
 ):
     """
-    Descarga y guarda localmente la etiqueta PDF de Mercado Envíos.
+    Descarga y guarda localmente la etiqueta PDF de Mercado Envios.
 
     APB:
     - Este service no conoce Flask, app.config ni Mercado Libre directo.
@@ -71,6 +84,46 @@ def ml_guardar_etiqueta_pdf_service(
                 logger_fn("No se pudo descargar etiqueta ML:", e)
 
     return None
+
+
+def ml_asegurar_etiqueta_disponible_service(
+    pedido,
+    es_mercado_envios_fn,
+    etiqueta_archivo_local_disponible_fn,
+    ml_obtener_order_fn,
+    ml_guardar_etiqueta_pdf_fn,
+):
+    """
+    Garantiza que la etiqueta ML esta disponible en el servidor actual.
+
+    APB:
+    - Mantiene las mutaciones sobre pedido concentradas en una regla testeable.
+    - No conoce Flask, db ni app.config.
+    - Las funciones externas se inyectan desde app.py.
+    """
+    if not pedido or not es_mercado_envios_fn(pedido):
+        return True
+
+    etiqueta_archivo = getattr(pedido, "etiqueta_archivo", None)
+    if etiqueta_archivo and str(etiqueta_archivo).startswith("http"):
+        return True
+
+    if etiqueta_archivo_local_disponible_fn(etiqueta_archivo):
+        return True
+
+    if not getattr(pedido, "ml_shipping_id", None) and getattr(pedido, "id_venta", None):
+        order = ml_obtener_order_fn(pedido.id_venta)
+        shipment_id = (order.get("shipping") or {}).get("id") if order else ""
+        if shipment_id:
+            pedido.ml_shipping_id = str(shipment_id).strip()
+
+    if getattr(pedido, "ml_shipping_id", None):
+        nombre_pdf = ml_guardar_etiqueta_pdf_fn(pedido.ml_shipping_id)
+        if nombre_pdf:
+            pedido.etiqueta_archivo = os.path.basename(str(nombre_pdf))
+            return etiqueta_archivo_local_disponible_fn(pedido.etiqueta_archivo)
+
+    return False
 
 
 def ml_preparar_etiqueta_mercado_envios_service(

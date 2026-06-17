@@ -55,6 +55,8 @@ from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
 from services.ml_items import ml_sincronizar_items_pedido_service
 from services.ml_etiquetas import (
+    etiqueta_archivo_local_disponible_service,
+    ml_asegurar_etiqueta_disponible_service,
     ml_guardar_etiqueta_pdf_service,
     ml_preparar_etiqueta_mercado_envios_service,
 )
@@ -6259,39 +6261,20 @@ def ml_obtener_etiqueta_url(shipping_id):
 
 
 def etiqueta_archivo_local_disponible(etiqueta_archivo):
-    archivo = os.path.basename(str(etiqueta_archivo or ""))
-    if not archivo:
-        return False
-    return os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], archivo))
+    return etiqueta_archivo_local_disponible_service(
+        etiqueta_archivo,
+        app.config["UPLOAD_FOLDER"],
+    )
 
 
 def ml_asegurar_etiqueta_disponible(pedido):
-    """
-    Garantiza que la etiqueta ML esté disponible en el servidor actual.
-    Render puede perder archivos locales al redeploy, por eso re-descargamos por shipping_id.
-    """
-    if not pedido or not es_mercado_envios(pedido):
-        return True
-
-    if pedido.etiqueta_archivo and str(pedido.etiqueta_archivo).startswith("http"):
-        return True
-
-    if etiqueta_archivo_local_disponible(pedido.etiqueta_archivo):
-        return True
-
-    if not pedido.ml_shipping_id and pedido.id_venta:
-        order = ml_obtener_order(pedido.id_venta)
-        shipment_id = (order.get("shipping") or {}).get("id") if order else ""
-        if shipment_id:
-            pedido.ml_shipping_id = str(shipment_id).strip()
-
-    if pedido.ml_shipping_id:
-        nombre_pdf = ml_guardar_etiqueta_pdf(pedido.ml_shipping_id)
-        if nombre_pdf:
-            pedido.etiqueta_archivo = os.path.basename(str(nombre_pdf))
-            return etiqueta_archivo_local_disponible(pedido.etiqueta_archivo)
-
-    return False
+    return ml_asegurar_etiqueta_disponible_service(
+        pedido,
+        es_mercado_envios,
+        etiqueta_archivo_local_disponible,
+        ml_obtener_order,
+        ml_guardar_etiqueta_pdf,
+    )
 
 
 from modules.bot_ml.mapeo_pedidos import (
