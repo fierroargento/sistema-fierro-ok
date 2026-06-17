@@ -561,3 +561,95 @@ def ml_actualizar_resumen_sync_service(
         "errores": errores,
         "me_sin_etiqueta": mercado_envios_sin_etiqueta,
     }
+
+
+def ml_aplicar_datos_envio_service(
+    pedido,
+    order,
+    shipment,
+    ml_mapear_tipo_fn,
+    ml_mapear_tipo_entrega_fn,
+    aplicar_default_tipo_entrega_fn,
+    es_ml_acordas_via_cargo_fn,
+    etiqueta_archivo_local_disponible_fn,
+    ml_guardar_etiqueta_pdf_fn,
+):
+    """
+    Aplica datos logisticos de Mercado Libre al pedido.
+
+    APB:
+    - No conoce Flask, db ni app.config.
+    - Mantiene la mutacion del pedido en una regla testeable.
+    - Recibe helpers externos inyectados desde app.py.
+    """
+    import os
+
+    order = order or {}
+    shipment = shipment or {}
+
+    shipping = order.get("shipping") or {}
+    receiver_address = shipment.get("receiver_address") or {}
+    city = receiver_address.get("city") or {}
+    state = receiver_address.get("state") or {}
+
+    pedido.ml_shipping_id = str(
+        shipping.get("id")
+        or shipment.get("id")
+        or pedido.ml_shipping_id
+        or ""
+    ).strip()
+
+    pedido.ml_logistic_type = str(
+        shipment.get("logistic_type")
+        or shipping.get("logistic_type")
+        or pedido.ml_logistic_type
+        or ""
+    ).strip()
+
+    pedido.ml_shipping_mode = str(
+        shipment.get("mode")
+        or shipping.get("mode")
+        or pedido.ml_shipping_mode
+        or ""
+    ).strip()
+
+    pedido.ml_tipo = ml_mapear_tipo_fn(order, shipment)
+    pedido.tipo_entrega = ml_mapear_tipo_entrega_fn(order, shipment)
+
+    pedido.seguimiento = (
+        shipment.get("tracking_number")
+        or shipment.get("tracking_method")
+        or pedido.seguimiento
+    )
+
+    if pedido.ml_tipo == "Mercado Envíos":
+        pedido.empresa_envio = "Mercado Envíos"
+
+    pedido.direccion = receiver_address.get("address_line") or pedido.direccion
+    pedido.codigo_postal = receiver_address.get("zip_code") or pedido.codigo_postal
+    pedido.localidad = city.get("name") or pedido.localidad
+    pedido.provincia = state.get("name") or pedido.provincia
+    pedido.sucursal_nombre = receiver_address.get("agency_name") or pedido.sucursal_nombre
+
+    aplicar_default_tipo_entrega_fn(pedido)
+
+    if pedido.sucursal_nombre and es_ml_acordas_via_cargo_fn(pedido):
+        pedido.tipo_entrega = "Sucursal"
+
+    pedido.ml_shipping_status = (
+        shipment.get("status")
+        or shipping.get("status")
+        or pedido.ml_shipping_status
+    )
+
+    if pedido.ml_tipo == "Mercado Envíos" and pedido.ml_shipping_id:
+        if (
+            not pedido.etiqueta_archivo
+            or not etiqueta_archivo_local_disponible_fn(pedido.etiqueta_archivo)
+        ):
+            nombre_pdf = ml_guardar_etiqueta_pdf_fn(pedido.ml_shipping_id)
+            if nombre_pdf:
+                pedido.etiqueta_archivo = os.path.basename(str(nombre_pdf))
+
+    return pedido
+

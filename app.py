@@ -48,6 +48,7 @@ from services.ml_importacion import (
     ml_limpiar_pedidos_ml_no_operables_existentes_service,
     ml_procesar_orders_sync_service,
     ml_actualizar_resumen_sync_service,                
+    ml_aplicar_datos_envio_service,
 )    
 
 from services.telefonos import normalizar_telefono_service
@@ -6297,42 +6298,17 @@ def ml_mapear_tipo_entrega(order, shipment):
 
 
 def ml_aplicar_datos_envio(pedido, order, shipment):
-    shipping = order.get("shipping") or {}
-    receiver_address = shipment.get("receiver_address") or {}
-    city = receiver_address.get("city") or {}
-    state = receiver_address.get("state") or {}
-
-    pedido.ml_shipping_id = str(shipping.get("id") or shipment.get("id") or pedido.ml_shipping_id or "").strip()
-    pedido.ml_logistic_type = str(shipment.get("logistic_type") or shipping.get("logistic_type") or pedido.ml_logistic_type or "").strip()
-    pedido.ml_shipping_mode = str(shipment.get("mode") or shipping.get("mode") or pedido.ml_shipping_mode or "").strip()
-
-    pedido.ml_tipo = ml_mapear_tipo(order, shipment)
-    pedido.tipo_entrega = ml_mapear_tipo_entrega(order, shipment)
-
-    pedido.seguimiento = (
-        shipment.get("tracking_number")
-        or shipment.get("tracking_method")
-        or pedido.seguimiento
+    return ml_aplicar_datos_envio_service(
+        pedido,
+        order,
+        shipment,
+        ml_mapear_tipo,
+        ml_mapear_tipo_entrega,
+        aplicar_default_tipo_entrega,
+        es_ml_acordas_via_cargo,
+        etiqueta_archivo_local_disponible,
+        ml_guardar_etiqueta_pdf,
     )
-
-    if pedido.ml_tipo == "Mercado Envíos":
-        pedido.empresa_envio = "Mercado Envíos"
-
-    pedido.direccion = receiver_address.get("address_line") or pedido.direccion
-    pedido.codigo_postal = receiver_address.get("zip_code") or pedido.codigo_postal
-    pedido.localidad = city.get("name") or pedido.localidad
-    pedido.provincia = state.get("name") or pedido.provincia
-    pedido.sucursal_nombre = receiver_address.get("agency_name") or pedido.sucursal_nombre
-    aplicar_default_tipo_entrega(pedido)
-    if pedido.sucursal_nombre and es_ml_acordas_via_cargo(pedido):
-        pedido.tipo_entrega = "Sucursal"
-    pedido.ml_shipping_status = shipment.get("status") or shipping.get("status") or pedido.ml_shipping_status
-
-    if pedido.ml_tipo == "Mercado Envíos" and pedido.ml_shipping_id:
-        if not pedido.etiqueta_archivo or not etiqueta_archivo_local_disponible(pedido.etiqueta_archivo):
-            nombre_pdf = ml_guardar_etiqueta_pdf(pedido.ml_shipping_id)
-            if nombre_pdf:
-                pedido.etiqueta_archivo = os.path.basename(str(nombre_pdf))
 
 
 def ml_pedido_existente_por_order_id(order_id):
