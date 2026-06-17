@@ -55,6 +55,7 @@ from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
 from services.ml_items import ml_sincronizar_items_pedido_service
 from services.ml_etiquetas import (
+    ml_guardar_etiqueta_pdf_service,
     ml_preparar_etiqueta_mercado_envios_service,
 )
 
@@ -3992,52 +3993,14 @@ def ml_api_get_binario(path, params=None, accept="application/pdf"):
 
 
 def ml_guardar_etiqueta_pdf(shipping_id):
-    shipping_id = str(shipping_id or "").strip()
-    if not shipping_id:
-        return None
-
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-
-    nombre_archivo = secure_filename(f"ml_{shipping_id}.pdf")
-    ruta_pdf = os.path.join(app.config["UPLOAD_FOLDER"], nombre_archivo)
-
-    if os.path.exists(ruta_pdf) and os.path.getsize(ruta_pdf) > 0:
-        return nombre_archivo
-
-    intentos = [
-        {"shipment_ids": shipping_id, "response_type": "pdf"},
-        {"shipment_ids": shipping_id},
-    ]
-
-    for params in intentos:
-        try:
-            contenido, content_type = ml_api_get_binario(
-                "/shipment_labels",
-                params=params,
-                accept="application/pdf",
-            )
-
-            if contenido and (contenido[:4] == b"%PDF" or "pdf" in str(content_type).lower()):
-                with open(ruta_pdf, "wb") as salida:
-                    salida.write(contenido)
-
-                if os.path.exists(ruta_pdf) and os.path.getsize(ruta_pdf) > 0:
-                    return nombre_archivo
-
-            try:
-                data = json.loads(contenido.decode("utf-8"))
-                results = data.get("results") or []
-                if results and results[0].get("url"):
-                    nombre_descargado = asegurar_pdf_local_desde_url(results[0].get("url"), prefijo="ml")
-                    if nombre_descargado:
-                        return os.path.basename(str(nombre_descargado))
-            except Exception:
-                pass
-
-        except Exception as e:
-            print("No se pudo descargar etiqueta ML:", e)
-
-    return None
+    return ml_guardar_etiqueta_pdf_service(
+        shipping_id,
+        app.config["UPLOAD_FOLDER"],
+        secure_filename,
+        ml_api_get_binario,
+        asegurar_pdf_local_desde_url,
+        logger_fn=print,
+    )
 
 
 from modules.bot_ml.orders_api import (
