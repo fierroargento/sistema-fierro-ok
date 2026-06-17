@@ -39,15 +39,19 @@ def obtener_producto(sku):
 
     producto = producto.copy()
 
-    ruta_imagen = PRODUCTOS_DIR / sku.upper() / "wa.jpg"
+    imagen_catalogo = str(producto.get("imagen_url") or "").strip()
 
-    if ruta_imagen.exists():
-        producto["imagen_url"] = (
-            f"/static/catalogo/productos/{sku.upper()}/wa.jpg"
-        )
+    if imagen_catalogo.startswith(("http://", "https://")):
+        producto["imagen_url"] = imagen_catalogo
     else:
-        producto["imagen_url"] = ""
+        ruta_imagen = PRODUCTOS_DIR / sku.upper() / "wa.jpg"
 
+        if ruta_imagen.exists():
+            producto["imagen_url"] = (
+                f"/static/catalogo/productos/{sku.upper()}/wa.jpg"
+            )
+        else:
+            producto["imagen_url"] = ""
     return producto
 
 
