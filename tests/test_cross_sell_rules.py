@@ -21,7 +21,7 @@ class PedidoFake:
         estado=Estado.CARGANDO,
         empresa_envio="Vía Cargo",
         tipo_entrega="Sucursal",
-        sucursal_nombre="",
+        sucursal_nombre="Agencia Confirmada",
         codigo_postal="3000",
         items=None,
         ia_faltantes="",
@@ -50,25 +50,25 @@ class PedidoFake:
         self.wa_estado = wa_estado
 
 
-def test_permite_cross_sell_auto_con_datos_completos_aunque_falte_sucursal():
+def test_bloquea_cross_sell_ml_acordas_via_cargo_si_falta_sucursal():
     pedido = PedidoFake(sucursal_nombre="")
 
     assert puede_iniciar_cross_sell_pedido(
         pedido,
         modo="auto",
         auto_enabled=True,
-    ) is True
+    ) is False
 
     assert motivo_bloqueo_cross_sell(
         pedido,
         modo="auto",
         auto_enabled=True,
-    ) == ""
+    ) == "logistica_abierta"
 
 
-def test_permite_cross_sell_pp6040_con_cp_aunque_transporte_no_este_cerrado():
+def test_permite_cross_sell_pp6040_con_cp_y_transporte_definido_aunque_no_tenga_sucursal():
     pedido = PedidoFake(
-        empresa_envio="",
+        empresa_envio="Correo Argentino",
         tipo_entrega="",
         sucursal_nombre="",
         items=[ItemFake(sku="PP6040H", descripcion="Parrilla plegable")],

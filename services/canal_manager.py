@@ -322,13 +322,109 @@ def _dt_naive_utc(valor):
     return valor
 
 
+def _normalizar_faltante_recolector(valor):
+    texto = _normalizar_simple(valor)
+    reemplazos = {
+        "\u00e1": "a",
+        "\u00e9": "e",
+        "\u00ed": "i",
+        "\u00f3": "o",
+        "\u00fa": "u",
+        "\u00fc": "u",
+        "\u00f1": "n",
+    }
+
+    for viejo, nuevo in reemplazos.items():
+        texto = texto.replace(viejo, nuevo)
+
+    return texto
+
+
+def _campo_pedido_resuelto(pedido, *campos):
+    for campo in campos:
+        if str(getattr(pedido, campo, "") or "").strip():
+            return True
+
+    return False
+
+
+def _faltante_recolector_sigue_pendiente(pedido, faltante):
+    """
+    APB:
+    ia_faltantes puede quedar viejo después de que el sistema complete datos
+    logísticos por ML/WA/operador. Para bloquear cross-sell solo cuentan los
+    faltantes que siguen pendientes en el pedido real.
+    """
+    texto = _normalizar_faltante_recolector(faltante)
+
+    if not texto:
+        return False
+
+    tiene_sucursal = _campo_pedido_resuelto(pedido, "sucursal_nombre")
+    tiene_transporte = _campo_pedido_resuelto(pedido, "empresa_envio")
+    tiene_tipo_entrega = _campo_pedido_resuelto(pedido, "tipo_entrega")
+    tiene_cp = _campo_pedido_resuelto(pedido, "codigo_postal")
+    tiene_localidad = _campo_pedido_resuelto(pedido, "localidad")
+    tiene_provincia = _campo_pedido_resuelto(pedido, "provincia")
+    tiene_direccion = _campo_pedido_resuelto(pedido, "direccion")
+
+    if "sucursal" in texto:
+        return not tiene_sucursal
+
+    if (
+        "transporte" in texto
+        or "empresa_envio" in texto
+        or "empresa envio" in texto
+        or "via cargo" in texto
+        or "correo" in texto
+        or "andreani" in texto
+        or "mercado envios" in texto
+    ):
+        return not tiene_transporte
+
+    if "tipo_entrega" in texto or "tipo entrega" in texto or "tipo de entrega" in texto:
+        return not tiene_tipo_entrega
+
+    if "codigo postal" in texto or "cp" == texto or "código postal" in texto:
+        return not tiene_cp
+
+    if "localidad" in texto:
+        return not (tiene_localidad or tiene_sucursal)
+
+    if "provincia" in texto:
+        return not (tiene_provincia or tiene_sucursal)
+
+    if (
+        "direccion" in texto
+        or "domicilio" in texto
+        or "calle" in texto
+        or "altura" in texto
+    ):
+        return not (tiene_direccion or tiene_sucursal)
+
+    if "datos de entrega" in texto or "datos entrega" in texto or texto == "entrega":
+        return not (
+            tiene_sucursal
+            or (
+                tiene_transporte
+                and tiene_tipo_entrega
+                and tiene_cp
+                and tiene_localidad
+                and tiene_provincia
+            )
+        )
+
+    return True
+
+
 def _faltantes_recolector_pedido(pedido):
     """
     Devuelve la lista de faltantes reales del recolector ML.
 
     APB:
     No importa funciones de app.py.
-    Lee el campo persistido pedido.ia_faltantes.
+    Lee el campo persistido pedido.ia_faltantes, pero descarta faltantes
+    logísticos que ya fueron resueltos en el pedido.
     """
     if not pedido:
         return []
@@ -338,25 +434,31 @@ def _faltantes_recolector_pedido(pedido):
     if not raw:
         return []
 
+    faltantes = []
+
     if isinstance(raw, list):
-        return [
+        faltantes = [
             str(x or "").strip()
             for x in raw
             if str(x or "").strip()
         ]
+    else:
+        try:
+            data = json.loads(raw)
+            if isinstance(data, list):
+                faltantes = [
+                    str(x or "").strip()
+                    for x in data
+                    if str(x or "").strip()
+                ]
+        except Exception:
+            faltantes = []
 
-    try:
-        data = json.loads(raw)
-        if isinstance(data, list):
-            return [
-                str(x or "").strip()
-                for x in data
-                if str(x or "").strip()
-            ]
-    except Exception:
-        pass
-
-    return []
+    return [
+        faltante
+        for faltante in faltantes
+        if _faltante_recolector_sigue_pendiente(pedido, faltante)
+    ]
 
 
 def pedido_es_plegable_pp6040_ownership(pedido):

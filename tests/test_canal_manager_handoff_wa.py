@@ -53,3 +53,15 @@ def test_logistica_abierta_sigue_bloqueando_cross_sell_si_falta_sucursal(monkeyp
     )
 
     assert canal_manager.ml_acordas_logistica_abierta_bloquea_cross_sell(pedido) is True
+
+def test_logistica_abierta_no_bloquea_cross_sell_si_faltantes_viejos_ya_resueltos():
+    pedido = PedidoFake()
+    pedido.ia_faltantes = '["sucursal", "transporte"]'
+    pedido.empresa_envio = "Vía Cargo"
+    pedido.tipo_entrega = "Sucursal"
+    pedido.sucursal_nombre = "Agencia Velez Sarsfield"
+    pedido.codigo_postal = "5014"
+    pedido.localidad = "Cordoba Capital"
+    pedido.provincia = "Cordoba"
+
+    assert canal_manager.ml_acordas_logistica_abierta_bloquea_cross_sell(pedido) is False

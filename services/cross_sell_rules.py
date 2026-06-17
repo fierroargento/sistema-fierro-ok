@@ -208,8 +208,9 @@ def pedido_tiene_datos_completos_para_cross_sell(pedido):
     """
     Regla mínima defensiva: cross-sell nace después de datos completos.
 
-    No bloqueamos por logística pendiente: desde datos completos la instancia
-    comercial debe iniciarse o quedar disponible para operador.
+    Los faltantes puramente logísticos no se tratan como faltantes comerciales.
+    El bloqueo estructural por logística abierta de ML/Acordás se evalúa
+    aparte en motivo_bloqueo_cross_sell().
     """
     if not pedido:
         return False
@@ -301,7 +302,8 @@ def motivo_bloqueo_cross_sell(
     Devuelve un código si debe bloquearse.
 
     Importante:
-    - La logística pendiente NO bloquea por sí sola.
+    - Los faltantes logísticos simples no cuentan como datos comerciales incompletos.
+    - ML/Acordás con logística abierta sí bloquea cross-sell hasta encaminar el envío.
     - Automático: solo antes de Etiqueta Lista.
     - Manual operador: hasta antes de Despachado.
     """
@@ -332,6 +334,15 @@ def motivo_bloqueo_cross_sell(
 
     if not cross_sell_tiene_productos_configurados(pedido):
         return "sin_productos_cross_sell"
+
+    try:
+        from services.canal_manager import ml_acordas_logistica_abierta_bloquea_cross_sell
+
+        if ml_acordas_logistica_abierta_bloquea_cross_sell(pedido):
+            return "logistica_abierta"
+
+    except Exception as e:
+        print("[CROSS-SELL-RULES] No se pudo evaluar logística abierta ML/Acordás:", e)
 
     return ""
 
