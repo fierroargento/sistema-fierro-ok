@@ -71,7 +71,9 @@ from modules.whatsapp.text_utils import (
 
 from modules.whatsapp.flows_transporte import (
     _cargar_sucursales_ofrecidas,
+    pedido_requiere_sucursal_via_cargo_pendiente,
     wa_enviar_confirmacion_sucursal,
+    wa_ofrecer_sucursales_via_cargo_pendientes,
     wa_procesar_respuesta_confirmacion,
     wa_procesar_eleccion_transporte,
     wa_cerrar_datos_completos,
@@ -434,6 +436,13 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
 
             wa_cerrar_datos_completos(pedido)
 
+            if _obtener_estado_wa(pedido) in (
+                WA_FALTA_ELEGIR_TRANSPORTE,
+                WA_ESPERANDO_CONFIRMACION_SUCURSAL,
+                WA_REQUIERE_OPERADOR,
+            ):
+                return
+
             try:
                 from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
 
@@ -447,6 +456,13 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
             return
 
         wa_cerrar_datos_completos(pedido)
+
+        if _obtener_estado_wa(pedido) in (
+            WA_FALTA_ELEGIR_TRANSPORTE,
+            WA_ESPERANDO_CONFIRMACION_SUCURSAL,
+            WA_REQUIERE_OPERADOR,
+        ):
+            return
 
         try:
             from modules.whatsapp.cross_sell_auto import intentar_cross_sell_automatico
@@ -504,6 +520,9 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
       pedido esperando una respuesta que el cliente nunca recibio.
     """
     origen = (origen or "bot").strip().lower()
+
+    if pedido_requiere_sucursal_via_cargo_pendiente(pedido):
+        return False
 
     from services.cross_sell_rules import puede_iniciar_cross_sell_pedido
 
@@ -616,6 +635,14 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
 def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_actual):
     
     tel = normalizar_telefono_service(pedido.telefono)
+
+    if pedido_requiere_sucursal_via_cargo_pendiente(pedido):
+        wa_ofrecer_sucursales_via_cargo_pendientes(
+            pedido,
+            texto_cliente=texto_cliente,
+        )
+        return
+
     productos = obtener_productos_a_ofrecer(pedido)
 
     if _es_consulta_factura(texto_cliente):

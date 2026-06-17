@@ -15,6 +15,7 @@ from modules.whatsapp.config import (
     WA_DESPACHO_EN_PROCESO,
     WA_ESPERANDO_CONFIRMACION_SUCURSAL,
     WA_FALTA_ELEGIR_TRANSPORTE,
+    WA_REQUIERE_OPERADOR,
     WA_TEMPLATE_INICIO_CHAT_OPERADOR,
 )
 
@@ -76,6 +77,189 @@ def _mensaje_despacho_en_proceso():
     )
 
 
+def _normalizar_texto_logistica(valor):
+    texto = str(valor or "").strip().lower()
+    reemplazos = {
+        "\u00e1": "a",
+        "\u00e9": "e",
+        "\u00ed": "i",
+        "\u00f3": "o",
+        "\u00fa": "u",
+        "\u00fc": "u",
+        "\u00f1": "n",
+    }
+    for viejo, nuevo in reemplazos.items():
+        texto = texto.replace(viejo, nuevo)
+    return texto
+
+
+def pedido_requiere_sucursal_via_cargo_pendiente(pedido):
+    """
+    APB ML -> WA:
+    Para ML Acordas con Via Cargo a sucursal, la sucursal confirmada
+    es parte de la logistica obligatoria. No se puede cerrar datos ni
+    iniciar cross-sell si todavia falta sucursal_nombre.
+    """
+    if not pedido:
+        return False
+
+    canal = _normalizar_texto_logistica(getattr(pedido, "canal", ""))
+    tipo_ml = _normalizar_texto_logistica(getattr(pedido, "tipo_ml", ""))
+    empresa = _normalizar_texto_logistica(getattr(pedido, "empresa_envio", ""))
+    tipo_entrega = _normalizar_texto_logistica(getattr(pedido, "tipo_entrega", ""))
+    sucursal = str(getattr(pedido, "sucursal_nombre", "") or "").strip()
+
+    es_ml_acordas = canal == "mercado libre" and "acord" in tipo_ml
+    es_via_cargo = "via cargo" in empresa or "cargo" in empresa
+    es_sucursal = "sucursal" in tipo_entrega
+
+    return bool(es_ml_acordas and es_via_cargo and es_sucursal and not sucursal)
+
+
+def _cargar_sucursales_via_cargo_candidatas(pedido, limite=3):
+    cp = str(getattr(pedido, "codigo_postal", "") or "").strip()
+    localidad = _normalizar_texto_logistica(getattr(pedido, "localidad", ""))
+    provincia = _normalizar_texto_logistica(getattr(pedido, "provincia", ""))
+
+    try:
+        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        print("[WA] No se pudieron cargar sucursales Via Cargo:", e)
+        return []
+
+    if not isinstance(data, list):
+        return []
+
+    def cp_sucursal(s):
+        return str(s.get("cp") or "").strip()
+
+    def localidad_sucursal(s):
+        return _normalizar_texto_logistica(s.get("localidad") or s.get("city") or "")
+
+    def provincia_sucursal(s):
+        return _normalizar_texto_logistica(s.get("provincia") or s.get("state") or "")
+
+    candidatas = []
+
+    if cp:
+        candidatas = [s for s in data if cp_sucursal(s) == cp]
+
+    if not candidatas and localidad:
+        candidatas = [
+            s for s in data
+            if localidad and localidad in localidad_sucursal(s)
+        ]
+
+    if not candidatas and provincia:
+        candidatas = [
+            s for s in data
+            if provincia and provincia in provincia_sucursal(s)
+        ]
+
+    if not candidatas and cp.isdigit():
+        cp_int = int(cp)
+        candidatas = sorted(
+            [s for s in data if cp_sucursal(s).isdigit()],
+            key=lambda s: abs(int(cp_sucursal(s)) - cp_int)
+        )
+
+    return candidatas[:limite]
+
+
+def _formatear_sucursal_opcion(idx, sucursal):
+    nombre = (
+        sucursal.get("nombre")
+        or sucursal.get("name")
+        or "Sucursal Vía Cargo"
+    )
+    direccion = (
+        sucursal.get("direccion")
+        or sucursal.get("address")
+        or ""
+    )
+    localidad = (
+        sucursal.get("localidad")
+        or sucursal.get("city")
+        or ""
+    )
+
+    partes = [f"{idx}) {nombre}"]
+    if direccion:
+        partes.append(direccion)
+    if localidad:
+        partes.append(localidad)
+
+    return " - ".join(partes)
+
+
+def wa_ofrecer_sucursales_via_cargo_pendientes(pedido, texto_cliente=None):
+    """
+    Ofrece sucursales por WhatsApp cuando el handoff ML -> WA llego sin
+    sucursal confirmada.
+
+    APB:
+    - No manda al cliente a buscar en internet.
+    - No cierra logistica.
+    - No inicia cross-sell.
+    """
+    from modules.whatsapp.flows import _guardar_estado_wa
+
+    tel = normalizar_telefono_service(getattr(pedido, "telefono", ""))
+    if not tel:
+        return False
+
+    sucs = _cargar_sucursales_via_cargo_candidatas(pedido)
+
+    if not sucs:
+        pedido.ia_requiere_operador = True
+        _guardar_estado_wa(pedido, WA_REQUIERE_OPERADOR, tel)
+
+        return wa_enviar_texto(
+            tel,
+            "Ya tengo tus datos para avanzar con el envío.\n\n"
+            "Para no indicarte una sucursal incorrecta, lo revisa un operador "
+            "y te confirmamos la sucursal de Vía Cargo más conveniente.",
+            pedido=pedido,
+        )
+
+    pedido.ia_sucursales_ofrecidas = json.dumps(sucs, ensure_ascii=False)
+
+    _guardar_estado_wa(
+        pedido,
+        WA_FALTA_ELEGIR_TRANSPORTE,
+        tel
+    )
+
+    texto = (
+        "Perfecto, el envío incluido es con retiro en sucursal Vía Cargo.\n\n"
+        "Con los datos que me pasaste, encontramos estas opciones:\n\n"
+    )
+
+    texto += "\n".join(
+        _formatear_sucursal_opcion(i + 1, suc)
+        for i, suc in enumerate(sucs)
+    )
+
+    if len(sucs) == 1:
+        texto += (
+            "\n\nRespondeme *sí* si esa sucursal te queda bien, "
+            "o avisame si querés que lo revise un operador."
+        )
+    else:
+        texto += (
+            "\n\nRespondeme con el número de la sucursal que preferís "
+            "para dejar el despacho confirmado."
+        )
+
+    return wa_enviar_texto(
+        tel,
+        texto,
+        pedido=pedido,
+    )
+
+
+
 def _cerrar_despacho_en_proceso_wa(pedido, tel, iniciar_cross_sell=False):
     """
     Cierra el flujo WA dejando el pedido en despacho en proceso.
@@ -85,7 +269,6 @@ def _cerrar_despacho_en_proceso_wa(pedido, tel, iniciar_cross_sell=False):
     - Evita mensajes duplicados y estados inconsistentes.
     - El cross-sell se inicia solo cuando la rama llamadora lo habilita.
     """
-    from app import db
     from modules.whatsapp.flows import _guardar_estado_wa
 
     _guardar_estado_wa(
@@ -93,8 +276,6 @@ def _cerrar_despacho_en_proceso_wa(pedido, tel, iniciar_cross_sell=False):
         WA_DESPACHO_EN_PROCESO,
         tel
     )
-
-    db.session.commit()
 
     wa_enviar_texto(
         tel,
@@ -206,6 +387,22 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
     if _es_consulta_factura(texto_cliente):
         return _responder_factura_o_escalar(pedido, texto_cliente)
 
+    if pedido_requiere_sucursal_via_cargo_pendiente(pedido) and any(
+        x in texto for x in ["domicilio", "a casa", "mi casa", "entrega en casa", "no es a domicilio"]
+    ):
+        return wa_ofrecer_sucursales_via_cargo_pendientes(
+            pedido,
+            texto_cliente=texto_cliente,
+        )
+
+    if pedido_requiere_sucursal_via_cargo_pendiente(pedido) and any(
+        x in texto for x in ["donde", "via cargo", "sucursal", "cerca"]
+    ):
+        return wa_ofrecer_sucursales_via_cargo_pendientes(
+            pedido,
+            texto_cliente=texto_cliente,
+        )
+
     if any(x in texto for x in ["domicilio", "a casa", "mi casa", "entrega en casa"]):
         ok, msg = asignar_transporte_pedido(
             pedido,
@@ -305,6 +502,14 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
 def wa_cerrar_datos_completos(pedido):
     """Datos completos: para PP6040 prepara Correo y no informa costos al cliente."""
 
+    tel = normalizar_telefono_service(pedido.telefono)
+
+    if not tel:
+        return False
+
+    if pedido_requiere_sucursal_via_cargo_pendiente(pedido):
+        return wa_ofrecer_sucursales_via_cargo_pendientes(pedido)
+
     from app import db
     from modules.transportes.selector import (
         pedido_contiene_pp6040,
@@ -315,11 +520,6 @@ def wa_cerrar_datos_completos(pedido):
         _guardar_estado_wa,
         _escalar_operador,
     )
-
-    tel = normalizar_telefono_service(pedido.telefono)
-
-    if not tel:
-        return False
 
     actualizar_estado_conversacional_wa(
         pedido,
