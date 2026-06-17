@@ -6719,6 +6719,7 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
     - No actúa sobre pedidos cerrados/finalizados/cancelados.
     """
     from services.canal_manager import (
+        ml_acordas_via_cargo_sin_sucursal,
         puede_hacer_handoff_ml_a_whatsapp,
     )
     from services.wa_auto_ml_precondiciones import evaluar_precondiciones_wa_auto_ml
@@ -6787,6 +6788,29 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
 
         if resultado_ml_sigue:
             return resultado_ml_sigue
+
+    if not faltantes_limpios and ml_acordas_via_cargo_sin_sucursal(pedido):
+        ml_cortado, _motivo_corte_ml = ml_conversacion_cortada_para_handoff_wa(
+            pedido,
+            motivo_handoff=motivo_handoff,
+        )
+
+        from services.ml_sucursales_via_cargo import intentar_ofrecer_sucursales_ml_antes_wa
+
+        resultado_sucursal_ml = intentar_ofrecer_sucursales_ml_antes_wa(
+            pedido=pedido,
+            ml_cortado=ml_cortado,
+            sugerir_sucursales_fn=sugerir_sucursales,
+            puede_enviar_mensaje_fn=puede_enviar_mensaje,
+            enviar_mensaje_ml_fn=ml_enviar_mensaje_acordas,
+            registrar_envio_automatico_fn=registrar_envio_automatico,
+            ia_hash_texto_fn=ia_hash_texto,
+            db_session=db.session,
+            now_fn=datetime.utcnow,
+        )
+
+        if resultado_sucursal_ml:
+            return resultado_sucursal_ml["ok"], resultado_sucursal_ml["motivo"]
 
     try:
         decision_flujo_wa = decidir_flujo_wa_desde_ml(faltantes_limpios)
