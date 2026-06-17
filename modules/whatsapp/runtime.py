@@ -6,6 +6,23 @@ from services.busqueda_pedidos import (
 )
 
 
+
+def _asegurar_fecha_utc(fecha):
+    """
+    Normaliza fechas para comparar ventana WhatsApp 24h.
+
+    SQLAlchemy/PostgreSQL puede devolver datetimes naive aunque se hayan
+    guardado desde datetime.now(UTC). Para la ventana 24h los interpretamos
+    como UTC y evitamos mezclar aware vs naive.
+    """
+    if not fecha:
+        return None
+
+    if getattr(fecha, "tzinfo", None) is None:
+        return fecha.replace(tzinfo=UTC)
+
+    return fecha.astimezone(UTC)
+
 def wa_ventana_24h_abierta_service(
     WhatsAppMensaje,
     pedido=None,
@@ -48,8 +65,12 @@ def wa_ventana_24h_abierta_service(
         if not ultimo or not ultimo.fecha:
             return False
 
+        fecha_ultimo = _asegurar_fecha_utc(ultimo.fecha)
+        if not fecha_ultimo:
+            return False
+
         return (
-            datetime.now(UTC) - ultimo.fecha
+            datetime.now(UTC) - fecha_ultimo
         ) <= timedelta(hours=24)
 
     except Exception as e:
