@@ -653,3 +653,133 @@ def ml_aplicar_datos_envio_service(
 
     return pedido
 
+
+def ml_datos_apb_pedido_service(
+    pedido,
+    es_ml_acordas_entrega_fn,
+    parece_nickname_ml_fn,
+    despacho_completo_fn,
+):
+    faltantes = []
+
+    if not pedido:
+        return faltantes
+
+    if es_ml_acordas_entrega_fn(pedido):
+        cliente = getattr(pedido, "cliente", "")
+        ml_buyer_nickname = getattr(pedido, "ml_buyer_nickname", "")
+        ml_billing_nombre = getattr(pedido, "ml_billing_nombre", "")
+        dni = getattr(pedido, "dni", "")
+        ml_billing_documento = getattr(pedido, "ml_billing_documento", "")
+        telefono = getattr(pedido, "telefono", "")
+
+        if parece_nickname_ml_fn(cliente, ml_buyer_nickname) and not (ml_billing_nombre or "").strip():
+            faltantes.append("nombre real")
+
+        if not (dni or "").strip() and not (ml_billing_documento or "").strip():
+            faltantes.append("DNI/CUIT")
+
+        if not (telefono or "").strip():
+            faltantes.append("tel\u00e9fono")
+
+        if not despacho_completo_fn(pedido):
+            faltantes.append("datos de entrega")
+
+    return faltantes
+
+
+def ml_aplicar_apb_en_pedido_service(
+    pedido,
+    order,
+    shipment,
+    billing_info,
+    ml_nombre_cliente_fn,
+    ml_extraer_nombre_billing_fn,
+    ml_extraer_documento_billing_fn,
+    ml_extraer_direccion_billing_fn,
+    ml_extraer_telefono_fn,
+    ml_buyer_tiene_nombre_real_fn,
+    parece_nickname_ml_fn,
+    ml_datos_apb_pedido_fn,
+    generar_mensaje_contacto_ml_fn,
+):
+    order = order or {}
+    shipment = shipment or {}
+    billing_info = billing_info or {}
+
+    buyer = order.get("buyer") or {}
+
+    pedido.ml_buyer_id = str(
+        buyer.get("id")
+        or getattr(pedido, "ml_buyer_id", "")
+        or ""
+    ).strip()
+
+    pedido.ml_buyer_nickname = str(
+        buyer.get("nickname")
+        or getattr(pedido, "ml_buyer_nickname", "")
+        or ""
+    ).strip()
+
+    nombre_ml = ml_nombre_cliente_fn(order, shipment)
+    nombre_billing = ml_extraer_nombre_billing_fn(billing_info)
+    documento_billing = ml_extraer_documento_billing_fn(billing_info)
+    direccion_billing = ml_extraer_direccion_billing_fn(billing_info)
+    telefono_ml = ml_extraer_telefono_fn(order, shipment)
+
+    pedido.ml_nombre_real = bool(
+        ml_buyer_tiene_nombre_real_fn(order)
+        or (
+            nombre_ml
+            and not parece_nickname_ml_fn(
+                nombre_ml,
+                getattr(pedido, "ml_buyer_nickname", ""),
+            )
+        )
+    )
+
+    pedido.ml_datos_fiscales_ok = bool(
+        documento_billing
+        or nombre_billing
+    )
+
+    pedido.ml_billing_nombre = (
+        nombre_billing
+        or getattr(pedido, "ml_billing_nombre", "")
+    )
+    pedido.ml_billing_documento = (
+        documento_billing
+        or getattr(pedido, "ml_billing_documento", "")
+    )
+    pedido.ml_billing_direccion = (
+        direccion_billing
+        or getattr(pedido, "ml_billing_direccion", "")
+    )
+
+    if nombre_ml and not parece_nickname_ml_fn(
+        nombre_ml,
+        getattr(pedido, "ml_buyer_nickname", ""),
+    ):
+        pedido.cliente = nombre_ml
+    elif nombre_billing and parece_nickname_ml_fn(
+        getattr(pedido, "cliente", ""),
+        getattr(pedido, "ml_buyer_nickname", ""),
+    ):
+        pedido.cliente = nombre_billing
+
+    if documento_billing and not (getattr(pedido, "dni", "") or "").strip():
+        pedido.dni = documento_billing
+
+    if telefono_ml and not (getattr(pedido, "telefono", "") or "").strip():
+        pedido.telefono = telefono_ml
+
+    faltantes = ml_datos_apb_pedido_fn(pedido)
+    pedido.ml_campos_faltantes = ", ".join(faltantes)
+    pedido.ml_mensaje_contacto = (
+        generar_mensaje_contacto_ml_fn(pedido)
+        if faltantes
+        else ""
+    )
+
+    return pedido
+

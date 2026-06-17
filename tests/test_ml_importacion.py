@@ -191,3 +191,137 @@ def test_ml_aplicar_datos_envio_service_acordas_via_cargo_con_sucursal_fuerza_ti
     assert pedido.localidad == "Viedma"
     assert pedido.provincia == "Rio Negro"
 
+
+from services.ml_importacion import (
+    ml_aplicar_apb_en_pedido_service as _ml_aplicar_apb_en_pedido_service,
+    ml_datos_apb_pedido_service as _ml_datos_apb_pedido_service,
+)
+
+
+def test_ml_datos_apb_pedido_service_detecta_faltantes_acordas():
+    pedido = _SimpleNamespace(
+        cliente="comprador_123",
+        ml_buyer_nickname="comprador_123",
+        ml_billing_nombre="",
+        dni="",
+        ml_billing_documento="",
+        telefono="",
+    )
+
+    faltantes = _ml_datos_apb_pedido_service(
+        pedido,
+        es_ml_acordas_entrega_fn=lambda pedido: True,
+        parece_nickname_ml_fn=lambda cliente, nickname: cliente == nickname,
+        despacho_completo_fn=lambda pedido: False,
+    )
+
+    assert faltantes == [
+        "nombre real",
+        "DNI/CUIT",
+        "tel\u00e9fono",
+        "datos de entrega",
+    ]
+
+
+def test_ml_datos_apb_pedido_service_no_pide_faltantes_si_no_es_acordas():
+    pedido = _SimpleNamespace(
+        cliente="comprador_123",
+        ml_buyer_nickname="comprador_123",
+        ml_billing_nombre="",
+        dni="",
+        ml_billing_documento="",
+        telefono="",
+    )
+
+    faltantes = _ml_datos_apb_pedido_service(
+        pedido,
+        es_ml_acordas_entrega_fn=lambda pedido: False,
+        parece_nickname_ml_fn=lambda cliente, nickname: True,
+        despacho_completo_fn=lambda pedido: False,
+    )
+
+    assert faltantes == []
+
+
+def _pedido_ml_apb_fake():
+    return _SimpleNamespace(
+        cliente="comprador_123",
+        dni="",
+        telefono="",
+        ml_buyer_id="",
+        ml_buyer_nickname="",
+        ml_nombre_real=False,
+        ml_datos_fiscales_ok=False,
+        ml_billing_nombre="",
+        ml_billing_documento="",
+        ml_billing_direccion="",
+        ml_campos_faltantes="",
+        ml_mensaje_contacto="",
+    )
+
+
+def test_ml_aplicar_apb_en_pedido_service_completa_datos_y_mensaje():
+    pedido = _pedido_ml_apb_fake()
+
+    order = {
+        "buyer": {
+            "id": "BUYER1",
+            "nickname": "comprador_123",
+        }
+    }
+
+    resultado = _ml_aplicar_apb_en_pedido_service(
+        pedido,
+        order,
+        shipment={},
+        billing_info={"fake": True},
+        ml_nombre_cliente_fn=lambda order, shipment: "Juan Perez",
+        ml_extraer_nombre_billing_fn=lambda billing_info: "Juan Fiscal",
+        ml_extraer_documento_billing_fn=lambda billing_info: "20123456789",
+        ml_extraer_direccion_billing_fn=lambda billing_info: "Fiscal 123",
+        ml_extraer_telefono_fn=lambda order, shipment: "2991234567",
+        ml_buyer_tiene_nombre_real_fn=lambda order: False,
+        parece_nickname_ml_fn=lambda valor, nickname: valor == nickname,
+        ml_datos_apb_pedido_fn=lambda pedido: ["datos de entrega"],
+        generar_mensaje_contacto_ml_fn=lambda pedido: "Necesitamos datos de entrega",
+    )
+
+    assert resultado is pedido
+    assert pedido.ml_buyer_id == "BUYER1"
+    assert pedido.ml_buyer_nickname == "comprador_123"
+    assert pedido.ml_nombre_real is True
+    assert pedido.ml_datos_fiscales_ok is True
+    assert pedido.ml_billing_nombre == "Juan Fiscal"
+    assert pedido.ml_billing_documento == "20123456789"
+    assert pedido.ml_billing_direccion == "Fiscal 123"
+    assert pedido.cliente == "Juan Perez"
+    assert pedido.dni == "20123456789"
+    assert pedido.telefono == "2991234567"
+    assert pedido.ml_campos_faltantes == "datos de entrega"
+    assert pedido.ml_mensaje_contacto == "Necesitamos datos de entrega"
+
+
+def test_ml_aplicar_apb_en_pedido_service_usa_billing_si_cliente_es_nickname():
+    pedido = _pedido_ml_apb_fake()
+    pedido.cliente = "comprador_123"
+
+    _ml_aplicar_apb_en_pedido_service(
+        pedido,
+        order={"buyer": {"id": "BUYER1", "nickname": "comprador_123"}},
+        shipment={},
+        billing_info={},
+        ml_nombre_cliente_fn=lambda order, shipment: "comprador_123",
+        ml_extraer_nombre_billing_fn=lambda billing_info: "Maria Gomez",
+        ml_extraer_documento_billing_fn=lambda billing_info: "",
+        ml_extraer_direccion_billing_fn=lambda billing_info: "",
+        ml_extraer_telefono_fn=lambda order, shipment: "",
+        ml_buyer_tiene_nombre_real_fn=lambda order: False,
+        parece_nickname_ml_fn=lambda valor, nickname: valor == nickname,
+        ml_datos_apb_pedido_fn=lambda pedido: [],
+        generar_mensaje_contacto_ml_fn=lambda pedido: "no deberia usarse",
+    )
+
+    assert pedido.cliente == "Maria Gomez"
+    assert pedido.ml_mensaje_contacto == ""
+    assert pedido.ml_campos_faltantes == ""
+
