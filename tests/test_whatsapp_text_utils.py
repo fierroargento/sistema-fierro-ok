@@ -48,3 +48,11 @@ def test_requiere_factura_distinta_detecta_datos_distintos():
     assert requiere_factura_distinta("te paso los datos")
     assert requiere_factura_distinta("con otro CUIT")
     assert requiere_factura_distinta("a nombre de otra razón social")
+
+
+def test_es_afirmativo_detecta_queda_bien():
+    from modules.whatsapp.text_utils import es_afirmativo
+
+    assert es_afirmativo("me queda bien") is True
+    assert es_afirmativo("le queda bien") is True
+    assert es_afirmativo("queda bien") is True

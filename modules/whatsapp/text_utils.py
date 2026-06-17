@@ -7,6 +7,7 @@ def es_afirmativo(texto):
         "si", "sí", "ok", "dale", "confirmo", "confirmado", "correcto",
         "exacto", "perfecto", "claro", "obvio", "de una", "va", "bueno",
         "está bien", "esta bien", "todo bien", "listo", "por supuesto",
+        "me queda bien", "le queda bien", "queda bien",
     ])
 
 
