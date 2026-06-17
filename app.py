@@ -6006,6 +6006,40 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
         pedido.ml_mensajes_pendientes = tiene_pendiente
         pedido.ml_mensajes_pendientes_count = count
         pedido.ultima_sync_mensajes_ml = datetime.utcnow()
+
+        # APB ML / Carga:
+        # Si el comprador pide una modificación/agregado operativo
+        # por Mercado Libre, Carga debe revisarlo antes de despacho.
+        try:
+            from services.revision_carga_ml import (
+                marcar_revision_carga_por_mensaje_ml,
+            )
+
+            ultimo_comprador_revision = ml_ultimo_mensaje_comprador(
+                mensajes,
+                seller_id=seller_id,
+            )
+            texto_revision_carga = ml_texto_mensaje_ml(
+                ultimo_comprador_revision
+            ) if ultimo_comprador_revision else ""
+
+            if marcar_revision_carga_por_mensaje_ml(
+                pedido,
+                texto_revision_carga,
+                usuario="sistema",
+                registrar_evento=registrar_evento_operativo,
+            ):
+                print(
+                    f"[ML-CARGA] Pedido #{pedido.id} requiere revisión de Carga: "
+                    f"{texto_revision_carga[:120]}"
+                )
+                return True, max(count or 1, 1)
+
+        except Exception as e:
+            print(
+                f"[ML-CARGA] Error detectando revisión de Carga "
+                f"pedido #{getattr(pedido, 'id', '?')}: {e}"
+            )
         # APB: NO marcar contacto iniciado por leer mensajes de ML.
         # El contacto inicial solo se marca por accion explicita del operador:
         # Enviar mensaje ML / Copiar mensaje.
