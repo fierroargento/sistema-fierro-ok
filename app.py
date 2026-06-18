@@ -2442,23 +2442,29 @@ def prioridad_pedido(pedido):
     return 3
 
 
-def pedido_con_datos_pendientes(pedido):
-    if not pedido:
-        return False
-
-    if pedido.estado == "Cargando Pedido":
-        return True
-
+def _agregado_pendiente_inicio_carga(pedido):
     try:
         from services.cross_sell_preparacion import debe_mostrar_en_inicio_carga_por_agregado
 
-        if debe_mostrar_en_inicio_carga_por_agregado(pedido):
-            return True
+        return debe_mostrar_en_inicio_carga_por_agregado(pedido)
 
     except Exception as e:
         print("[CROSS-SELL PREPARACION] Error evaluando pedido pendiente para carga:", e)
+        return False
 
-    return False
+
+def pedido_con_datos_pendientes(pedido):
+    """
+    Compatibilidad APB:
+    Este nombre queda por uso histórico, pero ahora representa la bandeja
+    Pendientes Carga.
+    """
+    from services.bandejas_inicio import pedido_pendiente_carga
+
+    return pedido_pendiente_carga(
+        pedido,
+        agregado_pendiente_fn=_agregado_pendiente_inicio_carga,
+    )
 
 
 def orden_inicio_pedido(pedido):
@@ -2556,57 +2562,49 @@ def alertas_operativas():
 
 
 def pedido_sin_despacho(pedido):
-    return bool(
-        pedido
-        and pedido.estado not in ESTADOS_POST_DESPACHO + ESTADOS_FINALES[:2]
+    """
+    Compatibilidad APB:
+    Este nombre queda por uso histórico, pero ahora representa la bandeja
+    Pendientes Despacho.
+    """
+    from services.bandejas_inicio import pedido_pendiente_despacho
+
+    return pedido_pendiente_despacho(
+        pedido,
+        agregado_pendiente_fn=_agregado_pendiente_inicio_carga,
     )
 
 
-# TODO APB ESTADOS:
-# resumen_operativo separa estados post-despacho en dos familias:
-# - seguimiento normal
-# - demora/reclamo/no entregado
-# Conviene centralizar estas listas como constantes separadas
-# cuando se refactoricen KPIs y tablero.
+def atributos_filtro_inicio_pedido(pedido):
+    from services.bandejas_inicio import atributos_filtro_pedido
+
+    return atributos_filtro_pedido(
+        pedido,
+        agregado_pendiente_fn=_agregado_pendiente_inicio_carga,
+    )
+
+
 def resumen_operativo(pedidos):
+    from services.bandejas_inicio import (
+        BANDEJA_DEMORA,
+        BANDEJA_PENDIENTES_CARGA,
+        BANDEJA_PENDIENTES_DESPACHO,
+        BANDEJA_SEGUIMIENTO,
+        resumen_operativo_bandejas,
+    )
 
-    resumen = {
-        "sin_despacho": 0,
-        "seguimiento": 0,
-        "demora": 0,
-        "mercado_envios": 0,
-        "total": 0,
-    }
+    resumen = resumen_operativo_bandejas(
+        pedidos,
+        agregado_pendiente_fn=_agregado_pendiente_inicio_carga,
+    )
 
-    for pedido in pedidos:
-
-        estado = str(pedido.estado or "")
-
-        if pedido_sin_despacho(pedido):
-
-            resumen["sin_despacho"] += 1
-
-        elif estado in [
-            "Despachado",
-            "Verificar llegada a destino",
-            Estado.LISTO_RETIRAR,
-        ]:
-
-            resumen["seguimiento"] += 1
-
-        elif estado in [
-            "Con demora de entrega",
-            "Con reclamo en transporte",
-            "No entregado",
-        ]:
-
-            resumen["demora"] += 1
-
-        if str(pedido.ml_tipo or "") == "Mercado Envíos":
-
-            resumen["mercado_envios"] += 1
-
-        resumen["total"] += 1
+    # Compatibilidad temporal con index.html hasta cambiar el template.
+    resumen["sin_despacho"] = resumen[BANDEJA_PENDIENTES_CARGA]
+    resumen["pendientes_carga"] = resumen[BANDEJA_PENDIENTES_CARGA]
+    resumen["pendientes_despacho"] = resumen[BANDEJA_PENDIENTES_DESPACHO]
+    resumen["seguimiento"] = resumen[BANDEJA_SEGUIMIENTO]
+    resumen["demora"] = resumen[BANDEJA_DEMORA]
+    resumen["mercado_envios"] = 0
 
     return resumen
 
@@ -7290,6 +7288,7 @@ def inyectar_contexto_global():
         "normalizar_telefono": normalizar_telefono,
         "requiere_contacto_cliente": requiere_contacto_cliente,
         "requiere_cargar_seguimiento": requiere_cargar_seguimiento,
+        "atributos_filtro_inicio_pedido": atributos_filtro_inicio_pedido,
         "tiempo_transcurrido": tiempo_transcurrido,
         "fecha_referencia_estado": fecha_referencia_estado,
         "alertas_operativas": alertas_operativas,

@@ -16,9 +16,13 @@
     </div>
 
     <div class="resumen-operativo" id="resumen_operativo">
-        <div class="resumen-card resumen-card-azul filtro-card" data-filtro="sin_despacho" tabindex="0" role="button" aria-label="Filtrar sin despacho">
-            <div class="resumen-card-titulo">Sin despacho</div>
-            <div class="resumen-card-valor" id="contador_sin_despacho">{{ resumen_operativo.sin_despacho }}</div>
+        <div class="resumen-card resumen-card-azul filtro-card" data-filtro="pendientes_carga" tabindex="0" role="button" aria-label="Filtrar pendientes carga">
+            <div class="resumen-card-titulo">Pendientes Carga</div>
+            <div class="resumen-card-valor" id="contador_pendientes_carga">{{ resumen_operativo.pendientes_carga }}</div>
+        </div>
+        <div class="resumen-card resumen-card-amarillo filtro-card" data-filtro="pendientes_despacho" tabindex="0" role="button" aria-label="Filtrar pendientes despacho">
+            <div class="resumen-card-titulo">Pendientes Despacho</div>
+            <div class="resumen-card-valor" id="contador_pendientes_despacho">{{ resumen_operativo.pendientes_despacho }}</div>
         </div>
         <div class="resumen-card resumen-card-verde filtro-card" data-filtro="seguimiento" tabindex="0" role="button" aria-label="Filtrar en seguimiento">
             <div class="resumen-card-titulo">En seguimiento</div>
@@ -27,10 +31,6 @@
         <div class="resumen-card resumen-card-rojo filtro-card" data-filtro="demora" tabindex="0" role="button" aria-label="Filtrar con demora">
             <div class="resumen-card-titulo">Con demora</div>
             <div class="resumen-card-valor" id="contador_demora">{{ resumen_operativo.demora }}</div>
-        </div>
-        <div class="resumen-card resumen-card-amarillo filtro-card" data-filtro="mercado_envios" tabindex="0" role="button" aria-label="Filtrar Mercado Envíos">
-            <div class="resumen-card-titulo">Mercado Envíos</div>
-            <div class="resumen-card-valor" id="contador_me">{{ resumen_operativo.mercado_envios }}</div>
         </div>
         <div class="resumen-card resumen-card-gris filtro-card" data-filtro="todos" tabindex="0" role="button" aria-label="Ver todos">
             <div class="resumen-card-titulo">Todos</div>
@@ -67,7 +67,8 @@
         <tbody id="tabla_pedidos_body">
             {% for p in pedidos %}
             {% set accion = accion_principal_pedido(p, 'inicio') %}
-            <tr class="fila-{{ semaforo_pedido(p) }} {% if ml_pedido_tiene_claim(p) %}fila-con-reclamo{% endif %}" data-semaforo="{{ semaforo_pedido(p) }}" data-estado="{{ (p.estado or '')|lower }}" data-despachado="{{ 'no' if p.estado not in ['Despachado', 'Con demora de entrega', 'Verificar llegada a destino', 'Listo para retirar', 'No entregado', 'Entregado', 'Finalizado'] else 'si' }}" data-seguimiento="{{ 'si' if p.estado in ['Despachado', 'Verificar llegada a destino', 'Listo para retirar'] else 'no' }}" data-demora="{{ 'si' if p.estado in ['Con demora de entrega', 'Con reclamo en transporte', 'No entregado'] else 'no' }}" data-mercado-envios="{{ 'si' if p.ml_tipo == 'Mercado Envíos' else 'no' }}">
+            {% set filtros = atributos_filtro_inicio_pedido(p) %}
+            <tr class="fila-{{ semaforo_pedido(p) }} {% if ml_pedido_tiene_claim(p) %}fila-con-reclamo{% endif %}" data-semaforo="{{ semaforo_pedido(p) }}" data-estado="{{ (p.estado or '')|lower }}" data-pendientes-carga="{{ filtros.pendientes_carga }}" data-pendientes-despacho="{{ filtros.pendientes_despacho }}" data-seguimiento="{{ filtros.seguimiento }}" data-demora="{{ filtros.demora }}">
                 <td class="col-contacto">
                     {% if ml_pedido_tiene_claim(p) %}
                     <span class="contacto-badge contacto-badge-reclamo" title="Reclamo activo en Mercado Libre: NO DESPACHAR">⚠️</span>
@@ -155,10 +156,10 @@ function copiarTexto(texto) {
     const cards = document.querySelectorAll('.filtro-card');
     const filas = document.querySelectorAll('#tabla_pedidos_body tr[data-semaforo]');
     const vacio = document.getElementById('fila_sin_pedidos');
-    const contadorSinDespacho = document.getElementById('contador_sin_despacho');
+    const contadorPendientesCarga = document.getElementById('contador_pendientes_carga');
+    const contadorPendientesDespacho = document.getElementById('contador_pendientes_despacho');
     const contadorSeguimiento = document.getElementById('contador_seguimiento');
     const contadorDemora = document.getElementById('contador_demora');
-    const contadorME = document.getElementById('contador_me');
     const contadorTotal = document.getElementById('contador_total');
     const filtroStorageKey = 'fierro_filtro_inicio_{{ rol_actual }}';
 const rolActual = "{{ rol_actual }}";
@@ -298,25 +299,25 @@ if (!cards.length || !filas.length) return;
     }
 
     function actualizarContadores() {
-        let sinDespacho = 0;
+        let pendientesCarga = 0;
+        let pendientesDespacho = 0;
         let seguimiento = 0;
         let demora = 0;
-        let mercadoEnvios = 0;
         let total = 0;
 
         filas.forEach(function (fila) {
             total += 1;
 
-            if (fila.dataset.despachado === 'no') sinDespacho += 1;
+            if (fila.dataset.pendientesCarga === 'si') pendientesCarga += 1;
+            if (fila.dataset.pendientesDespacho === 'si') pendientesDespacho += 1;
             if (fila.dataset.seguimiento === 'si') seguimiento += 1;
             if (fila.dataset.demora === 'si') demora += 1;
-            if (fila.dataset.mercadoEnvios === 'si') mercadoEnvios += 1;
         });
 
-        if (contadorSinDespacho) contadorSinDespacho.textContent = sinDespacho;
+        if (contadorPendientesCarga) contadorPendientesCarga.textContent = pendientesCarga;
+        if (contadorPendientesDespacho) contadorPendientesDespacho.textContent = pendientesDespacho;
         if (contadorSeguimiento) contadorSeguimiento.textContent = seguimiento;
         if (contadorDemora) contadorDemora.textContent = demora;
-        if (contadorME) contadorME.textContent = mercadoEnvios;
         if (contadorTotal) contadorTotal.textContent = total;
     }
 
@@ -325,12 +326,13 @@ if (!cards.length || !filas.length) return;
 
         filas.forEach(function (fila) {
             const color = fila.dataset.semaforo || 'gris';
-            const despachado = fila.dataset.despachado === 'si';
-
             let mostrar = true;
 
-            if (filtro === 'sin_despacho') {
-                mostrar = !despachado;
+            if (filtro === 'pendientes_carga') {
+                mostrar = fila.dataset.pendientesCarga === 'si';
+
+            } else if (filtro === 'pendientes_despacho') {
+                mostrar = fila.dataset.pendientesDespacho === 'si';
 
             } else if (filtro === 'seguimiento') {
                 mostrar = fila.dataset.seguimiento === 'si';
@@ -338,9 +340,6 @@ if (!cards.length || !filas.length) return;
             } else if (filtro === 'demora') {
                 mostrar = fila.dataset.demora === 'si';
 
-            } else if (filtro === 'mercado_envios') {
-                mostrar = fila.dataset.mercadoEnvios === 'si';
-            }
 
             fila.style.display = mostrar ? '' : 'none';
             if (mostrar) visibles += 1;
@@ -403,10 +402,12 @@ if (!cards.length || !filas.length) return;
 
     function filaPasaFiltroSemaforo(fila) {
 
-        const despachado = fila.dataset.despachado === 'si';
+        if (filtroActivo === 'pendientes_carga') {
+            return fila.dataset.pendientesCarga === 'si';
+        }
 
-        if (filtroActivo === 'sin_despacho') {
-            return !despachado;
+        if (filtroActivo === 'pendientes_despacho') {
+            return fila.dataset.pendientesDespacho === 'si';
         }
 
         if (filtroActivo === 'seguimiento') {
@@ -415,10 +416,6 @@ if (!cards.length || !filas.length) return;
 
         if (filtroActivo === 'demora') {
             return fila.dataset.demora === 'si';
-        }
-
-        if (filtroActivo === 'mercado_envios') {
-            return fila.dataset.mercadoEnvios === 'si';
         }
 
         return true;
