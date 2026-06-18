@@ -16,26 +16,26 @@
     </div>
 
     <div class="resumen-operativo" id="resumen_operativo">
-        <div class="resumen-card resumen-card-azul filtro-card" data-filtro="pendientes_carga" tabindex="0" role="button" aria-label="Filtrar pendientes carga">
+        <a href="{{ url_for('inicio', filtro='pendientes_carga') }}" class="resumen-card resumen-card-azul filtro-card {% if filtro_inicio == 'pendientes_carga' %}filtro-card-activo{% endif %}" data-filtro="pendientes_carga" aria-label="Filtrar pendientes carga" style="text-decoration:none;color:inherit;">
             <div class="resumen-card-titulo">Pendientes Carga</div>
             <div class="resumen-card-valor" id="contador_pendientes_carga">{{ resumen_operativo.pendientes_carga }}</div>
-        </div>
-        <div class="resumen-card resumen-card-amarillo filtro-card" data-filtro="pendientes_despacho" tabindex="0" role="button" aria-label="Filtrar pendientes despacho">
+        </a>
+        <a href="{{ url_for('inicio', filtro='pendientes_despacho') }}" class="resumen-card resumen-card-amarillo filtro-card {% if filtro_inicio == 'pendientes_despacho' %}filtro-card-activo{% endif %}" data-filtro="pendientes_despacho" aria-label="Filtrar pendientes despacho" style="text-decoration:none;color:inherit;">
             <div class="resumen-card-titulo">Pendientes Despacho</div>
             <div class="resumen-card-valor" id="contador_pendientes_despacho">{{ resumen_operativo.pendientes_despacho }}</div>
-        </div>
-        <div class="resumen-card resumen-card-verde filtro-card" data-filtro="seguimiento" tabindex="0" role="button" aria-label="Filtrar en seguimiento">
+        </a>
+        <a href="{{ url_for('inicio', filtro='seguimiento') }}" class="resumen-card resumen-card-verde filtro-card {% if filtro_inicio == 'seguimiento' %}filtro-card-activo{% endif %}" data-filtro="seguimiento" aria-label="Filtrar en seguimiento" style="text-decoration:none;color:inherit;">
             <div class="resumen-card-titulo">En seguimiento</div>
             <div class="resumen-card-valor" id="contador_seguimiento">{{ resumen_operativo.seguimiento }}</div>
-        </div>
-        <div class="resumen-card resumen-card-rojo filtro-card" data-filtro="demora" tabindex="0" role="button" aria-label="Filtrar con demora">
+        </a>
+        <a href="{{ url_for('inicio', filtro='demora') }}" class="resumen-card resumen-card-rojo filtro-card {% if filtro_inicio == 'demora' %}filtro-card-activo{% endif %}" data-filtro="demora" aria-label="Filtrar con demora" style="text-decoration:none;color:inherit;">
             <div class="resumen-card-titulo">Con demora</div>
             <div class="resumen-card-valor" id="contador_demora">{{ resumen_operativo.demora }}</div>
-        </div>
-        <div class="resumen-card resumen-card-gris filtro-card" data-filtro="todos" tabindex="0" role="button" aria-label="Ver todos">
+        </a>
+        <a href="{{ url_for('inicio') }}" class="resumen-card resumen-card-gris filtro-card {% if filtro_inicio == 'todos' %}filtro-card-activo{% endif %}" data-filtro="todos" aria-label="Ver todos" style="text-decoration:none;color:inherit;">
             <div class="resumen-card-titulo">Todos</div>
             <div class="resumen-card-valor" id="contador_total">{{ resumen_operativo.total }}</div>
-        </div>
+        </a>
     </div>
 
     {% if rol_actual in ['admin', 'carga'] %}

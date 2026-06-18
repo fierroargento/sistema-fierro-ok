@@ -16,6 +16,15 @@ BANDEJA_PENDIENTES_CARGA = "pendientes_carga"
 BANDEJA_PENDIENTES_DESPACHO = "pendientes_despacho"
 BANDEJA_SEGUIMIENTO = "seguimiento"
 BANDEJA_DEMORA = "demora"
+BANDEJA_TODOS = "todos"
+
+FILTROS_INICIO_VALIDOS = {
+    BANDEJA_PENDIENTES_CARGA,
+    BANDEJA_PENDIENTES_DESPACHO,
+    BANDEJA_SEGUIMIENTO,
+    BANDEJA_DEMORA,
+    BANDEJA_TODOS,
+}
 
 ESTADO_CARGANDO = "Cargando Pedido"
 ESTADO_ETIQUETA_LISTA = "Etiqueta Lista"
@@ -232,3 +241,55 @@ def atributos_filtro_pedido(pedido, agregado_pendiente_fn=None):
         ) else "no",
         BANDEJA_DEMORA: "si" if pedido_con_demora(pedido) else "no",
     }
+
+def normalizar_filtro_inicio(filtro):
+    filtro_normalizado = _texto(filtro)
+
+    if filtro_normalizado not in FILTROS_INICIO_VALIDOS:
+        return BANDEJA_TODOS
+
+    return filtro_normalizado
+
+
+def filtrar_pedidos_por_bandeja(pedidos, filtro, agregado_pendiente_fn=None):
+    filtro_normalizado = normalizar_filtro_inicio(filtro)
+    pedidos_lista = list(pedidos or [])
+
+    if filtro_normalizado == BANDEJA_TODOS:
+        return pedidos_lista
+
+    return [
+        pedido for pedido in pedidos_lista
+        if clasificar_bandeja_pedido(
+            pedido,
+            agregado_pendiente_fn=agregado_pendiente_fn,
+        ) == filtro_normalizado
+    ]
+
+
+def preparar_bandejas_inicio(pedidos, filtro, agregado_pendiente_fn=None):
+    """
+    Prepara datos de bandejas para Inicio/Admin.
+
+    APB SaaS:
+    app.py no conoce reglas de clasificación ni listas de filtros.
+    Solo entrega pedidos + filtro solicitado, y este service devuelve:
+    - resumen total sobre la lista visible original;
+    - pedidos filtrados;
+    - filtro normalizado seguro.
+    """
+    pedidos_lista = list(pedidos or [])
+    filtro_normalizado = normalizar_filtro_inicio(filtro)
+
+    resumen = resumen_operativo_bandejas(
+        pedidos_lista,
+        agregado_pendiente_fn=agregado_pendiente_fn,
+    )
+
+    pedidos_filtrados = filtrar_pedidos_por_bandeja(
+        pedidos_lista,
+        filtro_normalizado,
+        agregado_pendiente_fn=agregado_pendiente_fn,
+    )
+
+    return resumen, pedidos_filtrados, filtro_normalizado

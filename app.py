@@ -7428,6 +7428,14 @@ def inicio():
         else:
             pedidos = [p for p in pedidos if p.estado in estados]
 
+    from services.bandejas_inicio import preparar_bandejas_inicio
+
+    resumen_inicio, pedidos, filtro_inicio = preparar_bandejas_inicio(
+        pedidos,
+        request.args.get("filtro", "todos"),
+        agregado_pendiente_fn=_agregado_pendiente_inicio_carga,
+    )
+
     pedidos.sort(key=orden_inicio_pedido)
 
     ok_feedback = (request.args.get("ok") or "").strip()
@@ -7436,7 +7444,8 @@ def inicio():
     return render_template(
         "index.html",
         pedidos=pedidos,
-        resumen_operativo=resumen_operativo(pedidos),
+        resumen_operativo=resumen_inicio,
+        filtro_inicio=filtro_inicio,
         accion_sugerida_pedido=accion_sugerida_pedido,
         texto_boton_estado=texto_boton_estado,
         puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,

@@ -139,3 +139,64 @@ def test_atributos_filtro_pedido_devuelve_flags_para_template():
         BANDEJA_SEGUIMIENTO: "no",
         BANDEJA_DEMORA: "no",
     }
+
+def test_normalizar_filtro_inicio_rechaza_valores_invalidos():
+    from services.bandejas_inicio import BANDEJA_TODOS, normalizar_filtro_inicio
+
+    assert normalizar_filtro_inicio("pendientes_carga") == "pendientes_carga"
+    assert normalizar_filtro_inicio("valor_raro") == BANDEJA_TODOS
+    assert normalizar_filtro_inicio("") == BANDEJA_TODOS
+    assert normalizar_filtro_inicio(None) == BANDEJA_TODOS
+
+
+def test_filtrar_pedidos_por_bandeja_devuelve_solo_la_bandeja_pedida():
+    from services.bandejas_inicio import filtrar_pedidos_por_bandeja
+
+    pendiente_carga = PedidoFake(estado="Cargando Pedido")
+    pendiente_despacho = PedidoFake(estado="Etiqueta Lista")
+    seguimiento = PedidoFake(
+        estado="Despachado",
+        empresa_envio="Vía Cargo",
+        seguimiento="VC123",
+    )
+
+    pedidos = [pendiente_carga, pendiente_despacho, seguimiento]
+
+    assert filtrar_pedidos_por_bandeja(
+        pedidos,
+        "pendientes_carga",
+    ) == [pendiente_carga]
+
+    assert filtrar_pedidos_por_bandeja(
+        pedidos,
+        "pendientes_despacho",
+    ) == [pendiente_despacho]
+
+    assert filtrar_pedidos_por_bandeja(
+        pedidos,
+        "seguimiento",
+    ) == [seguimiento]
+
+
+def test_preparar_bandejas_inicio_devuelve_resumen_total_y_pedidos_filtrados():
+    from services.bandejas_inicio import preparar_bandejas_inicio
+
+    pendiente_carga = PedidoFake(estado="Cargando Pedido")
+    pendiente_despacho = PedidoFake(estado="Etiqueta Lista")
+    seguimiento = PedidoFake(
+        estado="Despachado",
+        empresa_envio="Vía Cargo",
+        seguimiento="VC123",
+    )
+
+    resumen, pedidos_filtrados, filtro = preparar_bandejas_inicio(
+        [pendiente_carga, pendiente_despacho, seguimiento],
+        "pendientes_carga",
+    )
+
+    assert filtro == "pendientes_carga"
+    assert pedidos_filtrados == [pendiente_carga]
+    assert resumen["pendientes_carga"] == 1
+    assert resumen["pendientes_despacho"] == 1
+    assert resumen["seguimiento"] == 1
+    assert resumen["total"] == 3
