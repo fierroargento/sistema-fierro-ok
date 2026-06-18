@@ -146,118 +146,23 @@
 <script>
 function copiarTexto(texto) {
     navigator.clipboard.writeText(texto).then(function () {
-        console.log("Copiado:", texto);
-    }).catch(function (err) {
-        console.error("Error al copiar:", err);
-    });
-}
-
-(function () {
     const cards = document.querySelectorAll('.filtro-card');
     const filas = document.querySelectorAll('#tabla_pedidos_body tr[data-semaforo]');
     const vacio = document.getElementById('fila_sin_pedidos');
+
     const contadorPendientesCarga = document.getElementById('contador_pendientes_carga');
     const contadorPendientesDespacho = document.getElementById('contador_pendientes_despacho');
     const contadorSeguimiento = document.getElementById('contador_seguimiento');
     const contadorDemora = document.getElementById('contador_demora');
     const contadorTotal = document.getElementById('contador_total');
+
+    const rolActual = "{{ rol_actual }}";
     const filtroStorageKey = 'fierro_filtro_inicio_{{ rol_actual }}';
-const rolActual = "{{ rol_actual }}";
+    const inputBuscador = document.getElementById('buscador_pedidos');
 
-function obtenerPrioridad(fila) {
-    const estado = (fila.dataset.estado || '').toLowerCase();
-    const tiempoTexto = (fila.querySelector('td:nth-child(6)')?.innerText || '').toLowerCase();
-    const semaforo = (fila.dataset.semaforo || '').toLowerCase();
-
-    let minutos = 0;
-
-    if (tiempoTexto.includes('hs')) {
-        minutos = parseInt(tiempoTexto) * 60;
-    } else if (tiempoTexto.includes('min')) {
-        minutos = parseInt(tiempoTexto);
-    }
-
-    let prioridadSemaforo = 4;
-
-    if (semaforo === 'rojo') {
-        prioridadSemaforo = 1;
-    } else if (semaforo === 'amarillo') {
-        prioridadSemaforo = 2;
-    } else if (semaforo === 'verde') {
-        prioridadSemaforo = 3;
-    }
-
-    let prioridadEstado = 5;
-
-    if (rolActual === 'carga') {
-        if (estado.includes('cargando pedido')) {
-            prioridadEstado = 1;
-        } else if (estado.includes('con demora de entrega')) {
-            prioridadEstado = 2;
-        } else if (estado.includes('con reclamo en transporte')) {
-            prioridadEstado = 3;
-        } else if (estado.includes('listo para retirar')) {
-            prioridadEstado = 4;
-        }
-    } else if (rolActual === 'despacho') {
-        if (estado.includes('etiqueta lista')) {
-            prioridadEstado = 1;
-        } else if (estado.includes('etiqueta impresa')) {
-            prioridadEstado = 2;
-        } else if (estado.includes('embalado')) {
-            prioridadEstado = 3;
-        }
-    } else {
-        if (estado.includes('cargando pedido')) {
-            prioridadEstado = 1;
-        } else if (
-            estado.includes('etiqueta lista') ||
-            estado.includes('etiqueta impresa') ||
-            estado.includes('embalado')
-        ) {
-            prioridadEstado = 2;
-        } else if (
-            estado.includes('despachado') ||
-            estado.includes('listo para retirar')
-        ) {
-            prioridadEstado = 3;
-        }
-    }
-
-    return { prioridadSemaforo, prioridadEstado, minutos };
-}
-
-function ordenarTablaPorPrioridad() {
-    const tbody = document.getElementById('tabla_pedidos_body');
-    const filasArray = Array.from(tbody.querySelectorAll('tr[data-semaforo]'));
-
-    filasArray.sort((a, b) => {
-        const pa = obtenerPrioridad(a);
-        const pb = obtenerPrioridad(b);
-
-        if (pa.prioridadSemaforo !== pb.prioridadSemaforo) {
-            return pa.prioridadSemaforo - pb.prioridadSemaforo;
-        }
-
-        if (pa.prioridadEstado !== pb.prioridadEstado) {
-            return pa.prioridadEstado - pb.prioridadEstado;
-        }
-
-        return pb.minutos - pa.minutos;
-    });
-
-    filasArray.forEach(fila => tbody.appendChild(fila));
-}
-
-if (!cards.length || !filas.length) return;
+    if (!cards.length || !filas.length) return;
 
     let filtroActivo = 'todos';
-
-    ordenarTablaPorPrioridad();
-
-    function filtroDefaultPorRol() {
-        return 'todos';
-    }
 
     function rolRecuerdaFiltro() {
         return rolActual === 'carga' || rolActual === 'admin';
@@ -293,6 +198,47 @@ if (!cards.length || !filas.length) return;
         });
     }
 
+    function normalizar(txt) {
+        return (txt || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function filaPasaFiltro(fila) {
+        if (filtroActivo === 'pendientes_carga') {
+            return fila.dataset.pendientesCarga === 'si';
+        }
+
+        if (filtroActivo === 'pendientes_despacho') {
+            return fila.dataset.pendientesDespacho === 'si';
+        }
+
+        if (filtroActivo === 'seguimiento') {
+            return fila.dataset.seguimiento === 'si';
+        }
+
+        if (filtroActivo === 'demora') {
+            return fila.dataset.demora === 'si';
+        }
+
+        return true;
+    }
+
+    function filaPasaBuscador(fila) {
+        if (!inputBuscador) return true;
+
+        const terminos = normalizar(inputBuscador.value).split(/\s+/).filter(Boolean);
+        if (!terminos.length) return true;
+
+        const celdas = fila.querySelectorAll('td');
+        const textoFila = normalizar(
+            Array.from(celdas).map(td => td.innerText || '').join(' ')
+        );
+
+        return terminos.every(function (termino) {
+            return textoFila.includes(termino);
+        });
+    }
+
     function actualizarFilaVacia(visibles) {
         if (!vacio) return;
         vacio.style.display = visibles === 0 ? '' : 'none';
@@ -321,35 +267,27 @@ if (!cards.length || !filas.length) return;
         if (contadorTotal) contadorTotal.textContent = total;
     }
 
-    function aplicarFiltro(filtro) {
+    function aplicarVista() {
         let visibles = 0;
 
         filas.forEach(function (fila) {
-            const color = fila.dataset.semaforo || 'gris';
-            let mostrar = true;
-
-            if (filtro === 'pendientes_carga') {
-                mostrar = fila.dataset.pendientesCarga === 'si';
-
-            } else if (filtro === 'pendientes_despacho') {
-                mostrar = fila.dataset.pendientesDespacho === 'si';
-
-            } else if (filtro === 'seguimiento') {
-                mostrar = fila.dataset.seguimiento === 'si';
-
-            } else if (filtro === 'demora') {
-                mostrar = fila.dataset.demora === 'si';
-
-
+            const mostrar = filaPasaFiltro(fila) && filaPasaBuscador(fila);
             fila.style.display = mostrar ? '' : 'none';
             if (mostrar) visibles += 1;
         });
 
         cards.forEach(function (card) {
-            card.classList.toggle('filtro-card-activo', card.dataset.filtro === filtro && filtro !== 'todos');
+            card.classList.toggle(
+                'filtro-card-activo',
+                card.dataset.filtro === filtroActivo && filtroActivo !== 'todos'
+            );
         });
 
-        filtroActivo = filtro;
+        actualizarFilaVacia(visibles);
+    }
+
+    function aplicarFiltro(filtro) {
+        filtroActivo = filtroActivo === filtro ? 'todos' : filtro;
 
         if (rolRecuerdaFiltro()) {
             guardarFiltro(filtroActivo);
@@ -357,115 +295,34 @@ if (!cards.length || !filas.length) return;
             limpiarFiltroGuardado();
         }
 
-        actualizarFilaVacia(visibles);
-
-        if (inputBuscador && inputBuscador.value) {
-            aplicarBuscador();
-        }
-    }
-
-    function toggleFiltro(filtro) {
-        aplicarFiltro(filtroActivo === filtro ? 'todos' : filtro);
+        aplicarVista();
     }
 
     cards.forEach(function (card) {
         card.addEventListener('click', function () {
-            toggleFiltro(this.dataset.filtro || 'todos');
+            aplicarFiltro(this.dataset.filtro || 'todos');
         });
 
         card.addEventListener('keydown', function (event) {
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                toggleFiltro(this.dataset.filtro || 'todos');
+                aplicarFiltro(this.dataset.filtro || 'todos');
             }
         });
     });
 
-    if (!rolRecuerdaFiltro()) {
-        limpiarFiltroGuardado();
+    if (inputBuscador) {
+        inputBuscador.addEventListener('input', aplicarVista);
     }
 
     actualizarContadores();
 
     const filtroGuardado = leerFiltroGuardado();
-    const filtroInicial = filtroEsValido(filtroGuardado) && filtroGuardado
+    filtroActivo = filtroEsValido(filtroGuardado) && filtroGuardado
         ? filtroGuardado
-        : filtroDefaultPorRol();
+        : 'todos';
 
-    // ── Buscador APB ───────────────────────────────────────────────────────────────────
-    const inputBuscador = document.getElementById('buscador_pedidos');
-
-    function normalizar(txt) {
-        return (txt || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    }
-
-    function filaPasaFiltroSemaforo(fila) {
-
-        if (filtroActivo === 'pendientes_carga') {
-            return fila.dataset.pendientesCarga === 'si';
-        }
-
-        if (filtroActivo === 'pendientes_despacho') {
-            return fila.dataset.pendientesDespacho === 'si';
-        }
-
-        if (filtroActivo === 'seguimiento') {
-            return fila.dataset.seguimiento === 'si';
-        }
-
-        if (filtroActivo === 'demora') {
-            return fila.dataset.demora === 'si';
-        }
-
-        return true;
-    }
-
-    function aplicarBuscador() {
-        if (!inputBuscador) return;
-
-        const terminos = normalizar(inputBuscador.value).split(/\s+/).filter(Boolean);
-        let visibles = 0;
-
-        filas.forEach(function (fila) {
-            const celdas = fila.querySelectorAll('td');
-
-            const textoCliente = normalizar(celdas[1] ? celdas[1].innerText : '');
-            const textoIdVenta = normalizar(celdas[2] ? celdas[2].innerText : '');
-            const textoCanal   = normalizar(celdas[3] ? celdas[3].innerText : '');
-            const textoFila    = normalizar(fila.innerText || fila.textContent || '');
-
-            const pasaBusqueda = terminos.length === 0 || terminos.every(function (t) {
-                return (
-                    textoCliente.includes(t) ||
-                    textoIdVenta.includes(t) ||
-                    textoCanal.includes(t)   ||
-                    textoFila.includes(t)
-                );
-            });
-
-            const mostrar = pasaBusqueda && filaPasaFiltroSemaforo(fila);
-
-            fila.style.display = mostrar ? '' : 'none';
-            if (mostrar) visibles++;
-        });
-
-        actualizarFilaVacia(visibles);
-    }
-
-    if (inputBuscador) {
-        inputBuscador.addEventListener('input', aplicarBuscador);
-
-        inputBuscador.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') {
-                inputBuscador.value = '';
-                aplicarBuscador();
-            }
-        });
-    }
-
-    aplicarFiltro(filtroInicial);
-    aplicarBuscador();
+    aplicarVista();
 })();
 </script>
 
