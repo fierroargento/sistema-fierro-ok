@@ -57,7 +57,16 @@
                 <th>Cliente</th>
                 <th>ID Venta</th>
                 <th>Canal</th>
-                <th>Tipo envío</th>
+                <th>
+                    <button
+                        type="button"
+                        id="ordenar_tipo_envio"
+                        title="Ordenar por tipo de envío"
+                        style="background:transparent;border:0;padding:0;font:inherit;font-weight:inherit;color:inherit;cursor:pointer;text-transform:inherit;"
+                    >
+                        Tipo envío ↕
+                    </button>
+                </th>
                 <th>Hace cuánto</th>
                 <th>Acción sugerida</th>
                 <th></th>
@@ -146,183 +155,124 @@
 <script>
 function copiarTexto(texto) {
     navigator.clipboard.writeText(texto).then(function () {
-    const cards = document.querySelectorAll('.filtro-card');
-    const filas = document.querySelectorAll('#tabla_pedidos_body tr[data-semaforo]');
-    const vacio = document.getElementById('fila_sin_pedidos');
+        console.log("Copiado:", texto);
+    }).catch(function (err) {
+        console.error("Error al copiar:", err);
+    });
+}
 
-    const contadorPendientesCarga = document.getElementById('contador_pendientes_carga');
-    const contadorPendientesDespacho = document.getElementById('contador_pendientes_despacho');
-    const contadorSeguimiento = document.getElementById('contador_seguimiento');
-    const contadorDemora = document.getElementById('contador_demora');
-    const contadorTotal = document.getElementById('contador_total');
-
-    const rolActual = "{{ rol_actual }}";
-    const filtroStorageKey = 'fierro_filtro_inicio_{{ rol_actual }}';
+(function () {
+    const tbody = document.getElementById('tabla_pedidos_body');
     const inputBuscador = document.getElementById('buscador_pedidos');
+    const filaSinPedidos = document.getElementById('fila_sin_pedidos');
+    const botonOrdenTipoEnvio = document.getElementById('ordenar_tipo_envio');
 
-    if (!cards.length || !filas.length) return;
+    if (!tbody) return;
 
-    let filtroActivo = 'todos';
+    let ordenTipoEnvio = 'asc';
 
-    function rolRecuerdaFiltro() {
-        return rolActual === 'carga' || rolActual === 'admin';
-    }
-
-    function guardarFiltro(filtro) {
-        try {
-            if (rolRecuerdaFiltro()) {
-                localStorage.setItem(filtroStorageKey, filtro);
-            }
-        } catch (e) {}
-    }
-
-    function leerFiltroGuardado() {
-        try {
-            if (!rolRecuerdaFiltro()) return '';
-            return localStorage.getItem(filtroStorageKey) || '';
-        } catch (e) {
-            return '';
-        }
-    }
-
-    function limpiarFiltroGuardado() {
-        try {
-            localStorage.removeItem(filtroStorageKey);
-        } catch (e) {}
-    }
-
-    function filtroEsValido(filtro) {
-        if (filtro === 'todos') return true;
-        return Array.from(cards).some(function (card) {
-            return card.dataset.filtro === filtro;
-        });
+    function filasPedidos() {
+        return Array.from(tbody.querySelectorAll('tr[data-semaforo]'));
     }
 
     function normalizar(txt) {
         return (txt || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .trim();
     }
 
-    function filaPasaFiltro(fila) {
-        if (filtroActivo === 'pendientes_carga') {
-            return fila.dataset.pendientesCarga === 'si';
-        }
-
-        if (filtroActivo === 'pendientes_despacho') {
-            return fila.dataset.pendientesDespacho === 'si';
-        }
-
-        if (filtroActivo === 'seguimiento') {
-            return fila.dataset.seguimiento === 'si';
-        }
-
-        if (filtroActivo === 'demora') {
-            return fila.dataset.demora === 'si';
-        }
-
-        return true;
-    }
-
-    function filaPasaBuscador(fila) {
-        if (!inputBuscador) return true;
-
-        const terminos = normalizar(inputBuscador.value).split(/\s+/).filter(Boolean);
-        if (!terminos.length) return true;
-
-        const celdas = fila.querySelectorAll('td');
-        const textoFila = normalizar(
-            Array.from(celdas).map(td => td.innerText || '').join(' ')
+    function textoCelda(fila, indice) {
+        return normalizar(
+            fila.querySelector(`td:nth-child(${indice})`)?.innerText || ''
         );
-
-        return terminos.every(function (termino) {
-            return textoFila.includes(termino);
-        });
     }
 
-    function actualizarFilaVacia(visibles) {
-        if (!vacio) return;
-        vacio.style.display = visibles === 0 ? '' : 'none';
+    function actualizarFilaVacia() {
+        if (!filaSinPedidos) return;
+
+        const visibles = filasPedidos().filter(function (fila) {
+            return fila.style.display !== 'none';
+        }).length;
+
+        filaSinPedidos.style.display = visibles === 0 ? '' : 'none';
     }
 
-    function actualizarContadores() {
-        let pendientesCarga = 0;
-        let pendientesDespacho = 0;
-        let seguimiento = 0;
-        let demora = 0;
-        let total = 0;
+    function aplicarBuscador() {
+        const terminos = normalizar(inputBuscador?.value || '')
+            .split(/\s+/)
+            .filter(Boolean);
 
-        filas.forEach(function (fila) {
-            total += 1;
+        filasPedidos().forEach(function (fila) {
+            if (!terminos.length) {
+                fila.style.display = '';
+                return;
+            }
 
-            if (fila.dataset.pendientesCarga === 'si') pendientesCarga += 1;
-            if (fila.dataset.pendientesDespacho === 'si') pendientesDespacho += 1;
-            if (fila.dataset.seguimiento === 'si') seguimiento += 1;
-            if (fila.dataset.demora === 'si') demora += 1;
-        });
+            const textoFila = normalizar(fila.innerText || '');
+            const mostrar = terminos.every(function (termino) {
+                return textoFila.includes(termino);
+            });
 
-        if (contadorPendientesCarga) contadorPendientesCarga.textContent = pendientesCarga;
-        if (contadorPendientesDespacho) contadorPendientesDespacho.textContent = pendientesDespacho;
-        if (contadorSeguimiento) contadorSeguimiento.textContent = seguimiento;
-        if (contadorDemora) contadorDemora.textContent = demora;
-        if (contadorTotal) contadorTotal.textContent = total;
-    }
-
-    function aplicarVista() {
-        let visibles = 0;
-
-        filas.forEach(function (fila) {
-            const mostrar = filaPasaFiltro(fila) && filaPasaBuscador(fila);
             fila.style.display = mostrar ? '' : 'none';
-            if (mostrar) visibles += 1;
         });
 
-        cards.forEach(function (card) {
-            card.classList.toggle(
-                'filtro-card-activo',
-                card.dataset.filtro === filtroActivo && filtroActivo !== 'todos'
+        actualizarFilaVacia();
+    }
+
+    function actualizarTextoOrden() {
+        if (!botonOrdenTipoEnvio) return;
+
+        botonOrdenTipoEnvio.textContent = ordenTipoEnvio === 'asc'
+            ? 'Tipo envío ↑'
+            : 'Tipo envío ↓';
+    }
+
+    function ordenarPorTipoEnvio() {
+        const filas = filasPedidos();
+
+        const multiplicador = ordenTipoEnvio === 'asc' ? 1 : -1;
+
+        filas.sort(function (a, b) {
+            const tipoA = textoCelda(a, 5);
+            const tipoB = textoCelda(b, 5);
+
+            const comparacionTipo = tipoA.localeCompare(
+                tipoB,
+                'es',
+                { sensitivity: 'base' }
+            );
+
+            if (comparacionTipo !== 0) {
+                return comparacionTipo * multiplicador;
+            }
+
+            const clienteA = textoCelda(a, 2);
+            const clienteB = textoCelda(b, 2);
+
+            return clienteA.localeCompare(
+                clienteB,
+                'es',
+                { sensitivity: 'base' }
             );
         });
 
-        actualizarFilaVacia(visibles);
-    }
-
-    function aplicarFiltro(filtro) {
-        filtroActivo = filtroActivo === filtro ? 'todos' : filtro;
-
-        if (rolRecuerdaFiltro()) {
-            guardarFiltro(filtroActivo);
-        } else {
-            limpiarFiltroGuardado();
-        }
-
-        aplicarVista();
-    }
-
-    cards.forEach(function (card) {
-        card.addEventListener('click', function () {
-            aplicarFiltro(this.dataset.filtro || 'todos');
+        filas.forEach(function (fila) {
+            tbody.insertBefore(fila, filaSinPedidos || null);
         });
 
-        card.addEventListener('keydown', function (event) {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                aplicarFiltro(this.dataset.filtro || 'todos');
-            }
-        });
-    });
+        ordenTipoEnvio = ordenTipoEnvio === 'asc' ? 'desc' : 'asc';
+        actualizarTextoOrden();
+        aplicarBuscador();
+    }
 
     if (inputBuscador) {
-        inputBuscador.addEventListener('input', aplicarVista);
+        inputBuscador.addEventListener('input', aplicarBuscador);
     }
 
-    actualizarContadores();
-
-    const filtroGuardado = leerFiltroGuardado();
-    filtroActivo = filtroEsValido(filtroGuardado) && filtroGuardado
-        ? filtroGuardado
-        : 'todos';
-
-    aplicarVista();
+    if (botonOrdenTipoEnvio) {
+        botonOrdenTipoEnvio.addEventListener('click', ordenarPorTipoEnvio);
+        actualizarTextoOrden();
+    }
 })();
 </script>
 
