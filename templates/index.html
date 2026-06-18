@@ -68,7 +68,16 @@
                     </button>
                 </th>
                 <th>Hace cuánto</th>
-                <th>Acción sugerida</th>
+                <th>
+                    <button
+                        type="button"
+                        id="ordenar_accion_sugerida"
+                        title="Ordenar por acción sugerida"
+                        style="background:transparent;border:0;padding:0;font:inherit;font-weight:inherit;color:inherit;cursor:pointer;text-transform:inherit;"
+                    >
+                        Acción sugerida ↕
+                    </button>
+                </th>
                 <th></th>
             </tr>
         </thead>
@@ -166,10 +175,12 @@ function copiarTexto(texto) {
     const inputBuscador = document.getElementById('buscador_pedidos');
     const filaSinPedidos = document.getElementById('fila_sin_pedidos');
     const botonOrdenTipoEnvio = document.getElementById('ordenar_tipo_envio');
+    const botonOrdenAccionSugerida = document.getElementById('ordenar_accion_sugerida');
 
     if (!tbody) return;
 
     let ordenTipoEnvio = 'asc';
+    let ordenAccionSugerida = 'asc';
 
     function filasPedidos() {
         return Array.from(tbody.querySelectorAll('tr[data-semaforo]'));
@@ -227,9 +238,16 @@ function copiarTexto(texto) {
             : 'Tipo envío ↓';
     }
 
+    function insertarFilasOrdenadas(filas) {
+        filas.forEach(function (fila) {
+            tbody.insertBefore(fila, filaSinPedidos || null);
+        });
+
+        aplicarBuscador();
+    }
+
     function ordenarPorTipoEnvio() {
         const filas = filasPedidos();
-
         const multiplicador = ordenTipoEnvio === 'asc' ? 1 : -1;
 
         filas.sort(function (a, b) {
@@ -256,13 +274,65 @@ function copiarTexto(texto) {
             );
         });
 
-        filas.forEach(function (fila) {
-            tbody.insertBefore(fila, filaSinPedidos || null);
-        });
+        insertarFilasOrdenadas(filas);
 
         ordenTipoEnvio = ordenTipoEnvio === 'asc' ? 'desc' : 'asc';
         actualizarTextoOrden();
-        aplicarBuscador();
+    }
+
+    function actualizarTextoOrdenAccion() {
+        if (!botonOrdenAccionSugerida) return;
+
+        botonOrdenAccionSugerida.textContent = ordenAccionSugerida === 'asc'
+            ? 'Acción sugerida ↑'
+            : 'Acción sugerida ↓';
+    }
+
+    function ordenarPorAccionSugerida() {
+        const filas = filasPedidos();
+        const multiplicador = ordenAccionSugerida === 'asc' ? 1 : -1;
+
+        filas.sort(function (a, b) {
+            const accionA = textoCelda(a, 7);
+            const accionB = textoCelda(b, 7);
+
+            const comparacionAccion = accionA.localeCompare(
+                accionB,
+                'es',
+                { sensitivity: 'base' }
+            );
+
+            if (comparacionAccion !== 0) {
+                return comparacionAccion * multiplicador;
+            }
+
+            const tipoA = textoCelda(a, 5);
+            const tipoB = textoCelda(b, 5);
+
+            const comparacionTipo = tipoA.localeCompare(
+                tipoB,
+                'es',
+                { sensitivity: 'base' }
+            );
+
+            if (comparacionTipo !== 0) {
+                return comparacionTipo;
+            }
+
+            const clienteA = textoCelda(a, 2);
+            const clienteB = textoCelda(b, 2);
+
+            return clienteA.localeCompare(
+                clienteB,
+                'es',
+                { sensitivity: 'base' }
+            );
+        });
+
+        insertarFilasOrdenadas(filas);
+
+        ordenAccionSugerida = ordenAccionSugerida === 'asc' ? 'desc' : 'asc';
+        actualizarTextoOrdenAccion();
     }
 
     if (inputBuscador) {
@@ -272,6 +342,11 @@ function copiarTexto(texto) {
     if (botonOrdenTipoEnvio) {
         botonOrdenTipoEnvio.addEventListener('click', ordenarPorTipoEnvio);
         actualizarTextoOrden();
+    }
+
+    if (botonOrdenAccionSugerida) {
+        botonOrdenAccionSugerida.addEventListener('click', ordenarPorAccionSugerida);
+        actualizarTextoOrdenAccion();
     }
 })();
 </script>
