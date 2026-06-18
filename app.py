@@ -5595,6 +5595,72 @@ def ia_auto_responder_post_analisis(pedido):
 
     faltantes = ia_faltantes_pedido(pedido) or []
 
+    from services.ml_consultas_logisticas import (
+        detectar_consulta_demora_simple_ml,
+        limpiar_derivacion_operador_por_demora_simple,
+        texto_demora_handoff_wa_ml,
+    )
+
+    if not faltantes and detectar_consulta_demora_simple_ml(pedido):
+        texto_demora = texto_demora_handoff_wa_ml()
+
+        if ia_respuesta_faltantes_ya_enviada(pedido, texto_demora):
+            return False, "duplicada"
+
+        try:
+            limpiar_derivacion_operador_por_demora_simple(pedido)
+
+            permitido, motivo = puede_enviar_mensaje(
+                pedido=pedido,
+                canal="ml",
+                texto=texto_demora,
+            )
+
+            if not permitido:
+                return False, motivo
+
+            ml_enviar_mensaje_acordas(pedido, texto_demora)
+
+            registrar_envio_automatico(
+                pedido=pedido,
+                canal="ml",
+                texto=texto_demora,
+            )
+
+            pedido.ia_respuesta_sugerida = texto_demora
+            pedido.ia_respuesta_enviada_hash = ia_hash_texto(texto_demora)
+            pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
+            pedido.ml_mensajes_pendientes = False
+            pedido.ml_mensajes_pendientes_count = 0
+
+            from services.ml_wa_handoff import marcar_transicion_ml_wa_en_resumen
+
+            marcar_transicion_ml_wa_en_resumen(pedido)
+
+            db.session.commit()
+
+        except Exception as e:
+            print(
+                f"[ML-DEMORA] No se pudo responder demora y pasar a WA "
+                f"pedido #{getattr(pedido, 'id', '?')}: {e}"
+            )
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            return False, "error_demora_ml"
+
+        ok_wa, motivo_wa = wa_auto_iniciar_desde_ml_si_corresponde(
+            pedido,
+            faltantes=[],
+            motivo="consulta_demora_datos_completos",
+        )
+
+        if ok_wa:
+            return True, "demora_respondida_wa_iniciado"
+
+        return True, f"demora_respondida_{motivo_wa or 'wa_no_iniciado'}"
+
     if requiere_operador_actual and faltantes:
         texto = ia_generar_respuesta_derivacion_y_faltantes_pedido(pedido)
 
@@ -7038,6 +7104,15 @@ def ia_tiene_consulta_pendiente_operador_recolector(pedido):
 
     if not resumen:
         return False
+
+    try:
+        from services.ml_consultas_logisticas import detectar_consulta_demora_simple_ml
+
+        if detectar_consulta_demora_simple_ml(pedido):
+            return False
+
+    except Exception:
+        pass
 
     menciona_pregunta = any(x in resumen for x in [
         "pregunta",
