@@ -335,6 +335,11 @@ body { background: #f4f7f8; }
             <p><strong>Tipo envío:</strong> {{ tn_tipo_envio_visual(pedido) or "-" }}</p>
             <p><strong>Envío TN:</strong> {{ pedido.tn_shipping_option or pedido.tn_shipping_carrier or "-" }}</p>
             {% endif %}
+            {% if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado", "Finalizado"] and pedido.tracking_estado_externo %}
+                <p style="margin:4px 0; font-size:13px;">
+                    <strong>Estado de Envío:</strong> {{ pedido.tracking_estado_externo }}
+                </p>
+            {% endif %}
             {% if rol_actual != "despacho" %}
             <p class="tracking-row">
                 <strong>Seguimiento:</strong> {{ pedido.seguimiento or "-" }}
@@ -352,13 +357,6 @@ body { background: #f4f7f8; }
                 {% endif %}
             </p>
             {% endif %}
-            {% if pedido.estado in ["Despachado", "Con demora de entrega", "Con reclamo en transporte", "Verificar llegada a destino", "Listo para retirar", "No entregado", "Entregado", "Finalizado"] and pedido.tracking_estado_externo %}
-                <p style="margin:4px 0; font-size:13px;">
-                    <strong>Estado de Envío:</strong> {{ pedido.tracking_estado_externo }}
-                </p>
-            {% endif %}
-
-
             {% if pedido.canal == "Mayorista" %}
             <p><strong>Comprobante DUX:</strong>
                 {% if pedido.comprobante_dux_archivo %}
