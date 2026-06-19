@@ -1899,16 +1899,55 @@ def debe_pasar_a_demora_entrega(pedido):
     return horas >= 7 * 24
 
 
+def _debe_bloquear_autoavance_etiqueta_lista_por_cross_sell(pedido):
+    """Usa la misma regla APB del avance manual para proteger autoavances."""
+    try:
+        from modules.whatsapp.config import CROSS_SELL_AUTO_ENABLED, CROSS_SELL_MANUAL_ENABLED
+        from services.cross_sell_rules import debe_bloquear_etiqueta_lista_por_cross_sell
+
+        return debe_bloquear_etiqueta_lista_por_cross_sell(
+            pedido,
+            auto_enabled=CROSS_SELL_AUTO_ENABLED,
+            manual_enabled=CROSS_SELL_MANUAL_ENABLED,
+            evento_operativo_model=EventoOperativo,
+        )
+
+    except Exception as e:
+        print("[CROSS-SELL-APB] Error evaluando bloqueo de autoavance:", e)
+        return False
+
+
+def _revertir_autoavance_etiqueta_lista_por_cross_sell(pedido, estado_anterior):
+    pedido.estado = estado_anterior
+    pedido.ml_mensajes_pendientes = True
+    pedido.ia_requiere_operador = True
+
+    resumen = (pedido.ia_resumen or "").strip()
+    marca = (
+        "CROSS-SELL PENDIENTE: autoavance a Etiqueta Lista revertido; "
+        "iniciar propuesta por WhatsApp o registrar excepción trazable."
+    )
+    if marca not in resumen:
+        pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
+
+
 def actualizar_estado_automatico(pedido):
     """
     APB operativo:
     El autoavance solo debe evaluar si el pedido ya tiene la carga operativa completa.
 
-    Importante:
-    - No se bloquea Cargando Pedido -> Etiqueta Lista por cross-sell.
-    - El cross-sell pendiente se controla en el avance manual mediante puede_avanzar_pedido().
-    - Así evitamos que pedidos completos queden pegados visualmente en "Cargando Pedido".
+    Protección comercial:
+    Si el autoavance intenta pasar Cargando Pedido -> Etiqueta Lista y todavía
+    falta tratar la oportunidad de cross-sell, se revierte a Cargando Pedido.
+    Esto cubre el caso ML Acordás donde el cliente confirma sucursal por ML y
+    antes de preparar debe iniciarse WA/cross-sell o quedar excepción trazable.
     """
+
+    estado_anterior = getattr(pedido, "estado", None)
+    bloquear_cross_sell = False
+
+    if estado_anterior in [Estado.CARGANDO, "Cargando Pedido"]:
+        bloquear_cross_sell = _debe_bloquear_autoavance_etiqueta_lista_por_cross_sell(pedido)
 
     actualizar_estado_automatico_service(
         pedido,
@@ -1917,9 +1956,14 @@ def actualizar_estado_automatico(pedido):
         debe_pasar_a_demora_entrega,
     )
 
-def aplicar_autoavance_post_despacho(pedido):
-    aplicar_autoavance_post_despacho_service(pedido)
-
+    if (
+        bloquear_cross_sell
+        and getattr(pedido, "estado", None) == Estado.ETIQUETA_LISTA
+    ):
+        _revertir_autoavance_etiqueta_lista_por_cross_sell(
+            pedido,
+            estado_anterior,
+        )
 
 def aplicar_estado_y_fechas(pedido, nuevo_estado):
     if not nuevo_estado:
@@ -5542,6 +5586,35 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                         canal="ml",
                         texto=msg_confirmacion,
                     )
+
+                    try:
+                        ok_wa, motivo_wa = wa_auto_iniciar_desde_ml_si_corresponde(
+                            pedido,
+                            faltantes=[],
+                            motivo="sucursal_confirmada_ml",
+                        )
+
+                        if not ok_wa:
+                            pedido.ml_mensajes_pendientes = True
+                            pedido.ia_requiere_operador = True
+                            resumen = (pedido.ia_resumen or "").strip()
+                            marca = (
+                                "CROSS-SELL/WA pendiente tras confirmar sucursal ML: "
+                                f"{motivo_wa or 'wa_no_iniciado'}"
+                            )
+                            if marca not in resumen:
+                                pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
+                            db.session.commit()
+
+                    except Exception as e:
+                        pedido.ml_mensajes_pendientes = True
+                        pedido.ia_requiere_operador = True
+                        resumen = (pedido.ia_resumen or "").strip()
+                        marca = f"CROSS-SELL/WA error tras confirmar sucursal ML: {e}"
+                        if marca not in resumen:
+                            pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
+                        db.session.commit()
+                        print(f"[WA-AUTO-ML] Error iniciando WA/cross-sell tras sucursal pedido #{pedido.id}:", e)
 
                 except Exception as e:
                     print(
