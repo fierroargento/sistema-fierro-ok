@@ -148,18 +148,19 @@ def ejecutar_timers_whatsapp():
     finally:
         _cerrar_sesion_db_segura(rollback=False)
 def _es_transporte_tracking_auto_apb(pedido):
-    """Tracking automático habilitado solo para Andreani y Via Cargo.
+    """Tracking automático habilitado para Correo Argentino y Mercado Envíos.
 
-    Correo Argentino queda fuera de este scheduler para no mezclarlo con la
-    integración WhatsApp/Correo que está en revisión. El tracking manual sigue
-    disponible desde el detalle cuando corresponda.
+    Andreani y Vía Cargo quedan fuera hasta tener integración/API estable.
+    Mercado Envíos se trata operativamente como Correo para consultar tracking,
+    pero los blindajes de workflow evitan cerrar o avanzar pedidos por duplicado.
     """
-    transporte = str(getattr(pedido, "empresa_envio", "") or "").lower()
-    return "andreani" in transporte or "via cargo" in transporte or "vía cargo" in transporte
+    transporte = str(getattr(pedido, "empresa_envio", "") or "").lower().replace("í", "i")
+    ml_tipo = str(getattr(pedido, "ml_tipo", "") or "").lower().replace("í", "i")
 
+    return "correo" in transporte or "mercado envios" in transporte or "mercado envios" in ml_tipo
 
 def ejecutar_tracking_automatico():
-    """Consulta tracking de Andreani/Via Cargo y trae el estado al resumen.
+    """Consulta tracking de Correo/Mercado Envíos y trae el estado al resumen.
 
     Modo APB:
     - guarda estado externo, última sync, error y URL consultada;
@@ -172,7 +173,7 @@ def ejecutar_tracking_automatico():
             db, Pedido, tracking_info_pedido,
             aplicar_estado_tracking_seguro,
         )
-        from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico
+        from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico, consultar_correo_formulario
         from .post_despacho import registrar_tracking_evento, procesar_evento_tracking_pedido
 
         ahora = datetime.now(UTC)
@@ -198,24 +199,16 @@ def ejecutar_tracking_automatico():
             url = (tracking_info or {}).get("url") or ""
 
             try:
-                if not url:
-                    pedido.tracking_error = "No hay URL pública de seguimiento para consulta automática"
-                    pedido.tracking_ultima_sync = ahora
-                    db.session.commit()
-                    continue
+                transporte_norm = (transporte or "").strip().lower().replace("í", "i")
+                ml_tipo_norm = str(getattr(pedido, "ml_tipo", "") or "").strip().lower().replace("í", "i")
+                canal_norm = str(getattr(pedido, "canal", "") or "").strip()
 
-                                # APB:
-                # Solo permitimos tracking automático
-                # para transportes realmente soportados.
-                #
-                # Andreani y Vía Cargo quedan desactivados
-                # hasta tener integración/API estable.
-                #
-                # Evitamos falsos positivos,
-                # errores masivos y cambios peligrosos
-                # de estado automático.
-
-                transporte_norm = (transporte or "").strip().lower()
+                es_mercado_envios = (
+                    "mercado envios" in ml_tipo_norm
+                    or "mercado envios" in transporte_norm
+                )
+                es_correo_tracking = "correo" in transporte_norm or es_mercado_envios
+                url_para_registro = url
 
                 if "andreani" in transporte_norm:
                     pedido.tracking_error = "Tracking automático Andreani desactivado hasta integración API"
@@ -223,23 +216,40 @@ def ejecutar_tracking_automatico():
                     db.session.commit()
                     continue
 
-                if "via cargo" in transporte_norm or "vía cargo" in transporte_norm:
+                if "via cargo" in transporte_norm:
                     pedido.tracking_error = "Tracking automático Vía Cargo desactivado hasta integración API"
                     pedido.tracking_ultima_sync = ahora
                     db.session.commit()
                     continue
 
-                resultado = consultar_tracking_url(
-                    url,
-                    transporte=transporte,
-                    seguimiento=seguimiento
-                )
+                if es_correo_tracking:
+                    resultado = consultar_correo_formulario(
+                        seguimiento,
+                        mercado_envios=(
+                            canal_norm == "Mercado Libre"
+                            and es_mercado_envios
+                        ),
+                    )
+                    transporte = "Correo Argentino"
+                    url_para_registro = url or "micorreo"
+                else:
+                    if not url:
+                        pedido.tracking_error = "No hay URL pública de seguimiento para consulta automática"
+                        pedido.tracking_ultima_sync = ahora
+                        db.session.commit()
+                        continue
+
+                    resultado = consultar_tracking_url(
+                        url,
+                        transporte=transporte,
+                        seguimiento=seguimiento
+                    )
 
                 estado = (resultado.get("estado") or "").strip() or "Sin estado detectado"
                 clasificacion = interpretar_estado_logistico(estado, transporte=transporte)
 
                 pedido.tracking_transportista = transporte[:80] if transporte else None
-                pedido.tracking_url_consultada = url[:500] if url else None
+                pedido.tracking_url_consultada = url_para_registro[:500] if url_para_registro else None
                 pedido.tracking_estado_externo = estado[:300]
                 pedido.tracking_ultima_sync = ahora
                 pedido.tracking_error = resultado.get("error")
