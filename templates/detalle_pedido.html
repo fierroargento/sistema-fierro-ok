@@ -358,11 +358,11 @@ body { background: #f4f7f8; }
                 {% if puede_actualizar_tracking_externo(pedido) %}
                     <form method="POST"
                           action="{{ url_for('actualizar_tracking_externo_pedido', id=pedido.id) }}"
-                          style="display:inline; margin-left:8px;">
+                          style="display:inline-flex; align-items:center; margin-left:8px; vertical-align:middle;">
                         <button type="submit"
                                 class="inline-edit-link"
-                                style="border:0; background:none; padding:0; cursor:pointer;">
-                            Consultar estado
+                                style="border:0; background:none; padding:0; cursor:pointer; display:inline; white-space:nowrap;">
+                            Ver estado
                         </button>
                     </form>
                 {% endif %}
