@@ -224,7 +224,14 @@ def sugerir_sucursales_correo_pedido(pedido):
         _marcar_escalado(pedido, "No se pudieron obtener sucursales Correo cercanas")
         return None
 
-    sucs = sucursales[:3]
+    try:
+        from services.correo_argentino_operacion import obtener_preferencias_operativas_correo
+        preferencias_correo = obtener_preferencias_operativas_correo()
+        limite_sucursales = int(preferencias_correo.get("cantidad_sucursales_cliente") or 3)
+    except Exception:
+        limite_sucursales = 3
+
+    sucs = sucursales[:limite_sucursales]
     try:
         from app import db
         ids = [s.get("id") or s.get("agencyId") or s.get("codigo") or str(i + 1) for i, s in enumerate(sucs)]
