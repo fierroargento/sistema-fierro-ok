@@ -256,3 +256,40 @@ def test_evaluar_prioridad_correo_acordas_no_aplica_a_pp6040():
 
     assert r["usar_correo"] is False
     assert "pp6040" in r["motivo"].lower()
+
+
+class PedidoCorreoPendienteFake:
+    def __init__(self):
+        self.empresa_envio = "Correo Argentino"
+        self.tipo_entrega = "Sucursal"
+        self.ia_requiere_operador = False
+        self.ml_mensajes_pendientes = False
+        self.ml_mensajes_pendientes_count = 0
+        self.ia_resumen = ""
+
+
+def test_marcar_correo_sucursal_pendiente_operador_activa_revision_manual():
+    from services.correo_argentino_operacion import marcar_correo_sucursal_pendiente_operador
+
+    pedido = PedidoCorreoPendienteFake()
+
+    r = marcar_correo_sucursal_pendiente_operador(pedido)
+
+    assert r is True
+    assert pedido.ia_requiere_operador is True
+    assert pedido.ml_mensajes_pendientes is True
+    assert pedido.ml_mensajes_pendientes_count == 1
+    assert "pago/etiqueta manual" in pedido.ia_resumen
+
+
+def test_marcar_correo_sucursal_pendiente_operador_no_aplica_a_via_cargo():
+    from services.correo_argentino_operacion import marcar_correo_sucursal_pendiente_operador
+
+    pedido = PedidoCorreoPendienteFake()
+    pedido.empresa_envio = "Vía Cargo"
+
+    r = marcar_correo_sucursal_pendiente_operador(pedido)
+
+    assert r is False
+    assert pedido.ia_requiere_operador is False
+    assert pedido.ml_mensajes_pendientes is False

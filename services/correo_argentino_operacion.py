@@ -310,3 +310,38 @@ def evaluar_prioridad_correo_sucursal_acordas(
         "precio": precio,
         "umbral": umbral,
     }
+
+
+
+def marcar_correo_sucursal_pendiente_operador(pedido):
+    """Marca un pedido Correo/Sucursal como pendiente de gestión manual.
+
+    MiCorreo básico permite cotizar/sucursales/tracking, pero pago y etiqueta
+    se siguen resolviendo manualmente. Por eso, cuando el cliente ya eligió
+    sucursal Correo, el pedido debe quedar visible para operador.
+    """
+    if not pedido:
+        return False
+
+    transporte = str(getattr(pedido, "empresa_envio", "") or "").strip().lower()
+    tipo_entrega = str(getattr(pedido, "tipo_entrega", "") or "").strip().lower()
+
+    if "correo" not in transporte or tipo_entrega != "sucursal":
+        return False
+
+    pedido.ia_requiere_operador = True
+    pedido.ml_mensajes_pendientes = True
+
+    if hasattr(pedido, "ml_mensajes_pendientes_count"):
+        pedido.ml_mensajes_pendientes_count = max(
+            int(getattr(pedido, "ml_mensajes_pendientes_count", 0) or 0),
+            1,
+        )
+
+    resumen_actual = str(getattr(pedido, "ia_resumen", "") or "").strip()
+    marca = "CORREO: sucursal elegida; requiere pago/etiqueta manual en MiCorreo"
+
+    if marca not in resumen_actual:
+        pedido.ia_resumen = f"{resumen_actual} | {marca}".strip(" |")
+
+    return True

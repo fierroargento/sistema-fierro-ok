@@ -5493,6 +5493,13 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 if not (pedido.empresa_envio or "").strip():
                     pedido.empresa_envio = "Vía Cargo"
                 pedido.tipo_entrega = "Sucursal"
+
+                try:
+                    from services.correo_argentino_operacion import marcar_correo_sucursal_pendiente_operador
+                    marcar_correo_sucursal_pendiente_operador(pedido)
+                except Exception as e:
+                    print("[CORREO] No se pudo marcar pendiente operador:", e)
+
                 try:
                     db.session.commit()
                 except:
