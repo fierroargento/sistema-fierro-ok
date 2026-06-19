@@ -154,6 +154,58 @@ def _extraer_estado_prioritario(texto, transporte=""):
 
     return ""
 
+
+def _extraer_estado_correo_por_columnas(texto):
+    """Extrae Historia + Estado de la primera fila real de Correo.
+
+    Correo puede mostrar en una misma fila:
+    Historia = INTENTO DE ENTREGA
+    Estado   = EN ESPERA EN SUCURSAL
+
+    En ese caso se deben considerar ambas columnas.
+    """
+    if not texto:
+        return ""
+
+    normal = " ".join(str(texto).split())
+
+    fechas = list(
+        re.finditer(
+            r"\b\d{2}-\d{2}-\d{4}\s+\d{1,2}:\d{2}\b",
+            normal,
+        )
+    )
+
+    if not fechas:
+        return ""
+
+    inicio = fechas[0].start()
+    fin = fechas[1].start() if len(fechas) > 1 else min(len(normal), inicio + 500)
+    fila = normal[inicio:fin]
+    fila_norm = _normalizar(fila)
+
+    encontrados = []
+
+    for estado in ESTADOS_CORREO:
+        estado_norm = _normalizar(estado)
+        for match in re.finditer(re.escape(estado_norm), fila_norm):
+            encontrados.append((match.start(), estado.upper()))
+
+    if not encontrados:
+        return ""
+
+    encontrados.sort(key=lambda item: item[0])
+
+    estados_unicos = []
+    for _pos, estado in encontrados:
+        if estado not in estados_unicos:
+            estados_unicos.append(estado)
+
+    if len(estados_unicos) >= 2:
+        return f"Historia: {estados_unicos[0]} | Estado: {estados_unicos[1]}"
+
+    return estados_unicos[0]
+
 def _extraer_estado_por_patrones(texto, transporte=""):
     """Devuelve el estado logístico más reciente encontrado.
 
@@ -162,6 +214,11 @@ def _extraer_estado_por_patrones(texto, transporte=""):
     """
     if not texto:
         return ""
+
+    if "correo" in _normalizar(transporte):
+        estado_correo = _extraer_estado_correo_por_columnas(texto)
+        if estado_correo:
+            return estado_correo
 
     prioritario = _extraer_estado_prioritario(texto, transporte=transporte)
     if prioritario:
@@ -229,9 +286,6 @@ def interpretar_estado_logistico(texto, transporte=""):
     if any(x in t for x in ["no entreg", "fallid", "rechaz", "devol", "incid", "siniestr", "imposible entregar"]):
         return "incidencia"
 
-    if "intento de entrega" in t or "visita sin entregar" in t:
-        return "incidencia"
-
     if "entregad" in t and "no entreg" not in t:
         return "entregado"
 
@@ -246,6 +300,9 @@ def interpretar_estado_logistico(texto, transporte=""):
         "destino",
     ]):
         return "sucursal"
+
+    if "intento de entrega" in t or "visita sin entregar" in t:
+        return "incidencia"
 
     if any(x in t for x in [
         "transito", "distribucion", "viaje", "camino", "clasificacion", "procesamiento",
