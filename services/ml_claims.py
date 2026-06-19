@@ -32,23 +32,14 @@ def ml_obtener_claim_de_order_service(
 
     consultas = []
 
+    # APB:
+    # claims/search requiere filtros válidos.
+    # Mercado Libre/Mercado Pago acepta resource + resource_id.
+    # Evitamos resource_id suelto y role=seller porque generan 400.
     if order_id:
         consultas.append({
-            "order_id": order_id,
-            "role": "seller",
-            "limit": 5,
-        })
-
-        consultas.append({
+            "resource": "order",
             "resource_id": order_id,
-            "role": "seller",
-            "limit": 5,
-        })
-
-    if pack_id and pack_id != order_id:
-        consultas.append({
-            "resource_id": pack_id,
-            "role": "seller",
             "limit": 5,
         })
 
