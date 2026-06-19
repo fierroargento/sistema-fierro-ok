@@ -176,3 +176,83 @@ def test_preferencias_operativas_correo_limita_cantidad_sucursales(monkeypatch):
     r = obtener_preferencias_operativas_correo()
 
     assert r["cantidad_sucursales_cliente"] == 5
+
+
+def test_preferencias_correo_acordas_default_umbral_cero(monkeypatch):
+    from services.correo_argentino_operacion import obtener_preferencias_operativas_correo
+
+    monkeypatch.delenv("CORREO_MAX_COSTO_SUCURSAL_ACORDAS", raising=False)
+
+    r = obtener_preferencias_operativas_correo()
+
+    assert r["priorizar_correo_sucursal_acordas"] is True
+    assert r["max_costo_correo_sucursal_acordas"] == 0
+
+
+def test_evaluar_prioridad_correo_acordas_no_aplica_sin_umbral():
+    from services.correo_argentino_operacion import evaluar_prioridad_correo_sucursal_acordas
+
+    r = evaluar_prioridad_correo_sucursal_acordas(
+        {"disponible": True, "precio": 12000},
+        es_acordas=True,
+        es_pp6040=False,
+        preferencias={
+            "priorizar_correo_sucursal_acordas": True,
+            "max_costo_correo_sucursal_acordas": 0,
+        },
+    )
+
+    assert r["usar_correo"] is False
+    assert "sin umbral" in r["motivo"].lower()
+
+
+def test_evaluar_prioridad_correo_acordas_prioriza_si_precio_menor_al_umbral():
+    from services.correo_argentino_operacion import evaluar_prioridad_correo_sucursal_acordas
+
+    r = evaluar_prioridad_correo_sucursal_acordas(
+        {"disponible": True, "precio": 12000},
+        es_acordas=True,
+        es_pp6040=False,
+        preferencias={
+            "priorizar_correo_sucursal_acordas": True,
+            "max_costo_correo_sucursal_acordas": 15000,
+        },
+    )
+
+    assert r["usar_correo"] is True
+    assert r["precio"] == 12000
+    assert r["umbral"] == 15000
+
+
+def test_evaluar_prioridad_correo_acordas_no_prioriza_si_supera_umbral():
+    from services.correo_argentino_operacion import evaluar_prioridad_correo_sucursal_acordas
+
+    r = evaluar_prioridad_correo_sucursal_acordas(
+        {"disponible": True, "precio": 18000},
+        es_acordas=True,
+        es_pp6040=False,
+        preferencias={
+            "priorizar_correo_sucursal_acordas": True,
+            "max_costo_correo_sucursal_acordas": 15000,
+        },
+    )
+
+    assert r["usar_correo"] is False
+    assert "supera umbral" in r["motivo"].lower()
+
+
+def test_evaluar_prioridad_correo_acordas_no_aplica_a_pp6040():
+    from services.correo_argentino_operacion import evaluar_prioridad_correo_sucursal_acordas
+
+    r = evaluar_prioridad_correo_sucursal_acordas(
+        {"disponible": True, "precio": 10000},
+        es_acordas=True,
+        es_pp6040=True,
+        preferencias={
+            "priorizar_correo_sucursal_acordas": True,
+            "max_costo_correo_sucursal_acordas": 15000,
+        },
+    )
+
+    assert r["usar_correo"] is False
+    assert "pp6040" in r["motivo"].lower()

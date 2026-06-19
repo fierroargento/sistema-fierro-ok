@@ -25,6 +25,8 @@ PREFERENCIAS_CORREO_DEFAULT = {
     "cantidad_sucursales_cliente": 3,
     "mostrar_costos_cliente": False,
     "requiere_operador_para_pago_etiqueta": True,
+    "priorizar_correo_sucursal_acordas": True,
+    "max_costo_correo_sucursal_acordas": 0,
 }
 
 PREFERENCIAS_CORREO_ENV = {
@@ -34,6 +36,8 @@ PREFERENCIAS_CORREO_ENV = {
     "cantidad_sucursales_cliente": "CORREO_CANTIDAD_SUCURSALES_CLIENTE",
     "mostrar_costos_cliente": "CORREO_MOSTRAR_COSTOS_CLIENTE",
     "requiere_operador_para_pago_etiqueta": "CORREO_REQUIERE_OPERADOR_PAGO_ETIQUETA",
+    "priorizar_correo_sucursal_acordas": "CORREO_PRIORIZAR_SUCURSAL_ACORDAS",
+    "max_costo_correo_sucursal_acordas": "CORREO_MAX_COSTO_SUCURSAL_ACORDAS",
 }
 
 
@@ -213,4 +217,96 @@ def obtener_preferencias_operativas_correo():
             PREFERENCIAS_CORREO_ENV["requiere_operador_para_pago_etiqueta"],
             "true" if PREFERENCIAS_CORREO_DEFAULT["requiere_operador_para_pago_etiqueta"] else "false",
         ),
+        "priorizar_correo_sucursal_acordas": _env_bool(
+            PREFERENCIAS_CORREO_ENV["priorizar_correo_sucursal_acordas"],
+            "true" if PREFERENCIAS_CORREO_DEFAULT["priorizar_correo_sucursal_acordas"] else "false",
+        ),
+        "max_costo_correo_sucursal_acordas": _to_float(
+            _env(
+                PREFERENCIAS_CORREO_ENV["max_costo_correo_sucursal_acordas"],
+                str(PREFERENCIAS_CORREO_DEFAULT["max_costo_correo_sucursal_acordas"]),
+            )
+        ),
+    }
+
+
+
+def evaluar_prioridad_correo_sucursal_acordas(
+    cotizacion_sucursal,
+    es_acordas=True,
+    es_pp6040=False,
+    preferencias=None,
+):
+    """Evalúa si un pedido Acordás no PP6040 debe priorizar Correo sucursal.
+
+    Regla:
+    - Solo aplica a ML/Acordás.
+    - No aplica a PP6040 porque PP6040 ya tiene regla propia.
+    - Solo aplica si Correo sucursal está disponible.
+    - Si el costo de Correo sucursal es menor o igual al umbral configurado,
+      se prioriza Correo. Si no, sigue el flujo normal de Vía Cargo.
+
+    El umbral se configura con:
+    CORREO_MAX_COSTO_SUCURSAL_ACORDAS
+
+    Si el umbral es 0, la regla queda apagada.
+    """
+    prefs = preferencias or obtener_preferencias_operativas_correo()
+
+    if not es_acordas:
+        return {
+            "usar_correo": False,
+            "motivo": "No aplica: no es Acordás.",
+            "precio": 0.0,
+            "umbral": _to_float(prefs.get("max_costo_correo_sucursal_acordas")),
+        }
+
+    if es_pp6040:
+        return {
+            "usar_correo": False,
+            "motivo": "No aplica: PP6040 usa regla Correo propia.",
+            "precio": 0.0,
+            "umbral": _to_float(prefs.get("max_costo_correo_sucursal_acordas")),
+        }
+
+    if not prefs.get("priorizar_correo_sucursal_acordas"):
+        return {
+            "usar_correo": False,
+            "motivo": "Regla Correo sucursal Acordás deshabilitada.",
+            "precio": 0.0,
+            "umbral": _to_float(prefs.get("max_costo_correo_sucursal_acordas")),
+        }
+
+    umbral = _to_float(prefs.get("max_costo_correo_sucursal_acordas"))
+    if umbral <= 0:
+        return {
+            "usar_correo": False,
+            "motivo": "Regla Correo sucursal Acordás sin umbral configurado.",
+            "precio": 0.0,
+            "umbral": umbral,
+        }
+
+    cot = cotizacion_sucursal or {}
+    if not _cotizacion_disponible(cot):
+        return {
+            "usar_correo": False,
+            "motivo": "Correo sucursal no disponible.",
+            "precio": _to_float(cot.get("precio")),
+            "umbral": umbral,
+        }
+
+    precio = _to_float(cot.get("precio"))
+    if precio <= umbral:
+        return {
+            "usar_correo": True,
+            "motivo": f"Correo sucursal priorizado por costo (${precio:.0f} <= ${umbral:.0f}).",
+            "precio": precio,
+            "umbral": umbral,
+        }
+
+    return {
+        "usar_correo": False,
+        "motivo": f"Correo sucursal supera umbral (${precio:.0f} > ${umbral:.0f}).",
+        "precio": precio,
+        "umbral": umbral,
     }
