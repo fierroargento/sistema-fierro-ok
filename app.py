@@ -1336,12 +1336,25 @@ def _obtener_coords_cliente(codigo_postal, direccion, localidad, provincia):
 
 def sugerir_sucursales(pedido):
     """
-    Devuelve un mensaje con las 3 sucursales Via Cargo más cercanas al cliente,
-    ordenadas por distancia usando CP, Nominatim o barrio como referencia.
-    Devuelve None si ya eligió sucursal, si no hay datos de ubicación, o si no hay sucursales.
+    Devuelve un mensaje con sucursales según el transporte asignado.
+
+    - Correo Argentino: usa la integración Correo/MiCorreo.
+    - Vía Cargo: usa el flujo histórico por JSON local.
+
+    Devuelve None si ya eligió sucursal, si no hay datos de ubicación,
+    o si no hay sucursales.
     """
     if getattr(pedido, "sucursal_nombre", None):
         return None
+
+    transporte_actual = str(getattr(pedido, "empresa_envio", "") or "").strip().lower()
+    if "correo" in transporte_actual:
+        try:
+            from modules.transportes.selector import sugerir_sucursales_correo_pedido
+            return sugerir_sucursales_correo_pedido(pedido)
+        except Exception as e:
+            print("[CORREO] Error sugiriendo sucursales Correo:", e)
+            return None
 
     import unicodedata as _ud, re as _re
     def _norm(s):
