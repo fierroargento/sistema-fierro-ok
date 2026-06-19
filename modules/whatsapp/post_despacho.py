@@ -14,6 +14,13 @@ from services.canal_manager import wa_operador_tiene_toma_activa
 from .flows import wa_enviar_listo_para_retirar, wa_enviar_postventa
 
 
+def _es_ml_acordas_tracking(pedido):
+    return (
+        str(getattr(pedido, "canal", "") or "").strip() == "Mercado Libre"
+        and str(getattr(pedido, "ml_tipo", "") or "").strip() == "Acordás la Entrega"
+    )
+
+
 def registrar_tracking_evento(pedido, empresa, seguimiento, estado, clasificacion, raw_json=None, origen="scheduler"):
     """Guarda historial de tracking si existe el modelo TrackingEvento."""
     try:
@@ -53,6 +60,14 @@ def procesar_evento_tracking_pedido(pedido, clasificacion, estado_externo, orige
         from app import db
 
         origen_norm = str(origen or "").strip().lower()
+
+        # APB:
+        # El tracking externo solo dispara acciones automáticas en ML Acordás.
+        # Mercado Envíos, Tienda Nube y otros canales ya tienen su propio flujo
+        # o webhook; acá solo guardamos Estado de Envío sin mandar WA/postventa.
+        if clasificacion in ["sucursal", "entregado"] and not _es_ml_acordas_tracking(pedido):
+            acciones.append("tracking_informativo_sin_accion")
+            return acciones
 
         # APB quirúrgico:
         # Si el tracking automático detecta un evento que enviaría mensaje WA
