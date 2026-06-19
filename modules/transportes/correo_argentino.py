@@ -270,7 +270,7 @@ def codigo_provincia_correo(provincia):
     return PROVINCIA_A_CODIGO.get(p, "")
 
 
-def obtener_sucursales_correo(state_id=None, pickup_availability=True, package_reception=None):
+def _obtener_sucursales_correo_paqar(state_id=None, pickup_availability=True, package_reception=None):
     """GET /agencies con filtros opcionales."""
     params = {}
     if state_id:
@@ -323,12 +323,32 @@ def obtener_sucursales_correo_por_pedido(pedido):
     provincia = getattr(pedido, "provincia", "") or ""
     state_id = codigo_provincia_correo(provincia)
 
-    agencias = obtener_sucursales_correo(
-        state_id=state_id or None,
-        pickup_availability=True,
-        package_reception=None,
-    )
-    sucs = [_mapear_sucursal_paqar(a) for a in agencias]
+    sucs = []
+
+    try:
+        from services.correo_argentino_micorreo import (
+            consultar_sucursales as consultar_sucursales_micorreo,
+            micorreo_habilitado,
+        )
+
+        if micorreo_habilitado():
+            resultado_micorreo = consultar_sucursales_micorreo(
+                province_code=state_id or None,
+            )
+            if resultado_micorreo.get("ok"):
+                sucs = list(resultado_micorreo.get("sucursales") or [])
+            else:
+                print("[CORREO MICORREO] No se pudieron obtener sucursales:", resultado_micorreo.get("error"))
+    except Exception as e:
+        print("[CORREO MICORREO] Error obteniendo sucursales:", e)
+
+    if not sucs:
+        agencias = _obtener_sucursales_correo_paqar(
+            state_id=state_id or None,
+            pickup_availability=True,
+            package_reception=None,
+        )
+        sucs = [_mapear_sucursal_paqar(a) for a in agencias]
 
     cp = str(getattr(pedido, "codigo_postal", "") or "").strip()
     loc = _norm(getattr(pedido, "localidad", "") or "")
@@ -371,12 +391,87 @@ def obtener_sucursales_correo_por_pedido(pedido):
 # Cotización
 # ─────────────────────────────────────────────
 
+def _cotizacion_legacy_desde_micorreo(resultado, tipo_entrega="S"):
+    """Adapta respuesta MiCorreo al formato legacy que espera selector.py."""
+    if not resultado.get("ok"):
+        return {
+            "disponible": False,
+            "precio": None,
+            "plazo_dias": None,
+            "tipo": "correo_argentino_micorreo",
+            "modalidad": tipo_entrega,
+            "error": resultado.get("error") or "No se pudo cotizar Correo Argentino por MiCorreo.",
+            "raw": resultado,
+        }
+
+    cotizaciones = list(resultado.get("cotizaciones") or [])
+    elegida = None
+
+    for cotizacion in cotizaciones:
+        if cotizacion.get("precio") is not None:
+            elegida = cotizacion
+            break
+
+    if elegida is None and cotizaciones:
+        elegida = cotizaciones[0]
+
+    if not elegida:
+        return {
+            "disponible": False,
+            "precio": None,
+            "plazo_dias": None,
+            "tipo": "correo_argentino_micorreo",
+            "modalidad": tipo_entrega,
+            "error": "MiCorreo no devolvió tarifas disponibles.",
+            "raw": resultado,
+        }
+
+    plazo_min = elegida.get("plazo_min")
+    plazo_max = elegida.get("plazo_max")
+    plazo_dias = plazo_max if plazo_max is not None else plazo_min
+
+    return {
+        "disponible": True,
+        "precio": elegida.get("precio"),
+        "plazo_dias": plazo_dias,
+        "plazo_min": plazo_min,
+        "plazo_max": plazo_max,
+        "servicio": elegida.get("producto"),
+        "tipo": "correo_argentino_micorreo",
+        "modalidad": tipo_entrega,
+        "opciones": cotizaciones,
+        "raw": resultado,
+    }
+
+
 def cotizar_correo(cp_destino, tipo_entrega="S"):
     """Compatibilidad con selector.py.
 
-    El manual PAQ.AR 2.0 no documenta endpoint de cotización de tarifas.
-    Por seguridad, no inventamos costos ni disponibilidad económica.
+    Si MiCorreo integración básica está habilitado, usa /rates.
+    Si no, conserva fallback PAQ.AR legacy.
     """
+    try:
+        from services.correo_argentino_micorreo import (
+            cotizar_envio as cotizar_envio_micorreo,
+            micorreo_habilitado,
+        )
+
+        if micorreo_habilitado():
+            resultado_micorreo = cotizar_envio_micorreo(
+                cp_destino=cp_destino,
+                modalidad=tipo_entrega,
+                peso_gr=PP6040_PESO,
+                alto_cm=PP6040_ALTO,
+                ancho_cm=PP6040_ANCHO,
+                largo_cm=PP6040_LARGO,
+            )
+            return _cotizacion_legacy_desde_micorreo(
+                resultado_micorreo,
+                tipo_entrega=tipo_entrega,
+            )
+    except Exception as e:
+        print("[CORREO MICORREO] Error cotizando:", e)
+
     if not _credenciales_configuradas():
         return {
             "disponible": False,
