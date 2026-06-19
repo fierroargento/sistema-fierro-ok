@@ -179,19 +179,24 @@ def asignar_transporte_pedido(pedido, preferencia_cliente="sucursal"):
 
     try:
         from app import db
-        pedido.empresa_envio = "Correo Argentino"
-        pedido.tipo_entrega = "Domicilio" if decision == "domicilio" else "Sucursal"
+        from services.correo_argentino_operacion import (
+            aplicar_resumen_cotizacion_a_pedido,
+            extraer_resumen_cotizacion,
+        )
 
-        if hasattr(pedido, "costo_envio"):
-            cot_sel = resultado.get("domicilio") if decision == "domicilio" else resultado.get("sucursal")
-            pedido.costo_envio = float((cot_sel or {}).get("precio") or 0)
-        if hasattr(pedido, "costo_envio_sucursal"):
-            pedido.costo_envio_sucursal = float((resultado.get("sucursal") or {}).get("precio") or 0)
-        if hasattr(pedido, "costo_envio_domicilio"):
-            pedido.costo_envio_domicilio = float((resultado.get("domicilio") or {}).get("precio") or 0)
+        resumen_correo = extraer_resumen_cotizacion(resultado)
+        ok_aplicar, mensaje_aplicar = aplicar_resumen_cotizacion_a_pedido(
+            pedido,
+            resumen_correo,
+        )
 
-        resumen = (getattr(pedido, "ia_resumen", "") or "").strip()
-        pedido.ia_resumen = f"{resumen} | Correo PP6040 evaluado: {decision}. {resultado.get('motivo','')}".strip(" |")
+        if not ok_aplicar:
+            _marcar_escalado(
+                pedido,
+                mensaje_aplicar or "Cotización Correo no aplicable",
+            )
+            return False, mensaje_aplicar or "Cotización Correo no aplicable"
+
         db.session.commit()
         return True, f"Correo Argentino asignado ({pedido.tipo_entrega})"
     except Exception as e:
