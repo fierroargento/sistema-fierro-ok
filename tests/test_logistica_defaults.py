@@ -64,3 +64,106 @@ def test_no_aplica_fuera_de_ml_acordas():
     assert modificado is False
     assert pedido.empresa_envio == ""
     assert pedido.tipo_entrega == ""
+
+class ItemLogisticaFake:
+    def __init__(self, sku="", descripcion=""):
+        self.sku = sku
+        self.descripcion = descripcion
+
+
+class PedidoLogisticaFake:
+    def __init__(self):
+        self.canal = "Mercado Libre"
+        self.ml_tipo = "Acordás la Entrega"
+        self.items = [ItemLogisticaFake(sku="BRASERO80", descripcion="Brasero grande")]
+        self.codigo_postal = "8400"
+        self.empresa_envio = ""
+        self.tipo_entrega = ""
+        self.costo_envio_sucursal = None
+        self.costo_envio = None
+        self.ia_resumen = ""
+
+
+def test_default_acordas_prioriza_correo_si_costo_menor_al_umbral(monkeypatch):
+    from services.logistica_defaults import aplicar_default_via_cargo_sucursal_ml_acordas
+
+    monkeypatch.setenv("CORREO_MAX_COSTO_SUCURSAL_ACORDAS", "15000")
+
+    pedido = PedidoLogisticaFake()
+
+    modificado = aplicar_default_via_cargo_sucursal_ml_acordas(
+        pedido,
+        cotizar_correo_fn=lambda cp, tipo: {
+            "disponible": True,
+            "precio": 12000,
+        },
+    )
+
+    assert modificado is True
+    assert pedido.empresa_envio == "Correo Argentino"
+    assert pedido.tipo_entrega == "Sucursal"
+    assert pedido.costo_envio_sucursal == 12000
+    assert pedido.costo_envio == 12000
+    assert "Correo Argentino sucursal priorizado" in pedido.ia_resumen
+
+
+def test_default_acordas_mantiene_via_cargo_si_correo_supera_umbral(monkeypatch):
+    from services.logistica_defaults import aplicar_default_via_cargo_sucursal_ml_acordas
+
+    monkeypatch.setenv("CORREO_MAX_COSTO_SUCURSAL_ACORDAS", "15000")
+
+    pedido = PedidoLogisticaFake()
+
+    modificado = aplicar_default_via_cargo_sucursal_ml_acordas(
+        pedido,
+        cotizar_correo_fn=lambda cp, tipo: {
+            "disponible": True,
+            "precio": 22000,
+        },
+    )
+
+    assert modificado is True
+    assert pedido.empresa_envio == "Vía Cargo"
+    assert pedido.tipo_entrega == "Sucursal"
+
+
+def test_default_acordas_mantiene_via_cargo_si_umbral_cero(monkeypatch):
+    from services.logistica_defaults import aplicar_default_via_cargo_sucursal_ml_acordas
+
+    monkeypatch.setenv("CORREO_MAX_COSTO_SUCURSAL_ACORDAS", "0")
+
+    pedido = PedidoLogisticaFake()
+
+    modificado = aplicar_default_via_cargo_sucursal_ml_acordas(
+        pedido,
+        cotizar_correo_fn=lambda cp, tipo: {
+            "disponible": True,
+            "precio": 12000,
+        },
+    )
+
+    assert modificado is True
+    assert pedido.empresa_envio == "Vía Cargo"
+    assert pedido.tipo_entrega == "Sucursal"
+
+
+def test_default_acordas_no_pisa_decision_existente(monkeypatch):
+    from services.logistica_defaults import aplicar_default_via_cargo_sucursal_ml_acordas
+
+    monkeypatch.setenv("CORREO_MAX_COSTO_SUCURSAL_ACORDAS", "15000")
+
+    pedido = PedidoLogisticaFake()
+    pedido.empresa_envio = "Andreani"
+    pedido.tipo_entrega = "Domicilio"
+
+    modificado = aplicar_default_via_cargo_sucursal_ml_acordas(
+        pedido,
+        cotizar_correo_fn=lambda cp, tipo: {
+            "disponible": True,
+            "precio": 12000,
+        },
+    )
+
+    assert modificado is False
+    assert pedido.empresa_envio == "Andreani"
+    assert pedido.tipo_entrega == "Domicilio"
