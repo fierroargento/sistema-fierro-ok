@@ -27,6 +27,7 @@ PREFERENCIAS_CORREO_DEFAULT = {
     "requiere_operador_para_pago_etiqueta": True,
     "priorizar_correo_sucursal_acordas": True,
     "max_costo_correo_sucursal_acordas": 0,
+    "max_costo_correo_sucursal_pp6040": 10000,
 }
 
 PREFERENCIAS_CORREO_ENV = {
@@ -38,6 +39,7 @@ PREFERENCIAS_CORREO_ENV = {
     "requiere_operador_para_pago_etiqueta": "CORREO_REQUIERE_OPERADOR_PAGO_ETIQUETA",
     "priorizar_correo_sucursal_acordas": "CORREO_PRIORIZAR_SUCURSAL_ACORDAS",
     "max_costo_correo_sucursal_acordas": "CORREO_MAX_COSTO_SUCURSAL_ACORDAS",
+    "max_costo_correo_sucursal_pp6040": "CORREO_MAX_COSTO_SUCURSAL_PP6040",
 }
 
 
@@ -227,8 +229,66 @@ def obtener_preferencias_operativas_correo():
                 str(PREFERENCIAS_CORREO_DEFAULT["max_costo_correo_sucursal_acordas"]),
             )
         ),
+        "max_costo_correo_sucursal_pp6040": _to_float(
+            _env(
+                PREFERENCIAS_CORREO_ENV["max_costo_correo_sucursal_pp6040"],
+                str(PREFERENCIAS_CORREO_DEFAULT["max_costo_correo_sucursal_pp6040"]),
+            )
+        ),
     }
 
+
+
+def evaluar_oferta_sucursales_correo_pp6040(cotizacion_sucursal, preferencias=None):
+    """Evalúa si PP6040 puede ofrecer sucursales Correo al cliente.
+
+    Regla:
+    - No decide el transporte definitivo.
+    - Solo decide si se muestran sucursales Correo automáticamente.
+    - Si el costo de Correo sucursal supera el umbral, queda para operador.
+
+    Umbral configurable:
+    CORREO_MAX_COSTO_SUCURSAL_PP6040
+    """
+    prefs = preferencias or obtener_preferencias_operativas_correo()
+    umbral = _to_float(prefs.get("max_costo_correo_sucursal_pp6040"))
+
+    if umbral <= 0:
+        return {
+            "ofrecer_sucursales": False,
+            "requiere_operador": True,
+            "motivo": "Regla PP6040 Correo sucursal sin umbral configurado.",
+            "precio": 0.0,
+            "umbral": umbral,
+        }
+
+    cot = cotizacion_sucursal or {}
+    if not _cotizacion_disponible(cot):
+        return {
+            "ofrecer_sucursales": False,
+            "requiere_operador": True,
+            "motivo": "Correo sucursal PP6040 no disponible o sin precio.",
+            "precio": 0.0,
+            "umbral": umbral,
+        }
+
+    precio = _to_float(cot.get("precio"))
+    if precio <= umbral:
+        return {
+            "ofrecer_sucursales": True,
+            "requiere_operador": False,
+            "motivo": "Correo sucursal PP6040 dentro del umbral.",
+            "precio": precio,
+            "umbral": umbral,
+        }
+
+    return {
+        "ofrecer_sucursales": False,
+        "requiere_operador": True,
+        "motivo": "Correo sucursal PP6040 supera el umbral; revisar operador.",
+        "precio": precio,
+        "umbral": umbral,
+    }
 
 
 def evaluar_prioridad_correo_sucursal_acordas(
