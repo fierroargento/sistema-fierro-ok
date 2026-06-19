@@ -593,3 +593,81 @@ def consultar_tracking_envio(shipping_id, config=None, token=None):
         eventos=eventos,
         respuesta=data,
     )
+
+
+
+def _accion_no_ejecutada(nombre, mensaje, config=None):
+    cfg = config or cargar_config_desde_env()
+    return _error(
+        mensaje,
+        accion=nombre,
+        ejecutado=False,
+        accion_peligrosa=True,
+        capacidades=obtener_capacidades(cfg).get("funciones", {}),
+    )
+
+
+def importar_envio(payload=None, config=None, token=None):
+    """Placeholder seguro para /shipping/import.
+
+    APB:
+    - No crea envíos desde Sistema Fierro.
+    - No ejecuta llamadas externas.
+    - Queda bloqueado hasta confirmar flujo, impacto operativo y ambiente seguro.
+    """
+    cfg = config or cargar_config_desde_env()
+
+    if not funcion_habilitada("importacion_envios", cfg):
+        return _accion_no_ejecutada(
+            "importacion_envios",
+            "Importación de envíos MiCorreo deshabilitada.",
+            config=cfg,
+        )
+
+    return _accion_no_ejecutada(
+        "importacion_envios",
+        "Importación de envíos MiCorreo no implementada por seguridad.",
+        config=cfg,
+    )
+
+
+def obtener_etiqueta_envio(shipping_id=None, config=None, token=None):
+    """Placeholder seguro para etiquetas.
+
+    La integración básica queda sin impresión de etiquetas desde el sistema.
+    """
+    cfg = config or cargar_config_desde_env()
+
+    if not funcion_habilitada("etiquetas", cfg):
+        return _accion_no_ejecutada(
+            "etiquetas",
+            "Etiquetas MiCorreo deshabilitadas.",
+            config=cfg,
+        )
+
+    return _accion_no_ejecutada(
+        "etiquetas",
+        "Etiquetas MiCorreo no implementadas por seguridad.",
+        config=cfg,
+    )
+
+
+def pagar_envio(shipping_id=None, config=None, token=None):
+    """Placeholder seguro para pago.
+
+    La integración básica no debe intentar pagar envíos desde el sistema.
+    """
+    cfg = config or cargar_config_desde_env()
+
+    if not funcion_habilitada("pago", cfg):
+        return _accion_no_ejecutada(
+            "pago",
+            "Pago MiCorreo deshabilitado.",
+            config=cfg,
+        )
+
+    return _accion_no_ejecutada(
+        "pago",
+        "Pago MiCorreo no implementado por seguridad.",
+        config=cfg,
+    )

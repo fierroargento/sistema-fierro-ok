@@ -305,3 +305,50 @@ def test_consultar_tracking_no_llama_api_si_funcion_deshabilitada(monkeypatch):
 
     assert r["ok"] is False
     assert "deshabilitada" in r["error"].lower()
+
+
+def test_importar_envio_bloqueado_por_default_no_ejecuta(monkeypatch):
+    from services.correo_argentino_micorreo import importar_envio
+
+    r = importar_envio({"pedido": 1}, config=cfg())
+
+    assert r["ok"] is False
+    assert r["accion"] == "importacion_envios"
+    assert r["ejecutado"] is False
+    assert r["accion_peligrosa"] is True
+    assert "deshabilitada" in r["error"].lower()
+
+
+def test_importar_envio_aunque_se_habilite_no_ejecuta(monkeypatch):
+    from services.correo_argentino_micorreo import importar_envio
+
+    monkeypatch.setenv("CORREO_MICORREO_FEATURE_IMPORTACION_ENVIOS", "true")
+
+    r = importar_envio({"pedido": 1}, config=cfg())
+
+    assert r["ok"] is False
+    assert r["accion"] == "importacion_envios"
+    assert r["ejecutado"] is False
+    assert "no implementada" in r["error"].lower()
+
+
+def test_obtener_etiqueta_envio_bloqueado_por_default():
+    from services.correo_argentino_micorreo import obtener_etiqueta_envio
+
+    r = obtener_etiqueta_envio("SHIP_TEST", config=cfg())
+
+    assert r["ok"] is False
+    assert r["accion"] == "etiquetas"
+    assert r["ejecutado"] is False
+    assert "deshabilitadas" in r["error"].lower()
+
+
+def test_pagar_envio_bloqueado_por_default():
+    from services.correo_argentino_micorreo import pagar_envio
+
+    r = pagar_envio("SHIP_TEST", config=cfg())
+
+    assert r["ok"] is False
+    assert r["accion"] == "pago"
+    assert r["ejecutado"] is False
+    assert "deshabilitado" in r["error"].lower()
