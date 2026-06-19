@@ -9,5 +9,6 @@ def test_detalle_muestra_boton_ver_estado_tracking_externo():
     assert "actualizar_tracking_externo_pedido" in html
     assert "puede_actualizar_tracking_externo(pedido)" in html
     assert 'method="POST"' in html
-    assert "display:inline-flex" in html
+    assert '<div class="tracking-row"' in html
+    assert "display:flex; align-items:center" in html
     assert "abrirTrackingConCopia" in html

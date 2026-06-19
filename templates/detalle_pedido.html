@@ -341,7 +341,7 @@ body { background: #f4f7f8; }
                 </p>
             {% endif %}
             {% if rol_actual != "despacho" %}
-            <p class="tracking-row">
+            <div class="tracking-row" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:1em 0;">
                 <strong>Seguimiento:</strong> {{ pedido.seguimiento or "-" }}
                 {% set tracking_info = tracking_info_pedido(pedido) %}
                 {% if tracking_info %}
@@ -358,7 +358,7 @@ body { background: #f4f7f8; }
                 {% if puede_actualizar_tracking_externo(pedido) %}
                     <form method="POST"
                           action="{{ url_for('actualizar_tracking_externo_pedido', id=pedido.id) }}"
-                          style="display:inline-flex; align-items:center; margin-left:8px; vertical-align:middle;">
+                          style="display:inline-flex; align-items:center; margin-left:4px; vertical-align:middle;">
                         <button type="submit"
                                 class="inline-edit-link"
                                 style="border:0; background:none; padding:0; cursor:pointer; display:inline; white-space:nowrap;">
@@ -366,7 +366,7 @@ body { background: #f4f7f8; }
                         </button>
                     </form>
                 {% endif %}
-            </p>
+            </div>
             {% endif %}
             {% if pedido.canal == "Mayorista" %}
             <p><strong>Comprobante DUX:</strong>
