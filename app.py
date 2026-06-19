@@ -1494,12 +1494,13 @@ def _texto_parece_eleccion_sucursal(texto):
     t = str(texto or "").lower().strip()
     if not t:
         return False
-    if re.search(r"\b([1-3])\b", t):
+    if re.search(r"\b([1-5])\b", t):
         return True
     if any(x in t for x in [
         "elijo", "elegí", "elegi", "elegimos", "prefiero", "quiero la",
         "quiero esa", "me quedo", "opcion", "opción", "numero", "número",
-        "la 1", "la 2", "la 3", "primera", "segunda", "tercera", "la de"
+        "la 1", "la 2", "la 3", "la 4", "la 5",
+        "primera", "segunda", "tercera", "cuarta", "quinta", "la de"
     ]):
         return True
     # Mensaje corto tipo "San Martín" puede ser elección. Mensaje largo con
@@ -1525,15 +1526,32 @@ def detectar_sucursal(pedido, mensaje):
       2. Match flexible por palabras clave del nombre (solo dentro de candidatas ofrecidas)
       3. Match por dirección (solo dentro de candidatas ofrecidas)
     """
+    texto = (mensaje or "").lower().strip()
+    if not texto:
+        return None
+
+    transporte_actual = str(getattr(pedido, "empresa_envio", "") or "").strip().lower()
+    if "correo" in transporte_actual:
+        if _es_consulta_no_eleccion(texto):
+            print(f"[CORREO] Mensaje detectado como consulta, no elección: '{texto[:80]}'")
+            return None
+
+        if not _texto_parece_eleccion_sucursal(texto):
+            print(f"[CORREO] No se asigna sucursal: texto no parece elección explícita: '{texto[:100]}'")
+            return None
+
+        try:
+            from services.correo_sucursales_eleccion import detectar_sucursal_correo_ofrecida
+            return detectar_sucursal_correo_ofrecida(pedido, mensaje)
+        except Exception as e:
+            print("[CORREO] Error detectando sucursal elegida:", e)
+            return None
+
     try:
         with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception as e:
         print("[VIA CARGO] No se pudo leer via_cargo_sucursales.json:", e)
-        return None
-
-    texto = (mensaje or "").lower().strip()
-    if not texto:
         return None
 
     # REGLA 1: Si es consulta/pregunta → no detectar, escalar al operador
@@ -5407,7 +5425,10 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         # PP6040 va por Andreani/Correo a domicilio → nunca detectar sucursal Via Cargo
         # Solo detectar elección si el sistema YA ofreció opciones al cliente (ia_sucursales_ofrecidas)
         # Evita que el texto con los datos del cliente (localidad, dirección) se confunda con una elección
-        _sucursales_ya_ofrecidas = bool(getattr(pedido, "ia_sucursales_ofrecidas", None))
+        _sucursales_ya_ofrecidas = bool(
+            getattr(pedido, "ia_sucursales_ofrecidas", None)
+            or getattr(pedido, "correo_sucursales_ofrecidas", None)
+        )
         if not pedido_es_plegable_pp6040(pedido) and _sucursales_ya_ofrecidas:
             # Si el sistema ya ofreció sucursales y el cliente hace una consulta
             # en lugar de elegir → escalar al operador para que lo resuelva
