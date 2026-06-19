@@ -180,3 +180,58 @@ def test_cotizar_envio_ok_acepta_202(monkeypatch):
     assert r["modalidad"] == "D"
     assert r["cotizaciones"][0]["producto"] == "Correo Argentino Clasico"
     assert r["cotizaciones"][0]["precio"] == 15957.0
+from services.correo_argentino_micorreo import consultar_tracking_envio
+from tests.test_correo_argentino_micorreo import cfg
+
+
+def test_consultar_tracking_envio_ok(monkeypatch):
+    def fake_request(method, path, config, token=None, body=None, query=None, basic_auth=None):
+        assert method == "GET"
+        assert path == "/shipping/tracking"
+        assert token == "TOKEN_TEST"
+        assert body == {"shippingId": "000500076393019A3G0C701"}
+        return 200, [
+            {
+                "id": "000017496",
+                "productId": "HC",
+                "trackingNumber": "000500076393019A3G0C701",
+                "events": [
+                    {
+                        "event": "PREIMPOSICION",
+                        "date": "28-08-2024 10:33",
+                        "branch": "CORREO ARGENTINO",
+                        "status": "",
+                        "sign": "",
+                    }
+                ],
+            }
+        ]
+
+    monkeypatch.setattr("services.correo_argentino_micorreo._request_json", fake_request)
+
+    r = consultar_tracking_envio(
+        "000500076393019A3G0C701",
+        config=cfg(),
+        token="TOKEN_TEST",
+    )
+
+    assert r["ok"] is True
+    assert r["estado"] == "PREIMPOSICION"
+    assert r["tracking_number"] == "000500076393019A3G0C701"
+    assert r["eventos"][0]["sucursal"] == "CORREO ARGENTINO"
+
+
+def test_consultar_tracking_envio_error_200_con_error(monkeypatch):
+    def fake_request(method, path, config, token=None, body=None, query=None, basic_auth=None):
+        return 200, {
+            "date": "2025-01-13T14:56:09.832-03:00",
+            "error": "No existe el cliente o pedido",
+            "code": "0",
+        }
+
+    monkeypatch.setattr("services.correo_argentino_micorreo._request_json", fake_request)
+
+    r = consultar_tracking_envio("NO_EXISTE", config=cfg(), token="TOKEN_TEST")
+
+    assert r["ok"] is False
+    assert "no existe" in r["error"].lower()

@@ -582,3 +582,48 @@ def consultar_correo_formulario(seguimiento, mercado_envios=False):
         "error": None,
         "texto_muestra": texto[:1200],
     }
+
+
+
+# ─────────────────────────────────────────────
+# Bridge MiCorreo integración básica
+# ─────────────────────────────────────────────
+# Mantiene el formulario público como fallback, pero permite usar /shipping/tracking
+# cuando CORREO_MICORREO_ENABLED=true.
+_consultar_correo_formulario_publico_fallback = consultar_correo_formulario
+
+
+def consultar_correo_formulario(seguimiento, mercado_envios=False):
+    try:
+        from services.correo_argentino_micorreo import (
+            consultar_tracking_envio,
+            micorreo_habilitado,
+        )
+
+        if micorreo_habilitado():
+            resultado_micorreo = consultar_tracking_envio(seguimiento)
+            estado = str(resultado_micorreo.get("estado") or "").strip()
+
+            if resultado_micorreo.get("ok") and estado:
+                try:
+                    clasificacion = interpretar_estado_logistico(
+                        estado,
+                        transporte="Correo Argentino",
+                    )
+                except Exception:
+                    clasificacion = ""
+
+                return {
+                    "estado": estado,
+                    "error": None,
+                    "clasificacion": clasificacion,
+                    "origen": "micorreo",
+                    "raw": resultado_micorreo,
+                }
+    except Exception as e:
+        print("[CORREO MICORREO] Error consultando tracking:", e)
+
+    return _consultar_correo_formulario_publico_fallback(
+        seguimiento,
+        mercado_envios=mercado_envios,
+    )

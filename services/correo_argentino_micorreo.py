@@ -435,3 +435,99 @@ def cotizar_envio(
         request=body,
         cotizaciones=[normalizar_cotizacion(r, modalidad_normalizada) for r in rates],
     )
+
+
+
+def normalizar_evento_tracking(raw):
+    raw = raw or {}
+    return {
+        "evento": raw.get("event") or raw.get("status") or "",
+        "fecha": raw.get("date") or "",
+        "sucursal": raw.get("branch") or "",
+        "estado": raw.get("status") or "",
+        "firma": raw.get("sign") or "",
+        "raw": raw,
+    }
+
+
+def _eventos_desde_tracking_response(data):
+    if isinstance(data, list):
+        envios = data
+    elif isinstance(data, dict) and isinstance(data.get("events"), list):
+        envios = [data]
+    else:
+        envios = []
+
+    eventos = []
+    tracking_number = ""
+
+    for envio in envios:
+        if not isinstance(envio, dict):
+            continue
+        tracking_number = tracking_number or str(envio.get("trackingNumber") or "")
+        for evento in envio.get("events") or []:
+            if isinstance(evento, dict):
+                eventos.append(normalizar_evento_tracking(evento))
+
+    return tracking_number, eventos
+
+
+def consultar_tracking_envio(shipping_id, config=None, token=None):
+    """Consulta tracking MiCorreo por shippingId.
+
+    APB:
+    - No crea envíos.
+    - No paga.
+    - No imprime etiquetas.
+    - Usa /shipping/tracking, documentado para órdenes importadas a MiCorreo.
+    """
+    cfg = config or cargar_config_desde_env()
+
+    shipping = str(shipping_id or "").strip()
+    if not shipping:
+        return _error("Falta shippingId para consultar tracking MiCorreo.")
+
+    token_real = token
+    if not token_real:
+        token_result = obtener_token(cfg)
+        if not token_result.get("ok"):
+            return token_result
+        token_real = token_result["token"]
+
+    status, data = _request_json(
+        "GET",
+        "/shipping/tracking",
+        cfg,
+        token=token_real,
+        body={"shippingId": shipping},
+    )
+
+    if not (status and 200 <= status < 300):
+        return _error(
+            "No se pudo consultar tracking MiCorreo.",
+            status=status,
+            respuesta=data,
+            shipping_id=shipping,
+        )
+
+    if isinstance(data, dict) and data.get("error"):
+        return _error(
+            data.get("error") or "MiCorreo no devolvió tracking válido.",
+            status=status,
+            respuesta=data,
+            shipping_id=shipping,
+        )
+
+    tracking_number, eventos = _eventos_desde_tracking_response(data)
+    ultimo_evento = eventos[0] if eventos else {}
+    estado = ultimo_evento.get("evento") or ultimo_evento.get("estado") or ""
+
+    return _ok(
+        status=status,
+        shipping_id=shipping,
+        tracking_number=tracking_number or shipping,
+        estado=estado,
+        ultimo_evento=ultimo_evento,
+        eventos=eventos,
+        respuesta=data,
+    )
