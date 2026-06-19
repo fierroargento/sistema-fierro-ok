@@ -214,6 +214,37 @@ def sugerir_sucursales_correo_pedido(pedido):
         print("[CORREO SELECTOR] PP6040 deshabilitado por feature flag. No se buscan sucursales.")
         return None
 
+    # PP6040 / plegables:
+    # Antes de ofrecer sucursales Correo al cliente, validamos costo.
+    # Si Correo sucursal supera el umbral configurado, no ofrecemos opciones
+    # y dejamos la decisión al operador, porque Andreani puede estar más barato.
+    if pedido_contiene_pp6040(pedido):
+        try:
+            from services.correo_argentino_operacion import evaluar_oferta_sucursales_correo_pp6040
+
+            cotizacion_pp6040 = cotizar_correo_pp6040(pedido)
+            decision_sucursal = evaluar_oferta_sucursales_correo_pp6040(
+                (cotizacion_pp6040 or {}).get("sucursal")
+            )
+
+            if not decision_sucursal.get("ofrecer_sucursales"):
+                motivo = decision_sucursal.get("motivo") or "Correo sucursal PP6040 requiere revisión operador."
+                precio = decision_sucursal.get("precio")
+                umbral = decision_sucursal.get("umbral")
+
+                _marcar_escalado(
+                    pedido,
+                    f"{motivo} Precio Correo sucursal: {precio}. Umbral: {umbral}."
+                )
+                return None
+
+        except Exception as e:
+            _marcar_escalado(
+                pedido,
+                f"No se pudo validar costo Correo sucursal PP6040: {e}"
+            )
+            return None
+
     try:
         sucursales = obtener_sucursales_correo_por_pedido(pedido)
     except Exception as e:
