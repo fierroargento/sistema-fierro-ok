@@ -407,16 +407,61 @@ def _normalizar_modalidad(modalidad):
     return str(modalidad or "D").strip().upper()
 
 
+def _normalizar_texto_servicio(texto):
+    import unicodedata
+
+    texto = str(texto or "").strip().lower()
+    texto = unicodedata.normalize("NFD", texto)
+    return "".join(c for c in texto if unicodedata.category(c) != "Mn")
+
+
+def servicio_preferido():
+    """Servicio preferido configurable.
+
+    Fierro usa Clásico / PAQ.AR Clásico.
+    En SaaS se puede cambiar por env sin tocar código.
+    """
+    return _normalizar_texto_servicio(
+        _env("CORREO_MICORREO_SERVICIO_PREFERIDO", "clasico")
+    )
+
+
 def normalizar_cotizacion(raw, modalidad):
     raw = raw or {}
+    producto = raw.get("productName") or raw.get("name") or raw.get("product") or ""
+
     return {
-        "producto": raw.get("productName") or raw.get("name") or raw.get("product") or "",
+        "producto": producto,
+        "producto_normalizado": _normalizar_texto_servicio(producto),
         "precio": raw.get("price") or raw.get("amount") or raw.get("total"),
         "plazo_min": raw.get("deliveryTimeMin") or raw.get("delivery_time_min"),
         "plazo_max": raw.get("deliveryTimeMax") or raw.get("delivery_time_max"),
         "modalidad": modalidad,
         "raw": raw,
     }
+
+
+def ordenar_cotizaciones_por_preferencia(cotizaciones):
+    """Ordena cotizaciones dejando primero el servicio preferido.
+
+    No descarta otras opciones: Expreso sigue disponible para gestión manual/SaaS.
+    """
+    preferido = servicio_preferido()
+    cotizaciones = list(cotizaciones or [])
+
+    def key(cotizacion):
+        producto = _normalizar_texto_servicio(cotizacion.get("producto"))
+        precio = cotizacion.get("precio")
+        tiene_precio = precio is not None
+        coincide = bool(preferido and preferido in producto)
+
+        return (
+            0 if coincide else 1,
+            0 if tiene_precio else 1,
+            float(precio or 999999999),
+        )
+
+    return sorted(cotizaciones, key=key)
 
 
 def cotizar_envio(
@@ -487,12 +532,17 @@ def cotizar_envio(
     else:
         rates = []
 
+    cotizaciones = [
+        normalizar_cotizacion(r, modalidad_normalizada)
+        for r in rates
+    ]
+
     return _ok(
         status=status,
         customer_id=contexto["customer_id"],
         modalidad=modalidad_normalizada,
         request=body,
-        cotizaciones=[normalizar_cotizacion(r, modalidad_normalizada) for r in rates],
+        cotizaciones=ordenar_cotizaciones_por_preferencia(cotizaciones),
     )
 
 

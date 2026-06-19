@@ -352,3 +352,72 @@ def test_pagar_envio_bloqueado_por_default():
     assert r["accion"] == "pago"
     assert r["ejecutado"] is False
     assert "deshabilitado" in r["error"].lower()
+
+
+def test_ordenar_cotizaciones_prefiere_clasico_aunque_venga_segundo():
+    from services.correo_argentino_micorreo import ordenar_cotizaciones_por_preferencia
+
+    cotizaciones = [
+        {"producto": "Correo Argentino Expreso", "precio": 18000},
+        {"producto": "Correo Argentino Clasico", "precio": 13255},
+    ]
+
+    ordenadas = ordenar_cotizaciones_por_preferencia(cotizaciones)
+
+    assert ordenadas[0]["producto"] == "Correo Argentino Clasico"
+    assert ordenadas[1]["producto"] == "Correo Argentino Expreso"
+
+
+def test_ordenar_cotizaciones_respeta_preferencia_configurable(monkeypatch):
+    from services.correo_argentino_micorreo import ordenar_cotizaciones_por_preferencia
+
+    monkeypatch.setenv("CORREO_MICORREO_SERVICIO_PREFERIDO", "expreso")
+
+    cotizaciones = [
+        {"producto": "Correo Argentino Clasico", "precio": 13255},
+        {"producto": "Correo Argentino Expreso", "precio": 18000},
+    ]
+
+    ordenadas = ordenar_cotizaciones_por_preferencia(cotizaciones)
+
+    assert ordenadas[0]["producto"] == "Correo Argentino Expreso"
+
+
+def test_cotizar_envio_devuelve_clasico_primero_aunque_api_devuelva_expreso_primero(monkeypatch):
+    from services.correo_argentino_micorreo import cotizar_envio
+
+    monkeypatch.setattr(
+        "services.correo_argentino_micorreo._obtener_token_y_customer_id",
+        lambda config=None, token=None, customer_id=None: {
+            "ok": True,
+            "status": 200,
+            "token": "TOKEN_TEST",
+            "customer_id": "1233931",
+        },
+    )
+
+    def fake_request(method, path, config, token=None, body=None, query=None, basic_auth=None):
+        return 202, {
+            "rates": [
+                {
+                    "productName": "Correo Argentino Expreso",
+                    "price": 18000,
+                    "deliveryTimeMin": 1,
+                    "deliveryTimeMax": 3,
+                },
+                {
+                    "productName": "Correo Argentino Clasico",
+                    "price": 13255,
+                    "deliveryTimeMin": 2,
+                    "deliveryTimeMax": 5,
+                },
+            ]
+        }
+
+    monkeypatch.setattr("services.correo_argentino_micorreo._request_json", fake_request)
+
+    r = cotizar_envio("1000", modalidad="S", config=cfg())
+
+    assert r["ok"] is True
+    assert r["cotizaciones"][0]["producto"] == "Correo Argentino Clasico"
+    assert r["cotizaciones"][0]["precio"] == 13255
