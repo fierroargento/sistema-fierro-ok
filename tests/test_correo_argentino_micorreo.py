@@ -235,3 +235,73 @@ def test_consultar_tracking_envio_error_200_con_error(monkeypatch):
 
     assert r["ok"] is False
     assert "no existe" in r["error"].lower()
+
+
+def test_obtener_capacidades_apaga_todo_si_integracion_deshabilitada():
+    from services.correo_argentino_micorreo import obtener_capacidades
+
+    r = obtener_capacidades(cfg(enabled=False))
+
+    assert r["enabled"] is False
+    assert all(v is False for v in r["funciones"].values())
+
+
+def test_obtener_capacidades_default_seguro():
+    from services.correo_argentino_micorreo import obtener_capacidades
+
+    r = obtener_capacidades(cfg(enabled=True))
+
+    assert r["funciones"]["cotizacion"] is True
+    assert r["funciones"]["sucursales"] is True
+    assert r["funciones"]["tracking"] is True
+    assert r["funciones"]["importacion_envios"] is False
+    assert r["funciones"]["etiquetas"] is False
+    assert r["funciones"]["pago"] is False
+
+
+def test_cotizar_envio_no_llama_api_si_funcion_deshabilitada(monkeypatch):
+    from services.correo_argentino_micorreo import cotizar_envio
+
+    monkeypatch.setenv("CORREO_MICORREO_FEATURE_COTIZACION", "false")
+
+    def explotar(*args, **kwargs):
+        raise AssertionError("No debería llamar API si cotización está deshabilitada")
+
+    monkeypatch.setattr("services.correo_argentino_micorreo._obtener_token_y_customer_id", explotar)
+
+    r = cotizar_envio("1000", config=cfg())
+
+    assert r["ok"] is False
+    assert "deshabilitada" in r["error"].lower()
+
+
+def test_consultar_sucursales_no_llama_api_si_funcion_deshabilitada(monkeypatch):
+    from services.correo_argentino_micorreo import consultar_sucursales
+
+    monkeypatch.setenv("CORREO_MICORREO_FEATURE_SUCURSALES", "false")
+
+    def explotar(*args, **kwargs):
+        raise AssertionError("No debería llamar API si sucursales está deshabilitada")
+
+    monkeypatch.setattr("services.correo_argentino_micorreo._obtener_token_y_customer_id", explotar)
+
+    r = consultar_sucursales("R", config=cfg())
+
+    assert r["ok"] is False
+    assert "deshabilitada" in r["error"].lower()
+
+
+def test_consultar_tracking_no_llama_api_si_funcion_deshabilitada(monkeypatch):
+    from services.correo_argentino_micorreo import consultar_tracking_envio
+
+    monkeypatch.setenv("CORREO_MICORREO_FEATURE_TRACKING", "false")
+
+    def explotar(*args, **kwargs):
+        raise AssertionError("No debería llamar API si tracking está deshabilitado")
+
+    monkeypatch.setattr("services.correo_argentino_micorreo.obtener_token", explotar)
+
+    r = consultar_tracking_envio("TRACKING_TEST", config=cfg())
+
+    assert r["ok"] is False
+    assert "deshabilitada" in r["error"].lower()

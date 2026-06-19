@@ -34,6 +34,24 @@ TIPO_INTEGRACION = "correo_argentino_micorreo"
 
 DEFAULT_BASE_URL = "https://api.correoargentino.com.ar/micorreo/v1"
 
+FUNCIONES_MICORREO_DEFAULT = {
+    "cotizacion": True,
+    "sucursales": True,
+    "tracking": True,
+    "importacion_envios": False,
+    "etiquetas": False,
+    "pago": False,
+}
+
+FUNCIONES_MICORREO_ENV = {
+    "cotizacion": "CORREO_MICORREO_FEATURE_COTIZACION",
+    "sucursales": "CORREO_MICORREO_FEATURE_SUCURSALES",
+    "tracking": "CORREO_MICORREO_FEATURE_TRACKING",
+    "importacion_envios": "CORREO_MICORREO_FEATURE_IMPORTACION_ENVIOS",
+    "etiquetas": "CORREO_MICORREO_FEATURE_ETIQUETAS",
+    "pago": "CORREO_MICORREO_FEATURE_PAGO",
+}
+
 
 @dataclass(frozen=True)
 class MicorreoConfig:
@@ -73,6 +91,39 @@ def cargar_config_desde_env():
 def micorreo_habilitado(config=None):
     cfg = config or cargar_config_desde_env()
     return bool(cfg.enabled)
+
+
+def obtener_capacidades(config=None):
+    """Devuelve capacidades MiCorreo configurables por empresa/entorno.
+
+    APB SaaS:
+    - No todas las empresas tienen por qué usar todas las funciones.
+    - Lo riesgoso queda apagado por defecto.
+    - No se habilitan pago, etiquetas ni importación salvo env explícita.
+    """
+    cfg = config or cargar_config_desde_env()
+    funciones = {}
+
+    for nombre, default in FUNCIONES_MICORREO_DEFAULT.items():
+        env_name = FUNCIONES_MICORREO_ENV[nombre]
+        funciones[nombre] = _env_bool(env_name, "true" if default else "false")
+
+    if not cfg.enabled:
+        funciones = {nombre: False for nombre in funciones}
+
+    return {
+        "ok": True,
+        "tipo": TIPO_INTEGRACION,
+        "enabled": bool(cfg.enabled),
+        "base_url": cfg.base_url,
+        "funciones": funciones,
+    }
+
+
+def funcion_habilitada(nombre, config=None):
+    capacidades = obtener_capacidades(config)
+    return bool((capacidades.get("funciones") or {}).get(str(nombre or "").strip(), False))
+
 
 
 def _error(mensaje, status=None, **extra):
@@ -303,6 +354,10 @@ def normalizar_sucursal(raw):
 
 def consultar_sucursales(province_code=None, customer_id=None, config=None, token=None):
     cfg = config or cargar_config_desde_env()
+
+    if not funcion_habilitada("sucursales", cfg):
+        return _error("Función sucursales MiCorreo deshabilitada.")
+
     contexto = _obtener_token_y_customer_id(cfg, token=token, customer_id=customer_id)
 
     if not contexto.get("ok"):
@@ -377,6 +432,10 @@ def cotizar_envio(
     token=None,
 ):
     cfg = config or cargar_config_desde_env()
+
+    if not funcion_habilitada("cotizacion", cfg):
+        return _error("Función cotización MiCorreo deshabilitada.")
+
     contexto = _obtener_token_y_customer_id(cfg, token=token, customer_id=customer_id)
 
     if not contexto.get("ok"):
@@ -482,6 +541,9 @@ def consultar_tracking_envio(shipping_id, config=None, token=None):
     - Usa /shipping/tracking, documentado para órdenes importadas a MiCorreo.
     """
     cfg = config or cargar_config_desde_env()
+
+    if not funcion_habilitada("tracking", cfg):
+        return _error("Función tracking MiCorreo deshabilitada.")
 
     shipping = str(shipping_id or "").strip()
     if not shipping:
