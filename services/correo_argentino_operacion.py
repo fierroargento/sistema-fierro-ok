@@ -18,6 +18,24 @@ Solo normaliza decisiones para que el sistema pueda guardar/mostrar:
 
 TRANSPORTE_CORREO = "Correo Argentino"
 
+PREFERENCIAS_CORREO_DEFAULT = {
+    "modalidad_preferida": "sucursal",
+    "domicilio_permitido": True,
+    "servicio_preferido": "clasico",
+    "cantidad_sucursales_cliente": 3,
+    "mostrar_costos_cliente": False,
+    "requiere_operador_para_pago_etiqueta": True,
+}
+
+PREFERENCIAS_CORREO_ENV = {
+    "modalidad_preferida": "CORREO_MODALIDAD_PREFERIDA",
+    "domicilio_permitido": "CORREO_DOMICILIO_PERMITIDO",
+    "servicio_preferido": "CORREO_MICORREO_SERVICIO_PREFERIDO",
+    "cantidad_sucursales_cliente": "CORREO_CANTIDAD_SUCURSALES_CLIENTE",
+    "mostrar_costos_cliente": "CORREO_MOSTRAR_COSTOS_CLIENTE",
+    "requiere_operador_para_pago_etiqueta": "CORREO_REQUIERE_OPERADOR_PAGO_ETIQUETA",
+}
+
 
 def _to_float(valor, default=0.0):
     try:
@@ -128,3 +146,71 @@ def armar_lineas_cotizacion_cliente(resumen):
         lineas.append(f"Motivo: {resumen['motivo']}")
 
     return lineas
+
+
+
+def _env(nombre, default=""):
+    import os
+    return str(os.getenv(nombre, default) or "").strip()
+
+
+def _env_bool(nombre, default="false"):
+    return _env(nombre, default).lower() in {"1", "true", "si", "sí", "yes", "on"}
+
+
+def _env_int(nombre, default):
+    try:
+        return int(_env(nombre, str(default)))
+    except Exception:
+        return int(default)
+
+
+def obtener_preferencias_operativas_correo():
+    """Preferencias SaaS para gestión automática/manual de Correo.
+
+    Fierro por defecto:
+    - Prioridad sucursal.
+    - Domicilio permitido como alternativa.
+    - Servicio preferido clásico.
+    - No mostrar costos al cliente.
+    - Tras elección, pasa a operador para pago/etiqueta en MiCorreo.
+    """
+    modalidad = _env(
+        PREFERENCIAS_CORREO_ENV["modalidad_preferida"],
+        PREFERENCIAS_CORREO_DEFAULT["modalidad_preferida"],
+    ).lower()
+
+    if modalidad not in {"sucursal", "domicilio"}:
+        modalidad = PREFERENCIAS_CORREO_DEFAULT["modalidad_preferida"]
+
+    cantidad = _env_int(
+        PREFERENCIAS_CORREO_ENV["cantidad_sucursales_cliente"],
+        PREFERENCIAS_CORREO_DEFAULT["cantidad_sucursales_cliente"],
+    )
+
+    if cantidad < 1:
+        cantidad = 1
+    if cantidad > 5:
+        cantidad = 5
+
+    return {
+        "transporte": TRANSPORTE_CORREO,
+        "modalidad_preferida": modalidad,
+        "domicilio_permitido": _env_bool(
+            PREFERENCIAS_CORREO_ENV["domicilio_permitido"],
+            "true" if PREFERENCIAS_CORREO_DEFAULT["domicilio_permitido"] else "false",
+        ),
+        "servicio_preferido": _env(
+            PREFERENCIAS_CORREO_ENV["servicio_preferido"],
+            PREFERENCIAS_CORREO_DEFAULT["servicio_preferido"],
+        ).lower(),
+        "cantidad_sucursales_cliente": cantidad,
+        "mostrar_costos_cliente": _env_bool(
+            PREFERENCIAS_CORREO_ENV["mostrar_costos_cliente"],
+            "true" if PREFERENCIAS_CORREO_DEFAULT["mostrar_costos_cliente"] else "false",
+        ),
+        "requiere_operador_para_pago_etiqueta": _env_bool(
+            PREFERENCIAS_CORREO_ENV["requiere_operador_para_pago_etiqueta"],
+            "true" if PREFERENCIAS_CORREO_DEFAULT["requiere_operador_para_pago_etiqueta"] else "false",
+        ),
+    }

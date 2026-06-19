@@ -123,3 +123,56 @@ def test_armar_lineas_cotizacion_cliente():
     assert "Domicilio: $15957" in lineas
     assert "Servicio elegido: Correo Argentino Clasico" in lineas
     assert "Motivo: Sucursal/Punto Correo preferido" in lineas
+
+
+def test_preferencias_operativas_correo_default_fierro(monkeypatch):
+    from services.correo_argentino_operacion import obtener_preferencias_operativas_correo
+
+    for key in [
+        "CORREO_MODALIDAD_PREFERIDA",
+        "CORREO_DOMICILIO_PERMITIDO",
+        "CORREO_MICORREO_SERVICIO_PREFERIDO",
+        "CORREO_CANTIDAD_SUCURSALES_CLIENTE",
+        "CORREO_MOSTRAR_COSTOS_CLIENTE",
+        "CORREO_REQUIERE_OPERADOR_PAGO_ETIQUETA",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+
+    r = obtener_preferencias_operativas_correo()
+
+    assert r["modalidad_preferida"] == "sucursal"
+    assert r["domicilio_permitido"] is True
+    assert r["servicio_preferido"] == "clasico"
+    assert r["cantidad_sucursales_cliente"] == 3
+    assert r["mostrar_costos_cliente"] is False
+    assert r["requiere_operador_para_pago_etiqueta"] is True
+
+
+def test_preferencias_operativas_correo_saas_configurable(monkeypatch):
+    from services.correo_argentino_operacion import obtener_preferencias_operativas_correo
+
+    monkeypatch.setenv("CORREO_MODALIDAD_PREFERIDA", "domicilio")
+    monkeypatch.setenv("CORREO_DOMICILIO_PERMITIDO", "false")
+    monkeypatch.setenv("CORREO_MICORREO_SERVICIO_PREFERIDO", "expreso")
+    monkeypatch.setenv("CORREO_CANTIDAD_SUCURSALES_CLIENTE", "5")
+    monkeypatch.setenv("CORREO_MOSTRAR_COSTOS_CLIENTE", "true")
+    monkeypatch.setenv("CORREO_REQUIERE_OPERADOR_PAGO_ETIQUETA", "false")
+
+    r = obtener_preferencias_operativas_correo()
+
+    assert r["modalidad_preferida"] == "domicilio"
+    assert r["domicilio_permitido"] is False
+    assert r["servicio_preferido"] == "expreso"
+    assert r["cantidad_sucursales_cliente"] == 5
+    assert r["mostrar_costos_cliente"] is True
+    assert r["requiere_operador_para_pago_etiqueta"] is False
+
+
+def test_preferencias_operativas_correo_limita_cantidad_sucursales(monkeypatch):
+    from services.correo_argentino_operacion import obtener_preferencias_operativas_correo
+
+    monkeypatch.setenv("CORREO_CANTIDAD_SUCURSALES_CLIENTE", "99")
+
+    r = obtener_preferencias_operativas_correo()
+
+    assert r["cantidad_sucursales_cliente"] == 5
