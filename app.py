@@ -1964,7 +1964,7 @@ def aplicar_estado_y_fechas(pedido, nuevo_estado):
         pedido.fecha_embalado = ahora
     elif nuevo_estado == Estado.DESPACHADO:
         pedido.fecha_despachado = ahora
-        aplicar_autoavance_post_despacho(pedido)
+        aplicar_autoavance_post_despacho_service(pedido)
 
         # APB:
         # Al despachar un pedido con seguimiento,
@@ -10310,7 +10310,7 @@ def editar_pedido(id):
                 )
 
             pedido.seguimiento = seguimiento_valor
-            aplicar_autoavance_post_despacho(pedido)
+            aplicar_autoavance_post_despacho_service(pedido)
 
             if (
                 pedido.telefono
@@ -10513,7 +10513,7 @@ def editar_pedido(id):
                 error="<br>".join(errores)
             )
 
-        aplicar_autoavance_post_despacho(pedido)
+        aplicar_autoavance_post_despacho_service(pedido)
 
         db.session.commit()
 
