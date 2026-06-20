@@ -7471,27 +7471,40 @@ def inicio():
     if rol_actual() == "despacho" and (es_dispositivo_movil() or request.args.get("mobile")):
         return redirect(url_for("despacho_mobile"))
 
-    pedidos = Pedido.query.all()
-
     estados = estados_visibles_inicio()
-    if estados is not None:
+
+    if estados is None:
+        pedidos = Pedido.query.all()
+    else:
+        pedidos = (
+            Pedido.query
+            .filter(Pedido.estado.in_(estados))
+            .all()
+            if estados
+            else []
+        )
+
         if rol_actual() == "carga":
             try:
-                from services.cross_sell_preparacion import debe_mostrar_en_inicio_carga_por_agregado
+                from services.cross_sell_preparacion import ESTADOS_PREPARACION_CROSS_SELL
 
-                pedidos = [
-                    p for p in pedidos
-                    if (
-                        p.estado in estados
-                        or debe_mostrar_en_inicio_carga_por_agregado(p)
+                pedidos_agregado = (
+                    Pedido.query
+                    .filter(
+                        Pedido.agregado_pendiente_revision.is_(True),
+                        Pedido.estado.in_(list(ESTADOS_PREPARACION_CROSS_SELL)),
                     )
-                ]
+                    .all()
+                )
+
+                pedidos_por_id = {p.id: p for p in pedidos}
+                for pedido_agregado in pedidos_agregado:
+                    pedidos_por_id.setdefault(pedido_agregado.id, pedido_agregado)
+
+                pedidos = list(pedidos_por_id.values())
 
             except Exception as e:
                 print("[CROSS-SELL PREPARACION] Error filtrando Inicio Carga:", e)
-                pedidos = [p for p in pedidos if p.estado in estados]
-        else:
-            pedidos = [p for p in pedidos if p.estado in estados]
 
     from services.bandejas_inicio import preparar_bandejas_inicio
 
