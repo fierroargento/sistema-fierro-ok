@@ -8605,9 +8605,6 @@ def lanzar_impresion(id):
             return redirect(url_for("despacho_mobile", ok="Este pedido no tiene etiqueta disponible para imprimir."))
         return redirect(url_for("inicio"))
 
-    actualizar_estado_automatico(pedido)
-    db.session.commit()
-
     origen = (request.args.get("origen") or "").strip()
 
     if origen == "mobile":
