@@ -7526,22 +7526,6 @@ def pedidos_preparacion():
 
     pedidos = Pedido.query.all()
 
-    cambios = False
-    for pedido in pedidos:
-        telefono_original = pedido.telefono or ""
-        telefono_normalizado = normalizar_telefono(telefono_original)
-        if telefono_original and telefono_normalizado and telefono_original != telefono_normalizado:
-            pedido.telefono = telefono_normalizado
-            cambios = True
-
-        estado_anterior = pedido.estado
-        actualizar_estado_automatico(pedido)
-        if pedido.estado != estado_anterior:
-            cambios = True
-
-    if cambios:
-        db.session.commit()
-
     estados = estados_visibles_preparacion()
     pedidos = [p for p in pedidos if p.estado in estados]
     pedidos.sort(key=orden_inicio_pedido)
