@@ -7524,10 +7524,14 @@ def pedidos_preparacion():
     if not puede_ver_pedidos_preparacion():
         return redirect(url_for("inicio"))
 
-    pedidos = Pedido.query.all()
-
     estados = estados_visibles_preparacion()
-    pedidos = [p for p in pedidos if p.estado in estados]
+    pedidos = (
+        Pedido.query
+        .filter(Pedido.estado.in_(estados))
+        .all()
+        if estados
+        else []
+    )
     pedidos.sort(key=orden_inicio_pedido)
 
     ok_feedback = (request.args.get("ok") or "").strip()
