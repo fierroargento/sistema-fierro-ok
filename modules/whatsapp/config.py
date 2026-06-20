@@ -161,6 +161,6 @@ CROSS_SELL_POR_SKU = {
 
 
 def modulo_activo():
-    """Devuelve True solo si las credenciales están configuradas en el .env."""
-    return bool(WA_TOKEN and WA_PHONE_NUMBER_ID and WA_VERIFY_TOKEN)
+    """Devuelve True solo si las credenciales críticas están configuradas en el .env."""
+    return bool(WA_TOKEN and WA_PHONE_NUMBER_ID and WA_VERIFY_TOKEN and WA_APP_SECRET)
 

@@ -1,3 +1,6 @@
+﻿import hmac
+import hashlib
+
 from modules.whatsapp.security import (
     calcular_signature_meta,
     normalizar_signature_meta,
@@ -5,42 +8,46 @@ from modules.whatsapp.security import (
 )
 
 
-def test_calcular_signature_meta_formato_correcto():
-    firma = calcular_signature_meta(b'{"ok":true}', "secreto")
+def test_normalizar_signature_meta_acepta_sha256():
+    assert normalizar_signature_meta("sha256=abc123") == "sha256=abc123"
 
-    assert firma.startswith("sha256=")
-    assert len(firma) == len("sha256=") + 64
+
+def test_normalizar_signature_meta_rechaza_vacia_o_formato_invalido():
+    assert normalizar_signature_meta("") == ""
+    assert normalizar_signature_meta("abc123") == ""
+    assert normalizar_signature_meta("sha1=abc123") == ""
+
+
+def test_calcular_signature_meta_genera_hmac_sha256():
+    raw_body = b'{"object":"whatsapp_business_account"}'
+    secret = "app_secret_test"
+
+    esperado = "sha256=" + hmac.new(
+        secret.encode("utf-8"),
+        raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    assert calcular_signature_meta(raw_body, secret) == esperado
 
 
 def test_validar_signature_meta_acepta_firma_correcta():
-    raw = b'{"entry":[{"id":"1"}]}'
-    secret = "mi_app_secret"
-    firma = calcular_signature_meta(raw, secret)
+    raw_body = b'{"entry":[]}'
+    secret = "app_secret_test"
+    firma = calcular_signature_meta(raw_body, secret)
 
-    assert validar_signature_meta(raw, firma, secret) is True
+    assert validar_signature_meta(raw_body, firma, secret) is True
 
 
 def test_validar_signature_meta_rechaza_firma_incorrecta():
-    raw = b'{"entry":[{"id":"1"}]}'
-    secret = "mi_app_secret"
+    raw_body = b'{"entry":[]}'
+    secret = "app_secret_test"
 
-    assert validar_signature_meta(raw, "sha256=abc123", secret) is False
-
-
-def test_validar_signature_meta_rechaza_firma_ausente():
-    raw = b'{"entry":[{"id":"1"}]}'
-    secret = "mi_app_secret"
-
-    assert validar_signature_meta(raw, "", secret) is False
+    assert validar_signature_meta(raw_body, "sha256=mal", secret) is False
 
 
-def test_validar_signature_meta_rechaza_secret_ausente():
-    raw = b'{"entry":[{"id":"1"}]}'
-    firma = calcular_signature_meta(raw, "mi_app_secret")
+def test_validar_signature_meta_rechaza_sin_secret_o_sin_firma():
+    raw_body = b'{"entry":[]}'
 
-    assert validar_signature_meta(raw, firma, "") is False
-
-
-def test_normalizar_signature_meta_rechaza_formato_invalido():
-    assert normalizar_signature_meta("abc123") == ""
-    assert normalizar_signature_meta("") == ""
+    assert validar_signature_meta(raw_body, "", "app_secret_test") is False
+    assert validar_signature_meta(raw_body, "sha256=abc", "") is False
