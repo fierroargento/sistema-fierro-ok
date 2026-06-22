@@ -43,6 +43,24 @@ def ml_obtener_claim_de_order_service(
             "limit": 5,
         })
 
+    ids_pack_posibles = []
+
+    if pack_id:
+        ids_pack_posibles.append(pack_id)
+
+    # En algunos flujos de Mercado Envíos el valor guardado como id_venta
+    # funciona en ML como pack/venta agrupada, pero no como /orders/{id}.
+    # Por eso lo probamos también como resource=pack.
+    if order_id and order_id not in ids_pack_posibles:
+        ids_pack_posibles.append(order_id)
+
+    for pack_id_posible in ids_pack_posibles:
+        consultas.append({
+            "resource": "pack",
+            "resource_id": pack_id_posible,
+            "limit": 5,
+        })
+
     for params in consultas:
         try:
             data = ml_api_get(
