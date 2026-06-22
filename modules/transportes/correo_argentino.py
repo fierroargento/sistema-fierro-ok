@@ -319,17 +319,18 @@ def _mapear_sucursal_paqar(s):
 
 
 def obtener_sucursales_correo_por_pedido(pedido):
-    """Devuelve agencias Correo confiables para el pedido.
+    """Devuelve agencias Correo ordenadas por distancia real al cliente.
 
-    APB:
-    - La API puede filtrar por provincia, pero eso no alcanza para ofrecer al cliente.
-    - Solo se ofrecen sucursales si hay coincidencia confiable por:
-      1) CP exacto,
-      2) localidad + provincia,
-      3) distancia geográfica razonable.
-    - Si no hay coincidencia confiable, devuelve [] para escalar a operador.
+    APB/SaaS:
+    - La API de Correo puede filtrar por provincia, pero eso no alcanza.
+    - CP/CPA/localidad/provincia sirven para normalizar ubicación del cliente.
+    - La oferta final se decide por distancia real:
+      cliente con coordenadas -> sucursales con coordenadas -> ordenar por km.
+    - Si no hay coordenadas confiables, devuelve [] para escalar a operador.
     """
     import os
+
+    from services.sucursales_distancia import ordenar_sucursales_por_distancia
 
     provincia = getattr(pedido, "provincia", "") or ""
     state_id = codigo_provincia_correo(provincia)
@@ -366,113 +367,55 @@ def obtener_sucursales_correo_por_pedido(pedido):
         )
         sucs = [_mapear_sucursal_paqar(a) for a in agencias]
 
-    cp = str(getattr(pedido, "codigo_postal", "") or "").strip()
-    cp_digits = "".join(ch for ch in cp if ch.isdigit())
-    loc = _norm(getattr(pedido, "localidad", "") or "")
-    prov = _norm(getattr(pedido, "provincia", "") or "")
-
     if not sucs:
         return []
 
-    def _digitos(valor):
-        return "".join(ch for ch in str(valor or "") if ch.isdigit())
+    prov_pedido = _norm(getattr(pedido, "provincia", "") or "")
 
     def _provincia_compatible(sucursal):
-        if not prov:
+        if not prov_pedido:
             return True
 
-        suc_prov = _norm(sucursal.get("provincia") or "")
+        prov_sucursal = _norm(sucursal.get("provincia") or "")
 
-        if not suc_prov:
+        if not prov_sucursal:
             return True
 
-        return prov in suc_prov or suc_prov in prov
+        return prov_pedido in prov_sucursal or prov_sucursal in prov_pedido
 
-    # 1) CP exacto.
-    por_cp = []
-    if cp_digits:
-        for sucursal in sucs:
-            suc_cp = _digitos(sucursal.get("cp"))
-            if suc_cp and suc_cp == cp_digits and _provincia_compatible(sucursal):
-                por_cp.append(sucursal)
+    # La provincia solo se usa como reducción de universo.
+    # La decisión final siempre la toma la distancia.
+    sucs_compatibles = [s for s in sucs if _provincia_compatible(s)]
 
-    if por_cp:
-        return por_cp[:10]
+    if sucs_compatibles:
+        sucs = sucs_compatibles
 
-    # 2) Localidad + provincia.
-    por_localidad = []
-    if loc:
-        for sucursal in sucs:
-            suc_loc = _norm(sucursal.get("localidad") or "")
-            if (
-                suc_loc
-                and (loc in suc_loc or suc_loc in loc)
-                and _provincia_compatible(sucursal)
-            ):
-                por_localidad.append(sucursal)
+    radio_max_km = float(os.getenv("CORREO_SUCURSALES_RADIO_MAX_KM", "90") or 90)
 
-    if por_localidad:
-        return por_localidad[:10]
-
-    # 3) Distancia razonable, si hay coordenadas confiables.
-    try:
-        from app import _obtener_coords_cliente, _distancia_km
-
-        lat_cli, lng_cli, metodo = _obtener_coords_cliente(
-            cp,
-            getattr(pedido, "direccion", "") or "",
-            getattr(pedido, "localidad", "") or "",
-            getattr(pedido, "provincia", "") or "",
-        )
-
-        if lat_cli and lng_cli:
-            radio_max_km = float(
-                os.getenv("CORREO_SUCURSALES_RADIO_MAX_KM", "80") or 80
-            )
-
-            candidatas = []
-
-            for sucursal in sucs:
-                if not _provincia_compatible(sucursal):
-                    continue
-
-                try:
-                    lat_suc = float(sucursal.get("lat"))
-                    lng_suc = float(sucursal.get("lng"))
-                except (TypeError, ValueError):
-                    continue
-
-                distancia = _distancia_km(
-                    lat_cli,
-                    lng_cli,
-                    lat_suc,
-                    lng_suc,
-                )
-
-                if distancia <= radio_max_km:
-                    sucursal = dict(sucursal)
-                    sucursal["distancia_km"] = distancia
-                    candidatas.append(sucursal)
-
-            candidatas.sort(key=lambda s: float(s.get("distancia_km") or 999999))
-
-            if candidatas:
-                print(
-                    f"[CORREO PAQAR] Sucursales filtradas por distancia "
-                    f"metodo={metodo} radio={radio_max_km}km cantidad={len(candidatas)}"
-                )
-                return candidatas[:10]
-
-    except Exception as e:
-        print("[CORREO PAQAR] No se pudo filtrar por distancia:", e)
-
-    # APB: no ofrecer sucursales solo por estar en la misma provincia.
-    print(
-        f"[CORREO PAQAR] Sin sucursales confiables para "
-        f"cp={cp} localidad={getattr(pedido, 'localidad', '')} provincia={provincia}"
+    resultado_distancia = ordenar_sucursales_por_distancia(
+        pedido=pedido,
+        sucursales=sucs,
+        radio_max_km=radio_max_km,
+        limite=10,
+        permitir_normalizar_pedido=True,
     )
 
-    return []
+    if not resultado_distancia.get("ok"):
+        print(
+            f"[CORREO PAQAR] Sin sucursales Correo confiables por distancia. "
+            f"pedido={getattr(pedido, 'id', '?')} "
+            f"motivo={resultado_distancia.get('motivo')} "
+            f"cliente={resultado_distancia.get('cliente')}"
+        )
+        return []
+
+    print(
+        f"[CORREO PAQAR] Sucursales Correo ordenadas por distancia. "
+        f"pedido={getattr(pedido, 'id', '?')} "
+        f"cantidad={len(resultado_distancia.get('sucursales') or [])}"
+    )
+
+    return resultado_distancia.get("sucursales") or []
 
 def cotizar_correo(cp_destino, tipo_entrega="S"):
     """Compatibilidad con selector.py.
