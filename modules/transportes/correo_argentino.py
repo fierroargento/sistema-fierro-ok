@@ -319,31 +319,47 @@ def _mapear_sucursal_paqar(s):
 
 
 def obtener_sucursales_correo_por_pedido(pedido):
-    """Devuelve agencias Correo cercanas para el pedido, usando estado/provincia y orden geográfico si hay coords."""
+    """Devuelve agencias Correo confiables para el pedido.
+
+    APB:
+    - La API puede filtrar por provincia, pero eso no alcanza para ofrecer al cliente.
+    - Solo se ofrecen sucursales si hay coincidencia confiable por:
+      1) CP exacto,
+      2) localidad + provincia,
+      3) distancia geográfica razonable.
+    - Si no hay coincidencia confiable, devuelve [] para escalar a operador.
+    """
+    import os
+
     provincia = getattr(pedido, "provincia", "") or ""
     state_id = codigo_provincia_correo(provincia)
 
     sucs = []
 
+    # Primero intentar MiCorreo si está habilitado.
     try:
         from services.correo_argentino_micorreo import (
             consultar_sucursales as consultar_sucursales_micorreo,
-            micorreo_habilitado,
         )
 
-        if micorreo_habilitado():
-            resultado_micorreo = consultar_sucursales_micorreo(
-                province_code=state_id or None,
+        resultado_micorreo = consultar_sucursales_micorreo(
+            province_code=state_id or None,
+        )
+
+        if resultado_micorreo.get("ok"):
+            sucs = list(resultado_micorreo.get("sucursales") or [])
+        elif resultado_micorreo.get("error"):
+            print(
+                "[CORREO MICORREO] No se pudieron obtener sucursales:",
+                resultado_micorreo.get("error"),
             )
-            if resultado_micorreo.get("ok"):
-                sucs = list(resultado_micorreo.get("sucursales") or [])
-            else:
-                print("[CORREO MICORREO] No se pudieron obtener sucursales:", resultado_micorreo.get("error"))
+
     except Exception as e:
         print("[CORREO MICORREO] Error obteniendo sucursales:", e)
 
+    # Fallback PAQ.AR.
     if not sucs:
-        agencias = _obtener_sucursales_correo_paqar(
+        agencias = obtener_sucursales_correo(
             state_id=state_id or None,
             pickup_availability=True,
             package_reception=None,
@@ -351,98 +367,112 @@ def obtener_sucursales_correo_por_pedido(pedido):
         sucs = [_mapear_sucursal_paqar(a) for a in agencias]
 
     cp = str(getattr(pedido, "codigo_postal", "") or "").strip()
+    cp_digits = "".join(ch for ch in cp if ch.isdigit())
     loc = _norm(getattr(pedido, "localidad", "") or "")
+    prov = _norm(getattr(pedido, "provincia", "") or "")
 
-    # Filtro suave por localidad o CP aproximado si la API devuelve demasiadas.
-    filtradas = []
-    for s in sucs:
-        s_loc = _norm(s.get("localidad"))
-        s_cp = "".join(ch for ch in str(s.get("cp") or "") if ch.isdigit())
-        ok_loc = bool(loc and (loc in s_loc or s_loc in loc))
-        ok_cp = bool(cp and s_cp and cp[:2] == s_cp[:2])
-        if ok_loc or ok_cp:
-            filtradas.append(s)
-    if filtradas:
-        sucs = filtradas
+    if not sucs:
+        return []
 
-    # Intentar ordenar por distancia reutilizando helper del app si existe.
+    def _digitos(valor):
+        return "".join(ch for ch in str(valor or "") if ch.isdigit())
+
+    def _provincia_compatible(sucursal):
+        if not prov:
+            return True
+
+        suc_prov = _norm(sucursal.get("provincia") or "")
+
+        if not suc_prov:
+            return True
+
+        return prov in suc_prov or suc_prov in prov
+
+    # 1) CP exacto.
+    por_cp = []
+    if cp_digits:
+        for sucursal in sucs:
+            suc_cp = _digitos(sucursal.get("cp"))
+            if suc_cp and suc_cp == cp_digits and _provincia_compatible(sucursal):
+                por_cp.append(sucursal)
+
+    if por_cp:
+        return por_cp[:10]
+
+    # 2) Localidad + provincia.
+    por_localidad = []
+    if loc:
+        for sucursal in sucs:
+            suc_loc = _norm(sucursal.get("localidad") or "")
+            if (
+                suc_loc
+                and (loc in suc_loc or suc_loc in loc)
+                and _provincia_compatible(sucursal)
+            ):
+                por_localidad.append(sucursal)
+
+    if por_localidad:
+        return por_localidad[:10]
+
+    # 3) Distancia razonable, si hay coordenadas confiables.
     try:
         from app import _obtener_coords_cliente, _distancia_km
-        lat_cli, lng_cli, _metodo = _obtener_coords_cliente(
+
+        lat_cli, lng_cli, metodo = _obtener_coords_cliente(
             cp,
             getattr(pedido, "direccion", "") or "",
             getattr(pedido, "localidad", "") or "",
             getattr(pedido, "provincia", "") or "",
         )
+
         if lat_cli and lng_cli:
-            def keydist(s):
+            radio_max_km = float(
+                os.getenv("CORREO_SUCURSALES_RADIO_MAX_KM", "80") or 80
+            )
+
+            candidatas = []
+
+            for sucursal in sucs:
+                if not _provincia_compatible(sucursal):
+                    continue
+
                 try:
-                    return _distancia_km(lat_cli, lng_cli, float(s.get("lat")), float(s.get("lng")))
-                except Exception:
-                    return 999999
-            sucs.sort(key=keydist)
+                    lat_suc = float(sucursal.get("lat"))
+                    lng_suc = float(sucursal.get("lng"))
+                except (TypeError, ValueError):
+                    continue
+
+                distancia = _distancia_km(
+                    lat_cli,
+                    lng_cli,
+                    lat_suc,
+                    lng_suc,
+                )
+
+                if distancia <= radio_max_km:
+                    sucursal = dict(sucursal)
+                    sucursal["distancia_km"] = distancia
+                    candidatas.append(sucursal)
+
+            candidatas.sort(key=lambda s: float(s.get("distancia_km") or 999999))
+
+            if candidatas:
+                print(
+                    f"[CORREO PAQAR] Sucursales filtradas por distancia "
+                    f"metodo={metodo} radio={radio_max_km}km cantidad={len(candidatas)}"
+                )
+                return candidatas[:10]
+
     except Exception as e:
-        print("[CORREO PAQAR] No se pudo ordenar por distancia:", e)
+        print("[CORREO PAQAR] No se pudo filtrar por distancia:", e)
 
-    return sucs[:10]
+    # APB: no ofrecer sucursales solo por estar en la misma provincia.
+    print(
+        f"[CORREO PAQAR] Sin sucursales confiables para "
+        f"cp={cp} localidad={getattr(pedido, 'localidad', '')} provincia={provincia}"
+    )
 
-
-# ─────────────────────────────────────────────
-# Cotización
-# ─────────────────────────────────────────────
-
-def _cotizacion_legacy_desde_micorreo(resultado, tipo_entrega="S"):
-    """Adapta respuesta MiCorreo al formato legacy que espera selector.py."""
-    if not resultado.get("ok"):
-        return {
-            "disponible": False,
-            "precio": None,
-            "plazo_dias": None,
-            "tipo": "correo_argentino_micorreo",
-            "modalidad": tipo_entrega,
-            "error": resultado.get("error") or "No se pudo cotizar Correo Argentino por MiCorreo.",
-            "raw": resultado,
-        }
-
-    cotizaciones = list(resultado.get("cotizaciones") or [])
-    elegida = None
-
-    for cotizacion in cotizaciones:
-        if cotizacion.get("precio") is not None:
-            elegida = cotizacion
-            break
-
-    if elegida is None and cotizaciones:
-        elegida = cotizaciones[0]
-
-    if not elegida:
-        return {
-            "disponible": False,
-            "precio": None,
-            "plazo_dias": None,
-            "tipo": "correo_argentino_micorreo",
-            "modalidad": tipo_entrega,
-            "error": "MiCorreo no devolvió tarifas disponibles.",
-            "raw": resultado,
-        }
-
-    plazo_min = elegida.get("plazo_min")
-    plazo_max = elegida.get("plazo_max")
-    plazo_dias = plazo_max if plazo_max is not None else plazo_min
-
-    return {
-        "disponible": True,
-        "precio": elegida.get("precio"),
-        "plazo_dias": plazo_dias,
-        "plazo_min": plazo_min,
-        "plazo_max": plazo_max,
-        "servicio": elegida.get("producto"),
-        "tipo": "correo_argentino_micorreo",
-        "modalidad": tipo_entrega,
-        "opciones": cotizaciones,
-        "raw": resultado,
-    }
-
+    return []
 
 def cotizar_correo(cp_destino, tipo_entrega="S"):
     """Compatibilidad con selector.py.
