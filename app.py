@@ -9641,34 +9641,67 @@ def actualizar_tracking_externo_pedido(id):
                     from services.ml_cancelacion_confirmada import (
                         ml_order_tiene_cancelacion_o_reembolso,
                         ml_claim_tiene_reembolso,
+                        ml_extraer_order_de_search_por_pack,
                         marcar_evidencia_ml_cancelacion_en_pedido,
                     )
 
                     evidencia_ml = False
 
+                    order_live = None
+
                     try:
                         order_live = ml_obtener_order(pedido.id_venta)
-                        order_status = str((order_live or {}).get("status") or "")
-                        payments_live = (order_live or {}).get("payments") or []
-
-                        print(
-                            f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
-                            f"ML order_status={order_status} payments={payments_live}"
-                        )
-
-                        if ml_order_tiene_cancelacion_o_reembolso(order_live):
-                            marcar_evidencia_ml_cancelacion_en_pedido(
-                                pedido,
-                                f"order/payment status={order_status}",
-                            )
-                            evidencia_ml = True
-                            print(
-                                f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
-                                "evidencia ML detectada por order/payment"
-                            )
 
                     except Exception as e:
                         print(f"[TRACKING] No se pudo consultar order ML para cancelación pedido #{pedido.id}: {e}")
+
+                    if not order_live and pedido.ml_tipo == "Mercado Envíos":
+                        try:
+                            cuenta_ml = cuenta_ml_actual()
+                            seller_id = str((cuenta_ml.user_id_ml if cuenta_ml else "") or "").strip()
+                            pack_id = str(getattr(pedido, "ml_pack_id", "") or getattr(pedido, "id_venta", "") or "").strip()
+
+                            if seller_id and pack_id:
+                                data_search = ml_api_get(
+                                    "/orders/search",
+                                    params={
+                                        "seller": seller_id,
+                                        "pack_id": pack_id,
+                                        "limit": 5,
+                                    },
+                                )
+
+                                order_live = ml_extraer_order_de_search_por_pack(
+                                    data_search,
+                                    pack_id,
+                                )
+
+                                print(
+                                    f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
+                                    f"busqueda order por pack_id={pack_id} order_encontrada={bool(order_live)}"
+                                )
+
+                        except Exception as e:
+                            print(f"[TRACKING] No se pudo buscar order ML por pack_id pedido #{pedido.id}: {e}")
+
+                    order_status = str((order_live or {}).get("status") or "")
+                    payments_live = (order_live or {}).get("payments") or []
+
+                    print(
+                        f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
+                        f"ML order_status={order_status} payments={payments_live}"
+                    )
+
+                    if ml_order_tiene_cancelacion_o_reembolso(order_live):
+                        marcar_evidencia_ml_cancelacion_en_pedido(
+                            pedido,
+                            f"order/payment status={order_status}",
+                        )
+                        evidencia_ml = True
+                        print(
+                            f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
+                            "evidencia ML detectada por order/payment"
+                        )
 
                     if not evidencia_ml:
                         try:

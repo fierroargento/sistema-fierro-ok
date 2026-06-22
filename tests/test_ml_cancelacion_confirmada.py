@@ -73,3 +73,28 @@ def test_marcar_evidencia_ml_cancelacion_en_pedido_agrega_observacion():
 
     assert marcar_evidencia_ml_cancelacion_en_pedido(pedido, "payment refunded")
     assert MARCA_EVIDENCIA_ML_CANCELACION in pedido.observaciones
+
+
+def test_extrae_order_desde_search_por_pack_id():
+    from services.ml_cancelacion_confirmada import ml_extraer_order_de_search_por_pack
+
+    data = {
+        "results": [
+            {"id": 111, "pack_id": 999},
+            {"id": 222, "pack_id": 123},
+        ]
+    }
+
+    assert ml_extraer_order_de_search_por_pack(data, "123")["id"] == 222
+
+
+def test_extrae_order_unico_desde_search_aunque_no_traiga_pack_id():
+    from services.ml_cancelacion_confirmada import ml_extraer_order_de_search_por_pack
+
+    data = {
+        "results": [
+            {"id": 222, "status": "paid"},
+        ]
+    }
+
+    assert ml_extraer_order_de_search_por_pack(data, "123")["id"] == 222

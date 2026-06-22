@@ -111,6 +111,42 @@ def ml_claim_tiene_reembolso(claim):
     )
 
 
+def ml_extraer_order_de_search_por_pack(data, pack_id):
+    pack_id = str(pack_id or "").strip()
+
+    if not pack_id:
+        return None
+
+    if isinstance(data, dict):
+        orders = (
+            data.get("results")
+            or data.get("orders")
+            or data.get("data")
+            or []
+        )
+
+    elif isinstance(data, list):
+        orders = data
+
+    else:
+        orders = []
+
+    if not isinstance(orders, list):
+        return None
+
+    if len(orders) == 1 and isinstance(orders[0], dict):
+        return orders[0]
+
+    for order in orders:
+        if not isinstance(order, dict):
+            continue
+
+        if str(order.get("pack_id") or "").strip() == pack_id:
+            return order
+
+    return None
+
+
 def marcar_evidencia_ml_cancelacion_en_pedido(pedido, motivo=None):
     if not pedido:
         return False
