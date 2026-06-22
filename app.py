@@ -7904,30 +7904,116 @@ def webhook_mercadolibre():
 @app.route("/admin/productos", methods=["GET", "POST"])
 @login_required
 def admin_productos():
-    mensaje = ""
-    error = ""
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    mensaje = (request.args.get("ok") or "").strip()
+    error = (request.args.get("error") or "").strip()
+    filtro_sku = (request.args.get("sku") or "").strip()
+
+    from services.productos_catalogo import (
+        producto_desde_form_catalogo,
+        validar_producto_catalogo,
+    )
+    from services.productos_catalogo_db import (
+        crear_y_guardar_producto_catalogo,
+        eliminar_producto_catalogo,
+        guardar_producto_catalogo,
+    )
 
     if request.method == "POST":
-        archivo = request.files.get("archivo_productos")
-        if not archivo or not archivo.filename:
-            error = "Tenés que seleccionar un Excel."
-        else:
-            try:
-                cantidad = sincronizar_productos_desde_excel(archivo)
-                mensaje = f"Productos actualizados: {cantidad}"
-            except Exception as e:
-                db.session.rollback()
-                error = f"No se pudo importar el Excel: {e}"
+        accion = (request.form.get("accion") or "importar_excel").strip()
 
+        if accion == "importar_excel":
+            archivo = request.files.get("archivo_productos")
+            if not archivo or not archivo.filename:
+                error = "Tenés que seleccionar un Excel."
+            else:
+                try:
+                    cantidad = sincronizar_productos_desde_excel(archivo)
+                    mensaje = f"Productos actualizados: {cantidad}"
+                except Exception as e:
+                    db.session.rollback()
+                    error = f"No se pudo importar el Excel: {e}"
+
+        elif accion == "crear_producto":
+            datos = producto_desde_form_catalogo(request.form)
+            errores = validar_producto_catalogo(datos)
+
+            if datos.get("sku") and Producto.query.filter(Producto.sku.ilike(datos["sku"])).first():
+                errores.append("Ya existe un producto con ese SKU.")
+
+            if errores:
+                error = " ".join(errores)
+            else:
+                try:
+                    crear_y_guardar_producto_catalogo(Producto, datos, db=db)
+                    return redirect(url_for("admin_productos", sku=datos.get("sku"), ok="Producto creado correctamente."))
+                except Exception as e:
+                    db.session.rollback()
+                    error = f"No se pudo crear el producto: {e}"
+
+        elif accion == "editar_producto":
+            producto_id = request.form.get("producto_id")
+            producto = Producto.query.get(producto_id)
+
+            if not producto:
+                error = "No se encontró el producto a editar."
+            else:
+                datos = producto_desde_form_catalogo(request.form)
+                errores = validar_producto_catalogo(datos)
+
+                producto_mismo_sku = None
+                if datos.get("sku"):
+                    producto_mismo_sku = Producto.query.filter(Producto.sku.ilike(datos["sku"])).first()
+
+                if producto_mismo_sku and producto_mismo_sku.id != producto.id:
+                    errores.append("Ya existe otro producto con ese SKU.")
+
+                if errores:
+                    error = " ".join(errores)
+                else:
+                    try:
+                        guardar_producto_catalogo(producto, datos, db=db)
+                        return redirect(url_for("admin_productos", sku=datos.get("sku"), ok="Producto actualizado correctamente."))
+                    except Exception as e:
+                        db.session.rollback()
+                        error = f"No se pudo actualizar el producto: {e}"
+
+        elif accion == "eliminar_producto":
+            producto_id = request.form.get("producto_id")
+            producto = Producto.query.get(producto_id)
+
+            if not producto:
+                error = "No se encontró el producto a eliminar."
+            else:
+                sku_eliminado = producto.sku or ""
+                try:
+                    eliminar_producto_catalogo(producto, db)
+                    return redirect(url_for("admin_productos", ok=f"Producto {sku_eliminado} eliminado correctamente."))
+                except Exception as e:
+                    db.session.rollback()
+                    error = f"No se pudo eliminar el producto: {e}"
+
+        else:
+            error = "Acción inválida."
+
+    query_productos = Producto.query
+
+    if filtro_sku:
+        query_productos = query_productos.filter(Producto.sku.ilike(f"%{filtro_sku}%"))
+
+    productos = query_productos.order_by(Producto.sku.asc(), Producto.descripcion.asc()).limit(100).all()
     total_productos = Producto.query.count()
-    ultimos = Producto.query.order_by(Producto.descripcion.asc()).limit(20).all()
 
     return render_template(
         "admin_productos.html",
         mensaje=mensaje,
         error=error,
         total_productos=total_productos,
-        ultimos=ultimos
+        ultimos=productos,
+        productos=productos,
+        filtro_sku=filtro_sku,
     )
 
 
