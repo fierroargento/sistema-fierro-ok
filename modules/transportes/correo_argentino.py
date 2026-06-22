@@ -417,12 +417,36 @@ def obtener_sucursales_correo_por_pedido(pedido):
 
     return resultado_distancia.get("sucursales") or []
 
-def cotizar_correo(cp_destino, tipo_entrega="S"):
+def _dimension_correo(valor, fallback):
+    try:
+        if valor is None or valor == "":
+            return int(fallback)
+        return int(float(str(valor).replace(",", ".")))
+    except Exception:
+        return int(fallback)
+
+
+def cotizar_correo(
+    cp_destino,
+    tipo_entrega="S",
+    peso_gr=None,
+    alto_cm=None,
+    ancho_cm=None,
+    largo_cm=None,
+):
     """Compatibilidad con selector.py.
 
     Si MiCorreo integración básica está habilitado, usa /rates.
-    Si no, conserva fallback PAQ.AR legacy.
+
+    APB:
+    - Si se pasan peso/dimensiones, cotiza con datos reales del catálogo.
+    - Si no se pasan, conserva fallback histórico PP6040.
     """
+    peso_gr = _dimension_correo(peso_gr, PP6040_PESO)
+    alto_cm = _dimension_correo(alto_cm, PP6040_ALTO)
+    ancho_cm = _dimension_correo(ancho_cm, PP6040_ANCHO)
+    largo_cm = _dimension_correo(largo_cm, PP6040_LARGO)
+
     try:
         from services.correo_argentino_micorreo import (
             cotizar_envio as cotizar_envio_micorreo,
@@ -433,10 +457,10 @@ def cotizar_correo(cp_destino, tipo_entrega="S"):
             resultado_micorreo = cotizar_envio_micorreo(
                 cp_destino=cp_destino,
                 modalidad=tipo_entrega,
-                peso_gr=PP6040_PESO,
-                alto_cm=PP6040_ALTO,
-                ancho_cm=PP6040_ANCHO,
-                largo_cm=PP6040_LARGO,
+                peso_gr=peso_gr,
+                alto_cm=alto_cm,
+                ancho_cm=ancho_cm,
+                largo_cm=largo_cm,
             )
             return _cotizacion_legacy_desde_micorreo(
                 resultado_micorreo,
