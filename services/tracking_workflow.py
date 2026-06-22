@@ -76,6 +76,11 @@ def _ml_confirma_cancelacion_o_reembolso(pedido):
         for marca in [
             "reembolso al comprador",
             "reclamo cerrado con reembolso",
+            "cancelación/reembolso confirmado",
+            "cancelacion/reembolso confirmado",
+            "ml informó cancelación/reembolso",
+            "ml informo cancelacion/reembolso",
+            "reembolso confirmado",
             "refund",
             "money_back",
         ]

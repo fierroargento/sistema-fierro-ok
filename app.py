@@ -9629,6 +9629,45 @@ def actualizar_tracking_externo_pedido(id):
 
         nuevo_estado = None
         if not resultado.get("error"):
+            if clasificacion == "cancelado" and pedido.canal == "Mercado Libre":
+                try:
+                    from services.ml_cancelacion_confirmada import (
+                        ml_order_tiene_cancelacion_o_reembolso,
+                        ml_claim_tiene_reembolso,
+                        marcar_evidencia_ml_cancelacion_en_pedido,
+                    )
+
+                    evidencia_ml = False
+
+                    try:
+                        order_live = ml_obtener_order(pedido.id_venta)
+                        if ml_order_tiene_cancelacion_o_reembolso(order_live):
+                            status_order = str((order_live or {}).get("status") or "")
+                            marcar_evidencia_ml_cancelacion_en_pedido(
+                                pedido,
+                                f"order/payment status={status_order}",
+                            )
+                            evidencia_ml = True
+
+                    except Exception as e:
+                        print(f"[TRACKING] No se pudo consultar order ML para cancelación pedido #{pedido.id}: {e}")
+
+                    if not evidencia_ml:
+                        try:
+                            claim_live = ml_obtener_claim_de_order(pedido.id_venta, pedido.ml_pack_id)
+                            if ml_claim_tiene_reembolso(claim_live):
+                                status_claim = str((claim_live or {}).get("status") or "")
+                                marcar_evidencia_ml_cancelacion_en_pedido(
+                                    pedido,
+                                    f"claim status={status_claim}",
+                                )
+
+                        except Exception as e:
+                            print(f"[TRACKING] No se pudo consultar claim ML para cancelación pedido #{pedido.id}: {e}")
+
+                except Exception as e:
+                    print(f"[TRACKING] Error evaluando evidencia ML cancelación pedido #{pedido.id}: {e}")
+
             nuevo_estado = aplicar_estado_tracking_seguro(pedido, clasificacion)
             try:
                 from modules.whatsapp.post_despacho import registrar_tracking_evento, procesar_evento_tracking_pedido

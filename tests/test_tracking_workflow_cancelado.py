@@ -85,3 +85,15 @@ def test_tracking_cancelado_mercado_envios_con_evidencia_ml_cancela_pedido():
 
     assert nuevo_estado == Estado.CANCELADO
     assert pedido.estado == Estado.CANCELADO
+
+
+def test_tracking_cancelado_con_marca_evidencia_ml_en_observaciones_cancela():
+    pedido = PedidoDummy(
+        estado=Estado.DESPACHADO,
+        observaciones="ML informó cancelación/reembolso confirmado para este pedido.",
+    )
+
+    nuevo_estado = aplicar_estado_tracking_seguro_service(pedido, "cancelado")
+
+    assert nuevo_estado == Estado.CANCELADO
+    assert pedido.estado == Estado.CANCELADO
