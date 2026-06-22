@@ -109,9 +109,6 @@ def aplicar_estado_tracking_seguro_service(pedido, clasificacion):
     if pedido.estado in ESTADOS_CERRADOS:
         return None
 
-    if not _es_ml_acordas(pedido):
-        return None
-
     if (
         clasificacion == "cancelado"
         and pedido.estado in ESTADOS_POST_DESPACHO_CANCELACION_CONFIRMADA
@@ -119,6 +116,9 @@ def aplicar_estado_tracking_seguro_service(pedido, clasificacion):
     ):
         _marcar_cancelacion_confirmada_ml_tracking(pedido)
         return Estado.CANCELADO
+
+    if not _es_ml_acordas(pedido):
+        return None
 
     if clasificacion == "entregado":
         _marcar_pendiente_ml_acordas_entregado(pedido)

@@ -71,3 +71,17 @@ def test_tracking_cancelado_antes_de_despacho_no_cancela_por_tracking():
 
     assert nuevo_estado is None
     assert pedido.estado == Estado.ETIQUETA_LISTA
+
+
+def test_tracking_cancelado_mercado_envios_con_evidencia_ml_cancela_pedido():
+    pedido = PedidoDummy(
+        estado=Estado.DESPACHADO,
+        ml_tipo="Mercado Envíos",
+        ml_claim_status="closed",
+        ml_claim_abierto=True,
+    )
+
+    nuevo_estado = aplicar_estado_tracking_seguro_service(pedido, "cancelado")
+
+    assert nuevo_estado == Estado.CANCELADO
+    assert pedido.estado == Estado.CANCELADO

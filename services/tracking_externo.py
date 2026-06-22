@@ -69,6 +69,10 @@ ESTADOS_VIA_CARGO = [
 ]
 
 ESTADOS_CORREO = [
+    "CANCELADA",
+    "CANCELADO",
+    "ENVIO CANCELADO",
+    "ENVÍO CANCELADO",
     "ENTREGADO",
     "ENTREGA EN SUCURSAL",
     "EN ESPERA EN SUCURSAL",
@@ -238,6 +242,8 @@ def _extraer_estado_por_patrones(texto, transporte=""):
         return candidatos[0][1]
 
     patrones = [
+        r"(cancelad[oa][^.]{0,80})",
+        r"(env[ií]o\s+cancelad[oa][^.]{0,80})",
         r"(entregad[oa](?:\s+al\s+destinatario)?)",
         r"(entrega\s+en\s+sucursal)",
         r"(en\s+espera\s+en\s+sucursal)",
