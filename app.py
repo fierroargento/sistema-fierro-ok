@@ -5234,9 +5234,16 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
 
     from services.ia_recolector_sync import decidir_estado_recolector
 
+    from services.ia_recolector_sync import resolver_requiere_operador_final_recolector
+
+    requiere_operador_final = resolver_requiere_operador_final_recolector(
+        pedido,
+        requiere_operador=requiere_operador,
+    )
+
     estado = decidir_estado_recolector(
         faltantes=faltantes,
-        requiere_operador=requiere_operador,
+        requiere_operador=requiere_operador_final,
     )
 
     pedido.ia_recolector_estado = estado
@@ -5247,7 +5254,7 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
         extra = "IA autocompletó: " + ", ".join(completados)
         resumen = (resumen + " | " + extra).strip(" |") if resumen else extra
     pedido.ia_resumen = resumen
-    pedido.ia_requiere_operador = requiere_operador
+    pedido.ia_requiere_operador = requiere_operador_final
 
     # APB:
     # Mercado Libre inicia el contacto y sigue recolectando mientras el canal esté activo.
@@ -5258,7 +5265,7 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
     # Si ya no faltan datos, NO iniciar WhatsApp desde acá.
     # Primero debe correr ia_auto_responder_post_analisis(), que para Via Cargo
     # ofrece sucursales por ML antes de cualquier handoff.
-    if not requiere_operador and faltantes:
+    if not requiere_operador_final and faltantes:
         wa_auto_iniciar_desde_ml_si_corresponde(
             pedido,
             faltantes=faltantes,

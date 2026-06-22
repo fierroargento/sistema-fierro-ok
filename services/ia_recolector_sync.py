@@ -169,6 +169,27 @@ def decidir_estado_recolector(faltantes=None, requiere_operador=False):
 
     return "juntando_datos"
 
+
+def resolver_requiere_operador_final_recolector(pedido=None, requiere_operador=False):
+    """
+    Mantiene persistente el lock operativo de operador.
+
+    APB:
+    - La IA puede marcar requiere_operador=True ante una consulta/corrección.
+    - Una respuesta posterior del cliente no debe limpiar ese lock automáticamente.
+    - Solo una acción explícita del operador o un flujo específico debe reencauzar.
+    """
+    estado_actual = str(
+        getattr(pedido, "ia_recolector_estado", "") or ""
+    ).strip().lower()
+
+    operador_pendiente_previo = bool(
+        getattr(pedido, "ia_requiere_operador", False)
+        or estado_actual == "requiere_operador"
+    )
+
+    return bool(requiere_operador or operador_pendiente_previo)
+
 def json_loads_seguro_recolector(texto):
     """
     Lee JSON persistido por el recolector IA de forma tolerante.
