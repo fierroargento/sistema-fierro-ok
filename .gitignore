@@ -42,3 +42,7 @@ build/
 # Temporales
 *.tmp
 *.bak
+# Variables locales / secretos
+.env
+.env.*
+!.env.example
