@@ -9621,6 +9621,13 @@ def actualizar_tracking_externo_pedido(id):
         estado = (resultado.get("estado") or "").strip() or "Sin estado detectado"
         clasificacion = interpretar_estado_logistico(estado, transporte=transporte)
 
+        print(
+            f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
+            f"estado_interno={pedido.estado} canal={pedido.canal} ml_tipo={pedido.ml_tipo} "
+            f"estado_externo={estado} clasificacion={clasificacion} "
+            f"error={resultado.get('error')}"
+        )
+
         pedido.tracking_transportista = transporte[:80] if transporte else None
         pedido.tracking_url_consultada = url[:500] if url else None
         pedido.tracking_estado_externo = estado[:300]
@@ -9641,13 +9648,24 @@ def actualizar_tracking_externo_pedido(id):
 
                     try:
                         order_live = ml_obtener_order(pedido.id_venta)
+                        order_status = str((order_live or {}).get("status") or "")
+                        payments_live = (order_live or {}).get("payments") or []
+
+                        print(
+                            f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
+                            f"ML order_status={order_status} payments={payments_live}"
+                        )
+
                         if ml_order_tiene_cancelacion_o_reembolso(order_live):
-                            status_order = str((order_live or {}).get("status") or "")
                             marcar_evidencia_ml_cancelacion_en_pedido(
                                 pedido,
-                                f"order/payment status={status_order}",
+                                f"order/payment status={order_status}",
                             )
                             evidencia_ml = True
+                            print(
+                                f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
+                                "evidencia ML detectada por order/payment"
+                            )
 
                     except Exception as e:
                         print(f"[TRACKING] No se pudo consultar order ML para cancelación pedido #{pedido.id}: {e}")
@@ -9655,20 +9673,40 @@ def actualizar_tracking_externo_pedido(id):
                     if not evidencia_ml:
                         try:
                             claim_live = ml_obtener_claim_de_order(pedido.id_venta, pedido.ml_pack_id)
+
+                            print(
+                                f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
+                                f"ML claim={claim_live}"
+                            )
+
                             if ml_claim_tiene_reembolso(claim_live):
                                 status_claim = str((claim_live or {}).get("status") or "")
                                 marcar_evidencia_ml_cancelacion_en_pedido(
                                     pedido,
                                     f"claim status={status_claim}",
                                 )
+                                evidencia_ml = True
+                                print(
+                                    f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
+                                    "evidencia ML detectada por claim"
+                                )
 
                         except Exception as e:
                             print(f"[TRACKING] No se pudo consultar claim ML para cancelación pedido #{pedido.id}: {e}")
+
+                    print(
+                        f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
+                        f"evidencia_ml={evidencia_ml}"
+                    )
 
                 except Exception as e:
                     print(f"[TRACKING] Error evaluando evidencia ML cancelación pedido #{pedido.id}: {e}")
 
             nuevo_estado = aplicar_estado_tracking_seguro(pedido, clasificacion)
+            print(
+                f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
+                f"nuevo_estado={nuevo_estado} estado_final={pedido.estado}"
+            )
             try:
                 from modules.whatsapp.post_despacho import registrar_tracking_evento, procesar_evento_tracking_pedido
                 registrar_tracking_evento(pedido, transporte, seguimiento, estado, clasificacion, raw_json=str(resultado)[:4000], origen="manual")
