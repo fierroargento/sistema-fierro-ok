@@ -398,10 +398,6 @@ body { background: #f4f7f8; }
             {% set transporte_correo_accion = (pedido.empresa_envio or "")|lower %}
             {% if "correo" in transporte_correo_accion and rol_actual in ["admin", "carga", "despacho"] %}
             <p style="margin-top:8px;">
-                <a href="#correo-operativo" class="inline-edit-link"
-                   onclick="var p=document.getElementById('correo-operativo'); if(p){p.setAttribute('open','open');}">
-                    Gestionar envío Correo
-                </a>
             </p>
             {% endif %}
         </div>
