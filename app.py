@@ -612,6 +612,17 @@ class Producto(db.Model):
     sku = db.Column(db.String(80), nullable=False, index=True)
     descripcion = db.Column(db.String(255), nullable=False, index=True)
 
+    # Catálogo logístico administrado por Admin.
+    # No se edita desde los formularios operativos de Carga.
+    peso_gr = db.Column(db.Float)
+    alto_cm = db.Column(db.Float)
+    ancho_cm = db.Column(db.Float)
+    largo_cm = db.Column(db.Float)
+    permite_correo = db.Column(db.Boolean, default=True)
+    permite_via_cargo = db.Column(db.Boolean, default=True)
+    requiere_revision_logistica = db.Column(db.Boolean, default=False)
+    observacion_logistica = db.Column(db.String(300))
+
 
 class MercadoLibreCuenta(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -853,30 +864,17 @@ def asegurar_columnas_integracion_tn():
 
 
 def productos_desde_excel(archivo_excel):
-    df = pd.read_excel(archivo_excel)
+    from services.productos_catalogo import productos_desde_excel_catalogo
 
-    productos = []
-    for _, row in df.iterrows():
-        sku = "" if pd.isna(row.iloc[0]) else str(row.iloc[0]).strip()
-        descripcion = "" if pd.isna(row.iloc[1]) else str(row.iloc[1]).strip()
-
-        if descripcion:
-            productos.append({
-                "sku": sku,
-                "descripcion": descripcion
-            })
-    return productos
+    return productos_desde_excel_catalogo(archivo_excel)
 
 
 def sincronizar_productos_desde_excel(archivo_excel):
-    productos = productos_desde_excel(archivo_excel)
+    from services.productos_catalogo import productos_desde_excel_catalogo
+    from services.productos_catalogo_db import sincronizar_productos_desde_catalogo
 
-    db.session.query(Producto).delete()
-    for prod in productos:
-        db.session.add(Producto(sku=prod["sku"], descripcion=prod["descripcion"]))
-    db.session.commit()
-
-    return len(productos)
+    productos = productos_desde_excel_catalogo(archivo_excel)
+    return sincronizar_productos_desde_catalogo(productos, Producto, db)
 
 
 def guardar_etiqueta_subida(archivo):
@@ -12141,6 +12139,9 @@ with app.app_context():
     asegurar_columnas_extra()
     asegurar_columnas_integracion_ml()
     asegurar_columnas_integracion_tn()
+
+    from services.productos_catalogo_db import asegurar_columnas_producto_logistica
+    asegurar_columnas_producto_logistica(db, inspect, text)
     asegurar_usuarios_iniciales()
     asegurar_configuracion_inicial()
 
