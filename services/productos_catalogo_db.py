@@ -88,3 +88,43 @@ def asegurar_columnas_producto_logistica(db, inspect_fn, text_fn, tabla="product
         db.session.commit()
 
     return columnas_agregadas
+
+
+def guardar_producto_catalogo(producto, datos, db=None):
+    """
+    Actualiza un producto existente con datos normalizados del catálogo.
+    Si se pasa db, guarda y commitea.
+    """
+
+    producto = aplicar_datos_producto_modelo(producto, datos)
+
+    if db is not None:
+        db.session.add(producto)
+        db.session.commit()
+
+    return producto
+
+
+def crear_y_guardar_producto_catalogo(Producto, datos, db=None):
+    """
+    Crea un producto desde datos normalizados del catálogo.
+    Si se pasa db, guarda y commitea.
+    """
+
+    producto = crear_producto_desde_catalogo(Producto, datos)
+
+    if db is not None:
+        db.session.add(producto)
+        db.session.commit()
+
+    return producto
+
+
+def eliminar_producto_catalogo(producto, db):
+    """
+    Elimina un producto del catálogo.
+    """
+
+    db.session.delete(producto)
+    db.session.commit()
+    return True

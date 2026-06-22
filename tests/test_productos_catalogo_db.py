@@ -168,3 +168,70 @@ def test_asegurar_columnas_producto_logistica_no_commitea_si_no_agrega():
     assert agregadas == []
     assert db.session.executed == []
     assert db.session.commit_count == 0
+
+
+def test_guardar_producto_catalogo_actualiza_y_commitea():
+    from services.productos_catalogo_db import guardar_producto_catalogo
+
+    db = DbFalsa()
+    producto = ProductoFalso(sku="VIEJO", descripcion="Viejo")
+
+    guardado = guardar_producto_catalogo(producto, {
+        "sku": "NUEVO",
+        "descripcion": "Nuevo producto",
+        "peso_gr": 1200,
+        "permite_correo": False,
+    }, db=db)
+
+    assert guardado is producto
+    assert producto.sku == "NUEVO"
+    assert producto.descripcion == "Nuevo producto"
+    assert producto.peso_gr == 1200
+    assert producto.permite_correo is False
+    assert db.session.added == [producto]
+    assert db.session.commit_count == 1
+
+
+def test_crear_y_guardar_producto_catalogo_crea_y_commitea():
+    from services.productos_catalogo_db import crear_y_guardar_producto_catalogo
+
+    db = DbFalsa()
+
+    producto = crear_y_guardar_producto_catalogo(ProductoFalso, {
+        "sku": "NUEVO",
+        "descripcion": "Producto nuevo",
+        "alto_cm": 5,
+    }, db=db)
+
+    assert isinstance(producto, ProductoFalso)
+    assert producto.sku == "NUEVO"
+    assert producto.descripcion == "Producto nuevo"
+    assert producto.alto_cm == 5
+    assert db.session.added == [producto]
+    assert db.session.commit_count == 1
+
+
+def test_eliminar_producto_catalogo_elimina_y_commitea():
+    from services.productos_catalogo_db import eliminar_producto_catalogo
+
+    class SessionDeleteFalsa(SessionFalsa):
+        def __init__(self):
+            super().__init__()
+            self.deleted = []
+
+        def delete(self, obj):
+            self.deleted.append(obj)
+
+    class DbDeleteFalsa(DbFalsa):
+        def __init__(self):
+            self.engine = object()
+            self.session = SessionDeleteFalsa()
+
+    db = DbDeleteFalsa()
+    producto = ProductoFalso(sku="BORRAR", descripcion="Producto a borrar")
+
+    resultado = eliminar_producto_catalogo(producto, db)
+
+    assert resultado is True
+    assert db.session.deleted == [producto]
+    assert db.session.commit_count == 1
