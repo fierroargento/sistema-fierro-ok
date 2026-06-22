@@ -398,7 +398,7 @@ body { background: #f4f7f8; }
             {% set transporte_correo_accion = (pedido.empresa_envio or "")|lower %}
             {% if "correo" in transporte_correo_accion and rol_actual in ["admin", "carga", "despacho"] %}
             <p style="margin-top:8px;">
-                <a href="{{ url_for('editar_pedido', id=pedido.id, paso=3) }}" class="inline-edit-link">
+                <a href="#correo-operativo" class="inline-edit-link">
                     Gestionar envío Correo
                 </a>
             </p>
@@ -418,6 +418,76 @@ body { background: #f4f7f8; }
             <p><strong>Observaciones:</strong> {{ pedido.observaciones }}</p>
             {% endif %}
         </div>
+
+        {% if detalle_correo and detalle_correo.tiene_datos %}
+        <div id="correo-operativo" class="detalle-box detalle-box-full" style="border-left:5px solid #2563eb; background:#eff6ff;">
+            <h3 style="margin-top:0;">Correo Argentino / Cotización y elección</h3>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:12px;">
+                <p><strong>Transporte:</strong> {{ detalle_correo.empresa_envio or "-" }}</p>
+                <p><strong>Tipo entrega:</strong> {{ detalle_correo.tipo_entrega or "-" }}</p>
+                <p><strong>Costo elegido:</strong> {{ detalle_correo.costo_envio_texto or "-" }}</p>
+                <p><strong>Costo sucursal:</strong> {{ detalle_correo.costo_sucursal_texto or "-" }}</p>
+                <p><strong>Costo domicilio:</strong> {{ detalle_correo.costo_domicilio_texto or "-" }}</p>
+                <p><strong>Umbral Acordás:</strong> {{ detalle_correo.umbral_acordas_texto or "-" }}</p>
+                <p><strong>Umbral PP6040:</strong> {{ detalle_correo.umbral_pp6040_texto or "-" }}</p>
+                <p><strong>Pago/etiqueta:</strong>
+                    {% if detalle_correo.requiere_operador_para_pago_etiqueta %}
+                        requiere operador
+                    {% else %}
+                        automático habilitado
+                    {% endif %}
+                </p>
+            </div>
+
+            {% set suc_elegida = detalle_correo.sucursal_elegida %}
+            {% if suc_elegida and suc_elegida.nombre %}
+            <div style="padding:10px; border:1px solid #bfdbfe; border-radius:8px; background:white; margin-bottom:12px;">
+                <strong>Sucursal elegida por el cliente</strong>
+                <p style="margin:6px 0 0 0;">
+                    {{ suc_elegida.nombre }}
+                    {% if suc_elegida.id %} — ID: {{ suc_elegida.id }}{% endif %}
+                </p>
+                <p style="margin:4px 0 0 0;">
+                    {{ suc_elegida.direccion or "-" }}
+                    {% if suc_elegida.localidad %} — {{ suc_elegida.localidad }}{% endif %}
+                    {% if suc_elegida.provincia %} — {{ suc_elegida.provincia }}{% endif %}
+                    {% if suc_elegida.cp %} — CP {{ suc_elegida.cp }}{% endif %}
+                </p>
+                {% if suc_elegida.distancia_km %}
+                <p style="margin:4px 0 0 0;"><strong>Distancia estimada:</strong> {{ suc_elegida.distancia_km }} km</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if detalle_correo.sucursales_ofrecidas %}
+            <div style="padding:10px; border:1px solid #bfdbfe; border-radius:8px; background:white;">
+                <strong>Opciones ofrecidas al cliente</strong>
+                <ol style="margin:8px 0 0 20px; padding:0;">
+                    {% for suc in detalle_correo.sucursales_ofrecidas %}
+                    <li style="margin-bottom:8px;">
+                        <strong>{{ suc.nombre or "Punto Correo" }}</strong>
+                        {% if suc.id %} — ID: {{ suc.id }}{% endif %}<br>
+                        {{ suc.direccion or "-" }}
+                        {% if suc.localidad %} — {{ suc.localidad }}{% endif %}
+                        {% if suc.provincia %} — {{ suc.provincia }}{% endif %}
+                        {% if suc.cp %} — CP {{ suc.cp }}{% endif %}
+                        {% if suc.distancia_km %}<br><small>Distancia estimada: {{ suc.distancia_km }} km</small>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+            {% endif %}
+
+            {% if detalle_correo.ia_resumen %}
+            <p style="margin-top:12px;"><strong>Resumen decisión:</strong> {{ detalle_correo.ia_resumen }}</p>
+            {% endif %}
+
+            <p style="margin-top:12px; font-size:13px; color:#1e3a8a;">
+                El operador debe usar estos datos para terminar la gestión en MiCorreo: pagar/generar etiqueta y luego cargar seguimiento/etiqueta en Fierro.
+            </p>
+        </div>
+        {% endif %}
 
     </div>
 

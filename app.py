@@ -9332,9 +9332,17 @@ def detalle_pedido(id):
         print(f"[WA RESPUESTAS RAPIDAS] No se pudieron cargar respuestas pedido #{pedido.id}: {e}")
         respuestas_rapidas_wa = []        
 
+    try:
+        from services.correo_detalle_operativo import detalle_operativo_correo_pedido
+        detalle_correo = detalle_operativo_correo_pedido(pedido)
+    except Exception as e:
+        print(f"[CORREO DETALLE] No se pudo armar detalle operativo pedido #{pedido.id}: {e}")
+        detalle_correo = {"tiene_datos": False, "sucursales_ofrecidas": []}
+
     return render_template(
         "detalle_pedido.html",
         pedido=pedido,
+        detalle_correo=detalle_correo,
         error=error,
         ok_feedback=ok_feedback,
         accion_sugerida=accion_sugerida_pedido(pedido),
