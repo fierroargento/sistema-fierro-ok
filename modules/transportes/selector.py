@@ -61,8 +61,60 @@ def pedido_contiene_pp6040(pedido):
     return "PP6040" in blob
 
 
+def _buscar_producto_catalogo_por_sku(Producto, sku):
+    sku = str(sku or "").strip().upper()
+    if not sku:
+        return None
+
+    try:
+        return Producto.query.filter_by(sku=sku).first()
+    except Exception:
+        try:
+            return Producto.query.filter(Producto.sku.ilike(sku)).first()
+        except Exception:
+            return None
+
+
+def _calcular_logistica_correo_pedido(pedido):
+    try:
+        from app import Producto
+        from services.productos_logistica import calcular_logistica_pedido
+    except Exception as e:
+        return {
+            "ok": False,
+            "motivo": "catalogo_no_disponible",
+            "faltantes": [f"No se pudo acceder al catálogo de productos: {e}"],
+            "permite_correo": False,
+            "requiere_revision_logistica": True,
+        }
+
+    return calcular_logistica_pedido(
+        pedido,
+        buscar_producto_por_sku=lambda sku: _buscar_producto_catalogo_por_sku(Producto, sku),
+    )
+
+
+def _error_logistica_correo(cp, logistica):
+    faltantes = logistica.get("faltantes") or []
+    detalle = " ".join(faltantes[:3]).strip()
+
+    return {
+        "ok": False,
+        "cp_destino": cp,
+        "sucursal": {},
+        "domicilio": {},
+        "error": (
+            "Datos logísticos incompletos para cotizar Correo."
+            + (f" {detalle}" if detalle else "")
+        ),
+        "motivo": logistica.get("motivo") or "datos_logisticos_incompletos",
+        "requiere_operador": True,
+        "logistica": logistica,
+    }
+
+
 def cotizar_correo_pp6040(pedido):
-    """Cotiza sucursal y domicilio por Correo para un pedido PP6040."""
+    """Cotiza sucursal y domicilio por Correo usando logística del catálogo."""
     cp = str(getattr(pedido, "codigo_postal", "") or "").strip()
     if not cp or not re.fullmatch(r"\d{4,8}", cp):
         return {
@@ -71,8 +123,32 @@ def cotizar_correo_pp6040(pedido):
             "requiere_operador": True,
         }
 
-    sucursal = cotizar_correo(cp, tipo_entrega="S")
-    domicilio = cotizar_correo(cp, tipo_entrega="D")
+    logistica = _calcular_logistica_correo_pedido(pedido)
+
+    if not logistica.get("ok"):
+        return _error_logistica_correo(cp, logistica)
+
+    if not logistica.get("permite_correo"):
+        return {
+            "ok": False,
+            "cp_destino": cp,
+            "sucursal": {},
+            "domicilio": {},
+            "error": "El catálogo indica que este pedido no permite Correo Argentino.",
+            "motivo": "producto_no_permite_correo",
+            "requiere_operador": True,
+            "logistica": logistica,
+        }
+
+    dimensiones = {
+        "peso_gr": logistica.get("peso_gr"),
+        "alto_cm": logistica.get("alto_cm"),
+        "ancho_cm": logistica.get("ancho_cm"),
+        "largo_cm": logistica.get("largo_cm"),
+    }
+
+    sucursal = cotizar_correo(cp, tipo_entrega="S", **dimensiones)
+    domicilio = cotizar_correo(cp, tipo_entrega="D", **dimensiones)
 
     error = None
 
@@ -94,6 +170,8 @@ def cotizar_correo_pp6040(pedido):
         "sucursal": sucursal,
         "domicilio": domicilio,
         "error": error,
+        "logistica": logistica,
+        "dimensiones": dimensiones,
     }
 
 
