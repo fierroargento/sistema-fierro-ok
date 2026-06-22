@@ -100,3 +100,63 @@ def test_validar_producto_catalogo_detecta_obligatorios_y_medidas_invalidas():
     assert "La descripción es obligatoria." in errores
     assert "peso_gr debe ser mayor a cero." in errores
     assert "alto_cm debe ser mayor a cero." in errores
+
+
+def test_producto_desde_form_catalogo_parsea_form_admin():
+    from services.productos_catalogo import producto_desde_form_catalogo
+
+    form = {
+        "sku": " pp6040h ",
+        "descripcion": "Parrilla plegable",
+        "peso_gr": "3,2 kg",
+        "alto_cm": "5",
+        "ancho_cm": "42",
+        "largo_cm": "36",
+        "permite_correo": "on",
+        "observacion_logistica": "Usar embalaje bajo",
+    }
+
+    producto = producto_desde_form_catalogo(form)
+
+    assert producto["sku"] == "PP6040H"
+    assert producto["descripcion"] == "Parrilla plegable"
+    assert producto["peso_gr"] == 3200
+    assert producto["alto_cm"] == 5
+    assert producto["ancho_cm"] == 42
+    assert producto["largo_cm"] == 36
+    assert producto["permite_correo"] is True
+    assert producto["permite_via_cargo"] is False
+    assert producto["requiere_revision_logistica"] is False
+    assert producto["observacion_logistica"] == "Usar embalaje bajo"
+
+
+def test_producto_a_dict_catalogo_y_logistica_completa():
+    from services.productos_catalogo import (
+        producto_a_dict_catalogo,
+        producto_tiene_logistica_completa,
+    )
+
+    class ProductoFalso:
+        id = 10
+        sku = "KIT001"
+        descripcion = "Kit pala y atizador"
+        peso_gr = 900
+        alto_cm = 8
+        ancho_cm = 15
+        largo_cm = 60
+        permite_correo = True
+        permite_via_cargo = False
+        requiere_revision_logistica = True
+        observacion_logistica = "Producto largo"
+
+    datos = producto_a_dict_catalogo(ProductoFalso())
+
+    assert datos["id"] == 10
+    assert datos["sku"] == "KIT001"
+    assert datos["peso_gr"] == 900
+    assert datos["permite_correo"] is True
+    assert datos["permite_via_cargo"] is False
+    assert datos["requiere_revision_logistica"] is True
+    assert datos["observacion_logistica"] == "Producto largo"
+
+    assert producto_tiene_logistica_completa(ProductoFalso()) is True

@@ -254,3 +254,62 @@ def productos_desde_dataframe_catalogo(df):
 def productos_desde_excel_catalogo(archivo_excel):
     df = pd.read_excel(archivo_excel)
     return productos_desde_dataframe_catalogo(df)
+
+
+def producto_desde_form_catalogo(form):
+    """
+    Convierte un formulario Admin en datos normalizados de producto.
+
+    APB:
+    - Los checkboxes HTML no vienen en request.form cuando están destildados.
+    - Por eso acá convertimos explícitamente a "1" / "0".
+    """
+
+    form = form or {}
+
+    return normalizar_producto_catalogo({
+        "sku": form.get("sku"),
+        "descripcion": form.get("descripcion"),
+        "peso_gr": form.get("peso_gr"),
+        "alto_cm": form.get("alto_cm"),
+        "ancho_cm": form.get("ancho_cm"),
+        "largo_cm": form.get("largo_cm"),
+        "permite_correo": "1" if form.get("permite_correo") else "0",
+        "permite_via_cargo": "1" if form.get("permite_via_cargo") else "0",
+        "requiere_revision_logistica": "1" if form.get("requiere_revision_logistica") else "0",
+        "observacion_logistica": form.get("observacion_logistica"),
+    })
+
+
+def producto_a_dict_catalogo(producto):
+    """
+    Convierte un modelo Producto en dict simple para templates o servicios.
+    """
+
+    if not producto:
+        return {}
+
+    return {
+        "id": getattr(producto, "id", None),
+        "sku": getattr(producto, "sku", "") or "",
+        "descripcion": getattr(producto, "descripcion", "") or "",
+        "peso_gr": getattr(producto, "peso_gr", None),
+        "alto_cm": getattr(producto, "alto_cm", None),
+        "ancho_cm": getattr(producto, "ancho_cm", None),
+        "largo_cm": getattr(producto, "largo_cm", None),
+        "permite_correo": True if getattr(producto, "permite_correo", True) is None else bool(getattr(producto, "permite_correo", True)),
+        "permite_via_cargo": True if getattr(producto, "permite_via_cargo", True) is None else bool(getattr(producto, "permite_via_cargo", True)),
+        "requiere_revision_logistica": bool(getattr(producto, "requiere_revision_logistica", False)),
+        "observacion_logistica": getattr(producto, "observacion_logistica", "") or "",
+    }
+
+
+def producto_tiene_logistica_completa(producto):
+    datos = producto_a_dict_catalogo(producto)
+
+    return bool(
+        datos.get("peso_gr")
+        and datos.get("alto_cm")
+        and datos.get("ancho_cm")
+        and datos.get("largo_cm")
+    )
