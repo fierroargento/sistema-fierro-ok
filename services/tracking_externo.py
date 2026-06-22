@@ -283,6 +283,9 @@ def interpretar_estado_logistico(texto, transporte=""):
     if not t:
         return "desconocido"
 
+    if any(x in t for x in ["cancelad", "cancelacion", "cancelación"]):
+        return "cancelado"
+
     if any(x in t for x in ["no entreg", "fallid", "rechaz", "devol", "incid", "siniestr", "imposible entregar"]):
         return "incidencia"
 
