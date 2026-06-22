@@ -1,30 +1,222 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block content %}
 <div class="card">
     <h1>Productos</h1>
-    <p>Total cargados: <strong>{{ total_productos }}</strong></p>
 
-    {% if mensaje %}<div class="alerta alerta-ok">{{ mensaje }}</div>{% endif %}
-    {% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
+    <p>
+        Total cargados: <strong>{{ total_productos }}</strong>
+    </p>
 
-    <form method="post" enctype="multipart/form-data" class="form-bloque">
-        <p><strong>Subir Excel</strong> (columna A = SKU, columna B = Descripción)</p>
-        <input type="file" name="archivo_productos" accept=".xlsx,.xls">
-        <button type="submit">Actualizar productos</button>
-    </form>
+    {% if mensaje %}
+        <div class="alerta alerta-ok">{{ mensaje }}</div>
+    {% endif %}
+
+    {% if error %}
+        <div class="alerta alerta-error">{{ error }}</div>
+    {% endif %}
 
     <div class="card" style="margin-top:16px;">
-        <h2>Vista rápida</h2>
-        <table class="tabla">
-            <thead><tr><th>SKU</th><th>Descripción</th></tr></thead>
-            <tbody>
-            {% for p in ultimos %}
-                <tr><td>{{ p.sku }}</td><td>{{ p.descripcion }}</td></tr>
-            {% else %}
-                <tr><td colspan="2">No hay productos cargados.</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
+        <h2>Importar catálogo por Excel</h2>
+        <p>
+            El Excel puede tener solo <strong>SKU</strong> y <strong>Descripción</strong>,
+            o incluir también datos logísticos.
+        </p>
+
+        <p style="font-size:13px; color:#555;">
+            Columnas sugeridas:
+            SKU | Descripción | Peso gr | Alto cm | Ancho cm | Largo cm |
+            Permite Correo | Permite Vía Cargo | Requiere revisión logística | Observación logística
+        </p>
+
+        <form method="post" enctype="multipart/form-data" class="form-bloque">
+            <input type="hidden" name="accion" value="importar_excel">
+            <input type="file" name="archivo_productos" accept=".xlsx,.xls">
+            <button type="submit">Actualizar productos desde Excel</button>
+        </form>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Buscar por SKU</h2>
+
+        <form method="get" class="form-bloque" style="display:flex; gap:8px; align-items:end; flex-wrap:wrap;">
+            <div>
+                <label for="sku">SKU</label><br>
+                <input type="text" id="sku" name="sku" value="{{ filtro_sku or '' }}" placeholder="Ej: PP6040H">
+            </div>
+
+            <button type="submit">Buscar</button>
+
+            {% if filtro_sku %}
+                <a href="{{ url_for('admin_productos') }}" class="inline-edit-link">Limpiar filtro</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Agregar producto</h2>
+
+        <form method="post" class="form-bloque">
+            <input type="hidden" name="accion" value="crear_producto">
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:10px;">
+                <div>
+                    <label>SKU</label>
+                    <input type="text" name="sku" required>
+                </div>
+
+                <div>
+                    <label>Descripción</label>
+                    <input type="text" name="descripcion" required>
+                </div>
+
+                <div>
+                    <label>Peso gr</label>
+                    <input type="text" name="peso_gr" placeholder="Ej: 3200">
+                </div>
+
+                <div>
+                    <label>Alto cm</label>
+                    <input type="text" name="alto_cm" placeholder="Ej: 5">
+                </div>
+
+                <div>
+                    <label>Ancho cm</label>
+                    <input type="text" name="ancho_cm" placeholder="Ej: 42">
+                </div>
+
+                <div>
+                    <label>Largo cm</label>
+                    <input type="text" name="largo_cm" placeholder="Ej: 36">
+                </div>
+            </div>
+
+            <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:10px;">
+                <label>
+                    <input type="checkbox" name="permite_correo" checked>
+                    Permite Correo
+                </label>
+
+                <label>
+                    <input type="checkbox" name="permite_via_cargo" checked>
+                    Permite Vía Cargo
+                </label>
+
+                <label>
+                    <input type="checkbox" name="requiere_revision_logistica">
+                    Requiere revisión logística
+                </label>
+            </div>
+
+            <div style="margin-top:10px;">
+                <label>Observación logística</label>
+                <input type="text" name="observacion_logistica" maxlength="300" style="width:100%;">
+            </div>
+
+            <button type="submit" style="margin-top:10px;">Agregar producto</button>
+        </form>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>
+            Productos
+            {% if filtro_sku %}
+                <span style="font-size:14px; color:#555;">filtrados por "{{ filtro_sku }}"</span>
+            {% endif %}
+        </h2>
+
+        <p style="font-size:13px; color:#555;">
+            Se muestran hasta 100 productos. Usá el filtro por SKU para encontrar uno específico.
+        </p>
+
+        <div style="overflow-x:auto;">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Descripción</th>
+                        <th>Peso gr</th>
+                        <th>Alto</th>
+                        <th>Ancho</th>
+                        <th>Largo</th>
+                        <th>Correo</th>
+                        <th>Vía Cargo</th>
+                        <th>Rev.</th>
+                        <th>Obs.</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                {% for p in productos %}
+                    <tr>
+                        <td>
+                            <input form="editar-producto-{{ p.id }}" type="text" name="sku" value="{{ p.sku or '' }}" style="width:120px;">
+                        </td>
+
+                        <td>
+                            <input form="editar-producto-{{ p.id }}" type="text" name="descripcion" value="{{ p.descripcion or '' }}" style="width:240px;">
+                        </td>
+
+                        <td>
+                            <input form="editar-producto-{{ p.id }}" type="text" name="peso_gr" value="{{ '' if p.peso_gr is none else p.peso_gr }}" style="width:85px;">
+                        </td>
+
+                        <td>
+                            <input form="editar-producto-{{ p.id }}" type="text" name="alto_cm" value="{{ '' if p.alto_cm is none else p.alto_cm }}" style="width:70px;">
+                        </td>
+
+                        <td>
+                            <input form="editar-producto-{{ p.id }}" type="text" name="ancho_cm" value="{{ '' if p.ancho_cm is none else p.ancho_cm }}" style="width:70px;">
+                        </td>
+
+                        <td>
+                            <input form="editar-producto-{{ p.id }}" type="text" name="largo_cm" value="{{ '' if p.largo_cm is none else p.largo_cm }}" style="width:70px;">
+                        </td>
+
+                        <td style="text-align:center;">
+                            <input form="editar-producto-{{ p.id }}" type="checkbox" name="permite_correo"
+                                   {% if p.permite_correo is not sameas false %}checked{% endif %}>
+                        </td>
+
+                        <td style="text-align:center;">
+                            <input form="editar-producto-{{ p.id }}" type="checkbox" name="permite_via_cargo"
+                                   {% if p.permite_via_cargo is not sameas false %}checked{% endif %}>
+                        </td>
+
+                        <td style="text-align:center;">
+                            <input form="editar-producto-{{ p.id }}" type="checkbox" name="requiere_revision_logistica"
+                                   {% if p.requiere_revision_logistica %}checked{% endif %}>
+                        </td>
+
+                        <td>
+                            <input form="editar-producto-{{ p.id }}" type="text" name="observacion_logistica"
+                                   value="{{ p.observacion_logistica or '' }}" maxlength="300" style="width:220px;">
+                        </td>
+
+                        <td style="white-space:nowrap;">
+                            <form id="editar-producto-{{ p.id }}" method="post" style="display:inline;">
+                                <input type="hidden" name="accion" value="editar_producto">
+                                <input type="hidden" name="producto_id" value="{{ p.id }}">
+                                <button type="submit">Guardar</button>
+                            </form>
+
+                            <form method="post"
+                                  style="display:inline;"
+                                  onsubmit="return confirm('¿Eliminar el producto {{ p.sku }}?');">
+                                <input type="hidden" name="accion" value="eliminar_producto">
+                                <input type="hidden" name="producto_id" value="{{ p.id }}">
+                                <button type="submit" class="btn-danger">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="11">No hay productos cargados.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}
