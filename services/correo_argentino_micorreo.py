@@ -315,39 +315,99 @@ def _obtener_token_y_customer_id(config=None, token=None, customer_id=None):
 
 def normalizar_sucursal(raw):
     raw = raw or {}
-    loc = raw.get("location") or {}
-    geo = loc.get("geolocation") or {}
+    loc = raw.get("location") if isinstance(raw.get("location"), dict) else {}
+    address = loc.get("address") if isinstance(loc.get("address"), dict) else {}
+    geo = loc.get("geolocation") if isinstance(loc.get("geolocation"), dict) else {}
+    services = raw.get("services") if isinstance(raw.get("services"), dict) else {}
 
-    calle = (
-        loc.get("street_name")
-        or loc.get("streetName")
-        or raw.get("street_name")
-        or raw.get("streetName")
-        or ""
+    def primero(*valores):
+        for valor in valores:
+            if valor not in (None, ""):
+                return valor
+        return ""
+
+    calle = primero(
+        address.get("street_name"),
+        address.get("streetName"),
+        address.get("street"),
+        loc.get("street_name"),
+        loc.get("streetName"),
+        raw.get("street_name"),
+        raw.get("streetName"),
     )
-    altura = (
-        loc.get("street_number")
-        or loc.get("streetNumber")
-        or raw.get("street_number")
-        or raw.get("streetNumber")
-        or ""
+
+    altura = primero(
+        address.get("street_number"),
+        address.get("streetNumber"),
+        address.get("number"),
+        loc.get("street_number"),
+        loc.get("streetNumber"),
+        raw.get("street_number"),
+        raw.get("streetNumber"),
     )
 
     return {
-        "id": raw.get("code") or raw.get("agency_id") or raw.get("agencyId") or raw.get("id") or "",
-        "codigo": raw.get("code") or raw.get("agency_id") or raw.get("agencyId") or raw.get("id") or "",
-        "nombre": raw.get("name") or raw.get("agency_name") or raw.get("agencyName") or "Sucursal Correo Argentino",
+        "id": primero(raw.get("code"), raw.get("agency_id"), raw.get("agencyId"), raw.get("id")),
+        "codigo": primero(raw.get("code"), raw.get("agency_id"), raw.get("agencyId"), raw.get("id")),
+        "nombre": primero(raw.get("name"), raw.get("agency_name"), raw.get("agencyName"), "Sucursal Correo Argentino"),
         "direccion": " ".join([str(calle).strip(), str(altura).strip()]).strip(),
-        "localidad": loc.get("city_name") or loc.get("cityName") or raw.get("city") or "",
-        "provincia": loc.get("state_name") or loc.get("stateName") or raw.get("province") or "",
-        "cp": loc.get("zip_code") or loc.get("zipCode") or raw.get("zipCode") or "",
-        "lat": geo.get("latitude") or raw.get("latitude"),
-        "lng": geo.get("longitude") or raw.get("longitude"),
-        "horario": raw.get("schedule") or "",
-        "telefono": raw.get("phone") or "",
-        "email": raw.get("email") or "",
-        "pickup_availability": raw.get("pickup_availability"),
-        "package_reception": raw.get("package_reception"),
+        "localidad": primero(
+            loc.get("city_name"),
+            loc.get("cityName"),
+            address.get("locality"),
+            address.get("city"),
+            raw.get("city"),
+        ),
+        "provincia": primero(
+            loc.get("state_name"),
+            loc.get("stateName"),
+            address.get("province"),
+            address.get("state"),
+            raw.get("province"),
+        ),
+        "cp": primero(
+            loc.get("zip_code"),
+            loc.get("zipCode"),
+            address.get("postalCode"),
+            address.get("zipCode"),
+            address.get("zip_code"),
+            raw.get("zipCode"),
+            raw.get("postalCode"),
+        ),
+        "lat": primero(
+            geo.get("latitude"),
+            geo.get("lat"),
+            loc.get("latitude"),
+            loc.get("lat"),
+            raw.get("latitude"),
+            raw.get("lat"),
+        ),
+        "lng": primero(
+            geo.get("longitude"),
+            geo.get("lng"),
+            geo.get("lon"),
+            loc.get("longitude"),
+            loc.get("lng"),
+            loc.get("lon"),
+            raw.get("longitude"),
+            raw.get("lng"),
+            raw.get("lon"),
+        ),
+        "horario": primero(raw.get("schedule"), raw.get("horario")),
+        "telefono": primero(raw.get("phone"), raw.get("telefono")),
+        "email": primero(raw.get("email")),
+        "pickup_availability": primero(
+            raw.get("pickup_availability"),
+            raw.get("pickupAvailability"),
+            services.get("pickupAvailability"),
+            services.get("pickup_availability"),
+        ),
+        "package_reception": primero(
+            raw.get("package_reception"),
+            raw.get("packageReception"),
+            services.get("packageReception"),
+            services.get("package_reception"),
+        ),
         "raw": raw,
     }
 

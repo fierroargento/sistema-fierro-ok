@@ -421,3 +421,41 @@ def test_cotizar_envio_devuelve_clasico_primero_aunque_api_devuelva_expreso_prim
     assert r["ok"] is True
     assert r["cotizaciones"][0]["producto"] == "Correo Argentino Clasico"
     assert r["cotizaciones"][0]["precio"] == 13255
+
+
+def test_normalizar_sucursal_micorreo_con_location_address_y_coords():
+    raw = {
+        "code": "B5969",
+        "name": "B CLAROMECO DELEG MUNICIPAL",
+        "services": {
+            "packageReception": True,
+            "pickupAvailability": True,
+        },
+        "location": {
+            "address": {
+                "streetName": "CALLE 28",
+                "streetNumber": "300",
+                "locality": "BALNEARIO CLAROMECO",
+                "city": "TRES ARROYOS",
+                "provinceCode": "B",
+                "postalCode": "B7505ASD",
+                "province": "BUENOS AIRES",
+            },
+            "latitude": "-38.85763",
+            "longitude": "-60.07385",
+        },
+    }
+
+    sucursal = normalizar_sucursal(raw)
+
+    assert sucursal["id"] == "B5969"
+    assert sucursal["codigo"] == "B5969"
+    assert sucursal["nombre"] == "B CLAROMECO DELEG MUNICIPAL"
+    assert sucursal["direccion"] == "CALLE 28 300"
+    assert sucursal["localidad"] == "BALNEARIO CLAROMECO"
+    assert sucursal["provincia"] == "BUENOS AIRES"
+    assert sucursal["cp"] == "B7505ASD"
+    assert sucursal["lat"] == "-38.85763"
+    assert sucursal["lng"] == "-60.07385"
+    assert sucursal["pickup_availability"] is True
+    assert sucursal["package_reception"] is True
