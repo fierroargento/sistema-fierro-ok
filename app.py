@@ -9822,6 +9822,10 @@ def eliminar_pedido(id):
         if pedido.canal == "Mercado Libre" and pedido.id_venta:
             ml_registrar_pedido_ignorado(pedido, motivo="eliminado_manual_admin")
 
+        TrackingEvento.query.filter_by(
+            pedido_id=pedido.id
+        ).delete(synchronize_session=False)
+
         db.session.delete(pedido)
         db.session.commit()
         return redirect(url_for("inicio", ok=f"Pedido #{pedido_numero} eliminado correctamente."))
