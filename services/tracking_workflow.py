@@ -28,6 +28,73 @@ def _marcar_pendiente_ml_acordas_entregado(pedido):
         pedido.ml_mensajes_pendientes = True
 
 
+ESTADOS_POST_DESPACHO_CANCELACION_CONFIRMADA = {
+    Estado.DESPACHADO,
+    Estado.DEMORA,
+    Estado.RECLAMO,
+    Estado.VERIFICAR_DESTINO,
+    Estado.LISTO_RETIRAR,
+    Estado.NO_ENTREGADO,
+}
+
+ML_ORDER_STATUS_CANCELADO = {
+    "cancelled",
+    "canceled",
+    "invalid",
+}
+
+ML_CLAIM_STATUS_REEMBOLSO = {
+    "closed",
+    "resolved",
+    "refunded",
+    "buyer_won",
+}
+
+
+def _ml_confirma_cancelacion_o_reembolso(pedido):
+    if not pedido:
+        return False
+
+    if str(getattr(pedido, "canal", "") or "").strip() != "Mercado Libre":
+        return False
+
+    order_status = str(getattr(pedido, "ml_order_status", "") or "").lower().strip()
+    if order_status in ML_ORDER_STATUS_CANCELADO:
+        return True
+
+    claim_status = str(getattr(pedido, "ml_claim_status", "") or "").lower().strip()
+    if claim_status in ML_CLAIM_STATUS_REEMBOLSO and getattr(pedido, "ml_claim_abierto", False):
+        return True
+
+    texto_evidencia = " ".join([
+        str(getattr(pedido, "observaciones", "") or ""),
+        str(getattr(pedido, "ia_resumen", "") or ""),
+    ]).lower()
+
+    return any(
+        marca in texto_evidencia
+        for marca in [
+            "reembolso al comprador",
+            "reclamo cerrado con reembolso",
+            "refund",
+            "money_back",
+        ]
+    )
+
+
+def _marcar_cancelacion_confirmada_ml_tracking(pedido):
+    pedido.estado = Estado.CANCELADO
+
+    marca = (
+        "Sistema canceló el pedido: ML confirmó reembolso/cancelación "
+        "y el tracking del transporte informó cancelado."
+    )
+
+    observaciones = str(getattr(pedido, "observaciones", "") or "").strip()
+    if marca not in observaciones:
+        pedido.observaciones = (observaciones + "\n" + marca).strip()
+
+
 def aplicar_estado_tracking_seguro_service(pedido, clasificacion):
     """Autoavanza solo cuando el tracking externo aplica al flujo correcto.
 
@@ -44,6 +111,14 @@ def aplicar_estado_tracking_seguro_service(pedido, clasificacion):
 
     if not _es_ml_acordas(pedido):
         return None
+
+    if (
+        clasificacion == "cancelado"
+        and pedido.estado in ESTADOS_POST_DESPACHO_CANCELACION_CONFIRMADA
+        and _ml_confirma_cancelacion_o_reembolso(pedido)
+    ):
+        _marcar_cancelacion_confirmada_ml_tracking(pedido)
+        return Estado.CANCELADO
 
     if clasificacion == "entregado":
         _marcar_pendiente_ml_acordas_entregado(pedido)
