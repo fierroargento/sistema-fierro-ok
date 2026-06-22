@@ -1361,99 +1361,30 @@ def sugerir_sucursales(pedido):
             print("[CORREO] Error sugiriendo sucursales Correo:", e)
             return None
 
-    import unicodedata as _ud, re as _re
-    def _norm(s):
-        """Normaliza: minúsculas, sin tildes, sin contenido entre paréntesis."""
-        s = (s or "").lower().strip()
-        s = _ud.normalize("NFD", s)
-        s = "".join(c for c in s if _ud.category(c) != "Mn")
-        s = _re.sub(r"\s*\(.*?\)", "", s).strip()
-        return s
-    loc = _norm(pedido.localidad)
-    prov = _norm(pedido.provincia)
-    direccion = (pedido.direccion or "").strip()
-    cp = str(pedido.codigo_postal or "").strip()
-
-    es_caba = loc in ["caba", "capital federal", "ciudad autonoma de buenos aires",
-                      "ciudad autonoma de buenos aires"] or \
-              any(x in prov for x in ["capital federal", "caba", "ciudad autonoma"])
-
-    # APB: exigir CP válido antes de ofrecer sucursales
-    # Sin CP el ordenamiento por distancia no es confiable
-    if not cp or not cp.isdigit() or len(cp) < 4:
-        return None
-
     try:
-        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception as e:
-        print("[VIA CARGO] No se pudo leer via_cargo_sucursales.json:", e)
-        return None
+        from services.via_cargo_sucursales import armar_sugerencia_via_cargo_pedido
 
-    # Filtrar candidatas por zona
-    if es_caba:
-        candidatas = [s for s in data if "capital federal" in (s.get("provincia") or "").lower()]
-    else:
-        # 1) CP exacto
-        candidatas = [s for s in data if cp and str(s.get("cp", "")) == cp]
-        # 2) Localidad + provincia normalizadas (sin tildes, sin paréntesis)
-        if not candidatas:
-            candidatas = [
-                s for s in data
-                if loc and loc in _norm(s.get("localidad"))
-                and prov in _norm(s.get("provincia"))
-            ]
-        # 3) Solo provincia normalizada
-        if not candidatas and prov:
-            candidatas = [s for s in data if prov in _norm(s.get("provincia"))]
+        resultado_via_cargo = armar_sugerencia_via_cargo_pedido(
+            pedido,
+            limite=3,
+            exigir_distancia=False,  # compatibilidad: no endurecer el flujo histórico todavía
+        )
 
-    if not candidatas:
-        return None
-
-    # Ordenar por distancia
-    candidatas_con_coords = [s for s in candidatas if s.get("lat") and s.get("lng")]
-    if candidatas_con_coords:
-        lat_cli = getattr(pedido, "latitud_cliente", None)
-        lng_cli = getattr(pedido, "longitud_cliente", None)
-        metodo = "pedido_lat_lng"
+        if not resultado_via_cargo.get("ok"):
+            return None
 
         try:
-            lat_cli = float(lat_cli) if lat_cli not in (None, "") else None
-            lng_cli = float(lng_cli) if lng_cli not in (None, "") else None
-        except Exception:
-            lat_cli = None
-            lng_cli = None
+            ids_ofrecidas = resultado_via_cargo.get("ids_ofrecidas") or []
+            pedido.ia_sucursales_ofrecidas = json.dumps(ids_ofrecidas)
+            db.session.commit()
+        except Exception as e:
+            print("[VIA CARGO] Error guardando sucursales ofrecidas:", e)
 
-        if not (lat_cli and lng_cli):
-            lat_cli, lng_cli, metodo = _obtener_coords_cliente(
-                cp,
-                direccion,
-                pedido.localidad,
-                pedido.provincia,
-            )
+        return resultado_via_cargo.get("mensaje") or None
 
-        print(f"[VIA CARGO] Ubicación cliente: método={metodo} lat={lat_cli} lng={lng_cli} cp={cp}")
-
-        if lat_cli and lng_cli:
-            candidatas_con_coords.sort(
-                key=lambda s: _distancia_km(lat_cli, lng_cli, float(s["lat"]), float(s["lng"]))
-            )
-            candidatas = candidatas_con_coords
-
-    sucs = candidatas[:3]
-
-    # Guardar IDs de las candidatas ofrecidas para detectar la elección por número después
-    try:
-        from app import db
-        ids_ofrecidas = [s.get("id") for s in sucs if s.get("id")]
-        pedido.ia_sucursales_ofrecidas = json.dumps(ids_ofrecidas)
-        db.session.commit()
     except Exception as e:
-        print("[VIA CARGO] Error guardando sucursales ofrecidas:", e)
-
-    from services.mensajes_sucursales import armar_mensaje_sucursales
-
-    return armar_mensaje_sucursales(sucs, transporte="Vía Cargo")
+        print("[VIA CARGO] Error sugiriendo sucursales desde service:", e)
+        return None
 
 
 def _es_consulta_no_eleccion(texto):
