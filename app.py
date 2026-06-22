@@ -9718,6 +9718,58 @@ def actualizar_tracking_externo_pedido(id):
         return redirect(url_for("detalle_pedido", id=pedido.id, ok="No se pudo actualizar el tracking automáticamente."))
 
 
+@app.route("/pedido/<int:id>/recalcular-correo", methods=["POST"])
+@login_required
+def recalcular_correo_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+
+    if rol_actual() not in ["admin", "carga"]:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
+
+    try:
+        from services.correo_recalculo_operativo import recalcular_sucursales_correo_operativo
+
+        resultado = recalcular_sucursales_correo_operativo(pedido)
+
+        registrar_evento_operativo(
+            pedido=pedido,
+            tipo_evento="correo_recalculo_operativo",
+            origen="operador",
+            canal="sistema",
+            owner="operador",
+            estado_conversacional="gestion_correo",
+            payload={
+                "ok": bool(resultado.get("ok")),
+                "motivo": resultado.get("motivo"),
+                "sucursal_limpiada": bool(resultado.get("sucursal_limpiada")),
+                "cantidad_sucursales": len(resultado.get("sucursales") or []),
+            },
+            resultado="ok" if resultado.get("ok") else "sin_sucursales",
+            detalle="Operador recalculó sucursales Correo desde el detalle del pedido.",
+            usuario=session.get("username", ""),
+            procesado=True,
+        )
+
+        db.session.commit()
+
+        if resultado.get("ok"):
+            mensaje = "Correo recalculado correctamente."
+            if resultado.get("sucursal_limpiada"):
+                mensaje += " Se limpió la sucursal anterior porque no coincide con el nuevo cálculo."
+            return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje) + "#correo-operativo")
+
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=f"No se pudo recalcular Correo: {resultado.get('motivo') or 'sin motivo'}"
+        ) + "#correo-operativo")
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[CORREO RECALCULO] Error pedido #{pedido.id}: {e}")
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=f"No se pudo recalcular Correo: {e}") + "#correo-operativo")
+
+
 @app.route("/pedido/<int:id>/actualizar-andreani", methods=["POST"])
 @login_required
 def actualizar_andreani_pedido(id):

@@ -429,6 +429,20 @@ body { background: #f4f7f8; }
                 </span>
             </summary>
 
+            <form method="POST"
+                  action="{{ url_for('recalcular_correo_pedido', id=pedido.id) }}"
+                  style="margin:0 0 12px 0;"
+                  onsubmit="return confirm('¿Recalcular Correo? Se reemplazarán las opciones guardadas y puede limpiarse la sucursal anterior si ya no coincide.');">
+                <button type="submit"
+                        class="inline-edit-link"
+                        style="border:0; cursor:pointer; padding:6px 10px;">
+                    Recalcular Correo
+                </button>
+                <span style="font-size:13px; color:#1e3a8a; margin-left:8px;">
+                    Actualiza sucursales cercanas y limpia cálculos viejos.
+                </span>
+            </form>
+
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:12px;">
                 <p><strong>Transporte:</strong> {{ detalle_correo.empresa_envio or "-" }}</p>
                 <p><strong>Tipo entrega:</strong> {{ detalle_correo.tipo_entrega or "-" }}</p>
