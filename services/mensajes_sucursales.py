@@ -86,65 +86,70 @@ def texto_pide_opcion_numerica_sucursal():
     )
 
 
-def normalizar_numero_opcion_sucursal(texto):
-    """
-    Convierte respuestas humanas simples en índice 0-based.
 
-    Acepta:
-    - 1, 2, 3
-    - uno, una, primera
-    - dos, segunda
-    - tres, tercera
+def normalizar_numero_opcion_sucursal(texto):
+    """Devuelve índice 0-based de sucursal elegida o None.
+
+    APB:
+    - Números 1/2/3 se aceptan como elección.
+    - Palabras como "uno", "dos", "tres" solo se aceptan si son el mensaje completo
+      o si vienen con contexto explícito: "opción tres", "la tercera".
+    - No debe confundir localidades como "Tres Arroyos" con opción 3.
     """
-    texto = str(texto or "").strip().lower()
+    import re
+    import unicodedata
+
+    t = str(texto or "").strip().lower()
+    if not t:
+        return None
+
+    normalizado = unicodedata.normalize("NFD", t)
+    normalizado = "".join(ch for ch in normalizado if unicodedata.category(ch) != "Mn")
+    normalizado = re.sub(r"[^a-z0-9\s]", " ", normalizado)
+    normalizado = " ".join(normalizado.split())
+
+    match_numero = re.fullmatch(
+        r"(?:opcion|op|sucursal|numero|nro|la|el)?\s*([1-3])",
+        normalizado,
+    )
+    if match_numero:
+        return int(match_numero.group(1)) - 1
 
     equivalencias = {
-        "1": 0,
         "uno": 0,
         "una": 0,
         "primera": 0,
         "primer": 0,
-        "opcion 1": 0,
-        "opción 1": 0,
-        "la 1": 0,
-        "la uno": 0,
-        "2": 1,
         "dos": 1,
         "segunda": 1,
         "segundo": 1,
-        "opcion 2": 1,
-        "opción 2": 1,
-        "la 2": 1,
-        "la dos": 1,
-        "3": 2,
         "tres": 2,
         "tercera": 2,
         "tercero": 2,
-        "opcion 3": 2,
-        "opción 3": 2,
-        "la 3": 2,
-        "la tres": 2,
     }
 
-    if texto in equivalencias:
-        return equivalencias[texto]
+    if normalizado in equivalencias:
+        return equivalencias[normalizado]
 
-    palabras = texto.replace(".", " ").replace(",", " ").replace("-", " ").split()
-
-    for palabra in palabras:
-        if palabra in equivalencias:
-            return equivalencias[palabra]
+    match_palabra = re.fullmatch(
+        r"(?:opcion|op|sucursal|numero|nro|la|el)\s+"
+        r"(uno|una|primera|primer|dos|segunda|segundo|tres|tercera|tercero)",
+        normalizado,
+    )
+    if match_palabra:
+        return equivalencias.get(match_palabra.group(1))
 
     return None
 
 
 def extraer_opcion_sucursal_explicita(texto, cantidad_opciones=0):
-    """
-    Detecta una elección explícita de sucursal dentro de un texto más largo.
+    """Detecta una elección explícita de sucursal dentro de un texto.
 
     APB:
-    - Permite mensajes mixtos: "sucede 1, llega para el día del padre?"
-    - No inventa si hay más de una opción o si está fuera de rango.
+    - Acepta números 1/2/3 aun en mensajes mixtos.
+    - Acepta palabras ("tres", "tercera") solo si son el mensaje completo
+      o si están acompañadas por contexto explícito.
+    - No interpreta localidades como "Tres Arroyos" como opción 3.
     - Devuelve índice 0-based o None.
     """
     import re
@@ -161,32 +166,29 @@ def extraer_opcion_sucursal_explicita(texto, cantidad_opciones=0):
 
     candidatos = []
 
-    patrones = [
+    patrones_numero = [
         (r"\b(?:opcion|op|sucursal|numero|nro|la|el)?\s*1\b", 0),
         (r"\b(?:opcion|op|sucursal|numero|nro|la|el)?\s*2\b", 1),
         (r"\b(?:opcion|op|sucursal|numero|nro|la|el)?\s*3\b", 2),
-        (r"\b(?:uno|una|primera|primer)\b", 0),
-        (r"\b(?:dos|segunda|segundo)\b", 1),
-        (r"\b(?:tres|tercera|tercero)\b", 2),
     ]
 
-    for patron, indice in patrones:
+    for patron, indice in patrones_numero:
         if re.search(patron, normalizado):
             candidatos.append(indice)
 
+    indice_palabra = normalizar_numero_opcion_sucursal(normalizado)
+    if indice_palabra is not None:
+        candidatos.append(indice_palabra)
+
     candidatos_unicos = sorted(set(candidatos))
+
+    if cantidad_opciones:
+        candidatos_unicos = [
+            indice for indice in candidatos_unicos
+            if 0 <= indice < int(cantidad_opciones)
+        ]
 
     if len(candidatos_unicos) != 1:
         return None
 
-    indice = candidatos_unicos[0]
-
-    try:
-        cantidad_opciones = int(cantidad_opciones or 0)
-    except Exception:
-        cantidad_opciones = 0
-
-    if cantidad_opciones and indice >= cantidad_opciones:
-        return None
-
-    return indice
+    return candidatos_unicos[0]
