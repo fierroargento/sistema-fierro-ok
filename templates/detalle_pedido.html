@@ -398,7 +398,8 @@ body { background: #f4f7f8; }
             {% set transporte_correo_accion = (pedido.empresa_envio or "")|lower %}
             {% if "correo" in transporte_correo_accion and rol_actual in ["admin", "carga", "despacho"] %}
             <p style="margin-top:8px;">
-                <a href="#correo-operativo" class="inline-edit-link">
+                <a href="#correo-operativo" class="inline-edit-link"
+                   onclick="var p=document.getElementById('correo-operativo'); if(p){p.setAttribute('open','open');}">
                     Gestionar envío Correo
                 </a>
             </p>
@@ -420,8 +421,13 @@ body { background: #f4f7f8; }
         </div>
 
         {% if detalle_correo and detalle_correo.tiene_datos %}
-        <div id="correo-operativo" class="detalle-box detalle-box-full" style="border-left:5px solid #2563eb; background:#eff6ff;">
-            <h3 style="margin-top:0;">Correo Argentino / Cotización y elección</h3>
+        <details id="correo-operativo" class="detalle-box detalle-box-full" style="border-left:5px solid #2563eb; background:#eff6ff;">
+            <summary style="cursor:pointer; font-weight:700; font-size:18px; margin-bottom:12px;">
+                Correo Argentino / Cotización y elección
+                <span style="font-size:13px; font-weight:400; color:#1e3a8a; margin-left:8px;">
+                    ver / ocultar
+                </span>
+            </summary>
 
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-bottom:12px;">
                 <p><strong>Transporte:</strong> {{ detalle_correo.empresa_envio or "-" }}</p>
@@ -486,7 +492,7 @@ body { background: #f4f7f8; }
             <p style="margin-top:12px; font-size:13px; color:#1e3a8a;">
                 El operador debe usar estos datos para terminar la gestión en MiCorreo: pagar/generar etiqueta y luego cargar seguimiento/etiqueta en Fierro.
             </p>
-        </div>
+        </details>
         {% endif %}
 
     </div>
