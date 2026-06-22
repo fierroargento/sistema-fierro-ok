@@ -98,3 +98,27 @@ def test_detalle_no_correo_sin_datos_no_muestra_panel():
 
     assert detalle["es_correo"] is False
     assert detalle["tiene_datos"] is False
+
+
+def test_detalle_no_correo_con_sucursal_andreani_no_muestra_panel():
+    detalle = detalle_operativo_correo_pedido(
+        pedido_fake(
+            empresa_envio="Andreani",
+            tipo_entrega="Sucursal",
+            costo_envio=None,
+            costo_envio_sucursal=None,
+            costo_envio_domicilio=None,
+            correo_sucursales_ofrecidas="[]",
+            sucursal_nombre="Sucursal Barracas",
+            direccion="Av. Vieytes 1230",
+            localidad="CABA",
+            provincia="Capital Federal",
+            codigo_postal="1277",
+            ia_resumen="TRANSPORTE: No se pudo cotizar Correo para CP 1277.",
+        ),
+        preferencias=preferencias_fake(),
+    )
+
+    assert detalle["es_correo"] is False
+    assert detalle["tiene_datos"] is False
+    assert detalle["sucursal_elegida"]["nombre"] == ""

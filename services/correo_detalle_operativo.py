@@ -192,6 +192,29 @@ def detalle_operativo_correo_pedido(pedido: Any, preferencias: Optional[Dict[str
 
     sucursal_elegida = _sucursal_elegida_desde_pedido(pedido, sucursales)
 
+    tiene_datos_correo = bool(
+        es_correo
+        or sucursales
+        or costo_sucursal is not None
+        or costo_domicilio is not None
+        or (
+            costo_envio is not None
+            and "correo" in _norm(getattr(pedido, "ia_resumen", ""))
+        )
+    )
+
+    if not tiene_datos_correo:
+        sucursal_elegida = {
+            "id": "",
+            "nombre": "",
+            "direccion": "",
+            "localidad": "",
+            "provincia": "",
+            "cp": "",
+            "distancia_km": None,
+            "raw": {},
+        }
+
     return {
         "es_correo": es_correo,
         "empresa_envio": empresa,
@@ -215,12 +238,5 @@ def detalle_operativo_correo_pedido(pedido: Any, preferencias: Optional[Dict[str
         "sucursales_ofrecidas": sucursales,
         "sucursal_elegida": sucursal_elegida,
         "ia_resumen": _texto(getattr(pedido, "ia_resumen", "")),
-        "tiene_datos": bool(
-            es_correo
-            or costo_envio is not None
-            or costo_sucursal is not None
-            or costo_domicilio is not None
-            or sucursales
-            or sucursal_elegida.get("nombre")
-        ),
+        "tiene_datos": tiene_datos_correo,
     }
