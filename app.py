@@ -7558,27 +7558,6 @@ def ml_sync_pedido_por_order_id_webhook(order_id):
         if pedido:
             print(f"[WEBHOOK ML] Order sincronizada {order_id}. pedido_id={pedido.id} creado={creado} motivo={motivo}")
         else:
-            try:
-                shipping_debug = (order or {}).get("shipping") or {}
-                shipment_id_debug = str(shipping_debug.get("id") or "").strip()
-                shipment_debug = ml_obtener_shipment(shipment_id_debug) if shipment_id_debug else {}
-
-                print(
-                    "[WEBHOOK ML DEBUG OMITIDA] "
-                    f"order_id={order_id} "
-                    f"motivo={motivo} "
-                    f"order_status={(order or {}).get('status')} "
-                    f"order_tags={(order or {}).get('tags') or []} "
-                    f"shipping_order={shipping_debug} "
-                    f"shipment_id={shipment_id_debug} "
-                    f"shipment_logistic_type={(shipment_debug or {}).get('logistic_type')} "
-                    f"shipment_mode={(shipment_debug or {}).get('mode')} "
-                    f"shipment_status={(shipment_debug or {}).get('status')} "
-                    f"shipment_substatus={(shipment_debug or {}).get('substatus')}"
-                )
-            except Exception as e:
-                print(f"[WEBHOOK ML DEBUG OMITIDA] No se pudo ampliar diagnóstico order_id={order_id}: {e}")
-
             print(f"[WEBHOOK ML] Order omitida {order_id}. motivo={motivo}")
 
         return True
