@@ -1918,6 +1918,17 @@ def aplicar_estado_y_fechas(pedido, nuevo_estado):
     elif nuevo_estado == Estado.ENTREGADO:
         pedido.fecha_entregado = ahora
 
+        # APB:
+        # Todo pedido con entrega confirmada, telefono valido y postventa no enviada
+        # debe recibir WhatsApp de postventa. La funcion wa_enviar_postventa()
+        # valida telefono e idempotencia internamente.
+        try:
+            from modules.whatsapp.flows import wa_enviar_postventa
+
+            wa_enviar_postventa(pedido)
+        except Exception as e:
+            print(f"[WA-POSTVENTA] Error enviando postventa pedido #{getattr(pedido, 'id', '')}: {e}")
+
         if pedido.canal == "Tienda Nube" or usa_flujo_etiqueta_directa(pedido) or es_tnube_via_cargo(pedido) or es_mayorista_via_cargo(pedido):
             pedido.estado = Estado.FINALIZADO
 
