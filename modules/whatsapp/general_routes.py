@@ -9,8 +9,6 @@ Regla:
 """
 
 from flask import redirect, render_template, request, url_for
-from flask_login import login_required
-
 from services.wa_general import (
     armar_conversaciones_wa_general,
     normalizar_telefono_simple,
@@ -19,6 +17,7 @@ from services.wa_general import (
 
 def registrar_wa_general_routes(app):
     """Registra rutas web de la bandeja WhatsApp General."""
+    from app import login_required
 
     @app.route("/wa-general")
     @login_required
