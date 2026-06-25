@@ -12,6 +12,7 @@ APB 2026-05:
 
 from .config import modulo_activo
 from .webhook import registrar_webhook
+from .general_routes import registrar_wa_general_routes
 from .flows import (
     wa_enviar_confirmacion_sucursal,
     wa_enviar_solicitud_datos,
@@ -28,6 +29,8 @@ def activar(app):
     El scheduler NO se engancha acá. Queda centralizado en app.py para que haya
     un único motor periódico en Render.
     """
+    registrar_wa_general_routes(app)
+
     if not modulo_activo():
         print("[WA] Módulo WhatsApp en standby — configurar .env para activar")
         return
@@ -38,6 +41,7 @@ def activar(app):
 
 __all__ = [
     "activar",
+    "registrar_wa_general_routes",
     "ejecutar_timers",
     "wa_enviar_confirmacion_sucursal",
     "wa_enviar_solicitud_datos",
