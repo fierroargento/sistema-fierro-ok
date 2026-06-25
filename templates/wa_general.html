@@ -620,6 +620,40 @@
     if (panelMensajes) {
         panelMensajes.scrollTop = panelMensajes.scrollHeight;
     }
+
+    const telefonoSeleccionado = "{{ telefono_seleccionado or '' }}";
+    const marcarLeidoUrl = "{% if conversacion_seleccionada %}{{ url_for('wa_general_marcar_leido') }}{% endif %}";
+
+    if (telefonoSeleccionado && marcarLeidoUrl && panelMensajes) {
+        fetch(marcarLeidoUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                telefono: telefonoSeleccionado
+            })
+        })
+        .then(function (respuesta) {
+            return respuesta.ok ? respuesta.json() : null;
+        })
+        .then(function (data) {
+            if (!data || !data.ok || !data.actualizados) return;
+
+            const itemActivo = lista?.querySelector(".wa-conversation-item.activa");
+            if (!itemActivo) return;
+
+            itemActivo.setAttribute("data-lectura", "leido");
+
+            const badge = itemActivo.querySelector(".wa-badge");
+            if (badge) {
+                badge.remove();
+            }
+        })
+        .catch(function () {
+            // No bloquea la lectura visual si falla el marcado.
+        });
+    }
 })();
 </script>
 

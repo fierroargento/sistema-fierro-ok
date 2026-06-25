@@ -122,6 +122,43 @@ def mensaje_es_general_para_wa_general(mensaje, Pedido):
     return mensaje_es_posterior_a_entrega(mensaje, pedido)
 
 
+
+def mensaje_visible_en_chat_wa_general(mensaje, Pedido):
+    """
+    Define si un mensaje debe mostrarse dentro del chat WA General.
+
+    Entra si:
+    - No tiene pedido_id.
+    - O tiene pedido_id, pero pertenece a un pedido Entregado/Finalizado
+      y el mensaje es posterior o igual a fecha_entregado.
+
+    A diferencia de mensaje_es_general_para_wa_general(), aca permite
+    mensajes entrantes y salientes, porque al abrir la conversacion hay que
+    ver la mini conversacion completa post-entrega.
+    """
+
+    if not mensaje_tiene_pedido_id(mensaje):
+        return True
+
+    pedido = obtener_pedido_por_id(Pedido, getattr(mensaje, "pedido_id", None))
+
+    if not pedido_esta_post_entrega_para_wa_general(pedido):
+        return False
+
+    return mensaje_es_posterior_a_entrega(mensaje, pedido)
+
+
+
+def mensaje_esta_no_leido_wa_general(mensaje):
+    """
+    Define si un mensaje entrante cuenta como no leido en WA General.
+    """
+    direccion = str(getattr(mensaje, "direccion", "") or "").strip().lower()
+    estado = str(getattr(mensaje, "estado", "") or "").strip().lower()
+
+    return direccion == "in" and estado in {"recibido", "pendiente", ""}
+
+
 def obtener_pedidos_por_telefono(telefono, Pedido):
     tel = normalizar_telefono_simple(telefono)
     if not tel:
@@ -184,7 +221,7 @@ def armar_conversaciones_wa_general(WhatsAppMensaje, Pedido, limite=50):
         direccion = str(getattr(mensaje, "direccion", "") or "").strip().lower()
         estado = str(getattr(mensaje, "estado", "") or "").strip().lower()
 
-        if direccion == "in" and estado in {"recibido", "pendiente", ""}:
+        if mensaje_esta_no_leido_wa_general(mensaje):
             por_telefono[telefono]["no_leidos"] += 1
 
     conversaciones = []

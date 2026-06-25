@@ -8,10 +8,12 @@ Regla:
 - Esta pantalla muestra contactos nuevos o clientes cuyo pedido ya no esta activo.
 """
 
-from flask import redirect, render_template, request, url_for
+from flask import jsonify, redirect, render_template, request, url_for
 from services.wa_general import (
     armar_conversaciones_wa_general,
     contar_no_leidos_wa_general,
+    mensaje_esta_no_leido_wa_general,
+    mensaje_visible_en_chat_wa_general,
     normalizar_telefono_simple,
 )
 
@@ -46,7 +48,6 @@ def registrar_wa_general_routes(app):
             }
         except Exception:
             return {"wa_general_no_leidos": 0}
-
 
     @app.route("/wa-general")
     @login_required
@@ -89,8 +90,14 @@ def registrar_wa_general_routes(app):
                 tel_mensaje = normalizar_telefono_simple(
                     getattr(mensaje, "telefono", "")
                 )
-                if tel_mensaje == conversacion_seleccionada.telefono:
-                    mensajes.append(mensaje)
+
+                if tel_mensaje != conversacion_seleccionada.telefono:
+                    continue
+
+                if not mensaje_visible_en_chat_wa_general(mensaje, Pedido):
+                    continue
+
+                mensajes.append(mensaje)
 
             mensajes = list(reversed(mensajes[-120:]))
 
@@ -101,3 +108,55 @@ def registrar_wa_general_routes(app):
             telefono_seleccionado=telefono_seleccionado,
             mensajes=mensajes,
         )
+
+    @app.route("/wa-general/marcar-leido", methods=["POST"])
+    @login_required
+    def wa_general_marcar_leido():
+        from app import Pedido, WhatsAppMensaje, db, rol_actual
+
+        if rol_actual() not in ["admin", "carga"]:
+            return jsonify({"ok": False, "error": "sin_permiso"}), 403
+
+        payload = request.get_json(silent=True) or {}
+        telefono = normalizar_telefono_simple(
+            payload.get("telefono") or request.form.get("telefono") or ""
+        )
+
+        if not telefono:
+            return jsonify({"ok": False, "error": "telefono_requerido"}), 400
+
+        mensajes_candidatos = (
+            WhatsAppMensaje.query
+            .filter(WhatsAppMensaje.telefono.isnot(None))
+            .order_by(WhatsAppMensaje.fecha.desc())
+            .limit(1000)
+            .all()
+        )
+
+        actualizados = 0
+
+        for mensaje in mensajes_candidatos:
+            tel_mensaje = normalizar_telefono_simple(
+                getattr(mensaje, "telefono", "")
+            )
+
+            if tel_mensaje != telefono:
+                continue
+
+            if not mensaje_visible_en_chat_wa_general(mensaje, Pedido):
+                continue
+
+            if not mensaje_esta_no_leido_wa_general(mensaje):
+                continue
+
+            mensaje.estado = "leido"
+            actualizados += 1
+
+        if actualizados:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                return jsonify({"ok": False, "error": "commit_error"}), 500
+
+        return jsonify({"ok": True, "actualizados": actualizados})
