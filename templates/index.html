@@ -2,6 +2,64 @@
 
 {% block content %}
 
+<style>
+.wa-general-inicio-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 8px 14px 8px 12px;
+    border-radius: 999px;
+    background: #16a34a;
+    color: #ffffff;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 8px 18px rgba(22, 163, 74, 0.22);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.wa-general-inicio-btn:hover {
+    background: #15803d;
+    color: #ffffff;
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(22, 163, 74, 0.28);
+}
+
+.wa-general-inicio-icon {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wa-general-inicio-icon svg {
+    width: 22px;
+    height: 22px;
+    display: block;
+}
+
+.wa-general-inicio-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #dc2626;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 22px;
+    text-align: center;
+    border: 2px solid #ffffff;
+    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
+}
+</style>
+
 <div class="card listado-card">
 
     <div class="listado-header">
@@ -10,8 +68,24 @@
             <p class="listado-sub">{{ subtitulo_inicio_por_rol() }}</p>
         </div>
 
-        {% if puede_crear_pedido() %}
-        <a href="{{ url_for('nuevo_pedido') }}" class="btn btn-nuevo">Nuevo pedido</a>
+        {% if rol_actual in ['admin', 'carga'] %}
+        <a href="{{ url_for('wa_general') }}" class="wa-general-inicio-btn" title="Abrir WhatsApp General" aria-label="Abrir WhatsApp General">
+            <span class="wa-general-inicio-icon" aria-hidden="true">
+                <svg viewBox="0 0 32 32" role="img" focusable="false">
+                    <circle cx="16" cy="16" r="16" fill="currentColor"></circle>
+                    <path fill="#ffffff" d="M22.7 18.9c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-.3-.2-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.2-.7-1.7-1-2.3-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1.1 1-1.1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.2-.3-.3-.6-.5z"></path>
+                    <path fill="#ffffff" d="M16 6.4c-5.3 0-9.6 4.2-9.6 9.5 0 1.7.5 3.4 1.3 4.8L6.4 25.6l5-1.3c1.4.8 3 1.2 4.6 1.2 5.3 0 9.6-4.2 9.6-9.5S21.3 6.4 16 6.4zm0 17.5c-1.5 0-2.9-.4-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3c-.8-1.3-1.2-2.8-1.2-4.3 0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8z"></path>
+                </svg>
+            </span>
+            <span>WA General</span>
+
+            {% set wa_pendientes = wa_general_no_leidos|default(0)|int %}
+            {% if wa_pendientes > 0 %}
+            <span class="wa-general-inicio-badge">
+                {% if wa_pendientes > 99 %}99+{% else %}{{ wa_pendientes }}{% endif %}
+            </span>
+            {% endif %}
+        </a>
         {% endif %}
     </div>
 

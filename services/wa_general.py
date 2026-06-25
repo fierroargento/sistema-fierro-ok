@@ -218,3 +218,28 @@ def armar_conversaciones_wa_general(WhatsAppMensaje, Pedido, limite=50):
     )
 
     return conversaciones[:limite]
+
+
+def contar_no_leidos_wa_general(WhatsAppMensaje, Pedido, limite=500):
+    """
+    Cuenta mensajes no leidos de conversaciones visibles en WA General.
+
+    Reutiliza la misma regla de armar_conversaciones_wa_general:
+    - mensajes sin pedido_id
+    - mensajes entrantes posteriores a entrega de pedidos Entregado/Finalizado
+    - excluye telefonos con pedido activo
+    """
+    conversaciones = armar_conversaciones_wa_general(
+        WhatsAppMensaje,
+        Pedido,
+        limite=limite,
+    )
+
+    total = 0
+    for conversacion in conversaciones:
+        try:
+            total += int(conversacion.no_leidos or 0)
+        except (TypeError, ValueError):
+            continue
+
+    return total
