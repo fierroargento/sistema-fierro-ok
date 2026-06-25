@@ -243,6 +243,36 @@
         border-color: #111;
     }
 
+    .wa-inline-form {
+        display: inline-flex;
+        margin: 0;
+    }
+
+    .wa-status-alert {
+        padding: 7px 13px;
+        border-bottom: 1px solid #ddd;
+        font-size: 12px;
+        font-weight: 700;
+        background: #fffbe6;
+        color: #5c4500;
+    }
+
+    .wa-status-alert.ok {
+        background: #e9f8ef;
+        color: #146c2e;
+    }
+
+    .wa-status-alert.error {
+        background: #fdecec;
+        color: #9f1d1d;
+    }
+
+    .wa-mini-btn-template {
+        background: #0b8457;
+        color: #fff;
+        border-color: #0b8457;
+    }
+
     .wa-contact-details {
         position: relative;
     }
@@ -528,10 +558,27 @@
                             Ultimo pedido
                         </a>
                     {% endif %}
-                    <button type="button" class="wa-mini-btn">Tomar</button>
-                    <button type="button" class="wa-mini-btn wa-mini-btn-principal">Cerrar</button>
+                    <button type="button" class="wa-mini-btn" id="wa_tomar_btn">Tomar</button>
+
+                    <form class="wa-inline-form" method="POST" action="{{ url_for('wa_general_enviar_template_operador') }}">
+                        <input type="hidden" name="telefono" value="{{ conversacion_seleccionada.telefono }}">
+                        <input type="hidden" name="nombre" value="{{ conversacion_seleccionada.nombre }}">
+                        <button type="submit" class="wa-mini-btn wa-mini-btn-template">Template apertura</button>
+                    </form>
+
+                    <form class="wa-inline-form" method="POST" action="{{ url_for('wa_general_cerrar') }}">
+                        <input type="hidden" name="telefono" value="{{ conversacion_seleccionada.telefono }}">
+                        <button type="submit" class="wa-mini-btn wa-mini-btn-principal">Cerrar</button>
+                    </form>
                 </div>
             </div>
+
+            {% if request.args.get('ok') %}
+                <div class="wa-status-alert ok">{{ request.args.get('ok') }}</div>
+            {% endif %}
+            {% if request.args.get('error') %}
+                <div class="wa-status-alert error">{{ request.args.get('error') }}</div>
+            {% endif %}
 
             <div class="wa-chat-body">
                 <section class="wa-messages-panel" id="wa_messages_panel">
@@ -556,9 +603,10 @@
                 </section>
             </div>
 
-            <form class="wa-chat-compose" method="POST" action="#">
-                <textarea name="mensaje" placeholder="La respuesta manual se habilita en el proximo paso..." disabled></textarea>
-                <button type="button" disabled>Enviar</button>
+            <form class="wa-chat-compose" method="POST" action="{{ url_for('wa_general_enviar') }}">
+                <input type="hidden" name="telefono" value="{{ conversacion_seleccionada.telefono }}">
+                <textarea id="wa_respuesta_manual" name="mensaje" placeholder="Presiona Tomar para responder manualmente..." disabled></textarea>
+                <button id="wa_enviar_manual_btn" type="submit" disabled>Enviar</button>
             </form>
         {% else %}
             <div class="wa-empty-state">
@@ -578,8 +626,27 @@
     const lista = document.getElementById("wa_general_lista");
     const botonesFiltro = document.querySelectorAll(".wa-filter-btn");
     const panelMensajes = document.getElementById("wa_messages_panel");
+    const tomarBtn = document.getElementById("wa_tomar_btn");
+    const textareaManual = document.getElementById("wa_respuesta_manual");
+    const enviarManualBtn = document.getElementById("wa_enviar_manual_btn");
 
     let filtroLectura = "todos";
+
+    function habilitarRespuestaManual() {
+        if (textareaManual) {
+            textareaManual.disabled = false;
+            textareaManual.focus();
+        }
+
+        if (enviarManualBtn) {
+            enviarManualBtn.disabled = false;
+        }
+
+        if (tomarBtn) {
+            tomarBtn.textContent = "Tomado";
+            tomarBtn.disabled = true;
+        }
+    }
 
     function aplicarFiltros() {
         if (!lista) return;
@@ -603,6 +670,10 @@
 
     if (input) {
         input.addEventListener("input", aplicarFiltros);
+    }
+
+    if (tomarBtn) {
+        tomarBtn.addEventListener("click", habilitarRespuestaManual);
     }
 
     botonesFiltro.forEach(function (boton) {

@@ -160,3 +160,144 @@ def registrar_wa_general_routes(app):
                 return jsonify({"ok": False, "error": "commit_error"}), 500
 
         return jsonify({"ok": True, "actualizados": actualizados})
+
+    @app.route("/wa-general/enviar", methods=["POST"])
+    @login_required
+    def wa_general_enviar():
+        from app import rol_actual
+        from modules.whatsapp.sender import wa_enviar_texto
+
+        if rol_actual() not in ["admin", "carga"]:
+            return redirect(url_for("inicio"))
+
+        telefono = normalizar_telefono_simple(request.form.get("telefono", ""))
+        texto = (request.form.get("mensaje") or "").strip()
+
+        if not telefono:
+            return redirect(url_for("wa_general", error="Telefono requerido."))
+
+        if not texto:
+            return redirect(url_for(
+                "wa_general",
+                telefono=telefono,
+                error="Escribi un mensaje antes de enviar.",
+            ))
+
+        ok = wa_enviar_texto(
+            telefono,
+            texto,
+            pedido=None,
+            autor="operador",
+            registrar=True,
+        )
+
+        if ok:
+            return redirect(url_for(
+                "wa_general",
+                telefono=telefono,
+                ok="Mensaje enviado por WhatsApp.",
+            ))
+
+        return redirect(url_for(
+            "wa_general",
+            telefono=telefono,
+            error="No se pudo enviar el mensaje. Si la ventana esta cerrada, envia el template de apertura.",
+        ))
+
+    @app.route("/wa-general/enviar-template-operador", methods=["POST"])
+    @login_required
+    def wa_general_enviar_template_operador():
+        from app import rol_actual
+        from modules.whatsapp.config import WA_TEMPLATE_INICIO_CHAT_OPERADOR
+        from modules.whatsapp.sender import wa_enviar_template
+
+        if rol_actual() not in ["admin", "carga"]:
+            return redirect(url_for("inicio"))
+
+        telefono = normalizar_telefono_simple(request.form.get("telefono", ""))
+        nombre = (request.form.get("nombre") or "Cliente").strip().split()[0]
+        referencia = "WA General"
+
+        if not telefono:
+            return redirect(url_for("wa_general", error="Telefono requerido."))
+
+        ok = wa_enviar_template(
+            telefono,
+            WA_TEMPLATE_INICIO_CHAT_OPERADOR,
+            parametros=[
+                nombre or "Cliente",
+                referencia,
+            ],
+            pedido=None,
+            autor="operador",
+            registrar=True,
+        )
+
+        if ok:
+            return redirect(url_for(
+                "wa_general",
+                telefono=telefono,
+                ok="Template de apertura enviado.",
+            ))
+
+        return redirect(url_for(
+            "wa_general",
+            telefono=telefono,
+            error="No se pudo enviar el template de apertura.",
+        ))
+
+    @app.route("/wa-general/cerrar", methods=["POST"])
+    @login_required
+    def wa_general_cerrar():
+        from app import Pedido, WhatsAppMensaje, db, rol_actual
+
+        if rol_actual() not in ["admin", "carga"]:
+            return redirect(url_for("inicio"))
+
+        telefono = normalizar_telefono_simple(request.form.get("telefono", ""))
+
+        if not telefono:
+            return redirect(url_for("wa_general"))
+
+        mensajes_candidatos = (
+            WhatsAppMensaje.query
+            .filter(WhatsAppMensaje.telefono.isnot(None))
+            .order_by(WhatsAppMensaje.fecha.desc())
+            .limit(1000)
+            .all()
+        )
+
+        actualizados = 0
+
+        for mensaje in mensajes_candidatos:
+            tel_mensaje = normalizar_telefono_simple(
+                getattr(mensaje, "telefono", "")
+            )
+
+            if tel_mensaje != telefono:
+                continue
+
+            if not mensaje_visible_en_chat_wa_general(mensaje, Pedido):
+                continue
+
+            if not mensaje_esta_no_leido_wa_general(mensaje):
+                continue
+
+            mensaje.estado = "leido"
+            actualizados += 1
+
+        if actualizados:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                return redirect(url_for(
+                    "wa_general",
+                    telefono=telefono,
+                    error="No se pudo cerrar la conversacion.",
+                ))
+
+        return redirect(url_for(
+            "wa_general",
+            ok="Conversacion cerrada.",
+        ))
