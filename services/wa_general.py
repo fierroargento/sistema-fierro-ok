@@ -1,4 +1,4 @@
-﻿"""
+"""
 services/wa_general.py
 
 Bandeja WhatsApp General.
