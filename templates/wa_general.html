@@ -1,0 +1,491 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+
+{% set conversaciones = conversaciones or [] %}
+{% set conversacion_seleccionada = conversacion_seleccionada or none %}
+{% set mensajes = mensajes or [] %}
+
+<style>
+    .wa-general-page {
+        height: calc(100vh - 34px);
+        min-height: 620px;
+        display: grid;
+        grid-template-columns: 360px minmax(0, 1fr);
+        gap: 0;
+        background: #f0f2f5;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #ddd;
+    }
+
+    .wa-general-sidebar {
+        background: #ffffff;
+        border-right: 1px solid #ddd;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .wa-general-header {
+        padding: 14px 16px;
+        background: #f7f8f9;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .wa-general-header h2 {
+        margin: 0;
+        font-size: 18px;
+    }
+
+    .wa-general-header p {
+        margin: 4px 0 0 0;
+        color: #666;
+        font-size: 13px;
+        line-height: 1.35;
+    }
+
+    .wa-general-search {
+        padding: 10px 12px;
+        border-bottom: 1px solid #eee;
+        background: #fff;
+    }
+
+    .wa-general-search input {
+        width: 100%;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        padding: 9px 12px;
+        font-size: 13px;
+        box-sizing: border-box;
+        outline: none;
+    }
+
+    .wa-conversation-list {
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .wa-conversation-item {
+        display: block;
+        padding: 12px 14px;
+        border-bottom: 1px solid #f0f0f0;
+        text-decoration: none;
+        color: inherit;
+        background: #fff;
+    }
+
+    .wa-conversation-item:hover,
+    .wa-conversation-item.activa {
+        background: #eef7f2;
+    }
+
+    .wa-conversation-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: baseline;
+    }
+
+    .wa-conversation-name {
+        font-weight: 700;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .wa-conversation-time {
+        font-size: 11px;
+        color: #777;
+        white-space: nowrap;
+    }
+
+    .wa-conversation-phone {
+        font-size: 12px;
+        color: #777;
+        margin-top: 2px;
+    }
+
+    .wa-conversation-last {
+        margin-top: 6px;
+        font-size: 13px;
+        color: #444;
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .wa-conversation-last span:first-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .wa-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: #25d366;
+        color: white;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 0 6px;
+    }
+
+    .wa-general-main {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        min-width: 0;
+        background: #efeae2;
+    }
+
+    .wa-chat-header {
+        background: #f7f8f9;
+        border-bottom: 1px solid #ddd;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+    }
+
+    .wa-chat-title {
+        min-width: 0;
+    }
+
+    .wa-chat-title h3 {
+        margin: 0;
+        font-size: 16px;
+    }
+
+    .wa-chat-title p {
+        margin: 3px 0 0 0;
+        color: #666;
+        font-size: 12px;
+    }
+
+    .wa-chat-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .wa-mini-btn {
+        border: 1px solid #ccc;
+        background: #fff;
+        padding: 7px 10px;
+        border-radius: 7px;
+        font-size: 12px;
+        text-decoration: none;
+        color: #222;
+        cursor: pointer;
+    }
+
+    .wa-mini-btn-principal {
+        background: #111;
+        color: #fff;
+        border-color: #111;
+    }
+
+    .wa-chat-body {
+        overflow-y: auto;
+        padding: 18px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 310px;
+        gap: 18px;
+    }
+
+    .wa-messages-panel {
+        min-width: 0;
+    }
+
+    .wa-message {
+        max-width: 72%;
+        padding: 9px 11px;
+        border-radius: 9px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        line-height: 1.35;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .wa-message-in {
+        background: #fff;
+        margin-right: auto;
+    }
+
+    .wa-message-out {
+        background: #d9fdd3;
+        margin-left: auto;
+    }
+
+    .wa-message-meta {
+        margin-top: 4px;
+        font-size: 10px;
+        color: #777;
+        text-align: right;
+    }
+
+    .wa-info-panel {
+        background: rgba(255,255,255,0.88);
+        border-radius: 10px;
+        padding: 14px;
+        border: 1px solid rgba(0,0,0,0.08);
+        align-self: start;
+    }
+
+    .wa-info-panel h4 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+    }
+
+    .wa-info-line {
+        font-size: 12px;
+        color: #555;
+        margin-bottom: 8px;
+    }
+
+    .wa-info-line strong {
+        color: #222;
+    }
+
+    .wa-pedido-historico {
+        border-top: 1px solid #e5e5e5;
+        padding-top: 9px;
+        margin-top: 9px;
+        font-size: 12px;
+    }
+
+    .wa-pedido-historico a {
+        color: #111;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .wa-chat-compose {
+        background: #f7f8f9;
+        border-top: 1px solid #ddd;
+        padding: 10px 14px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .wa-chat-compose textarea {
+        flex: 1;
+        min-height: 42px;
+        max-height: 90px;
+        resize: vertical;
+        border: 1px solid #ccc;
+        border-radius: 9px;
+        padding: 10px;
+        font-size: 13px;
+        box-sizing: border-box;
+    }
+
+    .wa-chat-compose button {
+        border: 0;
+        background: #25d366;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .wa-empty-state {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+        text-align: center;
+        padding: 30px;
+    }
+
+    .wa-empty-state h3 {
+        margin-bottom: 6px;
+        color: #222;
+    }
+
+    @media (max-width: 950px) {
+        .wa-general-page {
+            grid-template-columns: 1fr;
+            height: auto;
+        }
+
+        .wa-general-sidebar {
+            min-height: 320px;
+            border-right: 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .wa-chat-body {
+            grid-template-columns: 1fr;
+        }
+
+        .wa-info-panel {
+            order: -1;
+        }
+    }
+</style>
+
+<div class="wa-general-page">
+
+    <aside class="wa-general-sidebar">
+        <div class="wa-general-header">
+            <h2>WA General</h2>
+            <p>Contactos sin pedido activo y clientes con pedidos cerrados. No mezcla conversaciones operativas.</p>
+        </div>
+
+        <div class="wa-general-search">
+            <input type="search" id="wa_general_buscador" placeholder="Buscar por nombre, teléfono o mensaje...">
+        </div>
+
+        <div class="wa-conversation-list" id="wa_general_lista">
+            {% if conversaciones %}
+                {% for c in conversaciones %}
+                    <a
+                        href="{{ url_for('wa_general', telefono=c.telefono) }}"
+                        class="wa-conversation-item {% if telefono_seleccionado and telefono_seleccionado == c.telefono %}activa{% endif %}"
+                        data-busqueda="{{ (c.nombre ~ ' ' ~ c.telefono ~ ' ' ~ c.ultimo_mensaje)|lower }}"
+                    >
+                        <div class="wa-conversation-top">
+                            <div class="wa-conversation-name">{{ c.nombre }}</div>
+                            <div class="wa-conversation-time">
+                                {% if c.ultima_actividad %}
+                                    {{ c.ultima_actividad.strftime('%d/%m %H:%M') }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="wa-conversation-phone">{{ c.telefono }}</div>
+                        <div class="wa-conversation-last">
+                            <span>{{ c.ultimo_mensaje or 'Sin mensajes previos' }}</span>
+                            {% if c.no_leidos %}
+                                <span class="wa-badge">{{ c.no_leidos }}</span>
+                            {% endif %}
+                        </div>
+                    </a>
+                {% endfor %}
+            {% else %}
+                <div class="wa-empty-state">
+                    <div>
+                        <h3>Sin conversaciones generales</h3>
+                        <p>Acá van a aparecer contactos nuevos o clientes sin pedido activo.</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </aside>
+
+    <main class="wa-general-main">
+        {% if conversacion_seleccionada %}
+            <div class="wa-chat-header">
+                <div class="wa-chat-title">
+                    <h3>{{ conversacion_seleccionada.nombre }}</h3>
+                    <p>{{ conversacion_seleccionada.telefono }} · WA General</p>
+                </div>
+                <div class="wa-chat-actions">
+                    {% if conversacion_seleccionada.pedido_contexto_id %}
+                        <a class="wa-mini-btn" href="{{ url_for('detalle_pedido', id=conversacion_seleccionada.pedido_contexto_id) }}">
+                            Ver último pedido
+                        </a>
+                    {% endif %}
+                    <button type="button" class="wa-mini-btn">Tomar</button>
+                    <button type="button" class="wa-mini-btn wa-mini-btn-principal">Cerrar</button>
+                </div>
+            </div>
+
+            <div class="wa-chat-body">
+                <section class="wa-messages-panel">
+                    {% if mensajes %}
+                        {% for m in mensajes %}
+                            <div class="wa-message {% if m.direccion == 'out' %}wa-message-out{% else %}wa-message-in{% endif %}">
+                                {{ m.texto }}
+                                <div class="wa-message-meta">
+                                    {{ m.autor or '' }}
+                                    {% if m.fecha %} · {{ m.fecha.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="wa-empty-state">
+                            <div>
+                                <h3>Seleccioná una conversación</h3>
+                                <p>Cuando abramos la ruta, acá se va a ver el historial completo del teléfono.</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </section>
+
+                <aside class="wa-info-panel">
+                    <h4>Información del contacto</h4>
+
+                    <div class="wa-info-line">
+                        <strong>Teléfono:</strong><br>
+                        {{ conversacion_seleccionada.telefono }}
+                    </div>
+
+                    <div class="wa-info-line">
+                        <strong>Último estado de pedido:</strong><br>
+                        {{ conversacion_seleccionada.pedido_contexto_estado or 'Sin pedidos previos' }}
+                    </div>
+
+                    <h4>Compras históricas</h4>
+
+                    {% if conversacion_seleccionada.pedidos_historicos %}
+                        {% for p in conversacion_seleccionada.pedidos_historicos %}
+                            <div class="wa-pedido-historico">
+                                <a href="{{ url_for('detalle_pedido', id=p.id) }}">Pedido #{{ p.id }}</a><br>
+                                {{ p.estado }} · {{ p.canal or 'Sin canal' }}<br>
+                                {% if p.id_venta %}Venta: {{ p.id_venta }}{% endif %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="wa-info-line">No hay compras previas asociadas a este teléfono.</div>
+                    {% endif %}
+                </aside>
+            </div>
+
+            <form class="wa-chat-compose" method="POST" action="#">
+                <textarea name="mensaje" placeholder="La respuesta manual se habilita en el próximo paso..." disabled></textarea>
+                <button type="button" disabled>Enviar</button>
+            </form>
+        {% else %}
+            <div class="wa-empty-state">
+                <div>
+                    <h3>WA General</h3>
+                    <p>Seleccioná una conversación de la lista para ver mensajes, historial de compras y datos del contacto.</p>
+                </div>
+            </div>
+        {% endif %}
+    </main>
+
+</div>
+
+<script>
+(function () {
+    const input = document.getElementById("wa_general_buscador");
+    const lista = document.getElementById("wa_general_lista");
+    if (!input || !lista) return;
+
+    input.addEventListener("input", function () {
+        const valor = (input.value || "").toLowerCase().trim();
+        const items = lista.querySelectorAll(".wa-conversation-item");
+
+        items.forEach(function (item) {
+            const texto = item.getAttribute("data-busqueda") || "";
+            item.style.display = texto.includes(valor) ? "" : "none";
+        });
+    });
+})();
+</script>
+
+{% endblock %}
