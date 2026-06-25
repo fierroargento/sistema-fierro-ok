@@ -38,6 +38,7 @@ from .router import routear_mensaje
 
 from services.telefonos import normalizar_telefono_service
 from services.logger import get_app_logger
+from services.wa_general_bot import manejar_sin_pedido_activo_wa_general
 
 logger = get_app_logger(__name__)
 
@@ -139,12 +140,14 @@ def _routear_mensaje(pedido, texto, telefono):
     # Sin pedido activo
     if not pedido:
         from .sender import wa_enviar_texto
-        
-        tel = normalizar_telefono_service(telefono)
-        wa_enviar_texto(
-            tel,
-            "¡Hola! 👋 No encontramos un pedido activo asociado a este número. "
-            "Si tenés una consulta escribinos y un operador te ayuda a la brevedad 😊"
+        from app import Pedido, WhatsAppMensaje
+
+        manejar_sin_pedido_activo_wa_general(
+            texto=texto,
+            telefono=telefono,
+            Pedido=Pedido,
+            WhatsAppMensaje=WhatsAppMensaje,
+            wa_enviar_texto=wa_enviar_texto,
         )
         return
 

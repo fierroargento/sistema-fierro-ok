@@ -29,6 +29,7 @@ from .sender import wa_enviar_texto
 from .text_utils import es_agradecimiento_simple
 
 from services.telefonos import normalizar_telefono_service
+from services.wa_general_bot import manejar_sin_pedido_activo_wa_general
 
 
 def routear_mensaje(
@@ -46,14 +47,14 @@ def routear_mensaje(
 
     # Sin pedido activo
     if not pedido:
-        
+        from app import Pedido, WhatsAppMensaje
 
-        tel = normalizar_telefono_service(telefono)
-
-        wa_enviar_texto(
-            tel,
-            "¡Hola! 👋 No encontramos un pedido activo asociado a este número. "
-            "Si tenés una consulta escribinos y un operador te ayuda a la brevedad 😊"
+        manejar_sin_pedido_activo_wa_general(
+            texto=texto,
+            telefono=telefono,
+            Pedido=Pedido,
+            WhatsAppMensaje=WhatsAppMensaje,
+            wa_enviar_texto=wa_enviar_texto,
         )
         return
 
