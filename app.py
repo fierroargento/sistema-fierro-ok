@@ -5719,7 +5719,12 @@ def ia_auto_responder_post_analisis(pedido):
                             from services.ia_respuestas import agregar_marca_resumen_unica_service
 
                             resumen = (pedido.ia_resumen or "").strip()
-                            marca = f"Sin cobertura transportes CP {pedido.codigo_postal}"
+                            from services.transporte_revision import construir_marca_revision_transporte
+
+                            marca = construir_marca_revision_transporte(
+                                getattr(pedido, "codigo_postal", ""),
+                                msg_transporte,
+                            )
                             pedido.ia_resumen = agregar_marca_resumen_unica_service(
                                 resumen,
                                 marca,
