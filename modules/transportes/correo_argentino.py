@@ -417,6 +417,61 @@ def obtener_sucursales_correo_por_pedido(pedido):
 
     return resultado_distancia.get("sucursales") or []
 
+def _cotizacion_legacy_desde_micorreo(resultado_micorreo, tipo_entrega="S"):
+    """Adapta services.correo_argentino_micorreo.cotizar_envio() al formato legacy.
+
+    selector.py espera:
+    - disponible
+    - precio
+    - plazo_dias
+    - tipo
+    - error
+    """
+
+    resultado_micorreo = resultado_micorreo or {}
+
+    if not resultado_micorreo.get("ok"):
+        return {
+            "disponible": False,
+            "precio": None,
+            "plazo_dias": None,
+            "tipo": resultado_micorreo.get("tipo") or "correo_argentino_micorreo",
+            "error": resultado_micorreo.get("error") or "No se pudo cotizar Correo Argentino.",
+            "status": resultado_micorreo.get("status"),
+            "respuesta": resultado_micorreo.get("respuesta"),
+            "raw": resultado_micorreo,
+        }
+
+    cotizaciones = list(resultado_micorreo.get("cotizaciones") or [])
+    if not cotizaciones:
+        return {
+            "disponible": False,
+            "precio": None,
+            "plazo_dias": None,
+            "tipo": resultado_micorreo.get("tipo") or "correo_argentino_micorreo",
+            "error": "MiCorreo no devolvió cotizaciones disponibles.",
+            "status": resultado_micorreo.get("status"),
+            "raw": resultado_micorreo,
+        }
+
+    elegida = cotizaciones[0] or {}
+    plazo_max = elegida.get("plazo_max")
+    plazo_min = elegida.get("plazo_min")
+
+    return {
+        "disponible": True,
+        "precio": elegida.get("precio"),
+        "plazo_dias": plazo_max or plazo_min,
+        "plazo_min": plazo_min,
+        "plazo_max": plazo_max,
+        "tipo": resultado_micorreo.get("tipo") or "correo_argentino_micorreo",
+        "servicio": elegida.get("producto") or "",
+        "modalidad": elegida.get("modalidad") or tipo_entrega,
+        "producto": elegida.get("producto") or "",
+        "raw": resultado_micorreo,
+    }
+
+
 def _dimension_correo(valor, fallback):
     try:
         if valor is None or valor == "":
