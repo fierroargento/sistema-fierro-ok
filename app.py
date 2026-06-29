@@ -5808,6 +5808,8 @@ def ia_auto_responder_post_analisis(pedido):
     if ia_respuesta_faltantes_ya_enviada(pedido, texto):
         return False, "duplicada"
 
+    from services.wa_auto_ml_decision import construir_log_error_wa_auto_ml
+
     try:
 
         # ---------------------------------------------------
