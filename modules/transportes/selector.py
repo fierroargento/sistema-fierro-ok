@@ -324,7 +324,8 @@ def sugerir_sucursales_correo_pedido(pedido):
 
             cotizacion_pp6040 = cotizar_correo_pp6040(pedido)
             decision_sucursal = evaluar_oferta_sucursales_correo_pp6040(
-                (cotizacion_pp6040 or {}).get("sucursal")
+                (cotizacion_pp6040 or {}).get("sucursal"),
+                resultado_cotizacion=cotizacion_pp6040,
             )
 
             if not decision_sucursal.get("ofrecer_sucursales"):

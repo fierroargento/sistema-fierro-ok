@@ -1,4 +1,4 @@
-﻿"""
+"""
 services/correo_argentino_operacion.py
 
 Capa operativa para usar resultados de MiCorreo/Correo dentro del pedido.
@@ -239,7 +239,11 @@ def obtener_preferencias_operativas_correo():
 
 
 
-def evaluar_oferta_sucursales_correo_pp6040(cotizacion_sucursal, preferencias=None):
+def evaluar_oferta_sucursales_correo_pp6040(
+    cotizacion_sucursal,
+    preferencias=None,
+    resultado_cotizacion=None,
+):
     """Evalúa si PP6040 puede ofrecer sucursales Correo al cliente.
 
     Regla:
@@ -260,16 +264,28 @@ def evaluar_oferta_sucursales_correo_pp6040(cotizacion_sucursal, preferencias=No
             "motivo": "Regla PP6040 Correo sucursal sin umbral configurado.",
             "precio": 0.0,
             "umbral": umbral,
+            "costo_validado": False,
         }
 
     cot = cotizacion_sucursal or {}
     if not _cotizacion_disponible(cot):
+        resultado_cotizacion = resultado_cotizacion or {}
+        motivo_cotizacion = (
+            resultado_cotizacion.get("motivo")
+            or resultado_cotizacion.get("error")
+            or cot.get("error")
+            or "Correo sucursal PP6040 no disponible o sin precio."
+        )
+        tipo_error = resultado_cotizacion.get("tipo_error") or cot.get("tipo_error") or ""
+
         return {
             "ofrecer_sucursales": False,
             "requiere_operador": True,
-            "motivo": "Correo sucursal PP6040 no disponible o sin precio.",
+            "motivo": f"Costo Correo sucursal PP6040 no validado: {motivo_cotizacion}",
             "precio": 0.0,
             "umbral": umbral,
+            "costo_validado": False,
+            "tipo_error": tipo_error,
         }
 
     precio = _to_float(cot.get("precio"))
@@ -280,6 +296,7 @@ def evaluar_oferta_sucursales_correo_pp6040(cotizacion_sucursal, preferencias=No
             "motivo": "Correo sucursal PP6040 dentro del umbral.",
             "precio": precio,
             "umbral": umbral,
+            "costo_validado": True,
         }
 
     return {
@@ -288,6 +305,7 @@ def evaluar_oferta_sucursales_correo_pp6040(cotizacion_sucursal, preferencias=No
         "motivo": "Correo sucursal PP6040 supera el umbral; revisar operador.",
         "precio": precio,
         "umbral": umbral,
+        "costo_validado": True,
     }
 
 

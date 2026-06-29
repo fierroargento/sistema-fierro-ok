@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 
 def test_selector_pp6040_valida_umbral_antes_de_ofrecer_sucursales():
@@ -31,7 +31,7 @@ def test_selector_pp6040_supera_umbral_no_busca_sucursales(monkeypatch):
     monkeypatch.setattr(
         operacion,
         "evaluar_oferta_sucursales_correo_pp6040",
-        lambda sucursal: {
+        lambda sucursal, **kwargs: {
             "ofrecer_sucursales": False,
             "requiere_operador": True,
             "motivo": "Correo sucursal PP6040 supera el umbral; revisar operador.",
