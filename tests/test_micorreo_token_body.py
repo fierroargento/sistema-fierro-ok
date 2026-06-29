@@ -45,3 +45,28 @@ def test_obtener_token_envia_body_json_vacio(monkeypatch):
     assert headers["content-type"] == "application/json"
     assert headers["authorization"].startswith("Basic ")
     assert capturado["timeout"] == 20
+
+def test_obtener_token_reintenta_si_primer_intento_falla(monkeypatch):
+    llamadas = {"cantidad": 0}
+
+    def fake_urlopen(req, timeout):
+        llamadas["cantidad"] += 1
+        if llamadas["cantidad"] == 1:
+            raise TimeoutError("The read operation timed out")
+        return FakeResponse()
+
+    monkeypatch.setattr(micorreo, "urlopen", fake_urlopen)
+
+    cfg = SimpleNamespace(
+        enabled=True,
+        base_url="https://api.correoargentino.com.ar/micorreo/v1",
+        integracion_user="usuario",
+        integracion_pass="clave",
+        timeout=20,
+    )
+
+    resultado = micorreo.obtener_token(config=cfg)
+
+    assert resultado["ok"] is True
+    assert resultado["token"] == "TOKEN_PRUEBA"
+    assert llamadas["cantidad"] == 2

@@ -210,13 +210,20 @@ def obtener_token(config=None):
 
     # MiCorreo responde correctamente cuando POST /token lleva body JSON.
     # Evita timeouts 504 observados con urllib enviando POST sin body.
-    status, data = _request_json(
-        "POST",
-        "/token",
-        cfg,
-        body={},
-        basic_auth=(cfg.integracion_user, cfg.integracion_pass),
-    )
+    # El endpoint puede responder con timeouts intermitentes desde Render,
+    # por eso reintentamos antes de declarar caída la integración.
+    status = None
+    data = None
+    for _intento in range(3):
+        status, data = _request_json(
+            "POST",
+            "/token",
+            cfg,
+            body={},
+            basic_auth=(cfg.integracion_user, cfg.integracion_pass),
+        )
+        if status and 200 <= status < 300:
+            break
 
     if not (status and 200 <= status < 300):
         return _error(
