@@ -1,4 +1,4 @@
-﻿"""
+"""
 modules/transportes/selector.py
 ────────────────────────────────
 Selector APB de transporte para PP6040.
@@ -17,6 +17,15 @@ import re
 from datetime import datetime
 
 from .correo_argentino import cotizar_correo, obtener_sucursales_correo_por_pedido
+from services.transporte_revision import (
+    TIPO_ERROR_AUTENTICACION,
+    TIPO_ERROR_DATOS,
+    TIPO_ERROR_DATOS_LOGISTICOS,
+    TIPO_ERROR_INTEGRACION,
+    TIPO_ERROR_PRODUCTO_NO_PERMITE_CORREO,
+    TIPO_ERROR_REVISION,
+    TIPO_ERROR_SIN_COBERTURA,
+)
 
 
 def correo_pp6040_habilitado():
@@ -108,6 +117,7 @@ def _error_logistica_correo(cp, logistica):
             + (f" {detalle}" if detalle else "")
         ),
         "motivo": logistica.get("motivo") or "datos_logisticos_incompletos",
+        "tipo_error": TIPO_ERROR_DATOS_LOGISTICOS,
         "requiere_operador": True,
         "logistica": logistica,
     }
@@ -120,6 +130,8 @@ def cotizar_correo_pp6040(pedido):
         return {
             "ok": False,
             "error": "CP destino inválido o faltante",
+            "motivo": "cp_destino_invalido",
+            "tipo_error": TIPO_ERROR_DATOS,
             "requiere_operador": True,
         }
 
@@ -136,6 +148,7 @@ def cotizar_correo_pp6040(pedido):
             "domicilio": {},
             "error": "El catálogo indica que este pedido no permite Correo Argentino.",
             "motivo": "producto_no_permite_correo",
+            "tipo_error": TIPO_ERROR_PRODUCTO_NO_PERMITE_CORREO,
             "requiere_operador": True,
             "logistica": logistica,
         }
@@ -151,18 +164,25 @@ def cotizar_correo_pp6040(pedido):
     domicilio = cotizar_correo(cp, tipo_entrega="D", **dimensiones)
 
     error = None
+    tipo_error = None
 
     if not (sucursal.get("disponible") or domicilio.get("disponible")):
         error_suc = (sucursal or {}).get("error") or ""
         error_dom = (domicilio or {}).get("error") or ""
+        texto_error = f"{error_suc} {error_dom}".lower()
 
-        if (
-            "autentic" in error_suc.lower()
-            or "autentic" in error_dom.lower()
-        ):
+        if "autentic" in texto_error or "credencial" in texto_error:
+            tipo_error = TIPO_ERROR_AUTENTICACION
             error = "No se pudo autenticar con Correo Argentino. Revisar credenciales en Render."
-        else:
+        elif "sin cobertura" in texto_error or "no hay cobertura" in texto_error:
+            tipo_error = TIPO_ERROR_SIN_COBERTURA
+            error = f"Sin cobertura Correo para CP {cp}."
+        elif error_suc or error_dom:
+            tipo_error = TIPO_ERROR_INTEGRACION
             error = f"No se pudo cotizar Correo para CP {cp}. Revisar respuesta de la integración."
+        else:
+            tipo_error = TIPO_ERROR_REVISION
+            error = f"Sin opciones Correo disponibles para CP {cp}."
 
     return {
         "ok": bool(sucursal.get("disponible") or domicilio.get("disponible")),
@@ -170,6 +190,7 @@ def cotizar_correo_pp6040(pedido):
         "sucursal": sucursal,
         "domicilio": domicilio,
         "error": error,
+        "tipo_error": tipo_error,
         "logistica": logistica,
         "dimensiones": dimensiones,
     }
@@ -188,6 +209,7 @@ def evaluar_decision_correo_pp6040(pedido, preferencia_cliente="sucursal"):
     if not cot.get("ok"):
         cot["decision"] = "escalar"
         cot["motivo"] = cot.get("error") or "No se pudo cotizar Correo"
+        cot["tipo_error"] = cot.get("tipo_error") or TIPO_ERROR_REVISION
         return cot
 
     max_costo = _cfg_float("MAX_COSTO_ENVIO", MAX_COSTO_ENVIO_DEFAULT)

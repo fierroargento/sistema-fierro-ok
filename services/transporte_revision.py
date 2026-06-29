@@ -12,7 +12,10 @@ APB:
 
 TIPO_ERROR_SIN_COBERTURA = "sin_cobertura"
 TIPO_ERROR_INTEGRACION = "error_integracion"
+TIPO_ERROR_AUTENTICACION = "error_autenticacion"
 TIPO_ERROR_DATOS = "datos_incompletos"
+TIPO_ERROR_DATOS_LOGISTICOS = "datos_logisticos_incompletos"
+TIPO_ERROR_PRODUCTO_NO_PERMITE_CORREO = "producto_no_permite_correo"
 TIPO_ERROR_REVISION = "revision_operativa"
 
 
@@ -54,8 +57,17 @@ def clasificar_motivo_transporte(motivo):
         "no se pudo validar costo",
     )
 
+    if "autentic" in texto or "credencial" in texto:
+        return TIPO_ERROR_AUTENTICACION
+
     if any(marca in texto for marca in marcas_integracion):
         return TIPO_ERROR_INTEGRACION
+
+    if "producto no permite correo" in texto or "no permite correo argentino" in texto:
+        return TIPO_ERROR_PRODUCTO_NO_PERMITE_CORREO
+
+    if "datos logisticos incompletos" in texto:
+        return TIPO_ERROR_DATOS_LOGISTICOS
 
     marcas_datos = (
         "datos logisticos incompletos",
@@ -94,9 +106,13 @@ def construir_marca_revision_transporte(cp, motivo):
 
     if tipo == TIPO_ERROR_SIN_COBERTURA:
         base = f"Sin cobertura transportes CP {cp_txt}" if cp_txt else "Sin cobertura transportes"
-    elif tipo == TIPO_ERROR_DATOS:
+    elif tipo in (
+        TIPO_ERROR_DATOS,
+        TIPO_ERROR_DATOS_LOGISTICOS,
+        TIPO_ERROR_PRODUCTO_NO_PERMITE_CORREO,
+    ):
         base = f"Transporte con datos logisticos incompletos CP {cp_txt}" if cp_txt else "Transporte con datos logisticos incompletos"
-    elif tipo == TIPO_ERROR_INTEGRACION:
+    elif tipo in (TIPO_ERROR_INTEGRACION, TIPO_ERROR_AUTENTICACION):
         base = f"Transporte requiere revision tecnica CP {cp_txt}" if cp_txt else "Transporte requiere revision tecnica"
     else:
         base = f"Transporte requiere revision CP {cp_txt}" if cp_txt else "Transporte requiere revision"

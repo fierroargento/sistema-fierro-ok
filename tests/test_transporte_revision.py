@@ -1,6 +1,6 @@
 from services.transporte_revision import (
-    TIPO_ERROR_DATOS,
-    TIPO_ERROR_INTEGRACION,
+    TIPO_ERROR_AUTENTICACION,
+    TIPO_ERROR_DATOS_LOGISTICOS,
     TIPO_ERROR_REVISION,
     TIPO_ERROR_SIN_COBERTURA,
     clasificar_motivo_transporte,
@@ -27,16 +27,16 @@ def test_marca_sin_cobertura_solo_si_motivo_lo_indica():
     assert marca.startswith("Sin cobertura transportes CP 6070")
 
 
-def test_clasifica_error_autenticacion_como_integracion():
+def test_clasifica_error_autenticacion_como_autenticacion():
     assert clasificar_motivo_transporte(
         "No se pudo autenticar con Correo Argentino. Revisar credenciales."
-    ) == TIPO_ERROR_INTEGRACION
+    ) == TIPO_ERROR_AUTENTICACION
 
 
 def test_clasifica_datos_logisticos_incompletos():
     assert clasificar_motivo_transporte(
         "Datos logisticos incompletos para cotizar Correo."
-    ) == TIPO_ERROR_DATOS
+    ) == TIPO_ERROR_DATOS_LOGISTICOS
 
 
 def test_clasifica_motivo_desconocido_como_revision():
