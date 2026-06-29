@@ -1,4 +1,4 @@
-﻿"""
+"""
 services/correo_argentino_micorreo.py
 
 Integración Correo Argentino / MiCorreo - integración básica.
@@ -208,10 +208,13 @@ def obtener_token(config=None):
             base_url=cfg.base_url,
         )
 
+    # MiCorreo responde correctamente cuando POST /token lleva body JSON.
+    # Evita timeouts 504 observados con urllib enviando POST sin body.
     status, data = _request_json(
         "POST",
         "/token",
         cfg,
+        body={},
         basic_auth=(cfg.integracion_user, cfg.integracion_pass),
     )
 
