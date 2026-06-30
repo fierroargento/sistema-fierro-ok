@@ -89,6 +89,7 @@ WA_TEMPLATE_PEDIDO_DATO = "pedido_dato_faltante"
 WA_TEMPLATE_SEGUIMIENTO = "seguimiento_despacho"
 WA_TEMPLATE_RETIRO = "listo_para_retirar"
 WA_TEMPLATE_POSTVENTA_PARRILLA = "postventa_parrilla"
+WA_TEMPLATE_POSTVENTA_GENERICA = "postventa_generica"
 
 # ── Catálogo de cross-sell ─────────────────────────────────────────
 CATALOGO = {

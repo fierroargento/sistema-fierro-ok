@@ -5,12 +5,14 @@ from modules.whatsapp.config import (
     WA_FINALIZADO,
     WA_TEMPLATE_PEDIDO_DATO,
     WA_TEMPLATE_POSTVENTA_PARRILLA,
+    WA_TEMPLATE_POSTVENTA_GENERICA,
     WA_TEMPLATE_RETIRO,
     WA_TEMPLATE_SEGUIMIENTO,
 )
 from modules.whatsapp.sender import wa_enviar_template, wa_enviar_texto
 from services.telefonos import normalizar_telefono_service
 from services.tracking_info import tracking_info_pedido_service
+from services.wa_postventa_template import template_postventa_para_pedido
 
 
 def wa_enviar_numero_seguimiento(pedido):
@@ -107,9 +109,15 @@ def wa_enviar_postventa(pedido):
     if getattr(pedido, "wa_postventa_enviada", False):
         return False
 
+    template_postventa = template_postventa_para_pedido(
+        pedido,
+        template_parrilla=WA_TEMPLATE_POSTVENTA_PARRILLA,
+        template_generico=WA_TEMPLATE_POSTVENTA_GENERICA,
+    )
+
     ok = wa_enviar_template(
         tel,
-        WA_TEMPLATE_POSTVENTA_PARRILLA,
+        template_postventa,
         parametros=[
             (getattr(pedido, "cliente", "") or "Cliente").split()[0],
             "https://www.instagram.com/fierroargento",
