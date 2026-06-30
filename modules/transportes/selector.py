@@ -160,8 +160,21 @@ def cotizar_correo_pp6040(pedido):
         "largo_cm": logistica.get("largo_cm"),
     }
 
-    sucursal = cotizar_correo(cp, tipo_entrega="S", **dimensiones)
-    domicilio = cotizar_correo(cp, tipo_entrega="D", **dimensiones)
+    try:
+        sucursal = cotizar_correo(cp, tipo_entrega="S", **dimensiones)
+        domicilio = cotizar_correo(cp, tipo_entrega="D", **dimensiones)
+    except (Exception, SystemExit) as e:
+        return {
+            "ok": False,
+            "cp_destino": cp,
+            "sucursal": {},
+            "domicilio": {},
+            "error": f"No se pudo cotizar Correo para CP {cp}: {e}",
+            "motivo": "error_integracion_correo",
+            "tipo_error": TIPO_ERROR_INTEGRACION,
+            "requiere_operador": True,
+            "logistica": logistica,
+        }
 
     error = None
     tipo_error = None
