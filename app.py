@@ -7585,8 +7585,15 @@ def ml_sync_pedido_por_order_id_webhook(order_id):
         return False
 
 
+from services.ml_shipment_webhook import ml_actualizar_pedido_con_shipment_webhook
+
+
 def ml_sync_shipment_por_id_webhook(shipment_id):
-    """Actualiza datos ML básicos del pedido asociado a un shipment recibido por webhook."""
+    """Actualiza datos ML básicos del pedido asociado a un shipment recibido por webhook.
+
+    Si el shipment llega antes que la order y todavía no existe Pedido en Fierro,
+    intenta importar la order real usando shipment["order_id"].
+    """
     shipment_id = str(shipment_id or "").strip()
     if not shipment_id:
         return False
@@ -7595,6 +7602,7 @@ def ml_sync_shipment_por_id_webhook(shipment_id):
         if not shipment:
             print(f"[WEBHOOK ML] Shipment vacio o no encontrado: {shipment_id}")
             return False
+
         pedido = (
             Pedido.query
             .filter(
@@ -7607,52 +7615,15 @@ def ml_sync_shipment_por_id_webhook(shipment_id):
             .order_by(Pedido.id.asc())
             .first()
         )
+
         if pedido:
-            estado_shipping = str(
-                shipment.get("status")
-                or pedido.ml_shipping_status
-                or ""
-            ).lower().strip()
+            finalizado = ml_actualizar_pedido_con_shipment_webhook(
+                pedido,
+                shipment,
+                shipment_id,
+            )
 
-            pedido.ml_shipping_status = estado_shipping
-            pedido.ml_logistic_type = str(
-                shipment.get("logistic_type")
-                or pedido.ml_logistic_type
-                or ""
-            ).strip()
-            pedido.ml_shipping_mode = str(
-                shipment.get("mode")
-                or pedido.ml_shipping_mode
-                or ""
-            ).strip()
-            pedido.ultima_sync_ml = datetime.utcnow()
-
-            # APB Mercado Envíos:
-            # Si Mercado Libre informa delivered/fulfilled,
-            # el pedido no debe seguir operativo.
-            # En Mercado Envíos no hay aviso manual a ML:
-            # el estado válido es el del carrier/ML.
-            if (
-                pedido.ml_tipo == "Mercado Envíos"
-                and estado_shipping in ["delivered", "fulfilled"]
-                and pedido.estado not in ["Finalizado", "Cancelado"]
-            ):
-                pedido.estado = "Finalizado"
-                pedido.fecha_entregado = (
-                    pedido.fecha_entregado
-                    or datetime.utcnow()
-                )
-
-                aviso = (
-                    "ML Mercado Envíos informa entregado. "
-                    "Pedido finalizado automáticamente."
-                )
-                obs = str(pedido.observaciones or "").strip()
-                if aviso not in obs:
-                    pedido.observaciones = (
-                        f"{aviso} {obs}".strip()
-                    )[:300]
-
+            if finalizado:
                 print(
                     f"[WEBHOOK ML] Pedido #{pedido.id} finalizado automáticamente "
                     f"por shipment delivered={shipment_id}"
@@ -7661,38 +7632,80 @@ def ml_sync_shipment_por_id_webhook(shipment_id):
             db.session.commit()
             print(f"[WEBHOOK ML] Shipment actualizado {shipment_id}. pedido_id={pedido.id}")
             return True
+
         print(
             f"[WEBHOOK ML] Shipment {shipment_id} sin pedido vinculado en Fierro"
         )
 
-        pedido_por_order = (
-            Pedido.query
-            .filter_by(
-                id_venta=str(
-                    shipment.get("order_id") or ""
+        order_id = str(
+            shipment.get("order_id")
+            or ""
+        ).strip()
+
+        pedido_por_order = None
+        if order_id:
+            pedido_por_order = (
+                Pedido.query
+                .filter_by(
+                    canal="Mercado Libre",
+                    id_venta=order_id,
                 )
+                .first()
             )
-            .first()
-        )
+
+        if not pedido_por_order and order_id:
+            print(
+                f"[WEBHOOK ML] Shipment {shipment_id} intenta importar "
+                f"order asociada {order_id}"
+            )
+
+            order_sync_ok = ml_sync_pedido_por_order_id_webhook(order_id)
+
+            pedido_por_order = (
+                Pedido.query
+                .filter_by(
+                    canal="Mercado Libre",
+                    id_venta=order_id,
+                )
+                .first()
+            )
+
+            if not pedido_por_order:
+                if order_sync_ok:
+                    print(
+                        f"[WEBHOOK ML] Shipment {shipment_id}: order {order_id} "
+                        f"sincronizada pero sin pedido operativo vinculado"
+                    )
+                return bool(order_sync_ok)
 
         if pedido_por_order:
-
             print(
                 f"[WEBHOOK ML] Shipment {shipment_id} "
                 f"re-vinculado por order_id "
                 f"pedido=#{pedido_por_order.id}"
             )
 
-            if not pedido_por_order.fecha_entregado:
-                pedido_por_order.fecha_entregado = datetime.utcnow()
+            finalizado = ml_actualizar_pedido_con_shipment_webhook(
+                pedido_por_order,
+                shipment,
+                shipment_id,
+            )
 
-            pedido_por_order.estado = "Finalizado"
+            if finalizado:
+                print(
+                    f"[WEBHOOK ML] Pedido #{pedido_por_order.id} finalizado automáticamente "
+                    f"por shipment delivered={shipment_id}"
+                )
 
             db.session.commit()
 
             return True
 
+        print(
+            f"[WEBHOOK ML] Shipment {shipment_id} sin order_id asociada para importar"
+        )
         return False
+
     except Exception as e:
         db.session.rollback()
         print(f"[WEBHOOK ML] No se pudo sincronizar shipment {shipment_id}: {e}")
