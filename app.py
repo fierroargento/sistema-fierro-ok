@@ -2483,6 +2483,25 @@ def orden_inicio_pedido(pedido):
     return (prioridad, id_orden)
 
 
+def actualizar_demoras_inicio_pedidos(pedidos, commit=True):
+    """
+    Recalcula demoras locales al cargar Inicio.
+
+    Evita que un pedido vencido aparezca en Con demora recien despues de
+    entrar al detalle. No consulta tracking externo ni envia mensajes.
+    """
+    from services.inicio_demoras import actualizar_demoras_inicio_pedidos_service
+
+    return actualizar_demoras_inicio_pedidos_service(
+        pedidos,
+        debe_pasar_a_demora_fn=debe_pasar_a_demora_entrega,
+        estado_demora=Estado.DEMORA,
+        commit_fn=db.session.commit,
+        rollback_fn=db.session.rollback,
+        commit=commit,
+    )
+
+
 def alertas_operativas():
     ahora = datetime.utcnow()
     alertas = []
@@ -7499,6 +7518,8 @@ def inicio():
 
             except Exception as e:
                 print("[CROSS-SELL PREPARACION] Error filtrando Inicio Carga:", e)
+
+    actualizar_demoras_inicio_pedidos(pedidos)
 
     from services.bandejas_inicio import preparar_bandejas_inicio
 
