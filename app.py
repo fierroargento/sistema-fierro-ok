@@ -3776,6 +3776,45 @@ def tn_pedido_apto_para_fierro(order):
     return True, "ok"
 
 
+def tn_intentar_iniciar_wa_via_cargo_sucursal(pedido):
+    """
+    Tienda Nube + Via Cargo:
+    abre ventana WhatsApp con template inicial para que, cuando el cliente responda,
+    el flujo existente ofrezca sucursales Via Cargo.
+
+    No envia texto libre aca porque la ventana de 24 hs puede estar cerrada.
+    """
+    if not pedido or getattr(pedido, "canal", "") != "Tienda Nube":
+        return False
+
+    if str(getattr(pedido, "sucursal_nombre", "") or "").strip():
+        return False
+
+    if str(getattr(pedido, "wa_estado", "") or "").strip():
+        return False
+
+    from services.telefonos import normalizar_telefono_service
+
+    if not normalizar_telefono_service(getattr(pedido, "telefono", "")):
+        return False
+
+    try:
+        from modules.whatsapp.flows_transporte import pedido_requiere_sucursal_via_cargo_pendiente
+
+        if not pedido_requiere_sucursal_via_cargo_pendiente(pedido):
+            return False
+
+        from modules.whatsapp.flows import wa_iniciar_desde_ml
+
+        ok = wa_iniciar_desde_ml(pedido)
+        if ok:
+            print(f"[TN-WA] Template inicial enviado para elegir sucursal Via Cargo pedido #{getattr(pedido, 'id', '')}")
+        return bool(ok)
+    except Exception as e:
+        print(f"[TN-WA] Error iniciando WhatsApp Via Cargo pedido #{getattr(pedido, 'id', '')}: {e}")
+        return False
+
+
 def tn_importar_o_actualizar_pedido(order):
     tn_id = str(order.get("id") or "").strip()
     if not tn_id:
@@ -3871,6 +3910,7 @@ def tn_importar_o_actualizar_pedido(order):
         pedido.observaciones = " ".join(notas)[:300]
 
     tn_guardar_items(pedido, order)
+    tn_intentar_iniciar_wa_via_cargo_sucursal(pedido)
     return pedido, "creado" if creado else "actualizado"
 
 

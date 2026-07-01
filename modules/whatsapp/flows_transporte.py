@@ -95,10 +95,12 @@ def _normalizar_texto_logistica(valor):
 
 def pedido_requiere_sucursal_via_cargo_pendiente(pedido):
     """
-    APB ML -> WA:
-    Para ML Acordas con Via Cargo a sucursal, la sucursal confirmada
-    es parte de la logistica obligatoria. No se puede cerrar datos ni
-    iniciar cross-sell si todavia falta sucursal_nombre.
+    APB Via Cargo:
+    La sucursal confirmada es parte de la logistica obligatoria.
+
+    Aplica a:
+    - Mercado Libre Acordas + Via Cargo a sucursal.
+    - Tienda Nube + Via Cargo, porque el cliente debe elegir sucursal por WA.
     """
     if not pedido:
         return False
@@ -110,10 +112,14 @@ def pedido_requiere_sucursal_via_cargo_pendiente(pedido):
     sucursal = str(getattr(pedido, "sucursal_nombre", "") or "").strip()
 
     es_ml_acordas = canal == "mercado libre" and "acord" in tipo_ml
+    es_tienda_nube = canal == "tienda nube"
     es_via_cargo = "via cargo" in empresa or "cargo" in empresa
     es_sucursal = "sucursal" in tipo_entrega
 
-    return bool(es_ml_acordas and es_via_cargo and es_sucursal and not sucursal)
+    requiere_ml = es_ml_acordas and es_via_cargo and es_sucursal
+    requiere_tn = es_tienda_nube and es_via_cargo
+
+    return bool((requiere_ml or requiere_tn) and not sucursal)
 
 
 def _cargar_sucursales_via_cargo_candidatas(pedido, limite=3):
