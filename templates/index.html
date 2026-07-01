@@ -3,6 +3,33 @@
 {% block content %}
 
 <style>
+.th-sort-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    font-weight: 800;
+    text-transform: inherit;
+    cursor: pointer;
+}
+
+.th-sort-btn:hover {
+    text-decoration: underline;
+}
+
+.th-sort-btn:focus,
+.th-sort-btn:focus-visible {
+    outline: none;
+    box-shadow: none;
+}
+</style>
+
+
+<style>
 .wa-general-inicio-btn {
     position: relative;
     display: inline-flex;
@@ -146,7 +173,7 @@
                         id="ordenar_hace_cuanto"
                         title="Ordenar por hace cuánto"
                     >
-                        Hace cuánto ↕
+                        Hace cuánto <span id="icono_orden_hace_cuanto">↕</span>
                     </button>
                 </th>
                 <th>
@@ -437,7 +464,9 @@ function copiarTexto(texto) {
 <script>
 (function () {
     const botonOrdenHaceCuanto = document.getElementById('ordenar_hace_cuanto');
-    if (!botonOrdenHaceCuanto) return;
+    const iconoOrdenHaceCuanto = document.getElementById('icono_orden_hace_cuanto');
+
+    if (!botonOrdenHaceCuanto || !iconoOrdenHaceCuanto) return;
 
     let ordenHaceCuanto = 'asc';
 
@@ -458,10 +487,8 @@ function copiarTexto(texto) {
         return 0;
     }
 
-    function actualizarTextoOrdenHaceCuanto() {
-        botonOrdenHaceCuanto.textContent = ordenHaceCuanto === 'asc'
-            ? 'Hace cuánto ↑'
-            : 'Hace cuánto ↓';
+    function actualizarIconoOrdenHaceCuanto() {
+        iconoOrdenHaceCuanto.textContent = ordenHaceCuanto === 'asc' ? '↑' : '↓';
     }
 
     function ordenarPorHaceCuanto() {
@@ -492,11 +519,11 @@ function copiarTexto(texto) {
         filas.forEach((fila) => tbody.appendChild(fila));
 
         ordenHaceCuanto = ordenHaceCuanto === 'asc' ? 'desc' : 'asc';
-        actualizarTextoOrdenHaceCuanto();
+        actualizarIconoOrdenHaceCuanto();
     }
 
     botonOrdenHaceCuanto.addEventListener('click', ordenarPorHaceCuanto);
-    botonOrdenHaceCuanto.textContent = 'Hace cuánto ↕';
+    iconoOrdenHaceCuanto.textContent = '↕';
 })();
 </script>
 
