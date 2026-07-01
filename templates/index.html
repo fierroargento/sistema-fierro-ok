@@ -139,7 +139,16 @@
                         Tipo envío ↕
                     </button>
                 </th>
-                <th>Hace cuánto</th>
+                <th>
+                    <button
+                        type="button"
+                        class="th-sort-btn"
+                        id="ordenar_hace_cuanto"
+                        title="Ordenar por hace cuánto"
+                    >
+                        Hace cuánto ↕
+                    </button>
+                </th>
                 <th>
                     <button
                         type="button"
@@ -424,5 +433,71 @@ function copiarTexto(texto) {
 </script>
 
 </div>
+
+<script>
+(function () {
+    const botonOrdenHaceCuanto = document.getElementById('ordenar_hace_cuanto');
+    if (!botonOrdenHaceCuanto) return;
+
+    let ordenHaceCuanto = 'asc';
+
+    function textoCeldaOrdenHaceCuanto(fila, indice) {
+        const celda = fila.children[indice];
+        return celda ? celda.textContent.trim().toLowerCase() : '';
+    }
+
+    function minutosDesdeTextoHaceCuanto(texto) {
+        const limpio = (texto || '').toLowerCase();
+        const matchNumero = limpio.match(/\d+/);
+        const numero = matchNumero ? parseInt(matchNumero[0], 10) : 0;
+
+        if (limpio.includes('min')) return numero;
+        if (limpio.includes('hs') || limpio.includes('hora')) return numero * 60;
+        if (limpio.includes('día') || limpio.includes('dias') || limpio.includes('días')) return numero * 24 * 60;
+
+        return 0;
+    }
+
+    function actualizarTextoOrdenHaceCuanto() {
+        botonOrdenHaceCuanto.textContent = ordenHaceCuanto === 'asc'
+            ? 'Hace cuánto ↑'
+            : 'Hace cuánto ↓';
+    }
+
+    function ordenarPorHaceCuanto() {
+        const tabla = botonOrdenHaceCuanto.closest('table');
+        const tbody = tabla ? tabla.querySelector('tbody') : null;
+        if (!tbody) return;
+
+        const filas = Array.from(tbody.querySelectorAll('tr'))
+            .filter((fila) => fila.children && fila.children.length >= 8);
+
+        const multiplicador = ordenHaceCuanto === 'asc' ? 1 : -1;
+
+        filas.sort((a, b) => {
+            const minutosA = minutosDesdeTextoHaceCuanto(textoCeldaOrdenHaceCuanto(a, 5));
+            const minutosB = minutosDesdeTextoHaceCuanto(textoCeldaOrdenHaceCuanto(b, 5));
+
+            if (minutosA !== minutosB) {
+                return (minutosA - minutosB) * multiplicador;
+            }
+
+            return textoCeldaOrdenHaceCuanto(a, 1).localeCompare(
+                textoCeldaOrdenHaceCuanto(b, 1),
+                'es',
+                { sensitivity: 'base' }
+            );
+        });
+
+        filas.forEach((fila) => tbody.appendChild(fila));
+
+        ordenHaceCuanto = ordenHaceCuanto === 'asc' ? 'desc' : 'asc';
+        actualizarTextoOrdenHaceCuanto();
+    }
+
+    botonOrdenHaceCuanto.addEventListener('click', ordenarPorHaceCuanto);
+    botonOrdenHaceCuanto.textContent = 'Hace cuánto ↕';
+})();
+</script>
 
 {% endblock %}
