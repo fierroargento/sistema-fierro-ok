@@ -416,7 +416,7 @@ body { background: #f4f7f8; }
             {% endif %}
         </div>
 
-        {% if detalle_correo and detalle_correo.tiene_datos %}
+        {% if detalle_correo and detalle_correo.tiene_datos and rol_actual in ["admin", "carga"] %}
         <details id="correo-operativo" class="detalle-box detalle-box-full" style="border-left:5px solid #2563eb; background:#eff6ff;">
             <summary style="cursor:pointer; font-weight:700; font-size:18px; margin-bottom:12px;">
                 Correo Argentino / Cotización y elección
