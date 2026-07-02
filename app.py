@@ -257,6 +257,8 @@ class Auditoria(db.Model):
 
 class Pedido(db.Model):
     origen = db.Column(db.String(30))
+    ml_cuenta_id = db.Column(db.Integer, db.ForeignKey("mercado_libre_cuenta.id"), nullable=True, index=True)
+    ml_seller_id = db.Column(db.String(50), index=True)
     ml_pack_id = db.Column(db.String(50))
     ml_order_status = db.Column(db.String(50))
     ml_shipping_status = db.Column(db.String(50))
@@ -761,6 +763,8 @@ def asegurar_columnas_extra():
 
 def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("origen", "VARCHAR(30)")
+    asegurar_columna_si_no_existe("ml_cuenta_id", "INTEGER")
+    asegurar_columna_si_no_existe("ml_seller_id", "VARCHAR(50)")
     asegurar_columna_si_no_existe("ml_pack_id", "VARCHAR(50)")
     asegurar_columna_si_no_existe("ml_order_status", "VARCHAR(50)")
     asegurar_columna_si_no_existe("ml_shipping_status", "VARCHAR(50)")
@@ -844,6 +848,79 @@ def asegurar_columnas_integracion_ml():
     asegurar_columna_si_no_existe("ml_claim_status", "VARCHAR(50)")
     asegurar_columna_si_no_existe("ml_claim_reason", "VARCHAR(200)")
     asegurar_columna_si_no_existe("ultima_sync_claim_ml", "TIMESTAMP")
+
+
+def backfill_ml_identidad_cuenta_pedidos():
+    """Asocia pedidos ML legacy a la única cuenta ML existente.
+
+    APB / SaaS:
+    - Es idempotente.
+    - No adivina si hay 0 o más de 1 cuenta ML.
+    - No se usa como resolver runtime multicuenta.
+    - Solo prepara datos legacy para migrar consumidores a cuenta por pedido.
+    """
+    try:
+        cuentas = MercadoLibreCuenta.query.all()
+    except Exception as e:
+        print("[ML CUENTAS] No se pudo consultar MercadoLibreCuenta para backfill:", e)
+        return {
+            "ok": False,
+            "motivo": "error_consultando_cuentas",
+            "actualizados": 0,
+        }
+
+    if len(cuentas) != 1:
+        print(
+            "[ML CUENTAS] Backfill de pedidos ML omitido: se esperaba 1 cuenta ML y hay",
+            len(cuentas),
+        )
+        return {
+            "ok": False,
+            "motivo": "cantidad_cuentas_no_segura",
+            "actualizados": 0,
+        }
+
+    cuenta = cuentas[0]
+    seller_id = str(getattr(cuenta, "user_id_ml", "") or "").strip()
+
+    if not getattr(cuenta, "id", None) or not seller_id:
+        print("[ML CUENTAS] Backfill omitido: cuenta ML sin id o user_id_ml.")
+        return {
+            "ok": False,
+            "motivo": "cuenta_incompleta",
+            "actualizados": 0,
+        }
+
+    pedidos = (
+        Pedido.query
+        .filter(Pedido.canal == "Mercado Libre")
+        .filter(
+            (Pedido.ml_cuenta_id.is_(None))
+            | (Pedido.ml_seller_id.is_(None))
+            | (Pedido.ml_seller_id == "")
+        )
+    )
+
+    actualizados = 0
+
+    for pedido in pedidos.yield_per(100):
+        if not pedido.ml_cuenta_id:
+            pedido.ml_cuenta_id = cuenta.id
+
+        if not pedido.ml_seller_id:
+            pedido.ml_seller_id = seller_id
+
+        actualizados += 1
+
+    if actualizados:
+        db.session.commit()
+        print(f"[ML CUENTAS] Backfill pedidos ML actualizado: {actualizados}")
+
+    return {
+        "ok": True,
+        "motivo": "ok",
+        "actualizados": actualizados,
+    }
 
 
 def asegurar_columnas_integracion_tn():
@@ -12331,6 +12408,7 @@ with app.app_context():
     
     asegurar_columnas_extra()
     asegurar_columnas_integracion_ml()
+    backfill_ml_identidad_cuenta_pedidos()
     asegurar_columnas_integracion_tn()
 
     from services.productos_catalogo_db import asegurar_columnas_producto_logistica
@@ -12374,4 +12452,3 @@ try:
         print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")
 except Exception as e:
     print("[SCHEDULER] No se pudo iniciar:", e)
-
