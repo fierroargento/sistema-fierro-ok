@@ -14,14 +14,15 @@ def ejecutar_job_ml_mensajes(app, db):
         with app.app_context():
             from app import (
                 Pedido,
-                MercadoLibreCuenta,
                 ia_escalar_si_timeout_operativo,
                 ml_obtener_mensajes_pack_para_ia,
                 ia_analizar_ultimo_mensaje_pedido,
             )
 
-            cuenta = MercadoLibreCuenta.query.first()
-            seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+            from services.ml_cuentas import (
+                MLCuentaError,
+                seller_id_pedido,
+            )
 
             # APB anti-acoso: si el bot ML habló y el comprador no respondió
             # durante 2 horas operativas, escala al operador. No insiste.
@@ -79,6 +80,15 @@ def ejecutar_job_ml_mensajes(app, db):
                 try:
                     # APB CANAL: si WhatsApp ya tomó la posta, ML queda pasivo.
                     if str(getattr(pedido, "wa_estado", "") or "").strip():
+                        continue
+
+                    try:
+                        seller_id = seller_id_pedido(pedido)
+                    except MLCuentaError as e:
+                        print(
+                            f"[SCHEDULER ML] Pedido #{pedido.id} sin cuenta ML válida:",
+                            e
+                        )
                         continue
 
                     ids_chat = []
