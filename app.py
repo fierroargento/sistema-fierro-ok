@@ -6112,7 +6112,7 @@ def ml_sync_mensajes_pedido(pedido):
     return False, 0
 
 
-def ml_obtener_mensajes_pack_para_ia(pack_id, seller_id=""):
+def ml_obtener_mensajes_pack_para_ia(pack_id, seller_id="", api_context=None):
     """Obtiene mensajes del thread ML para análisis IA sin marcar como leídos."""
     pack_id = str(pack_id or "").strip()
     if not pack_id:
@@ -6128,7 +6128,11 @@ def ml_obtener_mensajes_pack_para_ia(pack_id, seller_id=""):
 
     for path, params in intentos:
         try:
-            data = ml_api_get(path, params=params)
+            if api_context is not None:
+                data = api_context.get(path, params=params)
+            else:
+                data = ml_api_get(path, params=params)
+
             mensajes = ml_extraer_lista_mensajes_ml(data)
             if mensajes:
                 return mensajes
@@ -6148,8 +6152,33 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
     if not pack_id:
         return False, 0
 
-    cuenta = MercadoLibreCuenta.query.first()
-    seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+    try:
+        from services.ml_api_context import ml_api_contexto
+        from services.ml_cuentas import cuenta_default, cuenta_por_pedido
+
+        if pedido is not None:
+            cuenta = cuenta_por_pedido(
+                pedido,
+                MercadoLibreCuenta=MercadoLibreCuenta,
+            )
+        else:
+            cuenta = cuenta_default(
+                MercadoLibreCuenta=MercadoLibreCuenta,
+            )
+
+        api_context = ml_api_contexto(
+            cuenta,
+            db_session=db.session,
+            logger_fn=print,
+        )
+        seller_id = api_context.seller_id
+
+    except Exception as e:
+        print(
+            f"[ML-MSGS-PACK] No se pudo resolver cuenta ML "
+            f"pack/order={pack_id} pedido=#{getattr(pedido, 'id', '?')}: {e}"
+        )
+        return False, 0
 
     intentos = []
     if seller_id:
@@ -6164,7 +6193,7 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
 
     for path, params in intentos:
         try:
-            data = ml_api_get(path, params=params)
+            data = api_context.get(path, params=params)
             mensajes = ml_extraer_lista_mensajes_ml(data)
             endpoint_ok = f"{path} {params}"
             print(f"[ML-MSGS-PACK] OK {endpoint_ok} mensajes={len(mensajes)}")
@@ -6330,13 +6359,29 @@ def ml_mensaje_thread_habilitado(pedido):
     if not pack_id:
         return False
 
-    cuenta = MercadoLibreCuenta.query.first()
-    seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
-    if not seller_id:
-        raise ValueError("No hay cuenta de Mercado Libre conectada.")
+    try:
+        from services.ml_api_context import ml_api_contexto
+        from services.ml_cuentas import cuenta_por_pedido
+
+        cuenta = cuenta_por_pedido(
+            pedido,
+            MercadoLibreCuenta=MercadoLibreCuenta,
+        )
+
+        api_context = ml_api_contexto(
+            cuenta,
+            db_session=db.session,
+            logger_fn=print,
+        )
+        seller_id = api_context.seller_id
+
+    except Exception as e:
+        raise ValueError(
+            f"No se pudo resolver cuenta de Mercado Libre del pedido: {e}"
+        )
 
     try:
-        ml_api_get(
+        api_context.get(
             f"/messages/packs/{pack_id}/sellers/{seller_id}",
             params={"tag": "post_sale"},
         )
@@ -6387,12 +6432,29 @@ def ml_enviar_mensaje_acordas(
     if not ml_mensaje_thread_habilitado(pedido):
         raise ValueError("__FALLBACK_A_WEB__")
 
-    cuenta = MercadoLibreCuenta.query.first()
-    seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+    try:
+        from services.ml_api_context import ml_api_contexto
+        from services.ml_cuentas import cuenta_por_pedido
+
+        cuenta = cuenta_por_pedido(
+            pedido,
+            MercadoLibreCuenta=MercadoLibreCuenta,
+        )
+
+        api_context = ml_api_contexto(
+            cuenta,
+            db_session=db.session,
+            logger_fn=print,
+        )
+        seller_id = api_context.seller_id
+
+    except Exception as e:
+        raise ValueError(
+            f"No se pudo resolver cuenta de Mercado Libre del pedido: {e}"
+        )
+
     buyer_id = str(pedido.ml_buyer_id or "").strip()
 
-    if not seller_id:
-        raise ValueError("No hay cuenta de Mercado Libre conectada.")
     if not buyer_id:
         raise ValueError("No se encontró el ID del comprador de Mercado Libre.")
 
@@ -6417,7 +6479,7 @@ def ml_enviar_mensaje_acordas(
     ultimo_error = None
     for path in intentos:
         try:
-            resultado_ml = ml_api_post_json(path, payload)
+            resultado_ml = api_context.post_json(path, payload)
             ia_marcar_mensaje_bot(pedido, "mercadolibre", texto, commit=False)
             return resultado_ml
         except Exception as e:
@@ -10247,8 +10309,28 @@ def ia_analizar_respuesta_pedido(id):
             error="Primero debe existir contacto inicial enviado."
         ))
 
-    cuenta = MercadoLibreCuenta.query.first()
-    seller_id = str((cuenta.user_id_ml if cuenta else "") or "").strip()
+    try:
+        from services.ml_api_context import ml_api_contexto
+        from services.ml_cuentas import cuenta_por_pedido
+
+        cuenta = cuenta_por_pedido(
+            pedido,
+            MercadoLibreCuenta=MercadoLibreCuenta,
+        )
+
+        api_context = ml_api_contexto(
+            cuenta,
+            db_session=db.session,
+            logger_fn=print,
+        )
+        seller_id = api_context.seller_id
+
+    except Exception as e:
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            error=f"No se pudo resolver cuenta de Mercado Libre del pedido: {e}"
+        ))
 
     ids_chat = []
 
@@ -10266,6 +10348,7 @@ def ia_analizar_respuesta_pedido(id):
         mensajes = ml_obtener_mensajes_pack_para_ia(
             id_chat,
             seller_id=seller_id,
+            api_context=api_context,
         )
 
         if mensajes:
