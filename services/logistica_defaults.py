@@ -7,6 +7,8 @@ Este módulo concentra reglas de asignación inicial de transporte/tipo de entre
 para evitar seguir haciendo crecer app.py con reglas de negocio.
 """
 
+from services.logistica_catalogo import calcular_logistica_pedido_desde_catalogo
+
 
 def _texto_normalizado(valor):
     return str(valor or "").strip().lower()
@@ -49,13 +51,24 @@ def _cotizar_correo_sucursal_acordas(pedido, cotizar_correo_fn=None):
     if not cp_destino:
         return None
 
+    logistica = calcular_logistica_pedido_desde_catalogo(pedido)
+    if not logistica.get("ok") or not logistica.get("permite_correo", True):
+        return None
+
     cotizador = cotizar_correo_fn
     if cotizador is None:
         from modules.transportes.correo_argentino import cotizar_correo
         cotizador = cotizar_correo
 
     try:
-        return cotizador(cp_destino, "S")
+        return cotizador(
+            cp_destino,
+            "S",
+            peso_gr=logistica.get("peso_gr"),
+            alto_cm=logistica.get("alto_cm"),
+            ancho_cm=logistica.get("ancho_cm"),
+            largo_cm=logistica.get("largo_cm"),
+        )
     except Exception:
         return None
 
