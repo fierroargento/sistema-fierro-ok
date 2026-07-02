@@ -9399,9 +9399,11 @@ def detalle_pedido(id):
     if rol_actual() == "admin":
         auditorias_pedido = Auditoria.query.filter_by(entidad="pedido", entidad_id=str(pedido.id)).order_by(Auditoria.fecha.desc()).limit(50).all()
 
-    # Notas internas (solo admin y carga)
+    # Notas internas:
+    # - Admin/Carga: lectura y gestión desde template/rutas.
+    # - Despacho: solo lectura, para ver indicaciones operativas importantes.
     notas_pedido = []
-    if rol_actual() in ["admin", "carga"]:
+    if rol_actual() in ["admin", "carga", "despacho"]:
         notas_pedido = NotaPedido.query.filter_by(pedido_id=pedido.id).order_by(NotaPedido.fecha.desc()).all()
 
     whatsapp_mensajes = []
