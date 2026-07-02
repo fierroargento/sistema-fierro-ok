@@ -17,6 +17,7 @@ import re
 from datetime import datetime
 
 from .correo_argentino import cotizar_correo, obtener_sucursales_correo_por_pedido
+from services.logistica_catalogo import calcular_logistica_pedido_desde_catalogo
 from services.transporte_revision import (
     TIPO_ERROR_AUTENTICACION,
     TIPO_ERROR_DATOS,
@@ -68,39 +69,6 @@ def pedido_contiene_pp6040(pedido):
     return pedido_tiene_pp6040(pedido)
 
 
-def _buscar_producto_catalogo_por_sku(Producto, sku):
-    sku = str(sku or "").strip().upper()
-    if not sku:
-        return None
-
-    try:
-        return Producto.query.filter_by(sku=sku).first()
-    except Exception:
-        try:
-            return Producto.query.filter(Producto.sku.ilike(sku)).first()
-        except Exception:
-            return None
-
-
-def _calcular_logistica_correo_pedido(pedido):
-    try:
-        from app import Producto
-        from services.productos_logistica import calcular_logistica_pedido
-    except Exception as e:
-        return {
-            "ok": False,
-            "motivo": "catalogo_no_disponible",
-            "faltantes": [f"No se pudo acceder al catálogo de productos: {e}"],
-            "permite_correo": False,
-            "requiere_revision_logistica": True,
-        }
-
-    return calcular_logistica_pedido(
-        pedido,
-        buscar_producto_por_sku=lambda sku: _buscar_producto_catalogo_por_sku(Producto, sku),
-    )
-
-
 def _error_logistica_correo(cp, logistica):
     faltantes = logistica.get("faltantes") or []
     detalle = " ".join(faltantes[:3]).strip()
@@ -133,7 +101,7 @@ def cotizar_correo_pp6040(pedido):
             "requiere_operador": True,
         }
 
-    logistica = _calcular_logistica_correo_pedido(pedido)
+    logistica = calcular_logistica_pedido_desde_catalogo(pedido)
 
     if not logistica.get("ok"):
         return _error_logistica_correo(cp, logistica)
@@ -418,6 +386,3 @@ def _marcar_escalado(pedido, motivo):
         db.session.commit()
     except Exception as e:
         print("[SELECTOR] Error escalando:", e)
-
-
-

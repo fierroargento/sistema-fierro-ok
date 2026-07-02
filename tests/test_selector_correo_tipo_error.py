@@ -9,7 +9,7 @@ class PedidoFalso:
 def test_cotizar_correo_pp6040_clasifica_error_integracion(monkeypatch):
     monkeypatch.setattr(
         selector,
-        "_calcular_logistica_correo_pedido",
+        "calcular_logistica_pedido_desde_catalogo",
         lambda pedido: {
             "ok": True,
             "permite_correo": True,
@@ -38,7 +38,7 @@ def test_cotizar_correo_pp6040_clasifica_error_integracion(monkeypatch):
 def test_cotizar_correo_pp6040_clasifica_autenticacion(monkeypatch):
     monkeypatch.setattr(
         selector,
-        "_calcular_logistica_correo_pedido",
+        "calcular_logistica_pedido_desde_catalogo",
         lambda pedido: {
             "ok": True,
             "permite_correo": True,
@@ -68,7 +68,7 @@ def test_cotizar_correo_pp6040_clasifica_autenticacion(monkeypatch):
 def test_cotizar_correo_pp6040_clasifica_datos_logisticos_incompletos(monkeypatch):
     monkeypatch.setattr(
         selector,
-        "_calcular_logistica_correo_pedido",
+        "calcular_logistica_pedido_desde_catalogo",
         lambda pedido: {
             "ok": False,
             "motivo": "datos_logisticos_incompletos",
