@@ -19,10 +19,11 @@ from modules.transportes.selector import pedido_contiene_pp6040
 from services.logistica_defaults import pedido_es_plegable_pp6040_service
 from services.canal_manager import pedido_es_plegable_pp6040_ownership
 from modules.bot_ml.contacto import pedido_es_plegable_pp6040
+from services.motor_bloqueo import cantidad_pp6040_pedido
 
 
-def item(sku, descripcion=""):
-    return SimpleNamespace(sku=sku, descripcion=descripcion)
+def item(sku, descripcion="", cantidad=1):
+    return SimpleNamespace(sku=sku, descripcion=descripcion, cantidad=cantidad)
 
 
 def pedido(*items):
@@ -135,4 +136,18 @@ def test_bot_ml_contacto_no_detecta_pa9060h_como_pp6040():
 def test_bot_ml_contacto_no_detecta_plegable_por_descripcion():
     p = pedido(item("PA9060H", descripcion="Parrilla plegable 90x60"))
     assert pedido_es_plegable_pp6040(p) is False
+
+def test_motor_bloqueo_cuenta_pp6040_por_sku():
+    p = pedido(item("PP6040H", cantidad=2))
+    assert cantidad_pp6040_pedido(p) == 2
+
+
+def test_motor_bloqueo_no_cuenta_pa9060h_como_pp6040():
+    p = pedido(item("PA9060H", cantidad=3))
+    assert cantidad_pp6040_pedido(p) == 0
+
+
+def test_motor_bloqueo_no_cuenta_pp6040_en_descripcion():
+    p = pedido(item("PA9060H", descripcion="Producto parecido a PP6040", cantidad=5))
+    assert cantidad_pp6040_pedido(p) == 0
 

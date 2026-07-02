@@ -97,19 +97,27 @@ def validar_datos_basicos(pedido):
     return errores
 
 def cantidad_pp6040_pedido(pedido):
-    """Cantidad total de unidades PP6040 en el pedido. Regla APB transporte."""
+    """
+    Cantidad total de unidades PP6040 en el pedido.
+
+    APB:
+    - La regla se centraliza en domain/productos.py.
+    - Cuenta solo por SKU.
+    - No mira descripción ni observaciones.
+    - PA9060H no suma como PP6040.
+    """
     if not pedido:
         return 0
 
+    from domain.productos import es_sku_pp6040
+
     total = 0
-    for item in (pedido.items or []):
-        sku = str(getattr(item, "sku", "") or "").upper()
-        descripcion = str(getattr(item, "descripcion", "") or "").upper()
-        if "PP6040" in sku or "PP6040" in descripcion:
+    for item in (getattr(pedido, "items", None) or []):
+        if es_sku_pp6040(getattr(item, "sku", "")):
             try:
                 total += int(getattr(item, "cantidad", 0) or 0)
             except Exception:
-                total += 0
+                pass
 
     return total
 
