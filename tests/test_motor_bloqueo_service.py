@@ -159,7 +159,7 @@ def test_validar_transporte_obligatorio_sin_transporte_agrega_error():
     assert "Falta transporte." in errores
 
 
-def test_cantidad_pp6040_pedido_suma_por_sku_y_descripcion():
+def test_cantidad_pp6040_pedido_suma_solo_por_sku():
     pedido = pedido_base(
         items=[
             item(sku="PP6040H", descripcion="", cantidad=1),
@@ -167,7 +167,7 @@ def test_cantidad_pp6040_pedido_suma_por_sku_y_descripcion():
         ]
     )
 
-    assert cantidad_pp6040_pedido(pedido) == 3
+    assert cantidad_pp6040_pedido(pedido) == 1
 
 
 def test_pp6040_via_cargo_bloquea_con_una_o_dos_unidades():

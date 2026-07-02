@@ -31,12 +31,12 @@ def test_pedido_es_plegable_pp6040_detecta_por_sku():
     assert pedido_es_plegable_pp6040(pedido) is True
 
 
-def test_pedido_es_plegable_pp6040_detecta_por_descripcion():
+def test_pedido_es_plegable_pp6040_no_detecta_por_descripcion_sin_sku():
     pedido = PedidoFake(items=[
         ItemFake(sku="", descripcion="Parrilla plegable"),
     ])
 
-    assert pedido_es_plegable_pp6040(pedido) is True
+    assert pedido_es_plegable_pp6040(pedido) is False
 
 
 def test_pedido_es_plegable_pp6040_false_si_no_coincide():
