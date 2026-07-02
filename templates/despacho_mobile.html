@@ -185,6 +185,44 @@
     font-weight: 800;
     text-decoration: none;
 }
+
+.mobile-notas-internas {
+    margin: 12px 0;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid #f59e0b;
+    background: #fffbeb;
+    color: #78350f;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.mobile-notas-titulo {
+    font-size: 14px;
+    font-weight: 900;
+    margin-bottom: 8px;
+}
+
+.mobile-nota-item {
+    padding-top: 8px;
+    margin-top: 8px;
+    border-top: 1px solid #fde68a;
+    white-space: pre-wrap;
+}
+
+.mobile-nota-item:first-of-type {
+    padding-top: 0;
+    margin-top: 0;
+    border-top: 0;
+}
+
+.mobile-nota-meta {
+    margin-top: 6px;
+    color: #92400e;
+    font-size: 11px;
+    font-weight: 600;
+}
+
 </style>
 
 <div class="mobile-despacho-wrap">
@@ -225,6 +263,22 @@
                         </div>
                     {% endfor %}
                 </div>
+
+                {% set notas_mobile = notas_importantes_por_pedido.get(pedido.id, []) %}
+                {% if notas_mobile %}
+                    <div class="mobile-notas-internas">
+                        <div class="mobile-notas-titulo">⚠️Atención ver</div>
+                        {% for nota in notas_mobile %}
+                            <div class="mobile-nota-item">
+                                {{ nota.texto }}
+                                <div class="mobile-nota-meta">
+                                    {{ nota.usuario or 'Sistema' }}
+                                    {% if nota.fecha %} · {{ nota.fecha.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
 
                 {% if pedido.agregado_pendiente_revision %}
                     <div class="mobile-alerta-agregado">

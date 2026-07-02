@@ -7588,9 +7588,22 @@ def despacho_mobile():
     pedidos = Pedido.query.filter(Pedido.estado.in_(ESTADOS_DESPACHO_OPERATIVO)).all()
     pedidos.sort(key=orden_inicio_pedido)
 
+    notas_importantes_por_pedido = {}
+    pedido_ids = [pedido.id for pedido in pedidos if pedido.id]
+    if pedido_ids:
+        notas_mobile = (
+            NotaPedido.query
+            .filter(NotaPedido.pedido_id.in_(pedido_ids))
+            .order_by(NotaPedido.fecha.desc())
+            .all()
+        )
+        for nota in notas_mobile:
+            notas_importantes_por_pedido.setdefault(nota.pedido_id, []).append(nota)
+
     return render_template(
         "despacho_mobile.html",
         pedidos=pedidos,
+        notas_importantes_por_pedido=notas_importantes_por_pedido,
         accion_principal_pedido=accion_principal_pedido,
         accion_sugerida_pedido=accion_sugerida_pedido,
         ok_feedback=(request.args.get("ok") or "").strip(),
