@@ -463,21 +463,19 @@ def _faltantes_recolector_pedido(pedido):
 
 def pedido_es_plegable_pp6040_ownership(pedido):
     """
-    Detección simple y desacoplada de app.py.
+    Detecta familia PP6040 usando solo SKU.
 
-    Se usa para reglas de ownership/canales, no para pricing ni catálogo.
+    APB:
+    - La regla se centraliza en domain/productos.py.
+    - No mira descripción ni observaciones.
+    - PA9060H no entra como PP6040.
     """
     if not pedido:
         return False
 
-    for item in (getattr(pedido, "items", None) or []):
-        sku = str(getattr(item, "sku", "") or "").upper().strip()
-        descripcion = str(getattr(item, "descripcion", "") or "").upper().strip()
+    from domain.productos import pedido_tiene_pp6040
+    return pedido_tiene_pp6040(pedido)
 
-        if "PP6040" in sku or "PP6040" in descripcion or "PLEGABLE" in descripcion:
-            return True
-
-    return False
 
 def pedido_es_ml_acordas_ownership(pedido):
     """
