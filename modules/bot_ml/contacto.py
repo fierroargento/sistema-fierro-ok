@@ -12,18 +12,19 @@ APB / SaaS:
 
 
 def pedido_es_plegable_pp6040(pedido):
-    """Detecta parrilla plegable para usar mensaje neutro ML Acordas."""
+    """
+    Detecta familia PP6040 usando solo SKU.
+
+    APB:
+    - La regla se centraliza en domain/productos.py.
+    - No mira descripción ni observaciones.
+    - PA9060H no entra como PP6040.
+    """
     if not pedido:
         return False
 
-    for item in (getattr(pedido, "items", None) or []):
-        sku = str(getattr(item, "sku", "") or "").upper()
-        descripcion = str(getattr(item, "descripcion", "") or "").upper()
-
-        if "PP6040" in sku or "PP6040" in descripcion or "PLEGABLE" in descripcion:
-            return True
-
-    return False
+    from domain.productos import pedido_tiene_pp6040
+    return pedido_tiene_pp6040(pedido)
 
 
 def generar_mensaje_contacto_ml(pedido, es_ml_acordas_entrega_fn):
