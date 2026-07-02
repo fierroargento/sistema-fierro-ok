@@ -1078,19 +1078,21 @@ body { background: #f4f7f8; }
     </details>
     {% endif %}
 
-    {% if rol_actual in ["admin", "carga"] %}
-    <details class="detalle-box detalle-box-full" id="notas" style="margin-top:16px; border-left:5px solid #6366f1;">
-        <summary style="cursor:pointer; font-weight:700; font-size:1rem;">📝 Notas internas
+    {% if rol_actual in ["admin", "carga"] or (rol_actual == "despacho" and notas_pedido) %}
+    <details class="detalle-box detalle-box-full" id="notas" {% if rol_actual == "despacho" and notas_pedido %}open{% endif %} style="margin-top:16px; border-left:5px solid {% if rol_actual == "despacho" %}#f59e0b{% else %}#6366f1{% endif %}; {% if rol_actual == "despacho" %}background:#fffbeb;{% endif %}">
+        <summary style="cursor:pointer; font-weight:700; font-size:1rem;">{% if rol_actual == "despacho" %}⚠ Notas internas importantes{% else %}📝 Notas internas{% endif %}
             {% if notas_pedido %}<span style="font-size:0.78rem; font-weight:400; color:#6366f1; margin-left:8px;">({{ notas_pedido|length }})</span>{% endif %}
         </summary>
         <div style="margin-top:12px;">
 
+        {% if rol_actual in ["admin", "carga"] %}
         <!-- Formulario agregar nota -->
         <form method="POST" action="{{ url_for('agregar_nota_pedido', id=pedido.id) }}" style="margin-bottom:16px;">
             <textarea name="texto" rows="2" placeholder="Agregar nota..." required
                 style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.88rem; resize:vertical; box-sizing:border-box;"></textarea>
             <button type="submit" class="btn btn-primario" style="margin-top:6px; padding:6px 14px; font-size:0.84rem;">Agregar nota</button>
         </form>
+        {% endif %}
 
         <!-- Lista de notas -->
         {% if notas_pedido %}
