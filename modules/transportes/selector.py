@@ -56,18 +56,16 @@ def _cfg_float(clave, default):
 
 
 def pedido_contiene_pp6040(pedido):
-    """Detecta cualquier SKU/descrición que contenga PP6040."""
-    try:
-        items = list(getattr(pedido, "items", []) or [])
-    except Exception:
-        items = []
-    textos = []
-    for item in items:
-        textos.append(str(getattr(item, "sku", "") or ""))
-        textos.append(str(getattr(item, "descripcion", "") or ""))
-    textos.append(str(getattr(pedido, "observaciones", "") or ""))
-    blob = " ".join(textos).upper()
-    return "PP6040" in blob
+    """
+    Detecta familia PP6040 usando solo SKU.
+
+    APB:
+    - La regla se centraliza en domain/productos.py.
+    - No mira descripción ni observaciones.
+    - PA9060H no entra como PP6040.
+    """
+    from domain.productos import pedido_tiene_pp6040
+    return pedido_tiene_pp6040(pedido)
 
 
 def _buscar_producto_catalogo_por_sku(Producto, sku):

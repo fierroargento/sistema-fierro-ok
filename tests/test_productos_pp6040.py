@@ -15,6 +15,7 @@ from domain.productos import (
     es_sku_pp6040,
     pedido_tiene_pp6040,
 )
+from modules.transportes.selector import pedido_contiene_pp6040
 
 
 def item(sku, descripcion=""):
@@ -72,4 +73,21 @@ def test_pedido_tiene_pp6040_false_sin_items():
     assert pedido_tiene_pp6040(SimpleNamespace(items=[])) is False
     assert pedido_tiene_pp6040(SimpleNamespace(items=None)) is False
     assert pedido_tiene_pp6040(None) is False
+
+def test_selector_detecta_pp6040_por_sku():
+    p = pedido(item("PP6040H"))
+    assert pedido_contiene_pp6040(p) is True
+
+
+def test_selector_no_detecta_pa9060h_como_pp6040():
+    p = pedido(item("PA9060H"))
+    assert pedido_contiene_pp6040(p) is False
+
+
+def test_selector_no_detecta_pp6040_en_descripcion_ni_observaciones():
+    p = SimpleNamespace(
+        items=[item("PA9060H", descripcion="Producto parecido a PP6040")],
+        observaciones="PP6040 mencionado en observaciones",
+    )
+    assert pedido_contiene_pp6040(p) is False
 
