@@ -16,6 +16,7 @@ from domain.productos import (
     pedido_tiene_pp6040,
 )
 from modules.transportes.selector import pedido_contiene_pp6040
+from services.logistica_defaults import pedido_es_plegable_pp6040_service
 
 
 def item(sku, descripcion=""):
@@ -90,4 +91,18 @@ def test_selector_no_detecta_pp6040_en_descripcion_ni_observaciones():
         observaciones="PP6040 mencionado en observaciones",
     )
     assert pedido_contiene_pp6040(p) is False
+
+def test_logistica_defaults_detecta_pp6040_por_sku():
+    p = pedido(item("PP6040H"))
+    assert pedido_es_plegable_pp6040_service(p) is True
+
+
+def test_logistica_defaults_no_detecta_pa9060h_como_pp6040():
+    p = pedido(item("PA9060H"))
+    assert pedido_es_plegable_pp6040_service(p) is False
+
+
+def test_logistica_defaults_no_detecta_plegable_por_descripcion():
+    p = pedido(item("PA9060H", descripcion="Parrilla plegable 90x60"))
+    assert pedido_es_plegable_pp6040_service(p) is False
 

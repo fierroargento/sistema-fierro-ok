@@ -22,24 +22,18 @@ def es_ml_acordas_entrega_service(pedido):
 
 def pedido_es_plegable_pp6040_service(pedido):
     """
-    Detecta parrilla plegable PP6040 para NO forzar Vía Cargo.
+    Detecta familia PP6040 usando solo SKU.
 
     APB:
-    - PP6040 tiene regla logística especial y no debe entrar por el default
-      general de ML/Acordás → Vía Cargo/Sucursal.
-    - La detección mira SKU y descripción de los items, sin depender de app.py.
+    - La regla se centraliza en domain/productos.py.
+    - No mira descripción ni observaciones.
+    - PA9060H no entra como PP6040.
     """
     if not pedido:
         return False
 
-    for item in (getattr(pedido, "items", None) or []):
-        sku = _texto_normalizado(getattr(item, "sku", "")).upper()
-        descripcion = _texto_normalizado(getattr(item, "descripcion", "")).upper()
-
-        if "PP6040" in sku or "PP6040" in descripcion or "PLEGABLE" in descripcion:
-            return True
-
-    return False
+    from domain.productos import pedido_tiene_pp6040
+    return pedido_tiene_pp6040(pedido)
 
 
 def _cp_destino_pedido(pedido):
