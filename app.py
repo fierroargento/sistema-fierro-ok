@@ -5831,6 +5831,7 @@ def ia_auto_responder_post_analisis(pedido):
 
     else:
         if not faltantes:
+            pp6040_transporte_asignado = False
             # Datos del cliente completos.
             # ML Acordás la Entrega que NO es plegable PP6040 → siempre Via Cargo sucursal.
             # Si falta elegir sucursal, mandar opciones al cliente.
@@ -5843,8 +5844,7 @@ def ia_auto_responder_post_analisis(pedido):
                         ok, msg_transporte = asignar_transporte_pedido(pedido)
                         if ok:
                             print(f"[TRANSPORTES] Pedido #{pedido.id}: {msg_transporte}")
-                            # Avisar al operador que el transporte fue asignado
-                            pedido.ml_mensajes_pendientes = True
+                            pp6040_transporte_asignado = True
                             resumen = (pedido.ia_resumen or "").strip()
                             pedido.ia_resumen = f"{resumen} | {msg_transporte}".strip(" |")
                             db.session.commit()
@@ -5869,18 +5869,21 @@ def ia_auto_responder_post_analisis(pedido):
                             db.session.commit()
                     except Exception as e:
                         print(f"[TRANSPORTES] Error asignando transporte pedido #{pedido.id}:", e)
-                return False, "datos_completos"
-            try:
-                from services.logistica_defaults import aplicar_default_via_cargo_sucursal_ml_acordas
+                if not pp6040_transporte_asignado:
+                    return False, "datos_completos"
 
-                if aplicar_default_via_cargo_sucursal_ml_acordas(pedido):
-                    db.session.commit()
-            except Exception as e:
-                print(f"[LOGISTICA-DEFAULTS] No se pudo aplicar default Via Cargo pedido #{getattr(pedido, 'id', '?')}: {e}")
+            if not pp6040_transporte_asignado:
                 try:
-                    db.session.rollback()
-                except Exception:
-                    pass
+                    from services.logistica_defaults import aplicar_default_via_cargo_sucursal_ml_acordas
+
+                    if aplicar_default_via_cargo_sucursal_ml_acordas(pedido):
+                        db.session.commit()
+                except Exception as e:
+                    print(f"[LOGISTICA-DEFAULTS] No se pudo aplicar default Via Cargo pedido #{getattr(pedido, 'id', '?')}: {e}")
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
 
             msg_sucursales = sugerir_sucursales(pedido)
             if msg_sucursales:
