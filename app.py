@@ -5763,7 +5763,26 @@ def ia_auto_responder_post_analisis(pedido):
         texto_demora_handoff_wa_ml,
     )
 
-    if not faltantes and detectar_consulta_demora_simple_ml(pedido):
+    debe_priorizar_sucursal_ml = bool(
+        es_ml_acordas_entrega(pedido)
+        and not str(getattr(pedido, "sucursal_nombre", "") or "").strip()
+        and (
+            pedido_es_plegable_pp6040(pedido)
+            or ml_acordas_via_cargo_bloquea_inicio_wa(pedido)
+            or str(getattr(pedido, "wa_estado", "") or "").strip().lower()
+            == "falta_elegir_transporte"
+            or bool(
+                getattr(pedido, "ia_sucursales_ofrecidas", None)
+                or getattr(pedido, "correo_sucursales_ofrecidas", None)
+            )
+        )
+    )
+
+    if (
+        not faltantes
+        and detectar_consulta_demora_simple_ml(pedido)
+        and not debe_priorizar_sucursal_ml
+    ):
         texto_demora = texto_demora_handoff_wa_ml()
 
         if ia_respuesta_faltantes_ya_enviada(pedido, texto_demora):
@@ -7071,6 +7090,31 @@ def wa_auto_iniciar_desde_ml_si_corresponde(pedido, faltantes=None, motivo=""):
         faltantes=faltantes or ia_faltantes_pedido(pedido) or [],
         telefono_normalizado=tel,
     )
+
+    if (
+        not faltantes_limpios
+        and es_ml_acordas_entrega(pedido)
+        and not str(getattr(pedido, "sucursal_nombre", "") or "").strip()
+        and (
+            pedido_es_plegable_pp6040(pedido)
+            or (
+                "correo" in str(getattr(pedido, "empresa_envio", "") or "").lower()
+                and str(getattr(pedido, "tipo_entrega", "") or "").strip().lower()
+                == "sucursal"
+            )
+            or str(getattr(pedido, "wa_estado", "") or "").strip().lower()
+            == "falta_elegir_transporte"
+            or bool(
+                getattr(pedido, "ia_sucursales_ofrecidas", None)
+                or getattr(pedido, "correo_sucursales_ofrecidas", None)
+            )
+        )
+    ):
+        print(
+            f"[WA-AUTO-ML] Pedido #{getattr(pedido, 'id', '?')}: "
+            "ML debe cerrar elección de sucursal antes de WhatsApp"
+        )
+        return False, "ml_debe_cerrar_sucursal"
 
     if faltantes_limpios:
         ml_cortado, motivo_corte_ml = ml_conversacion_cortada_para_handoff_wa(
