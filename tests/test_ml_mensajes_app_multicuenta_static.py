@@ -29,7 +29,7 @@ def test_ml_sync_mensajes_pack_usa_contexto_por_pedido():
     bloque = bloque_funcion(texto, "ml_sync_mensajes_pack")
 
     assert "MercadoLibreCuenta.query.first()" not in bloque
-    assert "cuenta_por_pedido(" in bloque
+    assert "cuenta_por_pedido_o_backfill_unica(" in bloque
     assert "cuenta_default(" in bloque
     assert "ml_api_contexto(" in bloque
     assert "api_context.get(path, params=params)" in bloque
@@ -40,7 +40,7 @@ def test_ml_mensaje_thread_habilitado_usa_contexto_por_pedido():
     bloque = bloque_funcion(texto, "ml_mensaje_thread_habilitado")
 
     assert "MercadoLibreCuenta.query.first()" not in bloque
-    assert "cuenta_por_pedido(" in bloque
+    assert "cuenta_por_pedido_o_backfill_unica(" in bloque
     assert "ml_api_contexto(" in bloque
     assert "api_context.get(" in bloque
 
@@ -50,7 +50,7 @@ def test_ml_enviar_mensaje_acordas_usa_contexto_por_pedido():
     bloque = bloque_funcion(texto, "ml_enviar_mensaje_acordas")
 
     assert "MercadoLibreCuenta.query.first()" not in bloque
-    assert "cuenta_por_pedido(" in bloque
+    assert "cuenta_por_pedido_o_backfill_unica(" in bloque
     assert "ml_api_contexto(" in bloque
     assert "resultado_ml = api_context.post_json(path, payload)" in bloque
 
@@ -60,7 +60,7 @@ def test_ia_manual_usa_contexto_por_pedido():
     bloque = bloque_funcion(texto, "ia_analizar_respuesta_pedido")
 
     assert "MercadoLibreCuenta.query.first()" not in bloque
-    assert "cuenta_por_pedido(" in bloque
+    assert "cuenta_por_pedido_o_backfill_unica(" in bloque
     assert "ml_api_contexto(" in bloque
     assert "api_context=api_context" in bloque
     assert "No se pudo resolver cuenta de Mercado Libre del pedido" in bloque

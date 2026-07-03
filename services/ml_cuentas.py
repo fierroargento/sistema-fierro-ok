@@ -185,3 +185,48 @@ def cuentas_activas(MercadoLibreCuenta=None):
             c for c in cuentas
             if _normalizar_texto(getattr(c, "estado_conexion", "")) == "conectada"
         ]
+
+
+def cuenta_por_pedido_o_backfill_unica(
+    pedido,
+    MercadoLibreCuenta=None,
+    validar_snapshot=True,
+    commit_fn=None,
+    logger_fn=None,
+):
+    """
+    Compatibilidad segura para pedidos ML legacy/huérfanos.
+
+    Si el pedido no tiene ml_cuenta_id asignado pero existe exactamente una
+    cuenta ML configurada, la asigna al pedido y devuelve esa cuenta.
+
+    No adivina si hay 0 o más de 1 cuentas.
+    """
+    try:
+        return cuenta_por_pedido(
+            pedido,
+            MercadoLibreCuenta=MercadoLibreCuenta,
+            validar_snapshot=validar_snapshot,
+        )
+    except MLCuentaNoAsignada:
+        cuenta = cuenta_default(MercadoLibreCuenta=MercadoLibreCuenta)
+        seller_id = _normalizar_texto(getattr(cuenta, "user_id_ml", ""))
+
+        if not seller_id:
+            raise MLCuentaInconsistente(
+                f"Cuenta ML id={getattr(cuenta, 'id', '?')} sin user_id_ml."
+            )
+
+        pedido.ml_cuenta_id = cuenta.id
+        pedido.ml_seller_id = seller_id
+
+        if logger_fn:
+            logger_fn(
+                f"[ML CUENTAS] Pedido #{getattr(pedido, 'id', '?')} "
+                f"reparado con cuenta ML única id={cuenta.id} seller={seller_id}"
+            )
+
+        if commit_fn:
+            commit_fn()
+
+        return cuenta

@@ -6154,12 +6154,14 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
 
     try:
         from services.ml_api_context import ml_api_contexto
-        from services.ml_cuentas import cuenta_default, cuenta_por_pedido
+        from services.ml_cuentas import cuenta_default, cuenta_por_pedido_o_backfill_unica
 
         if pedido is not None:
-            cuenta = cuenta_por_pedido(
+            cuenta = cuenta_por_pedido_o_backfill_unica(
                 pedido,
                 MercadoLibreCuenta=MercadoLibreCuenta,
+                commit_fn=db.session.commit,
+                logger_fn=print,
             )
         else:
             cuenta = cuenta_default(
@@ -6361,11 +6363,13 @@ def ml_mensaje_thread_habilitado(pedido):
 
     try:
         from services.ml_api_context import ml_api_contexto
-        from services.ml_cuentas import cuenta_por_pedido
+        from services.ml_cuentas import cuenta_por_pedido_o_backfill_unica
 
-        cuenta = cuenta_por_pedido(
+        cuenta = cuenta_por_pedido_o_backfill_unica(
             pedido,
             MercadoLibreCuenta=MercadoLibreCuenta,
+            commit_fn=db.session.commit,
+            logger_fn=print,
         )
 
         api_context = ml_api_contexto(
@@ -6434,11 +6438,13 @@ def ml_enviar_mensaje_acordas(
 
     try:
         from services.ml_api_context import ml_api_contexto
-        from services.ml_cuentas import cuenta_por_pedido
+        from services.ml_cuentas import cuenta_por_pedido_o_backfill_unica
 
-        cuenta = cuenta_por_pedido(
+        cuenta = cuenta_por_pedido_o_backfill_unica(
             pedido,
             MercadoLibreCuenta=MercadoLibreCuenta,
+            commit_fn=db.session.commit,
+            logger_fn=print,
         )
 
         api_context = ml_api_contexto(
@@ -10311,11 +10317,13 @@ def ia_analizar_respuesta_pedido(id):
 
     try:
         from services.ml_api_context import ml_api_contexto
-        from services.ml_cuentas import cuenta_por_pedido
+        from services.ml_cuentas import cuenta_por_pedido_o_backfill_unica
 
-        cuenta = cuenta_por_pedido(
+        cuenta = cuenta_por_pedido_o_backfill_unica(
             pedido,
             MercadoLibreCuenta=MercadoLibreCuenta,
+            commit_fn=db.session.commit,
+            logger_fn=print,
         )
 
         api_context = ml_api_contexto(
