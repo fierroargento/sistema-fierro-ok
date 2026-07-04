@@ -1,20 +1,19 @@
 ﻿from pathlib import Path
 
 
-def test_ia_analizar_confirma_sucursal_antes_de_auto_responder_ml():
+def test_flujo_comun_confirma_sucursal_antes_de_auto_responder_ml():
     texto = Path("app.py").read_text(encoding="utf-8")
 
     assert "def confirmar_sucursal_via_cargo_ofrecida_sin_responder" in texto
 
-    idx_auto = texto.index("ia_auto_responder_post_analisis(pedido)")
-    idx_confirma = texto.rfind(
-        "confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, _texto_logistica)",
-        0,
-        idx_auto,
+    idx_guardar = texto.index("ia_guardar_resultado_recolector(pedido, texto, resultado)")
+    idx_confirma = texto.index(
+        "confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto)",
+        idx_guardar,
     )
+    idx_auto = texto.index("ia_auto_responder_post_analisis(pedido)", idx_guardar)
 
-    assert idx_confirma != -1
-    assert idx_confirma < idx_auto
+    assert idx_guardar < idx_confirma < idx_auto
 
 
 def test_confirmacion_sucursal_directa_limpia_pendientes_operativos():
@@ -31,13 +30,14 @@ def test_confirmacion_sucursal_directa_limpia_pendientes_operativos():
     assert "ml_mensajes_pendientes" in bloque
 
 
-def test_sucursal_directa_redirige_sin_reenviar_confirmacion_repetida():
+def test_flujo_comun_retorna_resultado_sucursal_confirmada_sin_auto_responder():
     texto = Path("app.py").read_text(encoding="utf-8")
 
-    idx = texto.index("confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, _texto_logistica)")
+    idx = texto.index("confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto)")
     bloque = texto[idx: idx + 900]
 
+    assert "actualizar_estado_automatico(pedido)" in bloque
     assert "db.session.commit()" in bloque
-    assert "return redirect(url_for(" in bloque
-    assert "Sucursal confirmada operativamente" in bloque
-    assert "No se reenvio confirmacion automatica repetida" in bloque
+    assert '"estado": "sucursal_confirmada"' in bloque
+    assert '"sucursal_confirmada": True' in bloque
+    assert "return {" in bloque

@@ -5931,6 +5931,28 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
 
     resultado = ia_analizar_datos_cliente_ml_acordas(texto, ia_datos_previos_pedido(pedido))
     ia_guardar_resultado_recolector(pedido, texto, resultado)
+
+    try:
+        if confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto):
+            try:
+                actualizar_estado_automatico(pedido)
+            except Exception as e:
+                print(f"[VIA CARGO] No se pudo autoactualizar estado tras sucursal en analisis ML: {e}")
+
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+            return {
+                "ok": True,
+                "estado": "sucursal_confirmada",
+                "sucursal_confirmada": True,
+            }
+
+    except Exception as e:
+        print(f"[VIA CARGO] No se pudo confirmar sucursal en flujo comun ML: {e}")
+
     if resultado and resultado.get("ok"):
         ia_auto_responder_post_analisis(pedido)
     return resultado
