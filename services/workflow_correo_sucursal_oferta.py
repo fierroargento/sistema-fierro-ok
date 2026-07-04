@@ -97,3 +97,52 @@ def preparar_oferta_sucursales_correo(
         ids=ids_sucursales_correo_oferta(seleccionadas),
         mensaje=armar_mensaje_sucursales_correo(seleccionadas),
     )
+
+
+
+def aplicar_oferta_sucursales_correo_al_pedido(
+    pedido: Any,
+    sucursales_raw: list[dict[str, Any]] | None,
+    ids: list[str] | None,
+    *,
+    canal_origen: str = "ml",
+    ahora_fn=None,
+) -> bool:
+    """
+    Aplica al pedido la oferta de sucursales Correo.
+
+    No hace commit.
+    No envia mensajes.
+    No decide si corresponde ofrecer.
+    """
+
+    if not pedido:
+        return False
+
+    sucursales_raw = list(sucursales_raw or [])
+    ids = list(ids or [])
+
+    if not sucursales_raw:
+        return False
+
+    import json
+    from datetime import datetime
+
+    if hasattr(pedido, "correo_sucursales_ofrecidas"):
+        pedido.correo_sucursales_ofrecidas = json.dumps(sucursales_raw, ensure_ascii=False)
+    elif hasattr(pedido, "ia_sucursales_ofrecidas"):
+        pedido.ia_sucursales_ofrecidas = json.dumps(ids, ensure_ascii=False)
+
+    pedido.empresa_envio = "Correo Argentino"
+    pedido.tipo_entrega = "Sucursal"
+
+    canal = str(canal_origen or "ml").strip().lower()
+
+    if canal in ("wa", "whatsapp"):
+        pedido.wa_estado = "falta_elegir_transporte"
+        pedido.wa_ultimo_contacto = ahora_fn() if ahora_fn else datetime.utcnow()
+    elif str(getattr(pedido, "wa_estado", "") or "").strip().lower() == "falta_elegir_transporte":
+        pedido.wa_estado = ""
+        pedido.wa_ultimo_contacto = None
+
+    return True

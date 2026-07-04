@@ -27,3 +27,4 @@ def test_oferta_correo_expone_contrato():
     assert "class OfertaSucursalesCorreo" in SRC
     assert "def preparar_oferta_sucursales_correo" in SRC
     assert "def armar_mensaje_sucursales_correo" in SRC
+    assert "def aplicar_oferta_sucursales_correo_al_pedido" in SRC

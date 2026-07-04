@@ -91,3 +91,91 @@ def test_preparar_oferta_sucursales_correo():
 
 def test_preparar_oferta_sin_sucursales_devuelve_none():
     assert preparar_oferta_sucursales_correo([], limite=3) is None
+
+
+
+def test_aplica_oferta_correo_al_pedido_por_ml():
+    from types import SimpleNamespace
+    from services.workflow_correo_sucursal_oferta import aplicar_oferta_sucursales_correo_al_pedido
+
+    pedido = SimpleNamespace(
+        correo_sucursales_ofrecidas="",
+        ia_sucursales_ofrecidas="",
+        empresa_envio="",
+        tipo_entrega="",
+        wa_estado="falta_elegir_transporte",
+        wa_ultimo_contacto="valor-previo",
+    )
+
+    ok = aplicar_oferta_sucursales_correo_al_pedido(
+        pedido,
+        [{"agencyId": "a1", "name": "Correo Centro"}],
+        ["a1"],
+        canal_origen="ml",
+    )
+
+    assert ok is True
+    assert "Correo Centro" in pedido.correo_sucursales_ofrecidas
+    assert pedido.empresa_envio == "Correo Argentino"
+    assert pedido.tipo_entrega == "Sucursal"
+    assert pedido.wa_estado == ""
+    assert pedido.wa_ultimo_contacto is None
+
+
+def test_aplica_oferta_correo_al_pedido_por_whatsapp():
+    from datetime import datetime
+    from types import SimpleNamespace
+    from services.workflow_correo_sucursal_oferta import aplicar_oferta_sucursales_correo_al_pedido
+
+    ahora = datetime(2026, 1, 2, 3, 4, 5)
+    pedido = SimpleNamespace(
+        correo_sucursales_ofrecidas="",
+        empresa_envio="",
+        tipo_entrega="",
+        wa_estado="",
+        wa_ultimo_contacto=None,
+    )
+
+    ok = aplicar_oferta_sucursales_correo_al_pedido(
+        pedido,
+        [{"agencyId": "a1", "name": "Correo Centro"}],
+        ["a1"],
+        canal_origen="wa",
+        ahora_fn=lambda: ahora,
+    )
+
+    assert ok is True
+    assert pedido.wa_estado == "falta_elegir_transporte"
+    assert pedido.wa_ultimo_contacto == ahora
+
+
+def test_aplica_oferta_correo_fallback_ia_sucursales_si_no_existe_campo_correo():
+    from types import SimpleNamespace
+    from services.workflow_correo_sucursal_oferta import aplicar_oferta_sucursales_correo_al_pedido
+
+    pedido = SimpleNamespace(
+        ia_sucursales_ofrecidas="",
+        empresa_envio="",
+        tipo_entrega="",
+        wa_estado="",
+        wa_ultimo_contacto=None,
+    )
+
+    ok = aplicar_oferta_sucursales_correo_al_pedido(
+        pedido,
+        [{"agencyId": "a1", "name": "Correo Centro"}],
+        ["a1"],
+        canal_origen="ml",
+    )
+
+    assert ok is True
+    assert pedido.ia_sucursales_ofrecidas == "[\"a1\"]"
+
+
+def test_no_aplica_oferta_correo_sin_sucursales():
+    from types import SimpleNamespace
+    from services.workflow_correo_sucursal_oferta import aplicar_oferta_sucursales_correo_al_pedido
+
+    pedido = SimpleNamespace()
+
+    assert aplicar_oferta_sucursales_correo_al_pedido(pedido, [], []) is False
