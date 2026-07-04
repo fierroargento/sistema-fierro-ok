@@ -121,3 +121,129 @@ def construir_marca_revision_transporte(cp, motivo):
         return f"{base}: {motivo_txt}"
 
     return base
+
+
+
+def _normalizar_revision_transporte(texto):
+    import unicodedata
+    import re
+
+    texto = str(texto or "").strip().lower()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    texto = re.sub(r"\s+", " ", texto).strip()
+    return texto
+
+
+def _tiene_sucursales_correo_resueltas(pedido):
+    empresa = _normalizar_revision_transporte(
+        getattr(pedido, "empresa_envio", "") or ""
+    )
+    tipo = _normalizar_revision_transporte(
+        getattr(pedido, "tipo_entrega", "") or ""
+    )
+
+    if "correo" not in empresa:
+        return False
+
+    if "sucursal" not in tipo:
+        return False
+
+    if str(getattr(pedido, "sucursal_nombre", "") or "").strip():
+        return True
+
+    if str(getattr(pedido, "correo_sucursales_ofrecidas", "") or "").strip():
+        return True
+
+    return False
+
+
+def _es_marca_revision_correo_resuelta(parte):
+    texto = _normalizar_revision_transporte(parte)
+
+    if not texto:
+        return False
+
+    menciona_correo = "correo" in texto
+    menciona_transporte = "transporte" in texto or "cotizar" in texto
+
+    if not (menciona_correo and menciona_transporte):
+        return False
+
+    patrones_resueltos = [
+        "no se pudo cotizar correo",
+        "revisar respuesta de la integracion",
+        "transporte requiere revision tecnica",
+        "error_integracion_correo",
+    ]
+
+    return any(patron in texto for patron in patrones_resueltos)
+
+
+def _resumen_tiene_otro_pendiente_operador(resumen):
+    texto = _normalizar_revision_transporte(resumen)
+
+    if not texto:
+        return False
+
+    otros = [
+        "cliente consulto sobre sucursal",
+        "cliente consultó sobre sucursal",
+        "cliente consulto horarios",
+        "cliente consultó horarios",
+        "horarios de retiro",
+        "problema",
+        "reclamo",
+        "incidencia",
+        "cross-sell",
+        "revision de carga",
+        "revisión de carga",
+        "operador",
+    ]
+
+    return any(palabra in texto for palabra in otros)
+
+
+def limpiar_revision_correo_resuelta_por_sucursales(pedido):
+    """
+    Si Correo ya ofreció o confirmó sucursales, limpia marcas viejas de
+    error/revisión técnica de cotización Correo.
+
+    No borra otros pendientes reales, como consulta de horarios, reclamos
+    o revisión de carga.
+    """
+    if not pedido:
+        return False
+
+    if not _tiene_sucursales_correo_resueltas(pedido):
+        return False
+
+    resumen = str(getattr(pedido, "ia_resumen", "") or "").strip()
+    if not resumen:
+        return False
+
+    partes = [p.strip() for p in resumen.split("|") if p.strip()]
+    nuevas = []
+    eliminadas = []
+
+    for parte in partes:
+        if _es_marca_revision_correo_resuelta(parte):
+            eliminadas.append(parte)
+        else:
+            nuevas.append(parte)
+
+    if not eliminadas:
+        return False
+
+    nuevo_resumen = " | ".join(nuevas).strip()
+    pedido.ia_resumen = nuevo_resumen[:1000]
+
+    if not _resumen_tiene_otro_pendiente_operador(nuevo_resumen):
+        if hasattr(pedido, "ia_requiere_operador"):
+            pedido.ia_requiere_operador = False
+        if hasattr(pedido, "ml_mensajes_pendientes"):
+            pedido.ml_mensajes_pendientes = False
+        if hasattr(pedido, "ml_mensajes_pendientes_count"):
+            pedido.ml_mensajes_pendientes_count = 0
+
+    return True

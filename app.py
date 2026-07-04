@@ -5648,13 +5648,10 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 pedido.tipo_entrega = "Sucursal"
 
                 try:
-                    from services.sucursal_consulta_mixta import marcar_consulta_horarios_retiro_pendiente
-                    marcar_consulta_horarios_retiro_pendiente(
-                        pedido,
-                        texto_para_sucursal,
-                    )
+                    from services.transporte_revision import limpiar_revision_correo_resuelta_por_sucursales
+                    limpiar_revision_correo_resuelta_por_sucursales(pedido)
                 except Exception as e:
-                    print("[SUCURSAL] No se pudo marcar consulta secundaria:", e)
+                    print("[TRANSPORTE] No se pudo limpiar revisión Correo resuelta:", e)
 
                 try:
                     from services.correo_argentino_operacion import marcar_correo_sucursal_pendiente_operador
@@ -5706,6 +5703,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     ml_enviar_mensaje_acordas(
                         pedido,
                         msg_confirmacion,
+                        permitir_requiere_operador=True,
                     )
 
                     registrar_envio_automatico(
@@ -5713,6 +5711,15 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                         canal="ml",
                         texto=msg_confirmacion,
                     )
+
+                    try:
+                        from services.sucursal_consulta_mixta import marcar_consulta_horarios_retiro_pendiente
+                        marcar_consulta_horarios_retiro_pendiente(
+                            pedido,
+                            texto_para_sucursal,
+                        )
+                    except Exception as e:
+                        print("[SUCURSAL] No se pudo marcar consulta secundaria:", e)
 
                     intentar_wa_cross_sell_tras_sucursal_ml(
                         pedido,
