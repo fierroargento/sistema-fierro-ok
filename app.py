@@ -1773,6 +1773,75 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
         )
         return False
 
+
+def iniciar_transicion_ml_wa_si_sucursal_ya_confirmada(pedido, motivo="sucursal_ya_confirmada"):
+    """
+    APB:
+    Recupera pedidos que ya tienen sucursal confirmada pero todavia no pasaron
+    a WhatsApp/cross-sell por haber quedado en un estado intermedio.
+    """
+    if not pedido:
+        return False
+
+    if not str(getattr(pedido, "sucursal_nombre", "") or "").strip():
+        return False
+
+    canal = str(getattr(pedido, "canal", "") or "").strip().lower()
+    tipo_ml = str(getattr(pedido, "ml_tipo", "") or "").strip().lower()
+
+    if "mercado libre" not in canal:
+        return False
+
+    if "acord" not in tipo_ml:
+        return False
+
+    try:
+        nombre_cliente = (getattr(pedido, "cliente", "") or "Cliente").split()[0] or "Cliente"
+        sucursal_confirmada = str(getattr(pedido, "sucursal_nombre", "") or "").strip()
+        direccion_confirmada = str(getattr(pedido, "direccion", "") or "").strip()
+
+        msg_transicion_wa = (
+            f"Perfecto {nombre_cliente}, ya registramos la sucursal elegida.\n\n"
+            f"Sucursal: {sucursal_confirmada}\n"
+            f"Direccion: {direccion_confirmada}\n\n"
+            "Ahora seguimos la preparacion por WhatsApp para terminar de coordinar el despacho."
+        )
+
+        permitido_ml, motivo_ml = puede_enviar_mensaje(
+            pedido=pedido,
+            canal="ml",
+            texto=msg_transicion_wa,
+        )
+
+        if permitido_ml:
+            ml_enviar_mensaje_acordas(
+                pedido,
+                msg_transicion_wa,
+                permitir_requiere_operador=True,
+            )
+            registrar_envio_automatico(
+                pedido=pedido,
+                canal="ml",
+                texto=msg_transicion_wa,
+            )
+        else:
+            print(f"[CANAL-MANAGER] ML transicion WA omitida pedido #{pedido.id}: {motivo_ml}")
+
+    except Exception as e:
+        print(f"[ML-WA] No se pudo enviar transicion pendiente pedido #{getattr(pedido, 'id', '')}: {e}")
+
+    try:
+        intentar_wa_cross_sell_tras_sucursal_ml(
+            pedido,
+            wa_auto_iniciar_desde_ml_fn=wa_auto_iniciar_desde_ml_si_corresponde,
+            db_session=db.session,
+            motivo=motivo,
+        )
+    except Exception as e:
+        print(f"[CROSS-SELL-ML-WA] No se pudo iniciar WA/cross-sell pendiente: {e}")
+
+    return True
+
 def requiere_seguimiento_retiro(pedido):
     """
     APB:
@@ -5931,6 +6000,16 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
 
     resultado = ia_analizar_datos_cliente_ml_acordas(texto, ia_datos_previos_pedido(pedido))
     ia_guardar_resultado_recolector(pedido, texto, resultado)
+
+    try:
+        if iniciar_transicion_ml_wa_si_sucursal_ya_confirmada(
+            pedido,
+            motivo="sucursal_ya_confirmada_reanalisis_ml",
+        ):
+            db.session.commit()
+    except Exception as e:
+        print(f"[ML-WA] No se pudo recuperar transicion pendiente tras analisis IA: {e}")
+
 
     try:
         if confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto):
