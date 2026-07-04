@@ -563,6 +563,80 @@ def ml_actualizar_resumen_sync_service(
     }
 
 
+def _ml_normalizar_texto(valor):
+    import unicodedata
+
+    texto = str(valor or "").strip().lower()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    return texto
+
+
+def _ml_es_acordas_entrega_pedido(pedido):
+    texto = _ml_normalizar_texto(
+        getattr(pedido, "ml_tipo", "") or ""
+    )
+
+    return "acord" in texto and "entrega" in texto
+
+
+def _ml_tiene_sucursales_correo_ofrecidas(pedido):
+    empresa = _ml_normalizar_texto(
+        getattr(pedido, "empresa_envio", "") or ""
+    )
+
+    if "correo" not in empresa:
+        return False
+
+    for campo in (
+        "correo_sucursales_ofrecidas",
+        "ia_sucursales_ofrecidas",
+    ):
+        valor = str(
+            getattr(pedido, campo, "") or ""
+        ).strip()
+
+        if valor:
+            return True
+
+    return False
+
+
+def _ml_debe_preservar_tipo_entrega_interno(pedido):
+    """
+    APB / SaaS:
+    Mercado Libre informa datos crudos de shipping, pero en Acordás la Entrega
+    la decisión logística operativa la toma Fierro.
+
+    Un re-sync de ML no debe pisar una decisión interna ya tomada.
+    """
+    if not _ml_es_acordas_entrega_pedido(pedido):
+        return False
+
+    tipo_actual = str(
+        getattr(pedido, "tipo_entrega", "") or ""
+    ).strip()
+
+    if not tipo_actual:
+        return False
+
+    empresa = _ml_normalizar_texto(
+        getattr(pedido, "empresa_envio", "") or ""
+    )
+
+    if not empresa:
+        return False
+
+    transportes_internos = (
+        "correo",
+        "via cargo",
+        "vía cargo",
+        "andreani",
+    )
+
+    return any(t in empresa for t in transportes_internos)
+
+
 def ml_aplicar_datos_envio_service(
     pedido,
     order,
@@ -614,7 +688,17 @@ def ml_aplicar_datos_envio_service(
     ).strip()
 
     pedido.ml_tipo = ml_mapear_tipo_fn(order, shipment)
-    pedido.tipo_entrega = ml_mapear_tipo_entrega_fn(order, shipment)
+    tipo_entrega_ml = ml_mapear_tipo_entrega_fn(order, shipment)
+
+    if _ml_tiene_sucursales_correo_ofrecidas(pedido):
+        # Si ya se ofrecieron sucursales Correo, la operación queda en Sucursal.
+        # ML puede traer receiver_address y parecer domicilio, pero no debe pisar
+        # la decisión logística interna.
+        pedido.tipo_entrega = "Sucursal"
+    elif _ml_debe_preservar_tipo_entrega_interno(pedido):
+        pedido.tipo_entrega = pedido.tipo_entrega or tipo_entrega_ml
+    else:
+        pedido.tipo_entrega = tipo_entrega_ml
 
     pedido.seguimiento = (
         shipment.get("tracking_number")
@@ -859,4 +943,3 @@ def ml_pedido_existente_operativo_service(
                 return pedido
 
     return ml_pedido_existente_por_order_id_fn(order_id)
-
