@@ -349,10 +349,22 @@ def sugerir_sucursales_correo_pedido(pedido, canal_origen="ml"):
     except Exception:
         limite_sucursales = 3
 
+    from services.workflow_correo_sucursal_oferta import preparar_oferta_sucursales_correo
+
+    oferta_correo = preparar_oferta_sucursales_correo(
+        sucursales,
+        limite=limite_sucursales,
+    )
+
+    if not oferta_correo:
+        _marcar_escalado(pedido, "No se pudieron preparar sucursales Correo cercanas")
+        return None
+
+    # Compatibilidad: se guarda la sucursal raw como antes para no romper el detector existente.
     sucs = sucursales[:limite_sucursales]
     try:
         from app import db
-        ids = [s.get("id") or s.get("agencyId") or s.get("codigo") or str(i + 1) for i, s in enumerate(sucs)]
+        ids = oferta_correo.ids
         if hasattr(pedido, "correo_sucursales_ofrecidas"):
             pedido.correo_sucursales_ofrecidas = json.dumps(sucs, ensure_ascii=False)
         else:
@@ -373,21 +385,7 @@ def sugerir_sucursales_correo_pedido(pedido, canal_origen="ml"):
     except Exception as e:
         print("[CORREO SELECTOR] Error guardando sucursales ofrecidas:", e)
 
-    lista = ""
-    for i, s in enumerate(sucs, 1):
-        nombre = s.get("nombre") or s.get("name") or s.get("descripcion") or "Punto Correo"
-        direccion = s.get("direccion") or s.get("address") or s.get("domicilio") or ""
-        localidad = s.get("localidad") or s.get("city") or ""
-        lista += f"{i}) {nombre}\n{direccion}{(' - ' + localidad) if localidad else ''}\n\n"
-
-    return (
-        "Genial, ya tenemos los datos para avanzar con el despacho.\n\n"
-        "Siempre recomendamos retiro en sucursal o punto Correo porque suele ser más ordenado "
-        "y evita posibles demoras por visitas fallidas en domicilio.\n\n"
-        "Te paso las opciones más cercanas:\n\n"
-        f"{lista}"
-        "Decime cuál preferís y seguimos con el despacho."
-    )
+    return oferta_correo.mensaje
 
 
 def _marcar_escalado(pedido, motivo):
