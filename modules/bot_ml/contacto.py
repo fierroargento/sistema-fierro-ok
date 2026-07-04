@@ -38,7 +38,9 @@ def generar_mensaje_contacto_ml(pedido, es_ml_acordas_entrega_fn):
             "Por favor confirmanos:\n"
             "- Nombre completo de quien recibe\n"
             "- Documento\n"
-            "- Direccion\n"
+            "- Direccion completa\n"
+            "- Localidad\n"
+            "- Codigo postal\n"
             "- Telefono de contacto\n\n"
             "Gracias! Quedamos atentos para continuar con el despacho."
         )
@@ -48,7 +50,9 @@ def generar_mensaje_contacto_ml(pedido, es_ml_acordas_entrega_fn):
             "Tu pedido tiene envio sin cargo con retiro en sucursal Via Cargo. Para coordinar correctamente, necesitamos que nos confirmes:\n\n"
             "- Nombre completo\n"
             "- Documento\n"
-            "- Direccion\n"
+            "- Direccion completa\n"
+            "- Localidad\n"
+            "- Codigo postal\n"
             "- Telefono\n\n"
             "Con esto verificamos la sucursal mas cercana a tu domicilio.\n\n"
             "Gracias! Quedamos atentos."
@@ -57,4 +61,4 @@ def generar_mensaje_contacto_ml(pedido, es_ml_acordas_entrega_fn):
     if len(texto) > 348:
         texto = texto[:345] + "..."
 
-    return texto
+    return texto\n
