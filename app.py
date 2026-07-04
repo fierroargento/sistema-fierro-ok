@@ -5633,10 +5633,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         )
         _puede_detectar_sucursal = (
             _correo_sucursales_ya_ofrecidas
-            or (
-                not pedido_es_plegable_pp6040(pedido)
-                and _via_sucursales_ya_ofrecidas
-            )
+            or _via_sucursales_ya_ofrecidas
         )
         if _puede_detectar_sucursal:
             # Si el sistema ya ofreció sucursales y el cliente hace una consulta
@@ -5757,7 +5754,10 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                         print(
                             f"[CANAL-MANAGER] ML bloqueado pedido #{pedido.id}: {motivo}"
                         )
-                        return False, motivo
+                        motivo_normalizado = str(motivo or "").lower()
+                        mensaje_automatico_repetido = "repetido" in motivo_normalizado
+                        if not mensaje_automatico_repetido:
+                            return False, motivo
 
                     ml_enviar_mensaje_acordas(
                         pedido,
