@@ -127,6 +127,7 @@ from services.pedidos_estado import (
 )
 from services.canal_manager import (
     puede_enviar_mensaje,
+    ml_wa_estado_bloquea_respuesta_ml,
     registrar_envio_automatico,
     ml_acordas_via_cargo_bloquea_inicio_wa,
 )
@@ -5743,9 +5744,9 @@ def ia_auto_responder_post_analisis(pedido):
     wa_estado_actual = str(getattr(pedido, "wa_estado", "") or "").strip().lower()
     canal_activo_actual = str(getattr(pedido, "ia_canal_activo", "") or "").strip().lower()
 
-    wa_tiene_ownership_real = bool(
-        wa_estado_actual
-        and wa_estado_actual != "requiere_operador"
+    wa_tiene_ownership_real = ml_wa_estado_bloquea_respuesta_ml(
+        pedido,
+        wa_estado_actual,
     )
 
     try:
@@ -5761,7 +5762,13 @@ def ia_auto_responder_post_analisis(pedido):
             getattr(estado_conv, "canal_activo", "") or ""
         ).strip().lower()
 
-        if canal_conv in ("wa", "whatsapp"):
+        if (
+            canal_conv in ("wa", "whatsapp")
+            and ml_wa_estado_bloquea_respuesta_ml(
+                pedido,
+                wa_estado_actual,
+            )
+        ):
             wa_tiene_ownership_real = True
 
         if getattr(estado_conv, "takeover_activo", False):
@@ -5770,7 +5777,13 @@ def ia_auto_responder_post_analisis(pedido):
         if getattr(estado_conv, "bot_pausado", False):
             wa_tiene_ownership_real = True
 
-    if canal_activo_actual in ("wa", "whatsapp"):
+    if (
+        canal_activo_actual in ("wa", "whatsapp")
+        and ml_wa_estado_bloquea_respuesta_ml(
+            pedido,
+            wa_estado_actual,
+        )
+    ):
         wa_tiene_ownership_real = True
 
     if wa_tiene_ownership_real:

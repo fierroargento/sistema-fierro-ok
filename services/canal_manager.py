@@ -56,6 +56,39 @@ def _ml_puede_responder_eleccion_sucursal_con_wa_estado(pedido, wa_estado):
     return True
 
 
+def ml_wa_estado_bloquea_respuesta_ml(pedido, wa_estado=None):
+    """
+    Regla central de ownership ML/WA.
+
+    Devuelve True si WhatsApp realmente debe bloquear respuestas ML.
+    Devuelve False si ML todavía puede responder.
+
+    Caso clave:
+    wa_estado=falta_elegir_transporte + Correo/Sucursal
+    NO bloquea ML, porque falta cerrar la elección por el canal original.
+    """
+    estado = str(
+        wa_estado
+        if wa_estado is not None
+        else getattr(pedido, "wa_estado", "")
+        or ""
+    ).strip().lower()
+
+    if not estado:
+        return False
+
+    if estado == "requiere_operador":
+        return False
+
+    if _ml_puede_responder_eleccion_sucursal_con_wa_estado(
+        pedido,
+        estado,
+    ):
+        return False
+
+    return True
+
+
 def puede_enviar_mensaje(
     pedido,
     canal,
@@ -78,15 +111,14 @@ def puede_enviar_mensaje(
         getattr(pedido, "wa_estado", "") or ""
     ).strip().lower()
 
-    if canal == "ml" and wa_estado:
-        if not _ml_puede_responder_eleccion_sucursal_con_wa_estado(
-            pedido,
-            wa_estado,
-        ):
-            return (
-                False,
-                f"WhatsApp activo ({wa_estado})"
-            )
+    if canal == "ml" and ml_wa_estado_bloquea_respuesta_ml(
+        pedido,
+        wa_estado,
+    ):
+        return (
+            False,
+            f"WhatsApp activo ({wa_estado})"
+        )
 
     # ---------------------------------------------------
     # REGLA 2
