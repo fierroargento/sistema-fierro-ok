@@ -20,6 +20,44 @@ from domain.estados import Estado, ESTADOS_CERRADOS
 COOLDOWN_MINUTOS = 30
 
 
+def _ml_puede_responder_eleccion_sucursal_con_wa_estado(pedido, wa_estado):
+    """
+    APB / SaaS:
+
+    wa_estado=falta_elegir_transporte no siempre significa que WhatsApp
+    sea dueño de la conversación. En ML Acordás puede significar solamente
+    que ya se ofrecieron sucursales y falta que el cliente elija.
+
+    En ese caso ML debe poder responder.
+    """
+    if wa_estado != "falta_elegir_transporte":
+        return False
+
+    empresa_envio = str(
+        getattr(pedido, "empresa_envio", "") or ""
+    ).strip().lower()
+
+    tipo_entrega = str(
+        getattr(pedido, "tipo_entrega", "") or ""
+    ).strip().lower()
+
+    if "correo" not in empresa_envio:
+        return False
+
+    if "sucursal" not in tipo_entrega:
+        return False
+
+    sucursales_ofrecidas = (
+        getattr(pedido, "correo_sucursales_ofrecidas", None)
+        or getattr(pedido, "ia_sucursales_ofrecidas", None)
+    )
+
+    if not sucursales_ofrecidas:
+        return False
+
+    return True
+
+
 def puede_enviar_mensaje(
     pedido,
     canal,
@@ -43,10 +81,14 @@ def puede_enviar_mensaje(
     ).strip().lower()
 
     if canal == "ml" and wa_estado:
-        return (
-            False,
-            f"WhatsApp activo ({wa_estado})"
-        )
+        if not _ml_puede_responder_eleccion_sucursal_con_wa_estado(
+            pedido,
+            wa_estado,
+        ):
+            return (
+                False,
+                f"WhatsApp activo ({wa_estado})"
+            )
 
     # ---------------------------------------------------
     # REGLA 2
@@ -782,4 +824,4 @@ def devolver_conversacion_a_ml(
     except Exception:
         pass
 
-    return True, "reencauzado_a_ml"    
+    return True, "reencauzado_a_ml"
