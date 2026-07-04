@@ -1668,6 +1668,111 @@ def detectar_sucursal(pedido, mensaje):
 
 
 
+
+def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
+    """
+    Cierra operativamente una sucursal Via Cargo elegida por el cliente
+    sin depender de enviar una nueva respuesta automatica por ML.
+
+    APB:
+    - El Canal Manager puede bloquear mensajes repetidos.
+    - Ese bloqueo no debe impedir guardar la sucursal elegida.
+    """
+    if not pedido:
+        return False
+
+    if str(getattr(pedido, "sucursal_nombre", "") or "").strip():
+        return False
+
+    ids_raw = str(getattr(pedido, "ia_sucursales_ofrecidas", "") or "").strip()
+    if not ids_raw:
+        return False
+
+    texto_cliente = str(texto_cliente or "").strip()
+    if not texto_cliente:
+        return False
+
+    try:
+        candidatas_ids = json.loads(ids_raw or "[]")
+    except Exception:
+        candidatas_ids = []
+
+    if not candidatas_ids:
+        return False
+
+    try:
+        from services.mensajes_sucursales import (
+            extraer_opcion_sucursal_explicita,
+            normalizar_numero_opcion_sucursal,
+            seleccionar_sucursal_ofrecida_por_opcion,
+        )
+
+        idx = extraer_opcion_sucursal_explicita(
+            texto_cliente,
+            cantidad_opciones=len(candidatas_ids),
+        )
+
+        if idx is None:
+            idx = normalizar_numero_opcion_sucursal(texto_cliente)
+
+        if idx is None or idx < 0 or idx >= len(candidatas_ids):
+            return False
+
+        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
+            sucursales = json.load(f)
+
+        suc = seleccionar_sucursal_ofrecida_por_opcion(
+            sucursales,
+            candidatas_ids,
+            idx,
+        )
+
+        if not suc:
+            return False
+
+        pedido.sucursal_nombre = suc.get("nombre")
+        pedido.direccion = suc.get("direccion")
+        pedido.localidad = suc.get("localidad")
+        pedido.provincia = suc.get("provincia")
+
+        if not str(getattr(pedido, "empresa_envio", "") or "").strip():
+            pedido.empresa_envio = "Vía Cargo"
+
+        pedido.tipo_entrega = "Sucursal"
+        pedido.ia_sucursales_ofrecidas = None
+        pedido.ia_requiere_operador = False
+        pedido.ia_esperando_respuesta = False
+
+        if hasattr(pedido, "ml_mensajes_pendientes"):
+            pedido.ml_mensajes_pendientes = False
+
+        try:
+            if despacho_completo(pedido):
+                pedido.ia_faltantes = "[]"
+                pedido.ia_recolector_estado = "datos_completos"
+                pedido.ia_ultimo_timeout_operador = None
+        except Exception:
+            pass
+
+        resumen = str(getattr(pedido, "ia_resumen", "") or "").strip()
+        marca = f"Sucursal confirmada por opción {idx + 1}: {suc.get('nombre') or ''}".strip()
+        if marca and marca not in resumen:
+            pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")
+
+        print(
+            f"[VIA CARGO] Pedido #{getattr(pedido, 'id', '')}: "
+            f"sucursal confirmada antes de auto-respuesta ML"
+        )
+
+        return True
+
+    except Exception as e:
+        print(
+            f"[VIA CARGO] Error confirmando sucursal ofrecida "
+            f"pedido #{getattr(pedido, 'id', '')}: {e}"
+        )
+        return False
+
 def requiere_seguimiento_retiro(pedido):
     """
     APB:
@@ -5607,6 +5712,25 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             db.session.commit()
         except Exception:
             db.session.rollback()
+
+        try:
+            _texto_logistica = texto_ultimo or texto
+            if confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, _texto_logistica):
+                try:
+                    actualizar_estado_automatico(pedido)
+                except Exception as e:
+                    print(f"[VIA CARGO] No se pudo autoactualizar estado tras sucursal: {e}")
+
+                db.session.commit()
+
+                return redirect(url_for(
+                    "detalle_pedido",
+                    id=pedido.id,
+                    ok="Sucursal confirmada operativamente. No se reenvio confirmacion automatica repetida.",
+                ))
+
+        except Exception as e:
+            print(f"[VIA CARGO] No se pudo confirmar sucursal antes de auto-respuesta ML: {e}")
 
         try:
             ia_auto_responder_post_analisis(pedido)
