@@ -20,7 +20,7 @@ def test_confirmacion_sucursal_directa_limpia_pendientes_operativos():
     texto = Path("app.py").read_text(encoding="utf-8")
 
     idx = texto.index("def confirmar_sucursal_via_cargo_ofrecida_sin_responder")
-    bloque = texto[idx: idx + 3200]
+    bloque = texto[idx: idx + 3600]
 
     assert "pedido.sucursal_nombre = suc.get" in bloque
     assert 'pedido.tipo_entrega = "Sucursal"' in bloque
@@ -30,14 +30,43 @@ def test_confirmacion_sucursal_directa_limpia_pendientes_operativos():
     assert "ml_mensajes_pendientes" in bloque
 
 
-def test_flujo_comun_retorna_resultado_sucursal_confirmada_sin_auto_responder():
+def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
     texto = Path("app.py").read_text(encoding="utf-8")
 
-    idx = texto.index("confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto)")
-    bloque = texto[idx: idx + 900]
+    idx_confirma = texto.index("confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto)")
+    idx_msg = texto.index("msg_transicion_wa", idx_confirma)
+    idx_ml = texto.index("ml_enviar_mensaje_acordas(", idx_confirma)
+    idx_cross = texto.index("intentar_wa_cross_sell_tras_sucursal_ml(", idx_confirma)
+    idx_return = texto.index('"estado": "sucursal_confirmada"', idx_confirma)
+
+    assert idx_confirma < idx_msg < idx_ml < idx_cross < idx_return
+
+
+def test_cross_sell_se_intenta_aunque_ml_se_omita_por_canal_manager():
+    texto = Path("app.py").read_text(encoding="utf-8")
+
+    idx_msg = texto.index("msg_transicion_wa")
+    idx_cross = texto.index("intentar_wa_cross_sell_tras_sucursal_ml(", idx_msg)
+    idx_return = texto.index('"estado": "sucursal_confirmada"', idx_cross)
+
+    bloque_ml = texto[idx_msg:idx_cross]
+    bloque_cross = texto[idx_cross:idx_return]
+
+    assert "puede_enviar_mensaje(" in bloque_ml
+    assert "if permitido_ml:" in bloque_ml
+    assert "ML transicion WA omitida" in bloque_ml
+    assert "intentar_wa_cross_sell_tras_sucursal_ml(" in bloque_cross
+    assert 'motivo="sucursal_confirmada_sin_auto_respuesta"' in bloque_cross
+
+
+def test_flujo_comun_retorna_resultado_sucursal_confirmada():
+    texto = Path("app.py").read_text(encoding="utf-8")
+
+    idx_confirma = texto.index("confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto)")
+    idx_return = texto.index('"estado": "sucursal_confirmada"', idx_confirma)
+    bloque = texto[idx_confirma: idx_return + 300]
 
     assert "actualizar_estado_automatico(pedido)" in bloque
     assert "db.session.commit()" in bloque
     assert '"estado": "sucursal_confirmada"' in bloque
     assert '"sucursal_confirmada": True' in bloque
-    assert "return {" in bloque

@@ -5935,6 +5935,41 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     try:
         if confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto):
             try:
+                nombre_cliente = (getattr(pedido, "cliente", "") or "Cliente").split()[0] or "Cliente"
+                sucursal_confirmada = str(getattr(pedido, "sucursal_nombre", "") or "").strip()
+                direccion_confirmada = str(getattr(pedido, "direccion", "") or "").strip()
+
+                msg_transicion_wa = (
+                    f"Perfecto {nombre_cliente}, ya registramos la sucursal elegida.\n\n"
+                    f"Sucursal: {sucursal_confirmada}\n"
+                    f"Direccion: {direccion_confirmada}\n\n"
+                    "Ahora seguimos la preparacion por WhatsApp para terminar de coordinar el despacho."
+                )
+
+                permitido_ml, motivo_ml = puede_enviar_mensaje(
+                    pedido=pedido,
+                    canal="ml",
+                    texto=msg_transicion_wa,
+                )
+
+                if permitido_ml:
+                    ml_enviar_mensaje_acordas(
+                        pedido,
+                        msg_transicion_wa,
+                        permitir_requiere_operador=True,
+                    )
+                    registrar_envio_automatico(
+                        pedido=pedido,
+                        canal="ml",
+                        texto=msg_transicion_wa,
+                    )
+                else:
+                    print(f"[CANAL-MANAGER] ML transicion WA omitida pedido #{pedido.id}: {motivo_ml}")
+
+            except Exception as e:
+                print(f"[ML-WA] No se pudo enviar confirmacion/transicion WA pedido #{getattr(pedido, 'id', '')}: {e}")
+
+            try:
                 actualizar_estado_automatico(pedido)
             except Exception as e:
                 print(f"[VIA CARGO] No se pudo autoactualizar estado tras sucursal en analisis ML: {e}")
@@ -5943,6 +5978,16 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 db.session.commit()
             except Exception:
                 db.session.rollback()
+
+            try:
+                intentar_wa_cross_sell_tras_sucursal_ml(
+                    pedido,
+                    wa_auto_iniciar_desde_ml_fn=wa_auto_iniciar_desde_ml_si_corresponde,
+                    db_session=db.session,
+                    motivo="sucursal_confirmada_sin_auto_respuesta",
+                )
+            except Exception as e:
+                print(f"[CROSS-SELL-ML-WA] No se pudo iniciar WA tras sucursal confirmada: {e}")
 
             return {
                 "ok": True,
