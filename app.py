@@ -7884,6 +7884,20 @@ def ia_respuesta_faltantes_ya_enviada(pedido, texto):
     return True
 
 
+
+
+def accion_ui_pedido(pedido, origen="detalle"):
+    from services.pedidos_ui_actions import resolver_accion_ui_pedido
+
+    accion = accion_principal_pedido(pedido, origen)
+    sugerida = accion_sugerida_pedido(pedido)
+
+    return resolver_accion_ui_pedido(
+        rol=rol_actual(),
+        accion_principal=accion,
+        accion_sugerida=sugerida,
+    )
+
 @app.context_processor
 def inyectar_contexto_global():
     return {
@@ -7908,6 +7922,7 @@ def inyectar_contexto_global():
         "alertas_operativas": alertas_operativas,
         "semaforo_pedido": semaforo_pedido,
         "accion_principal_pedido": accion_principal_pedido,
+        "accion_ui_pedido": accion_ui_pedido,
         "primer_paso_pendiente_carga": primer_paso_pendiente_carga,
         "ml_datos_apb_pedido": ml_datos_apb_pedido,
         "ml_link_detalle_venta": ml_link_detalle_venta,

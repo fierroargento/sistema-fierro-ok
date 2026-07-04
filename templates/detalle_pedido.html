@@ -1293,7 +1293,8 @@ body { background: #f4f7f8; }
     {% endif %}
 
 
-    {% set accion = accion_principal_pedido(pedido, 'detalle') %}
+    {% set accion_ui = accion_ui_pedido(pedido, 'detalle') %}
+    {% set accion = accion_ui.accion %}
     <div class="detalle-acciones">
         <a href="{{ url_for('inicio') }}" class="btn btn-secundario btn-volver">Volver</a>
 
@@ -1360,7 +1361,11 @@ body { background: #f4f7f8; }
         {% endif %}
 
         {% if not accion %}
-            <span class="accion-listado">Sin acción</span>
+            {% if accion_ui.mensaje %}
+                <span class="accion-listado">{{ accion_ui.mensaje }}</span>
+            {% else %}
+                <span class="accion-listado">Sin acción</span>
+            {% endif %}
         {% endif %}
     </div>
 
@@ -1639,5 +1644,3 @@ function bloquearEnvioWhatsAppOperador(form) {
 }
 </script>
 {% endblock %}
-
-
