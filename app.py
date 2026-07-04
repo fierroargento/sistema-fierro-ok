@@ -5582,7 +5582,20 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             getattr(pedido, "ia_sucursales_ofrecidas", None)
             or getattr(pedido, "correo_sucursales_ofrecidas", None)
         )
-        if not pedido_es_plegable_pp6040(pedido) and _sucursales_ya_ofrecidas:
+        _correo_sucursales_ya_ofrecidas = bool(
+            getattr(pedido, "correo_sucursales_ofrecidas", None)
+        )
+        _via_sucursales_ya_ofrecidas = bool(
+            getattr(pedido, "ia_sucursales_ofrecidas", None)
+        )
+        _puede_detectar_sucursal = (
+            _correo_sucursales_ya_ofrecidas
+            or (
+                not pedido_es_plegable_pp6040(pedido)
+                and _via_sucursales_ya_ofrecidas
+            )
+        )
+        if _puede_detectar_sucursal:
             # Si el sistema ya ofreció sucursales y el cliente hace una consulta
             # en lugar de elegir → escalar al operador para que lo resuelva
             candidatas_ids_check = []
