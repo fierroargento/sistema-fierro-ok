@@ -12618,4 +12618,4 @@ try:
     else:
         print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")
 except Exception as e:
-    print("[SCHEDULER] No se pudo iniciar:", e)\n
+    print("[SCHEDULER] No se pudo iniciar:", e)

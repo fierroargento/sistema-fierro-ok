@@ -61,4 +61,4 @@ def generar_mensaje_contacto_ml(pedido, es_ml_acordas_entrega_fn):
     if len(texto) > 348:
         texto = texto[:345] + "..."
 
-    return texto\n
+    return texto
