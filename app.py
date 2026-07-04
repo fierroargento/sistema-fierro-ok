@@ -1730,21 +1730,14 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
         if not suc:
             return False
 
-        pedido.sucursal_nombre = suc.get("nombre")
-        pedido.direccion = suc.get("direccion")
-        pedido.localidad = suc.get("localidad")
-        pedido.provincia = suc.get("provincia")
+        from services.workflow_logistica_sucursal import aplicar_sucursal_elegida_al_pedido
 
-        if not str(getattr(pedido, "empresa_envio", "") or "").strip():
-            pedido.empresa_envio = "Vía Cargo"
-
-        pedido.tipo_entrega = "Sucursal"
-        pedido.ia_sucursales_ofrecidas = None
-        pedido.ia_requiere_operador = False
-        pedido.ia_esperando_respuesta = False
-
-        if hasattr(pedido, "ml_mensajes_pendientes"):
-            pedido.ml_mensajes_pendientes = False
+        if not aplicar_sucursal_elegida_al_pedido(
+            pedido,
+            suc,
+            transporte="Vía Cargo",
+        ):
+            return False
 
         try:
             if despacho_completo(pedido):
