@@ -1546,8 +1546,19 @@ def detectar_sucursal(pedido, mensaje):
     if "correo" in transporte_actual:
         try:
             from services.correo_sucursales_eleccion import detectar_sucursal_correo_ofrecida
+            from services.workflow_sucursal_decision import decidir_sucursal_correo_ofrecida
 
-            sucursal_correo = detectar_sucursal_correo_ofrecida(pedido, mensaje)
+            sucursal_correo = None
+            decision_correo = decidir_sucursal_correo_ofrecida(
+                pedido,
+                mensaje,
+                detector_correo_fn=detectar_sucursal_correo_ofrecida,
+            )
+
+            if decision_correo and decision_correo.seleccionada and decision_correo.sucursal:
+                sucursal_correo = decision_correo.sucursal.get("raw") or decision_correo.sucursal
+            else:
+                sucursal_correo = detectar_sucursal_correo_ofrecida(pedido, mensaje)
 
             if sucursal_correo:
                 if _es_consulta_no_eleccion(texto):
