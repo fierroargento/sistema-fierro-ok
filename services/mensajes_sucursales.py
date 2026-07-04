@@ -109,7 +109,7 @@ def normalizar_numero_opcion_sucursal(texto):
     normalizado = " ".join(normalizado.split())
 
     match_numero = re.fullmatch(
-        r"(?:opcion|op|sucursal|numero|nro|la|el)?\s*([1-3])",
+        r"(?:opcion|op|sucursal|numero|nro|la|el)?\s*(?:numero|nro|n)?\s*([1-3])",
         normalizado,
     )
     if match_numero:
@@ -138,6 +138,28 @@ def normalizar_numero_opcion_sucursal(texto):
     )
     if match_palabra:
         return equivalencias.get(match_palabra.group(1))
+
+    return None
+
+def seleccionar_sucursal_ofrecida_por_opcion(sucursales, ids_ofrecidas, indice):
+    """
+    Devuelve la sucursal elegida usando el indice 0-based contra la lista
+    de IDs ofrecidos al cliente.
+    """
+    try:
+        indice = int(indice)
+    except Exception:
+        return None
+
+    ids = list(ids_ofrecidas or [])
+    if indice < 0 or indice >= len(ids):
+        return None
+
+    id_elegido = str(ids[indice])
+
+    for sucursal in list(sucursales or []):
+        if str(sucursal.get("id")) == id_elegido:
+            return sucursal
 
     return None
 

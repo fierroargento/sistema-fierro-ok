@@ -5650,10 +5650,12 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             from services.mensajes_sucursales import (
                 extraer_opcion_sucursal_explicita,
                 normalizar_numero_opcion_sucursal,
+                seleccionar_sucursal_ofrecida_por_opcion,
             )
             from modules.whatsapp.text_utils import es_afirmativo
 
             _idx_opcion = None
+            _sucursal_por_opcion = None
 
             if candidatas_ids_check and texto_para_sucursal:
                 try:
@@ -5667,6 +5669,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                         _idx_opcion = normalizar_numero_opcion_sucursal(_texto_confirmacion)
 
                     if _idx_opcion is not None and 0 <= _idx_opcion < len(candidatas_ids_check):
+                        _sucursal_por_opcion = seleccionar_sucursal_ofrecida_por_opcion(data, candidatas_ids_check, _idx_opcion)
                         texto_para_sucursal = str(_idx_opcion + 1)
 
                     elif len(candidatas_ids_check) == 1 and es_afirmativo(_texto_confirmacion):
@@ -5692,7 +5695,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     print(f"[VIA CARGO] Error escalando consulta sucursal:", e)
                 return None
 
-            suc = detectar_sucursal(pedido, texto_para_sucursal)
+            suc = _sucursal_por_opcion or detectar_sucursal(pedido, texto_para_sucursal)
             if suc and not getattr(pedido, "sucursal_nombre", None):
                 pedido.sucursal_nombre = suc.get("nombre")
                 pedido.direccion = suc.get("direccion")
