@@ -162,3 +162,71 @@ def aplicar_reversion_autoavance_si_corresponde(
         )
 
     return None
+
+def intentar_wa_cross_sell_antes_de_seguimiento(
+    pedido,
+    cross_sell_rule_fn,
+    wa_auto_iniciar_desde_ml_fn,
+    auto_enabled=True,
+    manual_enabled=True,
+    evento_operativo_model=None,
+    db_session=None,
+    motivo="seguimiento_cargado_pre_despacho",
+    log_error_fn=None,
+):
+    """
+    Intenta abrir WA/cross-sell antes de enviar el aviso de seguimiento.
+
+    Devuelve:
+    - debe_frenar_seguimiento=True cuando hay cross-sell pendiente y se intento gestionar.
+    - debe_frenar_seguimiento=False cuando no corresponde cross-sell y puede seguir el tracking.
+    """
+    if not pedido:
+        return {
+            "ok": False,
+            "motivo": "sin_pedido",
+            "debe_frenar_seguimiento": False,
+            "marca": "",
+        }
+
+    try:
+        debe_ofrecer = bool(
+            cross_sell_rule_fn(
+                pedido,
+                auto_enabled=auto_enabled,
+                manual_enabled=manual_enabled,
+                evento_operativo_model=evento_operativo_model,
+            )
+        )
+    except Exception as e:
+        if log_error_fn:
+            log_error_fn(e)
+        return {
+            "ok": False,
+            "motivo": "error_evaluando_cross_sell",
+            "debe_frenar_seguimiento": False,
+            "marca": "",
+        }
+
+    if not debe_ofrecer:
+        return {
+            "ok": False,
+            "motivo": "sin_cross_sell_pendiente",
+            "debe_frenar_seguimiento": False,
+            "marca": "",
+        }
+
+    resultado = intentar_wa_cross_sell_tras_sucursal_ml(
+        pedido,
+        wa_auto_iniciar_desde_ml_fn=wa_auto_iniciar_desde_ml_fn,
+        db_session=db_session,
+        motivo=motivo,
+        log_error_fn=log_error_fn,
+    )
+
+    return {
+        "ok": bool(resultado.get("ok")),
+        "motivo": resultado.get("motivo") or "",
+        "debe_frenar_seguimiento": True,
+        "marca": resultado.get("marca") or "",
+    }

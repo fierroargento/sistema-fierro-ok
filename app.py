@@ -1968,6 +1968,39 @@ def actualizar_estado_automatico(pedido):
         bloquear_cross_sell=bloquear_cross_sell,
     )
 
+
+def intentar_cross_sell_previo_seguimiento_wa(pedido):
+    """
+    Antes de enviar WhatsApp de seguimiento/despacho, intenta resolver
+    cross-sell pre-despacho si todavia corresponde.
+    """
+    try:
+        from modules.whatsapp.config import CROSS_SELL_AUTO_ENABLED, CROSS_SELL_MANUAL_ENABLED
+        from services.cross_sell_rules import debe_bloquear_etiqueta_lista_por_cross_sell
+        from services.ml_sucursal_cross_sell_guard import intentar_wa_cross_sell_antes_de_seguimiento
+
+        resultado = intentar_wa_cross_sell_antes_de_seguimiento(
+            pedido,
+            cross_sell_rule_fn=debe_bloquear_etiqueta_lista_por_cross_sell,
+            wa_auto_iniciar_desde_ml_fn=wa_auto_iniciar_desde_ml_si_corresponde,
+            auto_enabled=CROSS_SELL_AUTO_ENABLED,
+            manual_enabled=CROSS_SELL_MANUAL_ENABLED,
+            evento_operativo_model=EventoOperativo,
+            db_session=db.session,
+            motivo="seguimiento_cargado_pre_despacho",
+            log_error_fn=lambda e: print(
+                f"[CROSS-SELL-SEGUIMIENTO] Error pedido #{getattr(pedido, 'id', '?')}: {e}"
+            ),
+        )
+
+        return bool(resultado.get("debe_frenar_seguimiento"))
+
+    except Exception as e:
+        print(
+            f"[CROSS-SELL-SEGUIMIENTO] No se pudo evaluar pedido #{getattr(pedido, 'id', '?')}: {e}"
+        )
+        return False
+
 def aplicar_estado_y_fechas(pedido, nuevo_estado):
     if not nuevo_estado:
         return
@@ -10925,9 +10958,10 @@ def editar_pedido(id):
                 )
             ):
                 try:
-                    from modules.whatsapp.flows import wa_enviar_numero_seguimiento
+                    if not intentar_cross_sell_previo_seguimiento_wa(pedido):
+                        from modules.whatsapp.flows import wa_enviar_numero_seguimiento
 
-                    wa_enviar_numero_seguimiento(pedido)
+                        wa_enviar_numero_seguimiento(pedido)
 
                 except Exception as e:
                     print(f"[WA-DESPACHO] Error enviando seguimiento al guardar tracking: {e}")
@@ -11021,9 +11055,10 @@ def editar_pedido(id):
             )
         ):
             try:
-                from modules.whatsapp.flows import wa_enviar_numero_seguimiento
+                if not intentar_cross_sell_previo_seguimiento_wa(pedido):
+                    from modules.whatsapp.flows import wa_enviar_numero_seguimiento
 
-                wa_enviar_numero_seguimiento(pedido)
+                    wa_enviar_numero_seguimiento(pedido)
 
             except Exception as e:
                 print(f"[WA-DESPACHO] Error enviando seguimiento al guardar tracking desde edición: {e}")
