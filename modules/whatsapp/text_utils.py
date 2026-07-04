@@ -77,3 +77,92 @@ def requiere_factura_distinta(texto):
         "otro cuit", "cuit distinto", "a nombre de", "datos distintos", "cambiar datos",
         "no son esos", "con estos datos", "te paso los datos",
     ])
+
+
+def _normalizar_cierre_simple_wa(texto):
+    import unicodedata
+
+    texto = str(texto or "").strip().lower()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    texto = re.sub(r"[^a-z0-9ñ\s]", " ", texto)
+    texto = re.sub(r"\s+", " ", texto).strip()
+    return texto
+
+
+def es_cierre_simple_retiro_post_aviso(texto):
+    """
+    Detecta respuestas simples luego del aviso de listo para retirar.
+
+    Ejemplos:
+    - "Bueno gracias, ahí voy a buscarlo"
+    - "Ok gracias, paso a retirar"
+    - "Dale gracias, lo retiro mañana"
+
+    No aplica si hay problema, reclamo o consulta.
+    """
+    texto_norm = _normalizar_cierre_simple_wa(texto)
+
+    if not texto_norm:
+        return False
+
+    palabras_problema = [
+        "pero",
+        "problema",
+        "reclamo",
+        "queja",
+        "no puedo",
+        "no llego",
+        "no esta",
+        "no aparece",
+        "demora",
+        "cancelar",
+        "devolucion",
+        "roto",
+        "mal",
+        "equivocado",
+        "equivocada",
+        "me cobran",
+        "cobrar",
+        "direccion",
+        "cambiar",
+        "cambio",
+    ]
+
+    if any(palabra in texto_norm for palabra in palabras_problema):
+        return False
+
+    cierres = [
+        "gracias",
+        "ok",
+        "dale",
+        "bueno",
+        "perfecto",
+        "genial",
+        "joya",
+        "listo",
+        "buenisimo",
+    ]
+
+    retiro = [
+        "ahi voy",
+        "voy a buscar",
+        "voy a retir",
+        "paso a buscar",
+        "paso a retir",
+        "lo busco",
+        "lo retiro",
+        "voy manana",
+        "manana paso",
+        "paso manana",
+        "retiro manana",
+    ]
+
+    if any(cierre in texto_norm for cierre in cierres) and any(frase in texto_norm for frase in retiro):
+        return True
+
+    # También permitimos agradecimientos puros y cortos en este estado.
+    if es_agradecimiento_simple(texto_norm):
+        return True
+
+    return False

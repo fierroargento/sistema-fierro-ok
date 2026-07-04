@@ -169,6 +169,19 @@ def routear_mensaje(
     # Listo para retirar
     if estado == WA_LISTO_PARA_RETIRAR:
 
+        from .text_utils import es_cierre_simple_retiro_post_aviso
+
+        tel = normalizar_telefono_service(telefono)
+
+        if es_cierre_simple_retiro_post_aviso(texto):
+            wa_enviar_texto(
+                tel,
+                "¡Perfecto! Cualquier cosa que necesites, no dudes en avisar. ¡Que tengas un buen día!",
+                pedido=pedido,
+            )
+
+            return
+
         _escalar_operador(
             pedido,
             "Cliente respondió luego de aviso de retiro",
