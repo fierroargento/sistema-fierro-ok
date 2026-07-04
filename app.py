@@ -2046,6 +2046,11 @@ def motor_bloqueo(pedido):
 
 def texto_boton_estado(pedido):
     if pedido.estado == "Cargando Pedido":
+        from services.pedidos_acciones import necesita_completar_carga_etiqueta_o_seguimiento
+
+        if necesita_completar_carga_etiqueta_o_seguimiento(pedido):
+            return "Completar carga"
+
         if requiere_contacto_cliente(pedido):
             return "Contactar cliente"
         if puede_imprimir_etiqueta_directamente(pedido):
@@ -2145,6 +2150,11 @@ def accion_sugerida_pedido(pedido):
             return "Falta elegir transporte"
 
         if pedido.canal == "Tienda Nube" and pedido.empresa_envio in ["Andreani", "Correo Argentino"] and (not pedido.etiqueta_archivo or not pedido.seguimiento):
+            return "Completar carga"
+
+        from services.pedidos_acciones import necesita_completar_carga_etiqueta_o_seguimiento
+
+        if necesita_completar_carga_etiqueta_o_seguimiento(pedido):
             return "Completar carga"
 
         if pedido.empresa_envio and not pedido.tipo_entrega:
@@ -2257,7 +2267,7 @@ def primer_paso_pendiente_carga(pedido):
         if hay_autorizado(pedido) and (not pedido.autorizado_nombre or not pedido.autorizado_dni or not pedido.autorizado_telefono):
             return 3
 
-    if pedido.empresa_envio in ["Andreani", "Correo Argentino"] and not pedido.etiqueta_archivo:
+    if pedido.empresa_envio in ["Andreani", "Correo Argentino"] and (not pedido.etiqueta_archivo or not pedido.seguimiento):
         return 3
 
     # Paso 4: Productos
