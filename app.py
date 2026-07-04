@@ -5386,6 +5386,35 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
         requiere_operador=requiere_operador,
     )
 
+    try:
+        from services.ia_recolector_logistica import (
+            debe_reencauzar_pp6040_sin_faltantes_service,
+        )
+
+        if debe_reencauzar_pp6040_sin_faltantes_service(
+            pedido=pedido,
+            resultado=resultado,
+            faltantes=faltantes,
+            requiere_operador_final=requiere_operador_final,
+            es_ml_acordas_entrega_fn=es_ml_acordas_entrega,
+            pedido_es_plegable_pp6040_fn=pedido_es_plegable_pp6040,
+        ):
+            print(
+                f"[IA-RECOLECTOR] Pedido #{getattr(pedido, 'id', '?')}: "
+                "reencauzado a logística automática PP6040 sin faltantes reales"
+            )
+            requiere_operador_final = False
+            try:
+                pedido.ia_ultimo_timeout_operador = None
+            except Exception:
+                pass
+
+    except Exception as e:
+        print(
+            f"[IA-RECOLECTOR] No se pudo evaluar reencauce logístico "
+            f"pedido #{getattr(pedido, 'id', '?')}: {e}"
+        )
+
     estado = decidir_estado_recolector(
         faltantes=faltantes,
         requiere_operador=requiere_operador_final,
@@ -12589,4 +12618,4 @@ try:
     else:
         print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")
 except Exception as e:
-    print("[SCHEDULER] No se pudo iniciar:", e)
+    print("[SCHEDULER] No se pudo iniciar:", e)\n
