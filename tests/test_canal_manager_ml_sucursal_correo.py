@@ -47,7 +47,7 @@ def test_ml_sigue_bloqueado_si_whatsapp_tiene_operador_manual():
     assert "WhatsApp activo" in motivo
 
 
-def test_ml_sigue_bloqueado_si_no_hay_sucursales_ofrecidas():
+def test_ml_permite_correo_sucursal_aunque_no_haya_json_sucursales():
     pedido = SimpleNamespace(
         wa_estado="falta_elegir_transporte",
         empresa_envio="Correo Argentino",
@@ -65,5 +65,5 @@ def test_ml_sigue_bloqueado_si_no_hay_sucursales_ofrecidas():
         "Mensaje automático",
     )
 
-    assert puede is False
-    assert "WhatsApp activo" in motivo
+    assert puede is True
+    assert motivo == "OK"

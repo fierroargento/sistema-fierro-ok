@@ -47,14 +47,12 @@ def _ml_puede_responder_eleccion_sucursal_con_wa_estado(pedido, wa_estado):
     if "sucursal" not in tipo_entrega:
         return False
 
-    sucursales_ofrecidas = (
-        getattr(pedido, "correo_sucursales_ofrecidas", None)
-        or getattr(pedido, "ia_sucursales_ofrecidas", None)
-    )
-
-    if not sucursales_ofrecidas:
-        return False
-
+    # Si el pedido ML/Acordás ya está en Correo + Sucursal,
+    # wa_estado=falta_elegir_transporte no debe bloquear ML.
+    #
+    # Puede ocurrir que las sucursales estén por generarse/enviarse en este mismo
+    # ciclo o que el pedido venga de un estado viejo donde el JSON no quedó guardado.
+    # En ambos casos, ML sigue siendo el canal correcto para cerrar la elección.
     return True
 
 
