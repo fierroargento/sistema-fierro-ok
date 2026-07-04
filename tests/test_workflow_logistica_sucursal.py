@@ -121,3 +121,35 @@ def test_no_aplica_si_no_hay_nombre():
     )
 
     assert ok is False
+
+
+
+def test_marca_resumen_sucursal_confirmada():
+    from services.workflow_logistica_sucursal import marca_resumen_sucursal_confirmada
+
+    marca = marca_resumen_sucursal_confirmada(
+        1,
+        {"nombre": "Terminal Formosa Boleteria 5"},
+    )
+
+    assert marca == "Sucursal confirmada por opción 2: Terminal Formosa Boleteria 5"
+
+
+def test_agrega_marca_resumen_sucursal_confirmada_una_sola_vez():
+    from services.workflow_logistica_sucursal import agregar_marca_resumen_sucursal_confirmada
+
+    resumen = "Datos completos"
+    sucursal = {"nombre": "Terminal Formosa Boleteria 5"}
+
+    nuevo = agregar_marca_resumen_sucursal_confirmada(resumen, 1, sucursal)
+    repetido = agregar_marca_resumen_sucursal_confirmada(nuevo, 1, sucursal)
+
+    assert nuevo == "Datos completos | Sucursal confirmada por opción 2: Terminal Formosa Boleteria 5"
+    assert repetido == nuevo
+
+
+def test_no_agrega_marca_si_faltan_datos():
+    from services.workflow_logistica_sucursal import agregar_marca_resumen_sucursal_confirmada
+
+    assert agregar_marca_resumen_sucursal_confirmada("Datos completos", None, {"nombre": "X"}) == "Datos completos"
+    assert agregar_marca_resumen_sucursal_confirmada("Datos completos", 1, {}) == "Datos completos"

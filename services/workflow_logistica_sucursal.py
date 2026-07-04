@@ -76,3 +76,53 @@ def aplicar_sucursal_elegida_al_pedido(
             pedido.ml_mensajes_pendientes = False
 
     return True
+
+
+def marca_resumen_sucursal_confirmada(indice: int | None, sucursal: dict[str, Any] | None) -> str:
+    """
+    Construye la marca humana para ia_resumen.
+
+    No modifica el pedido.
+    No hace commit.
+    No envia mensajes.
+    """
+
+    if indice is None or not sucursal:
+        return ""
+
+    nombre = str(
+        sucursal.get("nombre")
+        or sucursal.get("name")
+        or sucursal.get("descripcion")
+        or ""
+    ).strip()
+
+    if not nombre:
+        return ""
+
+    return f"Sucursal confirmada por opción {indice + 1}: {nombre}"
+
+
+def agregar_marca_resumen_sucursal_confirmada(
+    resumen_actual: str | None,
+    indice: int | None,
+    sucursal: dict[str, Any] | None,
+) -> str:
+    """
+    Devuelve ia_resumen con la marca agregada una sola vez.
+
+    No modifica el pedido.
+    No hace commit.
+    No envia mensajes.
+    """
+
+    resumen = str(resumen_actual or "").strip()
+    marca = marca_resumen_sucursal_confirmada(indice, sucursal)
+
+    if not marca:
+        return resumen
+
+    if marca in resumen:
+        return resumen
+
+    return f"{resumen} | {marca}".strip(" |")

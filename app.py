@@ -1730,6 +1730,7 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
         if not suc:
             return False
 
+        from services.workflow_logistica_sucursal import agregar_marca_resumen_sucursal_confirmada
         from services.workflow_logistica_sucursal import aplicar_sucursal_elegida_al_pedido
 
         if not aplicar_sucursal_elegida_al_pedido(
@@ -1747,10 +1748,11 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
         except Exception:
             pass
 
-        resumen = str(getattr(pedido, "ia_resumen", "") or "").strip()
-        marca = f"Sucursal confirmada por opción {idx + 1}: {suc.get('nombre') or ''}".strip()
-        if marca and marca not in resumen:
-            pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")
+        pedido.ia_resumen = agregar_marca_resumen_sucursal_confirmada(
+            getattr(pedido, "ia_resumen", ""),
+            idx,
+            suc,
+        )
 
         print(
             f"[VIA CARGO] Pedido #{getattr(pedido, 'id', '')}: "
