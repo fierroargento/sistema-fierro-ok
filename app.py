@@ -1721,27 +1721,7 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
         with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
             sucursales = json.load(f)
 
-        suc = None
-        try:
-            from services.workflow_sucursal_decision import decidir_sucursal_via_cargo_ofrecida
-
-            decision_sucursal = decidir_sucursal_via_cargo_ofrecida(
-                texto=texto_cliente,
-                sucursales_catalogo=sucursales,
-                ids_ofrecidas=candidatas_ids,
-            )
-
-            if decision_sucursal.seleccionada and decision_sucursal.sucursal:
-                suc = decision_sucursal.sucursal.get("raw") or decision_sucursal.sucursal
-
-        except Exception as e:
-            print(
-                f"[VIA CARGO] Error usando decision central sucursal "
-                f"pedido #{getattr(pedido, 'id', '')}: {e}"
-            )
-
-        if not suc:
-            suc = seleccionar_sucursal_ofrecida_por_opcion(sucursales, candidatas_ids, idx)
+        suc = seleccionar_sucursal_ofrecida_por_opcion(
             sucursales,
             candidatas_ids,
             idx,
