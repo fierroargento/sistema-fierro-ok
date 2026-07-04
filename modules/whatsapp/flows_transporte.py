@@ -559,7 +559,7 @@ def wa_cerrar_datos_completos(pedido):
             preferencia_cliente="sucursal"
         )
 
-        msg_suc = sugerir_sucursales_correo_pedido(pedido)
+        msg_suc = sugerir_sucursales_correo_pedido(pedido, canal_origen="wa")
 
         if msg_suc:
             _guardar_estado_wa(
@@ -622,4 +622,4 @@ def wa_cerrar_datos_completos(pedido):
             (getattr(pedido, "cliente", "") or "Cliente").split()[0],
             pedido.id_venta or pedido.id or "",
         ],
-    )        
+    )\n

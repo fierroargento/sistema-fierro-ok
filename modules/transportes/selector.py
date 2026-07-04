@@ -287,8 +287,15 @@ def asignar_transporte_pedido(pedido, preferencia_cliente="sucursal"):
         return False, f"Error asignando Correo: {e}"
 
 
-def sugerir_sucursales_correo_pedido(pedido):
-    """Genera mensaje con 3 puntos Correo cercanos usando la misma lógica geográfica validada para Via Cargo."""
+def sugerir_sucursales_correo_pedido(pedido, canal_origen="ml"):
+    """Genera mensaje con puntos Correo cercanos.
+
+    canal_origen:
+    - "ml": las opciones se van a enviar por Mercado Libre. No activa WhatsApp.
+    - "wa": las opciones se van a enviar por WhatsApp. Activa estado WA.
+    """
+    canal_origen = str(canal_origen or "ml").strip().lower()
+
     if not correo_pp6040_habilitado():
         print("[CORREO SELECTOR] PP6040 deshabilitado por feature flag. No se buscan sucursales.")
         return None
@@ -352,8 +359,16 @@ def sugerir_sucursales_correo_pedido(pedido):
             pedido.ia_sucursales_ofrecidas = json.dumps(ids, ensure_ascii=False)
         pedido.empresa_envio = "Correo Argentino"
         pedido.tipo_entrega = "Sucursal"
-        pedido.wa_estado = "falta_elegir_transporte"
-        pedido.wa_ultimo_contacto = datetime.utcnow()
+
+        if canal_origen in ("wa", "whatsapp"):
+            pedido.wa_estado = "falta_elegir_transporte"
+            pedido.wa_ultimo_contacto = datetime.utcnow()
+        elif str(getattr(pedido, "wa_estado", "") or "").strip().lower() == "falta_elegir_transporte":
+            # Si las opciones nacieron por ML, WhatsApp no debe tomar ownership todavía.
+            # Esto permite que Canal Manager deje enviar el mensaje por ML.
+            pedido.wa_estado = ""
+            pedido.wa_ultimo_contacto = None
+
         db.session.commit()
     except Exception as e:
         print("[CORREO SELECTOR] Error guardando sucursales ofrecidas:", e)
@@ -385,4 +400,4 @@ def _marcar_escalado(pedido, motivo):
         pedido.ia_resumen = f"{resumen} | TRANSPORTE: {motivo}".strip(" |")
         db.session.commit()
     except Exception as e:
-        print("[SELECTOR] Error escalando:", e)
+        print("[SELECTOR] Error escalando:", e)\n
