@@ -1544,6 +1544,22 @@ def detectar_sucursal(pedido, mensaje):
 
     transporte_actual = str(getattr(pedido, "empresa_envio", "") or "").strip().lower()
     if "correo" in transporte_actual:
+        try:
+            from services.correo_sucursales_eleccion import detectar_sucursal_correo_ofrecida
+
+            sucursal_correo = detectar_sucursal_correo_ofrecida(pedido, mensaje)
+
+            if sucursal_correo:
+                if _es_consulta_no_eleccion(texto):
+                    print(
+                        f"[CORREO] Mensaje mixto: se detectó sucursal y consulta secundaria: '{texto[:100]}'"
+                    )
+                return sucursal_correo
+
+        except Exception as e:
+            print("[CORREO] Error detectando sucursal elegida:", e)
+            return None
+
         if _es_consulta_no_eleccion(texto):
             print(f"[CORREO] Mensaje detectado como consulta, no elección: '{texto[:80]}'")
             return None
@@ -1552,12 +1568,7 @@ def detectar_sucursal(pedido, mensaje):
             print(f"[CORREO] No se asigna sucursal: texto no parece elección explícita: '{texto[:100]}'")
             return None
 
-        try:
-            from services.correo_sucursales_eleccion import detectar_sucursal_correo_ofrecida
-            return detectar_sucursal_correo_ofrecida(pedido, mensaje)
-        except Exception as e:
-            print("[CORREO] Error detectando sucursal elegida:", e)
-            return None
+        return None
 
     try:
         with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
@@ -5637,6 +5648,15 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 pedido.tipo_entrega = "Sucursal"
 
                 try:
+                    from services.sucursal_consulta_mixta import marcar_consulta_horarios_retiro_pendiente
+                    marcar_consulta_horarios_retiro_pendiente(
+                        pedido,
+                        texto_para_sucursal,
+                    )
+                except Exception as e:
+                    print("[SUCURSAL] No se pudo marcar consulta secundaria:", e)
+
+                try:
                     from services.correo_argentino_operacion import marcar_correo_sucursal_pendiente_operador
                     marcar_correo_sucursal_pendiente_operador(pedido)
                 except Exception as e:
@@ -5657,6 +5677,15 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                         f"📌 {suc.get('direccion')}\n\n"
                         f"En breve te pasamos el número de seguimiento para que puedas rastrear tu envío 😊"
                     )
+
+                    try:
+                        from services.sucursal_consulta_mixta import agregar_respuesta_neutra_horarios_retiro
+                        msg_confirmacion = agregar_respuesta_neutra_horarios_retiro(
+                            msg_confirmacion,
+                            texto_para_sucursal,
+                        )
+                    except Exception as e:
+                        print("[SUCURSAL] No se pudo agregar respuesta neutra por horarios:", e)
 
                     # ---------------------------------------------------
                     # APB CANAL MANAGER
