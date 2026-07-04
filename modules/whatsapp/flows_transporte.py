@@ -622,4 +622,4 @@ def wa_cerrar_datos_completos(pedido):
             (getattr(pedido, "cliente", "") or "Cliente").split()[0],
             pedido.id_venta or pedido.id or "",
         ],
-    )\n
+    )
