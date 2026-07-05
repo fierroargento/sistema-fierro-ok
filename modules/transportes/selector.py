@@ -349,7 +349,10 @@ def sugerir_sucursales_correo_pedido(pedido, canal_origen="ml"):
     except Exception:
         limite_sucursales = 3
 
-    from services.workflow_correo_sucursal_oferta import preparar_oferta_sucursales_correo
+    from services.workflow_correo_sucursal_oferta import (
+        aplicar_oferta_sucursales_correo_al_pedido,
+        preparar_oferta_sucursales_correo,
+    )
 
     oferta_correo = preparar_oferta_sucursales_correo(
         sucursales,
@@ -364,22 +367,14 @@ def sugerir_sucursales_correo_pedido(pedido, canal_origen="ml"):
     sucs = sucursales[:limite_sucursales]
     try:
         from app import db
-        ids = oferta_correo.ids
-        if hasattr(pedido, "correo_sucursales_ofrecidas"):
-            pedido.correo_sucursales_ofrecidas = json.dumps(sucs, ensure_ascii=False)
-        else:
-            pedido.ia_sucursales_ofrecidas = json.dumps(ids, ensure_ascii=False)
-        pedido.empresa_envio = "Correo Argentino"
-        pedido.tipo_entrega = "Sucursal"
-
-        if canal_origen in ("wa", "whatsapp"):
-            pedido.wa_estado = "falta_elegir_transporte"
-            pedido.wa_ultimo_contacto = datetime.utcnow()
-        elif str(getattr(pedido, "wa_estado", "") or "").strip().lower() == "falta_elegir_transporte":
-            # Si las opciones nacieron por ML, WhatsApp no debe tomar ownership todavía.
-            # Esto permite que Canal Manager deje enviar el mensaje por ML.
-            pedido.wa_estado = ""
-            pedido.wa_ultimo_contacto = None
+        if not aplicar_oferta_sucursales_correo_al_pedido(
+            pedido,
+            sucs,
+            oferta_correo.ids,
+            canal_origen=canal_origen,
+        ):
+            _marcar_escalado(pedido, "No se pudieron aplicar sucursales Correo cercanas")
+            return None
 
         db.session.commit()
     except Exception as e:
