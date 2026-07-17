@@ -5788,7 +5788,10 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         )
         _puede_detectar_sucursal = (
             _correo_sucursales_ya_ofrecidas
-            or _via_sucursales_ya_ofrecidas
+            or (
+                _via_sucursales_ya_ofrecidas
+                and not pedido_es_plegable_pp6040(pedido)
+            )
         )
         if _puede_detectar_sucursal:
             # Si el sistema ya ofreció sucursales y el cliente hace una consulta

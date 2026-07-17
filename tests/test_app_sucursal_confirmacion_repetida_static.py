@@ -1,15 +1,27 @@
 ﻿from pathlib import Path
 
 
-def test_app_detecta_sucursal_via_si_hay_opciones_ofrecidas_sin_excluir_pp6040():
+def test_app_detector_distingue_correo_de_via_para_pp6040():
     texto = Path("app.py").read_text(encoding="utf-8")
 
     idx = texto.index("_puede_detectar_sucursal = (")
-    bloque = texto[idx: idx + 350]
+    bloque = texto[idx: idx + 450]
 
     assert "_correo_sucursales_ya_ofrecidas" in bloque
-    assert "or _via_sucursales_ya_ofrecidas" in bloque
-    assert "not pedido_es_plegable_pp6040(pedido)" not in bloque
+    assert "_via_sucursales_ya_ofrecidas" in bloque
+    assert "not pedido_es_plegable_pp6040(pedido)" in bloque
+
+    idx_correo = bloque.index(
+        "_correo_sucursales_ya_ofrecidas"
+    )
+    idx_via = bloque.index(
+        "_via_sucursales_ya_ofrecidas"
+    )
+    idx_exclusion = bloque.index(
+        "not pedido_es_plegable_pp6040(pedido)"
+    )
+
+    assert idx_correo < idx_via < idx_exclusion
 
 
 def test_app_mensaje_repetido_no_corta_confirmacion_sucursal_operativa():
