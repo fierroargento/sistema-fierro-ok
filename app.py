@@ -56,6 +56,7 @@ from services.ml_importacion import (
 )    
 
 from services.telefonos import normalizar_telefono_service
+from services.tiendanube_datos import extraer_telefono_tiendanube_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
 from services.ml_items import ml_sincronizar_items_pedido_service
@@ -4146,7 +4147,10 @@ def tn_importar_o_actualizar_pedido(order):
     )
     pedido.cliente = str(nombre_cliente).strip()[:120] or "Cliente TN"
     pedido.mail = (order.get("contact_email") or customer.get("email") or pedido.mail or "")[:120]
-    pedido.telefono = str(order.get("contact_phone") or customer.get("phone") or order.get("billing_phone") or pedido.telefono or "")[:30]
+    pedido.telefono = extraer_telefono_tiendanube_service(
+        order,
+        telefono_actual=pedido.telefono,
+    )[:30]
     pedido.dni = str(order.get("contact_identification") or customer.get("identification") or order.get("billing_document") or pedido.dni or "")[:20]
 
     pedido.origen = "tiendanube"
