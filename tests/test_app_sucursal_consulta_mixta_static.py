@@ -21,7 +21,7 @@ def test_correo_detecta_sucursal_antes_de_descartar_por_consulta():
 def test_confirmacion_sucursal_contempla_consulta_horarios():
     texto = Path("app.py").read_text(encoding="utf-8")
 
-    idx_suc = texto.index("suc = detectar_sucursal(pedido, texto_para_sucursal)")
+    idx_suc = texto.index("detectar_sucursal(pedido, texto_para_sucursal)")
     bloque = texto[idx_suc: idx_suc + 5000]
 
     assert "agregar_respuesta_neutra_horarios_retiro" in bloque
