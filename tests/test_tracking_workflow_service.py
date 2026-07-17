@@ -18,7 +18,7 @@ def pedido_base(**overrides):
     return SimpleNamespace(**datos)
 
 
-def test_tracking_entregado_pasa_a_entregado():
+def test_tracking_entregado_sin_canal_no_cambia_estado():
     pedido = pedido_base()
 
     resultado = aplicar_estado_tracking_seguro_service(
@@ -26,9 +26,9 @@ def test_tracking_entregado_pasa_a_entregado():
         "entregado",
     )
 
-    assert resultado == Estado.ENTREGADO
-    assert pedido.estado == Estado.ENTREGADO
-    assert pedido.fecha_entregado is not None
+    assert resultado is None
+    assert pedido.estado == Estado.DESPACHADO
+    assert pedido.fecha_entregado is None
 
 
 def test_tracking_entregado_ml_acordas_pasa_a_verificar_destino():
@@ -47,7 +47,7 @@ def test_tracking_entregado_ml_acordas_pasa_a_verificar_destino():
     assert "TRACKING:" in pedido.ia_resumen
 
 
-def test_tracking_sucursal_pasa_a_verificar_destino():
+def test_tracking_sucursal_sin_canal_no_cambia_estado():
     pedido = pedido_base()
 
     resultado = aplicar_estado_tracking_seguro_service(
@@ -55,8 +55,8 @@ def test_tracking_sucursal_pasa_a_verificar_destino():
         "sucursal",
     )
 
-    assert resultado == Estado.VERIFICAR_DESTINO
-    assert pedido.estado == Estado.VERIFICAR_DESTINO
+    assert resultado is None
+    assert pedido.estado == Estado.DESPACHADO
 
 
 def test_tracking_no_toca_estados_cerrados():
