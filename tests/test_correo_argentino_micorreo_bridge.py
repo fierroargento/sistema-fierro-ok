@@ -6,6 +6,10 @@ class PedidoFake:
     codigo_postal = "8400"
     localidad = "Bariloche"
     direccion = "Mitre 100"
+    latitud_cliente = -41.1335
+    longitud_cliente = -71.3103
+    ubicacion_fuente = "test"
+    ubicacion_confianza = "alta"
 
 
 def test_cotizar_correo_delega_a_micorreo_si_esta_habilitado(monkeypatch):
@@ -59,7 +63,7 @@ def test_cotizar_correo_micorreo_sin_tarifas_devuelve_no_disponible(monkeypatch)
 
     assert r["disponible"] is False
     assert r["precio"] is None
-    assert "tarifas" in r["error"].lower()
+    assert "cotizaciones" in r["error"].lower()
 
 
 def test_obtener_sucursales_correo_por_pedido_delega_a_micorreo(monkeypatch):
@@ -81,6 +85,8 @@ def test_obtener_sucursales_correo_por_pedido_delega_a_micorreo(monkeypatch):
                     "localidad": "Bariloche",
                     "provincia": "Río Negro",
                     "cp": "8400",
+                    "lat": -41.1336,
+                    "lng": -71.3102,
                 }
             ],
         }
