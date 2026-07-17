@@ -13,7 +13,7 @@ def test_cotizar_correo_pp6040_convierte_systemexit_en_revision_operador(monkeyp
 
     monkeypatch.setattr(
         selector,
-        "_calcular_logistica_correo_pedido",
+        "calcular_logistica_pedido_desde_catalogo",
         lambda pedido: {
             "ok": True,
             "permite_correo": True,
