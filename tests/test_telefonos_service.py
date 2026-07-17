@@ -52,3 +52,41 @@ def test_normaliza_argentina_no_toca_numero_correcto():
     from services.telefonos import normalizar_telefono_service
 
     assert normalizar_telefono_service("5491157347193") == "5491157347193"
+
+
+def test_valida_telefono_whatsapp_argentina_correcto():
+    from services.telefonos import (
+        es_telefono_whatsapp_argentina_valido_service,
+    )
+
+    assert es_telefono_whatsapp_argentina_valido_service(
+        "5491157347193"
+    ) is True
+
+
+def test_valida_telefono_whatsapp_argentina_despues_de_normalizar():
+    from services.telefonos import (
+        es_telefono_whatsapp_argentina_valido_service,
+    )
+
+    assert es_telefono_whatsapp_argentina_valido_service(
+        "011 15 5734-7193"
+    ) is True
+
+
+def test_rechaza_telefono_whatsapp_argentina_corto():
+    from services.telefonos import (
+        es_telefono_whatsapp_argentina_valido_service,
+    )
+
+    assert es_telefono_whatsapp_argentina_valido_service(
+        "549115734719"
+    ) is False
+
+
+def test_rechaza_telefono_whatsapp_argentina_vacio():
+    from services.telefonos import (
+        es_telefono_whatsapp_argentina_valido_service,
+    )
+
+    assert es_telefono_whatsapp_argentina_valido_service("") is False

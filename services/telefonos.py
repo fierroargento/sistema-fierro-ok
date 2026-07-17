@@ -67,3 +67,12 @@ def normalizar_telefono_service(raw):
         return ""
 
     return "549" + numero_nacional
+
+
+def es_telefono_whatsapp_argentina_valido_service(raw):
+    """Valida el formato móvil argentino requerido por WhatsApp."""
+    telefono = normalizar_telefono_service(raw)
+
+    return bool(
+        re.fullmatch(r"549[0-9]{10}", telefono)
+    )
