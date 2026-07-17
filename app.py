@@ -56,6 +56,7 @@ from services.ml_importacion import (
 )    
 
 from services.telefonos import normalizar_telefono_service
+from services.telefonos import es_telefono_whatsapp_argentina_valido_service
 from services.tiendanube_datos import extraer_telefono_tiendanube_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
@@ -11608,7 +11609,7 @@ def whatsapp_iniciar_chat_operador(id):
 
     tel = normalizar_telefono(pedido.telefono)
 
-    if not tel or len(tel) < 12:
+    if not es_telefono_whatsapp_argentina_valido_service(tel):
         return redirect(url_for("detalle_pedido", id=pedido.id, error="El pedido no tiene teléfono válido para WhatsApp."))
 
     try:
