@@ -97,3 +97,60 @@ def test_normalizar_ubicacion_pedido_completa_cp_por_localidad(monkeypatch):
 
     assert pedido.codigo_postal == "5300"
     assert "codigo_postal" in resultado["completados"]
+
+
+def test_normalizar_ubicacion_reemplaza_provincia_placeholder(monkeypatch):
+    def fake_resolver(cp, provincia="", localidad=""):
+        assert cp == "5519"
+        assert provincia == ""
+        assert localidad == "Guaymallen"
+
+        return {
+            "codigo_postal": "5519",
+            "localidad": "Guaymallen",
+            "provincia": "Mendoza",
+            "fuente": "test",
+            "confianza": "alta",
+        }
+
+    monkeypatch.setattr(
+        ubicacion_cp,
+        "resolver_ubicacion_por_cp",
+        fake_resolver,
+    )
+
+    pedido = PedidoFake(
+        localidad="Guaymallen",
+        provincia="-",
+        codigo_postal="5519",
+    )
+
+    resultado = ubicacion_cp.normalizar_ubicacion_pedido(pedido)
+
+    assert pedido.provincia == "Mendoza"
+    assert "provincia" in resultado["completados"]
+
+
+def test_normalizar_ubicacion_no_reemplaza_provincia_real(monkeypatch):
+    monkeypatch.setattr(
+        ubicacion_cp,
+        "resolver_ubicacion_por_cp",
+        lambda **kwargs: {
+            "codigo_postal": "5519",
+            "localidad": "Guaymallen",
+            "provincia": "Mendoza",
+            "fuente": "test",
+            "confianza": "alta",
+        },
+    )
+
+    pedido = PedidoFake(
+        localidad="Guaymallen",
+        provincia="San Juan",
+        codigo_postal="5519",
+    )
+
+    resultado = ubicacion_cp.normalizar_ubicacion_pedido(pedido)
+
+    assert pedido.provincia == "San Juan"
+    assert "provincia" not in resultado["completados"]

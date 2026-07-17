@@ -30,6 +30,21 @@ def _normalizar_texto(valor):
     return str(valor or "").strip()
 
 
+def _es_valor_ubicacion_faltante(valor):
+    """True cuando un campo contiene vacío o un placeholder operativo."""
+    normalizado = _norm(valor)
+
+    return (
+        not normalizado
+        or normalizado in {
+            "sin datos",
+            "sin provincia",
+            "no aplica",
+            "n a",
+        }
+    )
+
+
 def _norm(valor):
     valor = str(valor or "").strip().lower()
     valor = unicodedata.normalize("NFD", valor)
@@ -691,7 +706,9 @@ def _aplicar_ubicacion_a_pedido(pedido, ubicacion):
         pedido.localidad = localidad[:100]
         completados.append("localidad")
 
-    if provincia and not _normalizar_texto(getattr(pedido, "provincia", "")):
+    if provincia and _es_valor_ubicacion_faltante(
+        getattr(pedido, "provincia", "")
+    ):
         pedido.provincia = provincia[:100]
         completados.append("provincia")
 
@@ -750,6 +767,9 @@ def normalizar_ubicacion_pedido(pedido):
     cp = _normalizar_cp(getattr(pedido, "codigo_postal", ""))
     localidad = _normalizar_texto(getattr(pedido, "localidad", ""))
     provincia = _normalizar_texto(getattr(pedido, "provincia", ""))
+
+    if _es_valor_ubicacion_faltante(provincia):
+        provincia = ""
 
     if not cp and localidad:
         ubicacion = resolver_cp_por_localidad_provincia(
