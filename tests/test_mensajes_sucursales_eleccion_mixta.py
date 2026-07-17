@@ -29,3 +29,12 @@ def test_extraer_opcion_sucursal_explicita_no_acepta_multiples_opciones():
     texto = "puede ser la 1 o la 2?"
 
     assert extraer_opcion_sucursal_explicita(texto, cantidad_opciones=2) is None
+
+
+def test_extraer_opcion_con_verbo_y_consulta_adicional():
+    texto = "prefiero la segunda, me pasan los horarios?"
+
+    assert extraer_opcion_sucursal_explicita(
+        texto,
+        cantidad_opciones=3,
+    ) == 1

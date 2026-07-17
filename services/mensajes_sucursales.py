@@ -198,6 +198,31 @@ def extraer_opcion_sucursal_explicita(texto, cantidad_opciones=0):
         if re.search(patron, normalizado):
             candidatos.append(indice)
 
+    patrones_palabra_con_verbo = [
+        (
+            r"\b(?:elijo|quiero|prefiero)\s+"
+            r"(?:(?:la|el)\s+)?"
+            r"(?:(?:opcion|sucursal)\s+(?:uno|una)|primera|primer)\b",
+            0,
+        ),
+        (
+            r"\b(?:elijo|quiero|prefiero)\s+"
+            r"(?:(?:la|el)\s+)?"
+            r"(?:(?:opcion|sucursal)\s+dos|segunda|segundo)\b",
+            1,
+        ),
+        (
+            r"\b(?:elijo|quiero|prefiero)\s+"
+            r"(?:(?:la|el)\s+)?"
+            r"(?:(?:opcion|sucursal)\s+tres|tercera|tercero)\b",
+            2,
+        ),
+    ]
+
+    for patron, indice in patrones_palabra_con_verbo:
+        if re.search(patron, normalizado):
+            candidatos.append(indice)
+
     indice_palabra = normalizar_numero_opcion_sucursal(normalizado)
     if indice_palabra is not None:
         candidatos.append(indice_palabra)
