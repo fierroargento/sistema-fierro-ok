@@ -4,7 +4,7 @@
 def test_confirmacion_sucursal_limpia_revision_correo_y_permite_envio_seguro():
     texto = Path("app.py").read_text(encoding="utf-8")
 
-    idx_suc = texto.index("suc = detectar_sucursal(pedido, texto_para_sucursal)")
+    idx_suc = texto.index("detectar_sucursal(pedido, texto_para_sucursal)")
     bloque = texto[idx_suc: idx_suc + 7000]
 
     assert "limpiar_revision_correo_resuelta_por_sucursales" in bloque
@@ -14,7 +14,7 @@ def test_confirmacion_sucursal_limpia_revision_correo_y_permite_envio_seguro():
 def test_consulta_horarios_se_marca_despues_de_enviar_confirmacion():
     texto = Path("app.py").read_text(encoding="utf-8")
 
-    idx_suc = texto.index("suc = detectar_sucursal(pedido, texto_para_sucursal)")
+    idx_suc = texto.index("detectar_sucursal(pedido, texto_para_sucursal)")
     bloque = texto[idx_suc: idx_suc + 7000]
 
     idx_enviar = bloque.index("ml_enviar_mensaje_acordas(")
