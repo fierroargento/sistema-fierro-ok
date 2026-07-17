@@ -88,7 +88,7 @@ def test_evaluar_precondiciones_frena_si_telefono_invalido():
         flag_wa_auto_desde_ml="1",
         es_ml_acordas_entrega_fn=lambda pedido: True,
         puede_hacer_handoff_fn=lambda pedido: (True, ""),
-        normalizar_telefono_fn=lambda tel: "2920",
+        normalizar_telefono_fn=lambda tel: "549115734719",
     )
 
     assert resultado == {

@@ -1,4 +1,7 @@
-﻿def evaluar_precondiciones_wa_auto_ml(
+﻿from services.telefonos import es_telefono_whatsapp_argentina_valido_service
+
+
+def evaluar_precondiciones_wa_auto_ml(
     pedido,
     flag_wa_auto_desde_ml,
     es_ml_acordas_entrega_fn,
@@ -40,7 +43,7 @@
         }
 
     tel = normalizar_telefono_fn(getattr(pedido, "telefono", ""))
-    if not tel or len(tel) < 12:
+    if not es_telefono_whatsapp_argentina_valido_service(tel):
         return {
             "ok": False,
             "motivo": "sin_telefono_valido",
