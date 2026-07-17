@@ -1,7 +1,7 @@
 ﻿from services.ml_claims import ml_obtener_claim_de_order_service
 
 
-def test_ml_claims_search_usa_resource_order_y_resource_id():
+def test_ml_claims_search_usa_order_y_pack_con_filtros_validos():
     llamadas = []
 
     def ml_api_get(endpoint, params=None):
@@ -23,7 +23,15 @@ def test_ml_claims_search_usa_resource_order_y_resource_id():
                 "resource_id": "2000017018877668",
                 "limit": 5,
             },
-        )
+        ),
+        (
+            "/post-purchase/v1/claims/search",
+            {
+                "resource": "pack",
+                "resource_id": "2000017018877668",
+                "limit": 5,
+            },
+        ),
     ]
 
 
