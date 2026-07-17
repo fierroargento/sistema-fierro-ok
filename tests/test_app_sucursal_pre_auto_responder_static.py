@@ -16,18 +16,26 @@ def test_flujo_comun_confirma_sucursal_antes_de_auto_responder_ml():
     assert idx_guardar < idx_confirma < idx_auto
 
 
-def test_confirmacion_sucursal_directa_limpia_pendientes_operativos():
+def test_confirmacion_sucursal_directa_delega_aplicacion_operativa():
     texto = Path("app.py").read_text(encoding="utf-8")
 
-    idx = texto.index("def confirmar_sucursal_via_cargo_ofrecida_sin_responder")
-    bloque = texto[idx: idx + 3600]
+    idx = texto.index(
+        "def confirmar_sucursal_via_cargo_ofrecida_sin_responder"
+    )
+    bloque = texto[idx: idx + 4200]
 
-    assert "pedido.sucursal_nombre = suc.get" in bloque
-    assert 'pedido.tipo_entrega = "Sucursal"' in bloque
-    assert "pedido.ia_sucursales_ofrecidas = None" in bloque
-    assert "pedido.ia_requiere_operador = False" in bloque
-    assert "pedido.ia_esperando_respuesta = False" in bloque
-    assert "ml_mensajes_pendientes" in bloque
+    assert (
+        "from services.workflow_logistica_sucursal import "
+        "aplicar_sucursal_elegida_al_pedido"
+    ) in bloque
+
+    assert "if not aplicar_sucursal_elegida_al_pedido(" in bloque
+    assert "pedido," in bloque
+    assert "suc," in bloque
+    assert 'transporte="Vía Cargo"' in bloque
+
+    assert "pedido.sucursal_nombre = suc.get" not in bloque
+    assert 'pedido.tipo_entrega = "Sucursal"' not in bloque
 
 
 def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
