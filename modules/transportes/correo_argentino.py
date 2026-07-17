@@ -360,7 +360,7 @@ def obtener_sucursales_correo_por_pedido(pedido):
 
     # Fallback PAQ.AR.
     if not sucs:
-        agencias = obtener_sucursales_correo(
+        agencias = _obtener_sucursales_correo_paqar(
             state_id=state_id or None,
             pickup_availability=True,
             package_reception=None,

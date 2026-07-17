@@ -48,7 +48,7 @@ def test_correo_no_ofrece_sucursales_solo_por_provincia_si_estan_lejos(monkeypat
 
     monkeypatch.setattr(
         correo_argentino,
-        "obtener_sucursales_correo",
+        "_obtener_sucursales_correo_paqar",
         lambda **kwargs: [
             agencia("SAN MARTIN", "SAN MARTIN", "1650", -34.57, -58.53),
             agencia("TIGRE", "TIGRE", "1648", -34.42, -58.58),
@@ -68,7 +68,7 @@ def test_correo_devuelve_sucursales_ordenadas_por_distancia_real(monkeypatch):
 
     monkeypatch.setattr(
         correo_argentino,
-        "obtener_sucursales_correo",
+        "_obtener_sucursales_correo_paqar",
         lambda **kwargs: [
             agencia("SAN CAYETANO", "SAN CAYETANO", "7521", -38.346, -59.609),
             agencia("TRES ARROYOS", "TRES ARROYOS", "7500", -38.3739, -60.2798),
@@ -89,7 +89,7 @@ def test_correo_devuelve_sucursales_ordenadas_por_distancia_real(monkeypatch):
 def test_correo_no_ofrece_si_cliente_no_tiene_coordenadas(monkeypatch):
     monkeypatch.setattr(
         correo_argentino,
-        "obtener_sucursales_correo",
+        "_obtener_sucursales_correo_paqar",
         lambda **kwargs: [
             agencia("TRES ARROYOS", "TRES ARROYOS", "7500", -38.3739, -60.2798),
         ],
@@ -116,7 +116,7 @@ def test_correo_no_ofrece_si_cliente_no_tiene_coordenadas(monkeypatch):
 def test_correo_no_ofrece_sucursales_sin_coordenadas_de_sucursal(monkeypatch):
     monkeypatch.setattr(
         correo_argentino,
-        "obtener_sucursales_correo",
+        "_obtener_sucursales_correo_paqar",
         lambda **kwargs: [
             {
                 "agency_id": "TRES_ARROYOS",
@@ -139,3 +139,41 @@ def test_correo_no_ofrece_sucursales_sin_coordenadas_de_sucursal(monkeypatch):
     )
 
     assert resultado == []
+
+
+def test_correo_fallback_paqar_recibe_state_id_mendoza(monkeypatch):
+    capturado = {}
+
+    monkeypatch.setattr(
+        "services.correo_argentino_micorreo.consultar_sucursales",
+        lambda **kwargs: {
+            "ok": False,
+            "error": "MiCorreo no disponible",
+            "sucursales": [],
+        },
+    )
+
+    def fake_obtener_paqar(**kwargs):
+        capturado.update(kwargs)
+        return []
+
+    monkeypatch.setattr(
+        correo_argentino,
+        "_obtener_sucursales_correo_paqar",
+        fake_obtener_paqar,
+    )
+
+    resultado = correo_argentino.obtener_sucursales_correo_por_pedido(
+        pedido_fake(
+            cp="5519",
+            localidad="Guaymallen",
+            provincia="Mendoza",
+        )
+    )
+
+    assert resultado == []
+    assert capturado == {
+        "state_id": "M",
+        "pickup_availability": True,
+        "package_reception": None,
+    }
