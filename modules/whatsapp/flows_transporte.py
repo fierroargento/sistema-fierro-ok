@@ -547,7 +547,7 @@ def wa_cerrar_datos_completos(pedido):
     from app import db
     from modules.transportes.selector import (
         pedido_contiene_pp6040,
-        asignar_transporte_pedido,
+        preparar_asignacion_transporte_pedido,
         preparar_oferta_sucursales_correo_pedido,
     )
     from modules.whatsapp.flows import (
@@ -582,10 +582,20 @@ def wa_cerrar_datos_completos(pedido):
     )
 
     if pedido_contiene_pp6040(pedido):
-        ok, msg = asignar_transporte_pedido(
-            pedido,
-            preferencia_cliente="sucursal"
+        resultado_transporte = (
+            preparar_asignacion_transporte_pedido(
+                pedido,
+                preferencia_cliente="sucursal",
+            )
         )
+        ok = resultado_transporte.ok
+        msg = resultado_transporte.mensaje
+
+        if resultado_transporte.requiere_rollback:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
 
         resultado_suc = (
             preparar_oferta_sucursales_correo_pedido(
@@ -614,11 +624,25 @@ def wa_cerrar_datos_completos(pedido):
             )
 
         if ok:
-            _guardar_estado_wa(
-                pedido,
-                WA_DESPACHO_EN_PROCESO,
-                tel
-            )
+            pedido.wa_estado = WA_DESPACHO_EN_PROCESO
+            pedido.wa_ultimo_contacto = datetime.now(UTC)
+
+            try:
+                db.session.commit()
+            except Exception as e:
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+
+                _escalar_operador(
+                    pedido,
+                    (
+                        "No se pudo guardar la asignación "
+                        f"Correo antes del despacho: {e}"
+                    ),
+                )
+                return False
 
             return wa_enviar_texto(
                 tel,
