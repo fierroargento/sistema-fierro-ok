@@ -179,3 +179,51 @@ def test_no_aplica_oferta_correo_sin_sucursales():
     pedido = SimpleNamespace()
 
     assert aplicar_oferta_sucursales_correo_al_pedido(pedido, [], []) is False
+
+
+def test_resultado_preparacion_oferta_correo_preparada():
+    from services.workflow_correo_sucursal_oferta import (
+        ResultadoPreparacionOfertaCorreo,
+    )
+
+    resultado = ResultadoPreparacionOfertaCorreo.preparada(
+        "Elegí una sucursal",
+    )
+
+    assert resultado.ok is True
+    assert resultado.escalada is False
+    assert resultado.estado == "preparada"
+    assert resultado.mensaje == "Elegí una sucursal"
+    assert resultado.requiere_persistencia is True
+
+
+def test_resultado_preparacion_oferta_correo_sin_oferta():
+    from services.workflow_correo_sucursal_oferta import (
+        ResultadoPreparacionOfertaCorreo,
+    )
+
+    resultado = ResultadoPreparacionOfertaCorreo.sin_oferta(
+        "feature deshabilitada",
+    )
+
+    assert resultado.ok is False
+    assert resultado.escalada is False
+    assert resultado.estado == "sin_oferta"
+    assert resultado.motivo == "feature deshabilitada"
+    assert resultado.requiere_persistencia is False
+
+
+def test_resultado_preparacion_oferta_correo_escalada():
+    from services.workflow_correo_sucursal_oferta import (
+        ResultadoPreparacionOfertaCorreo,
+    )
+
+    resultado = ResultadoPreparacionOfertaCorreo.escalada_por(
+        "requiere operador",
+    )
+
+    assert resultado.ok is False
+    assert resultado.escalada is True
+    assert resultado.estado == "escalada"
+    assert resultado.motivo == "requiere operador"
+    assert resultado.requiere_persistencia is False

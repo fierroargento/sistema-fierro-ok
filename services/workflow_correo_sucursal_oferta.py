@@ -11,6 +11,53 @@ class OfertaSucursalesCorreo:
     mensaje: str
 
 
+@dataclass(frozen=True)
+class ResultadoPreparacionOfertaCorreo:
+    estado: str
+    mensaje: str = ""
+    motivo: str = ""
+    requiere_persistencia: bool = False
+
+    @property
+    def ok(self) -> bool:
+        return self.estado == "preparada"
+
+    @property
+    def escalada(self) -> bool:
+        return self.estado == "escalada"
+
+    @classmethod
+    def preparada(
+        cls,
+        mensaje: str,
+    ) -> "ResultadoPreparacionOfertaCorreo":
+        return cls(
+            estado="preparada",
+            mensaje=str(mensaje or ""),
+            requiere_persistencia=True,
+        )
+
+    @classmethod
+    def sin_oferta(
+        cls,
+        motivo: str = "",
+    ) -> "ResultadoPreparacionOfertaCorreo":
+        return cls(
+            estado="sin_oferta",
+            motivo=str(motivo or ""),
+        )
+
+    @classmethod
+    def escalada_por(
+        cls,
+        motivo: str,
+    ) -> "ResultadoPreparacionOfertaCorreo":
+        return cls(
+            estado="escalada",
+            motivo=str(motivo or ""),
+        )
+
+
 def normalizar_sucursal_correo_oferta(sucursal: dict[str, Any] | None, indice: int = 0) -> dict[str, Any]:
     sucursal = dict(sucursal or {})
 
