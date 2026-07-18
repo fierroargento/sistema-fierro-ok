@@ -1717,100 +1717,61 @@ def detectar_sucursal(pedido, mensaje):
 
 
 
-def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
+def confirmar_sucursal_via_cargo_ofrecida_sin_responder(
+    pedido,
+    texto_cliente,
+):
     """
-    Cierra operativamente una sucursal Via Cargo elegida por el cliente
-    sin depender de enviar una nueva respuesta automatica por ML.
+    Cierra operativamente una sucursal Via Cargo elegida.
 
-    APB:
-    - El Canal Manager puede bloquear mensajes repetidos.
-    - Ese bloqueo no debe impedir guardar la sucursal elegida.
+    No hace commit.
+    No envia mensajes.
+    No decide cross-sell ni canal.
     """
+
     if not pedido:
         return False
 
-    if str(getattr(pedido, "sucursal_nombre", "") or "").strip():
+    if str(
+        getattr(pedido, "sucursal_nombre", "")
+        or ""
+    ).strip():
         return False
 
-    ids_raw = str(getattr(pedido, "ia_sucursales_ofrecidas", "") or "").strip()
-    if not ids_raw:
-        return False
-
-    texto_cliente = str(texto_cliente or "").strip()
+    texto_cliente = str(
+        texto_cliente or ""
+    ).strip()
     if not texto_cliente:
         return False
 
     try:
-        candidatas_ids = json.loads(ids_raw or "[]")
-    except Exception:
-        candidatas_ids = []
-
-    if not candidatas_ids:
-        return False
-
-    try:
-        from services.mensajes_sucursales import (
-            extraer_opcion_sucursal_explicita,
-            normalizar_numero_opcion_sucursal,
-            seleccionar_sucursal_ofrecida_por_opcion,
-        )
-
-        idx = extraer_opcion_sucursal_explicita(
-            texto_cliente,
-            cantidad_opciones=len(candidatas_ids),
-        )
-
-        if idx is None:
-            idx = normalizar_numero_opcion_sucursal(texto_cliente)
-
-        if idx is None or idx < 0 or idx >= len(candidatas_ids):
-            return False
-
-        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
-            sucursales = json.load(f)
+        with open(
+            "via_cargo_sucursales.json",
+            "r",
+            encoding="utf-8",
+        ) as archivo:
+            sucursales = json.load(archivo)
 
         from services.workflow_sucursal_decision import (
-            DecisionSucursal,
-            decidir_sucursal_via_cargo_ofrecida,
+            decidir_sucursal_via_cargo_para_pedido,
         )
 
-        decision_sucursal = None
-        try:
-            decision_sucursal = decidir_sucursal_via_cargo_ofrecida(
+        decision_sucursal = (
+            decidir_sucursal_via_cargo_para_pedido(
+                pedido=pedido,
                 texto=texto_cliente,
                 sucursales_catalogo=sucursales,
-                ids_ofrecidas=candidatas_ids,
+                log_error_fn=lambda error: print(
+                    "[VIA CARGO] Error usando decision "
+                    "central sucursal "
+                    f"pedido #{getattr(pedido, 'id', '')}: "
+                    f"{error}"
+                ),
             )
-        except Exception as e:
-            print(
-                f"[VIA CARGO] Error usando decision central sucursal "
-                f"pedido #{getattr(pedido, 'id', '')}: {e}"
-            )
+        )
 
-        if (
-            decision_sucursal
-            and decision_sucursal.seleccionada
-            and decision_sucursal.sucursal
-        ):
-            if decision_sucursal.indice is not None:
-                idx = decision_sucursal.indice
-        else:
-            suc = seleccionar_sucursal_ofrecida_por_opcion(
-                sucursales,
-                candidatas_ids,
-                idx,
-            )
-
-            if not suc:
-                return False
-
-            decision_sucursal = DecisionSucursal(
-                seleccionada=True,
-                sucursal=suc,
-                indice=idx,
-                transporte="via_cargo",
-                motivo="fallback_legacy",
-            )
+        if not decision_sucursal.seleccionada:
+            return False
 
         from services.workflow_logistica_sucursal import (
             aplicar_decision_sucursal_al_pedido,
@@ -1826,24 +1787,31 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
         try:
             if despacho_completo(pedido):
                 pedido.ia_faltantes = "[]"
-                pedido.ia_recolector_estado = "datos_completos"
+                pedido.ia_recolector_estado = (
+                    "datos_completos"
+                )
                 pedido.ia_ultimo_timeout_operador = None
         except Exception:
             pass
 
         print(
-            f"[VIA CARGO] Pedido #{getattr(pedido, 'id', '')}: "
-            f"sucursal confirmada antes de auto-respuesta ML"
+            f"[VIA CARGO] Pedido "
+            f"#{getattr(pedido, 'id', '')}: "
+            "sucursal confirmada antes de "
+            "auto-respuesta ML"
         )
 
         return True
 
-    except Exception as e:
+    except Exception as error:
         print(
-            f"[VIA CARGO] Error confirmando sucursal ofrecida "
-            f"pedido #{getattr(pedido, 'id', '')}: {e}"
+            "[VIA CARGO] Error confirmando "
+            "sucursal ofrecida "
+            f"pedido #{getattr(pedido, 'id', '')}: "
+            f"{error}"
         )
         return False
+
 
 def requiere_seguimiento_retiro(pedido):
     """

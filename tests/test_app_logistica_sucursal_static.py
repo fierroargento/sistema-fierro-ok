@@ -20,13 +20,27 @@ def test_confirmacion_via_cargo_usa_aplicacion_operativa_de_sucursal():
     assert 'transporte="Vía Cargo"' in bloque
 
 
-def test_confirmacion_via_cargo_mantiene_deteccion_vieja_por_ahora():
+def test_confirmacion_via_cargo_delega_decision_desde_opciones_del_pedido():
     bloque = _bloque_confirmacion_via_cargo()
 
-    assert "extraer_opcion_sucursal_explicita" in bloque
-    assert "normalizar_numero_opcion_sucursal" in bloque
-    assert "seleccionar_sucursal_ofrecida_por_opcion" in bloque
-
+    assert (
+        "decidir_sucursal_via_cargo_para_pedido"
+        in bloque
+    )
+    assert "sucursales_catalogo=sucursales" in bloque
+    assert "log_error_fn=" in bloque
+    assert (
+        "extraer_opcion_sucursal_explicita"
+        not in bloque
+    )
+    assert (
+        "normalizar_numero_opcion_sucursal"
+        not in bloque
+    )
+    assert (
+        "seleccionar_sucursal_ofrecida_por_opcion"
+        not in bloque
+    )
 
 def test_confirmacion_via_cargo_no_manda_mensajes_externos():
     bloque = _bloque_confirmacion_via_cargo()
