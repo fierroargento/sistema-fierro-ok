@@ -12,15 +12,15 @@ def _bloque_confirmacion_via_cargo():
     return APP[idx:fin]
 
 
-def test_confirmacion_via_cargo_usa_helper_resumen_sucursal():
+def test_confirmacion_via_cargo_delega_resumen_en_aplicacion_operativa():
     bloque = _bloque_confirmacion_via_cargo()
 
-    assert "agregar_marca_resumen_sucursal_confirmada" in bloque
+    assert "aplicar_decision_sucursal_al_pedido" in bloque
     assert "Sucursal confirmada por opción" not in bloque
 
 
 def test_confirmacion_via_cargo_sigue_usando_aplicacion_operativa():
     bloque = _bloque_confirmacion_via_cargo()
 
-    assert "aplicar_sucursal_elegida_al_pedido" in bloque
+    assert "aplicar_decision_sucursal_al_pedido" in bloque
     assert "services.workflow_logistica_sucursal" in bloque

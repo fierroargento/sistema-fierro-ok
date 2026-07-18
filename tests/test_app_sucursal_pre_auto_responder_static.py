@@ -25,14 +25,25 @@ def test_confirmacion_sucursal_directa_delega_aplicacion_operativa():
     bloque = texto[idx: idx + 4200]
 
     assert (
-        "from services.workflow_logistica_sucursal import "
-        "aplicar_sucursal_elegida_al_pedido"
-    ) in bloque
+        "services.workflow_logistica_sucursal"
+        in bloque
+    )
+    assert (
+        "aplicar_decision_sucursal_al_pedido"
+        in bloque
+    )
 
-    assert "if not aplicar_sucursal_elegida_al_pedido(" in bloque
+    assert (
+        "if not aplicar_decision_sucursal_al_pedido("
+        in bloque
+    )
     assert "pedido," in bloque
-    assert "suc," in bloque
+    assert "decision_sucursal," in bloque
     assert 'transporte="Vía Cargo"' in bloque
+    assert (
+        "aplicar_sucursal_elegida_al_pedido"
+        not in bloque
+    )
 
     assert "pedido.sucursal_nombre = suc.get" not in bloque
     assert 'pedido.tipo_entrega = "Sucursal"' not in bloque

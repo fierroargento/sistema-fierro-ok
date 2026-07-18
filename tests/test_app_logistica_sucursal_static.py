@@ -16,7 +16,7 @@ def test_confirmacion_via_cargo_usa_aplicacion_operativa_de_sucursal():
     bloque = _bloque_confirmacion_via_cargo()
 
     assert "services.workflow_logistica_sucursal" in bloque
-    assert "aplicar_sucursal_elegida_al_pedido" in bloque
+    assert "aplicar_decision_sucursal_al_pedido" in bloque
     assert 'transporte="Vía Cargo"' in bloque
 
 

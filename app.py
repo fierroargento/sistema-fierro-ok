@@ -1769,7 +1769,10 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
         with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
             sucursales = json.load(f)
 
-        from services.workflow_sucursal_decision import decidir_sucursal_via_cargo_ofrecida
+        from services.workflow_sucursal_decision import (
+            DecisionSucursal,
+            decidir_sucursal_via_cargo_ofrecida,
+        )
 
         decision_sucursal = None
         try:
@@ -1784,10 +1787,13 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
                 f"pedido #{getattr(pedido, 'id', '')}: {e}"
             )
 
-        if decision_sucursal and decision_sucursal.seleccionada and decision_sucursal.sucursal:
+        if (
+            decision_sucursal
+            and decision_sucursal.seleccionada
+            and decision_sucursal.sucursal
+        ):
             if decision_sucursal.indice is not None:
                 idx = decision_sucursal.indice
-            suc = decision_sucursal.sucursal.get("raw") or decision_sucursal.sucursal
         else:
             suc = seleccionar_sucursal_ofrecida_por_opcion(
                 sucursales,
@@ -1795,15 +1801,24 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
                 idx,
             )
 
-        if not suc:
-            return False
+            if not suc:
+                return False
 
-        from services.workflow_logistica_sucursal import agregar_marca_resumen_sucursal_confirmada
-        from services.workflow_logistica_sucursal import aplicar_sucursal_elegida_al_pedido
+            decision_sucursal = DecisionSucursal(
+                seleccionada=True,
+                sucursal=suc,
+                indice=idx,
+                transporte="via_cargo",
+                motivo="fallback_legacy",
+            )
 
-        if not aplicar_sucursal_elegida_al_pedido(
+        from services.workflow_logistica_sucursal import (
+            aplicar_decision_sucursal_al_pedido,
+        )
+
+        if not aplicar_decision_sucursal_al_pedido(
             pedido,
-            suc,
+            decision_sucursal,
             transporte="Vía Cargo",
         ):
             return False
@@ -1815,12 +1830,6 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto_cliente):
                 pedido.ia_ultimo_timeout_operador = None
         except Exception:
             pass
-
-        pedido.ia_resumen = agregar_marca_resumen_sucursal_confirmada(
-            getattr(pedido, "ia_resumen", ""),
-            idx,
-            suc,
-        )
 
         print(
             f"[VIA CARGO] Pedido #{getattr(pedido, 'id', '')}: "
