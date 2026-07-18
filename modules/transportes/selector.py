@@ -379,6 +379,11 @@ def sugerir_sucursales_correo_pedido(pedido, canal_origen="ml"):
         db.session.commit()
     except Exception as e:
         print("[CORREO SELECTOR] Error guardando sucursales ofrecidas:", e)
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return None
 
     return oferta_correo.mensaje
 
