@@ -378,7 +378,7 @@ def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
 
 def wa_procesar_eleccion_transporte(pedido, texto_cliente):
     from app import db
-    from modules.transportes.selector import asignar_transporte_pedido
+    from modules.transportes.selector import preparar_asignacion_transporte_pedido
     from modules.whatsapp.flows import (
         _es_afirmativo,
         _es_consulta_factura,
@@ -410,17 +410,45 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
         )
 
     if any(x in texto for x in ["domicilio", "a casa", "mi casa", "entrega en casa"]):
-        ok, msg = asignar_transporte_pedido(
-            pedido,
-            preferencia_cliente="domicilio"
-        )
-
-        if ok:
-            _guardar_estado_wa(
+        resultado_transporte = (
+            preparar_asignacion_transporte_pedido(
                 pedido,
-                WA_DESPACHO_EN_PROCESO,
-                tel
+                preferencia_cliente="domicilio",
             )
+        )
+        msg = resultado_transporte.mensaje
+
+        if resultado_transporte.requiere_rollback:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
+        if resultado_transporte.ok:
+            pedido.wa_estado = WA_DESPACHO_EN_PROCESO
+            pedido.wa_ultimo_contacto = datetime.now(UTC)
+
+            try:
+                db.session.commit()
+            except Exception as e:
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+
+                _escalar_operador(
+                    pedido,
+                    (
+                        "No se pudo guardar la asignación "
+                        f"domicilio Correo: {e}"
+                    ),
+                    (
+                        "No pudimos confirmar automáticamente "
+                        "el envío a domicilio. Lo revisamos con "
+                        "un operador para evitar errores."
+                    ),
+                )
+                return
 
             wa_enviar_texto(
                 tel,
