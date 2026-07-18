@@ -1457,6 +1457,11 @@ def sugerir_sucursales(pedido):
             db.session.commit()
         except Exception as e:
             print("[VIA CARGO] Error guardando sucursales ofrecidas:", e)
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            return None
 
         return resultado_via_cargo.get("mensaje") or None
 
