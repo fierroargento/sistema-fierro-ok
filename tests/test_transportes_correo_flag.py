@@ -30,13 +30,14 @@ def test_sugerir_sucursales_correo_no_ensucia_si_flag_apagado(monkeypatch):
     assert "TRANSPORTE" not in pedido.ia_resumen
 
 
-def test_asignar_transporte_pedido_devuelve_mensaje_controlado_si_flag_apagado(monkeypatch):
+def test_preparar_asignacion_transporte_devuelve_resultado_controlado_si_flag_apagado(monkeypatch):
     pedido = PedidoFake()
 
     monkeypatch.setattr(selector, "correo_pp6040_habilitado", lambda: False)
 
-    ok, mensaje = selector.asignar_transporte_pedido(pedido)
+    resultado = selector.preparar_asignacion_transporte_pedido(pedido)
 
-    assert ok is False
-    assert mensaje == "Cotización Correo temporalmente deshabilitada"
+    assert resultado.ok is False
+    assert resultado.mensaje == "Cotización Correo temporalmente deshabilitada"
+    assert resultado.estado == "sin_asignacion"
     assert pedido.empresa_envio == ""

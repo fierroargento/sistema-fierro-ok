@@ -310,38 +310,6 @@ def preparar_asignacion_transporte_pedido(
         )
 
 
-def asignar_transporte_pedido(
-    pedido,
-    preferencia_cliente="sucursal",
-):
-    """Wrapper compatible que prepara y persiste la asignación Correo."""
-    resultado = preparar_asignacion_transporte_pedido(
-        pedido,
-        preferencia_cliente=preferencia_cliente,
-    )
-
-    if not resultado.ok:
-        if resultado.requiere_rollback:
-            try:
-                from app import db
-                db.session.rollback()
-            except Exception:
-                pass
-
-        return False, resultado.mensaje
-
-    try:
-        from app import db
-        db.session.commit()
-        return True, resultado.mensaje
-    except Exception as e:
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-        return False, f"Error asignando Correo: {e}"
-
-
 def preparar_oferta_sucursales_correo_pedido(
     pedido,
     canal_origen="ml",
