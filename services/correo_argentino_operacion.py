@@ -16,6 +16,71 @@ Solo normaliza decisiones para que el sistema pueda guardar/mostrar:
 - motivo
 """
 
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ResultadoPreparacionTransporteCorreo:
+    estado: str
+    mensaje: str = ""
+    requiere_persistencia: bool = False
+    requiere_rollback: bool = False
+
+    @property
+    def ok(self) -> bool:
+        return self.estado == "asignada"
+
+    @property
+    def escalada(self) -> bool:
+        return self.estado == "escalada"
+
+    @property
+    def error(self) -> bool:
+        return self.estado == "error"
+
+    @classmethod
+    def asignada(
+        cls,
+        mensaje: str,
+    ) -> "ResultadoPreparacionTransporteCorreo":
+        return cls(
+            estado="asignada",
+            mensaje=str(mensaje or ""),
+            requiere_persistencia=True,
+        )
+
+    @classmethod
+    def sin_asignacion(
+        cls,
+        mensaje: str,
+    ) -> "ResultadoPreparacionTransporteCorreo":
+        return cls(
+            estado="sin_asignacion",
+            mensaje=str(mensaje or ""),
+        )
+
+    @classmethod
+    def escalada_por(
+        cls,
+        mensaje: str,
+    ) -> "ResultadoPreparacionTransporteCorreo":
+        return cls(
+            estado="escalada",
+            mensaje=str(mensaje or ""),
+        )
+
+    @classmethod
+    def fallida(
+        cls,
+        mensaje: str,
+    ) -> "ResultadoPreparacionTransporteCorreo":
+        return cls(
+            estado="error",
+            mensaje=str(mensaje or ""),
+            requiere_rollback=True,
+        )
+
+
 TRANSPORTE_CORREO = "Correo Argentino"
 
 PREFERENCIAS_CORREO_DEFAULT = {
