@@ -51,19 +51,3 @@ def test_preparacion_correo_mantiene_raw_compatible():
         in bloque
     )
     assert "oferta_correo.ids" in bloque
-
-
-def test_wrapper_correo_conserva_frontera_de_persistencia():
-    bloque = _bloque_funcion(
-        "sugerir_sucursales_correo_pedido"
-    )
-
-    assert (
-        "resultado = "
-        "preparar_oferta_sucursales_correo_pedido("
-        in bloque
-    )
-    assert "if not resultado.ok:" in bloque
-    assert "from app import db" in bloque
-    assert "db.session.commit()" in bloque
-    assert "return resultado.mensaje" in bloque

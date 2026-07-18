@@ -425,33 +425,6 @@ def preparar_oferta_sucursales_correo_pedido(
     )
 
 
-def sugerir_sucursales_correo_pedido(pedido, canal_origen="ml"):
-    """Wrapper compatible que prepara, persiste y devuelve el mensaje."""
-    resultado = preparar_oferta_sucursales_correo_pedido(
-        pedido,
-        canal_origen=canal_origen,
-    )
-
-    if not resultado.ok:
-        return None
-
-    try:
-        from app import db
-        db.session.commit()
-    except Exception as e:
-        print(
-            "[CORREO SELECTOR] Error guardando sucursales ofrecidas:",
-            e,
-        )
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-        return None
-
-    return resultado.mensaje
-
-
 def _marcar_escalado(pedido, motivo):
     try:
         from app import db

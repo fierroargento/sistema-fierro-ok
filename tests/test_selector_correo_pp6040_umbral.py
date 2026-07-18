@@ -50,9 +50,9 @@ def test_selector_pp6040_supera_umbral_no_busca_sucursales(monkeypatch):
         lambda pedido, motivo: llamadas.setdefault("motivo", motivo),
     )
 
-    respuesta = selector.sugerir_sucursales_correo_pedido(PedidoFake())
+    resultado = selector.preparar_oferta_sucursales_correo_pedido(PedidoFake())
 
-    assert respuesta is None
+    assert resultado.escalada is True
     assert "supera el umbral" in llamadas["motivo"]
     assert "12000" in llamadas["motivo"]
     assert "10000" in llamadas["motivo"]

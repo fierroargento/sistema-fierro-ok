@@ -7,9 +7,9 @@ def test_selector_correo_delega_canal_origen_al_servicio_central():
     ).read_text(encoding="utf-8")
 
     assert (
-        'def sugerir_sucursales_correo_pedido('
-        'pedido, canal_origen="ml"):'
-    ) in selector
+        "def preparar_oferta_sucursales_correo_pedido("
+        in selector
+    )
 
     assert (
         'canal_origen = str('
@@ -42,7 +42,6 @@ def test_whatsapp_pasa_canal_origen_wa_al_selector_correo():
     assert "db.session.rollback()" in texto
     assert "resultado_suc.mensaje" in texto
     assert (
-        'sugerir_sucursales_correo_pedido('
-        'pedido, canal_origen="wa")'
+        "sugerir_sucursales_correo_pedido"
         not in texto
     )

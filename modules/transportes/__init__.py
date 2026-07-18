@@ -15,7 +15,7 @@ from .selector import (
     cotizar_correo_pp6040,
     evaluar_decision_correo_pp6040,
     asignar_transporte_pedido,
-    sugerir_sucursales_correo_pedido,
+    preparar_oferta_sucursales_correo_pedido,
 )
 
 __all__ = [
@@ -26,6 +26,6 @@ __all__ = [
     "cotizar_correo_pp6040",
     "evaluar_decision_correo_pp6040",
     "asignar_transporte_pedido",
-    "sugerir_sucursales_correo_pedido",
+    "preparar_oferta_sucursales_correo_pedido",
 ]
 

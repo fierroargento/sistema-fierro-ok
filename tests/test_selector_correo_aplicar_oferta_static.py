@@ -48,18 +48,3 @@ def test_preparacion_correo_no_asigna_campos_operativos_a_mano():
         "pedido.wa_ultimo_contacto = datetime.utcnow()"
         not in bloque
     )
-
-
-def test_wrapper_correo_sigue_persistiendo_por_ahora():
-    bloque = _bloque_funcion(
-        "sugerir_sucursales_correo_pedido"
-    )
-
-    assert (
-        "preparar_oferta_sucursales_correo_pedido"
-        in bloque
-    )
-    assert "from app import db" in bloque
-    assert "db.session.commit()" in bloque
-    assert "db.session.rollback()" in bloque
-    assert "return resultado.mensaje" in bloque

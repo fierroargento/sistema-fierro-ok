@@ -21,9 +21,9 @@ def test_sugerir_sucursales_correo_no_ensucia_si_flag_apagado(monkeypatch):
 
     monkeypatch.setattr(selector, "obtener_sucursales_correo_por_pedido", explotar)
 
-    resultado = selector.sugerir_sucursales_correo_pedido(pedido)
+    resultado = selector.preparar_oferta_sucursales_correo_pedido(pedido)
 
-    assert resultado is None
+    assert resultado.estado == "sin_oferta"
     assert pedido.ia_requiere_operador is False
     assert pedido.ml_mensajes_pendientes is False
     assert pedido.wa_estado == ""

@@ -28,7 +28,7 @@ class PedidoFake:
         self.ia_sucursales_ofrecidas = ""
 
 
-def test_sugerir_sucursales_correo_respeta_cantidad_configurable(monkeypatch):
+def test_preparar_sucursales_correo_respeta_cantidad_sin_persistir(monkeypatch):
     session = SessionFake()
     db_fake = types.SimpleNamespace(session=session)
     monkeypatch.setitem(sys.modules, "app", types.SimpleNamespace(db=db_fake))
@@ -54,7 +54,8 @@ def test_sugerir_sucursales_correo_respeta_cantidad_configurable(monkeypatch):
 
     pedido = PedidoFake()
 
-    mensaje = selector.sugerir_sucursales_correo_pedido(pedido)
+    resultado = selector.preparar_oferta_sucursales_correo_pedido(pedido)
+    mensaje = resultado.mensaje
 
     assert mensaje is not None
     assert "Sucursal 1" in mensaje
@@ -65,4 +66,4 @@ def test_sugerir_sucursales_correo_respeta_cantidad_configurable(monkeypatch):
     assert len(guardadas) == 2
     assert pedido.empresa_envio == "Correo Argentino"
     assert pedido.tipo_entrega == "Sucursal"
-    assert session.committed is True
+    assert session.committed is False
