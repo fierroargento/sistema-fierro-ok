@@ -1433,10 +1433,40 @@ def sugerir_sucursales(pedido):
     transporte_actual = str(getattr(pedido, "empresa_envio", "") or "").strip().lower()
     if "correo" in transporte_actual:
         try:
-            from modules.transportes.selector import sugerir_sucursales_correo_pedido
-            return sugerir_sucursales_correo_pedido(pedido)
+            from modules.transportes.selector import (
+                preparar_oferta_sucursales_correo_pedido,
+            )
+
+            resultado_correo = (
+                preparar_oferta_sucursales_correo_pedido(
+                    pedido,
+                    canal_origen="ml",
+                )
+            )
+
+            if not resultado_correo.ok:
+                return None
+
+            try:
+                db.session.commit()
+            except Exception as e:
+                print(
+                    "[CORREO] Error guardando sucursales ofrecidas:",
+                    e,
+                )
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+                return None
+
+            return resultado_correo.mensaje
+
         except Exception as e:
-            print("[CORREO] Error sugiriendo sucursales Correo:", e)
+            print(
+                "[CORREO] Error sugiriendo sucursales Correo:",
+                e,
+            )
             return None
 
     try:
