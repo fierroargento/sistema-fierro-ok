@@ -287,26 +287,34 @@ def asignar_transporte_pedido(pedido, preferencia_cliente="sucursal"):
         return False, f"Error asignando Correo: {e}"
 
 
-def sugerir_sucursales_correo_pedido(pedido, canal_origen="ml"):
-    """Genera mensaje con puntos Correo cercanos.
+def preparar_oferta_sucursales_correo_pedido(
+    pedido,
+    canal_origen="ml",
+):
+    """Prepara y aplica una oferta Correo sin persistir el camino exitoso."""
+    from services.workflow_correo_sucursal_oferta import (
+        ResultadoPreparacionOfertaCorreo,
+    )
 
-    canal_origen:
-    - "ml": las opciones se van a enviar por Mercado Libre. No activa WhatsApp.
-    - "wa": las opciones se van a enviar por WhatsApp. Activa estado WA.
-    """
     canal_origen = str(canal_origen or "ml").strip().lower()
 
     if not correo_pp6040_habilitado():
-        print("[CORREO SELECTOR] PP6040 deshabilitado por feature flag. No se buscan sucursales.")
-        return None
+        print(
+            "[CORREO SELECTOR] PP6040 deshabilitado por feature flag. "
+            "No se buscan sucursales."
+        )
+        return ResultadoPreparacionOfertaCorreo.sin_oferta(
+            "feature deshabilitada",
+        )
 
     # PP6040 / plegables:
     # Antes de ofrecer sucursales Correo al cliente, validamos costo.
-    # Si Correo sucursal supera el umbral configurado, no ofrecemos opciones
-    # y dejamos la decisión al operador, porque Andreani puede estar más barato.
+    # Los escalados conservan temporalmente su persistencia existente.
     if pedido_contiene_pp6040(pedido):
         try:
-            from services.correo_argentino_operacion import evaluar_oferta_sucursales_correo_pp6040
+            from services.correo_argentino_operacion import (
+                evaluar_oferta_sucursales_correo_pp6040,
+            )
 
             cotizacion_pp6040 = cotizar_correo_pp6040(pedido)
             decision_sucursal = evaluar_oferta_sucursales_correo_pp6040(
@@ -315,37 +323,64 @@ def sugerir_sucursales_correo_pedido(pedido, canal_origen="ml"):
             )
 
             if not decision_sucursal.get("ofrecer_sucursales"):
-                motivo = decision_sucursal.get("motivo") or "Correo sucursal PP6040 requiere revisión operador."
+                motivo = (
+                    decision_sucursal.get("motivo")
+                    or "Correo sucursal PP6040 requiere revisión operador."
+                )
                 precio = decision_sucursal.get("precio")
                 umbral = decision_sucursal.get("umbral")
-
-                _marcar_escalado(
-                    pedido,
-                    f"{motivo} Precio Correo sucursal: {precio}. Umbral: {umbral}."
+                motivo_escalado = (
+                    f"{motivo} Precio Correo sucursal: {precio}. "
+                    f"Umbral: {umbral}."
                 )
-                return None
+
+                _marcar_escalado(pedido, motivo_escalado)
+                return ResultadoPreparacionOfertaCorreo.escalada_por(
+                    motivo_escalado,
+                )
 
         except Exception as e:
-            _marcar_escalado(
-                pedido,
-                f"No se pudo validar costo Correo sucursal PP6040: {e}"
+            motivo_escalado = (
+                "No se pudo validar costo Correo sucursal PP6040: "
+                f"{e}"
             )
-            return None
+            _marcar_escalado(pedido, motivo_escalado)
+            return ResultadoPreparacionOfertaCorreo.escalada_por(
+                motivo_escalado,
+            )
 
     try:
         sucursales = obtener_sucursales_correo_por_pedido(pedido)
     except Exception as e:
-        print("[CORREO SELECTOR] Error obteniendo sucursales:", e)
+        print(
+            "[CORREO SELECTOR] Error obteniendo sucursales:",
+            e,
+        )
         sucursales = []
 
     if not sucursales:
-        _marcar_escalado(pedido, "No se pudieron obtener sucursales Correo cercanas")
-        return None
+        motivo_escalado = (
+            "No se pudieron obtener sucursales Correo cercanas"
+        )
+        _marcar_escalado(pedido, motivo_escalado)
+        return ResultadoPreparacionOfertaCorreo.escalada_por(
+            motivo_escalado,
+        )
 
     try:
-        from services.correo_argentino_operacion import obtener_preferencias_operativas_correo
-        preferencias_correo = obtener_preferencias_operativas_correo()
-        limite_sucursales = int(preferencias_correo.get("cantidad_sucursales_cliente") or 3)
+        from services.correo_argentino_operacion import (
+            obtener_preferencias_operativas_correo,
+        )
+
+        preferencias_correo = (
+            obtener_preferencias_operativas_correo()
+        )
+        limite_sucursales = int(
+            preferencias_correo.get(
+                "cantidad_sucursales_cliente"
+            )
+            or 3
+        )
     except Exception:
         limite_sucursales = 3
 
@@ -360,32 +395,61 @@ def sugerir_sucursales_correo_pedido(pedido, canal_origen="ml"):
     )
 
     if not oferta_correo:
-        _marcar_escalado(pedido, "No se pudieron preparar sucursales Correo cercanas")
+        motivo_escalado = (
+            "No se pudieron preparar sucursales Correo cercanas"
+        )
+        _marcar_escalado(pedido, motivo_escalado)
+        return ResultadoPreparacionOfertaCorreo.escalada_por(
+            motivo_escalado,
+        )
+
+    # Compatibilidad: conserva la sucursal raw para el detector existente.
+    sucs = sucursales[:limite_sucursales]
+
+    if not aplicar_oferta_sucursales_correo_al_pedido(
+        pedido,
+        sucs,
+        oferta_correo.ids,
+        canal_origen=canal_origen,
+    ):
+        motivo_escalado = (
+            "No se pudieron aplicar sucursales Correo cercanas"
+        )
+        _marcar_escalado(pedido, motivo_escalado)
+        return ResultadoPreparacionOfertaCorreo.escalada_por(
+            motivo_escalado,
+        )
+
+    return ResultadoPreparacionOfertaCorreo.preparada(
+        oferta_correo.mensaje,
+    )
+
+
+def sugerir_sucursales_correo_pedido(pedido, canal_origen="ml"):
+    """Wrapper compatible que prepara, persiste y devuelve el mensaje."""
+    resultado = preparar_oferta_sucursales_correo_pedido(
+        pedido,
+        canal_origen=canal_origen,
+    )
+
+    if not resultado.ok:
         return None
 
-    # Compatibilidad: se guarda la sucursal raw como antes para no romper el detector existente.
-    sucs = sucursales[:limite_sucursales]
     try:
         from app import db
-        if not aplicar_oferta_sucursales_correo_al_pedido(
-            pedido,
-            sucs,
-            oferta_correo.ids,
-            canal_origen=canal_origen,
-        ):
-            _marcar_escalado(pedido, "No se pudieron aplicar sucursales Correo cercanas")
-            return None
-
         db.session.commit()
     except Exception as e:
-        print("[CORREO SELECTOR] Error guardando sucursales ofrecidas:", e)
+        print(
+            "[CORREO SELECTOR] Error guardando sucursales ofrecidas:",
+            e,
+        )
         try:
             db.session.rollback()
         except Exception:
             pass
         return None
 
-    return oferta_correo.mensaje
+    return resultado.mensaje
 
 
 def _marcar_escalado(pedido, motivo):
