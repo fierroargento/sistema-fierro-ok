@@ -92,3 +92,31 @@ def test_selector_correo_no_devuelve_mensaje_si_falla_persistencia(
     assert session.commits == 1
     assert session.rollbacks == 1
     assert resultado is None
+
+
+def test_marcar_escalado_hace_rollback_si_falla_persistencia(
+    monkeypatch,
+):
+    session = SessionCommitFallido()
+    db_fake = types.SimpleNamespace(session=session)
+
+    monkeypatch.setitem(
+        sys.modules,
+        "app",
+        types.SimpleNamespace(db=db_fake),
+    )
+
+    pedido = SimpleNamespace(
+        ia_requiere_operador=False,
+        ml_mensajes_pendientes=False,
+        wa_estado="",
+        ia_resumen="",
+    )
+
+    selector._marcar_escalado(
+        pedido,
+        "Revisión manual de transporte",
+    )
+
+    assert session.commits == 1
+    assert session.rollbacks == 1

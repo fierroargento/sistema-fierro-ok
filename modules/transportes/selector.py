@@ -399,3 +399,8 @@ def _marcar_escalado(pedido, motivo):
         db.session.commit()
     except Exception as e:
         print("[SELECTOR] Error escalando:", e)
+        try:
+            from app import db
+            db.session.rollback()
+        except Exception:
+            pass
