@@ -6256,35 +6256,78 @@ def ia_auto_responder_post_analisis(pedido):
                 # PP6040 (plegable) → cotizar y asignar transporte automáticamente
                 if pedido_es_plegable_pp6040(pedido):
                     try:
-                        from modules.transportes import asignar_transporte_pedido
-                        ok, msg_transporte = asignar_transporte_pedido(pedido)
-                        if ok:
-                            print(f"[TRANSPORTES] Pedido #{pedido.id}: {msg_transporte}")
-                            pp6040_transporte_asignado = True
-                            resumen = (pedido.ia_resumen or "").strip()
-                            pedido.ia_resumen = f"{resumen} | {msg_transporte}".strip(" |")
+                        from modules.transportes import (
+                            preparar_asignacion_transporte_pedido,
+                        )
+
+                        resultado_transporte = (
+                            preparar_asignacion_transporte_pedido(
+                                pedido,
+                            )
+                        )
+                        msg_transporte = resultado_transporte.mensaje
+
+                        if resultado_transporte.requiere_rollback:
+                            try:
+                                db.session.rollback()
+                            except Exception:
+                                pass
+
+                        if resultado_transporte.ok:
+                            resumen = (
+                                pedido.ia_resumen or ""
+                            ).strip()
+                            pedido.ia_resumen = (
+                                f"{resumen} | {msg_transporte}"
+                            ).strip(" |")
+
                             db.session.commit()
+                            pp6040_transporte_asignado = True
+
+                            print(
+                                f"[TRANSPORTES] Pedido #{pedido.id}: "
+                                f"{msg_transporte}"
+                            )
                         else:
                             # Sin cobertura → escalar al operador
                             pedido.ml_mensajes_pendientes = True
                             pedido.ia_requiere_operador = True
-                            from services.ia_respuestas import agregar_marca_resumen_unica_service
+                            from services.ia_respuestas import (
+                                agregar_marca_resumen_unica_service,
+                            )
 
-                            resumen = (pedido.ia_resumen or "").strip()
-                            from services.transporte_revision import construir_marca_revision_transporte
+                            resumen = (
+                                pedido.ia_resumen or ""
+                            ).strip()
+                            from services.transporte_revision import (
+                                construir_marca_revision_transporte,
+                            )
 
                             marca = construir_marca_revision_transporte(
-                                getattr(pedido, "codigo_postal", ""),
+                                getattr(
+                                    pedido,
+                                    "codigo_postal",
+                                    "",
+                                ),
                                 msg_transporte,
                             )
-                            pedido.ia_resumen = agregar_marca_resumen_unica_service(
-                                resumen,
-                                marca,
-                                limite=1000,
+                            pedido.ia_resumen = (
+                                agregar_marca_resumen_unica_service(
+                                    resumen,
+                                    marca,
+                                    limite=1000,
+                                )
                             )
                             db.session.commit()
                     except Exception as e:
-                        print(f"[TRANSPORTES] Error asignando transporte pedido #{pedido.id}:", e)
+                        try:
+                            db.session.rollback()
+                        except Exception:
+                            pass
+                        print(
+                            "[TRANSPORTES] Error asignando transporte "
+                            f"pedido #{pedido.id}: {e}"
+                        )
                 if not pp6040_transporte_asignado:
                     return False, "datos_completos"
 

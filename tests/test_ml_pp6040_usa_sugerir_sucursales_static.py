@@ -44,3 +44,41 @@ def test_bloque_comun_envia_sucursales_por_ml():
     assert "registrar_envio_automatico(" in envio
     assert "pedido.ia_respuesta_sugerida = msg_sucursales" in envio
     assert "pedido.ml_mensajes_pendientes = False" in envio
+
+
+def test_pp6040_ml_prepara_asignacion_y_persiste_una_vez():
+    bloque = bloque_post_analisis()
+
+    inicio = bloque.index(
+        "if pedido_es_plegable_pp6040(pedido):"
+    )
+    fin = bloque.index(
+        "if not pp6040_transporte_asignado:",
+        inicio,
+    )
+    asignacion = bloque[inicio:fin]
+
+    assert (
+        "preparar_asignacion_transporte_pedido"
+        in asignacion
+    )
+    assert "resultado_transporte.ok" in asignacion
+    assert (
+        "resultado_transporte.requiere_rollback"
+        in asignacion
+    )
+    assert "db.session.rollback()" in asignacion
+    assert "asignar_transporte_pedido(" not in asignacion
+
+    pos_resumen = asignacion.index(
+        "pedido.ia_resumen ="
+    )
+    pos_commit = asignacion.index(
+        "db.session.commit()",
+        pos_resumen,
+    )
+    pos_asignado = asignacion.index(
+        "pp6040_transporte_asignado = True"
+    )
+
+    assert pos_resumen < pos_commit < pos_asignado
