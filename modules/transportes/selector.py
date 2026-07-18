@@ -237,50 +237,105 @@ def evaluar_decision_correo_pp6040(pedido, preferencia_cliente="sucursal"):
     return cot
 
 
-def asignar_transporte_pedido(pedido, preferencia_cliente="sucursal"):
-    """Cotiza y asigna Correo al pedido PP6040, sin informar costos al cliente.
+def preparar_asignacion_transporte_pedido(
+    pedido,
+    preferencia_cliente="sucursal",
+):
+    """Cotiza y aplica Correo al pedido sin persistir el camino exitoso."""
+    from services.correo_argentino_operacion import (
+        ResultadoPreparacionTransporteCorreo,
+    )
 
-    APB: deshabilitado hasta confirmar credenciales Correo Argentino en Render.
-    Reactivar eliminando el return de abajo cuando estén las credenciales.
-    """
     if not correo_pp6040_habilitado():
-        return False, "Cotización Correo temporalmente deshabilitada"
+        return ResultadoPreparacionTransporteCorreo.sin_asignacion(
+            "Cotización Correo temporalmente deshabilitada",
+        )
 
     if not pedido_contiene_pp6040(pedido):
-        return False, "El pedido no contiene PP6040"
+        return ResultadoPreparacionTransporteCorreo.sin_asignacion(
+            "El pedido no contiene PP6040",
+        )
 
-    resultado = evaluar_decision_correo_pp6040(pedido, preferencia_cliente=preferencia_cliente)
+    resultado = evaluar_decision_correo_pp6040(
+        pedido,
+        preferencia_cliente=preferencia_cliente,
+    )
     decision = resultado.get("decision")
 
     if decision == "escalar":
-        _marcar_escalado(pedido, resultado.get("motivo") or "Revisión manual transporte Correo")
-        return False, resultado.get("motivo") or "Revisión manual transporte Correo"
+        motivo = (
+            resultado.get("motivo")
+            or "Revisión manual transporte Correo"
+        )
+        _marcar_escalado(pedido, motivo)
+        return ResultadoPreparacionTransporteCorreo.escalada_por(
+            motivo,
+        )
 
     try:
-        from app import db
         from services.correo_argentino_operacion import (
             aplicar_resumen_cotizacion_a_pedido,
             extraer_resumen_cotizacion,
         )
 
-        resumen_correo = extraer_resumen_cotizacion(resultado)
-        ok_aplicar, mensaje_aplicar = aplicar_resumen_cotizacion_a_pedido(
-            pedido,
-            resumen_correo,
+        resumen_correo = extraer_resumen_cotizacion(
+            resultado,
+        )
+        ok_aplicar, mensaje_aplicar = (
+            aplicar_resumen_cotizacion_a_pedido(
+                pedido,
+                resumen_correo,
+            )
         )
 
         if not ok_aplicar:
-            _marcar_escalado(
-                pedido,
-                mensaje_aplicar or "Cotización Correo no aplicable",
+            motivo = (
+                mensaje_aplicar
+                or "Cotización Correo no aplicable"
             )
-            return False, mensaje_aplicar or "Cotización Correo no aplicable"
+            _marcar_escalado(pedido, motivo)
+            return (
+                ResultadoPreparacionTransporteCorreo.escalada_por(
+                    motivo,
+                )
+            )
 
+        return ResultadoPreparacionTransporteCorreo.asignada(
+            f"Correo Argentino asignado ({pedido.tipo_entrega})",
+        )
+
+    except Exception as e:
+        return ResultadoPreparacionTransporteCorreo.fallida(
+            f"Error asignando Correo: {e}",
+        )
+
+
+def asignar_transporte_pedido(
+    pedido,
+    preferencia_cliente="sucursal",
+):
+    """Wrapper compatible que prepara y persiste la asignación Correo."""
+    resultado = preparar_asignacion_transporte_pedido(
+        pedido,
+        preferencia_cliente=preferencia_cliente,
+    )
+
+    if not resultado.ok:
+        if resultado.requiere_rollback:
+            try:
+                from app import db
+                db.session.rollback()
+            except Exception:
+                pass
+
+        return False, resultado.mensaje
+
+    try:
+        from app import db
         db.session.commit()
-        return True, f"Correo Argentino asignado ({pedido.tipo_entrega})"
+        return True, resultado.mensaje
     except Exception as e:
         try:
-            from app import db
             db.session.rollback()
         except Exception:
             pass
