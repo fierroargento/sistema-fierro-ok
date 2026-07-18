@@ -108,3 +108,51 @@ def test_modo_compatibilidad_devuelve_candidatas_si_no_puede_distancia():
     )
 
     assert len(resultado) == 2
+
+def test_cargar_sucursales_via_cargo_desde_path(
+    tmp_path,
+):
+    import json
+
+    from services.via_cargo_sucursales import (
+        cargar_sucursales_via_cargo,
+    )
+
+    ruta = tmp_path / "sucursales.json"
+    esperadas = [
+        {
+            "id": "VC1",
+            "nombre": "Viedma",
+            "cp": "8500",
+        }
+    ]
+    ruta.write_text(
+        json.dumps(esperadas),
+        encoding="utf-8",
+    )
+
+    resultado = cargar_sucursales_via_cargo(
+        str(ruta),
+    )
+
+    assert resultado == esperadas
+
+
+def test_cargar_sucursales_via_cargo_rechaza_json_no_lista(
+    tmp_path,
+):
+    from services.via_cargo_sucursales import (
+        cargar_sucursales_via_cargo,
+    )
+
+    ruta = tmp_path / "sucursales.json"
+    ruta.write_text(
+        '{"sucursales": []}',
+        encoding="utf-8",
+    )
+
+    resultado = cargar_sucursales_via_cargo(
+        str(ruta),
+    )
+
+    assert resultado == []

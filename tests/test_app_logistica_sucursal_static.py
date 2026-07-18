@@ -54,3 +54,18 @@ def test_confirmacion_via_cargo_no_manda_mensajes_externos():
 
     for prohibido in prohibidos:
         assert prohibido not in bloque
+
+def test_confirmacion_via_cargo_carga_catalogo_desde_servicio():
+    bloque = _bloque_confirmacion_via_cargo()
+
+    assert (
+        "services.via_cargo_sucursales"
+        in bloque
+    )
+    assert "cargar_sucursales_via_cargo" in bloque
+    assert "if not sucursales:" in bloque
+    assert (
+        'with open("via_cargo_sucursales.json"'
+        not in bloque
+    )
+    assert "json.load(" not in bloque

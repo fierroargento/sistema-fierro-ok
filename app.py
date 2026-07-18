@@ -1745,12 +1745,13 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(
         return False
 
     try:
-        with open(
-            "via_cargo_sucursales.json",
-            "r",
-            encoding="utf-8",
-        ) as archivo:
-            sucursales = json.load(archivo)
+        from services.via_cargo_sucursales import (
+            cargar_sucursales_via_cargo,
+        )
+
+        sucursales = cargar_sucursales_via_cargo()
+        if not sucursales:
+            return False
 
         from services.workflow_sucursal_decision import (
             decidir_sucursal_via_cargo_para_pedido,
