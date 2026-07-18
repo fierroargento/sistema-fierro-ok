@@ -32,4 +32,17 @@ def test_selector_correo_delega_canal_origen_al_servicio_central():
 def test_whatsapp_pasa_canal_origen_wa_al_selector_correo():
     texto = Path("modules/whatsapp/flows_transporte.py").read_text(encoding="utf-8")
 
-    assert 'sugerir_sucursales_correo_pedido(pedido, canal_origen="wa")' in texto
+    assert (
+        "preparar_oferta_sucursales_correo_pedido"
+        in texto
+    )
+    assert 'canal_origen="wa"' in texto
+    assert "if resultado_suc.ok:" in texto
+    assert "db.session.commit()" in texto
+    assert "db.session.rollback()" in texto
+    assert "resultado_suc.mensaje" in texto
+    assert (
+        'sugerir_sucursales_correo_pedido('
+        'pedido, canal_origen="wa")'
+        not in texto
+    )

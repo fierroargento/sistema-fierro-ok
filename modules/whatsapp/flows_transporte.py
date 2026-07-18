@@ -520,7 +520,7 @@ def wa_cerrar_datos_completos(pedido):
     from modules.transportes.selector import (
         pedido_contiene_pp6040,
         asignar_transporte_pedido,
-        sugerir_sucursales_correo_pedido,
+        preparar_oferta_sucursales_correo_pedido,
     )
     from modules.whatsapp.flows import (
         _guardar_estado_wa,
@@ -559,18 +559,30 @@ def wa_cerrar_datos_completos(pedido):
             preferencia_cliente="sucursal"
         )
 
-        msg_suc = sugerir_sucursales_correo_pedido(pedido, canal_origen="wa")
-
-        if msg_suc:
-            _guardar_estado_wa(
+        resultado_suc = (
+            preparar_oferta_sucursales_correo_pedido(
                 pedido,
-                WA_FALTA_ELEGIR_TRANSPORTE,
-                tel
+                canal_origen="wa",
             )
+        )
+
+        if resultado_suc.ok:
+            try:
+                db.session.commit()
+            except Exception as e:
+                print(
+                    "[WA] Error guardando oferta sucursales Correo:",
+                    e,
+                )
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+                return False
 
             return wa_enviar_texto(
                 tel,
-                msg_suc
+                resultado_suc.mensaje,
             )
 
         if ok:
