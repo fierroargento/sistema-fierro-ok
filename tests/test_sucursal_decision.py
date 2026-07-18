@@ -150,3 +150,84 @@ def test_router_general_delega_por_transporte():
 def test_helpers_texto():
     assert texto_parece_eleccion_sucursal("Sucursal Nro 2") is True
     assert texto_consulta_sucursal("Horarios para retirar?") is True
+
+def test_decision_via_cargo_para_pedido_usa_opciones_guardadas():
+    from services.workflow_sucursal_decision import (
+        decidir_sucursal_via_cargo_para_pedido,
+    )
+
+    pedido = SimpleNamespace(
+        ia_sucursales_ofrecidas='["vc-1", "vc-2"]',
+    )
+
+    decision = decidir_sucursal_via_cargo_para_pedido(
+        pedido=pedido,
+        texto="prefiero la segunda",
+        sucursales_catalogo=SUCURSALES_VIA,
+    )
+
+    assert decision.seleccionada is True
+    assert decision.indice == 1
+    assert (
+        decision.sucursal["nombre"]
+        == "Terminal Formosa Boleteria 5"
+    )
+
+
+def test_decision_via_cargo_para_pedido_rechaza_ids_invalidos():
+    from services.workflow_sucursal_decision import (
+        decidir_sucursal_via_cargo_para_pedido,
+    )
+
+    pedido = SimpleNamespace(
+        ia_sucursales_ofrecidas="{invalido",
+    )
+
+    decision = decidir_sucursal_via_cargo_para_pedido(
+        pedido=pedido,
+        texto="opcion 1",
+        sucursales_catalogo=SUCURSALES_VIA,
+    )
+
+    assert decision.seleccionada is False
+    assert decision.motivo == "sin_sucursales_ofrecidas"
+
+
+def test_decision_via_cargo_para_pedido_conserva_fallback(
+    monkeypatch,
+):
+    import services.workflow_sucursal_decision as workflow
+
+    errores = []
+    pedido = SimpleNamespace(
+        ia_sucursales_ofrecidas='["vc-1", "vc-2"]',
+    )
+
+    def fallar_decision_central(**kwargs):
+        raise RuntimeError(
+            "fallo simulado del motor central"
+        )
+
+    monkeypatch.setattr(
+        workflow,
+        "decidir_sucursal_via_cargo_ofrecida",
+        fallar_decision_central,
+    )
+
+    decision = (
+        workflow.decidir_sucursal_via_cargo_para_pedido(
+            pedido=pedido,
+            texto="Sucursal Nro 2",
+            sucursales_catalogo=SUCURSALES_VIA,
+            log_error_fn=errores.append,
+        )
+    )
+
+    assert len(errores) == 1
+    assert decision.seleccionada is True
+    assert decision.indice == 1
+    assert decision.motivo == "fallback_legacy"
+    assert (
+        decision.sucursal["nombre"]
+        == "Terminal Formosa Boleteria 5"
+    )

@@ -251,3 +251,123 @@ def decidir_sucursal_ofrecida(
         transporte=transporte_norm,
         motivo="transporte_no_soportado",
     )
+
+def decidir_sucursal_via_cargo_para_pedido(
+    *,
+    pedido: Any,
+    texto: Any,
+    sucursales_catalogo: list[dict[str, Any]],
+    log_error_fn: Callable[[Exception], None] | None = None,
+) -> DecisionSucursal:
+    """
+    Decide una sucursal Via Cargo usando las opciones del pedido.
+
+    No modifica el pedido.
+    No lee archivos.
+    No hace commit.
+    No envia mensajes.
+    """
+
+    import json
+
+    ids_raw = str(
+        getattr(
+            pedido,
+            "ia_sucursales_ofrecidas",
+            "",
+        )
+        or ""
+    ).strip()
+
+    if not ids_raw:
+        return DecisionSucursal(
+            seleccionada=False,
+            transporte="via_cargo",
+            motivo="sin_sucursales_ofrecidas",
+        )
+
+    try:
+        ids_ofrecidas = json.loads(ids_raw)
+    except Exception:
+        ids_ofrecidas = []
+
+    if not isinstance(ids_ofrecidas, list):
+        ids_ofrecidas = []
+
+    if not ids_ofrecidas:
+        return DecisionSucursal(
+            seleccionada=False,
+            transporte="via_cargo",
+            motivo="sin_sucursales_ofrecidas",
+        )
+
+    try:
+        return decidir_sucursal_via_cargo_ofrecida(
+            texto=texto,
+            sucursales_catalogo=sucursales_catalogo,
+            ids_ofrecidas=ids_ofrecidas,
+        )
+    except Exception as error:
+        if log_error_fn is not None:
+            try:
+                log_error_fn(error)
+            except Exception:
+                pass
+
+    from services.mensajes_sucursales import (
+        extraer_opcion_sucursal_explicita,
+        normalizar_numero_opcion_sucursal,
+        seleccionar_sucursal_ofrecida_por_opcion,
+    )
+
+    texto_original = str(texto or "").strip()
+    consulta = texto_consulta_sucursal(texto_original)
+
+    indice = extraer_opcion_sucursal_explicita(
+        texto_original,
+        cantidad_opciones=len(ids_ofrecidas),
+    )
+
+    if indice is None:
+        indice = normalizar_numero_opcion_sucursal(
+            texto_original,
+        )
+
+    if (
+        indice is None
+        or indice < 0
+        or indice >= len(ids_ofrecidas)
+    ):
+        return DecisionSucursal(
+            seleccionada=False,
+            transporte="via_cargo",
+            motivo="fallback_sin_eleccion_valida",
+            requiere_operador=consulta,
+            consulta_secundaria=consulta,
+        )
+
+    sucursal = seleccionar_sucursal_ofrecida_por_opcion(
+        sucursales_catalogo,
+        ids_ofrecidas,
+        indice,
+    )
+
+    if not sucursal:
+        return DecisionSucursal(
+            seleccionada=False,
+            indice=indice,
+            transporte="via_cargo",
+            motivo="fallback_sucursal_no_encontrada",
+            requiere_operador=True,
+            consulta_secundaria=consulta,
+        )
+
+    return DecisionSucursal(
+        seleccionada=True,
+        sucursal=_normalizar_sucursal(sucursal),
+        indice=indice,
+        transporte="via_cargo",
+        motivo="fallback_legacy",
+        requiere_operador=consulta,
+        consulta_secundaria=consulta,
+    )
