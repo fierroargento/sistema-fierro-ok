@@ -126,3 +126,49 @@ def agregar_marca_resumen_sucursal_confirmada(
         return resumen
 
     return f"{resumen} | {marca}".strip(" |")
+
+
+def aplicar_decision_sucursal_al_pedido(
+    pedido: Any,
+    decision: Any,
+    *,
+    transporte: str = "",
+) -> bool:
+    """
+    Aplica al pedido una DecisionSucursal ya resuelta.
+
+    No detecta opciones.
+    No lee catalogos.
+    No hace commit.
+    No envia mensajes.
+    No decide canal ni cross-sell.
+    """
+
+    if (
+        not pedido
+        or not decision
+        or not bool(
+            getattr(decision, "seleccionada", False)
+        )
+    ):
+        return False
+
+    sucursal = getattr(decision, "sucursal", None)
+    indice = getattr(decision, "indice", None)
+
+    if not aplicar_sucursal_elegida_al_pedido(
+        pedido,
+        sucursal,
+        transporte=transporte,
+    ):
+        return False
+
+    pedido.ia_resumen = (
+        agregar_marca_resumen_sucursal_confirmada(
+            getattr(pedido, "ia_resumen", ""),
+            indice,
+            sucursal,
+        )
+    )
+
+    return True

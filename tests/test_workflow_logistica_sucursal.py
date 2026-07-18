@@ -153,3 +153,98 @@ def test_no_agrega_marca_si_faltan_datos():
 
     assert agregar_marca_resumen_sucursal_confirmada("Datos completos", None, {"nombre": "X"}) == "Datos completos"
     assert agregar_marca_resumen_sucursal_confirmada("Datos completos", 1, {}) == "Datos completos"
+
+
+def test_aplica_decision_sucursal_al_pedido():
+    from types import SimpleNamespace
+
+    from services.workflow_logistica_sucursal import (
+        aplicar_decision_sucursal_al_pedido,
+    )
+    from services.workflow_sucursal_decision import (
+        DecisionSucursal,
+    )
+
+    pedido = SimpleNamespace(
+        sucursal_nombre="",
+        direccion="",
+        localidad="",
+        provincia="",
+        codigo_postal="",
+        empresa_envio="",
+        tipo_entrega="",
+        ia_sucursales_ofrecidas='["vc-1"]',
+        correo_sucursales_ofrecidas=None,
+        ia_requiere_operador=True,
+        ia_esperando_respuesta=True,
+        ml_mensajes_pendientes=True,
+        ia_resumen="Datos completos",
+    )
+    decision = DecisionSucursal(
+        seleccionada=True,
+        sucursal={
+            "id": "vc-1",
+            "nombre": "Terminal Viedma",
+            "direccion": "Ruta 3",
+            "localidad": "Viedma",
+            "provincia": "Rio Negro",
+            "cp": "8500",
+        },
+        indice=0,
+        transporte="via_cargo",
+        motivo="sucursal_confirmada_por_opcion",
+    )
+
+    aplicado = aplicar_decision_sucursal_al_pedido(
+        pedido,
+        decision,
+        transporte="Vía Cargo",
+    )
+
+    assert aplicado is True
+    assert pedido.sucursal_nombre == "Terminal Viedma"
+    assert pedido.direccion == "Ruta 3"
+    assert pedido.localidad == "Viedma"
+    assert pedido.provincia == "Rio Negro"
+    assert pedido.codigo_postal == "8500"
+    assert pedido.empresa_envio == "Vía Cargo"
+    assert pedido.tipo_entrega == "Sucursal"
+    assert pedido.ia_sucursales_ofrecidas is None
+    assert pedido.ia_requiere_operador is False
+    assert pedido.ia_esperando_respuesta is False
+    assert pedido.ml_mensajes_pendientes is False
+    assert (
+        "Sucursal confirmada por opción 1: "
+        "Terminal Viedma"
+        in pedido.ia_resumen
+    )
+
+
+def test_no_aplica_decision_sucursal_no_seleccionada():
+    from types import SimpleNamespace
+
+    from services.workflow_logistica_sucursal import (
+        aplicar_decision_sucursal_al_pedido,
+    )
+    from services.workflow_sucursal_decision import (
+        DecisionSucursal,
+    )
+
+    pedido = SimpleNamespace(
+        sucursal_nombre="",
+        ia_resumen="Sin cambios",
+    )
+    decision = DecisionSucursal(
+        seleccionada=False,
+        motivo="sin_eleccion_explicita",
+    )
+
+    aplicado = aplicar_decision_sucursal_al_pedido(
+        pedido,
+        decision,
+        transporte="Vía Cargo",
+    )
+
+    assert aplicado is False
+    assert pedido.sucursal_nombre == ""
+    assert pedido.ia_resumen == "Sin cambios"
