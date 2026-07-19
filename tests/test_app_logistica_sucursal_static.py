@@ -1,16 +1,11 @@
 ﻿from pathlib import Path
 
 
-APP = Path("app.py").read_text(encoding="utf-8")
+WORKFLOW = Path("services/workflow_confirmacion_sucursal.py").read_text(encoding="utf-8")
 
 
 def _bloque_confirmacion_via_cargo():
-    idx = APP.index("def confirmar_sucursal_via_cargo_ofrecida_sin_responder")
-    fin = APP.find("\ndef ", idx + 1)
-    if fin == -1:
-        fin = idx + 5000
-    return APP[idx:fin]
-
+    return WORKFLOW
 
 def test_confirmacion_via_cargo_usa_aplicacion_operativa_de_sucursal():
     bloque = _bloque_confirmacion_via_cargo()
@@ -73,7 +68,7 @@ def test_confirmacion_via_cargo_carga_catalogo_desde_servicio():
 def test_confirmacion_via_cargo_delega_transicion_del_recolector():
     bloque = _bloque_confirmacion_via_cargo()
 
-    assert "despacho_completo(pedido)" in bloque
+    assert "despacho_completo_fn(pedido)" in bloque
     assert "services.ia_recolector_sync" in bloque
     assert (
         "marcar_recolector_datos_completos"

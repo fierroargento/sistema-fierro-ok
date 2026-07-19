@@ -1717,103 +1717,9 @@ def detectar_sucursal(pedido, mensaje):
 
 
 
-def confirmar_sucursal_via_cargo_ofrecida_sin_responder(
-    pedido,
-    texto_cliente,
-):
-    """
-    Cierra operativamente una sucursal Via Cargo elegida.
-
-    No hace commit.
-    No envia mensajes.
-    No decide cross-sell ni canal.
-    """
-
-    if not pedido:
-        return False
-
-    if str(
-        getattr(pedido, "sucursal_nombre", "")
-        or ""
-    ).strip():
-        return False
-
-    texto_cliente = str(
-        texto_cliente or ""
-    ).strip()
-    if not texto_cliente:
-        return False
-
-    try:
-        from services.via_cargo_sucursales import (
-            cargar_sucursales_via_cargo,
-        )
-
-        sucursales = cargar_sucursales_via_cargo()
-        if not sucursales:
-            return False
-
-        from services.workflow_sucursal_decision import (
-            decidir_sucursal_via_cargo_para_pedido,
-        )
-
-        decision_sucursal = (
-            decidir_sucursal_via_cargo_para_pedido(
-                pedido=pedido,
-                texto=texto_cliente,
-                sucursales_catalogo=sucursales,
-                log_error_fn=lambda error: print(
-                    "[VIA CARGO] Error usando decision "
-                    "central sucursal "
-                    f"pedido #{getattr(pedido, 'id', '')}: "
-                    f"{error}"
-                ),
-            )
-        )
-
-        if not decision_sucursal.seleccionada:
-            return False
-
-        from services.workflow_logistica_sucursal import (
-            aplicar_decision_sucursal_al_pedido,
-        )
-
-        if not aplicar_decision_sucursal_al_pedido(
-            pedido,
-            decision_sucursal,
-            transporte="Vía Cargo",
-        ):
-            return False
-
-        try:
-            if despacho_completo(pedido):
-                from services.ia_recolector_sync import (
-                    marcar_recolector_datos_completos,
-                )
-
-                marcar_recolector_datos_completos(
-                    pedido,
-                )
-        except Exception:
-            pass
-
-        print(
-            f"[VIA CARGO] Pedido "
-            f"#{getattr(pedido, 'id', '')}: "
-            "sucursal confirmada antes de "
-            "auto-respuesta ML"
-        )
-
-        return True
-
-    except Exception as error:
-        print(
-            "[VIA CARGO] Error confirmando "
-            "sucursal ofrecida "
-            f"pedido #{getattr(pedido, 'id', '')}: "
-            f"{error}"
-        )
-        return False
+from services.workflow_confirmacion_sucursal import (
+    confirmar_sucursal_via_cargo_ofrecida_sin_persistir,
+)
 
 
 def requiere_seguimiento_retiro(pedido):
@@ -5761,7 +5667,13 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
 
         try:
             _texto_logistica = texto_ultimo or texto
-            if confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, _texto_logistica):
+            if (
+                confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
+                    pedido,
+                    _texto_logistica,
+                    despacho_completo_fn=despacho_completo,
+                )
+            ):
                 try:
                     actualizar_estado_automatico(pedido)
                 except Exception as e:
@@ -5982,7 +5894,13 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     ia_guardar_resultado_recolector(pedido, texto, resultado)
 
     try:
-        if confirmar_sucursal_via_cargo_ofrecida_sin_responder(pedido, texto):
+        if (
+            confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
+                pedido,
+                texto,
+                despacho_completo_fn=despacho_completo,
+            )
+        ):
             try:
                 nombre_cliente = (getattr(pedido, "cliente", "") or "Cliente").split()[0] or "Cliente"
                 sucursal_confirmada = str(getattr(pedido, "sucursal_nombre", "") or "").strip()

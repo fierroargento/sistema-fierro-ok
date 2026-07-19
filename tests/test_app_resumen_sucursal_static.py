@@ -1,16 +1,11 @@
 ﻿from pathlib import Path
 
 
-APP = Path("app.py").read_text(encoding="utf-8")
+WORKFLOW = Path("services/workflow_confirmacion_sucursal.py").read_text(encoding="utf-8")
 
 
 def _bloque_confirmacion_via_cargo():
-    idx = APP.index("def confirmar_sucursal_via_cargo_ofrecida_sin_responder")
-    fin = APP.find("\ndef ", idx + 1)
-    if fin == -1:
-        fin = idx + 5000
-    return APP[idx:fin]
-
+    return WORKFLOW
 
 def test_confirmacion_via_cargo_delega_resumen_en_aplicacion_operativa():
     bloque = _bloque_confirmacion_via_cargo()
