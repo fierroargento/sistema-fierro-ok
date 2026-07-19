@@ -263,3 +263,39 @@ def test_faltantes_pedido_recolector_descarta_no_lista():
     pedido.ia_faltantes = "{\"telefono\": true}"
 
     assert faltantes_pedido_recolector(pedido) == []
+
+def test_marcar_recolector_datos_completos():
+    from types import SimpleNamespace
+
+    from services.ia_recolector_sync import (
+        marcar_recolector_datos_completos,
+    )
+
+    pedido = SimpleNamespace(
+        ia_faltantes='["telefono"]',
+        ia_recolector_estado="juntando_datos",
+        ia_ultimo_timeout_operador="pendiente",
+    )
+
+    resultado = marcar_recolector_datos_completos(
+        pedido,
+    )
+
+    assert resultado is True
+    assert pedido.ia_faltantes == "[]"
+    assert (
+        pedido.ia_recolector_estado
+        == "datos_completos"
+    )
+    assert pedido.ia_ultimo_timeout_operador is None
+
+
+def test_marcar_recolector_datos_completos_sin_pedido():
+    from services.ia_recolector_sync import (
+        marcar_recolector_datos_completos,
+    )
+
+    assert (
+        marcar_recolector_datos_completos(None)
+        is False
+    )

@@ -245,3 +245,22 @@ def faltantes_pedido_recolector(pedido):
     data = json_loads_seguro_recolector(pedido.ia_faltantes)
 
     return data if isinstance(data, list) else []
+
+
+def marcar_recolector_datos_completos(pedido):
+    """
+    Marca el recolector IA como completo.
+
+    No evalua si el despacho esta completo.
+    No hace commit.
+    No envia mensajes.
+    """
+
+    if not pedido:
+        return False
+
+    pedido.ia_faltantes = "[]"
+    pedido.ia_recolector_estado = "datos_completos"
+    pedido.ia_ultimo_timeout_operador = None
+
+    return True
