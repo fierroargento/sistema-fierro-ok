@@ -1787,11 +1787,13 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_responder(
 
         try:
             if despacho_completo(pedido):
-                pedido.ia_faltantes = "[]"
-                pedido.ia_recolector_estado = (
-                    "datos_completos"
+                from services.ia_recolector_sync import (
+                    marcar_recolector_datos_completos,
                 )
-                pedido.ia_ultimo_timeout_operador = None
+
+                marcar_recolector_datos_completos(
+                    pedido,
+                )
         except Exception:
             pass
 

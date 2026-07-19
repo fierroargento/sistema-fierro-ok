@@ -69,3 +69,23 @@ def test_confirmacion_via_cargo_carga_catalogo_desde_servicio():
         not in bloque
     )
     assert "json.load(" not in bloque
+
+def test_confirmacion_via_cargo_delega_transicion_del_recolector():
+    bloque = _bloque_confirmacion_via_cargo()
+
+    assert "despacho_completo(pedido)" in bloque
+    assert "services.ia_recolector_sync" in bloque
+    assert (
+        "marcar_recolector_datos_completos"
+        in bloque
+    )
+    assert 'pedido.ia_faltantes = "[]"' not in bloque
+    assert (
+        'pedido.ia_recolector_estado = '
+        '"datos_completos"'
+        not in bloque
+    )
+    assert (
+        "pedido.ia_ultimo_timeout_operador = None"
+        not in bloque
+    )
