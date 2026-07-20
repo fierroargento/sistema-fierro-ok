@@ -5734,7 +5734,6 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 normalizar_numero_opcion_sucursal,
                 seleccionar_sucursal_ofrecida_por_opcion,
             )
-            from modules.whatsapp.text_utils import es_afirmativo
 
             _idx_opcion = None
             _sucursal_por_opcion = None
@@ -5753,9 +5752,6 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     if _idx_opcion is not None and 0 <= _idx_opcion < len(candidatas_ids_check):
                         _sucursal_por_opcion = seleccionar_sucursal_ofrecida_por_opcion(data, candidatas_ids_check, _idx_opcion)
                         texto_para_sucursal = str(_idx_opcion + 1)
-
-                    elif len(candidatas_ids_check) == 1 and es_afirmativo(_texto_confirmacion):
-                        texto_para_sucursal = "1"
 
                 except Exception as e:
                     print("[VIA CARGO] Error normalizando elección de sucursal:", e)

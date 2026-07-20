@@ -15,3 +15,16 @@ def test_app_aplica_sucursal_ofrecida_por_opcion_antes_del_fallback():
 
     idx_fallback = texto.index("suc = _sucursal_por_opcion or detectar_sucursal")
     assert idx < idx_fallback
+
+
+def test_app_no_duplica_confirmacion_afirmativa_unica():
+    texto = Path("app.py").read_text(encoding="utf-8")
+
+    assert (
+        "es_afirmativo(_texto_confirmacion)"
+        not in texto
+    )
+    assert 'texto_para_sucursal = "1"' not in texto
+    assert texto.count(
+        "es_afirmativo_fn=es_afirmativo_sucursal"
+    ) == 2
