@@ -163,6 +163,7 @@ def decidir_sucursal_via_cargo_ofrecida(
     texto: Any,
     sucursales_catalogo: list[dict[str, Any]],
     ids_ofrecidas: list[Any],
+    es_afirmativo_fn: Callable[[Any], bool] | None = None,
 ) -> DecisionSucursal:
     from services.mensajes_sucursales import (
         extraer_opcion_sucursal_explicita,
@@ -191,6 +192,17 @@ def decidir_sucursal_via_cargo_ofrecida(
     indice = extraer_opcion_sucursal_explicita(texto_original, cantidad_opciones=len(ids))
     if indice is None:
         indice = normalizar_numero_opcion_sucursal(texto_original)
+
+    if (
+        indice is None
+        and len(ids) == 1
+        and es_afirmativo_fn is not None
+    ):
+        try:
+            if es_afirmativo_fn(texto_original):
+                indice = 0
+        except Exception:
+            pass
 
     if indice is None:
         return DecisionSucursal(
@@ -307,6 +319,7 @@ def decidir_sucursal_via_cargo_para_pedido(
     pedido: Any,
     texto: Any,
     sucursales_catalogo: list[dict[str, Any]],
+    es_afirmativo_fn: Callable[[Any], bool] | None = None,
     log_error_fn: Callable[[Exception], None] | None = None,
 ) -> DecisionSucursal:
     """
@@ -356,6 +369,7 @@ def decidir_sucursal_via_cargo_para_pedido(
             texto=texto,
             sucursales_catalogo=sucursales_catalogo,
             ids_ofrecidas=ids_ofrecidas,
+            es_afirmativo_fn=es_afirmativo_fn,
         )
     except Exception as error:
         if log_error_fn is not None:
@@ -382,6 +396,17 @@ def decidir_sucursal_via_cargo_para_pedido(
         indice = normalizar_numero_opcion_sucursal(
             texto_original,
         )
+
+    if (
+        indice is None
+        and len(ids_ofrecidas) == 1
+        and es_afirmativo_fn is not None
+    ):
+        try:
+            if es_afirmativo_fn(texto_original):
+                indice = 0
+        except Exception:
+            pass
 
     if (
         indice is None

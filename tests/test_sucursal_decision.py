@@ -319,3 +319,49 @@ def test_deteccion_sin_ofrecidas_no_evalua_pp6040():
     assert resultado.via_cargo_ofrecidas is False
     assert resultado.puede_detectar is False
     assert llamadas == []
+
+
+def test_via_cargo_unica_opcion_acepta_respuesta_afirmativa():
+    decision = decidir_sucursal_via_cargo_ofrecida(
+        texto="sí, perfecto",
+        sucursales_catalogo=SUCURSALES_VIA,
+        ids_ofrecidas=["vc-1"],
+        es_afirmativo_fn=lambda _texto: True,
+    )
+
+    assert decision.seleccionada is True
+    assert decision.indice == 0
+    assert decision.sucursal["id"] == "vc-1"
+
+
+def test_via_cargo_dos_opciones_no_asume_por_afirmativo():
+    decision = decidir_sucursal_via_cargo_ofrecida(
+        texto="sí, perfecto",
+        sucursales_catalogo=SUCURSALES_VIA,
+        ids_ofrecidas=["vc-1", "vc-2"],
+        es_afirmativo_fn=lambda _texto: True,
+    )
+
+    assert decision.seleccionada is False
+    assert decision.motivo == "sin_eleccion_explicita"
+
+
+def test_via_cargo_para_pedido_propaga_afirmativo():
+    from services.workflow_sucursal_decision import (
+        decidir_sucursal_via_cargo_para_pedido,
+    )
+
+    pedido = SimpleNamespace(
+        ia_sucursales_ofrecidas='["vc-1"]',
+    )
+
+    decision = decidir_sucursal_via_cargo_para_pedido(
+        pedido=pedido,
+        texto="dale",
+        sucursales_catalogo=SUCURSALES_VIA,
+        es_afirmativo_fn=lambda _texto: True,
+    )
+
+    assert decision.seleccionada is True
+    assert decision.indice == 0
+    assert decision.sucursal["id"] == "vc-1"
