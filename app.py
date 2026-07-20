@@ -1720,6 +1720,9 @@ def detectar_sucursal(pedido, mensaje):
 from services.workflow_confirmacion_sucursal import (
     confirmar_sucursal_via_cargo_ofrecida_sin_persistir,
 )
+from modules.whatsapp.text_utils import (
+    es_afirmativo as es_afirmativo_sucursal,
+)
 
 
 def requiere_seguimiento_retiro(pedido):
@@ -5672,6 +5675,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     pedido,
                     _texto_logistica,
                     despacho_completo_fn=despacho_completo,
+                    es_afirmativo_fn=es_afirmativo_sucursal,
                 )
             ):
                 try:
@@ -5895,6 +5899,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 pedido,
                 texto,
                 despacho_completo_fn=despacho_completo,
+                es_afirmativo_fn=es_afirmativo_sucursal,
             )
         ):
             try:

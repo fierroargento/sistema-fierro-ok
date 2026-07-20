@@ -149,3 +149,19 @@ def test_flujo_comun_retorna_resultado_sucursal_confirmada():
     assert "db.session.commit()" in bloque
     assert '"estado": "sucursal_confirmada"' in bloque
     assert '"sucursal_confirmada": True' in bloque
+
+
+def test_consumidores_confirmacion_inyectan_afirmativo():
+    texto = Path("app.py").read_text(encoding="utf-8")
+
+    assert (
+        "from modules.whatsapp.text_utils import ("
+        in texto
+    )
+    assert (
+        "es_afirmativo as es_afirmativo_sucursal"
+        in texto
+    )
+    assert texto.count(
+        "es_afirmativo_fn=es_afirmativo_sucursal"
+    ) == 2
