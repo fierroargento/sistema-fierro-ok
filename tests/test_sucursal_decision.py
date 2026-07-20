@@ -365,3 +365,61 @@ def test_via_cargo_para_pedido_propaga_afirmativo():
     assert decision.seleccionada is True
     assert decision.indice == 0
     assert decision.sucursal["id"] == "vc-1"
+
+
+def test_consulta_sucursal_cubre_patrones_legacy():
+    from services.workflow_sucursal_decision import (
+        texto_consulta_sucursal,
+    )
+
+    consultas = [
+        "¿Sucursal del centro?",
+        "¿Queda cerca?",
+        "¿Está cerca?",
+        "Me queda lejos",
+        "¿Hay alguna en el centro?",
+        "¿Tienen alguna otra?",
+        "¿Podría ser la del centro?",
+        "¿O ese local?",
+        "Si no, ¿hay otra?",
+        "En cambio, ¿la segunda abre?",
+        "Por ejemplo, la de Viedma",
+        "No sé cuál elegir",
+        "Me parece lejos",
+        "Creo que la primera",
+        "¿No lo tienen?",
+        "Ese no, ¿hay otro?",
+        "¿Tienen ese disponible?",
+    ]
+
+    for consulta in consultas:
+        assert texto_consulta_sucursal(consulta), consulta
+
+
+def test_consulta_sucursal_no_marca_eleccion_simple():
+    from services.workflow_sucursal_decision import (
+        texto_consulta_sucursal,
+    )
+
+    elecciones = [
+        "opcion 1",
+        "prefiero la segunda",
+        "la de Viedma",
+        "sí, perfecto",
+    ]
+
+    for eleccion in elecciones:
+        assert not texto_consulta_sucursal(eleccion), eleccion
+
+
+def test_eleccion_mixta_legacy_selecciona_y_marca_consulta():
+    decision = decidir_sucursal_via_cargo_ofrecida(
+        texto="Prefiero la segunda, ¿queda cerca?",
+        sucursales_catalogo=SUCURSALES_VIA,
+        ids_ofrecidas=["vc-1", "vc-2"],
+    )
+
+    assert decision.seleccionada is True
+    assert decision.indice == 1
+    assert decision.requiere_operador is True
+    assert decision.consulta_secundaria is True

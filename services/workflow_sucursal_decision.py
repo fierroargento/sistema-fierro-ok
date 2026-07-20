@@ -106,7 +106,13 @@ def _normalizar_sucursal(sucursal: dict[str, Any] | None) -> dict[str, Any] | No
 
 
 def texto_consulta_sucursal(texto: Any) -> bool:
-    normalizado = _normalizar_texto(texto)
+    import re
+
+    texto_original = str(texto or "")
+    if "?" in texto_original:
+        return True
+
+    normalizado = _normalizar_texto(texto_original)
     if not normalizado:
         return False
 
@@ -125,9 +131,38 @@ def texto_consulta_sucursal(texto: Any) -> bool:
         "cerrada",
         "retirar",
         "retiro",
+        "no lo tienen",
+        "ese no",
+        "tienen ese",
+        "queda cerca",
+        "esta cerca",
+        "me queda",
+        "hay alguna",
+        "tienen alguna",
+        "podria ser",
+        "o ese",
+        "sino",
+        "si no",
+        "en cambio",
+        "por ejemplo",
+        "me parece",
+        "creo que",
     ]
 
-    return any(marca in normalizado for marca in marcas)
+    if any(
+        marca in normalizado
+        for marca in marcas
+    ):
+        return True
+
+    patrones = [
+        r"\bno\b.*\bse\b",
+    ]
+
+    return any(
+        re.search(patron, normalizado)
+        for patron in patrones
+    )
 
 
 def texto_parece_eleccion_sucursal(texto: Any) -> bool:
