@@ -336,6 +336,53 @@ def seleccionar_sucursal_via_cargo_ofrecida_por_texto(
     return None
 
 
+def _crear_decision_via_cargo_por_texto(
+    *,
+    texto: Any,
+    sucursales_catalogo: list[dict[str, Any]],
+    ids_ofrecidas: list[Any],
+    motivo: str,
+    consulta: bool,
+) -> DecisionSucursal | None:
+    sucursal = (
+        seleccionar_sucursal_via_cargo_ofrecida_por_texto(
+            texto=texto,
+            sucursales_catalogo=sucursales_catalogo,
+            ids_ofrecidas=ids_ofrecidas,
+        )
+    )
+
+    if not sucursal:
+        return None
+
+    sucursal_id = str(
+        sucursal.get("id")
+        or sucursal.get("agencyId")
+        or sucursal.get("codigo")
+        or ""
+    )
+    indice = next(
+        (
+            posicion
+            for posicion, valor in enumerate(
+                ids_ofrecidas
+            )
+            if str(valor) == sucursal_id
+        ),
+        None,
+    )
+
+    return DecisionSucursal(
+        seleccionada=True,
+        sucursal=_normalizar_sucursal(sucursal),
+        indice=indice,
+        transporte="via_cargo",
+        motivo=motivo,
+        requiere_operador=consulta,
+        consulta_secundaria=consulta,
+    )
+
+
 def decidir_sucursal_via_cargo_ofrecida(
     *,
     texto: Any,
@@ -381,6 +428,19 @@ def decidir_sucursal_via_cargo_ofrecida(
                 indice = 0
         except Exception:
             pass
+
+    if indice is None:
+        decision_por_texto = (
+            _crear_decision_via_cargo_por_texto(
+                texto=texto_original,
+                sucursales_catalogo=sucursales_catalogo,
+                ids_ofrecidas=ids,
+                motivo="sucursal_confirmada_por_texto",
+                consulta=consulta,
+            )
+        )
+        if decision_por_texto:
+            return decision_por_texto
 
     if indice is None:
         return DecisionSucursal(
@@ -585,6 +645,22 @@ def decidir_sucursal_via_cargo_para_pedido(
                 indice = 0
         except Exception:
             pass
+
+    if indice is None:
+        decision_por_texto = (
+            _crear_decision_via_cargo_por_texto(
+                texto=texto_original,
+                sucursales_catalogo=sucursales_catalogo,
+                ids_ofrecidas=ids_ofrecidas,
+                motivo=(
+                    "fallback_sucursal_"
+                    "confirmada_por_texto"
+                ),
+                consulta=consulta,
+            )
+        )
+        if decision_por_texto:
+            return decision_por_texto
 
     if (
         indice is None

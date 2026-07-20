@@ -539,3 +539,69 @@ def test_texto_parece_eleccion_acepta_opcion_explicita_con_datos():
         "Elijo la opción 2. Mi DNI es 30111222 "
         "y mi dirección es Mitre 500"
     ) is True
+
+
+def test_decision_via_cargo_selecciona_por_nombre_ofrecido():
+    decision = decidir_sucursal_via_cargo_ofrecida(
+        texto="Me quedo con Terminal Viedma Centro",
+        sucursales_catalogo=_catalogo_via_por_texto(),
+        ids_ofrecidas=["vc-centro", "vc-norte"],
+    )
+
+    assert decision.seleccionada is True
+    assert decision.indice == 0
+    assert decision.sucursal["id"] == "vc-centro"
+    assert (
+        decision.motivo
+        == "sucursal_confirmada_por_texto"
+    )
+
+
+def test_decision_via_cargo_selecciona_por_direccion_ofrecida():
+    decision = decidir_sucursal_via_cargo_ofrecida(
+        texto="Quiero la de Ruta 3 120",
+        sucursales_catalogo=_catalogo_via_por_texto(),
+        ids_ofrecidas=["vc-centro", "vc-norte"],
+    )
+
+    assert decision.seleccionada is True
+    assert decision.indice == 0
+    assert decision.sucursal["id"] == "vc-centro"
+
+
+def test_decision_via_cargo_nombre_mixto_conserva_consulta():
+    decision = decidir_sucursal_via_cargo_ofrecida(
+        texto=(
+            "Terminal Viedma Centro, "
+            "¿queda cerca?"
+        ),
+        sucursales_catalogo=_catalogo_via_por_texto(),
+        ids_ofrecidas=["vc-centro", "vc-norte"],
+    )
+
+    assert decision.seleccionada is True
+    assert decision.indice == 0
+    assert decision.requiere_operador is True
+    assert decision.consulta_secundaria is True
+
+
+def test_decision_via_cargo_para_pedido_selecciona_por_nombre():
+    from services.workflow_sucursal_decision import (
+        decidir_sucursal_via_cargo_para_pedido,
+    )
+
+    pedido = SimpleNamespace(
+        ia_sucursales_ofrecidas=(
+            '["vc-centro", "vc-norte"]'
+        ),
+    )
+
+    decision = decidir_sucursal_via_cargo_para_pedido(
+        pedido=pedido,
+        texto="Prefiero Agencia Norte",
+        sucursales_catalogo=_catalogo_via_por_texto(),
+    )
+
+    assert decision.seleccionada is True
+    assert decision.indice == 1
+    assert decision.sucursal["id"] == "vc-norte"
