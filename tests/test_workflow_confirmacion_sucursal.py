@@ -175,3 +175,91 @@ def test_confirma_sucursal_unica_con_respuesta_afirmativa(
     assert pedido.empresa_envio == "Vía Cargo"
     assert pedido.tipo_entrega == "Sucursal"
     assert pedido.ia_sucursales_ofrecidas is None
+
+
+def test_resultado_estructurado_confirma_sucursal(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        workflow,
+        "cargar_sucursales_via_cargo",
+        lambda: SUCURSALES,
+    )
+
+    pedido = pedido_fake()
+
+    resultado = (
+        workflow
+        .resolver_confirmacion_sucursal_via_cargo_ofrecida(
+            pedido,
+            "opcion 1",
+            despacho_completo_fn=lambda _pedido: False,
+            log_fn=lambda _mensaje: None,
+        )
+    )
+
+    assert resultado.confirmada is True
+    assert resultado.estado == "confirmada"
+    assert resultado.decision.seleccionada is True
+    assert pedido.sucursal_nombre == "Terminal Viedma"
+
+
+def test_resultado_estructurado_conserva_escalamiento(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        workflow,
+        "cargar_sucursales_via_cargo",
+        lambda: SUCURSALES,
+    )
+    monkeypatch.setattr(
+        workflow,
+        "decidir_sucursal_via_cargo_para_pedido",
+        lambda **_kwargs: SimpleNamespace(
+            seleccionada=False,
+            motivo="consulta_sin_eleccion",
+            requiere_operador=True,
+            consulta_secundaria=True,
+        ),
+    )
+
+    pedido = pedido_fake()
+
+    resultado = (
+        workflow
+        .resolver_confirmacion_sucursal_via_cargo_ofrecida(
+            pedido,
+            "¿queda cerca?",
+            despacho_completo_fn=lambda _pedido: False,
+        )
+    )
+
+    assert resultado.confirmada is False
+    assert resultado.estado == "requiere_operador"
+    assert resultado.motivo == "consulta_sin_eleccion"
+    assert resultado.requiere_operador is True
+    assert resultado.consulta_secundaria is True
+    assert pedido.sucursal_nombre == ""
+
+
+def test_resultado_estructurado_informa_sin_catalogo(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        workflow,
+        "cargar_sucursales_via_cargo",
+        lambda: [],
+    )
+
+    resultado = (
+        workflow
+        .resolver_confirmacion_sucursal_via_cargo_ofrecida(
+            pedido_fake(),
+            "opcion 1",
+            despacho_completo_fn=lambda _pedido: False,
+        )
+    )
+
+    assert resultado.confirmada is False
+    assert resultado.estado == "sin_confirmacion"
+    assert resultado.motivo == "sin_catalogo"
