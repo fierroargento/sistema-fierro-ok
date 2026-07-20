@@ -1534,185 +1534,63 @@ def _es_consulta_no_eleccion(texto):
     return any(re.search(p, texto) for p in patrones_consulta)
 
 
-def _texto_parece_eleccion_sucursal(texto):
-    """Determina si un texto realmente intenta elegir una sucursal ofrecida.
-
-    Evita que un mensaje largo con datos de domicilio/localidad se confunda con
-    una opción de sucursal solo porque contiene una palabra parecida.
-    """
-    t = str(texto or "").lower().strip()
-    if not t:
-        return False
-    if re.search(r"\b([1-5])\b", t):
-        return True
-    if any(x in t for x in [
-        "elijo", "elegí", "elegi", "elegimos", "prefiero", "quiero la",
-        "quiero esa", "me quedo", "opcion", "opción", "numero", "número",
-        "la 1", "la 2", "la 3", "la 4", "la 5",
-        "primera", "segunda", "tercera", "cuarta", "quinta", "la de"
-    ]):
-        return True
-    # Mensaje corto tipo "San Martín" puede ser elección. Mensaje largo con
-    # DNI/dirección/CP/contacto NO debe matchear sucursal.
-    palabras_datos = ["dni", "documento", "direccion", "dirección", "cp", "codigo", "código", "telefono", "teléfono", "contacto", "envio", "envío", "calle", "altura"]
-    if len(t) <= 45 and not any(x in t for x in palabras_datos):
-        return True
-    return False
 
 
 def detectar_sucursal(pedido, mensaje):
     """
-    Detecta la sucursal elegida por el cliente en su respuesta.
+    Detecta una sucursal de Correo previamente ofrecida.
 
-    REGLAS DE SEGURIDAD:
-    - Si el mensaje parece una consulta o pregunta → devuelve None (escalar al operador)
-    - Solo matchea sucursales dentro de las candidatas ofrecidas si las hay
-    - Valida que la provincia de la sucursal coincida con la del cliente
-    - Nunca asume una elección de un texto ambiguo
-
-    Estrategias en orden de prioridad:
-      1. Si eligió por número (1, 2, 3) y el pedido tiene candidatas guardadas → usar índice
-      2. Match flexible por palabras clave del nombre (solo dentro de candidatas ofrecidas)
-      3. Match por dirección (solo dentro de candidatas ofrecidas)
+    La selección de Vía Cargo se resuelve en el workflow
+    central de confirmación de sucursal.
     """
-    texto = (mensaje or "").lower().strip()
-    if not texto:
+
+    if not pedido:
         return None
 
-    transporte_actual = str(getattr(pedido, "empresa_envio", "") or "").strip().lower()
-    if "correo" in transporte_actual:
-        try:
-            from services.correo_sucursales_eleccion import detectar_sucursal_correo_ofrecida
-            from services.workflow_sucursal_decision import decidir_sucursal_correo_ofrecida
+    mensaje = str(mensaje or "").strip()
+    if not mensaje:
+        return None
 
-            sucursal_correo = None
-            decision_correo = decidir_sucursal_correo_ofrecida(
-                pedido,
-                mensaje,
-                detector_correo_fn=detectar_sucursal_correo_ofrecida,
+    transporte_actual = str(
+        getattr(pedido, "empresa_envio", "")
+        or ""
+    ).lower()
+
+    if "correo" not in transporte_actual:
+        return None
+
+    try:
+        from services.correo_sucursales_eleccion import (
+            detectar_sucursal_correo_ofrecida,
+        )
+        from services.workflow_sucursal_decision import (
+            decidir_sucursal_correo_ofrecida,
+        )
+
+        decision_correo = decidir_sucursal_correo_ofrecida(
+            pedido,
+            mensaje,
+            detector_correo_fn=detectar_sucursal_correo_ofrecida,
+        )
+
+        if (
+            decision_correo
+            and decision_correo.seleccionada
+            and decision_correo.sucursal
+        ):
+            return (
+                decision_correo.sucursal.get("raw")
+                or decision_correo.sucursal
             )
 
-            if decision_correo and decision_correo.seleccionada and decision_correo.sucursal:
-                sucursal_correo = decision_correo.sucursal.get("raw") or decision_correo.sucursal
-            else:
-                sucursal_correo = detectar_sucursal_correo_ofrecida(pedido, mensaje)
+        return detectar_sucursal_correo_ofrecida(pedido, mensaje)
 
-            if sucursal_correo:
-                if _es_consulta_no_eleccion(texto):
-                    print(
-                        f"[CORREO] Mensaje mixto: se detectó sucursal y consulta secundaria: '{texto[:100]}'"
-                    )
-                return sucursal_correo
-
-        except Exception as e:
-            print("[CORREO] Error detectando sucursal elegida:", e)
-            return None
-
-        if _es_consulta_no_eleccion(texto):
-            print(f"[CORREO] Mensaje detectado como consulta, no elección: '{texto[:80]}'")
-            return None
-
-        if not _texto_parece_eleccion_sucursal(texto):
-            print(f"[CORREO] No se asigna sucursal: texto no parece elección explícita: '{texto[:100]}'")
-            return None
-
+    except Exception as error:
+        print(
+            "[CORREO] Error detectando sucursal "
+            f"ofrecida: {error}"
+        )
         return None
-
-    try:
-        with open("via_cargo_sucursales.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception as e:
-        print("[VIA CARGO] No se pudo leer via_cargo_sucursales.json:", e)
-        return None
-
-    # REGLA 1: Si es consulta/pregunta → no detectar, escalar al operador
-    if _es_consulta_no_eleccion(texto):
-        print(f"[VIA CARGO] Mensaje detectado como consulta, no elección: '{texto[:80]}'")
-        return None
-
-    # Obtener candidatas ofrecidas (las que le mostramos al cliente)
-    candidatas_ids = []
-    try:
-        candidatas_ids = json.loads(getattr(pedido, "ia_sucursales_ofrecidas", "") or "[]")
-    except Exception:
-        pass
-
-    # Si hay candidatas ofrecidas, solo detectar sucursal cuando el cliente
-    # realmente esté eligiendo una opción. No asignar por haber mencionado una
-    # localidad/dirección dentro de los datos del envío.
-    if candidatas_ids and not _texto_parece_eleccion_sucursal(texto):
-        print(f"[VIA CARGO] No se asigna sucursal: texto no parece elección explícita: '{texto[:100]}'")
-        return None
-
-    # Pool de búsqueda: SOLO las candidatas ofrecidas si las tenemos
-    # Esto evita matchear sucursales de otras provincias/localidades
-    if candidatas_ids:
-        pool = [s for s in data if s.get("id") in candidatas_ids]
-    else:
-        # Si no hay candidatas guardadas, filtrar por CP + localidad + provincia del cliente
-        cp_cliente = str(getattr(pedido, "codigo_postal", "") or "").strip()
-        loc_cliente = (getattr(pedido, "localidad", "") or "").lower().strip()
-        prov_cliente = (getattr(pedido, "provincia", "") or "").lower().strip()
-
-        pool = []
-        for s in data:
-            # Validar provincia obligatoriamente
-            prov_suc = (s.get("provincia") or "").lower()
-            if prov_cliente and prov_cliente not in prov_suc:
-                continue
-            # Validar localidad si la tenemos
-            loc_suc = (s.get("localidad") or "").lower()
-            if loc_cliente and loc_cliente not in loc_suc and loc_suc not in loc_cliente:
-                continue
-            # Validar CP si lo tenemos: el CP de la sucursal debe estar en el mismo rango
-            # Para CABA (CP 1000-1499): rango de ±100
-            # Para el interior: rango de ±50
-            cp_suc = str(s.get("cp") or "").strip()
-            if cp_cliente and cp_cliente.isdigit() and cp_suc and cp_suc.isdigit():
-                cp_int = int(cp_cliente)
-                cp_suc_int = int(cp_suc)
-                rango = 100 if cp_int < 1500 else 50
-                if abs(cp_int - cp_suc_int) > rango:
-                    continue
-            pool.append(s)
-
-        # Si el filtro quedó vacío (caso edge) no matchear nada
-        if not pool:
-            return None
-
-    if not pool:
-        return None
-
-    # ESTRATEGIA 1: Eligió por número
-    if candidatas_ids:
-        patrones_num = [
-            (r'(?<!\d)1(?!\d)|primero|primera', 0),
-            (r'(?<!\d)2(?!\d)|segundo|segunda', 1),
-            (r'(?<!\d)3(?!\d)|tercero|tercera', 2),
-        ]
-        for patron, idx in patrones_num:
-            if re.search(patron, texto) and idx < len(candidatas_ids):
-                suc_id = candidatas_ids[idx]
-                encontrada = next((s for s in pool if s.get("id") == suc_id), None)
-                if encontrada:
-                    return encontrada
-
-    # ESTRATEGIA 2: Match por palabras clave del nombre (solo en pool)
-    for s in pool:
-        nombre = (s.get("nombre") or "").lower()
-        if not nombre:
-            continue
-        palabras = [p for p in re.split(r'\W+', nombre) if len(p) > 3 and p not in ("agencia", "encomiendas", "logistica")]
-        if palabras and all(p in texto for p in palabras):
-            return s
-
-    # ESTRATEGIA 3: Match por dirección (solo en pool)
-    for s in pool:
-        direccion = re.sub(r'nro\.?\s*', '', (s.get("direccion") or "").lower()).strip()
-        if direccion and len(direccion) > 5 and direccion in texto:
-            return s
-
-    return None
 
 
 
