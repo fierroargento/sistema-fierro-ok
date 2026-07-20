@@ -26,6 +26,56 @@ class DecisionSucursal:
         }
 
 
+@dataclass(frozen=True)
+class ResultadoDeteccionSucursalesOfrecidas:
+    correo_ofrecidas: bool
+    via_cargo_ofrecidas: bool
+    puede_detectar: bool
+
+
+def evaluar_sucursales_ofrecidas_pedido(
+    pedido: Any,
+    *,
+    pedido_es_plegable_fn: Callable[[Any], bool],
+) -> ResultadoDeteccionSucursalesOfrecidas:
+    """Evalúa si corresponde detectar una sucursal ofrecida."""
+
+    if not pedido:
+        return ResultadoDeteccionSucursalesOfrecidas(
+            correo_ofrecidas=False,
+            via_cargo_ofrecidas=False,
+            puede_detectar=False,
+        )
+
+    correo_ofrecidas = bool(
+        getattr(
+            pedido,
+            "correo_sucursales_ofrecidas",
+            None,
+        )
+    )
+    via_cargo_ofrecidas = bool(
+        getattr(
+            pedido,
+            "ia_sucursales_ofrecidas",
+            None,
+        )
+    )
+
+    puede_detectar = correo_ofrecidas
+
+    if not puede_detectar and via_cargo_ofrecidas:
+        puede_detectar = not bool(
+            pedido_es_plegable_fn(pedido)
+        )
+
+    return ResultadoDeteccionSucursalesOfrecidas(
+        correo_ofrecidas=correo_ofrecidas,
+        via_cargo_ofrecidas=via_cargo_ofrecidas,
+        puede_detectar=puede_detectar,
+    )
+
+
 def _normalizar_texto(valor: Any) -> str:
     import re
     import unicodedata

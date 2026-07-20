@@ -231,3 +231,91 @@ def test_decision_via_cargo_para_pedido_conserva_fallback(
         decision.sucursal["nombre"]
         == "Terminal Formosa Boleteria 5"
     )
+
+
+def test_deteccion_ofrecidas_correo_pp6040_puede_continuar():
+    from services.workflow_sucursal_decision import (
+        evaluar_sucursales_ofrecidas_pedido,
+    )
+
+    llamadas = []
+    pedido = SimpleNamespace(
+        correo_sucursales_ofrecidas='["CA-1"]',
+        ia_sucursales_ofrecidas=None,
+    )
+
+    resultado = evaluar_sucursales_ofrecidas_pedido(
+        pedido,
+        pedido_es_plegable_fn=lambda valor: (
+            llamadas.append(valor) or True
+        ),
+    )
+
+    assert resultado.correo_ofrecidas is True
+    assert resultado.via_cargo_ofrecidas is False
+    assert resultado.puede_detectar is True
+    assert llamadas == []
+
+
+def test_deteccion_ofrecidas_via_pp6040_no_continua():
+    from services.workflow_sucursal_decision import (
+        evaluar_sucursales_ofrecidas_pedido,
+    )
+
+    pedido = SimpleNamespace(
+        correo_sucursales_ofrecidas=None,
+        ia_sucursales_ofrecidas='["VC-1"]',
+    )
+
+    resultado = evaluar_sucursales_ofrecidas_pedido(
+        pedido,
+        pedido_es_plegable_fn=lambda _pedido: True,
+    )
+
+    assert resultado.correo_ofrecidas is False
+    assert resultado.via_cargo_ofrecidas is True
+    assert resultado.puede_detectar is False
+
+
+def test_deteccion_ofrecidas_via_no_plegable_continua():
+    from services.workflow_sucursal_decision import (
+        evaluar_sucursales_ofrecidas_pedido,
+    )
+
+    pedido = SimpleNamespace(
+        correo_sucursales_ofrecidas=None,
+        ia_sucursales_ofrecidas='["VC-1"]',
+    )
+
+    resultado = evaluar_sucursales_ofrecidas_pedido(
+        pedido,
+        pedido_es_plegable_fn=lambda _pedido: False,
+    )
+
+    assert resultado.correo_ofrecidas is False
+    assert resultado.via_cargo_ofrecidas is True
+    assert resultado.puede_detectar is True
+
+
+def test_deteccion_sin_ofrecidas_no_evalua_pp6040():
+    from services.workflow_sucursal_decision import (
+        evaluar_sucursales_ofrecidas_pedido,
+    )
+
+    llamadas = []
+    pedido = SimpleNamespace(
+        correo_sucursales_ofrecidas=None,
+        ia_sucursales_ofrecidas=None,
+    )
+
+    resultado = evaluar_sucursales_ofrecidas_pedido(
+        pedido,
+        pedido_es_plegable_fn=lambda valor: (
+            llamadas.append(valor) or False
+        ),
+    )
+
+    assert resultado.correo_ofrecidas is False
+    assert resultado.via_cargo_ofrecidas is False
+    assert resultado.puede_detectar is False
+    assert llamadas == []
