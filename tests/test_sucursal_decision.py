@@ -423,3 +423,119 @@ def test_eleccion_mixta_legacy_selecciona_y_marca_consulta():
     assert decision.indice == 1
     assert decision.requiere_operador is True
     assert decision.consulta_secundaria is True
+
+
+def _catalogo_via_por_texto():
+    return [
+        {
+            "id": "vc-centro",
+            "nombre": "Terminal Viedma Centro",
+            "direccion": "Ruta 3 Nro. 120",
+            "localidad": "Viedma",
+            "provincia": "Rio Negro",
+        },
+        {
+            "id": "vc-norte",
+            "nombre": "Agencia Norte",
+            "direccion": "Mitre 500",
+            "localidad": "Viedma",
+            "provincia": "Rio Negro",
+        },
+        {
+            "id": "vc-otra",
+            "nombre": "Terminal Bariloche",
+            "direccion": "Moreno 900",
+            "localidad": "Bariloche",
+            "provincia": "Rio Negro",
+        },
+    ]
+
+
+def test_selector_via_cargo_por_texto_elige_nombre_ofrecido():
+    from services.workflow_sucursal_decision import (
+        seleccionar_sucursal_via_cargo_ofrecida_por_texto,
+    )
+
+    sucursal = (
+        seleccionar_sucursal_via_cargo_ofrecida_por_texto(
+            texto="Me quedo con Terminal Viedma Centro",
+            sucursales_catalogo=_catalogo_via_por_texto(),
+            ids_ofrecidas=["vc-centro", "vc-norte"],
+        )
+    )
+
+    assert sucursal is not None
+    assert sucursal["id"] == "vc-centro"
+
+
+def test_selector_via_cargo_por_texto_elige_direccion_ofrecida():
+    from services.workflow_sucursal_decision import (
+        seleccionar_sucursal_via_cargo_ofrecida_por_texto,
+    )
+
+    sucursal = (
+        seleccionar_sucursal_via_cargo_ofrecida_por_texto(
+            texto="Quiero la de Ruta 3 120",
+            sucursales_catalogo=_catalogo_via_por_texto(),
+            ids_ofrecidas=["vc-centro", "vc-norte"],
+        )
+    )
+
+    assert sucursal is not None
+    assert sucursal["id"] == "vc-centro"
+
+
+def test_selector_via_cargo_por_texto_no_elige_fuera_de_ofrecidas():
+    from services.workflow_sucursal_decision import (
+        seleccionar_sucursal_via_cargo_ofrecida_por_texto,
+    )
+
+    sucursal = (
+        seleccionar_sucursal_via_cargo_ofrecida_por_texto(
+            texto="Prefiero Terminal Bariloche",
+            sucursales_catalogo=_catalogo_via_por_texto(),
+            ids_ofrecidas=["vc-centro", "vc-norte"],
+        )
+    )
+
+    assert sucursal is None
+
+
+def test_selector_via_cargo_por_texto_no_confunde_datos_domicilio():
+    from services.workflow_sucursal_decision import (
+        seleccionar_sucursal_via_cargo_ofrecida_por_texto,
+    )
+
+    sucursal = (
+        seleccionar_sucursal_via_cargo_ofrecida_por_texto(
+            texto=(
+                "Mi DNI es 30111222 y mi dirección "
+                "de envío es Ruta 3 120, Viedma"
+            ),
+            sucursales_catalogo=_catalogo_via_por_texto(),
+            ids_ofrecidas=["vc-centro", "vc-norte"],
+        )
+    )
+
+    assert sucursal is None
+
+
+def test_texto_parece_eleccion_acepta_nombre_corto():
+    from services.workflow_sucursal_decision import (
+        texto_parece_eleccion_sucursal,
+    )
+
+    assert texto_parece_eleccion_sucursal(
+        "Terminal Viedma Centro"
+    ) is True
+
+
+def test_texto_parece_eleccion_acepta_opcion_explicita_con_datos():
+    from services.workflow_sucursal_decision import (
+        texto_parece_eleccion_sucursal,
+    )
+
+    assert texto_parece_eleccion_sucursal(
+        "Elijo la opción 2. Mi DNI es 30111222 "
+        "y mi dirección es Mitre 500"
+    ) is True

@@ -166,31 +166,174 @@ def texto_consulta_sucursal(texto: Any) -> bool:
 
 
 def texto_parece_eleccion_sucursal(texto: Any) -> bool:
-    from services.mensajes_sucursales import extraer_opcion_sucursal_explicita
+    from services.mensajes_sucursales import (
+        extraer_opcion_sucursal_explicita,
+    )
 
     normalizado = _normalizar_texto(texto)
     if not normalizado:
         return False
 
-    if extraer_opcion_sucursal_explicita(normalizado, cantidad_opciones=3) is not None:
-        return True
-
-    marcas = [
-        "sucursal",
-        "opcion",
-        "op",
-        "nro",
-        "numero",
-        "la primera",
-        "la segunda",
-        "la tercera",
-        "quiero",
+    marcas_eleccion = [
         "elijo",
+        "elegi",
+        "elegimos",
         "prefiero",
-        "esa",
+        "quiero la",
+        "quiero esa",
+        "me quedo",
+        "opcion",
+        "numero",
+        "la 1",
+        "la 2",
+        "la 3",
+        "la 4",
+        "la 5",
+        "primera",
+        "segunda",
+        "tercera",
+        "cuarta",
+        "quinta",
+        "la de",
+        "sucursal",
+        "nro",
+    ]
+    palabras_datos = [
+        "dni",
+        "documento",
+        "direccion",
+        "cp",
+        "codigo",
+        "telefono",
+        "contacto",
+        "envio",
+        "calle",
+        "altura",
     ]
 
-    return any(marca in normalizado for marca in marcas)
+    tiene_marca_eleccion = any(
+        marca in normalizado
+        for marca in marcas_eleccion
+    )
+    contiene_datos = any(
+        palabra in normalizado
+        for palabra in palabras_datos
+    )
+    es_corto = len(normalizado) <= 45
+
+    indice = extraer_opcion_sucursal_explicita(
+        normalizado,
+        cantidad_opciones=5,
+    )
+
+    if (
+        indice is not None
+        and (
+            es_corto
+            or tiene_marca_eleccion
+        )
+    ):
+        return True
+
+    if tiene_marca_eleccion:
+        return True
+
+    return bool(
+        es_corto
+        and not contiene_datos
+    )
+
+
+def seleccionar_sucursal_via_cargo_ofrecida_por_texto(
+    *,
+    texto: Any,
+    sucursales_catalogo: list[dict[str, Any]],
+    ids_ofrecidas: list[Any],
+) -> dict[str, Any] | None:
+    """
+    Busca una sucursal ofrecida por nombre o dirección.
+
+    No modifica el pedido.
+    No lee archivos.
+    No hace commit.
+    No envía mensajes.
+    """
+
+    import re
+
+    if not texto_parece_eleccion_sucursal(texto):
+        return None
+
+    normalizado = _normalizar_texto(texto)
+    ids = {
+        str(valor)
+        for valor in ids_ofrecidas or []
+        if valor is not None
+    }
+
+    if not normalizado or not ids:
+        return None
+
+    candidatas = [
+        sucursal
+        for sucursal in sucursales_catalogo or []
+        if (
+            isinstance(sucursal, dict)
+            and str(
+                sucursal.get("id")
+                or sucursal.get("agencyId")
+                or sucursal.get("codigo")
+                or ""
+            ) in ids
+        )
+    ]
+
+    for sucursal in candidatas:
+        nombre = _normalizar_texto(
+            sucursal.get("nombre")
+            or sucursal.get("name")
+            or sucursal.get("descripcion")
+            or ""
+        )
+        palabras = [
+            palabra
+            for palabra in re.split(r"\W+", nombre)
+            if (
+                len(palabra) > 3
+                and palabra not in {
+                    "agencia",
+                    "encomiendas",
+                    "logistica",
+                }
+            )
+        ]
+
+        if palabras and all(
+            palabra in normalizado
+            for palabra in palabras
+        ):
+            return sucursal
+
+    for sucursal in candidatas:
+        direccion = _normalizar_texto(
+            sucursal.get("direccion")
+            or sucursal.get("address")
+            or sucursal.get("domicilio")
+            or ""
+        )
+        direccion = re.sub(
+            r"\bnro\.?\s*",
+            "",
+            direccion,
+        ).strip()
+
+        if (
+            len(direccion) > 5
+            and direccion in normalizado
+        ):
+            return sucursal
+
+    return None
 
 
 def decidir_sucursal_via_cargo_ofrecida(
