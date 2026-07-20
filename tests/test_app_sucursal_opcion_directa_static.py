@@ -21,10 +21,23 @@ def test_app_delega_opcion_via_antes_del_fallback():
     )
     idx_fallback = bloque.index(
         "suc = detectar_sucursal("
-        "pedido, texto_para_sucursal)"
     )
 
     assert idx_resolver < idx_fallback
+
+    bloque_fallback = bloque[
+        idx_resolver:idx_fallback + 300
+    ]
+    compacto = bloque_fallback.replace(
+        "\n",
+        "",
+    ).replace(" ", "")
+
+    assert (
+        "resultado_deteccion_sucursal"
+        ".correo_ofrecidas"
+        in compacto
+    )
 
     prohibidos = [
         "_idx_opcion",
@@ -60,8 +73,7 @@ def test_app_escalamiento_consulta_usa_resultado_estructurado_con_fallback():
         "resultado_confirmacion_temprana = None"
     )
     fin = bloque.index(
-        "suc = detectar_sucursal("
-        "pedido, texto_para_sucursal)",
+        "suc = detectar_sucursal(",
         idx,
     )
     escalamiento = bloque[idx:fin]

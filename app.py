@@ -5757,7 +5757,16 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     print(f"[VIA CARGO] Error escalando consulta sucursal:", e)
                 return None
 
-            suc = detectar_sucursal(pedido, texto_para_sucursal)
+            suc = None
+            if (
+                resultado_deteccion_sucursal
+                .correo_ofrecidas
+            ):
+                suc = detectar_sucursal(
+                    pedido,
+                    texto_para_sucursal,
+                )
+
             if suc and not getattr(pedido, "sucursal_nombre", None):
                 pedido.sucursal_nombre = suc.get("nombre")
                 pedido.direccion = suc.get("direccion")
