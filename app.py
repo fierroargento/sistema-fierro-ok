@@ -5727,43 +5727,10 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         if resultado_deteccion_sucursal.puede_detectar:
             # Si el sistema ya ofreció sucursales y el cliente hace una consulta
             # en lugar de elegir → escalar al operador para que lo resuelva
-            candidatas_ids_check = []
-            try:
-                candidatas_ids_check = json.loads(getattr(pedido, "ia_sucursales_ofrecidas", "") or "[]")
-            except Exception:
-                pass
-
-            from services.mensajes_sucursales import (
-                extraer_opcion_sucursal_explicita,
-                normalizar_numero_opcion_sucursal,
-                seleccionar_sucursal_ofrecida_por_opcion,
-            )
-
-            _idx_opcion = None
-            _sucursal_por_opcion = None
-
-            if candidatas_ids_check and texto_para_sucursal:
-                try:
-                    _texto_confirmacion = str(texto_para_sucursal or "").strip().lower()
-                    _idx_opcion = extraer_opcion_sucursal_explicita(
-                        _texto_confirmacion,
-                        cantidad_opciones=len(candidatas_ids_check),
-                    )
-
-                    if _idx_opcion is None:
-                        _idx_opcion = normalizar_numero_opcion_sucursal(_texto_confirmacion)
-
-                    if _idx_opcion is not None and 0 <= _idx_opcion < len(candidatas_ids_check):
-                        _sucursal_por_opcion = seleccionar_sucursal_ofrecida_por_opcion(data, candidatas_ids_check, _idx_opcion)
-                        texto_para_sucursal = str(_idx_opcion + 1)
-
-                except Exception as e:
-                    print("[VIA CARGO] Error normalizando elección de sucursal:", e)
-
             if (
-                candidatas_ids_check
+                resultado_deteccion_sucursal
+                .via_cargo_ofrecidas
                 and texto_para_sucursal
-                and _idx_opcion is None
                 and (
                     (
                         resultado_confirmacion_temprana
@@ -5790,7 +5757,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     print(f"[VIA CARGO] Error escalando consulta sucursal:", e)
                 return None
 
-            suc = _sucursal_por_opcion or detectar_sucursal(pedido, texto_para_sucursal)
+            suc = detectar_sucursal(pedido, texto_para_sucursal)
             if suc and not getattr(pedido, "sucursal_nombre", None):
                 pedido.sucursal_nombre = suc.get("nombre")
                 pedido.direccion = suc.get("direccion")

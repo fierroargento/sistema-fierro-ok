@@ -1,20 +1,43 @@
 ﻿from pathlib import Path
 
 
-def test_app_aplica_sucursal_ofrecida_por_opcion_antes_del_fallback():
+def _bloque_analisis_ultimo_mensaje():
     texto = Path("app.py").read_text(encoding="utf-8")
+    idx = texto.index(
+        "def ia_analizar_ultimo_mensaje_pedido("
+    )
+    fin = texto.index(
+        "\ndef ia_auto_responder_post_analisis(",
+        idx,
+    )
+    return texto[idx:fin]
 
-    assert "seleccionar_sucursal_ofrecida_por_opcion" in texto
-    assert "_sucursal_por_opcion = None" in texto
 
-    idx = texto.index("_sucursal_por_opcion = seleccionar_sucursal_ofrecida_por_opcion")
-    bloque = texto[idx: idx + 900]
+def test_app_delega_opcion_via_antes_del_fallback():
+    bloque = _bloque_analisis_ultimo_mensaje()
 
-    assert "data, candidatas_ids_check, _idx_opcion" in bloque
-    assert "texto_para_sucursal = str(_idx_opcion + 1)" in bloque
+    idx_resolver = bloque.index(
+        "resultado_confirmacion_temprana = ("
+    )
+    idx_fallback = bloque.index(
+        "suc = detectar_sucursal("
+        "pedido, texto_para_sucursal)"
+    )
 
-    idx_fallback = texto.index("suc = _sucursal_por_opcion or detectar_sucursal")
-    assert idx < idx_fallback
+    assert idx_resolver < idx_fallback
+
+    prohibidos = [
+        "_idx_opcion",
+        "_sucursal_por_opcion",
+        "candidatas_ids_check",
+        "extraer_opcion_sucursal_explicita",
+        "normalizar_numero_opcion_sucursal",
+        "seleccionar_sucursal_ofrecida_por_opcion",
+        "texto_para_sucursal = str(",
+    ]
+
+    for prohibido in prohibidos:
+        assert prohibido not in bloque
 
 
 def test_app_no_duplica_confirmacion_afirmativa_unica():
@@ -31,30 +54,39 @@ def test_app_no_duplica_confirmacion_afirmativa_unica():
 
 
 def test_app_escalamiento_consulta_usa_resultado_estructurado_con_fallback():
-    texto = Path("app.py").read_text(encoding="utf-8")
+    bloque = _bloque_analisis_ultimo_mensaje()
 
-    idx = texto.index(
+    idx = bloque.index(
         "resultado_confirmacion_temprana = None"
     )
-    fin = texto.index(
-        "suc = _sucursal_por_opcion or detectar_sucursal",
+    fin = bloque.index(
+        "suc = detectar_sucursal("
+        "pedido, texto_para_sucursal)",
         idx,
     )
-    bloque = texto[idx:fin]
+    escalamiento = bloque[idx:fin]
+    compacto = escalamiento.replace("\n", "").replace(
+        " ",
+        "",
+    )
 
     assert (
         "resultado_confirmacion_temprana"
         ".requiere_operador"
-        in bloque.replace("\n", "").replace(" ", "")
+        in compacto
     )
-    assert "_es_consulta_no_eleccion(" in bloque
-    assert "_idx_opcion is None" in bloque
+    assert (
+        "resultado_deteccion_sucursal"
+        ".via_cargo_ofrecidas"
+        in compacto
+    )
+    assert "_es_consulta_no_eleccion(" in escalamiento
 
-    idx_resultado = bloque.index(
-        "resultado_confirmacion_temprana"
-    )
-    idx_fallback = bloque.index(
-        "_es_consulta_no_eleccion("
-    )
+    prohibidos = [
+        "_idx_opcion",
+        "_sucursal_por_opcion",
+        "candidatas_ids_check",
+    ]
 
-    assert idx_resultado < idx_fallback
+    for prohibido in prohibidos:
+        assert prohibido not in escalamiento
