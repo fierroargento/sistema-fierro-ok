@@ -28,3 +28,33 @@ def test_app_no_duplica_confirmacion_afirmativa_unica():
     assert texto.count(
         "es_afirmativo_fn=es_afirmativo_sucursal"
     ) == 2
+
+
+def test_app_escalamiento_consulta_usa_resultado_estructurado_con_fallback():
+    texto = Path("app.py").read_text(encoding="utf-8")
+
+    idx = texto.index(
+        "resultado_confirmacion_temprana = None"
+    )
+    fin = texto.index(
+        "suc = _sucursal_por_opcion or detectar_sucursal",
+        idx,
+    )
+    bloque = texto[idx:fin]
+
+    assert (
+        "resultado_confirmacion_temprana"
+        ".requiere_operador"
+        in bloque.replace("\n", "").replace(" ", "")
+    )
+    assert "_es_consulta_no_eleccion(" in bloque
+    assert "_idx_opcion is None" in bloque
+
+    idx_resultado = bloque.index(
+        "resultado_confirmacion_temprana"
+    )
+    idx_fallback = bloque.index(
+        "_es_consulta_no_eleccion("
+    )
+
+    assert idx_resultado < idx_fallback

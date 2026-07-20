@@ -5668,6 +5668,8 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         except Exception:
             db.session.rollback()
 
+        resultado_confirmacion_temprana = None
+
         try:
             _texto_logistica = texto_ultimo or texto
             resultado_confirmacion_temprana = (
@@ -5762,7 +5764,20 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 candidatas_ids_check
                 and texto_para_sucursal
                 and _idx_opcion is None
-                and _es_consulta_no_eleccion(str(texto_para_sucursal or "").lower())
+                and (
+                    (
+                        resultado_confirmacion_temprana
+                        is not None
+                        and resultado_confirmacion_temprana
+                        .requiere_operador
+                    )
+                    or _es_consulta_no_eleccion(
+                        str(
+                            texto_para_sucursal
+                            or ""
+                        ).lower()
+                    )
+                )
             ):
                 try:
                     pedido.ml_mensajes_pendientes = True
