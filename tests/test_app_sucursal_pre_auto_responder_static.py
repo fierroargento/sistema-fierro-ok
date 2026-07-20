@@ -5,8 +5,8 @@ def test_flujo_comun_confirma_sucursal_antes_de_auto_responder_ml():
     texto = Path("app.py").read_text(encoding="utf-8")
 
     nombre_nuevo = (
-        "confirmar_sucursal_via_cargo_"
-        "ofrecida_sin_persistir"
+        "resolver_confirmacion_sucursal_"
+        "via_cargo_ofrecida"
     )
     nombre_legacy = (
         "confirmar_sucursal_via_cargo_"
@@ -20,20 +20,33 @@ def test_flujo_comun_confirma_sucursal_antes_de_auto_responder_ml():
     assert nombre_nuevo in texto
     assert nombre_legacy not in texto
 
-    idx_guardar = texto.index(
-        "ia_guardar_resultado_recolector("
-        "pedido, texto, resultado)"
+    idx_texto_logistica = texto.index(
+        "_texto_logistica = texto_ultimo or texto"
     )
     idx_confirma = texto.index(
         nombre_nuevo,
-        idx_guardar,
+        idx_texto_logistica,
     )
     idx_auto = texto.index(
         "ia_auto_responder_post_analisis(pedido)",
-        idx_guardar,
+        idx_confirma,
     )
 
-    assert idx_guardar < idx_confirma < idx_auto
+    assert (
+        idx_texto_logistica
+        < idx_confirma
+        < idx_auto
+    )
+
+    bloque = texto[idx_texto_logistica:idx_auto]
+    assert (
+        "resultado_confirmacion_temprana = ("
+        in bloque
+    )
+    assert (
+        "if resultado_confirmacion_temprana.confirmada:"
+        in bloque
+    )
 
 def test_resolucion_sucursal_delega_aplicacion_operativa():
     texto = Path(

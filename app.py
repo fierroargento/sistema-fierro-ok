@@ -1719,6 +1719,7 @@ def detectar_sucursal(pedido, mensaje):
 
 from services.workflow_confirmacion_sucursal import (
     confirmar_sucursal_via_cargo_ofrecida_sin_persistir,
+    resolver_confirmacion_sucursal_via_cargo_ofrecida,
 )
 from modules.whatsapp.text_utils import (
     es_afirmativo as es_afirmativo_sucursal,
@@ -5670,14 +5671,16 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
 
         try:
             _texto_logistica = texto_ultimo or texto
-            if (
-                confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
+            resultado_confirmacion_temprana = (
+                resolver_confirmacion_sucursal_via_cargo_ofrecida(
                     pedido,
                     _texto_logistica,
                     despacho_completo_fn=despacho_completo,
                     es_afirmativo_fn=es_afirmativo_sucursal,
                 )
-            ):
+            )
+
+            if resultado_confirmacion_temprana.confirmada:
                 try:
                     actualizar_estado_automatico(pedido)
                 except Exception as e:
