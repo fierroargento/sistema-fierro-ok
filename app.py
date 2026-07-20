@@ -1718,7 +1718,6 @@ def detectar_sucursal(pedido, mensaje):
 
 
 from services.workflow_confirmacion_sucursal import (
-    confirmar_sucursal_via_cargo_ofrecida_sin_persistir,
     resolver_confirmacion_sucursal_via_cargo_ofrecida,
 )
 from modules.whatsapp.text_utils import (
@@ -5893,14 +5892,16 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     ia_guardar_resultado_recolector(pedido, texto, resultado)
 
     try:
-        if (
-            confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
+        resultado_confirmacion_comun = (
+            resolver_confirmacion_sucursal_via_cargo_ofrecida(
                 pedido,
                 texto,
                 despacho_completo_fn=despacho_completo,
                 es_afirmativo_fn=es_afirmativo_sucursal,
             )
-        ):
+        )
+
+        if resultado_confirmacion_comun.confirmada:
             try:
                 nombre_cliente = (getattr(pedido, "cliente", "") or "Cliente").split()[0] or "Cliente"
                 sucursal_confirmada = str(getattr(pedido, "sucursal_nombre", "") or "").strip()

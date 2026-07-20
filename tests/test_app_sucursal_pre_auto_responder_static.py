@@ -118,8 +118,8 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
         "pedido, texto, resultado)"
     )
     idx_confirma = texto.index(
-        "confirmar_sucursal_via_cargo_"
-        "ofrecida_sin_persistir",
+        "resolver_confirmacion_sucursal_"
+        "via_cargo_ofrecida",
         idx_guardar,
     )
     idx_msg = texto.index(
@@ -147,6 +147,18 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
         < idx_return
     )
 
+    bloque_confirmacion = texto[
+        idx_guardar:idx_msg
+    ]
+    assert (
+        "resultado_confirmacion_comun = ("
+        in bloque_confirmacion
+    )
+    assert (
+        "if resultado_confirmacion_comun.confirmada:"
+        in bloque_confirmacion
+    )
+
 def test_cross_sell_se_intenta_aunque_ml_se_omita_por_canal_manager():
     texto = Path("app.py").read_text(encoding="utf-8")
 
@@ -172,8 +184,8 @@ def test_flujo_comun_retorna_resultado_sucursal_confirmada():
         "pedido, texto, resultado)"
     )
     idx_confirma = texto.index(
-        "confirmar_sucursal_via_cargo_"
-        "ofrecida_sin_persistir",
+        "resolver_confirmacion_sucursal_"
+        "via_cargo_ofrecida",
         idx_guardar,
     )
     idx_return = texto.index(
