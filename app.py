@@ -5703,24 +5703,20 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         # PP6040 va por Andreani/Correo a domicilio → nunca detectar sucursal Via Cargo
         # Solo detectar elección si el sistema YA ofreció opciones al cliente (ia_sucursales_ofrecidas)
         # Evita que el texto con los datos del cliente (localidad, dirección) se confunda con una elección
-        _sucursales_ya_ofrecidas = bool(
-            getattr(pedido, "ia_sucursales_ofrecidas", None)
-            or getattr(pedido, "correo_sucursales_ofrecidas", None)
+        from services.workflow_sucursal_decision import (
+            evaluar_sucursales_ofrecidas_pedido,
         )
-        _correo_sucursales_ya_ofrecidas = bool(
-            getattr(pedido, "correo_sucursales_ofrecidas", None)
-        )
-        _via_sucursales_ya_ofrecidas = bool(
-            getattr(pedido, "ia_sucursales_ofrecidas", None)
-        )
-        _puede_detectar_sucursal = (
-            _correo_sucursales_ya_ofrecidas
-            or (
-                _via_sucursales_ya_ofrecidas
-                and not pedido_es_plegable_pp6040(pedido)
+
+        resultado_deteccion_sucursal = (
+            evaluar_sucursales_ofrecidas_pedido(
+                pedido,
+                pedido_es_plegable_fn=(
+                    pedido_es_plegable_pp6040
+                ),
             )
         )
-        if _puede_detectar_sucursal:
+
+        if resultado_deteccion_sucursal.puede_detectar:
             # Si el sistema ya ofreció sucursales y el cliente hace una consulta
             # en lugar de elegir → escalar al operador para que lo resuelva
             candidatas_ids_check = []
