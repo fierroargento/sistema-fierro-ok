@@ -146,3 +146,32 @@ def test_servicio_no_persiste_ni_envia_mensajes():
 
     for prohibido in prohibidos:
         assert prohibido not in texto
+
+
+def test_confirma_sucursal_unica_con_respuesta_afirmativa(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        workflow,
+        "cargar_sucursales_via_cargo",
+        lambda: SUCURSALES,
+    )
+
+    pedido = pedido_fake()
+
+    resultado = (
+        workflow
+        .confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
+            pedido,
+            "sí, perfecto",
+            despacho_completo_fn=lambda _pedido: False,
+            es_afirmativo_fn=lambda _texto: True,
+            log_fn=lambda _mensaje: None,
+        )
+    )
+
+    assert resultado is True
+    assert pedido.sucursal_nombre == "Terminal Viedma"
+    assert pedido.empresa_envio == "Vía Cargo"
+    assert pedido.tipo_entrega == "Sucursal"
+    assert pedido.ia_sucursales_ofrecidas is None

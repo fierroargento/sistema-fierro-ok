@@ -25,6 +25,7 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
     texto_cliente,
     *,
     despacho_completo_fn,
+    es_afirmativo_fn=None,
     log_fn=print,
 ):
     """
@@ -59,6 +60,7 @@ def confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
                 pedido=pedido,
                 texto=texto_cliente,
                 sucursales_catalogo=sucursales,
+                es_afirmativo_fn=es_afirmativo_fn,
                 log_error_fn=lambda error: log_fn(
                     "[VIA CARGO] Error usando decision "
                     "central sucursal "
