@@ -158,6 +158,9 @@ if SENTRY_DSN:
         ),
     )
 
+from extensions import db
+
+
 app = Flask(__name__)
 
 limiter = Limiter(
@@ -214,7 +217,7 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-db = SQLAlchemy(app)
+db.init_app(app)
 
 from models.respuesta_rapida_wa import crear_modelo_respuesta_rapida_wa
 from models.whatsapp_media import crear_modelo_whatsapp_media_recibida
