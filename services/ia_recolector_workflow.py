@@ -12,9 +12,16 @@ No conoce Flask ni SQLAlchemy.
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from modules.bot_ml.billing import (
+    parece_nickname_ml,
+)
 from services.ia_recolector_resultado import (
     ResultadoAplicacionRecolector,
     aplicar_resultado_recolector,
+)
+from services.logistica_defaults import (
+    es_ml_acordas_entrega_service,
+    pedido_es_plegable_pp6040_service,
 )
 
 
@@ -31,9 +38,6 @@ def procesar_resultado_recolector(
     texto_cliente: Any,
     resultado: Any,
     *,
-    parece_nickname_fn: Callable[[Any, Any], bool],
-    es_ml_acordas_entrega_fn: Callable[[Any], bool],
-    pedido_es_plegable_pp6040_fn: Callable[[Any], bool],
     iniciar_handoff_fn: Callable[..., tuple[bool, str]],
     motivo_handoff: str = (
         "procesar_resultado_recolector"
@@ -47,12 +51,12 @@ def procesar_resultado_recolector(
         pedido,
         texto_cliente,
         resultado,
-        parece_nickname_fn=parece_nickname_fn,
+        parece_nickname_fn=parece_nickname_ml,
         es_ml_acordas_entrega_fn=(
-            es_ml_acordas_entrega_fn
+            es_ml_acordas_entrega_service
         ),
         pedido_es_plegable_pp6040_fn=(
-            pedido_es_plegable_pp6040_fn
+            pedido_es_plegable_pp6040_service
         ),
     )
 

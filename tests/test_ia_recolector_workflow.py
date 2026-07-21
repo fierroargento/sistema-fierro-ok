@@ -5,22 +5,6 @@ from services.ia_recolector_workflow import (
 )
 
 
-def dependencias(**cambios):
-    valores = {
-        "parece_nickname_fn": (
-            lambda _cliente, _nickname: False
-        ),
-        "es_ml_acordas_entrega_fn": (
-            lambda _pedido: False
-        ),
-        "pedido_es_plegable_pp6040_fn": (
-            lambda _pedido: False
-        ),
-    }
-    valores.update(cambios)
-    return valores
-
-
 def aplicacion_fake(
     *,
     iniciar_handoff=False,
@@ -63,7 +47,6 @@ def test_aplica_resultado_sin_handoff_si_no_corresponde():
         {"ok": True},
         iniciar_handoff_fn=handoff,
         aplicar_resultado_fn=aplicar,
-        **dependencias(),
     )
 
     assert len(llamadas) == 1
@@ -107,7 +90,6 @@ def test_inicia_handoff_con_faltantes_y_motivo():
         iniciar_handoff_fn=handoff,
         motivo_handoff="recolector_prueba",
         aplicar_resultado_fn=aplicar,
-        **dependencias(),
     )
 
     assert llamadas == [
@@ -140,7 +122,6 @@ def test_conserva_resultado_de_handoff_bloqueado():
             )
         ),
         aplicar_resultado_fn=aplicar,
-        **dependencias(),
     )
 
     assert resultado.handoff_intentado is True
@@ -151,50 +132,39 @@ def test_conserva_resultado_de_handoff_bloqueado():
     )
 
 
-def test_propaga_dependencias_operativas_al_aplicador():
-    marcadores = {
-        "nickname": object(),
-        "acordas": object(),
-        "plegable": object(),
-    }
-    recibidas = {}
+def test_workflow_usa_reglas_canonicas_sin_inyeccion():
+    from pathlib import Path
 
-    def aplicar(*_args, **kwargs):
-        recibidas.update(kwargs)
-        return aplicacion_fake()
-
-    procesar_resultado_recolector(
-        SimpleNamespace(id=13),
-        "mensaje",
-        {"ok": True},
-        parece_nickname_fn=marcadores["nickname"],
-        es_ml_acordas_entrega_fn=marcadores["acordas"],
-        pedido_es_plegable_pp6040_fn=(
-            marcadores["plegable"]
-        ),
-        iniciar_handoff_fn=(
-            lambda *_args, **_kwargs: (
-                True,
-                "no_usado",
-            )
-        ),
-        aplicar_resultado_fn=aplicar,
-    )
+    servicio = Path(
+        "services/ia_recolector_workflow.py"
+    ).read_text(encoding="utf-8")
 
     assert (
-        recibidas["parece_nickname_fn"]
-        is marcadores["nickname"]
+        "from modules.bot_ml.billing import ("
+        in servicio
     )
     assert (
-        recibidas["es_ml_acordas_entrega_fn"]
-        is marcadores["acordas"]
+        "from services.logistica_defaults import ("
+        in servicio
+    )
+    assert "parece_nickname_fn=parece_nickname_ml" in servicio
+    assert (
+        "es_ml_acordas_entrega_service"
+        in servicio
     )
     assert (
-        recibidas[
-            "pedido_es_plegable_pp6040_fn"
-        ]
-        is marcadores["plegable"]
+        "pedido_es_plegable_pp6040_service"
+        in servicio
     )
+
+    parametros_retirados = [
+        "parece_nickname_fn: Callable",
+        "es_ml_acordas_entrega_fn: Callable",
+        "pedido_es_plegable_pp6040_fn: Callable",
+    ]
+
+    for parametro in parametros_retirados:
+        assert parametro not in servicio
 
 
 def test_resultado_del_flujo_es_inmutable():
@@ -213,7 +183,6 @@ def test_resultado_del_flujo_es_inmutable():
                 aplicacion_fake()
             )
         ),
-        **dependencias(),
     )
 
     try:
