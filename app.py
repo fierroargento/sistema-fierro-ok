@@ -1605,6 +1605,15 @@ from services.ia_recolector_sync import (
 from services.ia_recolector_resultado import (
     aplicar_resultado_recolector,
 )
+from services.ia_recolector_datos import (
+    capitalizar_texto_fierro,
+    ia_campo_vacio,
+    ia_cp_valido,
+    ia_dni_valido,
+    ia_texto_menciona_autorizado,
+    normalizar_datos_ia_fierro,
+    normalizar_direccion_fierro,
+)
 from modules.whatsapp.text_utils import (
     es_afirmativo as es_afirmativo_sucursal,
 )
@@ -4887,86 +4896,15 @@ En resumen, indicá claramente si aplica alguno de estos casos: datos en Mercado
 
 
 
-def capitalizar_texto_fierro(valor):
-    """Capitaliza nombres/localidades/direcciones sin ponerse exquisito."""
-    texto = str(valor or "").strip()
-    if not texto:
-        return ""
-
-    texto = re.sub(r"\s+", " ", texto)
-    minusculas = {"de", "del", "la", "las", "los", "y", "e"}
-    siglas = {"dni", "cp"}
-
-    partes = []
-    for palabra in texto.split(" "):
-        limpia = palabra.strip()
-        if not limpia:
-            continue
-        base = re.sub(r"[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]", "", limpia).lower()
-        if base in siglas:
-            partes.append(limpia.upper())
-        elif base in minusculas:
-            partes.append(limpia.lower())
-        else:
-            partes.append("-".join([x[:1].upper() + x[1:].lower() if x else x for x in limpia.split("-")]))
-    return " ".join(partes).strip()
 
 
-def normalizar_direccion_fierro(valor):
-    texto = str(valor or "").strip()
-    if not texto:
-        return ""
-    texto = re.sub(r"\s+", " ", texto)
-    reemplazos = [
-        (r"\bav\.?\b", "Av."),
-        (r"\bavenida\b", "Av."),
-        (r"\bcalle\b", "Calle"),
-        (r"\bnro\.?\b", "N°"),
-        (r"\bnº\b", "N°"),
-        (r"\bnumero\b", "N°"),
-        (r"\bpiso\b", "Piso"),
-        (r"\bdpto\.?\b", "Dpto."),
-        (r"\bdepartamento\b", "Dpto."),
-    ]
-    # Capitalización general primero, luego normalizamos abreviaturas comunes.
-    texto = capitalizar_texto_fierro(texto)
-    for patron, rep in reemplazos:
-        texto = re.sub(patron, rep, texto, flags=re.IGNORECASE)
-    return texto.strip()
 
 
-def normalizar_datos_ia_fierro(datos):
-    if not isinstance(datos, dict):
-        return {}
-    normalizados = dict(datos)
-    for campo in ["nombre", "apellido", "localidad", "autorizado_nombre"]:
-        if normalizados.get(campo):
-            normalizados[campo] = capitalizar_texto_fierro(normalizados.get(campo))
-    if normalizados.get("direccion"):
-        normalizados["direccion"] = normalizar_direccion_fierro(normalizados.get("direccion"))
-    if normalizados.get("dni"):
-        normalizados["dni"] = ia_dni_valido(normalizados.get("dni")) or str(normalizados.get("dni") or "").strip()
-    if normalizados.get("autorizado_dni"):
-        normalizados["autorizado_dni"] = ia_dni_valido(normalizados.get("autorizado_dni")) or str(normalizados.get("autorizado_dni") or "").strip()
-    if normalizados.get("autorizado_telefono"):
-        normalizados["autorizado_telefono"] = normalizar_telefono(normalizados.get("autorizado_telefono"))
-    if normalizados.get("codigo_postal"):
-        normalizados["codigo_postal"] = str(normalizados.get("codigo_postal") or "").strip().upper()
-    return normalizados
-
-def ia_campo_vacio(valor):
-    return not str(valor or "").strip()
 
 
-def ia_dni_valido(valor):
-    limpio = re.sub(r"\D+", "", str(valor or ""))
-    return limpio if len(limpio) in (7, 8) else ""
 
 
-def ia_cp_valido(valor):
-    from services.ia_recolector_sync import ia_cp_valido_recolector
 
-    return ia_cp_valido_recolector(valor)
 
 
 def ia_extraer_datos_clasico_fierro(texto_cliente, datos_previos=None):
@@ -5139,35 +5077,6 @@ def ia_calcular_faltantes_reales_pedido(pedido, datos=None):
     return calcular_faltantes_reales_recolector(pedido, datos)
 
 
-def ia_texto_menciona_autorizado(texto):
-    """Detecta si el comprador está pasando datos de otra persona.
-
-    Regla APB:
-    - Si aparecen frases como "quien recibe", "retira", "autorizado" o
-      "entregar a", esos datos NO deben pisar al comprador/titular.
-    - Se cargan en autorizado_nombre / autorizado_dni / autorizado_telefono.
-    """
-    t = str(texto or "").lower()
-    patrones = [
-        r"\bquien\s+recibe\b",
-        r"\bquien\s+retira\b",
-        r"\bquien\s+va\s+a\s+recibir\b",
-        r"\bquien\s+va\s+a\s+retirar\b",
-        r"\bel\s+que\s+recibe\b",
-        r"\bla\s+que\s+recibe\b",
-        r"\bel\s+que\s+retira\b",
-        r"\bla\s+que\s+retira\b",
-        r"\brecibe\s+[^,.]{2,80}",
-        r"\bretira\s+[^,.]{2,80}",
-        r"\bretirar\s+[^,.]{2,80}",
-        r"\bautorizad[oa]\b",
-        r"\bautorizo\s+a\b",
-        r"\bentregar\s+a\b",
-        r"\bentrega\s+a\b",
-        r"\bse\s+lo\s+entregan\s+a\b",
-        r"\ba\s+nombre\s+de\b",
-    ]
-    return any(re.search(p, t) for p in patrones)
 
 
 def ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=""):
