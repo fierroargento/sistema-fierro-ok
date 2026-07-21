@@ -71,3 +71,34 @@ def test_flows_transporte_conserva_transacciones():
     assert texto.count(
         "db.session.rollback()"
     ) == 6
+
+
+def test_general_routes_usa_extension_canonica_db():
+    texto = Path(
+        "modules/whatsapp/general_routes.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert texto.count(
+        "from extensions import db"
+    ) == 1
+    assert (
+        "WhatsAppMensaje, db, rol_actual"
+        not in texto
+    )
+    assert texto.count(
+        "from app import Pedido, "
+        "WhatsAppMensaje, rol_actual"
+    ) == 4
+
+
+def test_general_routes_conserva_transacciones():
+    texto = Path(
+        "modules/whatsapp/general_routes.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert texto.count(
+        "db.session.commit()"
+    ) == 2
+    assert texto.count(
+        "db.session.rollback()"
+    ) == 2

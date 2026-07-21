@@ -9,6 +9,8 @@ Regla:
 """
 
 from flask import jsonify, redirect, render_template, request, url_for
+
+from extensions import db
 from services.wa_general import (
     armar_conversaciones_wa_general,
     contar_no_leidos_wa_general,
@@ -112,7 +114,7 @@ def registrar_wa_general_routes(app):
     @app.route("/wa-general/marcar-leido", methods=["POST"])
     @login_required
     def wa_general_marcar_leido():
-        from app import Pedido, WhatsAppMensaje, db, rol_actual
+        from app import Pedido, WhatsAppMensaje, rol_actual
 
         if rol_actual() not in ["admin", "carga"]:
             return jsonify({"ok": False, "error": "sin_permiso"}), 403
@@ -249,7 +251,7 @@ def registrar_wa_general_routes(app):
     @app.route("/wa-general/cerrar", methods=["POST"])
     @login_required
     def wa_general_cerrar():
-        from app import Pedido, WhatsAppMensaje, db, rol_actual
+        from app import Pedido, WhatsAppMensaje, rol_actual
 
         if rol_actual() not in ["admin", "carga"]:
             return redirect(url_for("inicio"))
