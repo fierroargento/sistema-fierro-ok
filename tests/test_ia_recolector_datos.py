@@ -73,3 +73,61 @@ def test_servicio_no_depende_de_app():
     assert "from app import" not in texto
     assert "import app" not in texto
     assert "db.session" not in texto
+
+
+def test_parser_clasico_detecta_cp_simple():
+    from services.ia_recolector_datos import (
+        ia_extraer_datos_clasico_fierro,
+    )
+
+    assert ia_extraer_datos_clasico_fierro(
+        "1617",
+        {},
+    )["codigo_postal"] == "1617"
+
+
+def test_parser_clasico_detecta_dni_etiquetado():
+    from services.ia_recolector_datos import (
+        ia_extraer_datos_clasico_fierro,
+    )
+
+    assert ia_extraer_datos_clasico_fierro(
+        "Mi DNI es 30.111.222",
+        {},
+    )["dni"] == "30111222"
+
+
+def test_parser_clasico_no_pisa_datos_previos():
+    from services.ia_recolector_datos import (
+        ia_extraer_datos_clasico_fierro,
+    )
+
+    datos = ia_extraer_datos_clasico_fierro(
+        "DNI 30.111.222 CP 8500",
+        {
+            "dni": "40111222",
+            "codigo_postal": "9000",
+        },
+    )
+
+    assert "dni" not in datos
+    assert "codigo_postal" not in datos
+
+
+def test_parser_clasico_esta_fuera_de_app():
+    from pathlib import Path
+
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/ia_recolector_datos.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "def ia_extraer_datos_clasico_fierro("
+        not in app
+    )
+    assert (
+        "def ia_extraer_datos_clasico_fierro("
+        in servicio
+    )
+    assert "normalizar_telefono_service(" in servicio
