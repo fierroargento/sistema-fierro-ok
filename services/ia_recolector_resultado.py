@@ -13,6 +13,11 @@ import hashlib
 import json
 from typing import Any, Callable
 
+from services.ia_recolector_datos import (
+    ia_autocompletar_pedido_con_datos,
+    ia_extraer_datos_clasico_fierro,
+    normalizar_datos_ia_fierro,
+)
 from services.ia_recolector_logistica import (
     debe_reencauzar_pp6040_sin_faltantes_service,
 )
@@ -56,9 +61,6 @@ def aplicar_resultado_recolector(
     texto_cliente: Any,
     resultado: Any,
     *,
-    normalizar_datos_fn: Callable[[Any], dict[str, Any]],
-    extraer_datos_clasicos_fn: Callable[..., dict[str, Any]],
-    autocompletar_pedido_fn: Callable[..., list[str]],
     parece_nickname_fn: Callable[[Any, Any], bool],
     es_ml_acordas_entrega_fn: Callable[[Any], bool],
     pedido_es_plegable_pp6040_fn: Callable[[Any], bool],
@@ -120,7 +122,7 @@ def aplicar_resultado_recolector(
             iniciar_handoff=False,
         )
 
-    datos = normalizar_datos_fn(
+    datos = normalizar_datos_ia_fierro(
         resultado.get("datos") or {}
     )
 
@@ -128,7 +130,7 @@ def aplicar_resultado_recolector(
         pedido,
         parece_nickname_fn=parece_nickname_fn,
     )
-    datos_clasicos = extraer_datos_clasicos_fn(
+    datos_clasicos = ia_extraer_datos_clasico_fierro(
         texto_cliente,
         datos_previos,
     )
@@ -155,7 +157,7 @@ def aplicar_resultado_recolector(
         )
 
     completados = list(
-        autocompletar_pedido_fn(
+        ia_autocompletar_pedido_con_datos(
             pedido,
             datos,
             texto_cliente=texto_cliente,

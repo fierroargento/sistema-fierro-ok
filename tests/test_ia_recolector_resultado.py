@@ -34,15 +34,6 @@ def pedido_fake(**cambios):
 
 def dependencias(**cambios):
     valores = {
-        "normalizar_datos_fn": (
-            lambda datos: dict(datos or {})
-        ),
-        "extraer_datos_clasicos_fn": (
-            lambda _texto, _previos: {}
-        ),
-        "autocompletar_pedido_fn": (
-            lambda _pedido, _datos, **_kwargs: []
-        ),
         "parece_nickname_fn": (
             lambda _cliente, _nickname: False
         ),
@@ -62,28 +53,19 @@ def dependencias(**cambios):
 def test_aplica_resultado_y_devuelve_handoff_pendiente():
     pedido = pedido_fake()
 
-    def autocompletar(
-        pedido,
-        datos,
-        **_kwargs,
-    ):
-        pedido.cliente = "Juan Pérez"
-        datos["nombre"] = "Juan"
-        datos["apellido"] = "Pérez"
-        return ["cliente"]
-
     resultado = aplicar_resultado_recolector(
         pedido,
         "Soy Juan",
         {
             "ok": True,
-            "datos": {},
+            "datos": {
+                "nombre": "Juan",
+                "apellido": "Pérez",
+            },
             "resumen": "Datos parciales",
             "requiere_operador": False,
         },
-        **dependencias(
-            autocompletar_pedido_fn=autocompletar,
-        ),
+        **dependencias(),
     )
 
     assert resultado.aplicado is True
@@ -110,7 +92,6 @@ def test_aplica_resultado_y_devuelve_handoff_pendiente():
 
 def test_resultado_invalido_marca_error_sin_autocompletar():
     pedido = pedido_fake()
-    llamadas = []
 
     resultado = aplicar_resultado_recolector(
         pedido,
@@ -120,20 +101,14 @@ def test_resultado_invalido_marca_error_sin_autocompletar():
             "estado": "error_ia",
             "error": "falló proveedor",
         },
-        **dependencias(
-            autocompletar_pedido_fn=(
-                lambda *_args, **_kwargs: (
-                    llamadas.append(True)
-                )
-            ),
-        ),
+        **dependencias(),
     )
 
     assert resultado.exitoso is False
     assert resultado.motivo == "resultado_invalido"
     assert pedido.ia_recolector_estado == "error_ia"
     assert pedido.ia_error == "falló proveedor"
-    assert llamadas == []
+    assert pedido.cliente == ""
 
 
 def test_respeta_lock_previo_de_operador():
@@ -231,13 +206,7 @@ def test_sin_pedido_no_invoca_dependencias():
         None,
         "mensaje",
         {"ok": True},
-        **dependencias(
-            normalizar_datos_fn=(
-                lambda _datos: (_ for _ in ()).throw(
-                    AssertionError("no debe invocarse")
-                )
-            ),
-        ),
+        **dependencias(),
     )
 
     assert resultado.aplicado is False
@@ -263,3 +232,36 @@ def test_servicio_no_ejecuta_efectos_externos():
 
     for prohibido in prohibidos:
         assert prohibido not in texto
+
+
+def test_aplicador_consume_primitivas_centralizadas_sin_inyeccion():
+    from pathlib import Path
+
+    servicio = Path(
+        "services/ia_recolector_resultado.py"
+    ).read_text(encoding="utf-8")
+    app = Path("app.py").read_text(encoding="utf-8")
+
+    assert (
+        "from services.ia_recolector_datos import ("
+        in servicio
+    )
+    assert "normalizar_datos_ia_fierro(" in servicio
+    assert (
+        "ia_extraer_datos_clasico_fierro("
+        in servicio
+    )
+    assert (
+        "ia_autocompletar_pedido_con_datos("
+        in servicio
+    )
+
+    prohibidos = [
+        "normalizar_datos_fn",
+        "extraer_datos_clasicos_fn",
+        "autocompletar_pedido_fn",
+    ]
+
+    for prohibido in prohibidos:
+        assert prohibido not in servicio
+        assert prohibido not in app

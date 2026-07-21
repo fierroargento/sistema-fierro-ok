@@ -4916,13 +4916,6 @@ def ia_guardar_resultado_recolector(
         pedido,
         texto_cliente,
         resultado,
-        normalizar_datos_fn=normalizar_datos_ia_fierro,
-        extraer_datos_clasicos_fn=(
-            ia_extraer_datos_clasico_fierro
-        ),
-        autocompletar_pedido_fn=(
-            ia_autocompletar_pedido_con_datos
-        ),
         parece_nickname_fn=parece_nickname_ml,
         es_ml_acordas_entrega_fn=(
             es_ml_acordas_entrega
