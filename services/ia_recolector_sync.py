@@ -264,3 +264,72 @@ def marcar_recolector_datos_completos(pedido):
     pedido.ia_ultimo_timeout_operador = None
 
     return True
+
+
+def datos_previos_pedido_recolector(
+    pedido,
+    *,
+    parece_nickname_fn,
+):
+    """
+    Construye los datos previos del recolector.
+
+    Prioridades:
+    - Conserva datos ya detectados.
+    - Completa desde el pedido real sin pisarlos.
+    - No usa como nombre un nickname de Mercado Libre.
+    - No importa app.py ni conoce sesiones o canales.
+    """
+
+    if not pedido:
+        return {}
+
+    datos = datos_detectados_pedido_recolector(
+        pedido
+    )
+
+    cliente = _texto(
+        getattr(pedido, "cliente", "")
+    )
+    nickname = _texto(
+        getattr(pedido, "ml_buyer_nickname", "")
+    )
+
+    if (
+        cliente
+        and not parece_nickname_fn(
+            cliente,
+            nickname,
+        )
+    ):
+        partes = cliente.split()
+        if partes:
+            datos.setdefault(
+                "nombre",
+                partes[0],
+            )
+        if len(partes) > 1:
+            datos.setdefault(
+                "apellido",
+                " ".join(partes[1:]),
+            )
+
+    mapeo = {
+        "dni": "dni",
+        "telefono": "telefono",
+        "direccion": "direccion",
+        "localidad": "localidad",
+        "codigo_postal": "codigo_postal",
+    }
+
+    for campo_dato, atributo in mapeo.items():
+        valor = _texto(
+            getattr(pedido, atributo, "")
+        )
+        if valor:
+            datos.setdefault(
+                campo_dato,
+                valor,
+            )
+
+    return datos

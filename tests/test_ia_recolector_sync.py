@@ -299,3 +299,100 @@ def test_marcar_recolector_datos_completos_sin_pedido():
         marcar_recolector_datos_completos(None)
         is False
     )
+
+
+def test_datos_previos_conserva_detectados_y_completa_pedido():
+    from types import SimpleNamespace
+
+    from services.ia_recolector_sync import (
+        datos_previos_pedido_recolector,
+    )
+
+    pedido = SimpleNamespace(
+        ia_datos_detectados=(
+            '{"nombre": "Nombre IA", "dni": "11111111"}'
+        ),
+        cliente="Juan Pérez",
+        ml_buyer_nickname="JUAN123",
+        dni="22222222",
+        telefono="2920123456",
+        direccion="Mitre 500",
+        localidad="Viedma",
+        codigo_postal="8500",
+    )
+
+    datos = datos_previos_pedido_recolector(
+        pedido,
+        parece_nickname_fn=(
+            lambda _cliente, _nickname: False
+        ),
+    )
+
+    assert datos["nombre"] == "Nombre IA"
+    assert datos["dni"] == "11111111"
+    assert datos["apellido"] == "Pérez"
+    assert datos["telefono"] == "2920123456"
+    assert datos["direccion"] == "Mitre 500"
+    assert datos["localidad"] == "Viedma"
+    assert datos["codigo_postal"] == "8500"
+
+
+def test_datos_previos_no_usa_nickname_como_nombre():
+    from types import SimpleNamespace
+
+    from services.ia_recolector_sync import (
+        datos_previos_pedido_recolector,
+    )
+
+    pedido = SimpleNamespace(
+        ia_datos_detectados="{}",
+        cliente="JUAN123",
+        ml_buyer_nickname="JUAN123",
+        dni="",
+        telefono="",
+        direccion="",
+        localidad="",
+        codigo_postal="",
+    )
+
+    datos = datos_previos_pedido_recolector(
+        pedido,
+        parece_nickname_fn=(
+            lambda cliente, nickname: (
+                cliente == nickname
+            )
+        ),
+    )
+
+    assert "nombre" not in datos
+    assert "apellido" not in datos
+
+
+def test_datos_previos_sin_pedido_devuelve_vacio():
+    from services.ia_recolector_sync import (
+        datos_previos_pedido_recolector,
+    )
+
+    assert datos_previos_pedido_recolector(
+        None,
+        parece_nickname_fn=(
+            lambda _cliente, _nickname: False
+        ),
+    ) == {}
+
+
+def test_datos_previos_no_importa_app():
+    from pathlib import Path
+
+    texto = Path(
+        "services/ia_recolector_sync.py"
+    ).read_text(encoding="utf-8")
+
+    inicio = texto.index(
+        "def datos_previos_pedido_recolector("
+    )
+    bloque = texto[inicio:]
+
+    assert "from app import" not in bloque
+    assert "import app" not in bloque
+    assert "db.session" not in bloque
