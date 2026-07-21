@@ -1,5 +1,7 @@
 import re
 
+from extensions import db
+
 from .config import (
     WA_ESPERANDO_OK_INICIO,
     WA_ESPERANDO_DATOS,
@@ -62,7 +64,6 @@ def routear_mensaje(
     if estado == "operador_manual":
 
         try:
-            from app import db
 
             pedido.ml_mensajes_pendientes = True
             pedido.ml_mensajes_pendientes_count = (

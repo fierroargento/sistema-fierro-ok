@@ -138,3 +138,58 @@ def test_router_postventa_deriva_a_postventa(monkeypatch):
 
     assert llamado["pedido"] is pedido
     assert llamado["texto"] == "gracias"
+
+
+class SessionFake:
+    def __init__(self):
+        self.commits = 0
+
+    def commit(self):
+        self.commits += 1
+
+
+def test_router_operador_manual_marca_pendiente_y_persiste(
+    monkeypatch,
+):
+    session = SessionFake()
+    pedido = pedido_base(
+        wa_estado="operador_manual",
+        ml_mensajes_pendientes=False,
+        ml_mensajes_pendientes_count=2,
+        ia_requiere_operador=False,
+    )
+
+    monkeypatch.setattr(
+        router,
+        "db",
+        SimpleNamespace(session=session),
+    )
+
+    router.routear_mensaje(
+        pedido,
+        "Necesito ayuda",
+        "5492920123456",
+        estado,
+    )
+
+    assert session.commits == 1
+    assert pedido.ml_mensajes_pendientes is True
+    assert pedido.ml_mensajes_pendientes_count == 3
+    assert pedido.ia_requiere_operador is True
+
+
+def test_router_usa_extension_canonica_para_db():
+    from pathlib import Path
+
+    texto = Path(
+        "modules/whatsapp/router.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert texto.count(
+        "from extensions import db"
+    ) == 1
+    assert "from app import db" not in texto
+    assert (
+        "from app import Pedido, WhatsAppMensaje"
+        in texto
+    )
