@@ -33,9 +33,16 @@ def test_datos_previos_recolector_no_dependen_de_app():
     assert "def ia_datos_previos_pedido(" not in app
     assert "ia_datos_previos_pedido" not in flows
 
+    aplicador = Path(
+        "services/ia_recolector_resultado.py"
+    ).read_text(encoding="utf-8")
+
     assert app.count(
         "datos_previos_pedido_recolector("
-    ) == 2
+    ) == 1
+    assert aplicador.count(
+        "datos_previos_pedido_recolector("
+    ) == 1
     assert flows.count(
         "datos_previos_pedido_recolector("
     ) == 1

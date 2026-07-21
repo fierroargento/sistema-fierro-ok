@@ -1602,6 +1602,9 @@ from services.workflow_orquestador_confirmacion_sucursal import (
 from services.ia_recolector_sync import (
     datos_previos_pedido_recolector,
 )
+from services.ia_recolector_resultado import (
+    aplicar_resultado_recolector,
+)
 from modules.whatsapp.text_utils import (
     es_afirmativo as es_afirmativo_sucursal,
 )
@@ -5279,149 +5282,43 @@ def ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=""):
     return completados
 
 
-def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
-    if not pedido:
-        return
-    pedido.ia_ultimo_mensaje_hash = ia_hash_texto(texto_cliente)
-    pedido.ia_ultimo_analisis = datetime.utcnow()
-    pedido.ia_error = ""
-
-    if not resultado or not resultado.get("ok"):
-        pedido.ia_recolector_estado = resultado.get("estado") if isinstance(resultado, dict) else "error"
-        pedido.ia_error = (resultado.get("error") if isinstance(resultado, dict) else "Error IA") or "Error IA"
-        return
-
-    datos = normalizar_datos_ia_fierro(resultado.get("datos") or {})
-
-    # Segundo cinturón APB: si por algún motivo el resultado no trajo DNI/CP,
-    # volvemos a mirar el texto antes de guardar y responder.
-    datos_previos = datos_previos_pedido_recolector(
+def ia_guardar_resultado_recolector(
+    pedido,
+    texto_cliente,
+    resultado,
+):
+    resultado_aplicacion = aplicar_resultado_recolector(
         pedido,
-        parece_nickname_fn=parece_nickname_ml,
-    )
-    datos_clasicos = ia_extraer_datos_clasico_fierro(
         texto_cliente,
-        datos_previos,
-    )
-    for c, v in datos_clasicos.items():
-        if v and not str(datos.get(c) or "").strip():
-            datos[c] = v
-
-    # APB / modularización:
-    # Antes de guardar, recalcular faltantes o persistir ia_datos_detectados,
-    # limpiamos ubicación detectada desde texto libre en services.ubicacion_cp.
-    # Esto evita que una localidad basura quede guardada como dato previo y
-    # contamine el siguiente análisis.
-    try:
-        from services.ubicacion_cp import normalizar_datos_ubicacion_detectados
-
-        datos = normalizar_datos_ubicacion_detectados(
-            datos,
-            texto_cliente=texto_cliente,
-        )
-
-    except Exception as e:
-        print(
-            f"[UBICACION] No se pudieron normalizar datos detectados "
-            f"pedido #{getattr(pedido, 'id', '?')}: {e}"
-        )
-
-    completados = ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=texto_cliente)
-
-    # APB:
-    # Después de autocompletar ubicación/CP en el pedido, consolidamos ia_datos_detectados
-    # con el pedido real. Esto evita que el panel IA muestre CP vacío o faltantes viejos.
-    try:
-        from services.ia_recolector_sync import consolidar_datos_recolector_con_pedido
-
-        datos = consolidar_datos_recolector_con_pedido(pedido, datos)
-
-    except Exception as e:
-        print(
-            f"[IA-RECOLECTOR-SYNC] No se pudo consolidar datos "
-            f"pedido #{getattr(pedido, 'id', '?')}: {e}"
-        )
-
-    from services.ia_recolector_sync import persistir_telefono_detectado_recolector
-
-    for campo in persistir_telefono_detectado_recolector(pedido, datos):
-        if campo not in completados:
-            completados.append(campo)
-
-
-    # Importante: no usar a ciegas los faltantes que devolvió la IA antes de autocompletar.
-    # Se recalculan contra el pedido actualizado para no pedir DNI/CP dos veces.
-    faltantes = ia_calcular_faltantes_reales_pedido(pedido, datos)
-    requiere_operador = bool(resultado.get("requiere_operador"))
-
-    from services.ia_recolector_sync import decidir_estado_recolector
-
-    from services.ia_recolector_sync import resolver_requiere_operador_final_recolector
-
-    requiere_operador_final = resolver_requiere_operador_final_recolector(
-        pedido,
-        requiere_operador=requiere_operador,
+        resultado,
+        normalizar_datos_fn=normalizar_datos_ia_fierro,
+        extraer_datos_clasicos_fn=(
+            ia_extraer_datos_clasico_fierro
+        ),
+        autocompletar_pedido_fn=(
+            ia_autocompletar_pedido_con_datos
+        ),
+        parece_nickname_fn=parece_nickname_ml,
+        es_ml_acordas_entrega_fn=(
+            es_ml_acordas_entrega
+        ),
+        pedido_es_plegable_pp6040_fn=(
+            pedido_es_plegable_pp6040
+        ),
     )
 
-    try:
-        from services.ia_recolector_logistica import (
-            debe_reencauzar_pp6040_sin_faltantes_service,
-        )
-
-        if debe_reencauzar_pp6040_sin_faltantes_service(
-            pedido=pedido,
-            resultado=resultado,
-            faltantes=faltantes,
-            requiere_operador_final=requiere_operador_final,
-            es_ml_acordas_entrega_fn=es_ml_acordas_entrega,
-            pedido_es_plegable_pp6040_fn=pedido_es_plegable_pp6040,
-        ):
-            print(
-                f"[IA-RECOLECTOR] Pedido #{getattr(pedido, 'id', '?')}: "
-                "reencauzado a logística automática PP6040 sin faltantes reales"
-            )
-            requiere_operador_final = False
-            try:
-                pedido.ia_ultimo_timeout_operador = None
-            except Exception:
-                pass
-
-    except Exception as e:
-        print(
-            f"[IA-RECOLECTOR] No se pudo evaluar reencauce logístico "
-            f"pedido #{getattr(pedido, 'id', '?')}: {e}"
-        )
-
-    estado = decidir_estado_recolector(
-        faltantes=faltantes,
-        requiere_operador=requiere_operador_final,
-    )
-
-    pedido.ia_recolector_estado = estado
-    pedido.ia_datos_detectados = json.dumps(datos, ensure_ascii=False)
-    pedido.ia_faltantes = json.dumps(faltantes, ensure_ascii=False)
-    resumen = str(resultado.get("resumen") or "").strip()
-    if completados:
-        extra = "IA autocompletó: " + ", ".join(completados)
-        resumen = (resumen + " | " + extra).strip(" |") if resumen else extra
-    pedido.ia_resumen = resumen
-    pedido.ia_requiere_operador = requiere_operador_final
-
-    # APB:
-    # Mercado Libre inicia el contacto y sigue recolectando mientras el canal esté activo.
-    # WhatsApp puede tomar la posta:
-    # - con datos completos,
-    # - o con faltantes si ML quedó cortado / timeout / escalado.
-    # APB flujo ML→WA:
-    # Si ya no faltan datos, NO iniciar WhatsApp desde acá.
-    # Primero debe correr ia_auto_responder_post_analisis(), que para Via Cargo
-    # ofrece sucursales por ML antes de cualquier handoff.
-    if not requiere_operador_final and faltantes:
+    if resultado_aplicacion.iniciar_handoff:
         wa_auto_iniciar_desde_ml_si_corresponde(
             pedido,
-            faltantes=faltantes,
-            motivo="ia_guardar_resultado_recolector",
+            faltantes=list(
+                resultado_aplicacion.faltantes
+            ),
+            motivo=(
+                "ia_guardar_resultado_recolector"
+            ),
         )
+
+    return resultado_aplicacion
 
 
 def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=False):
