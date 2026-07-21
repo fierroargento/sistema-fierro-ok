@@ -79,6 +79,9 @@ from modules.whatsapp.flows_transporte import (
     wa_cerrar_datos_completos,
 )
 
+from services.ia_recolector_analisis import (
+    analizar_datos_cliente_ml_acordas,
+)
 from services.ia_recolector_workflow import (
     procesar_resultado_recolector,
 )
@@ -408,7 +411,6 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
         faltantes_pedido_recolector,
     )
     from app import (
-        ia_analizar_datos_cliente_ml_acordas,
         wa_auto_iniciar_desde_ml_si_corresponde,
         db,
     )
@@ -425,7 +427,7 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
         pedido,
         parece_nickname_fn=parece_nickname_ml,
     )
-    resultado = ia_analizar_datos_cliente_ml_acordas(
+    resultado = analizar_datos_cliente_ml_acordas(
         texto_cliente,
         datos_previos,
     )

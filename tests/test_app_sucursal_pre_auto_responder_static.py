@@ -110,7 +110,7 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
     idx_procesar = texto.index(
         "procesar_resultado_recolector(",
         texto.index(
-            "resultado = ia_analizar_datos_cliente_"
+            "resultado = analizar_datos_cliente_"
             "ml_acordas("
         ),
     )

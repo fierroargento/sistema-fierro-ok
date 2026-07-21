@@ -188,3 +188,35 @@ def test_servicio_no_depende_de_app_ni_tiene_efectos():
         assert prohibido not in texto
 
     assert "OPENAI_MODEL" not in texto
+
+
+def test_consumidores_usan_analizador_compartido_sin_wrapper():
+    app = Path("app.py").read_text(encoding="utf-8")
+    flows = Path(
+        "modules/whatsapp/flows.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "def ia_analizar_datos_cliente_ml_acordas("
+        not in app
+    )
+    assert (
+        "ia_analizar_datos_cliente_ml_acordas"
+        not in flows
+    )
+
+    assert app.count(
+        "analizar_datos_cliente_ml_acordas("
+    ) == 1
+    assert flows.count(
+        "analizar_datos_cliente_ml_acordas("
+    ) == 1
+
+    assert (
+        "from services.ia_recolector_analisis import ("
+        in app
+    )
+    assert (
+        "from services.ia_recolector_analisis import ("
+        in flows
+    )

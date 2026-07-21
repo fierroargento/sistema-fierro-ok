@@ -83,3 +83,22 @@ def test_whatsapp_procesa_resultado_sin_importar_wrapper_de_app():
         "wa_auto_iniciar_desde_ml_si_corresponde"
         in flows
     )
+
+
+def test_whatsapp_analiza_recolector_sin_importarlo_desde_app():
+    flows = Path(
+        "modules/whatsapp/flows.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "from services.ia_recolector_analisis import ("
+        in flows
+    )
+    assert (
+        "analizar_datos_cliente_ml_acordas("
+        in flows
+    )
+    assert (
+        "ia_analizar_datos_cliente_ml_acordas"
+        not in flows
+    )
