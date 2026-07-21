@@ -1603,6 +1603,9 @@ from services.workflow_post_confirmacion_sucursal import (
     FLUJO_CONFIRMACION_TEMPRANA,
     planificar_post_confirmacion_sucursal,
 )
+from services.workflow_transicion_sucursal_ml import (
+    ejecutar_transicion_ml_tras_confirmacion_sucursal,
+)
 from modules.whatsapp.text_utils import (
     es_afirmativo as es_afirmativo_sucursal,
 )
@@ -5803,40 +5806,18 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
 
         if plan_confirmacion_comun.confirmada:
             if plan_confirmacion_comun.evaluar_transicion_ml:
-                try:
-                    msg_transicion_wa = (
+                ejecutar_transicion_ml_tras_confirmacion_sucursal(
+                    pedido=pedido,
+                    texto=(
                         plan_confirmacion_comun
                         .mensaje_transicion_ml
-                    )
-
-                    permitido_ml, motivo_ml = puede_enviar_mensaje(
-                        pedido=pedido,
-                        canal="ml",
-                        texto=msg_transicion_wa,
-                    )
-
-                    if permitido_ml:
-                        ml_enviar_mensaje_acordas(
-                            pedido,
-                            msg_transicion_wa,
-                            permitir_requiere_operador=True,
-                        )
-                        registrar_envio_automatico(
-                            pedido=pedido,
-                            canal="ml",
-                            texto=msg_transicion_wa,
-                        )
-                    else:
-                        print(
-                            f"[CANAL-MANAGER] ML transicion WA omitida pedido #{pedido.id}: {motivo_ml}"
-                        )
-
-                except Exception as e:
-                    print(
-                        "[ML-WA] No se pudo enviar "
-                        "confirmacion/transicion WA pedido "
-                        f"#{getattr(pedido, 'id', '')}: {e}"
-                    )
+                    ),
+                    puede_enviar_fn=puede_enviar_mensaje,
+                    enviar_mensaje_fn=ml_enviar_mensaje_acordas,
+                    registrar_envio_fn=(
+                        registrar_envio_automatico
+                    ),
+                )
 
             if plan_confirmacion_comun.actualizar_estado:
                 try:

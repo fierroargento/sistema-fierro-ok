@@ -143,33 +143,29 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
         "via_cargo_ofrecida",
         idx_guardar,
     )
-    idx_msg = texto.index(
-        "msg_transicion_wa",
-        idx_confirma,
-    )
-    idx_ml = texto.index(
-        "ml_enviar_mensaje_acordas(",
+    idx_transicion = texto.index(
+        "ejecutar_transicion_ml_tras_"
+        "confirmacion_sucursal(",
         idx_confirma,
     )
     idx_cross = texto.index(
         "intentar_wa_cross_sell_tras_sucursal_ml(",
-        idx_confirma,
+        idx_transicion,
     )
     idx_return = texto.index(
         '"estado": "sucursal_confirmada"',
-        idx_confirma,
+        idx_cross,
     )
 
     assert (
         idx_confirma
-        < idx_msg
-        < idx_ml
+        < idx_transicion
         < idx_cross
         < idx_return
     )
 
     bloque_confirmacion = texto[
-        idx_guardar:idx_msg
+        idx_guardar:idx_transicion
     ]
     assert (
         "resultado_confirmacion_comun = ("
@@ -189,31 +185,76 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
     )
     assert (
         "if plan_confirmacion_comun.confirmada:"
-        in texto[idx_confirma:idx_msg]
+        in bloque_confirmacion
     )
+
+    bloque_transicion = texto[
+        idx_transicion:idx_cross
+    ]
+    assert (
+        "plan_confirmacion_comun"
+        ".mensaje_transicion_ml"
+        in bloque_transicion.replace(
+            "\n",
+            "",
+        ).replace(" ", "")
+    )
+    assert (
+        "puede_enviar_fn=puede_enviar_mensaje"
+        in bloque_transicion
+    )
+    assert (
+        "enviar_mensaje_fn="
+        "ml_enviar_mensaje_acordas"
+        in bloque_transicion
+    )
+    assert (
+        "registrar_envio_fn=("
+        in bloque_transicion
+    )
+    assert "registrar_envio_automatico" in bloque_transicion
 
 def test_cross_sell_se_intenta_aunque_ml_se_omita_por_canal_manager():
     texto = Path("app.py").read_text(encoding="utf-8")
 
-    idx_msg = texto.index("msg_transicion_wa")
-    idx_cross = texto.index("intentar_wa_cross_sell_tras_sucursal_ml(", idx_msg)
-    idx_return = texto.index('"estado": "sucursal_confirmada"', idx_cross)
+    idx_transicion = texto.index(
+        "ejecutar_transicion_ml_tras_"
+        "confirmacion_sucursal("
+    )
+    idx_cross = texto.index(
+        "intentar_wa_cross_sell_tras_sucursal_ml(",
+        idx_transicion,
+    )
+    idx_return = texto.index(
+        '"estado": "sucursal_confirmada"',
+        idx_cross,
+    )
 
-    bloque_ml = texto[idx_msg:idx_cross]
-    bloque_cross = texto[idx_cross:idx_return]
+    bloque_transicion = texto[
+        idx_transicion:idx_cross
+    ]
+    bloque_cross = texto[
+        idx_cross:idx_return
+    ]
 
-    assert "puede_enviar_mensaje(" in bloque_ml
-    assert "if permitido_ml:" in bloque_ml
-    assert "ML transicion WA omitida" in bloque_ml
-    assert "intentar_wa_cross_sell_tras_sucursal_ml(" in bloque_cross
     assert (
-        "plan_confirmacion_comun"
-        in bloque_cross
+        "puede_enviar_fn=puede_enviar_mensaje"
+        in bloque_transicion
     )
     assert (
-        ".motivo_cross_sell"
+        "enviar_mensaje_fn="
+        "ml_enviar_mensaje_acordas"
+        in bloque_transicion
+    )
+    assert "registrar_envio_automatico" in bloque_transicion
+    assert "if permitido_ml:" not in bloque_transicion
+
+    assert (
+        "intentar_wa_cross_sell_tras_sucursal_ml("
         in bloque_cross
     )
+    assert "plan_confirmacion_comun" in bloque_cross
+    assert ".motivo_cross_sell" in bloque_cross
 
 
 def test_flujo_comun_retorna_resultado_sucursal_confirmada():
