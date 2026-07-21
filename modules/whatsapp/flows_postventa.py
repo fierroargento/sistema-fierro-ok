@@ -1,5 +1,7 @@
 from datetime import datetime, UTC
 
+from extensions import db
+
 from modules.whatsapp.config import (
     WA_DESPACHADO,
     WA_FINALIZADO,
@@ -55,7 +57,6 @@ def wa_enviar_numero_seguimiento(pedido):
 
 
 def wa_enviar_listo_para_retirar(pedido):
-    from app import db
 
     tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
@@ -100,7 +101,6 @@ def wa_enviar_listo_para_retirar(pedido):
 
 
 def wa_enviar_postventa(pedido):
-    from app import db
 
     tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
