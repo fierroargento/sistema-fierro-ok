@@ -5820,47 +5820,43 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     ),
                 )
 
-            if plan_confirmacion_comun.actualizar_estado:
-                try:
-                    actualizar_estado_automatico(pedido)
-                except Exception as e:
-                    print(
-                        "[VIA CARGO] No se pudo "
-                        "autoactualizar estado tras sucursal "
-                        f"en analisis ML: {e}"
-                    )
+            resultado_persistencia_comun = (
+                ejecutar_estado_y_persistencia_post_confirmacion(
+                    pedido=pedido,
+                    plan=plan_confirmacion_comun,
+                    actualizar_estado_fn=(
+                        actualizar_estado_automatico
+                    ),
+                    db_session=db.session,
+                )
+            )
 
-            if plan_confirmacion_comun.persistir:
-                try:
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
+            if resultado_persistencia_comun.exitosa:
+                if plan_confirmacion_comun.intentar_cross_sell:
+                    try:
+                        intentar_wa_cross_sell_tras_sucursal_ml(
+                            pedido,
+                            wa_auto_iniciar_desde_ml_fn=(
+                                wa_auto_iniciar_desde_ml_si_corresponde
+                            ),
+                            db_session=db.session,
+                            motivo=(
+                                plan_confirmacion_comun
+                                .motivo_cross_sell
+                            ),
+                        )
+                    except Exception as e:
+                        print(
+                            "[CROSS-SELL-ML-WA] No se pudo "
+                            "iniciar WA tras sucursal "
+                            f"confirmada: {e}"
+                        )
 
-            if plan_confirmacion_comun.intentar_cross_sell:
-                try:
-                    intentar_wa_cross_sell_tras_sucursal_ml(
-                        pedido,
-                        wa_auto_iniciar_desde_ml_fn=(
-                            wa_auto_iniciar_desde_ml_si_corresponde
-                        ),
-                        db_session=db.session,
-                        motivo=(
-                            plan_confirmacion_comun
-                            .motivo_cross_sell
-                        ),
-                    )
-                except Exception as e:
-                    print(
-                        "[CROSS-SELL-ML-WA] No se pudo "
-                        "iniciar WA tras sucursal "
-                        f"confirmada: {e}"
-                    )
-
-            return {
-                "ok": True,
-                "estado": "sucursal_confirmada",
-                "sucursal_confirmada": True,
-            }
+                return {
+                    "ok": True,
+                    "estado": "sucursal_confirmada",
+                    "sucursal_confirmada": True,
+                }
 
     except Exception as e:
         print(f"[VIA CARGO] No se pudo confirmar sucursal en flujo comun ML: {e}")

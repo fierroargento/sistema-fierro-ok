@@ -170,9 +170,13 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
         "confirmacion_sucursal(",
         idx_confirma,
     )
+    idx_persistencia = texto.index(
+        "resultado_persistencia_comun = (",
+        idx_transicion,
+    )
     idx_cross = texto.index(
         "intentar_wa_cross_sell_tras_sucursal_ml(",
-        idx_transicion,
+        idx_persistencia,
     )
     idx_return = texto.index(
         '"estado": "sucursal_confirmada"',
@@ -182,6 +186,7 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
     assert (
         idx_confirma
         < idx_transicion
+        < idx_persistencia
         < idx_cross
         < idx_return
     )
@@ -300,19 +305,31 @@ def test_flujo_comun_retorna_resultado_sucursal_confirmada():
     ]
 
     assert (
-        "if plan_confirmacion_comun.actualizar_estado:"
+        "resultado_persistencia_comun = ("
         in bloque
     )
-    assert "actualizar_estado_automatico(pedido)" in bloque
     assert (
-        "if plan_confirmacion_comun.persistir:"
+        "ejecutar_estado_y_persistencia_"
+        "post_confirmacion("
         in bloque
     )
-    assert "db.session.commit()" in bloque
+    assert "plan=plan_confirmacion_comun" in bloque
+    assert (
+        "actualizar_estado_fn=("
+        in bloque
+    )
+    assert "actualizar_estado_automatico" in bloque
+    assert "db_session=db.session" in bloque
+    assert (
+        "if resultado_persistencia_comun.exitosa:"
+        in bloque
+    )
     assert (
         "if plan_confirmacion_comun.intentar_cross_sell:"
         in bloque
     )
+    assert "db.session.commit()" not in bloque
+    assert "db.session.rollback()" not in bloque
     assert '"estado": "sucursal_confirmada"' in bloque
     assert '"sucursal_confirmada": True' in bloque
 
