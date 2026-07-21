@@ -4,90 +4,65 @@
 def test_flujo_comun_confirma_sucursal_antes_de_auto_responder_ml():
     texto = Path("app.py").read_text(encoding="utf-8")
 
-    nombre_nuevo = (
-        "resolver_confirmacion_sucursal_"
-        "via_cargo_ofrecida"
-    )
-    nombre_legacy = (
-        "confirmar_sucursal_via_cargo_"
-        "ofrecida_sin_responder"
-    )
-
-    assert (
-        "from services.workflow_confirmacion_sucursal import ("
-        in texto
-    )
-    assert nombre_nuevo in texto
-    assert nombre_legacy not in texto
-
-    idx_texto_logistica = texto.index(
+    idx_texto = texto.index(
         "_texto_logistica = texto_ultimo or texto"
     )
-    idx_confirma = texto.index(
-        nombre_nuevo,
-        idx_texto_logistica,
+    idx_orquestador = texto.index(
+        "orquestar_confirmacion_sucursal_temprana(",
+        idx_texto,
     )
     idx_auto = texto.index(
         "ia_auto_responder_post_analisis(pedido)",
-        idx_confirma,
+        idx_orquestador,
     )
 
-    assert (
-        idx_texto_logistica
-        < idx_confirma
-        < idx_auto
-    )
+    assert idx_texto < idx_orquestador < idx_auto
 
-    bloque = texto[idx_texto_logistica:idx_auto]
+    bloque = texto[idx_texto:idx_auto]
+
     assert (
-        "resultado_confirmacion_temprana = ("
+        "resultado_orquestacion_temprana = ("
         in bloque
     )
     assert (
-        "plan_confirmacion_temprana = ("
-        in bloque
-    )
-    assert (
-        "planificar_post_confirmacion_sucursal("
-        in bloque
-    )
-    assert (
-        "flujo=FLUJO_CONFIRMACION_TEMPRANA"
-        in bloque
-    )
-    assert (
-        "resultado_persistencia_temprana = ("
-        in bloque
-    )
-    assert (
-        "ejecutar_estado_y_persistencia_"
-        "post_confirmacion("
-        in bloque
-    )
-    assert (
-        "plan=plan_confirmacion_temprana"
+        "despacho_completo_fn=despacho_completo"
         in bloque
     )
     assert (
         "actualizar_estado_fn=("
         in bloque
     )
-    assert (
-        "actualizar_estado_automatico"
-        in bloque
-    )
+    assert "actualizar_estado_automatico" in bloque
     assert "db_session=db.session" in bloque
     assert (
-        "if resultado_persistencia_temprana.exitosa:"
+        "es_afirmativo_fn=es_afirmativo_sucursal"
         in bloque
     )
     assert (
-        "if plan_confirmacion_temprana."
-        "actualizar_estado:"
+        "resultado_confirmacion_temprana = ("
+        in bloque
+    )
+    assert (
+        ".confirmacion"
+        in bloque
+    )
+    assert (
+        "if resultado_orquestacion_temprana.persistida:"
+        in bloque
+    )
+
+    assert (
+        "resolver_confirmacion_sucursal_"
+        "via_cargo_ofrecida("
         not in bloque
     )
     assert (
-        "if plan_confirmacion_temprana.persistir:"
+        "planificar_post_confirmacion_sucursal("
+        not in bloque
+    )
+    assert (
+        "ejecutar_estado_y_persistencia_"
+        "post_confirmacion("
         not in bloque
     )
 

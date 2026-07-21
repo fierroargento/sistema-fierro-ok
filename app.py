@@ -1598,6 +1598,9 @@ def detectar_sucursal(pedido, mensaje):
 from services.workflow_confirmacion_sucursal import (
     resolver_confirmacion_sucursal_via_cargo_ofrecida,
 )
+from services.workflow_orquestador_confirmacion_sucursal import (
+    orquestar_confirmacion_sucursal_temprana,
+)
 from services.workflow_post_confirmacion_sucursal import (
     FLUJO_CONFIRMACION_COMUN_ML,
     FLUJO_CONFIRMACION_TEMPRANA,
@@ -5564,37 +5567,24 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
 
         try:
             _texto_logistica = texto_ultimo or texto
-            resultado_confirmacion_temprana = (
-                resolver_confirmacion_sucursal_via_cargo_ofrecida(
+            resultado_orquestacion_temprana = (
+                orquestar_confirmacion_sucursal_temprana(
                     pedido,
                     _texto_logistica,
                     despacho_completo_fn=despacho_completo,
-                    es_afirmativo_fn=es_afirmativo_sucursal,
-                )
-            )
-
-            plan_confirmacion_temprana = (
-                planificar_post_confirmacion_sucursal(
-                    resultado_confirmacion=(
-                        resultado_confirmacion_temprana
-                    ),
-                    pedido=pedido,
-                    flujo=FLUJO_CONFIRMACION_TEMPRANA,
-                )
-            )
-
-            resultado_persistencia_temprana = (
-                ejecutar_estado_y_persistencia_post_confirmacion(
-                    pedido=pedido,
-                    plan=plan_confirmacion_temprana,
                     actualizar_estado_fn=(
                         actualizar_estado_automatico
                     ),
                     db_session=db.session,
+                    es_afirmativo_fn=es_afirmativo_sucursal,
                 )
             )
+            resultado_confirmacion_temprana = (
+                resultado_orquestacion_temprana
+                .confirmacion
+            )
 
-            if resultado_persistencia_temprana.exitosa:
+            if resultado_orquestacion_temprana.persistida:
                 return redirect(url_for(
                     "detalle_pedido",
                     id=pedido.id,
