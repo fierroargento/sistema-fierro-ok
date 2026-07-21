@@ -381,13 +381,15 @@ def wa_procesar_ok_inicio(pedido, texto_cliente):
     Cliente respondió al template inicial WA.
     Ahora sí WhatsApp queda habilitado para continuar el flujo.
     """
-    from app import  ia_faltantes_pedido
+    from services.ia_recolector_sync import (
+        faltantes_pedido_recolector,
+    )
 
     tel = normalizar_telefono_service(pedido.telefono)
     if not tel:
         return False
 
-    faltantes = ia_faltantes_pedido(pedido)
+    faltantes = faltantes_pedido_recolector(pedido)
 
     if faltantes:
         return wa_enviar_solicitud_datos(pedido, faltantes)
@@ -395,9 +397,12 @@ def wa_procesar_ok_inicio(pedido, texto_cliente):
     return wa_cerrar_datos_completos(pedido)
 
 def wa_procesar_datos_recibidos(pedido, texto_cliente):
+    from services.ia_recolector_sync import (
+        faltantes_pedido_recolector,
+    )
     from app import (
          ia_analizar_datos_cliente_ml_acordas,
-        ia_guardar_resultado_recolector, ia_faltantes_pedido,
+        ia_guardar_resultado_recolector,
         ia_datos_previos_pedido, db,
     )
     tel = normalizar_telefono_service(pedido.telefono)
@@ -413,7 +418,7 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
     ia_guardar_resultado_recolector(pedido, texto_cliente, resultado)
     _completar_localidad_provincia_por_cp(pedido)
 
-    faltantes = ia_faltantes_pedido(pedido)
+    faltantes = faltantes_pedido_recolector(pedido)
     # No pedir localidad/provincia si se pudieron deducir por CP.
     faltantes = [f for f in faltantes if f not in ["localidad", "provincia"] or not getattr(pedido, f, None)]
 
