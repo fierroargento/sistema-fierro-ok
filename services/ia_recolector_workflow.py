@@ -38,7 +38,10 @@ def procesar_resultado_recolector(
     texto_cliente: Any,
     resultado: Any,
     *,
-    iniciar_handoff_fn: Callable[..., tuple[bool, str]],
+    iniciar_handoff_fn: (
+        Callable[..., tuple[bool, str]]
+        | None
+    ) = None,
     motivo_handoff: str = (
         "procesar_resultado_recolector"
     ),
@@ -66,6 +69,14 @@ def procesar_resultado_recolector(
             handoff_intentado=False,
             handoff_ok=None,
             motivo_handoff="no_requerido",
+        )
+
+    if iniciar_handoff_fn is None:
+        return ResultadoProcesamientoRecolector(
+            aplicacion=aplicacion,
+            handoff_intentado=False,
+            handoff_ok=None,
+            motivo_handoff="sin_ejecutor",
         )
 
     handoff_ok, motivo_resultado = iniciar_handoff_fn(

@@ -214,3 +214,26 @@ def test_servicio_no_importa_app_ni_persiste():
 
     for prohibido in prohibidos:
         assert prohibido not in texto
+
+
+def test_sin_ejecutor_no_intenta_handoff_aunque_aplicador_lo_solicite():
+    resultado = procesar_resultado_recolector(
+        SimpleNamespace(id=15),
+        "mensaje recibido por WhatsApp",
+        {"ok": True},
+        aplicar_resultado_fn=(
+            lambda *_args, **_kwargs: (
+                aplicacion_fake(
+                    iniciar_handoff=True,
+                    faltantes=("dni",),
+                )
+            )
+        ),
+    )
+
+    assert resultado.handoff_intentado is False
+    assert resultado.handoff_ok is None
+    assert resultado.motivo_handoff == "sin_ejecutor"
+    assert resultado.aplicacion.faltantes == (
+        "dni",
+    )

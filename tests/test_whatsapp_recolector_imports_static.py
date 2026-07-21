@@ -57,16 +57,12 @@ def test_datos_previos_recolector_no_dependen_de_app():
     )
 
 
-def test_whatsapp_procesa_resultado_sin_importar_wrapper_de_app():
+def test_whatsapp_procesa_resultado_sin_handoff_redundante():
     app = Path("app.py").read_text(encoding="utf-8")
     flows = Path(
         "modules/whatsapp/flows.py"
     ).read_text(encoding="utf-8")
 
-    assert (
-        "ia_guardar_resultado_recolector"
-        not in flows
-    )
     assert (
         "def ia_guardar_resultado_recolector("
         not in app
@@ -75,14 +71,22 @@ def test_whatsapp_procesa_resultado_sin_importar_wrapper_de_app():
         "procesar_resultado_recolector("
         in flows
     )
-    assert (
-        "iniciar_handoff_fn=("
-        in flows
+
+    inicio = flows.index(
+        "def wa_procesar_datos_recibidos("
     )
+    fin = flows.index(
+        "\ndef ",
+        inicio + 1,
+    )
+    bloque = flows[inicio:fin]
+
+    assert "iniciar_handoff_fn=" not in bloque
     assert (
         "wa_auto_iniciar_desde_ml_si_corresponde"
-        in flows
+        not in bloque
     )
+    assert "from app import db" in bloque
 
 
 def test_whatsapp_analiza_recolector_sin_importarlo_desde_app():

@@ -410,10 +410,7 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
         datos_previos_pedido_recolector,
         faltantes_pedido_recolector,
     )
-    from app import (
-        wa_auto_iniciar_desde_ml_si_corresponde,
-        db,
-    )
+    from app import db
     tel = normalizar_telefono_service(pedido.telefono)
 
     if _es_consulta_factura(texto_cliente):
@@ -435,9 +432,6 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
         pedido,
         texto_cliente,
         resultado,
-        iniciar_handoff_fn=(
-            wa_auto_iniciar_desde_ml_si_corresponde
-        ),
     )
     _completar_localidad_provincia_por_cp(pedido)
 
