@@ -174,12 +174,16 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
         "resultado_persistencia_comun = (",
         idx_transicion,
     )
-    idx_cross = texto.index(
-        "intentar_wa_cross_sell_tras_sucursal_ml(",
+    idx_finalizacion = texto.index(
+        "resultado_finalizacion_comun = (",
         idx_persistencia,
     )
+    idx_cross = texto.index(
+        "intentar_wa_cross_sell_tras_sucursal_ml",
+        idx_finalizacion,
+    )
     idx_return = texto.index(
-        '"estado": "sucursal_confirmada"',
+        "resultado_finalizacion_comun",
         idx_cross,
     )
 
@@ -187,6 +191,7 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
         idx_confirma
         < idx_transicion
         < idx_persistencia
+        < idx_finalizacion
         < idx_cross
         < idx_return
     )
@@ -210,36 +215,40 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
         "flujo=FLUJO_CONFIRMACION_COMUN_ML"
         in bloque_confirmacion
     )
-    assert (
-        "if plan_confirmacion_comun.confirmada:"
-        in bloque_confirmacion
-    )
 
     bloque_transicion = texto[
-        idx_transicion:idx_cross
+        idx_transicion:idx_persistencia
     ]
     assert (
-        "plan_confirmacion_comun"
-        ".mensaje_transicion_ml"
-        in bloque_transicion.replace(
-            "\n",
-            "",
-        ).replace(" ", "")
-    )
-    assert (
-        "puede_enviar_fn=puede_enviar_mensaje"
+        "ejecutar_transicion_ml_tras_"
+        "confirmacion_sucursal("
         in bloque_transicion
     )
+
+    bloque_persistencia = texto[
+        idx_persistencia:idx_finalizacion
+    ]
     assert (
-        "enviar_mensaje_fn="
-        "ml_enviar_mensaje_acordas"
-        in bloque_transicion
+        "ejecutar_estado_y_persistencia_"
+        "post_confirmacion("
+        in bloque_persistencia
+    )
+
+    bloque_finalizacion = texto[
+        idx_finalizacion:idx_return + 200
+    ]
+    assert (
+        "finalizar_confirmacion_sucursal_persistida("
+        in bloque_finalizacion
     )
     assert (
-        "registrar_envio_fn=("
-        in bloque_transicion
+        "resultado_persistencia=("
+        in bloque_finalizacion
     )
-    assert "registrar_envio_automatico" in bloque_transicion
+    assert (
+        "intentar_cross_sell_fn=("
+        in bloque_finalizacion
+    )
 
 def test_cross_sell_se_intenta_aunque_ml_se_omita_por_canal_manager():
     texto = Path("app.py").read_text(encoding="utf-8")
@@ -248,20 +257,20 @@ def test_cross_sell_se_intenta_aunque_ml_se_omita_por_canal_manager():
         "ejecutar_transicion_ml_tras_"
         "confirmacion_sucursal("
     )
-    idx_cross = texto.index(
-        "intentar_wa_cross_sell_tras_sucursal_ml(",
+    idx_finalizacion = texto.index(
+        "resultado_finalizacion_comun = (",
         idx_transicion,
     )
     idx_return = texto.index(
-        '"estado": "sucursal_confirmada"',
-        idx_cross,
+        ".respuesta_flujo",
+        idx_finalizacion,
     )
 
     bloque_transicion = texto[
-        idx_transicion:idx_cross
+        idx_transicion:idx_finalizacion
     ]
-    bloque_cross = texto[
-        idx_cross:idx_return
+    bloque_finalizacion = texto[
+        idx_finalizacion:idx_return
     ]
 
     assert (
@@ -274,14 +283,24 @@ def test_cross_sell_se_intenta_aunque_ml_se_omita_por_canal_manager():
         in bloque_transicion
     )
     assert "registrar_envio_automatico" in bloque_transicion
-    assert "if permitido_ml:" not in bloque_transicion
 
     assert (
-        "intentar_wa_cross_sell_tras_sucursal_ml("
-        in bloque_cross
+        "intentar_cross_sell_fn=("
+        in bloque_finalizacion
     )
-    assert "plan_confirmacion_comun" in bloque_cross
-    assert ".motivo_cross_sell" in bloque_cross
+    assert (
+        "intentar_wa_cross_sell_tras_sucursal_ml"
+        in bloque_finalizacion
+    )
+    assert (
+        "wa_auto_iniciar_fn=("
+        in bloque_finalizacion
+    )
+    assert (
+        "wa_auto_iniciar_desde_ml_si_corresponde"
+        in bloque_finalizacion
+    )
+    assert "db_session=db.session" in bloque_finalizacion
 
 
 def test_flujo_comun_retorna_resultado_sucursal_confirmada():
@@ -296,42 +315,40 @@ def test_flujo_comun_retorna_resultado_sucursal_confirmada():
         "via_cargo_ofrecida",
         idx_guardar,
     )
-    idx_return = texto.index(
-        '"estado": "sucursal_confirmada"',
+    idx_finalizacion = texto.index(
+        "resultado_finalizacion_comun = (",
         idx_confirma,
     )
-    bloque = texto[
-        idx_confirma:idx_return + 300
-    ]
+    fin = texto.index(
+        "if resultado and resultado.get",
+        idx_finalizacion,
+    )
+    bloque = texto[idx_finalizacion:fin]
 
     assert (
-        "resultado_persistencia_comun = ("
+        "finalizar_confirmacion_sucursal_persistida("
         in bloque
     )
     assert (
-        "ejecutar_estado_y_persistencia_"
-        "post_confirmacion("
-        in bloque
-    )
-    assert "plan=plan_confirmacion_comun" in bloque
-    assert (
-        "actualizar_estado_fn=("
-        in bloque
-    )
-    assert "actualizar_estado_automatico" in bloque
-    assert "db_session=db.session" in bloque
-    assert (
-        "if resultado_persistencia_comun.exitosa:"
+        "if resultado_finalizacion_comun.finalizada:"
         in bloque
     )
     assert (
-        "if plan_confirmacion_comun.intentar_cross_sell:"
+        "resultado_finalizacion_comun"
         in bloque
+    )
+    assert ".respuesta_flujo" in bloque
+
+    assert (
+        '"estado": "sucursal_confirmada"'
+        not in bloque
+    )
+    assert (
+        '"sucursal_confirmada": True'
+        not in bloque
     )
     assert "db.session.commit()" not in bloque
     assert "db.session.rollback()" not in bloque
-    assert '"estado": "sucursal_confirmada"' in bloque
-    assert '"sucursal_confirmada": True' in bloque
 
 
 def test_consumidores_confirmacion_inyectan_afirmativo():

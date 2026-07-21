@@ -1603,6 +1603,9 @@ from services.workflow_post_confirmacion_sucursal import (
     FLUJO_CONFIRMACION_TEMPRANA,
     planificar_post_confirmacion_sucursal,
 )
+from services.workflow_finalizacion_confirmacion_sucursal import (
+    finalizar_confirmacion_sucursal_persistida,
+)
 from services.workflow_persistencia_confirmacion_sucursal import (
     ejecutar_estado_y_persistencia_post_confirmacion,
 )
@@ -5831,32 +5834,28 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 )
             )
 
-            if resultado_persistencia_comun.exitosa:
-                if plan_confirmacion_comun.intentar_cross_sell:
-                    try:
-                        intentar_wa_cross_sell_tras_sucursal_ml(
-                            pedido,
-                            wa_auto_iniciar_desde_ml_fn=(
-                                wa_auto_iniciar_desde_ml_si_corresponde
-                            ),
-                            db_session=db.session,
-                            motivo=(
-                                plan_confirmacion_comun
-                                .motivo_cross_sell
-                            ),
-                        )
-                    except Exception as e:
-                        print(
-                            "[CROSS-SELL-ML-WA] No se pudo "
-                            "iniciar WA tras sucursal "
-                            f"confirmada: {e}"
-                        )
+            resultado_finalizacion_comun = (
+                finalizar_confirmacion_sucursal_persistida(
+                    pedido=pedido,
+                    plan=plan_confirmacion_comun,
+                    resultado_persistencia=(
+                        resultado_persistencia_comun
+                    ),
+                    intentar_cross_sell_fn=(
+                        intentar_wa_cross_sell_tras_sucursal_ml
+                    ),
+                    wa_auto_iniciar_fn=(
+                        wa_auto_iniciar_desde_ml_si_corresponde
+                    ),
+                    db_session=db.session,
+                )
+            )
 
-                return {
-                    "ok": True,
-                    "estado": "sucursal_confirmada",
-                    "sucursal_confirmada": True,
-                }
+            if resultado_finalizacion_comun.finalizada:
+                return (
+                    resultado_finalizacion_comun
+                    .respuesta_flujo
+                )
 
     except Exception as e:
         print(f"[VIA CARGO] No se pudo confirmar sucursal en flujo comun ML: {e}")
