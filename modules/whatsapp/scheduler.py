@@ -10,6 +10,8 @@ No abre threads ni procesos extra, para no complicar Render.
 from datetime import datetime, timedelta, UTC
 from threading import Lock
 
+from extensions import db
+
 from domain.estados import Estado, ESTADOS_POST_DESPACHO
 from services.logger import get_app_logger
 
@@ -26,7 +28,6 @@ def _cerrar_sesion_db_segura(rollback=False):
     que un error de scheduler rompa requests normales.
     """
     try:
-        from app import db
         if rollback:
             try:
                 db.session.rollback()
@@ -87,7 +88,7 @@ def ejecutar_timers_whatsapp():
         return
 
     try:
-        from app import Pedido, db, ia_ahora_utc, ia_escalar_si_timeout_operativo
+        from app import Pedido, ia_ahora_utc, ia_escalar_si_timeout_operativo
         from modules.whatsapp.flows import (
             wa_enviar_recordatorio_1,
             wa_enviar_recordatorio_2,
@@ -170,7 +171,8 @@ def ejecutar_tracking_automatico():
     """
     try:
         from app import (
-            db, Pedido, tracking_info_pedido,
+            Pedido,
+            tracking_info_pedido,
             aplicar_estado_tracking_seguro,
         )
         from services.tracking_externo import consultar_tracking_url, interpretar_estado_logistico, consultar_correo_formulario
