@@ -8,6 +8,8 @@ Lee productos e imágenes desde static/catalogo/.
 import json
 from pathlib import Path
 
+from extensions import db
+
 from .config import ALIAS_PAGO
 from .sender import wa_enviar_texto, wa_enviar_producto
 
@@ -161,7 +163,6 @@ def wa_escalar_venta_cerrada(
 ):
 
     try:
-        from app import db
 
         producto = obtener_producto(sku_producto) or {}
 
