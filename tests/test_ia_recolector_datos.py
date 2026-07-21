@@ -131,3 +131,141 @@ def test_parser_clasico_esta_fuera_de_app():
         in servicio
     )
     assert "normalizar_telefono_service(" in servicio
+
+
+def _pedido_autocompletar(**cambios):
+    from types import SimpleNamespace
+
+    datos = {
+        "id": 10,
+        "cliente": "",
+        "ml_buyer_nickname": "",
+        "dni": "",
+        "telefono": "",
+        "direccion": "",
+        "localidad": "",
+        "provincia": "",
+        "codigo_postal": "",
+        "codigo_postal_cpa": "",
+        "latitud": None,
+        "longitud": None,
+        "autorizado_nombre": "",
+        "autorizado_dni": "",
+        "autorizado_telefono": "",
+    }
+    datos.update(cambios)
+    return SimpleNamespace(**datos)
+
+
+def test_autocompletar_pedido_completa_campos_vacios():
+    from services.ia_recolector_datos import (
+        ia_autocompletar_pedido_con_datos,
+    )
+
+    pedido = _pedido_autocompletar()
+
+    completados = ia_autocompletar_pedido_con_datos(
+        pedido,
+        {
+            "nombre": "Juan",
+            "apellido": "Pérez",
+            "dni": "30.111.222",
+            "telefono": "2920123456",
+            "direccion": "Mitre 500",
+            "codigo_postal": "8500",
+        },
+        texto_cliente="Mis datos",
+    )
+
+    assert pedido.cliente == "Juan Pérez"
+    assert pedido.dni == "30111222"
+    assert pedido.telefono
+    assert pedido.direccion == "Mitre 500"
+    assert pedido.codigo_postal == "8500"
+    assert "cliente" in completados
+    assert "dni" in completados
+    assert "telefono" in completados
+
+
+def test_autocompletar_no_pisa_campos_existentes():
+    from services.ia_recolector_datos import (
+        ia_autocompletar_pedido_con_datos,
+    )
+
+    pedido = _pedido_autocompletar(
+        cliente="Cliente Manual",
+        dni="40111222",
+        telefono="2920999999",
+        direccion="Dirección Manual",
+        codigo_postal="9000",
+    )
+
+    ia_autocompletar_pedido_con_datos(
+        pedido,
+        {
+            "nombre": "Otro",
+            "apellido": "Nombre",
+            "dni": "30111222",
+            "telefono": "2920123456",
+            "direccion": "Mitre 500",
+            "codigo_postal": "8500",
+        },
+        texto_cliente="Mis datos",
+    )
+
+    assert pedido.cliente == "Cliente Manual"
+    assert pedido.dni == "40111222"
+    assert pedido.telefono == "2920999999"
+    assert pedido.direccion == "Dirección Manual"
+    assert pedido.codigo_postal == "9000"
+
+
+def test_autocompletar_datos_autorizado_no_pisa_titular():
+    from services.ia_recolector_datos import (
+        ia_autocompletar_pedido_con_datos,
+    )
+
+    pedido = _pedido_autocompletar(
+        cliente="Titular Original",
+        dni="40111222",
+    )
+
+    completados = ia_autocompletar_pedido_con_datos(
+        pedido,
+        {
+            "nombre": "Pedro",
+            "apellido": "Autorizado",
+            "dni": "30111222",
+            "telefono": "2920123456",
+        },
+        texto_cliente=(
+            "Quien recibe es Pedro Autorizado"
+        ),
+    )
+
+    assert pedido.cliente == "Titular Original"
+    assert pedido.dni == "40111222"
+    assert pedido.autorizado_nombre == (
+        "Pedro Autorizado"
+    )
+    assert pedido.autorizado_dni == "30111222"
+    assert pedido.autorizado_telefono
+    assert "autorizado_nombre" in completados
+
+
+def test_autocompletado_esta_fuera_de_app():
+    from pathlib import Path
+
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/ia_recolector_datos.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "def ia_autocompletar_pedido_con_datos("
+        not in app
+    )
+    assert (
+        "def ia_autocompletar_pedido_con_datos("
+        in servicio
+    )

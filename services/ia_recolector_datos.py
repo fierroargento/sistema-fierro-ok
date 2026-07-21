@@ -9,6 +9,9 @@ No hace commit ni envía mensajes.
 import re
 from typing import Any
 
+from modules.bot_ml.billing import (
+    parece_nickname_ml,
+)
 from services.ia_recolector_sync import (
     ia_cp_valido_recolector,
 )
@@ -373,3 +376,115 @@ def ia_extraer_datos_clasico_fierro(texto_cliente, datos_previos=None):
         pass
 
     return extraidos
+
+
+def ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=""):
+    """
+    Fase 4 segura: usa datos detectados por IA para completar la carga.
+    Regla APB: solo completa campos vacíos. No pisa datos ya cargados manualmente,
+    salvo cliente cuando todavía parece nick de Mercado Libre. No cambia estados.
+    """
+    if not pedido or not isinstance(datos, dict):
+        return []
+
+    completados = []
+
+    datos = normalizar_datos_ia_fierro(datos)
+
+    nombre = str(datos.get("nombre") or "").strip()
+    apellido = str(datos.get("apellido") or "").strip()
+    nombre_completo = " ".join([x for x in [nombre, apellido] if x]).strip()
+
+    autorizado_nombre = str(datos.get("autorizado_nombre") or "").strip()
+    autorizado_dni = ia_dni_valido(datos.get("autorizado_dni"))
+    autorizado_telefono = normalizar_telefono_service(datos.get("autorizado_telefono")) if datos.get("autorizado_telefono") else ""
+    texto_indica_autorizado = ia_texto_menciona_autorizado(texto_cliente)
+
+    if texto_indica_autorizado:
+        # APB: si el texto habla de quien recibe/retira/autorizado, NO pisar titular.
+        # Si la IA no separó los campos, usamos los datos comunes como autorizado.
+        autorizado_nombre = autorizado_nombre or nombre_completo
+        autorizado_dni = autorizado_dni or ia_dni_valido(datos.get("dni"))
+        autorizado_telefono = autorizado_telefono or (normalizar_telefono_service(datos.get("telefono")) if datos.get("telefono") else "")
+
+        if autorizado_nombre and ia_campo_vacio(getattr(pedido, "autorizado_nombre", "")):
+            pedido.autorizado_nombre = autorizado_nombre
+            completados.append("autorizado_nombre")
+        if autorizado_dni and ia_campo_vacio(getattr(pedido, "autorizado_dni", "")):
+            pedido.autorizado_dni = autorizado_dni
+            completados.append("autorizado_dni")
+        if autorizado_telefono and ia_campo_vacio(getattr(pedido, "autorizado_telefono", "")):
+            pedido.autorizado_telefono = autorizado_telefono
+            completados.append("autorizado_telefono")
+    else:
+        cliente_actual = str(getattr(pedido, "cliente", "") or "").strip()
+        puede_reemplazar_cliente = ia_campo_vacio(cliente_actual) or parece_nickname_ml(cliente_actual, getattr(pedido, "ml_buyer_nickname", ""))
+        if nombre_completo and puede_reemplazar_cliente:
+            pedido.cliente = nombre_completo
+            completados.append("cliente")
+
+        dni = ia_dni_valido(datos.get("dni"))
+        if dni and ia_campo_vacio(getattr(pedido, "dni", "")):
+            pedido.dni = dni
+            completados.append("dni")
+
+        telefono = normalizar_telefono_service(datos.get("telefono"))
+        if telefono and ia_campo_vacio(getattr(pedido, "telefono", "")):
+            pedido.telefono = telefono
+            completados.append("telefono")
+
+    direccion = str(datos.get("direccion") or "").strip()
+    if direccion and ia_campo_vacio(getattr(pedido, "direccion", "")):
+        pedido.direccion = direccion
+        completados.append("direccion")
+
+    localidad = str(datos.get("localidad") or "").strip()
+
+    # APB / modularización:
+    # La localidad detectada por IA/parser clásico NO se guarda cruda.
+    # Pasa por services.ubicacion_cp para evitar contaminar el pedido con
+    # restos del mensaje como "de Mayo 670 Teléfono".
+    try:
+        from services.ubicacion_cp import limpiar_localidad_detectada
+
+        localidad = limpiar_localidad_detectada(
+            localidad,
+            texto_cliente=texto_cliente,
+        )
+
+    except Exception as e:
+        print(
+            f"[UBICACION] No se pudo validar localidad detectada "
+            f"pedido #{getattr(pedido, 'id', '?')}: {e}"
+        )
+
+    if localidad and ia_campo_vacio(getattr(pedido, "localidad", "")):
+        pedido.localidad = localidad
+        completados.append("localidad")
+
+    codigo_postal = ia_cp_valido(datos.get("codigo_postal"))
+    if codigo_postal and ia_campo_vacio(getattr(pedido, "codigo_postal", "")):
+        pedido.codigo_postal = codigo_postal
+        completados.append("codigo_postal")
+
+    # APB logística / SaaS:
+    # Si tenemos CP/dirección, intentamos normalizar ubicación internamente.
+    # Esto puede completar localidad/provincia, coordenadas y CPA si corresponde.
+    # No se le pide al cliente un dato que el sistema puede resolver.
+    try:
+        from services.ubicacion_cp import normalizar_ubicacion_pedido
+
+        resultado_ubicacion = normalizar_ubicacion_pedido(pedido)
+        completados_ubicacion = resultado_ubicacion.get("completados", [])
+
+        for campo in completados_ubicacion:
+            if campo not in completados:
+                completados.append(campo)
+
+    except Exception as e:
+        print(
+            f"[UBICACION] No se pudo normalizar ubicación "
+            f"pedido #{getattr(pedido, 'id', '?')}: {e}"
+        )
+
+    return completados
