@@ -176,8 +176,20 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
         in bloque_confirmacion
     )
     assert (
-        "if resultado_confirmacion_comun.confirmada:"
+        "plan_confirmacion_comun = ("
         in bloque_confirmacion
+    )
+    assert (
+        "planificar_post_confirmacion_sucursal("
+        in bloque_confirmacion
+    )
+    assert (
+        "flujo=FLUJO_CONFIRMACION_COMUN_ML"
+        in bloque_confirmacion
+    )
+    assert (
+        "if plan_confirmacion_comun.confirmada:"
+        in texto[idx_confirma:idx_msg]
     )
 
 def test_cross_sell_se_intenta_aunque_ml_se_omita_por_canal_manager():
@@ -194,7 +206,14 @@ def test_cross_sell_se_intenta_aunque_ml_se_omita_por_canal_manager():
     assert "if permitido_ml:" in bloque_ml
     assert "ML transicion WA omitida" in bloque_ml
     assert "intentar_wa_cross_sell_tras_sucursal_ml(" in bloque_cross
-    assert 'motivo="sucursal_confirmada_sin_auto_respuesta"' in bloque_cross
+    assert (
+        "plan_confirmacion_comun"
+        in bloque_cross
+    )
+    assert (
+        ".motivo_cross_sell"
+        in bloque_cross
+    )
 
 
 def test_flujo_comun_retorna_resultado_sucursal_confirmada():
@@ -217,8 +236,20 @@ def test_flujo_comun_retorna_resultado_sucursal_confirmada():
         idx_confirma:idx_return + 300
     ]
 
+    assert (
+        "if plan_confirmacion_comun.actualizar_estado:"
+        in bloque
+    )
     assert "actualizar_estado_automatico(pedido)" in bloque
+    assert (
+        "if plan_confirmacion_comun.persistir:"
+        in bloque
+    )
     assert "db.session.commit()" in bloque
+    assert (
+        "if plan_confirmacion_comun.intentar_cross_sell:"
+        in bloque
+    )
     assert '"estado": "sucursal_confirmada"' in bloque
     assert '"sucursal_confirmada": True' in bloque
 
