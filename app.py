@@ -1603,6 +1603,9 @@ from services.workflow_post_confirmacion_sucursal import (
     FLUJO_CONFIRMACION_TEMPRANA,
     planificar_post_confirmacion_sucursal,
 )
+from services.workflow_persistencia_confirmacion_sucursal import (
+    ejecutar_estado_y_persistencia_post_confirmacion,
+)
 from services.workflow_transicion_sucursal_ml import (
     ejecutar_transicion_ml_tras_confirmacion_sucursal,
 )
@@ -5577,20 +5580,18 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 )
             )
 
-            if plan_confirmacion_temprana.confirmada:
-                if plan_confirmacion_temprana.actualizar_estado:
-                    try:
-                        actualizar_estado_automatico(pedido)
-                    except Exception as e:
-                        print(
-                            "[VIA CARGO] No se pudo "
-                            "autoactualizar estado tras "
-                            f"sucursal: {e}"
-                        )
+            resultado_persistencia_temprana = (
+                ejecutar_estado_y_persistencia_post_confirmacion(
+                    pedido=pedido,
+                    plan=plan_confirmacion_temprana,
+                    actualizar_estado_fn=(
+                        actualizar_estado_automatico
+                    ),
+                    db_session=db.session,
+                )
+            )
 
-                if plan_confirmacion_temprana.persistir:
-                    db.session.commit()
-
+            if resultado_persistencia_temprana.exitosa:
                 return redirect(url_for(
                     "detalle_pedido",
                     id=pedido.id,

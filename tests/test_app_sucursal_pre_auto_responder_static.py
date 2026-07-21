@@ -56,17 +56,39 @@ def test_flujo_comun_confirma_sucursal_antes_de_auto_responder_ml():
         in bloque
     )
     assert (
-        "if plan_confirmacion_temprana.confirmada:"
+        "resultado_persistencia_temprana = ("
+        in bloque
+    )
+    assert (
+        "ejecutar_estado_y_persistencia_"
+        "post_confirmacion("
+        in bloque
+    )
+    assert (
+        "plan=plan_confirmacion_temprana"
+        in bloque
+    )
+    assert (
+        "actualizar_estado_fn=("
+        in bloque
+    )
+    assert (
+        "actualizar_estado_automatico"
+        in bloque
+    )
+    assert "db_session=db.session" in bloque
+    assert (
+        "if resultado_persistencia_temprana.exitosa:"
         in bloque
     )
     assert (
         "if plan_confirmacion_temprana."
         "actualizar_estado:"
-        in bloque
+        not in bloque
     )
     assert (
         "if plan_confirmacion_temprana.persistir:"
-        in bloque
+        not in bloque
     )
 
 def test_resolucion_sucursal_delega_aplicacion_operativa():
