@@ -1599,6 +1599,9 @@ from services.workflow_orquestador_confirmacion_sucursal import (
     orquestar_confirmacion_sucursal_comun_ml,
     orquestar_confirmacion_sucursal_temprana,
 )
+from services.ia_recolector_sync import (
+    datos_previos_pedido_recolector,
+)
 from modules.whatsapp.text_utils import (
     es_afirmativo as es_afirmativo_sucursal,
 )
@@ -4725,33 +4728,6 @@ def ia_json_loads_seguro(texto):
     return json_loads_seguro_recolector(texto)
 
 
-def ia_datos_previos_pedido(pedido):
-    datos = {}
-    if not pedido:
-        return datos
-    try:
-        if pedido.ia_datos_detectados:
-            datos.update(ia_json_loads_seguro(pedido.ia_datos_detectados))
-    except Exception:
-        pass
-
-    if (pedido.cliente or "").strip() and not parece_nickname_ml(pedido.cliente, pedido.ml_buyer_nickname):
-        partes = (pedido.cliente or "").strip().split()
-        if len(partes) >= 1:
-            datos.setdefault("nombre", partes[0])
-        if len(partes) >= 2:
-            datos.setdefault("apellido", " ".join(partes[1:]))
-    if (pedido.dni or "").strip():
-        datos.setdefault("dni", pedido.dni.strip())
-    if (pedido.telefono or "").strip():
-        datos.setdefault("telefono", pedido.telefono.strip())
-    if (pedido.direccion or "").strip():
-        datos.setdefault("direccion", pedido.direccion.strip())
-    if (pedido.localidad or "").strip():
-        datos.setdefault("localidad", pedido.localidad.strip())
-    if (pedido.codigo_postal or "").strip():
-        datos.setdefault("codigo_postal", pedido.codigo_postal.strip())
-    return datos
 
 
 def ia_analizar_datos_cliente_ml_acordas(texto_cliente, datos_previos=None):
@@ -5319,7 +5295,14 @@ def ia_guardar_resultado_recolector(pedido, texto_cliente, resultado):
 
     # Segundo cinturón APB: si por algún motivo el resultado no trajo DNI/CP,
     # volvemos a mirar el texto antes de guardar y responder.
-    datos_clasicos = ia_extraer_datos_clasico_fierro(texto_cliente, ia_datos_previos_pedido(pedido))
+    datos_previos = datos_previos_pedido_recolector(
+        pedido,
+        parece_nickname_fn=parece_nickname_ml,
+    )
+    datos_clasicos = ia_extraer_datos_clasico_fierro(
+        texto_cliente,
+        datos_previos,
+    )
     for c, v in datos_clasicos.items():
         if v and not str(datos.get(c) or "").strip():
             datos[c] = v
@@ -5759,7 +5742,14 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     if not forzar and h == str(getattr(pedido, "ia_ultimo_mensaje_hash", "") or ""):
         return None
 
-    resultado = ia_analizar_datos_cliente_ml_acordas(texto, ia_datos_previos_pedido(pedido))
+    datos_previos = datos_previos_pedido_recolector(
+        pedido,
+        parece_nickname_fn=parece_nickname_ml,
+    )
+    resultado = ia_analizar_datos_cliente_ml_acordas(
+        texto,
+        datos_previos,
+    )
     ia_guardar_resultado_recolector(pedido, texto, resultado)
 
     try:

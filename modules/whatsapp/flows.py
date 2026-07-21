@@ -397,13 +397,17 @@ def wa_procesar_ok_inicio(pedido, texto_cliente):
     return wa_cerrar_datos_completos(pedido)
 
 def wa_procesar_datos_recibidos(pedido, texto_cliente):
+    from modules.bot_ml.billing import (
+        parece_nickname_ml,
+    )
     from services.ia_recolector_sync import (
+        datos_previos_pedido_recolector,
         faltantes_pedido_recolector,
     )
     from app import (
          ia_analizar_datos_cliente_ml_acordas,
         ia_guardar_resultado_recolector,
-        ia_datos_previos_pedido, db,
+        db,
     )
     tel = normalizar_telefono_service(pedido.telefono)
 
@@ -414,7 +418,14 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
         _escalar_operador(pedido, "Queja durante recolección de datos", "Te derivamos con un operador para ayudarte mejor.")
         return
 
-    resultado = ia_analizar_datos_cliente_ml_acordas(texto_cliente, ia_datos_previos_pedido(pedido))
+    datos_previos = datos_previos_pedido_recolector(
+        pedido,
+        parece_nickname_fn=parece_nickname_ml,
+    )
+    resultado = ia_analizar_datos_cliente_ml_acordas(
+        texto_cliente,
+        datos_previos,
+    )
     ia_guardar_resultado_recolector(pedido, texto_cliente, resultado)
     _completar_localidad_provincia_por_cp(pedido)
 
