@@ -107,13 +107,16 @@ def test_resolucion_sucursal_delega_aplicacion_operativa():
 def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
     texto = Path("app.py").read_text(encoding="utf-8")
 
-    idx_guardar = texto.index(
-        "ia_guardar_resultado_recolector("
-        "pedido, texto, resultado)"
+    idx_procesar = texto.index(
+        "procesar_resultado_recolector(",
+        texto.index(
+            "resultado = ia_analizar_datos_cliente_"
+            "ml_acordas("
+        ),
     )
     idx_orquestador = texto.index(
         "orquestar_confirmacion_sucursal_comun_ml(",
-        idx_guardar,
+        idx_procesar,
     )
     idx_return = texto.index(
         ".respuesta_flujo",
@@ -125,7 +128,7 @@ def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
     )
 
     assert (
-        idx_guardar
+        idx_procesar
         < idx_orquestador
         < idx_return
         < idx_auto

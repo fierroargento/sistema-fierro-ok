@@ -50,34 +50,44 @@ def test_aplicador_usa_service_reencauce_logistico():
     assert pos_resolver < pos_reencauce
 
 
-def test_app_delega_aplicacion_y_solo_ejecuta_handoff():
-    bloque = extraer_funcion(
-        "app.py",
-        "ia_guardar_resultado_recolector",
+def test_consumidores_delegan_al_workflow_sin_wrapper_en_app():
+    app = Path("app.py").read_text(encoding="utf-8")
+    flows = Path(
+        "modules/whatsapp/flows.py"
+    ).read_text(encoding="utf-8")
+    workflow = Path(
+        "services/ia_recolector_workflow.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "def ia_guardar_resultado_recolector("
+        not in app
+    )
+    assert "aplicar_resultado_recolector(" not in app
+
+    assert app.count(
+        "procesar_resultado_recolector("
+    ) == 1
+    assert flows.count(
+        "procesar_resultado_recolector("
+    ) == 1
+
+    assert (
+        "from services.ia_recolector_workflow import ("
+        in app
+    )
+    assert (
+        "from services.ia_recolector_workflow import ("
+        in flows
     )
 
-    assert "aplicar_resultado_recolector(" in bloque
-    assert (
-        "if resultado_aplicacion.iniciar_handoff:"
-        in bloque
-    )
-    assert (
-        "wa_auto_iniciar_desde_ml_si_corresponde("
-        in bloque
-    )
-    assert (
-        "resultado_aplicacion.faltantes"
-        in bloque
-    )
+    assert "aplicar_resultado_fn(" in workflow
+    assert "if not aplicacion.iniciar_handoff:" in workflow
+    assert "iniciar_handoff_fn(" in workflow
 
-    assert "json.dumps(" not in bloque
-    assert (
-        "decidir_estado_recolector("
-        not in bloque
-    )
-    assert (
-        "debe_reencauzar_pp6040_"
-        "sin_faltantes_service("
-        not in bloque
-    )
-    assert "db.session" not in bloque
+    assert "json.dumps(" not in app[
+        app.index("procesar_resultado_recolector("):
+        app.index(
+            "orquestar_confirmacion_sucursal_comun_ml("
+        )
+    ]

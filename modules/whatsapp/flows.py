@@ -79,6 +79,9 @@ from modules.whatsapp.flows_transporte import (
     wa_cerrar_datos_completos,
 )
 
+from services.ia_recolector_workflow import (
+    procesar_resultado_recolector,
+)
 from services.telefonos import normalizar_telefono_service
 from services.wa_recolector_apb import armar_mensaje_faltantes_recolector
 
@@ -405,8 +408,8 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
         faltantes_pedido_recolector,
     )
     from app import (
-         ia_analizar_datos_cliente_ml_acordas,
-        ia_guardar_resultado_recolector,
+        ia_analizar_datos_cliente_ml_acordas,
+        wa_auto_iniciar_desde_ml_si_corresponde,
         db,
     )
     tel = normalizar_telefono_service(pedido.telefono)
@@ -426,7 +429,14 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
         texto_cliente,
         datos_previos,
     )
-    ia_guardar_resultado_recolector(pedido, texto_cliente, resultado)
+    procesar_resultado_recolector(
+        pedido,
+        texto_cliente,
+        resultado,
+        iniciar_handoff_fn=(
+            wa_auto_iniciar_desde_ml_si_corresponde
+        ),
+    )
     _completar_localidad_provincia_por_cp(pedido)
 
     faltantes = faltantes_pedido_recolector(pedido)

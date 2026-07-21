@@ -1602,8 +1602,8 @@ from services.workflow_orquestador_confirmacion_sucursal import (
 from services.ia_recolector_sync import (
     datos_previos_pedido_recolector,
 )
-from services.ia_recolector_resultado import (
-    aplicar_resultado_recolector,
+from services.ia_recolector_workflow import (
+    procesar_resultado_recolector,
 )
 from services.ia_recolector_datos import (
     capitalizar_texto_fierro,
@@ -4907,36 +4907,6 @@ def ia_calcular_faltantes_reales_pedido(pedido, datos=None):
 
 
 
-def ia_guardar_resultado_recolector(
-    pedido,
-    texto_cliente,
-    resultado,
-):
-    resultado_aplicacion = aplicar_resultado_recolector(
-        pedido,
-        texto_cliente,
-        resultado,
-        parece_nickname_fn=parece_nickname_ml,
-        es_ml_acordas_entrega_fn=(
-            es_ml_acordas_entrega
-        ),
-        pedido_es_plegable_pp6040_fn=(
-            pedido_es_plegable_pp6040
-        ),
-    )
-
-    if resultado_aplicacion.iniciar_handoff:
-        wa_auto_iniciar_desde_ml_si_corresponde(
-            pedido,
-            faltantes=list(
-                resultado_aplicacion.faltantes
-            ),
-            motivo=(
-                "ia_guardar_resultado_recolector"
-            ),
-        )
-
-    return resultado_aplicacion
 
 
 def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=False):
@@ -5265,7 +5235,14 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         texto,
         datos_previos,
     )
-    ia_guardar_resultado_recolector(pedido, texto, resultado)
+    procesar_resultado_recolector(
+        pedido,
+        texto,
+        resultado,
+        iniciar_handoff_fn=(
+            wa_auto_iniciar_desde_ml_si_corresponde
+        ),
+    )
 
     try:
         resultado_orquestacion_comun = (

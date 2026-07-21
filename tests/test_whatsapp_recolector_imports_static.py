@@ -55,3 +55,31 @@ def test_datos_previos_recolector_no_dependen_de_app():
         "parece_nickname_fn=parece_nickname_ml"
         in flows
     )
+
+
+def test_whatsapp_procesa_resultado_sin_importar_wrapper_de_app():
+    app = Path("app.py").read_text(encoding="utf-8")
+    flows = Path(
+        "modules/whatsapp/flows.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "ia_guardar_resultado_recolector"
+        not in flows
+    )
+    assert (
+        "def ia_guardar_resultado_recolector("
+        not in app
+    )
+    assert (
+        "procesar_resultado_recolector("
+        in flows
+    )
+    assert (
+        "iniciar_handoff_fn=("
+        in flows
+    )
+    assert (
+        "wa_auto_iniciar_desde_ml_si_corresponde"
+        in flows
+    )
