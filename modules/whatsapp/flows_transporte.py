@@ -2,6 +2,8 @@ import json
 import re
 from datetime import datetime, UTC
 
+from extensions import db
+
 from services.telefonos import normalizar_telefono_service
 
 from modules.whatsapp.app_bridge import (
@@ -377,7 +379,6 @@ def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
     _wa_responder_con_ia(pedido, texto_cliente, tel)
 
 def wa_procesar_eleccion_transporte(pedido, texto_cliente):
-    from app import db
     from modules.transportes.selector import preparar_asignacion_transporte_pedido
     from modules.whatsapp.flows import (
         _es_afirmativo,
@@ -544,7 +545,6 @@ def wa_cerrar_datos_completos(pedido):
     if pedido_requiere_sucursal_via_cargo_pendiente(pedido):
         return wa_ofrecer_sucursales_via_cargo_pendientes(pedido)
 
-    from app import db
     from modules.transportes.selector import (
         pedido_contiene_pp6040,
         preparar_asignacion_transporte_pedido,

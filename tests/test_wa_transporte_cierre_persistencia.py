@@ -52,8 +52,15 @@ def preparar_entorno(
         sys.modules,
         "app",
         types.SimpleNamespace(
-            db=types.SimpleNamespace(session=session),
+            aplicar_default_tipo_entrega=(
+                lambda pedido: False
+            ),
         ),
+    )
+    monkeypatch.setattr(
+        flows_transporte,
+        "db",
+        types.SimpleNamespace(session=session),
     )
 
     monkeypatch.setattr(

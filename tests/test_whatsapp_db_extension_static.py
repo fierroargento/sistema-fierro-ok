@@ -43,3 +43,31 @@ def test_flows_postventa_conserva_transacciones():
     assert texto.count(
         "db.session.rollback()"
     ) == 2
+
+
+def test_flows_transporte_usa_extension_canonica_db():
+    texto = Path(
+        "modules/whatsapp/flows_transporte.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert texto.count(
+        "from extensions import db"
+    ) == 1
+    assert "from app import db" not in texto
+    assert (
+        "from app import aplicar_default_tipo_entrega"
+        in texto
+    )
+
+
+def test_flows_transporte_conserva_transacciones():
+    texto = Path(
+        "modules/whatsapp/flows_transporte.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert texto.count(
+        "db.session.commit()"
+    ) == 4
+    assert texto.count(
+        "db.session.rollback()"
+    ) == 6
