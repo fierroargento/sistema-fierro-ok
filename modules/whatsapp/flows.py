@@ -14,6 +14,8 @@ Alcance de esta etapa:
 import json
 import re
 from datetime import datetime, UTC
+
+from extensions import db
 from domain.estados import Estado
 
 from .config import (
@@ -104,7 +106,6 @@ def set_wa_paso_operativo(
     paso,
     commit=True,
 ):
-    from app import db
 
     pedido.wa_paso_operativo = (
         str(paso or "").strip().lower()
@@ -121,7 +122,6 @@ def limpiar_wa_paso_operativo(
     pedido,
     commit=True,
 ):
-    from app import db
 
     pedido.wa_paso_operativo = None
 
@@ -133,7 +133,6 @@ def limpiar_wa_paso_operativo(
 
 def _guardar_estado_wa(pedido, estado, tel=None):
     try:
-        from app import db
         pedido.wa_estado = estado
         pedido.wa_ultimo_contacto = datetime.now(UTC)
         db.session.commit()
@@ -148,7 +147,6 @@ def _obtener_estado_wa(pedido):
 def _escalar_operador(pedido, motivo, mensaje_cliente=None):
     """Marca el pedido para atención humana sin romper ML."""
     try:
-        from app import db
         pedido.ml_mensajes_pendientes = True
         pedido.ml_mensajes_pendientes_count = (pedido.ml_mensajes_pendientes_count or 0) + 1
         pedido.ia_requiere_operador = True
@@ -249,7 +247,6 @@ def _completar_localidad_provincia_por_cp(pedido):
                 pedido.provincia = ref.get("provincia")
                 completados.append("provincia")
             if completados:
-                from app import db
                 db.session.commit()
     except Exception as e:
         print("[WA] No se pudo autocompletar localidad/provincia por CP:", e)
@@ -410,7 +407,6 @@ def wa_procesar_datos_recibidos(pedido, texto_cliente):
         datos_previos_pedido_recolector,
         faltantes_pedido_recolector,
     )
-    from app import db
     tel = normalizar_telefono_service(pedido.telefono)
 
     if _es_consulta_factura(texto_cliente):
@@ -685,7 +681,6 @@ def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_a
         pedido.ia_requiere_operador = True
 
         try:
-            from app import db
             from services.cross_sell_preparacion import marcar_interes_cross_sell_preparacion
 
             marcar_interes_cross_sell_preparacion(

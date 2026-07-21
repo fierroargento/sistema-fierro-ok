@@ -86,7 +86,9 @@ def test_whatsapp_procesa_resultado_sin_handoff_redundante():
         "wa_auto_iniciar_desde_ml_si_corresponde"
         not in bloque
     )
-    assert "from app import db" in bloque
+    assert "from app import db" not in bloque
+    assert "from app import db" not in flows
+    assert "from extensions import db" in flows
 
 
 def test_whatsapp_analiza_recolector_sin_importarlo_desde_app():
