@@ -1595,25 +1595,9 @@ def detectar_sucursal(pedido, mensaje):
 
 
 
-from services.workflow_confirmacion_sucursal import (
-    resolver_confirmacion_sucursal_via_cargo_ofrecida,
-)
 from services.workflow_orquestador_confirmacion_sucursal import (
+    orquestar_confirmacion_sucursal_comun_ml,
     orquestar_confirmacion_sucursal_temprana,
-)
-from services.workflow_post_confirmacion_sucursal import (
-    FLUJO_CONFIRMACION_COMUN_ML,
-    FLUJO_CONFIRMACION_TEMPRANA,
-    planificar_post_confirmacion_sucursal,
-)
-from services.workflow_finalizacion_confirmacion_sucursal import (
-    finalizar_confirmacion_sucursal_persistida,
-)
-from services.workflow_persistencia_confirmacion_sucursal import (
-    ejecutar_estado_y_persistencia_post_confirmacion,
-)
-from services.workflow_transicion_sucursal_ml import (
-    ejecutar_transicion_ml_tras_confirmacion_sucursal,
 )
 from modules.whatsapp.text_utils import (
     es_afirmativo as es_afirmativo_sucursal,
@@ -5779,73 +5763,35 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     ia_guardar_resultado_recolector(pedido, texto, resultado)
 
     try:
-        resultado_confirmacion_comun = (
-            resolver_confirmacion_sucursal_via_cargo_ofrecida(
+        resultado_orquestacion_comun = (
+            orquestar_confirmacion_sucursal_comun_ml(
                 pedido,
                 texto,
                 despacho_completo_fn=despacho_completo,
+                actualizar_estado_fn=(
+                    actualizar_estado_automatico
+                ),
+                db_session=db.session,
+                puede_enviar_fn=puede_enviar_mensaje,
+                enviar_mensaje_fn=ml_enviar_mensaje_acordas,
+                registrar_envio_fn=(
+                    registrar_envio_automatico
+                ),
+                intentar_cross_sell_fn=(
+                    intentar_wa_cross_sell_tras_sucursal_ml
+                ),
+                wa_auto_iniciar_fn=(
+                    wa_auto_iniciar_desde_ml_si_corresponde
+                ),
                 es_afirmativo_fn=es_afirmativo_sucursal,
             )
         )
 
-        plan_confirmacion_comun = (
-            planificar_post_confirmacion_sucursal(
-                resultado_confirmacion=(
-                    resultado_confirmacion_comun
-                ),
-                pedido=pedido,
-                flujo=FLUJO_CONFIRMACION_COMUN_ML,
+        if resultado_orquestacion_comun.finalizada:
+            return (
+                resultado_orquestacion_comun
+                .respuesta_flujo
             )
-        )
-
-        if plan_confirmacion_comun.confirmada:
-            if plan_confirmacion_comun.evaluar_transicion_ml:
-                ejecutar_transicion_ml_tras_confirmacion_sucursal(
-                    pedido=pedido,
-                    texto=(
-                        plan_confirmacion_comun
-                        .mensaje_transicion_ml
-                    ),
-                    puede_enviar_fn=puede_enviar_mensaje,
-                    enviar_mensaje_fn=ml_enviar_mensaje_acordas,
-                    registrar_envio_fn=(
-                        registrar_envio_automatico
-                    ),
-                )
-
-            resultado_persistencia_comun = (
-                ejecutar_estado_y_persistencia_post_confirmacion(
-                    pedido=pedido,
-                    plan=plan_confirmacion_comun,
-                    actualizar_estado_fn=(
-                        actualizar_estado_automatico
-                    ),
-                    db_session=db.session,
-                )
-            )
-
-            resultado_finalizacion_comun = (
-                finalizar_confirmacion_sucursal_persistida(
-                    pedido=pedido,
-                    plan=plan_confirmacion_comun,
-                    resultado_persistencia=(
-                        resultado_persistencia_comun
-                    ),
-                    intentar_cross_sell_fn=(
-                        intentar_wa_cross_sell_tras_sucursal_ml
-                    ),
-                    wa_auto_iniciar_fn=(
-                        wa_auto_iniciar_desde_ml_si_corresponde
-                    ),
-                    db_session=db.session,
-                )
-            )
-
-            if resultado_finalizacion_comun.finalizada:
-                return (
-                    resultado_finalizacion_comun
-                    .respuesta_flujo
-                )
 
     except Exception as e:
         print(f"[VIA CARGO] No se pudo confirmar sucursal en flujo comun ML: {e}")
