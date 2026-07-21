@@ -44,7 +44,28 @@ def test_flujo_comun_confirma_sucursal_antes_de_auto_responder_ml():
         in bloque
     )
     assert (
-        "if resultado_confirmacion_temprana.confirmada:"
+        "plan_confirmacion_temprana = ("
+        in bloque
+    )
+    assert (
+        "planificar_post_confirmacion_sucursal("
+        in bloque
+    )
+    assert (
+        "flujo=FLUJO_CONFIRMACION_TEMPRANA"
+        in bloque
+    )
+    assert (
+        "if plan_confirmacion_temprana.confirmada:"
+        in bloque
+    )
+    assert (
+        "if plan_confirmacion_temprana."
+        "actualizar_estado:"
+        in bloque
+    )
+    assert (
+        "if plan_confirmacion_temprana.persistir:"
         in bloque
     )
 

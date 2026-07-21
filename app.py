@@ -1598,6 +1598,10 @@ def detectar_sucursal(pedido, mensaje):
 from services.workflow_confirmacion_sucursal import (
     resolver_confirmacion_sucursal_via_cargo_ofrecida,
 )
+from services.workflow_post_confirmacion_sucursal import (
+    FLUJO_CONFIRMACION_TEMPRANA,
+    planificar_post_confirmacion_sucursal,
+)
 from modules.whatsapp.text_utils import (
     es_afirmativo as es_afirmativo_sucursal,
 )
@@ -5559,13 +5563,29 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 )
             )
 
-            if resultado_confirmacion_temprana.confirmada:
-                try:
-                    actualizar_estado_automatico(pedido)
-                except Exception as e:
-                    print(f"[VIA CARGO] No se pudo autoactualizar estado tras sucursal: {e}")
+            plan_confirmacion_temprana = (
+                planificar_post_confirmacion_sucursal(
+                    resultado_confirmacion=(
+                        resultado_confirmacion_temprana
+                    ),
+                    pedido=pedido,
+                    flujo=FLUJO_CONFIRMACION_TEMPRANA,
+                )
+            )
 
-                db.session.commit()
+            if plan_confirmacion_temprana.confirmada:
+                if plan_confirmacion_temprana.actualizar_estado:
+                    try:
+                        actualizar_estado_automatico(pedido)
+                    except Exception as e:
+                        print(
+                            "[VIA CARGO] No se pudo "
+                            "autoactualizar estado tras "
+                            f"sucursal: {e}"
+                        )
+
+                if plan_confirmacion_temprana.persistir:
+                    db.session.commit()
 
                 return redirect(url_for(
                     "detalle_pedido",
