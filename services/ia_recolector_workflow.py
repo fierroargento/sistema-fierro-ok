@@ -1,0 +1,80 @@
+"""
+Flujo compartido para aplicar el resultado del recolector.
+
+Modifica el pedido mediante el aplicador central y, únicamente
+cuando este lo solicita, ejecuta el handoff inyectado.
+
+No hace commit directamente.
+No importa app.
+No conoce Flask ni SQLAlchemy.
+"""
+
+from dataclasses import dataclass
+from typing import Any, Callable
+
+from services.ia_recolector_resultado import (
+    ResultadoAplicacionRecolector,
+    aplicar_resultado_recolector,
+)
+
+
+@dataclass(frozen=True)
+class ResultadoProcesamientoRecolector:
+    aplicacion: ResultadoAplicacionRecolector
+    handoff_intentado: bool
+    handoff_ok: bool | None
+    motivo_handoff: str
+
+
+def procesar_resultado_recolector(
+    pedido: Any,
+    texto_cliente: Any,
+    resultado: Any,
+    *,
+    parece_nickname_fn: Callable[[Any, Any], bool],
+    es_ml_acordas_entrega_fn: Callable[[Any], bool],
+    pedido_es_plegable_pp6040_fn: Callable[[Any], bool],
+    iniciar_handoff_fn: Callable[..., tuple[bool, str]],
+    motivo_handoff: str = (
+        "procesar_resultado_recolector"
+    ),
+    aplicar_resultado_fn: Callable[
+        ...,
+        ResultadoAplicacionRecolector,
+    ] = aplicar_resultado_recolector,
+) -> ResultadoProcesamientoRecolector:
+    aplicacion = aplicar_resultado_fn(
+        pedido,
+        texto_cliente,
+        resultado,
+        parece_nickname_fn=parece_nickname_fn,
+        es_ml_acordas_entrega_fn=(
+            es_ml_acordas_entrega_fn
+        ),
+        pedido_es_plegable_pp6040_fn=(
+            pedido_es_plegable_pp6040_fn
+        ),
+    )
+
+    if not aplicacion.iniciar_handoff:
+        return ResultadoProcesamientoRecolector(
+            aplicacion=aplicacion,
+            handoff_intentado=False,
+            handoff_ok=None,
+            motivo_handoff="no_requerido",
+        )
+
+    handoff_ok, motivo_resultado = iniciar_handoff_fn(
+        pedido,
+        faltantes=list(aplicacion.faltantes),
+        motivo=motivo_handoff,
+    )
+
+    return ResultadoProcesamientoRecolector(
+        aplicacion=aplicacion,
+        handoff_intentado=True,
+        handoff_ok=bool(handoff_ok),
+        motivo_handoff=str(
+            motivo_resultado or ""
+        ),
+    )
