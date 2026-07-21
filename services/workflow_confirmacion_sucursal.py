@@ -179,26 +179,3 @@ def resolver_confirmacion_sucursal_via_cargo_ofrecida(
         )
 
 
-def confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
-    pedido,
-    texto_cliente,
-    *,
-    despacho_completo_fn,
-    es_afirmativo_fn=None,
-    log_fn=print,
-):
-    """
-    Wrapper booleano compatible para consumidores existentes.
-    """
-
-    resultado = (
-        resolver_confirmacion_sucursal_via_cargo_ofrecida(
-            pedido,
-            texto_cliente,
-            despacho_completo_fn=despacho_completo_fn,
-            es_afirmativo_fn=es_afirmativo_fn,
-            log_fn=log_fn,
-        )
-    )
-
-    return resultado.confirmada

@@ -103,30 +103,6 @@ def test_resolucion_sucursal_delega_aplicacion_operativa():
     assert 'pedido.tipo_entrega = "Sucursal"' not in bloque
 
 
-def test_wrapper_confirmacion_delega_resultado_estructurado():
-    texto = Path(
-        "services/workflow_confirmacion_sucursal.py"
-    ).read_text(encoding="utf-8")
-
-    idx = texto.index(
-        "def confirmar_sucursal_via_cargo_"
-        "ofrecida_sin_persistir"
-    )
-    fin = texto.find("\ndef ", idx + 1)
-    if fin == -1:
-        fin = len(texto)
-    bloque = texto[idx:fin]
-
-    assert (
-        "resolver_confirmacion_sucursal_"
-        "via_cargo_ofrecida"
-        in bloque
-    )
-    assert "return resultado.confirmada" in bloque
-    assert (
-        "aplicar_decision_sucursal_al_pedido"
-        not in bloque
-    )
 
 def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
     texto = Path("app.py").read_text(encoding="utf-8")

@@ -52,7 +52,7 @@ def test_confirma_sucursal_y_actualiza_recolector(
 
     resultado = (
         workflow
-        .confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
+        .resolver_confirmacion_sucursal_via_cargo_ofrecida(
             pedido,
             "prefiero la primera",
             despacho_completo_fn=lambda _pedido: True,
@@ -60,7 +60,7 @@ def test_confirma_sucursal_y_actualiza_recolector(
         )
     )
 
-    assert resultado is True
+    assert resultado.confirmada is True
     assert pedido.sucursal_nombre == "Terminal Viedma"
     assert pedido.direccion == "Ruta 3"
     assert pedido.empresa_envio == "Vía Cargo"
@@ -88,14 +88,14 @@ def test_no_confirma_si_no_hay_catalogo(
 
     resultado = (
         workflow
-        .confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
+        .resolver_confirmacion_sucursal_via_cargo_ofrecida(
             pedido,
             "opcion 1",
             despacho_completo_fn=lambda _pedido: True,
         )
     )
 
-    assert resultado is False
+    assert resultado.confirmada is False
     assert pedido.sucursal_nombre == ""
     assert (
         pedido.ia_sucursales_ofrecidas
@@ -119,14 +119,14 @@ def test_no_reconfirma_pedido_con_sucursal(
 
     resultado = (
         workflow
-        .confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
+        .resolver_confirmacion_sucursal_via_cargo_ofrecida(
             pedido,
             "opcion 1",
             despacho_completo_fn=lambda _pedido: True,
         )
     )
 
-    assert resultado is False
+    assert resultado.confirmada is False
     assert llamadas == []
 
 
@@ -161,7 +161,7 @@ def test_confirma_sucursal_unica_con_respuesta_afirmativa(
 
     resultado = (
         workflow
-        .confirmar_sucursal_via_cargo_ofrecida_sin_persistir(
+        .resolver_confirmacion_sucursal_via_cargo_ofrecida(
             pedido,
             "sí, perfecto",
             despacho_completo_fn=lambda _pedido: False,
@@ -170,7 +170,7 @@ def test_confirma_sucursal_unica_con_respuesta_afirmativa(
         )
     )
 
-    assert resultado is True
+    assert resultado.confirmada is True
     assert pedido.sucursal_nombre == "Terminal Viedma"
     assert pedido.empresa_envio == "Vía Cargo"
     assert pedido.tipo_entrega == "Sucursal"
