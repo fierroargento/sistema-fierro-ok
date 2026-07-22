@@ -220,6 +220,7 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 db.init_app(app)
 
 from models.auditoria import Auditoria
+from models.usuario_sistema import UsuarioSistema
 from models.nota_pedido import NotaPedido
 from models.estado_conversacional_pedido import EstadoConversacionalPedido
 from models.pedido_agregado_apb import PedidoAgregadoAPB
@@ -238,20 +239,6 @@ from models.whatsapp_media import WhatsAppMediaRecibida
 
 ROLES_SISTEMA = ["admin", "carga", "despacho"]
 
-
-
-class UsuarioSistema(db.Model):
-    __tablename__ = "usuario_sistema"
-
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(255), nullable=False)
-    nombre = db.Column(db.String(120), nullable=False)
-    rol = db.Column(db.String(30), nullable=False, default="carga")
-    activo = db.Column(db.Boolean, default=True)
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
-    creado_por = db.Column(db.String(80))
-    actualizado_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Pedido(db.Model):
