@@ -9,6 +9,7 @@ Objetivo:
 - Preparar el camino para SaaS/CRM: catálogo por empresa/tenant/cuenta.
 """
 
+from models.producto import Producto as ProductoModel
 from services.productos_logistica import calcular_logistica_pedido
 
 
@@ -31,22 +32,12 @@ def calcular_logistica_pedido_desde_catalogo(pedido, Producto=None):
     """Calcula peso/dimensiones/permisos usando el catálogo actual.
 
     APB/SaaS:
-    - Hoy usa app.Producto por compatibilidad con el monolito.
-    - La función acepta Producto inyectado para tests y futura separación por tenant.
+    - Usa el modelo canónico del catálogo por defecto.
+    - Acepta Producto inyectado para tests y futura separación por tenant.
     - En una fase SaaS, este adapter es el punto donde filtrar por empresa_id/cuenta.
     """
     if Producto is None:
-        try:
-            from app import Producto as ProductoApp
-            Producto = ProductoApp
-        except Exception:
-            return {
-                "ok": False,
-                "motivo": "catalogo_no_disponible",
-                "permite_correo": False,
-                "requiere_revision_logistica": True,
-                "faltantes": ["No se pudo acceder al catálogo de productos."],
-            }
+        Producto = ProductoModel
 
     return calcular_logistica_pedido(
         pedido,

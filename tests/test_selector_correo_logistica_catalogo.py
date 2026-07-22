@@ -1,7 +1,5 @@
-﻿import sys
-from types import SimpleNamespace
-
 import modules.transportes.selector as selector
+import services.logistica_catalogo as logistica_catalogo
 
 
 class ItemFalso:
@@ -56,10 +54,10 @@ def instalar_catalogo_fake(monkeypatch, catalogo):
 
     ProductoModeloFalso.query = QueryProductoFalsa(catalogo)
 
-    monkeypatch.setitem(
-        sys.modules,
-        "app",
-        SimpleNamespace(Producto=ProductoModeloFalso),
+    monkeypatch.setattr(
+        logistica_catalogo,
+        "ProductoModel",
+        ProductoModeloFalso,
     )
 
 

@@ -223,6 +223,7 @@ from models.configuracion_sistema import ConfiguracionSistema
 from models.tracking_evento import TrackingEvento
 from models.evento_operativo import EventoOperativo
 from models.mercado_libre_cuenta import MercadoLibreCuenta
+from models.producto import Producto
 from models.respuesta_rapida_wa import RespuestaRapidaWA
 from models.whatsapp_media import WhatsAppMediaRecibida
 
@@ -564,23 +565,6 @@ class WhatsAppMensaje(db.Model):
     estado = db.Column(db.String(40))     # recibido / enviado / error / pendiente
     error = db.Column(db.Text)
     fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-
-
-class Producto(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    sku = db.Column(db.String(80), nullable=False, index=True)
-    descripcion = db.Column(db.String(255), nullable=False, index=True)
-
-    # Catálogo logístico administrado por Admin.
-    # No se edita desde los formularios operativos de Carga.
-    peso_gr = db.Column(db.Float)
-    alto_cm = db.Column(db.Float)
-    ancho_cm = db.Column(db.Float)
-    largo_cm = db.Column(db.Float)
-    permite_correo = db.Column(db.Boolean, default=True)
-    permite_via_cargo = db.Column(db.Boolean, default=True)
-    requiere_revision_logistica = db.Column(db.Boolean, default=False)
-    observacion_logistica = db.Column(db.String(300))
 
 
 class PedidoIgnoradoML(db.Model):
