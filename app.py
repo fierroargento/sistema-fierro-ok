@@ -221,6 +221,7 @@ db.init_app(app)
 
 from models.auditoria import Auditoria
 from models.nota_pedido import NotaPedido
+from models.pedido_agregado_apb import PedidoAgregadoAPB
 from models.configuracion_sistema import ConfiguracionSistema
 from models.tracking_evento import TrackingEvento
 from models.evento_operativo import EventoOperativo
@@ -457,24 +458,6 @@ class PedidoItem(db.Model):
     observacion_devolucion_item = db.Column(db.String(300))
 
 
-
-
-class PedidoAgregadoAPB(db.Model):
-    """Agrupador APB de items agregados manualmente a un pedido.
-    Guarda comprobante DUX, comprobante de pago y snapshot de los items agregados.
-    """
-    __tablename__ = "pedido_agregado_apb"
-
-    id = db.Column(db.Integer, primary_key=True)
-    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"), nullable=False, index=True)
-    usuario = db.Column(db.String(100))
-    rol = db.Column(db.String(50))
-    fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    comprobante_dux_url = db.Column(db.String(500), nullable=False)
-    comprobante_dux_public_id = db.Column(db.String(255))
-    comprobante_pago_url = db.Column(db.String(500), nullable=False)
-    comprobante_pago_public_id = db.Column(db.String(255))
-    items_json = db.Column(db.Text, nullable=False)
 
 
 class EstadoConversacionalPedido(db.Model):
