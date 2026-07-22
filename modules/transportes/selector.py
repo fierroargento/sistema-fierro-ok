@@ -16,6 +16,8 @@ import json
 import re
 from datetime import datetime
 
+from extensions import db
+
 from .correo_argentino import cotizar_correo, obtener_sucursales_correo_por_pedido
 from services.logistica_catalogo import calcular_logistica_pedido_desde_catalogo
 from services.transporte_revision import (
@@ -450,7 +452,6 @@ def preparar_oferta_sucursales_correo_pedido(
 
 def _marcar_escalado(pedido, motivo):
     try:
-        from app import db
         pedido.ia_requiere_operador = True
         pedido.ml_mensajes_pendientes = True
         pedido.wa_estado = "requiere_operador"
@@ -460,7 +461,6 @@ def _marcar_escalado(pedido, motivo):
     except Exception as e:
         print("[SELECTOR] Error escalando:", e)
         try:
-            from app import db
             db.session.rollback()
         except Exception:
             pass
