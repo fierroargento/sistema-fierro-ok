@@ -221,6 +221,7 @@ db.init_app(app)
 
 from models.auditoria import Auditoria
 from models.nota_pedido import NotaPedido
+from models.estado_conversacional_pedido import EstadoConversacionalPedido
 from models.pedido_agregado_apb import PedidoAgregadoAPB
 from models.configuracion_sistema import ConfiguracionSistema
 from models.tracking_evento import TrackingEvento
@@ -459,56 +460,6 @@ class PedidoItem(db.Model):
 
 
 
-
-class EstadoConversacionalPedido(db.Model):
-    """Estado conversacional/ownership APB del pedido.
-
-    NO reemplaza todavía flags legacy.
-    Convive con el sistema actual mientras migramos.
-    """
-    __tablename__ = "estado_conversacional_pedido"
-
-    id = db.Column(db.Integer, primary_key=True)
-
-    pedido_id = db.Column(
-        db.Integer,
-        db.ForeignKey("pedido.id"),
-        nullable=False,
-        unique=True,
-        index=True,
-    )
-
-    owner_actual = db.Column(db.String(30), default="bot", index=True)
-    estado_conversacional = db.Column(
-        db.String(80),
-        default="recolectando_datos",
-        index=True,
-    )
-
-    canal_activo = db.Column(db.String(30), default="ml")
-    flujo_base = db.Column(db.String(80))
-
-    takeover_activo = db.Column(db.Boolean, default=False)
-    bot_pausado = db.Column(db.Boolean, default=False)
-
-    cross_sell_activo = db.Column(db.Boolean, default=False)
-
-    ultima_interaccion = db.Column(db.DateTime)
-    ultimo_mensaje_cliente = db.Column(db.DateTime)
-    ultimo_mensaje_bot = db.Column(db.DateTime)
-
-    fecha_creacion = db.Column(
-        db.DateTime,
-        default=datetime.utcnow,
-        index=True,
-    )
-
-    fecha_actualizacion = db.Column(
-        db.DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-        index=True,
-    )
 
 class WhatsAppMensaje(db.Model):
     """Historial real de conversación WhatsApp API asociado al pedido."""
