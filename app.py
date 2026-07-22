@@ -220,6 +220,7 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 db.init_app(app)
 
 from models.configuracion_sistema import ConfiguracionSistema
+from models.tracking_evento import TrackingEvento
 from models.respuesta_rapida_wa import crear_modelo_respuesta_rapida_wa
 from models.whatsapp_media import crear_modelo_whatsapp_media_recibida
 
@@ -498,18 +499,6 @@ class NotaPedido(db.Model):
 
 
 
-class TrackingEvento(db.Model):
-    """Historial de eventos de tracking externo por pedido."""
-    __tablename__ = "tracking_evento"
-    id = db.Column(db.Integer, primary_key=True)
-    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"), nullable=False, index=True)
-    empresa = db.Column(db.String(80))
-    seguimiento = db.Column(db.String(100))
-    estado = db.Column(db.String(300))
-    clasificacion = db.Column(db.String(50))
-    raw_json = db.Column(db.Text)
-    origen = db.Column(db.String(50))
-    fecha_evento = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
 class EventoOperativo(db.Model):

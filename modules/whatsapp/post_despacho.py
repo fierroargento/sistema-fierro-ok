@@ -9,6 +9,7 @@ No reemplaza el flujo validado del sistema: solo reacciona ante cambios claros d
 from datetime import datetime, UTC
 
 from extensions import db
+from models.tracking_evento import TrackingEvento
 
 from domain.estados import Estado
 from services.canal_manager import wa_operador_tiene_toma_activa
@@ -26,7 +27,6 @@ def _es_ml_acordas_tracking(pedido):
 def registrar_tracking_evento(pedido, empresa, seguimiento, estado, clasificacion, raw_json=None, origen="scheduler"):
     """Guarda historial de tracking si existe el modelo TrackingEvento."""
     try:
-        from app import TrackingEvento
         existe = TrackingEvento.query.filter_by(
             pedido_id=pedido.id,
             empresa=(empresa or "")[:80],

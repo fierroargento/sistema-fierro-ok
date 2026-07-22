@@ -1,6 +1,5 @@
-import sys
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 
 from modules.whatsapp import post_despacho
 
@@ -46,9 +45,11 @@ def instalar_dependencias(
     consulta = QueryFake(evento_existente)
     TrackingEventoFake.query = consulta
 
-    app_fake = ModuleType("app")
-    app_fake.TrackingEvento = TrackingEventoFake
-    monkeypatch.setitem(sys.modules, "app", app_fake)
+    monkeypatch.setattr(
+        post_despacho,
+        "TrackingEvento",
+        TrackingEventoFake,
+    )
 
     session = SessionFake()
     monkeypatch.setattr(
@@ -163,7 +164,9 @@ def test_post_despacho_usa_extension_canonica_db():
     assert texto.count("from extensions import db") == 1
     assert "from app import db" not in texto
     assert texto.count(
-        "from app import TrackingEvento"
+        "from models.tracking_evento import "
+        "TrackingEvento"
     ) == 1
+    assert "from app import TrackingEvento" not in texto
     assert texto.count("db.session.add(ev)") == 1
     assert texto.count("db.session.rollback()") == 1
