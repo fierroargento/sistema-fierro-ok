@@ -222,10 +222,9 @@ db.init_app(app)
 from models.configuracion_sistema import ConfiguracionSistema
 from models.tracking_evento import TrackingEvento
 from models.evento_operativo import EventoOperativo
-from models.respuesta_rapida_wa import crear_modelo_respuesta_rapida_wa
+from models.respuesta_rapida_wa import RespuestaRapidaWA
 from models.whatsapp_media import WhatsAppMediaRecibida
 
-RespuestaRapidaWA = crear_modelo_respuesta_rapida_wa(db)
 
 ROLES_SISTEMA = ["admin", "carga", "despacho"]
 
