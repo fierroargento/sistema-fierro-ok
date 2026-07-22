@@ -220,6 +220,7 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 db.init_app(app)
 
 from models.auditoria import Auditoria
+from models.nota_pedido import NotaPedido
 from models.configuracion_sistema import ConfiguracionSistema
 from models.tracking_evento import TrackingEvento
 from models.evento_operativo import EventoOperativo
@@ -474,19 +475,6 @@ class PedidoAgregadoAPB(db.Model):
     comprobante_pago_url = db.Column(db.String(500), nullable=False)
     comprobante_pago_public_id = db.Column(db.String(255))
     items_json = db.Column(db.Text, nullable=False)
-
-
-class NotaPedido(db.Model):
-    """Bitácora de notas internas por pedido. Solo visible para admin y carga."""
-    id          = db.Column(db.Integer, primary_key=True)
-    pedido_id   = db.Column(db.Integer, db.ForeignKey("pedido.id"), nullable=False)
-    texto       = db.Column(db.Text, nullable=False)
-    usuario     = db.Column(db.String(100))   # username del operador
-    rol         = db.Column(db.String(50))    # rol en el momento de crear
-    fecha       = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-
 
 
 class EstadoConversacionalPedido(db.Model):
