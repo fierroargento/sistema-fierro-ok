@@ -1,40 +1,68 @@
-from datetime import datetime
+"""
+Modelo persistido para adjuntos recibidos por WhatsApp.
+"""
+
+from extensions import db
+from services.fechas import ahora_utc_naive
 
 
-def crear_modelo_whatsapp_media_recibida(db):
+class WhatsAppMediaRecibida(db.Model):
     """
-    Modelo para adjuntos recibidos por WhatsApp.
+    Adjunto recibido por WhatsApp.
 
     SaaS/CRM:
     - empresa_id queda previsto desde el inicio.
-    - estado_scan queda previsto para antivirus/control futuro.
-    - No reemplaza WhatsAppMensaje: lo complementa.
+    - estado_scan queda previsto para controles futuros.
+    - Complementa el historial WhatsAppMensaje.
     """
 
-    class WhatsAppMediaRecibida(db.Model):
-        __tablename__ = "whatsapp_media_recibida"
+    __tablename__ = "whatsapp_media_recibida"
 
-        id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
 
-        empresa_id = db.Column(db.Integer, default=1, index=True)
-        pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"), nullable=True, index=True)
+    empresa_id = db.Column(
+        db.Integer,
+        default=1,
+        index=True,
+    )
+    pedido_id = db.Column(
+        db.Integer,
+        db.ForeignKey("pedido.id"),
+        nullable=True,
+        index=True,
+    )
 
-        telefono = db.Column(db.String(30), index=True)
-        message_id_meta = db.Column(db.String(120), index=True)
-        media_id_meta = db.Column(db.String(120), index=True)
+    telefono = db.Column(db.String(30), index=True)
+    message_id_meta = db.Column(
+        db.String(120),
+        index=True,
+    )
+    media_id_meta = db.Column(
+        db.String(120),
+        index=True,
+    )
 
-        tipo = db.Column(db.String(30))  # image / document
-        mime_type = db.Column(db.String(120))
-        filename = db.Column(db.String(255))
-        caption = db.Column(db.Text)
+    tipo = db.Column(db.String(30))
+    mime_type = db.Column(db.String(120))
+    filename = db.Column(db.String(255))
+    caption = db.Column(db.Text)
 
-        cloudinary_url = db.Column(db.String(500))
-        cloudinary_public_id = db.Column(db.String(255))
-        size_bytes = db.Column(db.Integer)
+    cloudinary_url = db.Column(db.String(500))
+    cloudinary_public_id = db.Column(db.String(255))
+    size_bytes = db.Column(db.Integer)
 
-        estado_scan = db.Column(db.String(40), default="pendiente", index=True)
-        error = db.Column(db.Text)
+    estado_scan = db.Column(
+        db.String(40),
+        default="pendiente",
+        index=True,
+    )
+    error = db.Column(db.Text)
 
-        fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-
-    return WhatsAppMediaRecibida
+    fecha = db.Column(
+        db.DateTime,
+        default=ahora_utc_naive,
+        index=True,
+    )

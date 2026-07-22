@@ -9,6 +9,7 @@ import re
 from flask import request, jsonify
 
 from extensions import db
+from models.whatsapp_media import WhatsAppMediaRecibida
 
 from .config import (
     WA_VERIFY_TOKEN,
@@ -415,7 +416,6 @@ def registrar_webhook(app):
 
                     if media_payload:
                         try:
-                            from app import WhatsAppMediaRecibida
                             from modules.whatsapp.media_inbound import procesar_media_inbound_whatsapp
 
                             media_resultado = procesar_media_inbound_whatsapp(

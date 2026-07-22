@@ -164,8 +164,13 @@ def test_webhook_usa_extension_canonica_db():
         "from app import WhatsAppMensaje"
     ) == 2
     assert texto.count(
-        "from app import WhatsAppMediaRecibida"
+        "from models.whatsapp_media import "
+        "WhatsAppMediaRecibida"
     ) == 1
+    assert (
+        "from app import WhatsAppMediaRecibida"
+        not in texto
+    )
 
     assert texto.count("db.session.commit()") == 3
     assert texto.count("db.session.rollback()") == 2

@@ -223,10 +223,9 @@ from models.configuracion_sistema import ConfiguracionSistema
 from models.tracking_evento import TrackingEvento
 from models.evento_operativo import EventoOperativo
 from models.respuesta_rapida_wa import crear_modelo_respuesta_rapida_wa
-from models.whatsapp_media import crear_modelo_whatsapp_media_recibida
+from models.whatsapp_media import WhatsAppMediaRecibida
 
 RespuestaRapidaWA = crear_modelo_respuesta_rapida_wa(db)
-WhatsAppMediaRecibida = crear_modelo_whatsapp_media_recibida(db)
 
 ROLES_SISTEMA = ["admin", "carga", "despacho"]
 
