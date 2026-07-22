@@ -221,6 +221,7 @@ db.init_app(app)
 
 from models.configuracion_sistema import ConfiguracionSistema
 from models.tracking_evento import TrackingEvento
+from models.evento_operativo import EventoOperativo
 from models.respuesta_rapida_wa import crear_modelo_respuesta_rapida_wa
 from models.whatsapp_media import crear_modelo_whatsapp_media_recibida
 
@@ -500,35 +501,6 @@ class NotaPedido(db.Model):
 
 
 
-
-class EventoOperativo(db.Model):
-    """Registro APB de eventos operativos/conversacionales del pedido.
-
-    Esta tabla no modifica el flujo actual.
-    Sirve como base futura para auditoría, motor conversacional,
-    debugging, métricas y arquitectura SaaS.
-    """
-    __tablename__ = "evento_operativo"
-
-    id = db.Column(db.Integer, primary_key=True)
-    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"), nullable=True, index=True)
-
-    tipo_evento = db.Column(db.String(120), nullable=False, index=True)
-    origen = db.Column(db.String(50))          # sistema / bot / operador / webhook / scheduler
-    canal = db.Column(db.String(30))           # ml / wa / tn / sistema
-    owner = db.Column(db.String(30))           # bot / operador / sistema
-
-    estado_conversacional = db.Column(db.String(80))
-    flujo_base = db.Column(db.String(80))
-
-    payload_json = db.Column(db.Text)
-    resultado = db.Column(db.String(80))
-    detalle = db.Column(db.Text)
-
-    usuario = db.Column(db.String(100))
-    procesado = db.Column(db.Boolean, default=False, index=True)
-
-    fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 class EstadoConversacionalPedido(db.Model):
     """Estado conversacional/ownership APB del pedido.

@@ -11,6 +11,7 @@ APB / SaaS:
 - Este módulo solo coordina el disparo por WhatsApp.
 """
 
+from models.evento_operativo import EventoOperativo
 from modules.whatsapp.config import CROSS_SELL_AUTO_ENABLED
 from services.cross_sell_rules import motivo_bloqueo_cross_sell
 
@@ -43,7 +44,7 @@ def _cross_sell_ya_iniciado_por_evento(pedido):
     Guard con auditoría:
     si ya existe evento cross_sell_iniciado OK, no volver a disparar.
 
-    Import local para no acoplar este módulo a app.py en import-time.
+    Usa el modelo canónico sin depender de app.py.
     """
     pedido_id = getattr(pedido, "id", None)
 
@@ -51,8 +52,6 @@ def _cross_sell_ya_iniciado_por_evento(pedido):
         return False
 
     try:
-        from app import EventoOperativo
-
         evento = (
             EventoOperativo.query
             .filter_by(
