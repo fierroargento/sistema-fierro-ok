@@ -8,6 +8,8 @@ import json
 import re
 from flask import request, jsonify
 
+from extensions import db
+
 from .config import (
     WA_VERIFY_TOKEN,
     WA_APP_SECRET,
@@ -74,7 +76,7 @@ def _procesar_statuses_whatsapp(statuses):
         return
 
     try:
-        from app import db, WhatsAppMensaje
+        from app import WhatsAppMensaje
     except Exception as e:
         logger.exception("[WA-STATUS] No se pudo importar db/WhatsAppMensaje")
         return
@@ -154,7 +156,6 @@ def _routear_mensaje(pedido, texto, telefono):
     # Si un operador tomó la conversación, el bot NO responde automático.
     if estado == "operador_manual":
         try:
-            from app import db
             pedido.ml_mensajes_pendientes = True
             pedido.ml_mensajes_pendientes_count = (pedido.ml_mensajes_pendientes_count or 0) + 1
             pedido.ia_requiere_operador = True
@@ -382,7 +383,7 @@ def registrar_webhook(app):
 
                     if message_id_meta:
                         try:
-                            from app import db, WhatsAppMensaje
+                            from app import WhatsAppMensaje
 
                             ya_procesado = (
                                 WhatsAppMensaje.query
@@ -414,7 +415,7 @@ def registrar_webhook(app):
 
                     if media_payload:
                         try:
-                            from app import db, WhatsAppMediaRecibida
+                            from app import WhatsAppMediaRecibida
                             from modules.whatsapp.media_inbound import procesar_media_inbound_whatsapp
 
                             media_resultado = procesar_media_inbound_whatsapp(
@@ -464,7 +465,6 @@ def registrar_webhook(app):
                         )
                     elif pedido is not None:
                         try:
-                            from app import db
 
                             pedido.ml_mensajes_pendientes = True
                             pedido.ml_mensajes_pendientes_count = (
