@@ -227,6 +227,7 @@ from models.producto import Producto
 from models.pedido_ignorado_ml import PedidoIgnoradoML
 from models.webhook_ml import WebhookML
 from models.tienda_nube_cuenta import TiendaNubeCuenta
+from models.tienda_nube_webhook_log import TiendaNubeWebhookLog
 from models.respuesta_rapida_wa import RespuestaRapidaWA
 from models.whatsapp_media import WhatsAppMediaRecibida
 
@@ -569,15 +570,6 @@ class WhatsAppMensaje(db.Model):
     error = db.Column(db.Text)
     fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
-
-class TiendaNubeWebhookLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    event = db.Column(db.String(120))
-    tn_order_id = db.Column(db.String(50))
-    payload = db.Column(db.Text)
-    fecha = db.Column(db.DateTime, default=datetime.utcnow)
-    procesado = db.Column(db.Boolean, default=False)
-    error = db.Column(db.Text)
 
 def asegurar_columna_si_no_existe(nombre_columna, definicion_sql):
     inspector = inspect(db.engine)
