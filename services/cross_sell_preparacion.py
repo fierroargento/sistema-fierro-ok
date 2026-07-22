@@ -10,9 +10,8 @@ APB / SaaS:
   consulten el mismo criterio.
 """
 
-from datetime import datetime
-
 from domain.estados import Estado
+from services.fechas import ahora_utc_naive
 
 
 ESTADOS_PREPARACION_CROSS_SELL = {
@@ -168,7 +167,7 @@ def resolver_agregado_pendiente(
         return False, "El pedido no tiene agregado pendiente."
 
     pedido.agregado_pendiente_revision = False
-    pedido.agregado_revision_fecha = datetime.utcnow()
+    pedido.agregado_revision_fecha = ahora_utc_naive()
     pedido.agregado_revision_usuario = usuario or ""
 
     tipo_evento_por_resultado = {

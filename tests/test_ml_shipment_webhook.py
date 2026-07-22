@@ -33,6 +33,8 @@ def test_ml_actualizar_pedido_con_shipment_no_finaliza_si_ready_to_ship():
     assert finalizado is False
     assert pedido.estado == "Etiqueta Lista"
     assert pedido.fecha_entregado is None
+    assert pedido.ultima_sync_ml is not None
+    assert pedido.ultima_sync_ml.tzinfo is None
     assert pedido.ml_shipping_id == "47397663321"
     assert pedido.ml_shipping_status == "ready_to_ship"
     assert pedido.ml_logistic_type == "drop_off"
@@ -69,4 +71,7 @@ def test_ml_actualizar_pedido_con_shipment_finaliza_si_delivered():
     assert finalizado is True
     assert pedido.estado == "Finalizado"
     assert pedido.fecha_entregado is not None
+    assert pedido.fecha_entregado.tzinfo is None
+    assert pedido.ultima_sync_ml is not None
+    assert pedido.ultima_sync_ml.tzinfo is None
     assert "ML Mercado Envíos informa entregado" in pedido.observaciones

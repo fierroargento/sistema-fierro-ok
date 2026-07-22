@@ -137,6 +137,7 @@ def test_resolver_agregado_pendiente_limpia_bloqueo():
     assert "Despacho puede continuar" in mensaje
     assert pedido.agregado_pendiente_revision is False
     assert pedido.agregado_revision_fecha is not None
+    assert pedido.agregado_revision_fecha.tzinfo is None
     assert pedido.agregado_revision_usuario == "martin"
     assert db.session.commits == 1
 

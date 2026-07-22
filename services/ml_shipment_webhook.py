@@ -1,4 +1,4 @@
-from datetime import datetime
+from services.fechas import ahora_utc_naive
 
 
 def ml_actualizar_pedido_con_shipment_webhook(pedido, shipment, shipment_id=""):
@@ -43,7 +43,7 @@ def ml_actualizar_pedido_con_shipment_webhook(pedido, shipment, shipment_id=""):
     if tracking_number and not getattr(pedido, "seguimiento", None):
         pedido.seguimiento = tracking_number
 
-    pedido.ultima_sync_ml = datetime.utcnow()
+    pedido.ultima_sync_ml = ahora_utc_naive()
 
     if (
         getattr(pedido, "ml_tipo", None) == "Mercado Envíos"
@@ -53,7 +53,7 @@ def ml_actualizar_pedido_con_shipment_webhook(pedido, shipment, shipment_id=""):
         pedido.estado = "Finalizado"
         pedido.fecha_entregado = (
             getattr(pedido, "fecha_entregado", None)
-            or datetime.utcnow()
+            or ahora_utc_naive()
         )
 
         aviso = (
