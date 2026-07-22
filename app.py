@@ -224,6 +224,7 @@ from models.tracking_evento import TrackingEvento
 from models.evento_operativo import EventoOperativo
 from models.mercado_libre_cuenta import MercadoLibreCuenta
 from models.producto import Producto
+from models.pedido_ignorado_ml import PedidoIgnoradoML
 from models.respuesta_rapida_wa import RespuestaRapidaWA
 from models.whatsapp_media import WhatsAppMediaRecibida
 
@@ -564,18 +565,6 @@ class WhatsAppMensaje(db.Model):
     message_id_meta = db.Column(db.String(120), index=True)
     estado = db.Column(db.String(40))     # recibido / enviado / error / pendiente
     error = db.Column(db.Text)
-    fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-
-
-class PedidoIgnoradoML(db.Model):
-    """Ventas de Mercado Libre eliminadas manualmente para que el sync no las reimporte al flujo operativo."""
-    __tablename__ = "pedido_ignorado_ml"
-
-    id = db.Column(db.Integer, primary_key=True)
-    id_venta = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    motivo = db.Column(db.String(255))
-    pedido_local_id = db.Column(db.Integer)
-    usuario = db.Column(db.String(100))
     fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
