@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
 from modules.bot_ml import api_client
+from services.fechas import ahora_utc_naive
 
 
 class CuentaFake:
@@ -46,14 +47,14 @@ def test_ml_token_vencido_si_no_hay_expiracion():
 
 def test_ml_token_vencido_si_expira_en_menos_de_dos_minutos():
     cuenta = CuentaFake()
-    cuenta.token_expires_at = datetime.utcnow() + timedelta(seconds=30)
+    cuenta.token_expires_at = ahora_utc_naive() + timedelta(seconds=30)
 
     assert api_client.ml_token_vencido(cuenta) is True
 
 
 def test_ml_token_no_vencido_si_expira_mas_adelante():
     cuenta = CuentaFake()
-    cuenta.token_expires_at = datetime.utcnow() + timedelta(minutes=10)
+    cuenta.token_expires_at = ahora_utc_naive() + timedelta(minutes=10)
 
     assert api_client.ml_token_vencido(cuenta) is False
 

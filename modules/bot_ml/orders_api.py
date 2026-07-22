@@ -11,8 +11,10 @@ APB / SaaS:
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 from urllib.request import Request, urlopen
+
+from services.fechas import ahora_utc_naive
 
 
 def ml_obtener_usuario_actual_api(api_get_fn):
@@ -32,7 +34,7 @@ def ml_obtener_orders_recientes_api(
     if not cuenta or not getattr(cuenta, "user_id_ml", None):
         raise ValueError("La cuenta de Mercado Libre no tiene user_id asociado.")
 
-    hasta = datetime.utcnow()
+    hasta = ahora_utc_naive()
     desde = hasta - timedelta(hours=horas)
 
     limit = 50

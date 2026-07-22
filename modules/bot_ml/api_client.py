@@ -13,10 +13,12 @@ APB / SaaS:
 
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+
+from services.fechas import ahora_utc_naive
 
 
 def ml_client_id():
@@ -50,7 +52,7 @@ def ml_token_vencido(cuenta):
     if not cuenta or not cuenta.token_expires_at:
         return True
 
-    return cuenta.token_expires_at <= datetime.utcnow() + timedelta(minutes=2)
+    return cuenta.token_expires_at <= ahora_utc_naive() + timedelta(minutes=2)
 
 
 def ml_http_json(method, url, data=None, headers=None):
@@ -107,7 +109,7 @@ def ml_guardar_token_en_cuenta(cuenta, token_data):
 
     expires_in = int(token_data.get("expires_in") or 0)
     if expires_in > 0:
-        cuenta.token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+        cuenta.token_expires_at = ahora_utc_naive() + timedelta(seconds=expires_in)
 
     cuenta.scope = token_data.get("scope") or cuenta.scope
     cuenta.estado_conexion = "conectada" if cuenta.access_token else "error"
