@@ -18,6 +18,7 @@ from datetime import datetime
 
 from extensions import db
 
+from models.configuracion_sistema import ConfiguracionSistema
 from .correo_argentino import cotizar_correo, obtener_sucursales_correo_por_pedido
 from services.logistica_catalogo import calcular_logistica_pedido_desde_catalogo
 from services.transporte_revision import (
@@ -49,7 +50,6 @@ def correo_pp6040_habilitado():
 def _cfg_float(clave, default):
     """Lee configuración desde DB si existe; si no, usa default seguro."""
     try:
-        from app import ConfiguracionSistema
         obj = ConfiguracionSistema.query.filter_by(clave=clave).first()
         if obj and str(obj.valor or "").strip() != "":
             return float(str(obj.valor).replace(",", "."))

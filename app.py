@@ -219,6 +219,7 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 db.init_app(app)
 
+from models.configuracion_sistema import ConfiguracionSistema
 from models.respuesta_rapida_wa import crear_modelo_respuesta_rapida_wa
 from models.whatsapp_media import crear_modelo_whatsapp_media_recibida
 
@@ -495,16 +496,6 @@ class NotaPedido(db.Model):
     rol         = db.Column(db.String(50))    # rol en el momento de crear
     fecha       = db.Column(db.DateTime, default=datetime.utcnow)
 
-
-
-class ConfiguracionSistema(db.Model):
-    """Configuraciones simples para escalar a CRM sin hardcodes dispersos."""
-    __tablename__ = "configuracion_sistema"
-    id = db.Column(db.Integer, primary_key=True)
-    clave = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    valor = db.Column(db.String(300))
-    descripcion = db.Column(db.Text)
-    actualizado_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class TrackingEvento(db.Model):
