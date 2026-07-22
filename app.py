@@ -225,6 +225,7 @@ from models.evento_operativo import EventoOperativo
 from models.mercado_libre_cuenta import MercadoLibreCuenta
 from models.producto import Producto
 from models.pedido_ignorado_ml import PedidoIgnoradoML
+from models.webhook_ml import WebhookML
 from models.respuesta_rapida_wa import RespuestaRapidaWA
 from models.whatsapp_media import WhatsAppMediaRecibida
 
@@ -566,16 +567,6 @@ class WhatsAppMensaje(db.Model):
     estado = db.Column(db.String(40))     # recibido / enviado / error / pendiente
     error = db.Column(db.Text)
     fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-
-
-class WebhookML(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    topic = db.Column(db.String(80))
-    resource = db.Column(db.String(300))
-    payload = db.Column(db.Text)
-    fecha = db.Column(db.DateTime, default=datetime.utcnow)
-    ok = db.Column(db.Boolean, default=False)
-    detalle = db.Column(db.Text)
 
 
 class TiendaNubeCuenta(db.Model):
