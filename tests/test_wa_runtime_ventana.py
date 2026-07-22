@@ -1,6 +1,7 @@
-﻿from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, UTC
 
 from modules.whatsapp.runtime import wa_ventana_24h_abierta_service
+from services.fechas import ahora_utc_naive
 
 
 class FakeQuery:
@@ -56,7 +57,7 @@ def test_wa_ventana_24h_abierta_service_acepta_fecha_aware_reciente():
 
 def test_wa_ventana_24h_abierta_service_acepta_fecha_naive_reciente():
     FakeWhatsAppMensaje.query = FakeQuery(
-        MensajeFake(datetime.utcnow() - timedelta(minutes=10))
+        MensajeFake(ahora_utc_naive() - timedelta(minutes=10))
     )
 
     assert wa_ventana_24h_abierta_service(
@@ -67,7 +68,7 @@ def test_wa_ventana_24h_abierta_service_acepta_fecha_naive_reciente():
 
 def test_wa_ventana_24h_abierta_service_rechaza_fecha_vieja():
     FakeWhatsAppMensaje.query = FakeQuery(
-        MensajeFake(datetime.utcnow() - timedelta(hours=25))
+        MensajeFake(ahora_utc_naive() - timedelta(hours=25))
     )
 
     assert wa_ventana_24h_abierta_service(

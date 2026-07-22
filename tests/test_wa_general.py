@@ -1,6 +1,7 @@
-﻿from datetime import datetime, timedelta
+from datetime import timedelta
 from types import SimpleNamespace
 
+from services.fechas import ahora_utc_naive
 from services.wa_general import (
     armar_conversaciones_wa_general,
     pedido_esta_activo_para_wa_general,
@@ -48,7 +49,7 @@ def mensaje(telefono, texto, fecha=None, direccion="in", estado="recibido"):
     return SimpleNamespace(
         telefono=telefono,
         texto=texto,
-        fecha=fecha or datetime.utcnow(),
+        fecha=fecha or ahora_utc_naive(),
         direccion=direccion,
         estado=estado,
     )
@@ -123,7 +124,7 @@ def test_wa_general_muestra_telefono_con_pedido_finalizado():
 
 
 def test_wa_general_ordena_por_ultima_actividad():
-    ahora = datetime.utcnow()
+    ahora = ahora_utc_naive()
 
     ModeloMensajesFake.query = QueryFake([
         mensaje("111", "viejo", fecha=ahora - timedelta(hours=2)),
