@@ -222,6 +222,7 @@ db.init_app(app)
 from models.configuracion_sistema import ConfiguracionSistema
 from models.tracking_evento import TrackingEvento
 from models.evento_operativo import EventoOperativo
+from models.mercado_libre_cuenta import MercadoLibreCuenta
 from models.respuesta_rapida_wa import RespuestaRapidaWA
 from models.whatsapp_media import WhatsAppMediaRecibida
 
@@ -580,23 +581,6 @@ class Producto(db.Model):
     permite_via_cargo = db.Column(db.Boolean, default=True)
     requiere_revision_logistica = db.Column(db.Boolean, default=False)
     observacion_logistica = db.Column(db.String(300))
-
-
-class MercadoLibreCuenta(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id_ml = db.Column(db.String(50))
-    nickname = db.Column(db.String(120))
-    access_token = db.Column(db.Text)
-    refresh_token = db.Column(db.Text)
-    token_expires_at = db.Column(db.DateTime)
-    scope = db.Column(db.Text)
-    estado_conexion = db.Column(db.String(30), default="desconectada")
-    last_sync_at = db.Column(db.DateTime)
-    last_sync_status = db.Column(db.String(30))
-    last_sync_detail = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
 
 
 class PedidoIgnoradoML(db.Model):

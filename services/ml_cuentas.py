@@ -1,4 +1,4 @@
-﻿"""
+"""
 services/ml_cuentas.py
 
 Resolución de cuentas Mercado Libre para arquitectura multicuenta/SaaS.
@@ -9,6 +9,9 @@ Reglas:
 - No usar MercadoLibreCuenta.query.first() como resolución runtime cuando hay más de una cuenta.
 - Este servicio no llama a la API de Mercado Libre.
 """
+
+from models.mercado_libre_cuenta import MercadoLibreCuenta as MercadoLibreCuentaModel
+
 
 CANAL_MERCADO_LIBRE = "Mercado Libre"
 
@@ -45,8 +48,7 @@ def _modelo_cuenta(MercadoLibreCuenta=None):
     if MercadoLibreCuenta is not None:
         return MercadoLibreCuenta
 
-    from app import MercadoLibreCuenta as MercadoLibreCuentaApp
-    return MercadoLibreCuentaApp
+    return MercadoLibreCuentaModel
 
 
 def es_pedido_mercado_libre(pedido):
