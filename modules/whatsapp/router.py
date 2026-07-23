@@ -1,6 +1,7 @@
 import re
 
 from extensions import db
+from models.whatsapp_mensaje import WhatsAppMensaje
 
 from .config import (
     WA_ESPERANDO_OK_INICIO,
@@ -49,7 +50,7 @@ def routear_mensaje(
 
     # Sin pedido activo
     if not pedido:
-        from app import Pedido, WhatsAppMensaje
+        from app import Pedido
 
         manejar_sin_pedido_activo_wa_general(
             texto=texto,

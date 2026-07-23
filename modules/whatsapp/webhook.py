@@ -10,6 +10,7 @@ from flask import request, jsonify
 
 from extensions import db
 from models.whatsapp_media import WhatsAppMediaRecibida
+from models.whatsapp_mensaje import WhatsAppMensaje
 
 from .config import (
     WA_VERIFY_TOKEN,
@@ -76,12 +77,6 @@ def _procesar_statuses_whatsapp(statuses):
     if not statuses:
         return
 
-    try:
-        from app import WhatsAppMensaje
-    except Exception as e:
-        logger.exception("[WA-STATUS] No se pudo importar db/WhatsAppMensaje")
-        return
-
     hubo_cambios = False
 
     for status in statuses:
@@ -143,7 +138,7 @@ def _routear_mensaje(pedido, texto, telefono):
     # Sin pedido activo
     if not pedido:
         from .sender import wa_enviar_texto
-        from app import Pedido, WhatsAppMensaje
+        from app import Pedido
 
         manejar_sin_pedido_activo_wa_general(
             texto=texto,
@@ -384,7 +379,6 @@ def registrar_webhook(app):
 
                     if message_id_meta:
                         try:
-                            from app import WhatsAppMensaje
 
                             ya_procesado = (
                                 WhatsAppMensaje.query

@@ -86,9 +86,13 @@ def test_general_routes_usa_extension_canonica_db():
         not in texto
     )
     assert texto.count(
-        "from app import Pedido, "
-        "WhatsAppMensaje, rol_actual"
+        "from models.whatsapp_mensaje import "
+        "WhatsAppMensaje"
+    ) == 1
+    assert texto.count(
+        "from app import Pedido, rol_actual"
     ) == 4
+    assert "from app import Pedido, WhatsAppMensaje" not in texto
 
 
 def test_general_routes_conserva_transacciones():

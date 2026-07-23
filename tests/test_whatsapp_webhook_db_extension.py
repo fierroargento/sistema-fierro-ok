@@ -1,6 +1,5 @@
-import sys
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 
 from modules.whatsapp import webhook
 
@@ -44,9 +43,11 @@ def instalar_app_mensaje(
     consulta = QueryFake(mensaje)
     WhatsAppMensajeFake.query = consulta
 
-    app_fake = ModuleType("app")
-    app_fake.WhatsAppMensaje = WhatsAppMensajeFake
-    monkeypatch.setitem(sys.modules, "app", app_fake)
+    monkeypatch.setattr(
+        webhook,
+        "WhatsAppMensaje",
+        WhatsAppMensajeFake,
+    )
 
     return consulta
 
@@ -161,8 +162,10 @@ def test_webhook_usa_extension_canonica_db():
     assert "from app import db" not in texto
 
     assert texto.count(
-        "from app import WhatsAppMensaje"
-    ) == 2
+        "from models.whatsapp_mensaje import "
+        "WhatsAppMensaje"
+    ) == 1
+    assert "from app import WhatsAppMensaje" not in texto
     assert texto.count(
         "from models.whatsapp_media import "
         "WhatsAppMediaRecibida"

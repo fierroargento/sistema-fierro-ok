@@ -236,6 +236,7 @@ from models.tienda_nube_cuenta import TiendaNubeCuenta
 from models.tienda_nube_webhook_log import TiendaNubeWebhookLog
 from models.respuesta_rapida_wa import RespuestaRapidaWA
 from models.whatsapp_media import WhatsAppMediaRecibida
+from models.whatsapp_mensaje import WhatsAppMensaje
 
 
 ROLES_SISTEMA = ["admin", "carga", "despacho"]
@@ -429,21 +430,6 @@ class Pedido(db.Model):
     
 
     items = db.relationship("PedidoItem", cascade="all, delete-orphan")
-
-
-class WhatsAppMensaje(db.Model):
-    """Historial real de conversación WhatsApp API asociado al pedido."""
-    __tablename__ = "whatsapp_mensaje"
-    id = db.Column(db.Integer, primary_key=True)
-    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"), index=True)
-    telefono = db.Column(db.String(30), index=True)
-    direccion = db.Column(db.String(10))  # in / out
-    autor = db.Column(db.String(30))      # cliente / bot / operador / sistema
-    texto = db.Column(db.Text)
-    message_id_meta = db.Column(db.String(120), index=True)
-    estado = db.Column(db.String(40))     # recibido / enviado / error / pendiente
-    error = db.Column(db.Text)
-    fecha = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
 def asegurar_columna_si_no_existe(nombre_columna, definicion_sql):
