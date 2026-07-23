@@ -224,6 +224,7 @@ from models.usuario_sistema import UsuarioSistema
 from models.nota_pedido import NotaPedido
 from models.estado_conversacional_pedido import EstadoConversacionalPedido
 from models.pedido_agregado_apb import PedidoAgregadoAPB
+from models.pedido_item import PedidoItem
 from models.configuracion_sistema import ConfiguracionSistema
 from models.tracking_evento import TrackingEvento
 from models.evento_operativo import EventoOperativo
@@ -428,24 +429,6 @@ class Pedido(db.Model):
     
 
     items = db.relationship("PedidoItem", cascade="all, delete-orphan")
-
-
-class PedidoItem(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"))
-    sku = db.Column(db.String(50))
-    descripcion = db.Column(db.String(200))
-    cantidad = db.Column(db.Integer)
-
-    # =====================
-    # DEVOLUCIÓN POR ITEM
-    # =====================
-    cantidad_devuelta_ok = db.Column(db.Integer)
-    cantidad_devuelta_danada = db.Column(db.Integer)
-    estado_devolucion_item = db.Column(db.String(50))  # ok / parcial / danado
-    observacion_devolucion_item = db.Column(db.String(300))
-
-
 
 
 class WhatsAppMensaje(db.Model):
