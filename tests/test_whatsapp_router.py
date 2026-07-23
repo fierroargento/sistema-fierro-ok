@@ -194,5 +194,8 @@ def test_router_usa_extension_canonica_para_db():
         "WhatsAppMensaje"
         in texto
     )
-    assert "from app import Pedido, WhatsAppMensaje" not in texto
-    assert "from app import Pedido" in texto
+    assert (
+        "from models.pedido import Pedido"
+        in texto
+    )
+    assert "from app import Pedido" not in texto

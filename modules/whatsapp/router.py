@@ -1,6 +1,7 @@
 import re
 
 from extensions import db
+from models.pedido import Pedido
 from models.whatsapp_mensaje import WhatsAppMensaje
 
 from .config import (
@@ -50,8 +51,6 @@ def routear_mensaje(
 
     # Sin pedido activo
     if not pedido:
-        from app import Pedido
-
         manejar_sin_pedido_activo_wa_general(
             texto=texto,
             telefono=telefono,

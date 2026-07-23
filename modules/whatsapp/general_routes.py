@@ -11,6 +11,7 @@ Regla:
 from flask import jsonify, redirect, render_template, request, url_for
 
 from extensions import db
+from models.pedido import Pedido
 from models.whatsapp_mensaje import WhatsAppMensaje
 from services.wa_general import (
     armar_conversaciones_wa_general,
@@ -34,7 +35,7 @@ def registrar_wa_general_routes(app):
         para no cargar consultas innecesarias en todo el sistema.
         """
         try:
-            from app import Pedido, rol_actual
+            from app import rol_actual
 
             if rol_actual() not in ["admin", "carga"]:
                 return {"wa_general_no_leidos": 0}
@@ -55,7 +56,7 @@ def registrar_wa_general_routes(app):
     @app.route("/wa-general")
     @login_required
     def wa_general():
-        from app import Pedido, rol_actual
+        from app import rol_actual
 
         if rol_actual() not in ["admin", "carga"]:
             return redirect(url_for("inicio"))
@@ -115,7 +116,7 @@ def registrar_wa_general_routes(app):
     @app.route("/wa-general/marcar-leido", methods=["POST"])
     @login_required
     def wa_general_marcar_leido():
-        from app import Pedido, rol_actual
+        from app import rol_actual
 
         if rol_actual() not in ["admin", "carga"]:
             return jsonify({"ok": False, "error": "sin_permiso"}), 403
@@ -252,7 +253,7 @@ def registrar_wa_general_routes(app):
     @app.route("/wa-general/cerrar", methods=["POST"])
     @login_required
     def wa_general_cerrar():
-        from app import Pedido, rol_actual
+        from app import rol_actual
 
         if rol_actual() not in ["admin", "carga"]:
             return redirect(url_for("inicio"))
