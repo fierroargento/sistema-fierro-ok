@@ -65,6 +65,11 @@ def test_scheduler_usa_extension_canonica_db():
     assert "from app import db" not in texto
     assert "Pedido, db" not in texto
     assert "db, Pedido" not in texto
+    assert texto.count(
+        "from models.pedido import Pedido"
+    ) == 1
+    assert "from app import Pedido" not in texto
+    assert "\n            Pedido,\n" not in texto
 
     assert texto.count(
         "db.session.commit()"

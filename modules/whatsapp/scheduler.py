@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, UTC
 from threading import Lock
 
 from extensions import db
+from models.pedido import Pedido
 
 from domain.estados import Estado, ESTADOS_POST_DESPACHO
 from services.logger import get_app_logger
@@ -88,7 +89,7 @@ def ejecutar_timers_whatsapp():
         return
 
     try:
-        from app import Pedido, ia_ahora_utc, ia_escalar_si_timeout_operativo
+        from app import ia_ahora_utc, ia_escalar_si_timeout_operativo
         from modules.whatsapp.flows import (
             wa_enviar_recordatorio_1,
             wa_enviar_recordatorio_2,
@@ -171,7 +172,6 @@ def ejecutar_tracking_automatico():
     """
     try:
         from app import (
-            Pedido,
             tracking_info_pedido,
             aplicar_estado_tracking_seguro,
         )
