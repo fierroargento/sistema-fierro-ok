@@ -22,7 +22,8 @@ def test_modelos_de_app_conservan_misma_extension():
         encoding="utf-8-sig"
     )
 
-    assert "class Pedido(db.Model):" in app
+    assert "class Pedido(db.Model):" not in app
+    assert "from models.pedido import Pedido" in app
     assert app.index("db.init_app(app)") < app.index(
-        "class Pedido(db.Model):"
+        "from models.pedido import Pedido"
     )

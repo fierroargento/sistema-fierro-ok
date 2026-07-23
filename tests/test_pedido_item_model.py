@@ -27,6 +27,9 @@ def test_pedido_item_no_depende_de_app():
     ).read_text(encoding="utf-8")
 
     app = Path("app.py").read_text(encoding="utf-8")
+    pedido_modelo = Path(
+        "models/pedido.py"
+    ).read_text(encoding="utf-8")
 
     assert modelo.count("from extensions import db") == 1
     assert 'db.ForeignKey("pedido.id")' in modelo
@@ -35,5 +38,5 @@ def test_pedido_item_no_depende_de_app():
     assert (
         'db.relationship("PedidoItem", '
         'cascade="all, delete-orphan")'
-        in app
+        in pedido_modelo
     )
