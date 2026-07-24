@@ -5,6 +5,7 @@ from modules.whatsapp import runtime
 from services.ia_mensajes import (
     ia_hash_texto_service,
     ia_marcar_mensaje_bot_service,
+    ia_marcar_respuesta_cliente_service,
 )
 
 
@@ -164,4 +165,129 @@ def test_sender_no_importa_marcador_desde_app():
     assert (
         "from app import ia_marcar_mensaje_bot"
         not in sender
+    )
+
+def test_servicio_marca_respuesta_cliente_y_audita():
+    pedido = PedidoFake()
+    pedido.ia_esperando_respuesta = True
+    pedido.ia_canal_activo = "whatsapp"
+
+    session = SessionFake()
+    fecha = datetime(2026, 7, 24, 16, 0, 0)
+    estados = []
+    eventos = []
+
+    resultado = ia_marcar_respuesta_cliente_service(
+        pedido,
+        lambda *args, **kwargs: estados.append(
+            (args, kwargs)
+        ),
+        lambda **kwargs: eventos.append(kwargs),
+        session,
+        canal=" whatsapp ",
+        ahora_fn=lambda: fecha,
+    )
+
+    assert resultado is True
+    assert pedido.ia_esperando_respuesta is False
+    assert pedido.ia_ultimo_mensaje_cliente == fecha
+    assert pedido.ia_canal_activo is None
+    assert session.commits == 1
+    assert session.rollbacks == 0
+
+    assert estados[0][0] == (pedido,)
+    assert estados[0][1] == {
+        "canal_activo": "whatsapp",
+        "estado_conversacional": "recolectando_datos",
+        "ultimo_mensaje_cliente": fecha,
+    }
+
+    assert eventos[0]["pedido"] is pedido
+    assert eventos[0]["tipo_evento"] == "cliente_respondio"
+    assert eventos[0]["origen"] == "cliente"
+    assert eventos[0]["canal"] == "whatsapp"
+    assert eventos[0]["resultado"] == "ok"
+
+
+def test_respuesta_cliente_respeta_commit_false():
+    pedido = PedidoFake()
+    session = SessionFake()
+
+    assert ia_marcar_respuesta_cliente_service(
+        pedido,
+        lambda *args, **kwargs: None,
+        lambda **kwargs: None,
+        session,
+        canal="mercadolibre",
+        commit=False,
+    ) is True
+
+    assert session.commits == 0
+    assert session.rollbacks == 0
+
+
+def test_respuesta_cliente_hace_rollback_si_falla():
+    pedido = PedidoFake()
+    session = SessionFake()
+
+    def fallar(*args, **kwargs):
+        raise RuntimeError("fallo controlado")
+
+    assert ia_marcar_respuesta_cliente_service(
+        pedido,
+        fallar,
+        lambda **kwargs: None,
+        session,
+        canal="whatsapp",
+    ) is False
+
+    assert session.commits == 0
+    assert session.rollbacks == 1
+
+
+def test_wrapper_respuesta_cliente_usa_dependencias_canonicas(
+    monkeypatch,
+):
+    llamado = {}
+
+    def servicio_fake(*args, **kwargs):
+        llamado["args"] = args
+        llamado["kwargs"] = kwargs
+        return True
+
+    monkeypatch.setattr(
+        runtime,
+        "ia_marcar_respuesta_cliente_service",
+        servicio_fake,
+    )
+
+    pedido = PedidoFake()
+
+    assert runtime.ia_marcar_respuesta_cliente(
+        pedido,
+        canal="whatsapp",
+        commit=False,
+    ) is True
+
+    assert llamado["args"] == (
+        pedido,
+        runtime.actualizar_estado_conversacional_wa,
+        runtime.registrar_evento_operativo_wa,
+        runtime.db.session,
+    )
+    assert llamado["kwargs"] == {
+        "canal": "whatsapp",
+        "commit": False,
+    }
+
+
+def test_webhook_no_importa_respuesta_cliente_desde_app():
+    webhook = Path(
+        "modules/whatsapp/webhook.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert "ia_marcar_respuesta_cliente," in webhook
+    assert (
+        "from app import ia_marcar_respuesta_cliente"
+        not in webhook
     )

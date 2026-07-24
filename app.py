@@ -61,6 +61,7 @@ from services.tiendanube_datos import extraer_telefono_tiendanube_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ia_mensajes import (
     ia_marcar_mensaje_bot_service,
+    ia_marcar_respuesta_cliente_service,
 )
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
 from services.ml_items import ml_sincronizar_items_pedido_service
@@ -4103,51 +4104,20 @@ def ia_marcar_mensaje_bot(
     )
 
 
-def ia_marcar_respuesta_cliente(pedido, canal=None, commit=True):
-    """Libera el candado porque el comprador respondió."""
-    if not pedido:
-        return False
-    try:
-        pedido.ia_esperando_respuesta = False
-        pedido.ia_ultimo_mensaje_cliente = ia_ahora_utc()
-        canal_respuesta = str(canal or "").strip()[:30] or None
-        pedido.ia_canal_activo = None
-
-        actualizar_estado_conversacional(
-            pedido,
-            canal_activo=canal_respuesta,
-            estado_conversacional="recolectando_datos",
-            ultimo_mensaje_cliente=pedido.ia_ultimo_mensaje_cliente,
-        )
-
-        registrar_evento_operativo(
-            pedido=pedido,
-            tipo_evento="cliente_respondio",
-            origen="cliente",
-            canal=canal_respuesta or "sistema",
-            owner="bot",
-            estado_conversacional="recolectando_datos",
-            payload={
-                "canal": canal_respuesta,
-                "ia_esperando_respuesta": pedido.ia_esperando_respuesta,
-            },
-            resultado="ok",
-            detalle="El cliente respondió y se liberó el candado de espera.",
-            procesado=True,
-        )
-
-        # Si estaba escalado solo por timeout, el operador sigue viendo el caso;
-        # no se borra ia_requiere_operador automaticamente para no tapar alertas reales.
-        if commit:
-            db.session.commit()
-        return True
-    except Exception as e:
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-        print("[IA-APB] No se pudo marcar respuesta cliente:", e)
-        return False
+def ia_marcar_respuesta_cliente(
+    pedido,
+    canal=None,
+    commit=True,
+):
+    return ia_marcar_respuesta_cliente_service(
+        pedido,
+        actualizar_estado_conversacional,
+        registrar_evento_operativo,
+        db.session,
+        canal=canal,
+        commit=commit,
+        ahora_fn=ia_ahora_utc,
+    )
 
 
 def ia_puede_enviar_automatico(

@@ -11,6 +11,7 @@ from .app_bridge import (
 
 from services.ia_mensajes import (
     ia_marcar_mensaje_bot_service,
+    ia_marcar_respuesta_cliente_service,
 )
 from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import (
@@ -219,6 +220,22 @@ def ia_marcar_mensaje_bot(
         registrar_evento_operativo_wa,
         db.session,
         texto=texto,
+        commit=commit,
+    )
+
+
+def ia_marcar_respuesta_cliente(
+    pedido,
+    canal=None,
+    commit=True,
+):
+    """Libera la espera usando dependencias canónicas."""
+    return ia_marcar_respuesta_cliente_service(
+        pedido,
+        actualizar_estado_conversacional_wa,
+        registrar_evento_operativo_wa,
+        db.session,
+        canal=canal,
         commit=commit,
     )
 

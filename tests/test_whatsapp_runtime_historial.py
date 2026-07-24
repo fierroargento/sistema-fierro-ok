@@ -146,10 +146,8 @@ def test_sender_y_webhook_no_importan_registro_desde_app():
 
     assert "registrar_whatsapp_mensaje," in sender
     assert "wa_ventana_24h_abierta," in sender
-    assert (
-        "from .runtime import registrar_whatsapp_mensaje"
-        in webhook
-    )
+    assert "registrar_whatsapp_mensaje," in webhook
+    assert "ia_marcar_respuesta_cliente," in webhook
 
     assert (
         "from app import registrar_whatsapp_mensaje"

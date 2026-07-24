@@ -96,3 +96,74 @@ def ia_marcar_mensaje_bot_service(
             e,
         )
         return False
+
+def ia_marcar_respuesta_cliente_service(
+    pedido,
+    actualizar_estado_conversacional_fn,
+    registrar_evento_operativo_fn,
+    db_session,
+    canal=None,
+    commit=True,
+    ahora_fn=ahora_utc_naive,
+):
+    """Libera la espera cuando el cliente responde."""
+    if not pedido:
+        return False
+
+    try:
+        pedido.ia_esperando_respuesta = False
+        pedido.ia_ultimo_mensaje_cliente = ahora_fn()
+        canal_respuesta = (
+            str(canal or "").strip()[:30]
+            or None
+        )
+        pedido.ia_canal_activo = None
+
+        actualizar_estado_conversacional_fn(
+            pedido,
+            canal_activo=canal_respuesta,
+            estado_conversacional="recolectando_datos",
+            ultimo_mensaje_cliente=(
+                pedido.ia_ultimo_mensaje_cliente
+            ),
+        )
+
+        registrar_evento_operativo_fn(
+            pedido=pedido,
+            tipo_evento="cliente_respondio",
+            origen="cliente",
+            canal=canal_respuesta or "sistema",
+            owner="bot",
+            estado_conversacional="recolectando_datos",
+            payload={
+                "canal": canal_respuesta,
+                "ia_esperando_respuesta": (
+                    pedido.ia_esperando_respuesta
+                ),
+            },
+            resultado="ok",
+            detalle=(
+                "El cliente respondió y se liberó "
+                "el candado de espera."
+            ),
+            procesado=True,
+        )
+
+        # Si estaba escalado solo por timeout,
+        # no se borra ia_requiere_operador.
+        if commit:
+            db_session.commit()
+
+        return True
+
+    except Exception as e:
+        try:
+            db_session.rollback()
+        except Exception:
+            pass
+
+        print(
+            "[IA-APB] No se pudo marcar respuesta cliente:",
+            e,
+        )
+        return False
