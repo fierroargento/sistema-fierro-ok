@@ -59,6 +59,9 @@ from services.telefonos import normalizar_telefono_service
 from services.telefonos import es_telefono_whatsapp_argentina_valido_service
 from services.tiendanube_datos import extraer_telefono_tiendanube_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
+from services.ia_mensajes import (
+    ia_marcar_mensaje_bot_service,
+)
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
 from services.ml_items import ml_sincronizar_items_pedido_service
 from services.ml_etiquetas import (
@@ -4081,54 +4084,23 @@ def ia_segundos_operativos_entre(inicio, fin=None):
     return max(0, total)
 
 
-def ia_marcar_mensaje_bot(pedido, canal, texto=None, commit=True):
-    """Registra que el bot habló y debe esperar respuesta del comprador."""
-    if not pedido:
-        return False
-    try:
-        pedido.ia_esperando_respuesta = True
-        pedido.ia_ultimo_mensaje_bot = ia_ahora_utc()
-        pedido.ia_canal_activo = str(canal or "").strip()[:30] or None
-        if texto:
-            pedido.ia_respuesta_enviada_hash = ia_hash_texto(texto)
-            pedido.ia_ultima_respuesta_enviada = pedido.ia_ultimo_mensaje_bot
-
-        actualizar_estado_conversacional(
-            pedido,
-            owner_actual="bot",
-            canal_activo=pedido.ia_canal_activo or canal,
-            estado_conversacional="esperando_respuesta",
-            takeover_activo=False,
-            bot_pausado=False,
-            ultimo_mensaje_bot=pedido.ia_ultimo_mensaje_bot,
-        )
-
-        registrar_evento_operativo(
-            pedido=pedido,
-            tipo_evento="bot_esperando_respuesta",
-            origen="bot",
-            canal=pedido.ia_canal_activo or canal or "sistema",
-            owner="bot",
-            estado_conversacional="esperando_respuesta",
-            payload={
-                "canal": pedido.ia_canal_activo,
-                "ia_esperando_respuesta": pedido.ia_esperando_respuesta,
-            },
-            resultado="ok",
-            detalle=(texto or "")[:500],
-            procesado=True,
-        )
-
-        if commit:
-            db.session.commit()
-        return True
-    except Exception as e:
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-        print("[IA-APB] No se pudo marcar mensaje bot:", e)
-        return False
+def ia_marcar_mensaje_bot(
+    pedido,
+    canal,
+    texto=None,
+    commit=True,
+):
+    return ia_marcar_mensaje_bot_service(
+        pedido,
+        canal,
+        actualizar_estado_conversacional,
+        registrar_evento_operativo,
+        db.session,
+        texto=texto,
+        commit=commit,
+        ahora_fn=ia_ahora_utc,
+        hash_texto_fn=ia_hash_texto,
+    )
 
 
 def ia_marcar_respuesta_cliente(pedido, canal=None, commit=True):

@@ -9,6 +9,9 @@ from .app_bridge import (
     registrar_evento_operativo_wa,
 )
 
+from services.ia_mensajes import (
+    ia_marcar_mensaje_bot_service,
+)
 from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import (
     buscar_pedido_activo_por_telefono_service,
@@ -200,6 +203,24 @@ def registrar_whatsapp_mensaje_service(
         print("[WA-HIST] No se pudo registrar mensaje:", e)
 
         return None
+
+
+def ia_marcar_mensaje_bot(
+    pedido,
+    canal,
+    texto=None,
+    commit=True,
+):
+    """Marca una salida del bot con dependencias canónicas."""
+    return ia_marcar_mensaje_bot_service(
+        pedido,
+        canal,
+        actualizar_estado_conversacional_wa,
+        registrar_evento_operativo_wa,
+        db.session,
+        texto=texto,
+        commit=commit,
+    )
 
 
 def registrar_whatsapp_mensaje(

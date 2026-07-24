@@ -18,6 +18,7 @@ from .config import WA_TOKEN, WA_API_URL
 from services.logger import get_app_logger
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono
 from .runtime import (
+    ia_marcar_mensaje_bot,
     registrar_whatsapp_mensaje,
     wa_ventana_24h_abierta,
 )
@@ -152,7 +153,6 @@ def wa_enviar_template(telefono, template_name, parametros=None, pedido=None, au
 
     if ok and autor == "bot" and pedido is not None:
         try:
-            from app import ia_marcar_mensaje_bot
             ia_marcar_mensaje_bot(pedido, "whatsapp", texto_hist, commit=True)
         except Exception as e:
             logger.exception("[WA-APB] No se pudo marcar template bot")
@@ -274,7 +274,6 @@ def wa_enviar_texto(
 
     if ok and autor == "bot" and pedido is not None:
         try:
-            from app import ia_marcar_mensaje_bot
             ia_marcar_mensaje_bot(pedido, "whatsapp", texto_limpio, commit=True)
         except Exception as e:
             print("[WA-APB] No se pudo marcar mensaje bot:", e)
@@ -335,7 +334,6 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
         texto_hist = f"[Imagen enviada] {imagen_url}"
     if ok and autor == "bot" and pedido is not None:
         try:
-            from app import ia_marcar_mensaje_bot
             ia_marcar_mensaje_bot(pedido, "whatsapp", texto_hist, commit=True)
         except Exception as e:
             print("[WA-APB] No se pudo marcar imagen bot:", e)
@@ -361,6 +359,3 @@ def wa_enviar_producto(telefono, texto, imagen_url="", pedido=None, autor="bot")
     if imagen_url:
         return wa_enviar_imagen(telefono, imagen_url, caption=texto, pedido=pedido, autor=autor)
     return wa_enviar_texto(telefono, texto, pedido=pedido, autor=autor)
-
-
-
