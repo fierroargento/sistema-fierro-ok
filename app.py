@@ -59,6 +59,17 @@ from services.telefonos import normalizar_telefono_service
 from services.telefonos import es_telefono_whatsapp_argentina_valido_service
 from services.tiendanube_datos import extraer_telefono_tiendanube_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
+from services.horario_operativo import (
+    ARG_TZ,
+    IA_HORA_FIN_OPERATIVA,
+    IA_HORA_INICIO_OPERATIVA,
+    IA_TIMEOUT_RESPUESTA_SEGUNDOS,
+    _ia_datetime_arg,
+    _ia_datetime_utc,
+    ia_ahora_utc,
+    ia_en_horario_operativo,
+    ia_segundos_operativos_entre,
+)
 from services.ia_mensajes import (
     ia_escalar_si_timeout_operativo_service,
     ia_marcar_mensaje_bot_service,
@@ -4030,61 +4041,6 @@ def ia_extraer_codigo_postal_simple(texto):
 
     return ""
 
-ARG_TZ = ZoneInfo("America/Argentina/Buenos_Aires")
-IA_HORA_INICIO_OPERATIVA = time(8, 0)
-IA_HORA_FIN_OPERATIVA = time(22, 0)
-IA_TIMEOUT_RESPUESTA_SEGUNDOS = 2 * 60 * 60
-
-
-def _ia_datetime_utc(dt):
-    if not dt:
-        return None
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
-
-
-def _ia_datetime_arg(dt):
-    dt_utc = _ia_datetime_utc(dt)
-    return dt_utc.astimezone(ARG_TZ) if dt_utc else None
-
-
-def ia_ahora_utc():
-    return datetime.utcnow()
-
-
-def ia_en_horario_operativo(dt=None):
-    ahora_arg = _ia_datetime_arg(dt or ia_ahora_utc())
-    if not ahora_arg:
-        return False
-    hora = ahora_arg.time()
-    return IA_HORA_INICIO_OPERATIVA <= hora < IA_HORA_FIN_OPERATIVA
-
-
-def ia_segundos_operativos_entre(inicio, fin=None):
-    """Cuenta solo segundos entre 08:00 y 22:00 hora Argentina."""
-    if not inicio:
-        return 0
-    fin = fin or ia_ahora_utc()
-    ini_arg = _ia_datetime_arg(inicio)
-    fin_arg = _ia_datetime_arg(fin)
-    if not ini_arg or not fin_arg or fin_arg <= ini_arg:
-        return 0
-
-    total = 0
-    cursor_fecha = ini_arg.date()
-    fin_fecha = fin_arg.date()
-
-    while cursor_fecha <= fin_fecha:
-        tramo_ini = datetime.combine(cursor_fecha, IA_HORA_INICIO_OPERATIVA, tzinfo=ARG_TZ)
-        tramo_fin = datetime.combine(cursor_fecha, IA_HORA_FIN_OPERATIVA, tzinfo=ARG_TZ)
-        desde = max(ini_arg, tramo_ini)
-        hasta = min(fin_arg, tramo_fin)
-        if hasta > desde:
-            total += int((hasta - desde).total_seconds())
-        cursor_fecha += timedelta(days=1)
-
-    return max(0, total)
 
 
 def ia_marcar_mensaje_bot(
