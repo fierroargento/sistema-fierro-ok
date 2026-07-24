@@ -40,6 +40,7 @@ from .flows import (
 )
 
 from .router import routear_mensaje
+from .runtime import registrar_whatsapp_mensaje
 
 from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono
@@ -427,7 +428,7 @@ def registrar_webhook(app):
                             texto_para_historial = "[Archivo recibido] No se pudo procesar el archivo."
 
                     try:
-                        from app import registrar_whatsapp_mensaje, ia_marcar_respuesta_cliente
+                        from app import ia_marcar_respuesta_cliente
 
                         registrar_whatsapp_mensaje(
                             pedido=pedido,

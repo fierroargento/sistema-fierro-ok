@@ -1,5 +1,14 @@
 from datetime import datetime, timedelta, UTC
 
+from extensions import db
+from models.pedido import Pedido
+from models.whatsapp_mensaje import WhatsAppMensaje
+
+from .app_bridge import (
+    actualizar_estado_conversacional_wa,
+    registrar_evento_operativo_wa,
+)
+
 from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import (
     buscar_pedido_activo_por_telefono_service,
@@ -179,3 +188,31 @@ def registrar_whatsapp_mensaje_service(
         print("[WA-HIST] No se pudo registrar mensaje:", e)
 
         return None
+
+
+def registrar_whatsapp_mensaje(
+    pedido=None,
+    telefono="",
+    direccion="",
+    autor="",
+    texto="",
+    message_id_meta="",
+    estado="",
+    error="",
+):
+    """Registra historial WA usando dependencias canónicas."""
+    return registrar_whatsapp_mensaje_service(
+        WhatsAppMensaje,
+        actualizar_estado_conversacional_wa,
+        registrar_evento_operativo_wa,
+        Pedido,
+        db,
+        pedido=pedido,
+        telefono=telefono,
+        direccion=direccion,
+        autor=autor,
+        texto=texto,
+        message_id_meta=message_id_meta,
+        estado=estado,
+        error=error,
+    )

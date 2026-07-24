@@ -17,6 +17,7 @@ from urllib.error import HTTPError
 from .config import WA_TOKEN, WA_API_URL
 from services.logger import get_app_logger
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono
+from .runtime import registrar_whatsapp_mensaje
 from services.whatsapp_template_params import sanitizar_parametros_template_meta
 
 logger = get_app_logger(__name__)
@@ -24,7 +25,6 @@ logger = get_app_logger(__name__)
 
 def _registrar_historial(pedido=None, telefono="", texto="", autor="bot", estado="", error="", message_id_meta=""):
     try:
-        from app import registrar_whatsapp_mensaje
         registrar_whatsapp_mensaje(
             pedido=pedido,
             telefono=telefono,
