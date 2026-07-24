@@ -635,3 +635,41 @@ def test_timeout_hace_rollback_si_falla():
     assert resultado is False
     assert session.commits == 0
     assert session.rollbacks == 1
+
+def test_wrapper_timeout_usa_dependencias_canonicas(
+    monkeypatch,
+):
+    llamado = {}
+
+    def servicio_fake(*args, **kwargs):
+        llamado["args"] = args
+        llamado["kwargs"] = kwargs
+        return True
+
+    monkeypatch.setattr(
+        runtime,
+        "ia_escalar_si_timeout_operativo_service",
+        servicio_fake,
+    )
+
+    pedido = PedidoTimeoutFake()
+
+    assert runtime.ia_escalar_si_timeout_operativo(
+        pedido,
+        canal="whatsapp",
+        motivo="Sin respuesta",
+    ) is True
+
+    assert llamado["args"] == (
+        pedido,
+        runtime.actualizar_estado_conversacional_wa,
+        runtime.registrar_evento_operativo_wa,
+        runtime.db.session,
+        runtime.ia_segundos_operativos_entre,
+        runtime.ia_ahora_utc,
+        runtime.IA_TIMEOUT_RESPUESTA_SEGUNDOS,
+    )
+    assert llamado["kwargs"] == {
+        "canal": "whatsapp",
+        "motivo": "Sin respuesta",
+    }

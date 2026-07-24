@@ -10,9 +10,15 @@ from .app_bridge import (
 )
 
 from services.ia_mensajes import (
+    ia_escalar_si_timeout_operativo_service,
     ia_marcar_mensaje_bot_service,
     ia_marcar_respuesta_cliente_service,
     ia_puede_enviar_automatico_service,
+)
+from services.horario_operativo import (
+    IA_TIMEOUT_RESPUESTA_SEGUNDOS,
+    ia_ahora_utc,
+    ia_segundos_operativos_entre,
 )
 from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import (
@@ -255,6 +261,25 @@ def ia_puede_enviar_automatico(
         permitir_requiere_operador=(
             permitir_requiere_operador
         ),
+    )
+
+
+def ia_escalar_si_timeout_operativo(
+    pedido,
+    canal="",
+    motivo="Sin respuesta del comprador",
+):
+    """Escala un timeout con dependencias canónicas."""
+    return ia_escalar_si_timeout_operativo_service(
+        pedido,
+        actualizar_estado_conversacional_wa,
+        registrar_evento_operativo_wa,
+        db.session,
+        ia_segundos_operativos_entre,
+        ia_ahora_utc,
+        IA_TIMEOUT_RESPUESTA_SEGUNDOS,
+        canal=canal,
+        motivo=motivo,
     )
 
 

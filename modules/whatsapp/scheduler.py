@@ -15,6 +15,12 @@ from models.pedido import Pedido
 
 from domain.estados import Estado, ESTADOS_POST_DESPACHO
 from services.logger import get_app_logger
+from services.horario_operativo import (
+    ia_ahora_utc,
+)
+from .runtime import (
+    ia_escalar_si_timeout_operativo,
+)
 
 logger = get_app_logger(__name__)
 
@@ -89,7 +95,6 @@ def ejecutar_timers_whatsapp():
         return
 
     try:
-        from app import ia_ahora_utc, ia_escalar_si_timeout_operativo
         from modules.whatsapp.flows import (
             wa_enviar_recordatorio_1,
             wa_enviar_recordatorio_2,

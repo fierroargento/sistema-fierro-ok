@@ -70,6 +70,17 @@ def test_scheduler_usa_extension_canonica_db():
     ) == 1
     assert "from app import Pedido" not in texto
     assert "\n            Pedido,\n" not in texto
+    assert texto.count(
+        "from services.horario_operativo import ("
+    ) == 1
+    assert texto.count(
+        "from .runtime import ("
+    ) == 1
+    assert "from app import ia_ahora_utc" not in texto
+    assert (
+        "from app import ia_escalar_si_timeout_operativo"
+        not in texto
+    )
 
     assert texto.count(
         "db.session.commit()"
