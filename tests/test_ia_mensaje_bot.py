@@ -3,6 +3,7 @@ from pathlib import Path
 
 from modules.whatsapp import runtime
 from services.ia_mensajes import (
+    ia_escalar_si_timeout_operativo_service,
     ia_hash_texto_service,
     ia_marcar_mensaje_bot_service,
     ia_marcar_respuesta_cliente_service,
@@ -464,3 +465,173 @@ def test_sender_no_importa_candado_desde_app():
         "from app import ia_puede_enviar_automatico"
         not in sender
     )
+
+class PedidoTimeoutFake:
+    def __init__(self):
+        self.id = 321
+        self.ia_esperando_respuesta = True
+        self.ia_ultimo_mensaje_bot = datetime(
+            2026,
+            7,
+            24,
+            10,
+            0,
+        )
+        self.ia_requiere_operador = False
+        self.ml_mensajes_pendientes = False
+        self.ml_mensajes_pendientes_count = 0
+        self.ia_ultimo_timeout_operador = None
+        self.ia_canal_activo = None
+        self.ia_resumen = ""
+        self.wa_estado = ""
+
+
+def _ejecutar_timeout(
+    pedido,
+    canal,
+    *,
+    segundos=7200,
+    actualizar_fn=None,
+    evento_fn=None,
+    session=None,
+):
+    session = session or SessionFake()
+
+    return (
+        ia_escalar_si_timeout_operativo_service(
+            pedido,
+            actualizar_fn
+            or (lambda *args, **kwargs: None),
+            evento_fn
+            or (lambda **kwargs: None),
+            session,
+            lambda inicio, fin: segundos,
+            lambda: datetime(
+                2026,
+                7,
+                24,
+                16,
+                0,
+            ),
+            7200,
+            canal=canal,
+        ),
+        session,
+    )
+
+
+def test_timeout_no_escala_antes_del_umbral():
+    pedido = PedidoTimeoutFake()
+
+    resultado, session = _ejecutar_timeout(
+        pedido,
+        "whatsapp",
+        segundos=7199,
+    )
+
+    assert resultado is False
+    assert pedido.ia_requiere_operador is False
+    assert session.commits == 0
+    assert session.rollbacks == 0
+
+
+def test_timeout_whatsapp_toma_ownership():
+    pedido = PedidoTimeoutFake()
+    estados = []
+    eventos = []
+
+    resultado, session = _ejecutar_timeout(
+        pedido,
+        "whatsapp",
+        actualizar_fn=lambda *args, **kwargs: (
+            estados.append((args, kwargs))
+        ),
+        evento_fn=lambda **kwargs: eventos.append(
+            kwargs
+        ),
+    )
+
+    assert resultado is True
+    assert pedido.ia_requiere_operador is True
+    assert pedido.ml_mensajes_pendientes is True
+    assert pedido.ml_mensajes_pendientes_count == 1
+    assert pedido.wa_estado == "requiere_operador"
+    assert session.commits == 1
+    assert session.rollbacks == 0
+
+    assert estados[0][0] == (pedido,)
+    assert estados[0][1] == {
+        "owner_actual": "operador",
+        "canal_activo": "whatsapp",
+        "estado_conversacional": (
+            "takeover_operador"
+        ),
+        "takeover_activo": True,
+        "bot_pausado": True,
+    }
+
+    assert eventos[0]["tipo_evento"] == (
+        "timeout_respuesta_cliente"
+    )
+    assert eventos[0]["canal"] == "whatsapp"
+    assert eventos[0]["estado_conversacional"] == (
+        "takeover_operador"
+    )
+
+
+def test_timeout_ml_no_contamina_whatsapp():
+    pedido = PedidoTimeoutFake()
+    pedido.wa_estado = "estado_previo"
+    estados = []
+    eventos = []
+
+    resultado, session = _ejecutar_timeout(
+        pedido,
+        "mercadolibre",
+        actualizar_fn=lambda *args, **kwargs: (
+            estados.append((args, kwargs))
+        ),
+        evento_fn=lambda **kwargs: eventos.append(
+            kwargs
+        ),
+    )
+
+    assert resultado is True
+    assert pedido.ia_requiere_operador is True
+    assert pedido.wa_estado == "estado_previo"
+    assert estados == []
+    assert session.commits == 1
+    assert eventos[0]["estado_conversacional"] == (
+        "pendiente_operador_ml"
+    )
+
+
+def test_timeout_no_duplica_escalado():
+    pedido = PedidoTimeoutFake()
+    pedido.ia_requiere_operador = True
+
+    resultado, session = _ejecutar_timeout(
+        pedido,
+        "whatsapp",
+    )
+
+    assert resultado is False
+    assert session.commits == 0
+    assert session.rollbacks == 0
+
+
+def test_timeout_hace_rollback_si_falla():
+    pedido = PedidoTimeoutFake()
+
+    def fallar(**kwargs):
+        raise RuntimeError("fallo controlado")
+
+    resultado, session = _ejecutar_timeout(
+        pedido,
+        "whatsapp",
+        evento_fn=fallar,
+    )
+
+    assert resultado is False
+    assert session.commits == 0
+    assert session.rollbacks == 1

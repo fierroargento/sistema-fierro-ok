@@ -60,6 +60,7 @@ from services.telefonos import es_telefono_whatsapp_argentina_valido_service
 from services.tiendanube_datos import extraer_telefono_tiendanube_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ia_mensajes import (
+    ia_escalar_si_timeout_operativo_service,
     ia_marcar_mensaje_bot_service,
     ia_marcar_respuesta_cliente_service,
     ia_puede_enviar_automatico_service,
@@ -4138,86 +4139,22 @@ def ia_puede_enviar_automatico(
     )
 
 
-def ia_escalar_si_timeout_operativo(pedido, canal="", motivo="Sin respuesta del comprador"):
-    """Escala si pasaron 2 horas operativas desde el último mensaje del bot."""
-    if not pedido or not getattr(pedido, "ia_esperando_respuesta", False):
-        return False
-    ultimo_bot = getattr(pedido, "ia_ultimo_mensaje_bot", None)
-    if not ultimo_bot:
-        return False
-    if ia_segundos_operativos_entre(ultimo_bot, ia_ahora_utc()) < IA_TIMEOUT_RESPUESTA_SEGUNDOS:
-        return False
-    if getattr(pedido, "ia_requiere_operador", False):
-        return False
-
-    try:
-        pedido.ia_requiere_operador = True
-        pedido.ml_mensajes_pendientes = True
-        pedido.ml_mensajes_pendientes_count = max(int(pedido.ml_mensajes_pendientes_count or 0), 1)
-        pedido.ia_ultimo_timeout_operador = ia_ahora_utc()
-        canal_txt = str(canal or getattr(pedido, "ia_canal_activo", "") or "bot")
-        resumen = (pedido.ia_resumen or "").strip()
-        marca = f"BOT: sin respuesta del comprador tras 2 hs operativas ({canal_txt})"
-        if marca not in resumen:
-            pedido.ia_resumen = f"{resumen} | {marca}".strip(" |")[:1000]
-        # APB:
-        # Solo WhatsApp debe escribir wa_estado y tomar ownership conversacional.
-        # Un timeout de Mercado Libre NO debe contaminar WhatsApp ni pausar el bot global.
-        canal_timeout = str(canal_txt or "").strip().lower()
-        es_timeout_wa = canal_timeout in ("whatsapp", "wa")
-
-        if es_timeout_wa:
-            try:
-                pedido.wa_estado = "requiere_operador"
-            except Exception:
-                pass
-
-            actualizar_estado_conversacional(
-                pedido,
-                owner_actual="operador",
-                canal_activo=canal_txt,
-                estado_conversacional="takeover_operador",
-                takeover_activo=True,
-                bot_pausado=True,
-            )
-
-            evento_owner = "operador"
-            evento_estado_conversacional = "takeover_operador"
-
-        else:
-            # Timeout ML:
-            # queda pendiente para operador, pero ML no pierde ownership por culpa de WA.
-            evento_owner = "operador"
-            evento_estado_conversacional = "pendiente_operador_ml"
-
-        registrar_evento_operativo(
-            pedido=pedido,
-            tipo_evento="timeout_respuesta_cliente",
-            origen="scheduler",
-            canal=canal_txt,
-            owner=evento_owner,
-            estado_conversacional=evento_estado_conversacional,
-            payload={
-                "motivo": motivo,
-                "canal": canal_txt,
-                "ia_esperando_respuesta": pedido.ia_esperando_respuesta,
-                "ia_ultimo_mensaje_bot": str(ultimo_bot),
-            },
-            resultado="escalado_operador",
-            detalle=marca,
-            procesado=True,
-        )
-
-        db.session.commit()
-        print(f"[IA-APB] Pedido #{pedido.id} escalado por timeout operativo canal={canal_txt}")
-        return True
-    except Exception as e:
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-        print("[IA-APB] Error escalando por timeout:", e)
-        return False
+def ia_escalar_si_timeout_operativo(
+    pedido,
+    canal="",
+    motivo="Sin respuesta del comprador",
+):
+    return ia_escalar_si_timeout_operativo_service(
+        pedido,
+        actualizar_estado_conversacional,
+        registrar_evento_operativo,
+        db.session,
+        ia_segundos_operativos_entre,
+        ia_ahora_utc,
+        IA_TIMEOUT_RESPUESTA_SEGUNDOS,
+        canal=canal,
+        motivo=motivo,
+    )
 
 
 def ia_json_loads_seguro(texto):
