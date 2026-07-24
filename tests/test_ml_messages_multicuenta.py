@@ -1,8 +1,10 @@
-﻿import sys
+import sys
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
 import pytest
 
+from modules.automation.jobs import ml_messages
 from modules.automation.jobs.ml_messages import ejecutar_job_ml_mensajes
 from services import ml_cuentas
 
@@ -83,7 +85,11 @@ def instalar_app_fake(monkeypatch, pedidos_esperando, pedidos, mensajes_fn, anal
         pedidos,
     ])
 
-    modulo_app.Pedido = PedidoFake
+    monkeypatch.setattr(
+        ml_messages,
+        "Pedido",
+        PedidoFake,
+    )
     modulo_app.ia_escalar_si_timeout_operativo = lambda *args, **kwargs: None
     modulo_app.ml_obtener_mensajes_pack_para_ia = mensajes_fn
     modulo_app.ia_analizar_ultimo_mensaje_pedido = analizar_fn
@@ -221,3 +227,13 @@ def test_job_ml_mensajes_saltea_pedido_sin_cuenta_valida(monkeypatch):
 
     assert db.session.commits == 1
     assert db.session.removes == 1
+
+def test_job_ml_mensajes_usa_pedido_canonico():
+    texto = Path(
+        "modules/automation/jobs/ml_messages.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert texto.count(
+        "from models.pedido import Pedido"
+    ) == 1
+    assert "\n                Pedido,\n" not in texto
