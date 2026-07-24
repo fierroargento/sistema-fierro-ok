@@ -1,4 +1,5 @@
 from domain.estados import Estado
+from models.pedido import Pedido
 from services.telefonos import normalizar_telefono_service
 
 
@@ -34,3 +35,11 @@ def buscar_pedido_activo_por_telefono_service(
             return pedido
 
     return None
+
+
+def buscar_pedido_activo_por_telefono(telefono):
+    """Busca un pedido activo usando el modelo canónico."""
+    return buscar_pedido_activo_por_telefono_service(
+        telefono,
+        Pedido,
+    )

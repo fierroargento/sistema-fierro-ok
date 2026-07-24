@@ -1,4 +1,4 @@
-﻿"""
+"""
 modules/whatsapp/sender.py
 # ------------------------------------------------------------
 Funciones de bajo nivel para enviar mensajes por WhatsApp Business API.
@@ -16,6 +16,7 @@ from urllib.error import HTTPError
 
 from .config import WA_TOKEN, WA_API_URL
 from services.logger import get_app_logger
+from services.busqueda_pedidos import buscar_pedido_activo_por_telefono
 from services.whatsapp_template_params import sanitizar_parametros_template_meta
 
 logger = get_app_logger(__name__)
@@ -192,7 +193,6 @@ def wa_enviar_texto(
     # Resolver pedido por telefono cuando el caller no lo pasa explicitamente.
     if pedido is None:
         try:
-            from app import buscar_pedido_activo_por_telefono
             pedido = buscar_pedido_activo_por_telefono(telefono)
         except Exception as e:
             logger.exception("[WA-APB] No se pudo resolver pedido para candado")
@@ -299,7 +299,6 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
 
     if pedido is None:
         try:
-            from app import buscar_pedido_activo_por_telefono
             pedido = buscar_pedido_activo_por_telefono(telefono)
         except Exception as e:
             logger.exception("[WA-APB] No se pudo resolver pedido para imagen")

@@ -42,6 +42,7 @@ from .flows import (
 from .router import routear_mensaje
 
 from services.telefonos import normalizar_telefono_service
+from services.busqueda_pedidos import buscar_pedido_activo_por_telefono
 from services.logger import get_app_logger
 from services.wa_general_bot import manejar_sin_pedido_activo_wa_general
 
@@ -54,7 +55,6 @@ def _obtener_estado_wa(pedido):
 
 def _buscar_pedido_por_telefono(telefono):
     """Busca el pedido activo más reciente asociado a ese número."""
-    from app import buscar_pedido_activo_por_telefono
     return buscar_pedido_activo_por_telefono(telefono)
 
 
