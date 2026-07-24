@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, UTC
 
+from modules.whatsapp import runtime
 from modules.whatsapp.runtime import wa_ventana_24h_abierta_service
 from services.fechas import ahora_utc_naive
 
@@ -75,3 +76,52 @@ def test_wa_ventana_24h_abierta_service_rechaza_fecha_vieja():
         FakeWhatsAppMensaje,
         pedido=PedidoFake(),
     ) is False
+
+def test_wa_ventana_24h_abierta_usa_modelo_canonico(monkeypatch):
+    llamado = {}
+
+    def servicio_fake(
+        modelo,
+        pedido=None,
+        telefono="",
+    ):
+        llamado["modelo"] = modelo
+        llamado["pedido"] = pedido
+        llamado["telefono"] = telefono
+        return True
+
+    monkeypatch.setattr(
+        runtime,
+        "wa_ventana_24h_abierta_service",
+        servicio_fake,
+    )
+
+    pedido = PedidoFake()
+
+    assert runtime.wa_ventana_24h_abierta(
+        pedido=pedido,
+        telefono="2920123456",
+    ) is True
+
+    assert llamado == {
+        "modelo": runtime.WhatsAppMensaje,
+        "pedido": pedido,
+        "telefono": "2920123456",
+    }
+
+
+def test_sender_no_importa_ventana_24h_desde_app():
+    from pathlib import Path
+
+    texto = Path(
+        "modules/whatsapp/sender.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert texto.count(
+        "wa_ventana_24h_abierta,"
+    ) == 1
+    assert (
+        "from app import ia_puede_enviar_automatico, "
+        "wa_ventana_24h_abierta"
+        not in texto
+    )

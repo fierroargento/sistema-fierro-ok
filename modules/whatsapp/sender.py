@@ -17,7 +17,10 @@ from urllib.error import HTTPError
 from .config import WA_TOKEN, WA_API_URL
 from services.logger import get_app_logger
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono
-from .runtime import registrar_whatsapp_mensaje
+from .runtime import (
+    registrar_whatsapp_mensaje,
+    wa_ventana_24h_abierta,
+)
 from services.whatsapp_template_params import sanitizar_parametros_template_meta
 
 logger = get_app_logger(__name__)
@@ -199,7 +202,7 @@ def wa_enviar_texto(
 
     if autor == "bot" and pedido is not None:
         try:
-            from app import ia_puede_enviar_automatico, wa_ventana_24h_abierta
+            from app import ia_puede_enviar_automatico
 
             ventana_abierta = wa_ventana_24h_abierta(
                 pedido=pedido,

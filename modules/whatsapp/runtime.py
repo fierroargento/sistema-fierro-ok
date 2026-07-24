@@ -87,6 +87,18 @@ def wa_ventana_24h_abierta_service(
         return False
 
 
+def wa_ventana_24h_abierta(
+    pedido=None,
+    telefono="",
+):
+    """Evalúa la ventana de 24 h usando el modelo canónico."""
+    return wa_ventana_24h_abierta_service(
+        WhatsAppMensaje,
+        pedido=pedido,
+        telefono=telefono,
+    )
+
+
 def registrar_whatsapp_mensaje_service(
     WhatsAppMensaje,
     actualizar_estado_conversacional,

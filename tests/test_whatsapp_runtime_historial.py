@@ -144,12 +144,12 @@ def test_sender_y_webhook_no_importan_registro_desde_app():
         "modules/whatsapp/webhook.py"
     ).read_text(encoding="utf-8-sig")
 
-    import_canonico = (
+    assert "registrar_whatsapp_mensaje," in sender
+    assert "wa_ventana_24h_abierta," in sender
+    assert (
         "from .runtime import registrar_whatsapp_mensaje"
+        in webhook
     )
-
-    assert import_canonico in sender
-    assert import_canonico in webhook
 
     assert (
         "from app import registrar_whatsapp_mensaje"
