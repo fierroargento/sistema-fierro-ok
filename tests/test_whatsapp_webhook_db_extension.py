@@ -160,6 +160,10 @@ def test_webhook_usa_extension_canonica_db():
 
     assert texto.count("from extensions import db") == 1
     assert "from app import db" not in texto
+    assert texto.count(
+        "from models.pedido import Pedido"
+    ) == 1
+    assert "from app import Pedido" not in texto
 
     assert texto.count(
         "from models.whatsapp_mensaje import "

@@ -9,6 +9,7 @@ import re
 from flask import request, jsonify
 
 from extensions import db
+from models.pedido import Pedido
 from models.whatsapp_media import WhatsAppMediaRecibida
 from models.whatsapp_mensaje import WhatsAppMensaje
 
@@ -138,8 +139,6 @@ def _routear_mensaje(pedido, texto, telefono):
     # Sin pedido activo
     if not pedido:
         from .sender import wa_enviar_texto
-        from app import Pedido
-
         manejar_sin_pedido_activo_wa_general(
             texto=texto,
             telefono=telefono,
