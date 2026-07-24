@@ -12,6 +12,7 @@ from .app_bridge import (
 from services.ia_mensajes import (
     ia_marcar_mensaje_bot_service,
     ia_marcar_respuesta_cliente_service,
+    ia_puede_enviar_automatico_service,
 )
 from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import (
@@ -237,6 +238,23 @@ def ia_marcar_respuesta_cliente(
         db.session,
         canal=canal,
         commit=commit,
+    )
+
+
+def ia_puede_enviar_automatico(
+    pedido,
+    canal,
+    texto=None,
+    permitir_requiere_operador=False,
+):
+    """Evalúa el candado automático canónico."""
+    return ia_puede_enviar_automatico_service(
+        pedido,
+        canal,
+        texto=texto,
+        permitir_requiere_operador=(
+            permitir_requiere_operador
+        ),
     )
 
 

@@ -62,6 +62,7 @@ from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
 from services.ia_mensajes import (
     ia_marcar_mensaje_bot_service,
     ia_marcar_respuesta_cliente_service,
+    ia_puede_enviar_automatico_service,
 )
 from services.ml_operacion import ml_validar_orden_operable_antes_de_despacho_service
 from services.ml_items import ml_sincronizar_items_pedido_service
@@ -4126,33 +4127,15 @@ def ia_puede_enviar_automatico(
     texto=None,
     permitir_requiere_operador=False,
 ):
-    """Candado global anti-acoso para ML y WhatsApp."""
-    if not pedido:
-        return True, "sin_pedido"
-
-    canal = str(canal or "").strip().lower()
-    canal_activo = str(getattr(pedido, "ia_canal_activo", "") or "").strip().lower()
-
-    if getattr(pedido, "ia_requiere_operador", False) and not permitir_requiere_operador:
-        return False, "requiere_operador"
-
-    if getattr(pedido, "ia_esperando_respuesta", False):
-        if canal_activo and canal_activo != canal:
-            return False, f"canal_activo_{canal_activo}"
-        return False, "esperando_respuesta_cliente"
-
-    if canal_activo and canal_activo != canal:
-        return False, f"canal_activo_{canal_activo}"
-
-    if texto:
-        h = ia_hash_texto(texto)
-        ultimo_hash = str(getattr(pedido, "ia_respuesta_enviada_hash", "") or "")
-        ultimo_bot = getattr(pedido, "ia_ultimo_mensaje_bot", None)
-        ultimo_cliente = getattr(pedido, "ia_ultimo_mensaje_cliente", None)
-        if h == ultimo_hash and ultimo_bot and (not ultimo_cliente or ultimo_bot >= ultimo_cliente):
-            return False, "mensaje_duplicado_sin_respuesta"
-
-    return True, "ok"
+    return ia_puede_enviar_automatico_service(
+        pedido,
+        canal,
+        texto=texto,
+        permitir_requiere_operador=(
+            permitir_requiere_operador
+        ),
+        hash_texto_fn=ia_hash_texto,
+    )
 
 
 def ia_escalar_si_timeout_operativo(pedido, canal="", motivo="Sin respuesta del comprador"):

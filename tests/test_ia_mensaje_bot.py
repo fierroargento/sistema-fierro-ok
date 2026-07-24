@@ -6,6 +6,7 @@ from services.ia_mensajes import (
     ia_hash_texto_service,
     ia_marcar_mensaje_bot_service,
     ia_marcar_respuesta_cliente_service,
+    ia_puede_enviar_automatico_service,
 )
 
 
@@ -290,4 +291,176 @@ def test_webhook_no_importa_respuesta_cliente_desde_app():
     assert (
         "from app import ia_marcar_respuesta_cliente"
         not in webhook
+    )
+
+def test_candado_permite_sin_pedido():
+    assert ia_puede_enviar_automatico_service(
+        None,
+        "whatsapp",
+        texto="Hola",
+    ) == (True, "sin_pedido")
+
+
+def test_candado_bloquea_si_requiere_operador():
+    pedido = PedidoFake()
+    pedido.ia_requiere_operador = True
+
+    assert ia_puede_enviar_automatico_service(
+        pedido,
+        "whatsapp",
+    ) == (False, "requiere_operador")
+
+    assert ia_puede_enviar_automatico_service(
+        pedido,
+        "whatsapp",
+        permitir_requiere_operador=True,
+    ) == (True, "ok")
+
+
+def test_candado_bloquea_si_espera_respuesta():
+    pedido = PedidoFake()
+    pedido.ia_requiere_operador = False
+    pedido.ia_esperando_respuesta = True
+    pedido.ia_canal_activo = "whatsapp"
+
+    assert ia_puede_enviar_automatico_service(
+        pedido,
+        "whatsapp",
+    ) == (
+        False,
+        "esperando_respuesta_cliente",
+    )
+
+
+def test_candado_prioriza_conflicto_de_canal():
+    pedido = PedidoFake()
+    pedido.ia_requiere_operador = False
+    pedido.ia_esperando_respuesta = True
+    pedido.ia_canal_activo = "mercadolibre"
+
+    assert ia_puede_enviar_automatico_service(
+        pedido,
+        "whatsapp",
+    ) == (
+        False,
+        "canal_activo_mercadolibre",
+    )
+
+
+def test_candado_bloquea_canal_activo_distinto():
+    pedido = PedidoFake()
+    pedido.ia_requiere_operador = False
+    pedido.ia_esperando_respuesta = False
+    pedido.ia_canal_activo = "whatsapp"
+
+    assert ia_puede_enviar_automatico_service(
+        pedido,
+        "mercadolibre",
+    ) == (
+        False,
+        "canal_activo_whatsapp",
+    )
+
+
+def test_candado_bloquea_mensaje_duplicado_sin_respuesta():
+    pedido = PedidoFake()
+    pedido.ia_requiere_operador = False
+    pedido.ia_esperando_respuesta = False
+    pedido.ia_canal_activo = None
+    pedido.ia_respuesta_enviada_hash = (
+        ia_hash_texto_service("Hola")
+    )
+    pedido.ia_ultimo_mensaje_bot = datetime(
+        2026,
+        7,
+        24,
+        16,
+        0,
+    )
+    pedido.ia_ultimo_mensaje_cliente = None
+
+    assert ia_puede_enviar_automatico_service(
+        pedido,
+        "whatsapp",
+        texto="Hola",
+    ) == (
+        False,
+        "mensaje_duplicado_sin_respuesta",
+    )
+
+
+def test_candado_permite_duplicado_tras_respuesta():
+    pedido = PedidoFake()
+    pedido.ia_requiere_operador = False
+    pedido.ia_esperando_respuesta = False
+    pedido.ia_canal_activo = None
+    pedido.ia_respuesta_enviada_hash = (
+        ia_hash_texto_service("Hola")
+    )
+    pedido.ia_ultimo_mensaje_bot = datetime(
+        2026,
+        7,
+        24,
+        16,
+        0,
+    )
+    pedido.ia_ultimo_mensaje_cliente = datetime(
+        2026,
+        7,
+        24,
+        16,
+        1,
+    )
+
+    assert ia_puede_enviar_automatico_service(
+        pedido,
+        "whatsapp",
+        texto="Hola",
+    ) == (True, "ok")
+
+
+def test_wrapper_candado_delega_al_servicio(
+    monkeypatch,
+):
+    llamado = {}
+
+    def servicio_fake(*args, **kwargs):
+        llamado["args"] = args
+        llamado["kwargs"] = kwargs
+        return True, "ok"
+
+    monkeypatch.setattr(
+        runtime,
+        "ia_puede_enviar_automatico_service",
+        servicio_fake,
+    )
+
+    pedido = PedidoFake()
+
+    assert runtime.ia_puede_enviar_automatico(
+        pedido,
+        "whatsapp",
+        texto="Hola",
+        permitir_requiere_operador=True,
+    ) == (True, "ok")
+
+    assert llamado["args"] == (
+        pedido,
+        "whatsapp",
+    )
+    assert llamado["kwargs"] == {
+        "texto": "Hola",
+        "permitir_requiere_operador": True,
+    }
+
+
+def test_sender_no_importa_candado_desde_app():
+    sender = Path(
+        "modules/whatsapp/sender.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert "ia_puede_enviar_automatico," in sender
+    assert (
+        "from app import ia_puede_enviar_automatico"
+        not in sender
     )

@@ -167,3 +167,83 @@ def ia_marcar_respuesta_cliente_service(
             e,
         )
         return False
+
+def ia_puede_enviar_automatico_service(
+    pedido,
+    canal,
+    texto=None,
+    permitir_requiere_operador=False,
+    hash_texto_fn=ia_hash_texto_service,
+):
+    """Candado global antiacoso para ML y WhatsApp."""
+    if not pedido:
+        return True, "sin_pedido"
+
+    canal = str(canal or "").strip().lower()
+    canal_activo = str(
+        getattr(
+            pedido,
+            "ia_canal_activo",
+            "",
+        )
+        or ""
+    ).strip().lower()
+
+    if (
+        getattr(
+            pedido,
+            "ia_requiere_operador",
+            False,
+        )
+        and not permitir_requiere_operador
+    ):
+        return False, "requiere_operador"
+
+    if getattr(
+        pedido,
+        "ia_esperando_respuesta",
+        False,
+    ):
+        if canal_activo and canal_activo != canal:
+            return False, f"canal_activo_{canal_activo}"
+
+        return False, "esperando_respuesta_cliente"
+
+    if canal_activo and canal_activo != canal:
+        return False, f"canal_activo_{canal_activo}"
+
+    if texto:
+        texto_hash = hash_texto_fn(texto)
+        ultimo_hash = str(
+            getattr(
+                pedido,
+                "ia_respuesta_enviada_hash",
+                "",
+            )
+            or ""
+        )
+        ultimo_bot = getattr(
+            pedido,
+            "ia_ultimo_mensaje_bot",
+            None,
+        )
+        ultimo_cliente = getattr(
+            pedido,
+            "ia_ultimo_mensaje_cliente",
+            None,
+        )
+
+        if (
+            texto_hash == ultimo_hash
+            and ultimo_bot
+            and (
+                not ultimo_cliente
+                or ultimo_bot >= ultimo_cliente
+            )
+        ):
+            return (
+                False,
+                "mensaje_duplicado_sin_respuesta",
+            )
+
+    return True, "ok"

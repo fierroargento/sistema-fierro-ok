@@ -19,6 +19,7 @@ from services.logger import get_app_logger
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono
 from .runtime import (
     ia_marcar_mensaje_bot,
+    ia_puede_enviar_automatico,
     registrar_whatsapp_mensaje,
     wa_ventana_24h_abierta,
 )
@@ -202,7 +203,6 @@ def wa_enviar_texto(
 
     if autor == "bot" and pedido is not None:
         try:
-            from app import ia_puede_enviar_automatico
 
             ventana_abierta = wa_ventana_24h_abierta(
                 pedido=pedido,
@@ -308,7 +308,6 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
     texto_control = caption or f"[Imagen enviada] {imagen_url}"
     if autor == "bot" and pedido is not None:
         try:
-            from app import ia_puede_enviar_automatico
             puede, motivo = ia_puede_enviar_automatico(pedido, "whatsapp", texto_control)
             if not puede:
                 print(f"[WA-APB] Bloqueado envio imagen pedido #{getattr(pedido, 'id', '?')}: {motivo}")
