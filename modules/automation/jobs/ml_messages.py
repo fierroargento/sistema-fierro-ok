@@ -9,6 +9,10 @@ from models.pedido import Pedido
 from services.ia_runtime import (
     ia_escalar_si_timeout_operativo,
 )
+from services.ml_api_context import ml_api_contexto
+from services.ml_mensajes import (
+    ml_obtener_mensajes_pack_para_ia_service,
+)
 
 
 def ejecutar_job_ml_mensajes(app, db):
@@ -17,13 +21,13 @@ def ejecutar_job_ml_mensajes(app, db):
     try:
         with app.app_context():
             from app import (
-                ml_obtener_mensajes_pack_para_ia,
                 ia_analizar_ultimo_mensaje_pedido,
             )
 
             from services.ml_cuentas import (
                 MLCuentaError,
-                seller_id_pedido,
+                MLCuentaInconsistente,
+                cuenta_por_pedido,
             )
 
             # APB anti-acoso: si el bot ML habló y el comprador no respondió
@@ -85,10 +89,32 @@ def ejecutar_job_ml_mensajes(app, db):
                         continue
 
                     try:
-                        seller_id = seller_id_pedido(pedido)
+                        cuenta = cuenta_por_pedido(pedido)
+                        seller_id = str(
+                            getattr(
+                                cuenta,
+                                "user_id_ml",
+                                "",
+                            )
+                            or ""
+                        ).strip()
+
+                        if not seller_id:
+                            raise MLCuentaInconsistente(
+                                "La cuenta ML del pedido "
+                                "no tiene user_id_ml."
+                            )
+
+                        api_context = ml_api_contexto(
+                            cuenta,
+                            db_session=db.session,
+                            logger_fn=print,
+                        )
+
                     except MLCuentaError as e:
                         print(
-                            f"[SCHEDULER ML] Pedido #{pedido.id} sin cuenta ML válida:",
+                            f"[SCHEDULER ML] Pedido #{pedido.id} "
+                            "sin cuenta ML válida:",
                             e
                         )
                         continue
@@ -107,9 +133,12 @@ def ejecutar_job_ml_mensajes(app, db):
                     mensajes = []
 
                     for id_chat in ids_chat:
-                        mensajes = ml_obtener_mensajes_pack_para_ia(
-                            id_chat,
-                            seller_id=seller_id
+                        mensajes = (
+                            ml_obtener_mensajes_pack_para_ia_service(
+                                id_chat,
+                                seller_id=seller_id,
+                                api_context=api_context,
+                            )
                         )
 
                         if mensajes:

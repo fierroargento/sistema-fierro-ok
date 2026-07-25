@@ -84,6 +84,7 @@ def instalar_app_fake(
     mensajes_fn,
     analizar_fn,
     timeout_fn=None,
+    api_contexto_fn=None,
 ):
     modulo_app = ModuleType("app")
 
@@ -104,7 +105,21 @@ def instalar_app_fake(
             lambda *args, **kwargs: None
         ),
     )
-    modulo_app.ml_obtener_mensajes_pack_para_ia = mensajes_fn
+    monkeypatch.setattr(
+        ml_messages,
+        "ml_obtener_mensajes_pack_para_ia_service",
+        mensajes_fn,
+    )
+    monkeypatch.setattr(
+        ml_messages,
+        "ml_api_contexto",
+        api_contexto_fn or (
+            lambda cuenta, **kwargs: SimpleNamespace(
+                cuenta=cuenta,
+                kwargs=kwargs,
+            )
+        ),
+    )
     modulo_app.ia_analizar_ultimo_mensaje_pedido = analizar_fn
 
     monkeypatch.setitem(sys.modules, "app", modulo_app)
@@ -130,15 +145,21 @@ def test_job_ml_mensajes_usa_seller_id_por_pedido(monkeypatch):
         id_venta="order-2",
     )
 
-    seller_por_pedido = {
-        1: "111",
-        2: "222",
+    cuenta_por_pedido = {
+        1: SimpleNamespace(
+            id=1,
+            user_id_ml="111",
+        ),
+        2: SimpleNamespace(
+            id=2,
+            user_id_ml="222",
+        ),
     }
 
     monkeypatch.setattr(
         ml_cuentas,
-        "seller_id_pedido",
-        lambda pedido: seller_por_pedido[pedido.id],
+        "cuenta_por_pedido",
+        lambda pedido: cuenta_por_pedido[pedido.id],
     )
 
     monkeypatch.setattr(
@@ -149,8 +170,16 @@ def test_job_ml_mensajes_usa_seller_id_por_pedido(monkeypatch):
     llamadas_mensajes = []
     llamadas_analisis = []
 
-    def mensajes_fn(id_chat, seller_id=None):
-        llamadas_mensajes.append((id_chat, seller_id))
+    def mensajes_fn(
+        id_chat,
+        seller_id=None,
+        api_context=None,
+    ):
+        llamadas_mensajes.append((
+            id_chat,
+            seller_id,
+            api_context.cuenta.id,
+        ))
         return [{"text": f"mensaje-{seller_id}"}]
 
     def analizar_fn(pedido, mensajes, seller_id=None, forzar=False):
@@ -169,8 +198,8 @@ def test_job_ml_mensajes_usa_seller_id_por_pedido(monkeypatch):
     ejecutar_job_ml_mensajes(FlaskAppFake(), db)
 
     assert llamadas_mensajes == [
-        ("pack-1", "111"),
-        ("pack-2", "222"),
+        ("pack-1", "111", 1),
+        ("pack-2", "222", 2),
     ]
 
     assert llamadas_analisis == [
@@ -202,12 +231,22 @@ def test_job_ml_mensajes_saltea_pedido_sin_cuenta_valida(monkeypatch):
         id_venta="order-2",
     )
 
-    def seller_fake(pedido):
+    def cuenta_fake(pedido):
         if pedido.id == 1:
-            raise ml_cuentas.MLCuentaNoAsignada("sin cuenta")
-        return "222"
+            raise ml_cuentas.MLCuentaNoAsignada(
+                "sin cuenta"
+            )
 
-    monkeypatch.setattr(ml_cuentas, "seller_id_pedido", seller_fake)
+        return SimpleNamespace(
+            id=2,
+            user_id_ml="222",
+        )
+
+    monkeypatch.setattr(
+        ml_cuentas,
+        "cuenta_por_pedido",
+        cuenta_fake,
+    )
 
     monkeypatch.setattr(
         "services.canal_manager.ml_puede_gobernar_timeout",
@@ -216,8 +255,16 @@ def test_job_ml_mensajes_saltea_pedido_sin_cuenta_valida(monkeypatch):
 
     llamadas_mensajes = []
 
-    def mensajes_fn(id_chat, seller_id=None):
-        llamadas_mensajes.append((id_chat, seller_id))
+    def mensajes_fn(
+        id_chat,
+        seller_id=None,
+        api_context=None,
+    ):
+        llamadas_mensajes.append((
+            id_chat,
+            seller_id,
+            api_context.cuenta.id,
+        ))
         return [{"text": "ok"}]
 
     def analizar_fn(pedido, mensajes, seller_id=None, forzar=False):
@@ -235,7 +282,7 @@ def test_job_ml_mensajes_saltea_pedido_sin_cuenta_valida(monkeypatch):
     ejecutar_job_ml_mensajes(FlaskAppFake(), db)
 
     assert llamadas_mensajes == [
-        ("pack-2", "222"),
+        ("pack-2", "222", 2),
     ]
 
     assert db.session.commits == 1
@@ -304,3 +351,27 @@ def test_job_ml_timeout_no_depende_de_app():
         "ia_escalar_si_timeout_operativo,\n"
         not in texto
     )
+
+
+def test_job_ml_consulta_mensajes_con_contexto_canonico():
+    texto = Path(
+        "modules/automation/jobs/ml_messages.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert texto.count(
+        "from services.ml_api_context import "
+        "ml_api_contexto"
+    ) == 1
+    assert texto.count(
+        "from services.ml_mensajes import ("
+    ) == 1
+    assert (
+        "ml_obtener_mensajes_pack_para_ia_service("
+        in texto
+    )
+    assert "api_context=api_context" in texto
+    assert (
+        "ml_obtener_mensajes_pack_para_ia,"
+        not in texto
+    )
+    assert "seller_id_pedido" not in texto
