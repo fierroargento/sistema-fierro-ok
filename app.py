@@ -4195,11 +4195,11 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             )
 
             if resultado_orquestacion_temprana.persistida:
-                return redirect(url_for(
-                    "detalle_pedido",
-                    id=pedido.id,
-                    ok="Sucursal confirmada operativamente. No se reenvio confirmacion automatica repetida.",
-                ))
+                return {
+                    "ok": True,
+                    "estado": "sucursal_confirmada",
+                    "sucursal_confirmada": True,
+                }
 
         except Exception as e:
             print(f"[VIA CARGO] No se pudo confirmar sucursal antes de auto-respuesta ML: {e}")
@@ -9253,6 +9253,17 @@ def ia_analizar_respuesta_pedido(id):
             "detalle_pedido",
             id=pedido.id,
             error=f"IA no disponible: {resultado.get('error', 'error desconocido')}"
+        ))
+
+    if resultado.get("sucursal_confirmada"):
+        return redirect(url_for(
+            "detalle_pedido",
+            id=pedido.id,
+            ok=(
+                "Sucursal confirmada operativamente. "
+                "No se reenvio confirmacion automatica "
+                "repetida."
+            ),
         ))
 
     envio_auto_ok = False

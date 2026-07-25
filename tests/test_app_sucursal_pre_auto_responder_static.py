@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 
 def test_flujo_comun_confirma_sucursal_antes_de_auto_responder_ml():
@@ -254,3 +254,61 @@ def test_consumidores_confirmacion_inyectan_afirmativo():
     assert texto.count(
         "es_afirmativo_fn=es_afirmativo_sucursal"
     ) == 2
+
+
+def test_analizador_no_devuelve_respuestas_flask():
+    texto = Path("app.py").read_text(
+        encoding="utf-8-sig"
+    )
+
+    inicio = texto.index(
+        "def ia_analizar_ultimo_mensaje_pedido("
+    )
+    fin = texto.index(
+        "\ndef ia_auto_responder_post_analisis(",
+        inicio,
+    )
+    bloque = texto[inicio:fin]
+
+    assert "redirect(" not in bloque
+    assert "url_for(" not in bloque
+    assert (
+        '"estado": "sucursal_confirmada"'
+        in bloque
+    )
+    assert (
+        '"sucursal_confirmada": True'
+        in bloque
+    )
+
+
+def test_ruta_manual_convierte_confirmacion_en_redirect():
+    texto = Path("app.py").read_text(
+        encoding="utf-8-sig"
+    )
+
+    inicio = texto.index(
+        "resultado = ia_analizar_ultimo_mensaje_pedido("
+    )
+    fin = texto.index(
+        "\n@app.",
+        inicio,
+    )
+    bloque = texto[inicio:fin]
+
+    idx_confirmada = bloque.index(
+        'if resultado.get("sucursal_confirmada"):'
+    )
+    idx_auto = bloque.index(
+        "ia_auto_responder_post_analisis(pedido)"
+    )
+
+    assert idx_confirmada < idx_auto
+    assert (
+        "Sucursal confirmada operativamente."
+        in bloque
+    )
+    assert (
+        "No se reenvio confirmacion automatica"
+        in bloque
+    )
