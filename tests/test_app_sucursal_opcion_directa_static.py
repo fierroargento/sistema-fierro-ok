@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 
 def _bloque_analisis_ultimo_mensaje():
@@ -61,16 +61,24 @@ def test_app_no_duplica_confirmacion_afirmativa_unica():
         not in texto
     )
     assert 'texto_para_sucursal = "1"' not in texto
+    compacto = texto.replace("\n", "").replace(
+        " ",
+        "",
+    )
+
     assert texto.count(
         "es_afirmativo_fn=es_afirmativo_sucursal"
-    ) == 2
+    ) == 1
+    assert compacto.count(
+        "es_afirmativo_fn=(es_afirmativo_sucursal)"
+    ) == 1
 
 
 def test_app_escalamiento_consulta_usa_resultado_estructurado_con_fallback():
     bloque = _bloque_analisis_ultimo_mensaje()
 
     idx = bloque.index(
-        "resultado_confirmacion_temprana = None"
+        "resultado_post_cp = ("
     )
     fin = bloque.index(
         "suc = detectar_sucursal(",

@@ -1172,6 +1172,9 @@ from services.workflow_orquestador_confirmacion_sucursal import (
     orquestar_confirmacion_sucursal_comun_ml,
     orquestar_confirmacion_sucursal_temprana,
 )
+from services.ia_recolector_post_cp import (
+    procesar_post_codigo_postal_recolector,
+)
 from services.ia_recolector_analisis import (
     analizar_datos_cliente_ml_acordas,
 )
@@ -4173,44 +4176,38 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             logger_fn=print,
         )
 
-        resultado_confirmacion_temprana = None
-
-        try:
-            _texto_logistica = texto_ultimo or texto
-            resultado_orquestacion_temprana = (
-                orquestar_confirmacion_sucursal_temprana(
-                    pedido,
-                    _texto_logistica,
-                    despacho_completo_fn=despacho_completo,
-                    actualizar_estado_fn=(
-                        actualizar_estado_automatico
-                    ),
-                    db_session=db.session,
-                    es_afirmativo_fn=es_afirmativo_sucursal,
-                )
+        resultado_post_cp = (
+            procesar_post_codigo_postal_recolector(
+                pedido,
+                texto_ultimo or texto,
+                orquestar_confirmacion_fn=(
+                    orquestar_confirmacion_sucursal_temprana
+                ),
+                despacho_completo_fn=despacho_completo,
+                actualizar_estado_fn=(
+                    actualizar_estado_automatico
+                ),
+                db_session=db.session,
+                es_afirmativo_fn=(
+                    es_afirmativo_sucursal
+                ),
+                auto_responder_fn=(
+                    ia_auto_responder_post_analisis
+                ),
+                logger_fn=print,
             )
-            resultado_confirmacion_temprana = (
-                resultado_orquestacion_temprana
-                .confirmacion
-            )
+        )
 
-            if resultado_orquestacion_temprana.persistida:
-                return {
-                    "ok": True,
-                    "estado": "sucursal_confirmada",
-                    "sucursal_confirmada": True,
-                }
+        resultado_confirmacion_temprana = (
+            resultado_post_cp.confirmacion
+        )
 
-        except Exception as e:
-            print(f"[VIA CARGO] No se pudo confirmar sucursal antes de auto-respuesta ML: {e}")
-
-        try:
-            ia_auto_responder_post_analisis(pedido)
-        except Exception as e:
-            print(
-                f"[IA-CP-APB] No se pudo reenganchar flujo "
-                f"pedido #{pedido.id}: {e}"
-            )                
+        if resultado_post_cp.finalizar_analisis:
+            return {
+                "ok": True,
+                "estado": "sucursal_confirmada",
+                "sucursal_confirmada": True,
+            }
 
         # DETECTAR SUCURSAL
         texto_para_sucursal = texto_ultimo or texto        

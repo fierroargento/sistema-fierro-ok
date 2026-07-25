@@ -4,50 +4,55 @@ from pathlib import Path
 def test_flujo_comun_confirma_sucursal_antes_de_auto_responder_ml():
     texto = Path("app.py").read_text(encoding="utf-8")
 
-    idx_texto = texto.index(
-        "_texto_logistica = texto_ultimo or texto"
+    idx_servicio = texto.index(
+        "procesar_post_codigo_postal_recolector("
     )
-    idx_orquestador = texto.index(
-        "orquestar_confirmacion_sucursal_temprana(",
-        idx_texto,
+    idx_resultado = texto.index(
+        "resultado_confirmacion_temprana = (",
+        idx_servicio,
     )
-    idx_auto = texto.index(
-        "ia_auto_responder_post_analisis(pedido)",
-        idx_orquestador,
+    idx_fallback = texto.index(
+        "# DETECTAR SUCURSAL",
+        idx_resultado,
     )
 
-    assert idx_texto < idx_orquestador < idx_auto
+    assert idx_servicio < idx_resultado < idx_fallback
 
-    bloque = texto[idx_texto:idx_auto]
+    bloque = texto[idx_servicio:idx_fallback]
 
     assert (
-        "resultado_orquestacion_temprana = ("
+        "orquestar_confirmacion_fn=("
+        in bloque
+    )
+    assert (
+        "orquestar_confirmacion_sucursal_temprana"
         in bloque
     )
     assert (
         "despacho_completo_fn=despacho_completo"
         in bloque
     )
-    assert (
-        "actualizar_estado_fn=("
-        in bloque
-    )
     assert "actualizar_estado_automatico" in bloque
     assert "db_session=db.session" in bloque
     assert (
-        "es_afirmativo_fn=es_afirmativo_sucursal"
+        "es_afirmativo_fn=("
+        in bloque
+    )
+    assert "es_afirmativo_sucursal" in bloque
+    assert (
+        "auto_responder_fn=("
         in bloque
     )
     assert (
-        "resultado_confirmacion_temprana = ("
+        "ia_auto_responder_post_analisis"
         in bloque
     )
     assert (
-        ".confirmacion"
-        in bloque
+        "resultado_post_cp.confirmacion"
+        in bloque.replace("\n", "").replace(" ", "")
     )
     assert (
-        "if resultado_orquestacion_temprana.persistida:"
+        "if resultado_post_cp.finalizar_analisis:"
         in bloque
     )
 
@@ -251,9 +256,17 @@ def test_consumidores_confirmacion_inyectan_afirmativo():
         "es_afirmativo as es_afirmativo_sucursal"
         in texto
     )
+    compacto = texto.replace("\n", "").replace(
+        " ",
+        "",
+    )
+
     assert texto.count(
         "es_afirmativo_fn=es_afirmativo_sucursal"
-    ) == 2
+    ) == 1
+    assert compacto.count(
+        "es_afirmativo_fn=(es_afirmativo_sucursal)"
+    ) == 1
 
 
 def test_analizador_no_devuelve_respuestas_flask():
