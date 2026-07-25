@@ -6,6 +6,9 @@ Extraído desde app.py sin cambiar lógica.
 
 from domain.estados import Estado
 from models.pedido import Pedido
+from services.ia_runtime import (
+    ia_escalar_si_timeout_operativo,
+)
 
 
 def ejecutar_job_ml_mensajes(app, db):
@@ -14,7 +17,6 @@ def ejecutar_job_ml_mensajes(app, db):
     try:
         with app.app_context():
             from app import (
-                ia_escalar_si_timeout_operativo,
                 ml_obtener_mensajes_pack_para_ia,
                 ia_analizar_ultimo_mensaje_pedido,
             )

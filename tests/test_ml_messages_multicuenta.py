@@ -77,7 +77,14 @@ class DbFake:
         self.session = SessionFake()
 
 
-def instalar_app_fake(monkeypatch, pedidos_esperando, pedidos, mensajes_fn, analizar_fn):
+def instalar_app_fake(
+    monkeypatch,
+    pedidos_esperando,
+    pedidos,
+    mensajes_fn,
+    analizar_fn,
+    timeout_fn=None,
+):
     modulo_app = ModuleType("app")
 
     PedidoFake.query = QueryFake([
@@ -90,7 +97,13 @@ def instalar_app_fake(monkeypatch, pedidos_esperando, pedidos, mensajes_fn, anal
         "Pedido",
         PedidoFake,
     )
-    modulo_app.ia_escalar_si_timeout_operativo = lambda *args, **kwargs: None
+    monkeypatch.setattr(
+        ml_messages,
+        "ia_escalar_si_timeout_operativo",
+        timeout_fn or (
+            lambda *args, **kwargs: None
+        ),
+    )
     modulo_app.ml_obtener_mensajes_pack_para_ia = mensajes_fn
     modulo_app.ia_analizar_ultimo_mensaje_pedido = analizar_fn
 
@@ -237,3 +250,57 @@ def test_job_ml_mensajes_usa_pedido_canonico():
         "from models.pedido import Pedido"
     ) == 1
     assert "\n                Pedido,\n" not in texto
+
+def test_job_ml_usa_timeout_canonico(
+    monkeypatch,
+):
+    pedido_esperando = SimpleNamespace(
+        id=99,
+    )
+    llamados = []
+
+    monkeypatch.setattr(
+        "services.canal_manager.ml_puede_gobernar_timeout",
+        lambda pedido: True,
+    )
+
+    instalar_app_fake(
+        monkeypatch,
+        pedidos_esperando=[pedido_esperando],
+        pedidos=[],
+        mensajes_fn=lambda *args, **kwargs: [],
+        analizar_fn=lambda *args, **kwargs: None,
+        timeout_fn=lambda *args, **kwargs: (
+            llamados.append((args, kwargs))
+        ),
+    )
+
+    db = DbFake()
+
+    ejecutar_job_ml_mensajes(
+        FlaskAppFake(),
+        db,
+    )
+
+    assert llamados == [
+        (
+            (pedido_esperando,),
+            {"canal": "mercadolibre"},
+        )
+    ]
+    assert db.session.removes == 1
+
+
+def test_job_ml_timeout_no_depende_de_app():
+    texto = Path(
+        "modules/automation/jobs/ml_messages.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert texto.count(
+        "from services.ia_runtime import ("
+    ) == 1
+    assert (
+        "\n                "
+        "ia_escalar_si_timeout_operativo,\n"
+        not in texto
+    )
