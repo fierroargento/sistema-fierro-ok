@@ -5,9 +5,53 @@ No depende de Flask, app.py ni de una cuenta global.
 La llamada HTTP se recibe explícitamente o mediante MLApiContext.
 """
 
+from dataclasses import dataclass
+
 from modules.bot_ml.mensajes import (
+    ml_bloque_mensajes_comprador_pendientes,
     ml_extraer_lista_mensajes_ml,
+    ml_texto_mensaje_ml,
+    ml_ultimo_mensaje_comprador,
 )
+
+
+@dataclass(frozen=True)
+class MLMensajeCompradorParaIA:
+    """Entrada textual normalizada para el recolector IA."""
+
+    ultimo: dict
+    texto_ultimo: str
+    texto: str
+
+
+def ml_preparar_mensaje_comprador_para_ia(
+    mensajes,
+    seller_id="",
+):
+    """Selecciona y reúne mensajes pendientes del comprador."""
+    ultimo = ml_ultimo_mensaje_comprador(
+        mensajes,
+        seller_id=seller_id,
+    )
+
+    if not ultimo:
+        return None
+
+    texto_ultimo = ml_texto_mensaje_ml(ultimo)
+
+    texto = (
+        ml_bloque_mensajes_comprador_pendientes(
+            mensajes,
+            seller_id=seller_id,
+        )
+        or texto_ultimo
+    )
+
+    return MLMensajeCompradorParaIA(
+        ultimo=ultimo,
+        texto_ultimo=texto_ultimo,
+        texto=texto,
+    )
 
 
 def ml_obtener_mensajes_pack_para_ia_service(

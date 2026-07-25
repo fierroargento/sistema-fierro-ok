@@ -3950,6 +3950,7 @@ def ml_link_chat_venta(pedido):
 
 from services.ml_mensajes import (
     ml_obtener_mensajes_pack_para_ia_service,
+    ml_preparar_mensaje_comprador_para_ia,
 )
 from modules.bot_ml.mensajes import (
     ml_extraer_ids_mensaje_ml,
@@ -4145,16 +4146,19 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     if not getattr(pedido, "contacto_iniciado", False):
         return None
 
-    ultimo = ml_ultimo_mensaje_comprador(mensajes, seller_id=seller_id)
-    if not ultimo:
+    mensaje_comprador = (
+        ml_preparar_mensaje_comprador_para_ia(
+            mensajes,
+            seller_id=seller_id,
+        )
+    )
+
+    if not mensaje_comprador:
         return None
 
-    texto_ultimo = ml_texto_mensaje_ml(ultimo)
-
-    texto = ml_bloque_mensajes_comprador_pendientes(
-        mensajes,
-        seller_id=seller_id,
-    ) or texto_ultimo
+    ultimo = mensaje_comprador.ultimo
+    texto_ultimo = mensaje_comprador.texto_ultimo
+    texto = mensaje_comprador.texto
 
     if texto:
         ia_marcar_respuesta_cliente(

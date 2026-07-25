@@ -71,3 +71,24 @@ def test_ia_manual_usa_contexto_por_pedido():
     assert "ml_api_contexto(" in bloque
     assert "api_context=api_context" in bloque
     assert "No se pudo resolver cuenta de Mercado Libre del pedido" in bloque
+
+
+def test_analizador_delega_preparacion_mensaje_comprador():
+    texto = app_texto()
+    bloque = bloque_funcion(
+        texto,
+        "ia_analizar_ultimo_mensaje_pedido",
+    )
+
+    assert (
+        "ml_preparar_mensaje_comprador_para_ia("
+        in bloque
+    )
+    assert (
+        "ml_ultimo_mensaje_comprador("
+        not in bloque
+    )
+    assert (
+        "ml_bloque_mensajes_comprador_pendientes("
+        not in bloque
+    )

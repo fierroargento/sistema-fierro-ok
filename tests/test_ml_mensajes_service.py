@@ -1,5 +1,7 @@
 from services.ml_mensajes import (
+    MLMensajeCompradorParaIA,
     ml_obtener_mensajes_pack_para_ia_service,
+    ml_preparar_mensaje_comprador_para_ia,
 )
 
 
@@ -126,3 +128,108 @@ def test_agota_intentos_y_devuelve_lista_vacia():
 
     assert resultado == []
     assert len(contexto.llamadas) == 4
+
+
+def test_prepara_ultimo_mensaje_comprador_para_ia():
+    mensajes = [
+        {
+            "id": "vendedor-1",
+            "from": {
+                "id": "999",
+                "user_type": "seller",
+            },
+            "text": "Indíquenos sus datos.",
+            "date_created": "2026-07-25T10:00:00Z",
+        },
+        {
+            "id": "comprador-1",
+            "from": {
+                "id": "111",
+                "user_type": "buyer",
+            },
+            "text": "Juan Pérez",
+            "date_created": "2026-07-25T10:01:00Z",
+        },
+        {
+            "id": "comprador-2",
+            "from": {
+                "id": "111",
+                "user_type": "buyer",
+            },
+            "text": "CP 8504",
+            "date_created": "2026-07-25T10:02:00Z",
+        },
+    ]
+
+    resultado = ml_preparar_mensaje_comprador_para_ia(
+        mensajes,
+        seller_id="999",
+    )
+
+    assert isinstance(
+        resultado,
+        MLMensajeCompradorParaIA,
+    )
+    assert resultado.ultimo["id"] == "comprador-2"
+    assert resultado.texto_ultimo == "CP 8504"
+    assert resultado.texto == "Juan Pérez\n\nCP 8504"
+
+
+def test_preparacion_ignora_mensajes_anteriores_al_vendedor():
+    mensajes = [
+        {
+            "id": "comprador-viejo",
+            "from": {
+                "id": "111",
+                "user_type": "buyer",
+            },
+            "text": "Mensaje anterior",
+            "date_created": "2026-07-25T09:00:00Z",
+        },
+        {
+            "id": "vendedor-1",
+            "from": {
+                "id": "999",
+                "user_type": "seller",
+            },
+            "text": "Solicito datos",
+            "date_created": "2026-07-25T10:00:00Z",
+        },
+        {
+            "id": "comprador-nuevo",
+            "from": {
+                "id": "111",
+                "user_type": "buyer",
+            },
+            "text": "Datos nuevos",
+            "date_created": "2026-07-25T10:01:00Z",
+        },
+    ]
+
+    resultado = ml_preparar_mensaje_comprador_para_ia(
+        mensajes,
+        seller_id="999",
+    )
+
+    assert resultado.texto == "Datos nuevos"
+    assert "Mensaje anterior" not in resultado.texto
+
+
+def test_preparacion_sin_mensaje_comprador_devuelve_none():
+    mensajes = [
+        {
+            "id": "vendedor-1",
+            "from": {
+                "id": "999",
+                "user_type": "seller",
+            },
+            "text": "Mensaje del vendedor",
+        },
+    ]
+
+    resultado = ml_preparar_mensaje_comprador_para_ia(
+        mensajes,
+        seller_id="999",
+    )
+
+    assert resultado is None
