@@ -3948,6 +3948,9 @@ def ml_link_chat_venta(pedido):
     return ml_link_chat_venta_helper(pedido)
 
 
+from services.ml_mensajes import (
+    ml_obtener_mensajes_pack_para_ia_service,
+)
 from modules.bot_ml.mensajes import (
     ml_extraer_ids_mensaje_ml,
     ml_extraer_lista_mensajes_ml,
@@ -5011,34 +5014,18 @@ def ml_sync_mensajes_pedido(pedido):
     return False, 0
 
 
-def ml_obtener_mensajes_pack_para_ia(pack_id, seller_id="", api_context=None):
-    """Obtiene mensajes del thread ML para análisis IA sin marcar como leídos."""
-    pack_id = str(pack_id or "").strip()
-    if not pack_id:
-        return []
-
-    seller_id = str(seller_id or "").strip()
-    intentos = []
-    if seller_id:
-        intentos.append((f"/messages/packs/{pack_id}/sellers/{seller_id}", {"tag": "post_sale", "limit": 50}))
-        intentos.append((f"/messages/packs/{pack_id}/sellers/{seller_id}", {"limit": 50}))
-    intentos.append((f"/messages/packs/{pack_id}", {"role": "seller", "tag": "post_sale", "limit": 50}))
-    intentos.append((f"/messages/packs/{pack_id}", {"role": "seller", "limit": 50}))
-
-    for path, params in intentos:
-        try:
-            if api_context is not None:
-                data = api_context.get(path, params=params)
-            else:
-                data = ml_api_get(path, params=params)
-
-            mensajes = ml_extraer_lista_mensajes_ml(data)
-            if mensajes:
-                return mensajes
-        except Exception as e:
-            print(f"[IA-RECOLECTOR] Fallo leyendo mensajes {path} {params}: {e}")
-            continue
-    return []
+def ml_obtener_mensajes_pack_para_ia(
+    pack_id,
+    seller_id="",
+    api_context=None,
+):
+    """Compatibilidad para consumidores históricos de app.py."""
+    return ml_obtener_mensajes_pack_para_ia_service(
+        pack_id,
+        seller_id=seller_id,
+        api_context=api_context,
+        api_get_fn=ml_api_get,
+    )
 
 
 def ml_sync_mensajes_pack(pack_id, pedido=None):

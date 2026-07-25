@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 
 def app_texto():
@@ -15,13 +15,20 @@ def bloque_funcion(texto, nombre_funcion):
     return texto[inicio:siguiente]
 
 
-def test_ml_obtener_mensajes_para_ia_acepta_api_context():
+def test_ml_obtener_mensajes_para_ia_delega_al_servicio():
     texto = app_texto()
-    bloque = bloque_funcion(texto, "ml_obtener_mensajes_pack_para_ia")
+    bloque = bloque_funcion(
+        texto,
+        "ml_obtener_mensajes_pack_para_ia",
+    )
 
-    assert 'def ml_obtener_mensajes_pack_para_ia(pack_id, seller_id="", api_context=None):' in bloque
-    assert "if api_context is not None:" in bloque
-    assert "data = api_context.get(path, params=params)" in bloque
+    assert (
+        "ml_obtener_mensajes_pack_para_ia_service("
+        in bloque
+    )
+    assert "api_context=api_context" in bloque
+    assert "api_get_fn=ml_api_get" in bloque
+    assert "for path, params in intentos" not in bloque
 
 
 def test_ml_sync_mensajes_pack_usa_contexto_por_pedido():
