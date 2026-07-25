@@ -1,4 +1,4 @@
-﻿"""
+"""
 services/ia_recolector_sync.py
 ──────────────────────────────
 Sincronización APB entre datos reales del pedido y estado del recolector IA.
@@ -245,6 +245,101 @@ def faltantes_pedido_recolector(pedido):
     data = json_loads_seguro_recolector(pedido.ia_faltantes)
 
     return data if isinstance(data, list) else []
+
+
+def aplicar_codigo_postal_detectado_recolector(
+    pedido,
+    codigo_postal,
+    *,
+    normalizar_ubicacion_fn,
+    faltantes_fn,
+    db_session,
+    logger_fn=print,
+):
+    """Aplica un CP detectado y sincroniza el recolector.
+
+    Conserva el orden histórico:
+    1. aplica CP y normaliza ubicación;
+    2. persiste esos datos;
+    3. actualiza resumen y faltantes;
+    4. persiste el estado del recolector.
+    """
+    codigo_postal = str(
+        codigo_postal or ""
+    ).strip()
+
+    if not pedido or not codigo_postal:
+        return {
+            "aplicado": False,
+            "faltantes": [],
+            "datos_completos": False,
+        }
+
+    pedido.codigo_postal = codigo_postal
+
+    try:
+        normalizar_ubicacion_fn(pedido)
+
+    except Exception as error:
+        if logger_fn:
+            logger_fn(
+                "[UBICACION] No se pudo normalizar "
+                f"ubicación pedido "
+                f"#{getattr(pedido, 'id', '?')}: "
+                f"{error}"
+            )
+
+    try:
+        db_session.commit()
+    except Exception:
+        db_session.rollback()
+
+    resumen = str(
+        getattr(pedido, "ia_resumen", "")
+        or ""
+    ).strip()
+
+    marca = (
+        "IA autocompletó CP simple: "
+        f"{codigo_postal}"
+    )
+
+    if marca not in resumen:
+        pedido.ia_resumen = (
+            f"{resumen} | {marca}"
+        ).strip(" |")[:1000]
+
+    nuevos_faltantes = list(
+        faltantes_fn(pedido)
+        or []
+    )
+
+    import json
+
+    pedido.ia_faltantes = json.dumps(
+        nuevos_faltantes,
+        ensure_ascii=False,
+    )
+
+    datos_completos = not nuevos_faltantes
+
+    if datos_completos:
+        pedido.ia_requiere_operador = False
+        pedido.ia_recolector_estado = (
+            "datos_completos"
+        )
+        pedido.ia_ultimo_timeout_operador = None
+
+    try:
+        db_session.commit()
+    except Exception:
+        db_session.rollback()
+
+    return {
+        "aplicado": True,
+        "faltantes": nuevos_faltantes,
+        "datos_completos": datos_completos,
+    }
 
 
 def marcar_recolector_datos_completos(pedido):

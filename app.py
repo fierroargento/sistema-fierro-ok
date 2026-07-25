@@ -1176,7 +1176,11 @@ from services.ia_recolector_analisis import (
     analizar_datos_cliente_ml_acordas,
 )
 from services.ia_recolector_sync import (
+    aplicar_codigo_postal_detectado_recolector,
     datos_previos_pedido_recolector,
+)
+from services.ubicacion_cp import (
+    normalizar_ubicacion_pedido,
 )
 from services.ia_recolector_workflow import (
     procesar_resultado_recolector,
@@ -4158,55 +4162,16 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     )
 
     if cp_detectado:
-        pedido.codigo_postal = cp_detectado
-
-        try:
-            from services.ubicacion_cp import normalizar_ubicacion_pedido
-
-            normalizar_ubicacion_pedido(pedido)
-
-        except Exception as e:
-            print(
-                f"[UBICACION] No se pudo normalizar ubicación "
-                f"pedido #{getattr(pedido, 'id', '?')}: {e}"
-            )
-
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        resumen = (pedido.ia_resumen or "").strip()
-
-        marca = (
-            f"IA autocompletó CP simple: {cp_detectado}"
+        aplicar_codigo_postal_detectado_recolector(
+            pedido,
+            cp_detectado,
+            normalizar_ubicacion_fn=(
+                normalizar_ubicacion_pedido
+            ),
+            faltantes_fn=ia_faltantes_pedido,
+            db_session=db.session,
+            logger_fn=print,
         )
-
-        if marca not in resumen:
-            pedido.ia_resumen = (
-                f"{resumen} | {marca}"
-            ).strip(" |")[:1000]
-
-        # APB:
-        # El CP puede ser el último dato faltante.
-        # Después de guardarlo hay que limpiar bloqueo viejo,
-        # recalcular faltantes y reenganchar el flujo automático.
-        nuevos_faltantes = ia_faltantes_pedido(pedido) or []
-
-        pedido.ia_faltantes = json.dumps(
-            nuevos_faltantes,
-            ensure_ascii=False,
-        )
-
-        if not nuevos_faltantes:
-            pedido.ia_requiere_operador = False
-            pedido.ia_recolector_estado = "datos_completos"
-            pedido.ia_ultimo_timeout_operador = None
-
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
 
         resultado_confirmacion_temprana = None
 
