@@ -1187,8 +1187,10 @@ from services.ia_recolector_datos import (
     ia_campo_vacio,
     ia_cp_valido,
     ia_dni_valido,
+    ia_extraer_codigo_postal_simple_service,
     ia_extraer_datos_clasico_fierro,
     ia_texto_menciona_autorizado,
+    resolver_codigo_postal_contextual,
     normalizar_datos_ia_fierro,
     normalizar_direccion_fierro,
 )
@@ -4017,33 +4019,10 @@ def ia_hash_texto(texto):
     return hashlib.sha256(str(texto or "").encode("utf-8", errors="ignore")).hexdigest()
 
 def ia_extraer_codigo_postal_simple(texto):
-    """
-    APB anti-loop:
-    Detecta CP escrito de forma simple por el comprador.
-    Ejemplos válidos:
-    - 3500
-    - CP 3500
-    - Código postal 3500
-    - codigo postal: 3500
-    """
-    texto = str(texto or "").strip()
-
-    if not texto:
-        return ""
-
-    patrones = [
-        r"\b(?:cp|c\.p\.|codigo postal|código postal|cod postal|cód postal)\s*[:\-]?\s*(\d{4})\b",
-        r"^\s*(\d{4})\s*$",
-        r"\bcp\s*(\d{4})\b",
-    ]
-
-    for patron in patrones:
-        m = re.search(patron, texto, flags=re.IGNORECASE)
-
-        if m:
-            return m.group(1)
-
-    return ""
+    """Compatibilidad para consumidores históricos de app.py."""
+    return ia_extraer_codigo_postal_simple_service(
+        texto
+    )
 
 
 
@@ -4168,34 +4147,15 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
     )
 
     # APB:
-    # Si el comprador respondió solo el CP
-    # o escribió "CP 3500", lo tomamos
-    # antes de llamar a IA.
-    cp_detectado = ia_extraer_codigo_postal_simple(texto)
-
+    # Resolver CP simple o contextual antes de llamar a IA.
     faltantes_actuales = ia_faltantes_pedido(pedido) or []
-    texto_limpio_cp = re.sub(r"\D", "", texto or "")
 
-    esperando_cp = (
-        "codigo_postal" in faltantes_actuales
-        or "cp" in faltantes_actuales
-        or "codigo postal" in str(pedido.ia_faltantes or "").lower()
+    cp_detectado = resolver_codigo_postal_contextual(
+        texto,
+        faltantes_actuales=faltantes_actuales,
+        faltantes_guardados=pedido.ia_faltantes,
+        codigo_postal_actual=pedido.codigo_postal,
     )
-
-    posible_cp_contextual = (
-        texto_limpio_cp.isdigit()
-        and len(texto_limpio_cp) == 4
-    )
-
-    if esperando_cp and posible_cp_contextual:
-        cp_detectado = texto_limpio_cp
-
-    if (
-        posible_cp_contextual
-        and (pedido.codigo_postal or "").strip()
-        and (pedido.codigo_postal or "").strip() != texto_limpio_cp
-    ):
-        cp_detectado = texto_limpio_cp
 
     if cp_detectado:
         pedido.codigo_postal = cp_detectado

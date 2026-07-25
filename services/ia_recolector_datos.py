@@ -20,6 +20,80 @@ from services.telefonos import (
 )
 
 
+def ia_extraer_codigo_postal_simple_service(texto):
+    """Extrae un CP argentino expresado de forma simple."""
+    texto = str(texto or "").strip()
+
+    if not texto:
+        return ""
+
+    patrones = [
+        (
+            r"\b(?:cp|c\.p\.|codigo postal|código postal|"
+            r"cod postal|cód postal)\s*[:\-]?\s*(\d{4})\b"
+        ),
+        r"^\s*(\d{4})\s*$",
+        r"\bcp\s*(\d{4})\b",
+    ]
+
+    for patron in patrones:
+        coincidencia = re.search(
+            patron,
+            texto,
+            flags=re.IGNORECASE,
+        )
+
+        if coincidencia:
+            return coincidencia.group(1)
+
+    return ""
+
+
+def resolver_codigo_postal_contextual(
+    texto,
+    faltantes_actuales=None,
+    faltantes_guardados="",
+    codigo_postal_actual="",
+):
+    """Resuelve el CP conservando las reglas contextuales del recolector."""
+    texto = str(texto or "")
+    faltantes_actuales = list(faltantes_actuales or [])
+
+    cp_detectado = (
+        ia_extraer_codigo_postal_simple_service(texto)
+    )
+    texto_limpio_cp = re.sub(r"\D", "", texto)
+
+    esperando_cp = (
+        "codigo_postal" in faltantes_actuales
+        or "cp" in faltantes_actuales
+        or "codigo postal" in str(
+            faltantes_guardados or ""
+        ).lower()
+    )
+
+    posible_cp_contextual = (
+        texto_limpio_cp.isdigit()
+        and len(texto_limpio_cp) == 4
+    )
+
+    if esperando_cp and posible_cp_contextual:
+        cp_detectado = texto_limpio_cp
+
+    codigo_postal_actual = str(
+        codigo_postal_actual or ""
+    ).strip()
+
+    if (
+        posible_cp_contextual
+        and codigo_postal_actual
+        and codigo_postal_actual != texto_limpio_cp
+    ):
+        cp_detectado = texto_limpio_cp
+
+    return cp_detectado
+
+
 def capitalizar_texto_fierro(valor: Any) -> str:
     texto = str(valor or "").strip()
     if not texto:
