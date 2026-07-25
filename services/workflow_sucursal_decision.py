@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -699,4 +699,118 @@ def decidir_sucursal_via_cargo_para_pedido(
         motivo="fallback_legacy",
         requiere_operador=consulta,
         consulta_secundaria=consulta,
+    )
+
+@dataclass(frozen=True)
+class ResultadoEscalamientoConsultaSucursal:
+    deteccion: ResultadoDeteccionSucursalesOfrecidas
+    escalada: bool = False
+    finalizar_analisis: bool = False
+    error: str = ""
+
+
+def procesar_escalamiento_consulta_sucursal(
+    pedido: Any,
+    texto: Any,
+    resultado_confirmacion: Any = None,
+    *,
+    pedido_es_plegable_fn: Callable[[Any], bool],
+    es_consulta_no_eleccion_fn: Callable[[Any], bool],
+    db_session: Any,
+    logger_fn: Callable[[Any], None] | None = None,
+) -> ResultadoEscalamientoConsultaSucursal:
+    """
+    Evalúa opciones ofrecidas y escala consultas no resueltas.
+
+    Conserva el contrato histórico:
+    - solo escala consultas sobre opciones Vía Cargo;
+    - marca el pedido para intervención humana;
+    - intenta persistir;
+    - finaliza el análisis aunque falle la persistencia.
+    """
+
+    deteccion = evaluar_sucursales_ofrecidas_pedido(
+        pedido,
+        pedido_es_plegable_fn=pedido_es_plegable_fn,
+    )
+
+    texto_original = str(texto or "")
+    requiere_operador = bool(
+        resultado_confirmacion is not None
+        and getattr(
+            resultado_confirmacion,
+            "requiere_operador",
+            False,
+        )
+    )
+
+    es_consulta = False
+    if texto_original:
+        try:
+            es_consulta = bool(
+                es_consulta_no_eleccion_fn(
+                    texto_original.lower()
+                )
+            )
+        except Exception:
+            es_consulta = False
+
+    debe_escalar = bool(
+        deteccion.puede_detectar
+        and deteccion.via_cargo_ofrecidas
+        and texto_original
+        and (
+            requiere_operador
+            or es_consulta
+        )
+    )
+
+    if not debe_escalar:
+        return ResultadoEscalamientoConsultaSucursal(
+            deteccion=deteccion,
+        )
+
+    error_texto = ""
+
+    try:
+        pedido.ml_mensajes_pendientes = True
+        pedido.ia_requiere_operador = True
+
+        resumen = str(
+            getattr(pedido, "ia_resumen", "") or ""
+        ).strip()
+
+        pedido.ia_resumen = (
+            f"{resumen} | "
+            "Cliente consultó sobre sucursal: "
+            f"{texto_original[:100]}"
+        ).strip(" |")
+
+        db_session.commit()
+
+        if logger_fn is not None:
+            logger_fn(
+                "[VIA CARGO] "
+                f"Pedido #{getattr(pedido, 'id', '')} "
+                "escalado: consulta de sucursal "
+                "no resuelta"
+            )
+
+    except Exception as error:
+        error_texto = str(error)
+
+        if logger_fn is not None:
+            try:
+                logger_fn(
+                    "[VIA CARGO] Error escalando "
+                    f"consulta sucursal: {error}"
+                )
+            except Exception:
+                pass
+
+    return ResultadoEscalamientoConsultaSucursal(
+        deteccion=deteccion,
+        escalada=True,
+        finalizar_analisis=True,
+        error=error_texto,
     )

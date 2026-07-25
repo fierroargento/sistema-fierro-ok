@@ -74,35 +74,54 @@ def test_app_no_duplica_confirmacion_afirmativa_unica():
     ) == 1
 
 
-def test_app_escalamiento_consulta_usa_resultado_estructurado_con_fallback():
+def test_app_escalamiento_consulta_delega_en_servicio():
     bloque = _bloque_analisis_ultimo_mensaje()
 
     idx = bloque.index(
-        "resultado_post_cp = ("
+        "resultado_escalamiento_sucursal = ("
     )
     fin = bloque.index(
         "suc = detectar_sucursal(",
         idx,
     )
     escalamiento = bloque[idx:fin]
-    compacto = escalamiento.replace("\n", "").replace(
-        " ",
+    compacto = escalamiento.replace(
+        "\n",
         "",
-    )
+    ).replace(" ", "")
 
+    assert (
+        "procesar_escalamiento_consulta_sucursal("
+        in escalamiento
+    )
     assert (
         "resultado_confirmacion_temprana"
-        ".requiere_operador"
+        in escalamiento
+    )
+    assert (
+        "pedido_es_plegable_fn=("
+        in escalamiento
+    )
+    assert (
+        "es_consulta_no_eleccion_fn=("
+        in escalamiento
+    )
+    assert "_es_consulta_no_eleccion" in escalamiento
+    assert "db_session=db.session" in escalamiento
+    assert (
+        "resultado_escalamiento_sucursal.deteccion"
         in compacto
     )
     assert (
-        "resultado_deteccion_sucursal"
-        ".via_cargo_ofrecidas"
+        "resultado_escalamiento_sucursal"
+        ".finalizar_analisis"
         in compacto
     )
-    assert "_es_consulta_no_eleccion(" in escalamiento
 
     prohibidos = [
+        "pedido.ml_mensajes_pendientes = True",
+        "pedido.ia_requiere_operador = True",
+        "Cliente consultó sobre sucursal:",
         "_idx_opcion",
         "_sucursal_por_opcion",
         "candidatas_ids_check",

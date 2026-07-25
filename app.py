@@ -1175,6 +1175,9 @@ from services.workflow_orquestador_confirmacion_sucursal import (
 from services.ia_recolector_post_cp import (
     procesar_post_codigo_postal_recolector,
 )
+from services.workflow_sucursal_decision import (
+    procesar_escalamiento_consulta_sucursal,
+)
 from services.ia_recolector_analisis import (
     analizar_datos_cliente_ml_acordas,
 )
@@ -4210,56 +4213,35 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             }
 
         # DETECTAR SUCURSAL
-        texto_para_sucursal = texto_ultimo or texto        
-        # PP6040 va por Andreani/Correo a domicilio → nunca detectar sucursal Via Cargo
-        # Solo detectar elección si el sistema YA ofreció opciones al cliente (ia_sucursales_ofrecidas)
-        # Evita que el texto con los datos del cliente (localidad, dirección) se confunda con una elección
-        from services.workflow_sucursal_decision import (
-            evaluar_sucursales_ofrecidas_pedido,
-        )
+        texto_para_sucursal = texto_ultimo or texto
 
-        resultado_deteccion_sucursal = (
-            evaluar_sucursales_ofrecidas_pedido(
+        resultado_escalamiento_sucursal = (
+            procesar_escalamiento_consulta_sucursal(
                 pedido,
+                texto_para_sucursal,
+                resultado_confirmacion_temprana,
                 pedido_es_plegable_fn=(
                     pedido_es_plegable_pp6040
                 ),
+                es_consulta_no_eleccion_fn=(
+                    _es_consulta_no_eleccion
+                ),
+                db_session=db.session,
+                logger_fn=print,
             )
         )
 
-        if resultado_deteccion_sucursal.puede_detectar:
-            # Si el sistema ya ofreció sucursales y el cliente hace una consulta
-            # en lugar de elegir → escalar al operador para que lo resuelva
-            if (
-                resultado_deteccion_sucursal
-                .via_cargo_ofrecidas
-                and texto_para_sucursal
-                and (
-                    (
-                        resultado_confirmacion_temprana
-                        is not None
-                        and resultado_confirmacion_temprana
-                        .requiere_operador
-                    )
-                    or _es_consulta_no_eleccion(
-                        str(
-                            texto_para_sucursal
-                            or ""
-                        ).lower()
-                    )
-                )
-            ):
-                try:
-                    pedido.ml_mensajes_pendientes = True
-                    pedido.ia_requiere_operador = True
-                    resumen = (pedido.ia_resumen or "").strip()
-                    pedido.ia_resumen = f"{resumen} | Cliente consultó sobre sucursal: {texto_para_sucursal[:100]}".strip(" |")
-                    db.session.commit()
-                    print(f"[VIA CARGO] Pedido #{pedido.id} escalado: consulta de sucursal no resuelta")
-                except Exception as e:
-                    print(f"[VIA CARGO] Error escalando consulta sucursal:", e)
-                return None
+        resultado_deteccion_sucursal = (
+            resultado_escalamiento_sucursal.deteccion
+        )
 
+        if (
+            resultado_escalamiento_sucursal
+            .finalizar_analisis
+        ):
+            return None
+
+        if resultado_deteccion_sucursal.puede_detectar:
             suc = None
             if (
                 resultado_deteccion_sucursal

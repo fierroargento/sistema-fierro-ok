@@ -1,16 +1,24 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 
 def test_app_detector_usa_resultado_estructurado():
     texto = Path("app.py").read_text(encoding="utf-8")
 
     idx = texto.index(
-        "resultado_deteccion_sucursal = ("
+        "resultado_escalamiento_sucursal = ("
     )
-    bloque = texto[idx:idx + 700]
+    fin = texto.index(
+        "suc = detectar_sucursal(",
+        idx,
+    )
+    bloque = texto[idx:fin]
+    compacto = bloque.replace(
+        "\n",
+        "",
+    ).replace(" ", "")
 
     assert (
-        "evaluar_sucursales_ofrecidas_pedido"
+        "procesar_escalamiento_consulta_sucursal("
         in bloque
     )
     assert (
@@ -19,9 +27,13 @@ def test_app_detector_usa_resultado_estructurado():
     )
     assert "pedido_es_plegable_pp6040" in bloque
     assert (
-        "if resultado_deteccion_sucursal."
+        "resultado_escalamiento_sucursal.deteccion"
+        in compacto
+    )
+    assert (
+        "ifresultado_deteccion_sucursal."
         "puede_detectar:"
-        in bloque
+        in compacto
     )
 
     prohibidos = [
@@ -32,7 +44,6 @@ def test_app_detector_usa_resultado_estructurado():
 
     for prohibido in prohibidos:
         assert prohibido not in bloque
-
 
 def test_app_mensaje_repetido_no_corta_confirmacion_sucursal_operativa():
     texto = Path("app.py").read_text(encoding="utf-8")

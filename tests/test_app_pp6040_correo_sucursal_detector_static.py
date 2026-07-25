@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 
 def test_app_delega_regla_detector_correo_y_pp6040():
@@ -8,11 +8,11 @@ def test_app_delega_regla_detector_correo_y_pp6040():
     bloque = texto[idx:idx + 1500]
 
     assert (
-        "services.workflow_sucursal_decision"
-        in bloque
+        "from services.workflow_sucursal_decision import ("
+        in texto
     )
     assert (
-        "evaluar_sucursales_ofrecidas_pedido"
+        "procesar_escalamiento_consulta_sucursal"
         in bloque
     )
     assert (
