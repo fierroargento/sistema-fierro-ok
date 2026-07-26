@@ -174,3 +174,36 @@ def test_analizador_usa_detector_sucursal_compartido():
         "return detectar_sucursal_correo_para_flujo("
         in app
     )
+
+
+def test_actualizar_estado_automatico_delega_workflow_protegido():
+    app, _ = bloque_analizador()
+
+    inicio = app.index(
+        "def actualizar_estado_automatico(pedido):"
+    )
+    fin = app.index(
+        "\ndef intentar_cross_sell_previo_seguimiento_wa(",
+        inicio,
+    )
+    wrapper = app[inicio:fin]
+
+    assert (
+        "actualizar_estado_automatico_"
+        "protegido_service("
+        in wrapper
+    )
+    assert (
+        "evento_operativo_model=EventoOperativo"
+        in wrapper
+    )
+    assert (
+        "debe_bloquear_autoavance_"
+        "etiqueta_lista_por_cross_sell("
+        not in wrapper
+    )
+    assert (
+        "aplicar_reversion_autoavance_"
+        "si_corresponde("
+        not in wrapper
+    )

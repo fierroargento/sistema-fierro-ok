@@ -132,6 +132,7 @@ from services.ia import (
 
 from services.workflow import (
     aplicar_autoavance_post_despacho_service,
+    actualizar_estado_automatico_protegido_service,
     actualizar_estado_automatico_service,
 )
 from services.andreani import andreani_configurada, andreani_trazas_envio, resumen_evento_andreani
@@ -1404,49 +1405,13 @@ def debe_pasar_a_demora_entrega(pedido):
 
 
 def actualizar_estado_automatico(pedido):
-    """
-    APB operativo:
-    El autoavance solo debe evaluar si el pedido ya tiene la carga operativa completa.
-
-    Protección comercial:
-    Si el autoavance intenta pasar Cargando Pedido -> Etiqueta Lista y todavía
-    falta tratar la oportunidad de cross-sell, se revierte a Cargando Pedido.
-    """
-
-    estado_anterior = getattr(pedido, "estado", None)
-
-    def _log_error_cross_sell_autoavance(error):
-        print("[CROSS-SELL-APB] Error evaluando bloqueo de autoavance:", error)
-
-    try:
-        from modules.whatsapp.config import CROSS_SELL_AUTO_ENABLED, CROSS_SELL_MANUAL_ENABLED
-        from services.cross_sell_rules import debe_bloquear_etiqueta_lista_por_cross_sell
-
-        bloquear_cross_sell = debe_bloquear_autoavance_etiqueta_lista_por_cross_sell(
-            pedido,
-            estado_cargando=Estado.CARGANDO,
-            cross_sell_rule_fn=debe_bloquear_etiqueta_lista_por_cross_sell,
-            auto_enabled=CROSS_SELL_AUTO_ENABLED,
-            manual_enabled=CROSS_SELL_MANUAL_ENABLED,
-            evento_operativo_model=EventoOperativo,
-            log_error_fn=_log_error_cross_sell_autoavance,
-        )
-    except Exception as e:
-        print("[CROSS-SELL-APB] Error preparando bloqueo de autoavance:", e)
-        bloquear_cross_sell = False
-
-    actualizar_estado_automatico_service(
+    return actualizar_estado_automatico_protegido_service(
         pedido,
         puede_imprimir_etiqueta_directamente,
         puede_imprimir_acordas_entrega,
         debe_pasar_a_demora_entrega,
-    )
-
-    aplicar_reversion_autoavance_si_corresponde(
-        pedido,
-        estado_anterior=estado_anterior,
-        estado_etiqueta_lista=Estado.ETIQUETA_LISTA,
-        bloquear_cross_sell=bloquear_cross_sell,
+        evento_operativo_model=EventoOperativo,
+        log_fn=print,
     )
 
 
