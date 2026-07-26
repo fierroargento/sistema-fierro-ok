@@ -45,17 +45,28 @@ def test_app_detector_usa_resultado_estructurado():
     for prohibido in prohibidos:
         assert prohibido not in bloque
 
-def test_app_mensaje_repetido_no_corta_confirmacion_sucursal_operativa():
-    texto = Path("app.py").read_text(encoding="utf-8")
 
-    idx = texto.index("[CANAL-MANAGER] ML bloqueado pedido")
-    bloque = texto[idx: idx + 700]
+def test_transicion_centraliza_excepcion_de_repetidos():
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/workflow_transicion_sucursal_ml.py"
+    ).read_text(encoding="utf-8-sig")
 
-    assert "mensaje_automatico_repetido" in bloque
-    assert '"repetido" in motivo_normalizado' in bloque
-    assert "if not mensaje_automatico_repetido:" in bloque
-    assert "return False, motivo" in bloque
+    assert (
+        "ejecutar_transicion_ml_tras_confirmacion_sucursal("
+        in app
+    )
+    assert (
+        "continuar_si_motivo_repetido=True"
+        in app
+    )
+    assert "mensaje_automatico_repetido" not in app
 
-    idx_repetido = bloque.index("mensaje_automatico_repetido")
-    idx_return = bloque.index("return False, motivo")
-    assert idx_repetido < idx_return
+    assert (
+        "continuar_si_motivo_repetido"
+        in servicio
+    )
+    assert (
+        '"repetido" in motivo_normalizado'
+        in servicio
+    )

@@ -32,6 +32,7 @@ def ejecutar_transicion_ml_tras_confirmacion_sucursal(
     puede_enviar_fn: Callable[..., Any],
     enviar_mensaje_fn: Callable[..., Any],
     registrar_envio_fn: Callable[..., Any],
+    continuar_si_motivo_repetido: bool = False,
     log_fn: Callable[[str], None] = print,
 ) -> ResultadoTransicionSucursalML:
     """
@@ -63,15 +64,31 @@ def ejecutar_transicion_ml_tras_confirmacion_sucursal(
 
         if not permitido:
             motivo = str(motivo or "")
-            log_fn(
-                "[CANAL-MANAGER] ML transicion WA "
-                "omitida pedido "
-                f"#{getattr(pedido, 'id', '')}: "
-                f"{motivo}"
+            motivo_normalizado = motivo.lower()
+            es_motivo_repetido = (
+                "repetido" in motivo_normalizado
             )
-            return ResultadoTransicionSucursalML(
-                estado="omitida",
-                motivo=motivo,
+
+            if not (
+                continuar_si_motivo_repetido
+                and es_motivo_repetido
+            ):
+                log_fn(
+                    "[CANAL-MANAGER] ML transicion WA "
+                    "omitida pedido "
+                    f"#{getattr(pedido, 'id', '')}: "
+                    f"{motivo}"
+                )
+                return ResultadoTransicionSucursalML(
+                    estado="omitida",
+                    motivo=motivo,
+                )
+
+            log_fn(
+                "[CANAL-MANAGER] ML bloqueo repetido "
+                "tolerado para confirmacion operativa "
+                f"pedido #{getattr(pedido, 'id', '')}: "
+                f"{motivo}"
             )
 
         enviar_mensaje_fn(

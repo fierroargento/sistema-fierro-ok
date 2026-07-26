@@ -212,3 +212,104 @@ def test_servicio_no_persiste_ni_decide_cross_sell():
 
     for prohibido in prohibidos:
         assert prohibido not in texto
+
+def test_transicion_repetida_puede_continuar():
+    llamadas = []
+    logs = []
+
+    resultado = (
+        ejecutar_transicion_ml_tras_confirmacion_sucursal(
+            pedido=pedido_fake(),
+            texto="Confirmación operativa",
+            puede_enviar_fn=(
+                lambda **_kwargs: (
+                    False,
+                    "mensaje automático repetido",
+                )
+            ),
+            enviar_mensaje_fn=(
+                lambda *_args, **_kwargs: (
+                    llamadas.append("enviar")
+                )
+            ),
+            registrar_envio_fn=(
+                lambda **_kwargs: (
+                    llamadas.append("registrar")
+                )
+            ),
+            continuar_si_motivo_repetido=True,
+            log_fn=logs.append,
+        )
+    )
+
+    assert resultado.enviada is True
+    assert llamadas == [
+        "enviar",
+        "registrar",
+    ]
+    assert len(logs) == 1
+    assert "bloqueo repetido tolerado" in logs[0]
+
+
+def test_transicion_repetida_sigue_bloqueada_por_defecto():
+    llamadas = []
+
+    resultado = (
+        ejecutar_transicion_ml_tras_confirmacion_sucursal(
+            pedido=pedido_fake(),
+            texto="Confirmación operativa",
+            puede_enviar_fn=(
+                lambda **_kwargs: (
+                    False,
+                    "mensaje repetido",
+                )
+            ),
+            enviar_mensaje_fn=(
+                lambda *_args, **_kwargs: (
+                    llamadas.append("enviar")
+                )
+            ),
+            registrar_envio_fn=(
+                lambda **_kwargs: (
+                    llamadas.append("registrar")
+                )
+            ),
+            log_fn=lambda _mensaje: None,
+        )
+    )
+
+    assert resultado.omitida is True
+    assert llamadas == []
+
+
+def test_flag_repetido_no_habilita_otros_bloqueos():
+    llamadas = []
+
+    resultado = (
+        ejecutar_transicion_ml_tras_confirmacion_sucursal(
+            pedido=pedido_fake(),
+            texto="Confirmación operativa",
+            puede_enviar_fn=(
+                lambda **_kwargs: (
+                    False,
+                    "whatsapp_activo",
+                )
+            ),
+            enviar_mensaje_fn=(
+                lambda *_args, **_kwargs: (
+                    llamadas.append("enviar")
+                )
+            ),
+            registrar_envio_fn=(
+                lambda **_kwargs: (
+                    llamadas.append("registrar")
+                )
+            ),
+            continuar_si_motivo_repetido=True,
+            log_fn=lambda _mensaje: None,
+        )
+    )
+
+    assert resultado.omitida is True
+    assert resultado.motivo == "whatsapp_activo"
+    assert llamadas == []

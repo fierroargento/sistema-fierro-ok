@@ -1181,6 +1181,9 @@ from services.workflow_sucursal_decision import (
 from services.workflow_logistica_sucursal import (
     aplicar_y_persistir_sucursal_detectada,
 )
+from services.workflow_transicion_sucursal_ml import (
+    ejecutar_transicion_ml_tras_confirmacion_sucursal,
+)
 from services.ia_recolector_analisis import (
     analizar_datos_cliente_ml_acordas,
 )
@@ -4291,32 +4294,41 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     # APB CANAL MANAGER
                     # ---------------------------------------------------
 
-                    permitido, motivo = puede_enviar_mensaje(
-                        pedido=pedido,
-                        canal="ml",
-                        texto=msg_confirmacion,
-                    )
-
-                    if not permitido:
-                        print(
-                            f"[CANAL-MANAGER] ML bloqueado pedido #{pedido.id}: {motivo}"
+                    resultado_transicion_sucursal = (
+                        ejecutar_transicion_ml_tras_confirmacion_sucursal(
+                            pedido=pedido,
+                            texto=msg_confirmacion,
+                            puede_enviar_fn=puede_enviar_mensaje,
+                            enviar_mensaje_fn=(
+                                ml_enviar_mensaje_acordas
+                            ),
+                            registrar_envio_fn=(
+                                registrar_envio_automatico
+                            ),
+                            continuar_si_motivo_repetido=True,
+                            log_fn=print,
                         )
-                        motivo_normalizado = str(motivo or "").lower()
-                        mensaje_automatico_repetido = "repetido" in motivo_normalizado
-                        if not mensaje_automatico_repetido:
-                            return False, motivo
-
-                    ml_enviar_mensaje_acordas(
-                        pedido,
-                        msg_confirmacion,
-                        permitir_requiere_operador=True,
                     )
 
-                    registrar_envio_automatico(
-                        pedido=pedido,
-                        canal="ml",
-                        texto=msg_confirmacion,
-                    )
+                    if (
+                        resultado_transicion_sucursal
+                        .omitida
+                    ):
+                        return (
+                            False,
+                            resultado_transicion_sucursal
+                            .motivo,
+                        )
+
+                    if (
+                        resultado_transicion_sucursal
+                        .estado
+                        == "error"
+                    ):
+                        raise RuntimeError(
+                            resultado_transicion_sucursal
+                            .motivo
+                        )
 
                     try:
                         from services.sucursal_consulta_mixta import marcar_consulta_horarios_retiro_pendiente
