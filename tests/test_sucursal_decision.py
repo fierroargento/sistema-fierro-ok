@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 from services.workflow_sucursal_decision import (
     decidir_sucursal_correo_ofrecida,
+    detectar_sucursal_correo_para_flujo,
     es_consulta_no_eleccion_sucursal,
     decidir_sucursal_ofrecida,
     decidir_sucursal_via_cargo_ofrecida,
@@ -649,3 +650,89 @@ def test_consulta_no_eleccion_no_marca_eleccion_simple():
         assert not es_consulta_no_eleccion_sucursal(
             eleccion
         ), eleccion
+
+
+def test_detector_flujo_correo_rechaza_entradas_no_aplicables():
+    assert (
+        detectar_sucursal_correo_para_flujo(
+            None,
+            "opcion 1",
+        )
+        is None
+    )
+
+    pedido = SimpleNamespace(
+        empresa_envio="Vía Cargo",
+    )
+
+    assert (
+        detectar_sucursal_correo_para_flujo(
+            pedido,
+            "opcion 1",
+        )
+        is None
+    )
+
+
+def test_detector_flujo_correo_devuelve_sucursal_detectada():
+    sucursal = {
+        "id": "correo-1",
+        "nombre": "Sucursal Centro",
+    }
+    pedido = SimpleNamespace(
+        empresa_envio="Correo Argentino",
+    )
+
+    resultado = detectar_sucursal_correo_para_flujo(
+        pedido,
+        "opcion 1",
+        detector_correo_fn=(
+            lambda _pedido, _mensaje: sucursal
+        ),
+    )
+
+    assert resultado is sucursal
+
+
+def test_detector_flujo_correo_conserva_fallback():
+    llamadas = []
+    pedido = SimpleNamespace(
+        empresa_envio="Correo Argentino",
+    )
+
+    def detector(_pedido, mensaje):
+        llamadas.append(mensaje)
+        return None
+
+    resultado = detectar_sucursal_correo_para_flujo(
+        pedido,
+        "opcion inexistente",
+        detector_correo_fn=detector,
+    )
+
+    assert resultado is None
+    assert llamadas == [
+        "opcion inexistente",
+        "opcion inexistente",
+    ]
+
+
+def test_detector_flujo_correo_aísla_errores():
+    logs = []
+    pedido = SimpleNamespace(
+        empresa_envio="Correo Argentino",
+    )
+
+    def detector(_pedido, _mensaje):
+        raise RuntimeError("fallo controlado")
+
+    resultado = detectar_sucursal_correo_para_flujo(
+        pedido,
+        "opcion 1",
+        detector_correo_fn=detector,
+        logger_fn=logs.append,
+    )
+
+    assert resultado is None
+    assert len(logs) == 1
+    assert "fallo controlado" in logs[0]

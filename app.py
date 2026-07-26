@@ -1083,62 +1083,11 @@ def _es_consulta_no_eleccion(texto):
 
 
 def detectar_sucursal(pedido, mensaje):
-    """
-    Detecta una sucursal de Correo previamente ofrecida.
-
-    La selección de Vía Cargo se resuelve en el workflow
-    central de confirmación de sucursal.
-    """
-
-    if not pedido:
-        return None
-
-    mensaje = str(mensaje or "").strip()
-    if not mensaje:
-        return None
-
-    transporte_actual = str(
-        getattr(pedido, "empresa_envio", "")
-        or ""
-    ).lower()
-
-    if "correo" not in transporte_actual:
-        return None
-
-    try:
-        from services.correo_sucursales_eleccion import (
-            detectar_sucursal_correo_ofrecida,
-        )
-        from services.workflow_sucursal_decision import (
-            decidir_sucursal_correo_ofrecida,
-        )
-
-        decision_correo = decidir_sucursal_correo_ofrecida(
-            pedido,
-            mensaje,
-            detector_correo_fn=detectar_sucursal_correo_ofrecida,
-        )
-
-        if (
-            decision_correo
-            and decision_correo.seleccionada
-            and decision_correo.sucursal
-        ):
-            return (
-                decision_correo.sucursal.get("raw")
-                or decision_correo.sucursal
-            )
-
-        return detectar_sucursal_correo_ofrecida(pedido, mensaje)
-
-    except Exception as error:
-        print(
-            "[CORREO] Error detectando sucursal "
-            f"ofrecida: {error}"
-        )
-        return None
-
-
+    return detectar_sucursal_correo_para_flujo(
+        pedido,
+        mensaje,
+        logger_fn=print,
+    )
 
 
 from services.workflow_orquestador_confirmacion_sucursal import (
@@ -1155,6 +1104,7 @@ from services.ia_recolector_entrada import (
     preparar_entrada_recolector_ml,
 )
 from services.workflow_sucursal_decision import (
+    detectar_sucursal_correo_para_flujo,
     es_consulta_no_eleccion_sucursal,
     procesar_escalamiento_consulta_sucursal,
 )
@@ -4179,7 +4129,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             es_consulta_no_eleccion_fn=(
                 es_consulta_no_eleccion_sucursal
             ),
-            detectar_sucursal_fn=detectar_sucursal,
+            detectar_sucursal_fn=detectar_sucursal_correo_para_flujo,
             aplicar_sucursal_fn=(
                 aplicar_y_persistir_sucursal_detectada
             ),

@@ -751,6 +751,76 @@ class ResultadoEscalamientoConsultaSucursal:
     error: str = ""
 
 
+def detectar_sucursal_correo_para_flujo(
+    pedido: Any,
+    mensaje: Any,
+    *,
+    detector_correo_fn: Callable[
+        [Any, Any],
+        dict[str, Any] | None,
+    ] | None = None,
+    logger_fn: Callable[[str], Any] = print,
+) -> dict[str, Any] | None:
+    """
+    Detecta una sucursal de Correo previamente ofrecida.
+
+    Conserva la decisión estructurada, el fallback
+    histórico y el aislamiento de errores.
+    """
+    if not pedido:
+        return None
+
+    mensaje = str(mensaje or "").strip()
+    if not mensaje:
+        return None
+
+    transporte_actual = str(
+        getattr(pedido, "empresa_envio", "")
+        or ""
+    ).lower()
+
+    if "correo" not in transporte_actual:
+        return None
+
+    try:
+        if detector_correo_fn is None:
+            from services.correo_sucursales_eleccion import (
+                detectar_sucursal_correo_ofrecida,
+            )
+        else:
+            detectar_sucursal_correo_ofrecida = (
+                detector_correo_fn
+            )
+
+        decision_correo = decidir_sucursal_correo_ofrecida(
+            pedido=pedido,
+            texto=mensaje,
+            detector_correo_fn=detectar_sucursal_correo_ofrecida,
+        )
+
+        if (
+            decision_correo
+            and decision_correo.seleccionada
+            and decision_correo.sucursal
+        ):
+            return (
+                decision_correo.sucursal.get("raw")
+                or decision_correo.sucursal
+            )
+
+        return detectar_sucursal_correo_ofrecida(
+            pedido,
+            mensaje,
+        )
+
+    except Exception as error:
+        logger_fn(
+            "[CORREO] Error detectando sucursal "
+            f"ofrecida: {error}"
+        )
+        return None
+
+
 def procesar_escalamiento_consulta_sucursal(
     pedido: Any,
     texto: Any,

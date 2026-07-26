@@ -147,3 +147,30 @@ def test_analizador_usa_consulta_no_eleccion_compartida():
         "return es_consulta_no_eleccion_sucursal(texto)"
         in app
     )
+
+
+def test_analizador_usa_detector_sucursal_compartido():
+    app, bloque = bloque_analizador()
+
+    assert (
+        "detectar_sucursal_correo_para_flujo,"
+        in app
+    )
+    assert (
+        "detectar_sucursal_fn="
+        "detectar_sucursal_correo_para_flujo"
+        in bloque
+    )
+    assert (
+        "detectar_sucursal_fn=detectar_sucursal,"
+        not in bloque
+    )
+
+    assert (
+        "def detectar_sucursal(pedido, mensaje):"
+        in app
+    )
+    assert (
+        "return detectar_sucursal_correo_para_flujo("
+        in app
+    )

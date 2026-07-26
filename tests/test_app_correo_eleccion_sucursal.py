@@ -1,12 +1,12 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 
 def _bloque_detectar_sucursal():
-    texto = Path("app.py").read_text(
-        encoding="utf-8"
-    )
+    texto = Path(
+        "services/workflow_sucursal_decision.py"
+    ).read_text(encoding="utf-8-sig")
     inicio = texto.index(
-        "def detectar_sucursal(pedido, mensaje):"
+        "def detectar_sucursal_correo_para_flujo("
     )
     fin = texto.find("\ndef ", inicio + 1)
     if fin == -1:
