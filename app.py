@@ -55,6 +55,9 @@ from services.ml_importacion import (
     ml_pedido_existente_operativo_service,
 )    
 
+from services.logistica_defaults import (
+    es_ml_acordas_entrega_service,
+)
 from services.telefonos import normalizar_telefono_service
 from services.telefonos import es_telefono_whatsapp_argentina_valido_service
 from services.tiendanube_datos import extraer_telefono_tiendanube_service
@@ -4151,7 +4154,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         pedido=pedido,
         mensajes=mensajes,
         seller_id=seller_id,
-        es_pedido_aplicable_fn=es_ml_acordas_entrega,
+        es_pedido_aplicable_fn=es_ml_acordas_entrega_service,
         preparar_mensaje_fn=(
             ml_preparar_mensaje_comprador_para_ia
         ),

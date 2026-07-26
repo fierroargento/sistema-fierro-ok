@@ -53,3 +53,28 @@ def test_wrappers_historicos_siguen_disponibles():
 
     assert "def ia_hash_texto(texto):" in app
     assert "def ia_faltantes_pedido(pedido):" in app
+
+def test_analizador_usa_regla_ml_acordas_canonica():
+    app, bloque = bloque_analizador()
+
+    assert (
+        "from services.logistica_defaults import ("
+        in app
+    )
+    assert "es_ml_acordas_entrega_service," in app
+    assert (
+        "es_pedido_aplicable_fn="
+        "es_ml_acordas_entrega_service"
+        in bloque
+    )
+    assert (
+        "es_pedido_aplicable_fn="
+        "es_ml_acordas_entrega,"
+        not in bloque
+    )
+
+
+def test_wrapper_ml_acordas_historico_sigue_disponible():
+    app, _ = bloque_analizador()
+
+    assert "def es_ml_acordas_entrega(pedido):" in app
