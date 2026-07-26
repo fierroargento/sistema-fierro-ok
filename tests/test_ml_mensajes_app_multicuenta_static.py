@@ -79,11 +79,26 @@ def test_analizador_delega_preparacion_mensaje_comprador():
         texto,
         "ia_analizar_ultimo_mensaje_pedido",
     )
+    servicio = Path(
+        "services/ia_recolector_entrada.py"
+    ).read_text(encoding="utf-8")
 
     assert (
-        "ml_preparar_mensaje_comprador_para_ia("
+        "preparar_entrada_recolector_ml("
         in bloque
     )
+    assert (
+        "preparar_mensaje_fn=("
+        in bloque
+    )
+    assert (
+        "ml_preparar_mensaje_comprador_para_ia"
+        in bloque
+    )
+    assert servicio.count(
+        "preparar_mensaje_fn("
+    ) == 1
+
     assert (
         "ml_ultimo_mensaje_comprador("
         not in bloque
@@ -91,4 +106,12 @@ def test_analizador_delega_preparacion_mensaje_comprador():
     assert (
         "ml_bloque_mensajes_comprador_pendientes("
         not in bloque
+    )
+    assert (
+        "ml_ultimo_mensaje_comprador("
+        not in servicio
+    )
+    assert (
+        "ml_bloque_mensajes_comprador_pendientes("
+        not in servicio
     )

@@ -1178,6 +1178,9 @@ from services.ia_recolector_post_cp import (
 from services.ia_recolector_flujo_cp import (
     procesar_flujo_codigo_postal_recolector,
 )
+from services.ia_recolector_entrada import (
+    preparar_entrada_recolector_ml,
+)
 from services.workflow_sucursal_decision import (
     procesar_escalamiento_consulta_sucursal,
 )
@@ -4142,31 +4145,24 @@ def ia_calcular_faltantes_reales_pedido(pedido, datos=None):
 
 def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=False):
     """Analiza último mensaje del comprador si corresponde. Autocompleta campos vacíos. No envía nada al cliente."""
-    if not pedido or not es_ml_acordas_entrega(pedido):
-        return None
-    if not getattr(pedido, "contacto_iniciado", False):
-        return None
-
-    mensaje_comprador = (
-        ml_preparar_mensaje_comprador_para_ia(
-            mensajes,
-            seller_id=seller_id,
-        )
+    entrada_recolector = preparar_entrada_recolector_ml(
+        pedido=pedido,
+        mensajes=mensajes,
+        seller_id=seller_id,
+        es_pedido_aplicable_fn=es_ml_acordas_entrega,
+        preparar_mensaje_fn=(
+            ml_preparar_mensaje_comprador_para_ia
+        ),
+        marcar_respuesta_fn=(
+            ia_marcar_respuesta_cliente
+        ),
     )
 
-    if not mensaje_comprador:
+    if not entrada_recolector.habilitada:
         return None
 
-    ultimo = mensaje_comprador.ultimo
-    texto_ultimo = mensaje_comprador.texto_ultimo
-    texto = mensaje_comprador.texto
-
-    if texto:
-        ia_marcar_respuesta_cliente(
-        pedido,
-        canal="mercadolibre",
-        commit=False,
-    )
+    texto_ultimo = entrada_recolector.texto_ultimo
+    texto = entrada_recolector.texto
 
     resultado_flujo_cp = (
         procesar_flujo_codigo_postal_recolector(
