@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 
 def _slice_detectar_sucursal():
@@ -53,21 +53,23 @@ def test_detector_sucursal_queda_exclusivo_de_correo():
     assert "[VIA CARGO]" not in bloque
 
 
-def test_confirmacion_sucursal_contempla_consulta_horarios():
-    texto = Path("app.py").read_text(
+def test_confirmacion_sucursal_delega_consulta_horarios():
+    app = Path("app.py").read_text(
         encoding="utf-8"
     )
-
-    idx_suc = texto.index(
-        "suc = detectar_sucursal("
-    )
-    bloque = texto[idx_suc:idx_suc + 5000]
+    servicio = Path(
+        "services/workflow_notificacion_sucursal_ml.py"
+    ).read_text(encoding="utf-8-sig")
 
     assert (
+        "notificar_sucursal_detectada_ml("
+        in app
+    )
+    assert (
         "agregar_respuesta_neutra_horarios_retiro"
-        in bloque
+        in servicio
     )
     assert (
         "marcar_consulta_horarios_retiro_pendiente"
-        in bloque
+        in servicio
     )

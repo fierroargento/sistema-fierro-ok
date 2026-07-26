@@ -1181,8 +1181,8 @@ from services.workflow_sucursal_decision import (
 from services.workflow_logistica_sucursal import (
     aplicar_y_persistir_sucursal_detectada,
 )
-from services.workflow_transicion_sucursal_ml import (
-    ejecutar_transicion_ml_tras_confirmacion_sucursal,
+from services.workflow_notificacion_sucursal_ml import (
+    notificar_sucursal_detectada_ml,
 )
 from services.ia_recolector_analisis import (
     analizar_datos_cliente_ml_acordas,
@@ -4269,93 +4269,39 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             )
 
             if resultado_aplicacion_sucursal.aplicada:
-                # Confirmar al cliente que la sucursal fue registrada y el despacho está en proceso
-                try:
-                    nombre_cliente = (getattr(pedido, "cliente", "") or "Cliente").split()[0] or "Cliente"
-
-                    msg_confirmacion = (
-                        f"Muchas gracias {nombre_cliente}! 🙌\n\n"
-                        f"Tu pedido ya está en proceso de despacho a:\n"
-                        f"📍 {suc.get('nombre')}\n"
-                        f"📌 {suc.get('direccion')}\n\n"
-                        f"En breve te pasamos el número de seguimiento para que puedas rastrear tu envío 😊"
-                    )
-
-                    try:
-                        from services.sucursal_consulta_mixta import agregar_respuesta_neutra_horarios_retiro
-                        msg_confirmacion = agregar_respuesta_neutra_horarios_retiro(
-                            msg_confirmacion,
-                            texto_para_sucursal,
-                        )
-                    except Exception as e:
-                        print("[SUCURSAL] No se pudo agregar respuesta neutra por horarios:", e)
-
-                    # ---------------------------------------------------
-                    # APB CANAL MANAGER
-                    # ---------------------------------------------------
-
-                    resultado_transicion_sucursal = (
-                        ejecutar_transicion_ml_tras_confirmacion_sucursal(
-                            pedido=pedido,
-                            texto=msg_confirmacion,
-                            puede_enviar_fn=puede_enviar_mensaje,
-                            enviar_mensaje_fn=(
-                                ml_enviar_mensaje_acordas
-                            ),
-                            registrar_envio_fn=(
-                                registrar_envio_automatico
-                            ),
-                            continuar_si_motivo_repetido=True,
-                            log_fn=print,
-                        )
-                    )
-
-                    if (
-                        resultado_transicion_sucursal
-                        .omitida
-                    ):
-                        return (
-                            False,
-                            resultado_transicion_sucursal
-                            .motivo,
-                        )
-
-                    if (
-                        resultado_transicion_sucursal
-                        .estado
-                        == "error"
-                    ):
-                        raise RuntimeError(
-                            resultado_transicion_sucursal
-                            .motivo
-                        )
-
-                    try:
-                        from services.sucursal_consulta_mixta import marcar_consulta_horarios_retiro_pendiente
-                        marcar_consulta_horarios_retiro_pendiente(
-                            pedido,
-                            texto_para_sucursal,
-                        )
-                    except Exception as e:
-                        print("[SUCURSAL] No se pudo marcar consulta secundaria:", e)
-
-                    intentar_wa_cross_sell_tras_sucursal_ml(
-                        pedido,
-                        wa_auto_iniciar_desde_ml_fn=wa_auto_iniciar_desde_ml_si_corresponde,
-                        db_session=db.session,
-                        motivo="sucursal_confirmada_ml",
-                        log_error_fn=lambda e: print(
-                            f"[WA-AUTO-ML] Error iniciando WA/cross-sell tras sucursal pedido #{pedido.id}:",
-                            e,
+                resultado_notificacion_sucursal = (
+                    notificar_sucursal_detectada_ml(
+                        pedido=pedido,
+                        sucursal=suc,
+                        texto_cliente=(
+                            texto_para_sucursal
                         ),
+                        puede_enviar_fn=(
+                            puede_enviar_mensaje
+                        ),
+                        enviar_mensaje_fn=(
+                            ml_enviar_mensaje_acordas
+                        ),
+                        registrar_envio_fn=(
+                            registrar_envio_automatico
+                        ),
+                        wa_auto_iniciar_fn=(
+                            wa_auto_iniciar_desde_ml_si_corresponde
+                        ),
+                        db_session=db.session,
+                        log_fn=print,
                     )
+                )
 
-                except Exception as e:
-                    print(
-                        f"[VIA CARGO] No se pudo enviar confirmación de sucursal pedido #{pedido.id}:",
-                        e
+                if (
+                    resultado_notificacion_sucursal
+                    .respuesta_flujo
+                    is not None
+                ):
+                    return (
+                        resultado_notificacion_sucursal
+                        .respuesta_flujo
                     )
-
 
     if not texto:
         return None

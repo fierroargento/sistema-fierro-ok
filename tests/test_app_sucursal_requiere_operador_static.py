@@ -12,7 +12,7 @@ def test_confirmacion_sucursal_limpia_revision_correo_y_permite_envio_seguro():
         in bloque
     )
     assert (
-        "ejecutar_transicion_ml_tras_confirmacion_sucursal("
+        "notificar_sucursal_detectada_ml("
         in bloque
     )
 
@@ -22,6 +22,14 @@ def test_confirmacion_sucursal_limpia_revision_correo_y_permite_envio_seguro():
     servicio_transicion = Path(
         "services/workflow_transicion_sucursal_ml.py"
     ).read_text(encoding="utf-8-sig")
+    servicio_notificacion = Path(
+        "services/workflow_notificacion_sucursal_ml.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert (
+        "ejecutar_transicion_ml_tras_confirmacion_sucursal("
+        in servicio_notificacion
+    )
 
     assert (
         "limpiar_revision_correo_resuelta_por_sucursales"
@@ -33,17 +41,16 @@ def test_confirmacion_sucursal_limpia_revision_correo_y_permite_envio_seguro():
     )
 
 
-def test_consulta_horarios_se_marca_despues_de_enviar_confirmacion():
-    texto = Path("app.py").read_text(encoding="utf-8")
+def test_consulta_horarios_se_marca_despues_de_transicion():
+    servicio = Path(
+        "services/workflow_notificacion_sucursal_ml.py"
+    ).read_text(encoding="utf-8-sig")
 
-    idx_suc = texto.index("suc = detectar_sucursal(")
-    bloque = texto[idx_suc: idx_suc + 7000]
-
-    idx_enviar = bloque.index(
+    idx_enviar = servicio.index(
         "ejecutar_transicion_ml_tras_confirmacion_sucursal("
     )
-    idx_marcar = bloque.index(
-        "marcar_consulta_horarios_retiro_pendiente"
+    idx_marcar = servicio.index(
+        "marcar_consulta_horarios_retiro_pendiente("
     )
 
     assert idx_enviar < idx_marcar

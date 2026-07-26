@@ -1,14 +1,41 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 
 def test_confirmar_sucursal_ml_delega_wa_cross_sell_al_service():
-    texto = Path("app.py").read_text(encoding="utf-8")
+    app = Path("app.py").read_text(encoding="utf-8")
+    notificacion = Path(
+        "services/workflow_notificacion_sucursal_ml.py"
+    ).read_text(encoding="utf-8-sig")
+    guard = Path(
+        "services/ml_sucursal_cross_sell_guard.py"
+    ).read_text(encoding="utf-8-sig")
 
-    assert "intentar_wa_cross_sell_tras_sucursal_ml" in texto
-    assert 'motivo="sucursal_confirmada_ml"' in texto
-    assert "CROSS-SELL/WA pendiente tras confirmar sucursal ML" not in texto
-    assert "CROSS-SELL/WA error tras confirmar sucursal ML" not in texto
-
+    assert (
+        "notificar_sucursal_detectada_ml("
+        in app
+    )
+    assert (
+        "intentar_wa_cross_sell_tras_sucursal_ml"
+        in notificacion
+    )
+    assert (
+        'motivo="sucursal_confirmada_ml"'
+        in notificacion
+    )
+    assert (
+        "CROSS-SELL/WA pendiente tras confirmar "
+        "sucursal ML"
+        not in app
+    )
+    assert (
+        "CROSS-SELL/WA error tras confirmar "
+        "sucursal ML"
+        not in app
+    )
+    assert (
+        "PREFIJO_WA_PENDIENTE"
+        in guard
+    )
 
 def test_autoavance_etiqueta_lista_delega_bloqueo_cross_sell_al_service():
     texto = Path("app.py").read_text(encoding="utf-8")

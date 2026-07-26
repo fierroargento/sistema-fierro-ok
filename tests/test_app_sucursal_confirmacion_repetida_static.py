@@ -52,13 +52,21 @@ def test_transicion_centraliza_excepcion_de_repetidos():
         "services/workflow_transicion_sucursal_ml.py"
     ).read_text(encoding="utf-8-sig")
 
+    notificacion = Path(
+        "services/workflow_notificacion_sucursal_ml.py"
+    ).read_text(encoding="utf-8-sig")
+
     assert (
-        "ejecutar_transicion_ml_tras_confirmacion_sucursal("
+        "notificar_sucursal_detectada_ml("
         in app
     )
     assert (
+        "ejecutar_transicion_ml_tras_confirmacion_sucursal("
+        in notificacion
+    )
+    assert (
         "continuar_si_motivo_repetido=True"
-        in app
+        in notificacion
     )
     assert "mensaje_automatico_repetido" not in app
 
