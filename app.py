@@ -152,6 +152,7 @@ from services.pedidos_estado import (
     ESTADOS_DESPACHO_OPERATIVO,
 )
 from services.canal_manager import (
+    evaluar_ownership_wa_para_respuesta_ml,
     puede_enviar_mensaje,
     ml_wa_estado_bloquea_respuesta_ml,
     registrar_envio_automatico,
@@ -4194,57 +4195,23 @@ def ia_auto_responder_post_analisis(pedido):
     # "requiere_operador" puede ser solo una alerta humana del recolector,
     # no necesariamente un flujo activo de WhatsApp.
     # No abrimos el bloqueo para estados WA reales.
-    wa_estado_actual = str(getattr(pedido, "wa_estado", "") or "").strip().lower()
-    canal_activo_actual = str(getattr(pedido, "ia_canal_activo", "") or "").strip().lower()
-
-    wa_tiene_ownership_real = ml_wa_estado_bloquea_respuesta_ml(
-        pedido,
-        wa_estado_actual,
+    resultado_ownership = (
+        evaluar_ownership_wa_para_respuesta_ml(
+            pedido,
+            obtener_estado_conversacional_fn=(
+                obtener_estado_conversacional
+            ),
+        )
     )
 
-    try:
-        estado_conv = obtener_estado_conversacional(
-            pedido,
-            crear_si_no_existe=False,
-        )
-    except Exception:
-        estado_conv = None
-
-    if estado_conv:
-        canal_conv = str(
-            getattr(estado_conv, "canal_activo", "") or ""
-        ).strip().lower()
-
-        if (
-            canal_conv in ("wa", "whatsapp")
-            and ml_wa_estado_bloquea_respuesta_ml(
-                pedido,
-                wa_estado_actual,
-            )
-        ):
-            wa_tiene_ownership_real = True
-
-        if getattr(estado_conv, "takeover_activo", False):
-            wa_tiene_ownership_real = True
-
-        if getattr(estado_conv, "bot_pausado", False):
-            wa_tiene_ownership_real = True
-
-    if (
-        canal_activo_actual in ("wa", "whatsapp")
-        and ml_wa_estado_bloquea_respuesta_ml(
-            pedido,
-            wa_estado_actual,
-        )
-    ):
-        wa_tiene_ownership_real = True
-
-    if wa_tiene_ownership_real:
+    if resultado_ownership.bloquea:
         print(
-            f"[IA-AUTO-RESPUESTA] ML no responde pedido #{getattr(pedido, 'id', '?')}: "
-            f"WhatsApp activo ({wa_estado_actual})"
+            "[IA-AUTO-RESPUESTA] ML no responde pedido "
+            f"#{getattr(pedido, 'id', '?')}: "
+            "WhatsApp activo "
+            f"({resultado_ownership.wa_estado})"
         )
-        return False, f"wa_activo_{wa_estado_actual}"
+        return False, resultado_ownership.motivo
 
     texto = ""
 

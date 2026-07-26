@@ -1,4 +1,6 @@
-﻿"""
+from dataclasses import dataclass
+
+"""
 services/canal_manager.py
 ─────────────────────────
 Autoridad APB mínima para mensajes automáticos.
@@ -88,6 +90,100 @@ def ml_wa_estado_bloquea_respuesta_ml(pedido, wa_estado=None):
 
     return True
 
+
+
+@dataclass(frozen=True)
+class ResultadoOwnershipMlWa:
+    bloquea: bool
+    motivo: str
+    wa_estado: str
+
+
+def evaluar_ownership_wa_para_respuesta_ml(
+    pedido,
+    *,
+    obtener_estado_conversacional_fn,
+    estado_bloquea_fn=ml_wa_estado_bloquea_respuesta_ml,
+):
+    """
+    Decide si WhatsApp posee realmente la conversación
+    y debe bloquear una respuesta automática de ML.
+    """
+    wa_estado = str(
+        getattr(pedido, "wa_estado", "") or ""
+    ).strip().lower()
+    canal_activo = str(
+        getattr(pedido, "ia_canal_activo", "") or ""
+    ).strip().lower()
+
+    bloquea = bool(
+        estado_bloquea_fn(
+            pedido,
+            wa_estado,
+        )
+    )
+
+    try:
+        estado_conversacional = (
+            obtener_estado_conversacional_fn(
+                pedido,
+                crear_si_no_existe=False,
+            )
+        )
+    except Exception:
+        estado_conversacional = None
+
+    if estado_conversacional:
+        canal_conversacional = str(
+            getattr(
+                estado_conversacional,
+                "canal_activo",
+                "",
+            )
+            or ""
+        ).strip().lower()
+
+        if (
+            canal_conversacional in ("wa", "whatsapp")
+            and estado_bloquea_fn(
+                pedido,
+                wa_estado,
+            )
+        ):
+            bloquea = True
+
+        if getattr(
+            estado_conversacional,
+            "takeover_activo",
+            False,
+        ):
+            bloquea = True
+
+        if getattr(
+            estado_conversacional,
+            "bot_pausado",
+            False,
+        ):
+            bloquea = True
+
+    if (
+        canal_activo in ("wa", "whatsapp")
+        and estado_bloquea_fn(
+            pedido,
+            wa_estado,
+        )
+    ):
+        bloquea = True
+
+    return ResultadoOwnershipMlWa(
+        bloquea=bloquea,
+        motivo=(
+            f"wa_activo_{wa_estado}"
+            if bloquea
+            else ""
+        ),
+        wa_estado=wa_estado,
+    )
 
 def puede_enviar_mensaje(
     pedido,
