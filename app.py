@@ -37,8 +37,9 @@ from domain.estados import (
 )
 
 from modules.whatsapp.runtime import (
-    wa_ventana_24h_abierta_service,
+    ia_marcar_respuesta_cliente as ia_marcar_respuesta_cliente_runtime,
     registrar_whatsapp_mensaje_service,
+    wa_ventana_24h_abierta_service,
 )
 
 from services.ml_importacion import (
@@ -4044,7 +4045,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             ml_preparar_mensaje_comprador_para_ia
         ),
         marcar_respuesta_fn=(
-            ia_marcar_respuesta_cliente
+            ia_marcar_respuesta_cliente_runtime
         ),
     )
 

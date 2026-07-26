@@ -207,3 +207,37 @@ def test_actualizar_estado_automatico_delega_workflow_protegido():
         "si_corresponde("
         not in wrapper
     )
+
+
+def test_analizador_usa_marcador_respuesta_cliente_runtime():
+    app, bloque = bloque_analizador()
+    compacto = "".join(bloque.split())
+
+    assert (
+        "from modules.whatsapp.runtime import ("
+        in app
+    )
+    assert (
+        "ia_marcar_respuesta_cliente as "
+        "ia_marcar_respuesta_cliente_runtime,"
+        in app
+    )
+    assert (
+        "marcar_respuesta_fn=("
+        "ia_marcar_respuesta_cliente_runtime)"
+        in compacto
+    )
+    assert (
+        "marcar_respuesta_fn=("
+        "ia_marcar_respuesta_cliente)"
+        not in compacto
+    )
+
+
+def test_wrapper_respuesta_cliente_historico_sigue_disponible():
+    app, _ = bloque_analizador()
+
+    assert (
+        "def ia_marcar_respuesta_cliente("
+        in app
+    )
