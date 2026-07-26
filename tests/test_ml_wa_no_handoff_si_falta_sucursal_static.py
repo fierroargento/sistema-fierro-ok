@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 
 def texto_app():
@@ -23,19 +23,63 @@ def bloque_wa_auto():
 
 
 def test_demora_simple_no_dispara_handoff_si_falta_sucursal_ml():
-    bloque = bloque_post_analisis()
+    app = texto_app()
+    servicio = Path(
+        "services/ml_consultas_logisticas.py"
+    ).read_text(encoding="utf-8-sig")
 
-    assert "debe_priorizar_sucursal_ml = bool(" in bloque
-    assert "pedido_es_plegable_pp6040(pedido)" in bloque
-    assert "ml_acordas_via_cargo_bloquea_inicio_wa(pedido)" in bloque
-    assert "correo_sucursales_ofrecidas" in bloque
+    bloque_app = bloque_post_analisis()
 
-    condicion = '''if (
-        not faltantes
-        and detectar_consulta_demora_simple_ml(pedido)
-        and not debe_priorizar_sucursal_ml
-    ):'''
-    assert condicion in bloque
+    assert (
+        "procesar_consulta_demora_simple_ml("
+        in bloque_app
+    )
+    assert (
+        "pedido_es_plegable_fn=("
+        in bloque_app
+    )
+    assert (
+        "pedido_es_plegable_pp6040"
+        in bloque_app
+    )
+    assert (
+        "bloquea_inicio_wa_fn=("
+        in bloque_app
+    )
+    assert (
+        "ml_acordas_via_cargo_bloquea_inicio_wa"
+        in bloque_app
+    )
+    assert (
+        "if resultado_demora.procesada:"
+        in bloque_app
+    )
+
+    assert (
+        "debe_priorizar_sucursal = bool("
+        in servicio
+    )
+    assert (
+        "pedido_es_plegable_fn(pedido)"
+        in servicio
+    )
+    assert (
+        "bloquea_inicio_wa_fn(pedido)"
+        in servicio
+    )
+    assert (
+        "correo_sucursales_ofrecidas"
+        in servicio
+    )
+    assert (
+        "or debe_priorizar_sucursal"
+        in servicio
+    )
+
+    assert (
+        "debe_priorizar_sucursal_ml = bool("
+        not in app
+    )
 
 
 def test_wa_auto_no_inicia_si_ml_debe_cerrar_sucursal():
