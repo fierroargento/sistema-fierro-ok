@@ -57,6 +57,7 @@ from services.ml_importacion import (
 
 from services.logistica_defaults import (
     es_ml_acordas_entrega_service,
+    pedido_es_plegable_pp6040_service,
 )
 from services.telefonos import normalizar_telefono_service
 from services.telefonos import es_telefono_whatsapp_argentina_valido_service
@@ -4204,7 +4205,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 procesar_escalamiento_consulta_sucursal
             ),
             pedido_es_plegable_fn=(
-                pedido_es_plegable_pp6040
+                pedido_es_plegable_pp6040_service
             ),
             es_consulta_no_eleccion_fn=(
                 _es_consulta_no_eleccion

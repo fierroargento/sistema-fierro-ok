@@ -78,3 +78,40 @@ def test_wrapper_ml_acordas_historico_sigue_disponible():
     app, _ = bloque_analizador()
 
     assert "def es_ml_acordas_entrega(pedido):" in app
+
+def test_analizador_usa_detector_pp6040_canonico():
+    app, bloque = bloque_analizador()
+
+    assert (
+        "from services.logistica_defaults import ("
+        in app
+    )
+    assert (
+        "pedido_es_plegable_pp6040_service,"
+        in app
+    )
+    assert (
+        "pedido_es_plegable_fn=("
+        in bloque
+    )
+    assert (
+        "pedido_es_plegable_pp6040_service"
+        in bloque
+    )
+    assert (
+        "pedido_es_plegable_pp6040\n"
+        not in bloque
+    )
+
+
+def test_wrapper_pp6040_historico_sigue_disponible():
+    app, _ = bloque_analizador()
+
+    assert (
+        "def pedido_es_plegable_pp6040(pedido):"
+        in app
+    )
+    assert (
+        "pedido_es_plegable_pp6040_contacto(pedido)"
+        in app
+    )
