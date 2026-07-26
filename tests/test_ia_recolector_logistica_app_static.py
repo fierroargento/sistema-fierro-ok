@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 import ast
 
 
@@ -58,6 +58,9 @@ def test_consumidores_delegan_al_workflow_sin_wrapper_en_app():
     workflow = Path(
         "services/ia_recolector_workflow.py"
     ).read_text(encoding="utf-8")
+    flujo_comun = Path(
+        "services/ia_recolector_flujo_comun.py"
+    ).read_text(encoding="utf-8")
 
     assert (
         "def ia_guardar_resultado_recolector("
@@ -65,9 +68,18 @@ def test_consumidores_delegan_al_workflow_sin_wrapper_en_app():
     )
     assert "aplicar_resultado_recolector(" not in app
 
-    assert app.count(
-        "procesar_resultado_recolector("
+    assert (
+        "procesar_resultado_fn=("
+        in app
+    )
+    assert (
+        "procesar_resultado_recolector"
+        in app
+    )
+    assert flujo_comun.count(
+        "procesar_resultado_fn("
     ) == 1
+
     assert flows.count(
         "procesar_resultado_recolector("
     ) == 1
@@ -85,9 +97,13 @@ def test_consumidores_delegan_al_workflow_sin_wrapper_en_app():
     assert "if not aplicacion.iniciar_handoff:" in workflow
     assert "iniciar_handoff_fn(" in workflow
 
-    assert "json.dumps(" not in app[
-        app.index("procesar_resultado_recolector("):
-        app.index(
-            "orquestar_confirmacion_sucursal_comun_ml("
-        )
-    ]
+    inicio = app.index(
+        "resultado_flujo_comun = ("
+    )
+    fin = app.index(
+        "return resultado_flujo_comun.respuesta_analisis",
+        inicio,
+    )
+    bloque = app[inicio:fin]
+
+    assert "json.dumps(" not in bloque

@@ -1187,6 +1187,9 @@ from services.workflow_notificacion_sucursal_ml import (
 from services.ia_recolector_analisis import (
     analizar_datos_cliente_ml_acordas,
 )
+from services.ia_recolector_flujo_comun import (
+    procesar_flujo_comun_recolector,
+)
 from services.ia_recolector_sync import (
     aplicar_codigo_postal_detectado_recolector,
     datos_previos_pedido_recolector,
@@ -4303,67 +4306,54 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                         .respuesta_flujo
                     )
 
-    if not texto:
-        return None
-
-    h = ia_hash_texto(texto)
-    if not forzar and h == str(getattr(pedido, "ia_ultimo_mensaje_hash", "") or ""):
-        return None
-
-    datos_previos = datos_previos_pedido_recolector(
-        pedido,
-        parece_nickname_fn=parece_nickname_ml,
-    )
-    resultado = analizar_datos_cliente_ml_acordas(
-        texto,
-        datos_previos,
-    )
-    procesar_resultado_recolector(
-        pedido,
-        texto,
-        resultado,
-        iniciar_handoff_fn=(
-            wa_auto_iniciar_desde_ml_si_corresponde
-        ),
-    )
-
-    try:
-        resultado_orquestacion_comun = (
-            orquestar_confirmacion_sucursal_comun_ml(
-                pedido,
-                texto,
-                despacho_completo_fn=despacho_completo,
-                actualizar_estado_fn=(
-                    actualizar_estado_automatico
-                ),
-                db_session=db.session,
-                puede_enviar_fn=puede_enviar_mensaje,
-                enviar_mensaje_fn=ml_enviar_mensaje_acordas,
-                registrar_envio_fn=(
-                    registrar_envio_automatico
-                ),
-                intentar_cross_sell_fn=(
-                    intentar_wa_cross_sell_tras_sucursal_ml
-                ),
-                wa_auto_iniciar_fn=(
-                    wa_auto_iniciar_desde_ml_si_corresponde
-                ),
-                es_afirmativo_fn=es_afirmativo_sucursal,
-            )
+    resultado_flujo_comun = (
+        procesar_flujo_comun_recolector(
+            pedido=pedido,
+            texto=texto,
+            forzar=forzar,
+            hash_texto_fn=ia_hash_texto,
+            datos_previos_fn=(
+                datos_previos_pedido_recolector
+            ),
+            parece_nickname_fn=parece_nickname_ml,
+            analizar_datos_fn=(
+                analizar_datos_cliente_ml_acordas
+            ),
+            procesar_resultado_fn=(
+                procesar_resultado_recolector
+            ),
+            iniciar_handoff_fn=(
+                wa_auto_iniciar_desde_ml_si_corresponde
+            ),
+            orquestar_confirmacion_fn=(
+                orquestar_confirmacion_sucursal_comun_ml
+            ),
+            despacho_completo_fn=despacho_completo,
+            actualizar_estado_fn=(
+                actualizar_estado_automatico
+            ),
+            db_session=db.session,
+            puede_enviar_fn=puede_enviar_mensaje,
+            enviar_mensaje_fn=(
+                ml_enviar_mensaje_acordas
+            ),
+            registrar_envio_fn=(
+                registrar_envio_automatico
+            ),
+            intentar_cross_sell_fn=(
+                intentar_wa_cross_sell_tras_sucursal_ml
+            ),
+            es_afirmativo_fn=(
+                es_afirmativo_sucursal
+            ),
+            auto_responder_fn=(
+                ia_auto_responder_post_analisis
+            ),
+            logger_fn=print,
         )
+    )
 
-        if resultado_orquestacion_comun.finalizada:
-            return (
-                resultado_orquestacion_comun
-                .respuesta_flujo
-            )
-
-    except Exception as e:
-        print(f"[VIA CARGO] No se pudo confirmar sucursal en flujo comun ML: {e}")
-
-    if resultado and resultado.get("ok"):
-        ia_auto_responder_post_analisis(pedido)
-    return resultado
+    return resultado_flujo_comun.respuesta_analisis
 
 def ia_auto_responder_post_analisis(pedido):
     """

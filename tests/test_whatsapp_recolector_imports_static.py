@@ -29,6 +29,9 @@ def test_datos_previos_recolector_no_dependen_de_app():
     flows = Path(
         "modules/whatsapp/flows.py"
     ).read_text(encoding="utf-8")
+    flujo_comun = Path(
+        "services/ia_recolector_flujo_comun.py"
+    ).read_text(encoding="utf-8")
 
     assert "def ia_datos_previos_pedido(" not in app
     assert "ia_datos_previos_pedido" not in flows
@@ -37,9 +40,18 @@ def test_datos_previos_recolector_no_dependen_de_app():
         "services/ia_recolector_resultado.py"
     ).read_text(encoding="utf-8")
 
-    assert app.count(
-        "datos_previos_pedido_recolector("
+    assert (
+        "datos_previos_fn=("
+        in app
+    )
+    assert (
+        "datos_previos_pedido_recolector"
+        in app
+    )
+    assert flujo_comun.count(
+        "datos_previos_fn("
     ) == 1
+
     assert aplicador.count(
         "datos_previos_pedido_recolector("
     ) == 1
@@ -47,13 +59,22 @@ def test_datos_previos_recolector_no_dependen_de_app():
         "datos_previos_pedido_recolector("
     ) == 1
 
+    compacto_app = app.replace(
+        "\n",
+        "",
+    ).replace(" ", "")
+
     assert (
         "parece_nickname_fn=parece_nickname_ml"
-        in app
+        in compacto_app
     )
     assert (
         "parece_nickname_fn=parece_nickname_ml"
         in flows
+    )
+    assert (
+        "parece_nickname_fn=parece_nickname_fn"
+        in flujo_comun
     )
 
 

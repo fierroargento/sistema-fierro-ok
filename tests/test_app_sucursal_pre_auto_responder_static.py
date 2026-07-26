@@ -110,163 +110,196 @@ def test_resolucion_sucursal_delega_aplicacion_operativa():
 
 
 def test_flujo_comun_confirma_ml_transiciona_wa_y_luego_cross_sell():
-    texto = Path("app.py").read_text(encoding="utf-8")
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/ia_recolector_flujo_comun.py"
+    ).read_text(encoding="utf-8")
 
-    idx_procesar = texto.index(
-        "procesar_resultado_recolector(",
-        texto.index(
-            "resultado = analizar_datos_cliente_"
-            "ml_acordas("
-        ),
+    idx = app.index(
+        "resultado_flujo_comun = ("
     )
-    idx_orquestador = texto.index(
-        "orquestar_confirmacion_sucursal_comun_ml(",
-        idx_procesar,
+    fin = app.index(
+        "return resultado_flujo_comun.respuesta_analisis",
+        idx,
     )
-    idx_return = texto.index(
-        ".respuesta_flujo",
-        idx_orquestador,
+    bloque_app = app[idx:fin]
+
+    assert (
+        "procesar_flujo_comun_recolector("
+        in bloque_app
     )
-    idx_auto = texto.index(
-        "ia_auto_responder_post_analisis(pedido)",
-        idx_return,
+    assert (
+        "orquestar_confirmacion_fn=("
+        in bloque_app
+    )
+    assert (
+        "orquestar_confirmacion_sucursal_comun_ml"
+        in bloque_app
+    )
+    assert (
+        "puede_enviar_fn=puede_enviar_mensaje"
+        in bloque_app
+    )
+    assert (
+        "ml_enviar_mensaje_acordas"
+        in bloque_app
+    )
+    assert (
+        "registrar_envio_automatico"
+        in bloque_app
+    )
+    assert (
+        "intentar_wa_cross_sell_tras_sucursal_ml"
+        in bloque_app
+    )
+    assert (
+        "wa_auto_iniciar_desde_ml_si_corresponde"
+        in bloque_app
+    )
+    assert (
+        "ia_auto_responder_post_analisis"
+        in bloque_app
+    )
+
+    idx_procesar = servicio.index(
+        "procesar_resultado_fn("
+    )
+    idx_orquestar = servicio.index(
+        "orquestar_confirmacion_fn("
+    )
+    idx_finalizada = servicio.index(
+        "if resultado_orquestacion.finalizada:"
+    )
+    idx_auto = servicio.index(
+        "auto_responder_fn(pedido)"
     )
 
     assert (
         idx_procesar
-        < idx_orquestador
-        < idx_return
+        < idx_orquestar
+        < idx_finalizada
         < idx_auto
     )
 
-    bloque = texto[idx_orquestador:idx_auto]
-
-    assert (
-        "puede_enviar_fn=puede_enviar_mensaje"
-        in bloque
-    )
-    assert (
-        "enviar_mensaje_fn="
-        "ml_enviar_mensaje_acordas"
-        in bloque
-    )
-    assert "registrar_envio_automatico" in bloque
-    assert (
-        "intentar_wa_cross_sell_tras_sucursal_ml"
-        in bloque
-    )
-    assert (
-        "wa_auto_iniciar_desde_ml_si_corresponde"
-        in bloque
-    )
 
 def test_cross_sell_se_intenta_aunque_ml_se_omita_por_canal_manager():
-    texto = Path("app.py").read_text(encoding="utf-8")
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/ia_recolector_flujo_comun.py"
+    ).read_text(encoding="utf-8")
 
-    idx = texto.index(
-        "resultado_orquestacion_comun = ("
+    idx = app.index(
+        "resultado_flujo_comun = ("
     )
-    fin = texto.index(
-        "if resultado and resultado.get",
+    fin = app.index(
+        "return resultado_flujo_comun.respuesta_analisis",
         idx,
     )
-    bloque = texto[idx:fin]
+    bloque_app = app[idx:fin]
 
     assert (
-        "orquestar_confirmacion_sucursal_comun_ml("
-        in bloque
+        "intentar_cross_sell_fn=("
+        in bloque_app
+    )
+    assert (
+        "intentar_wa_cross_sell_tras_sucursal_ml"
+        in bloque_app
     )
     assert (
         "intentar_cross_sell_fn=("
-        in bloque
-    )
-    assert (
-        "intentar_wa_cross_sell_tras_sucursal_ml"
-        in bloque
+        in servicio
     )
 
-    # Las decisiones y errores del cross-sell pertenecen
-    # al servicio de finalización, no a app.py.
+    # La decisión concreta sigue perteneciendo a los
+    # servicios especializados de confirmación.
     assert (
         "if plan_confirmacion_comun."
         "intentar_cross_sell:"
-        not in bloque
+        not in servicio
     )
     assert (
         "[CROSS-SELL-ML-WA]"
-        not in bloque
+        not in servicio
     )
 
 
 def test_flujo_comun_retorna_resultado_sucursal_confirmada():
-    texto = Path("app.py").read_text(encoding="utf-8")
-
-    idx = texto.index(
-        "resultado_orquestacion_comun = ("
-    )
-    fin = texto.index(
-        "if resultado and resultado.get",
-        idx,
-    )
-    bloque = texto[idx:fin]
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/ia_recolector_flujo_comun.py"
+    ).read_text(encoding="utf-8")
 
     assert (
-        "if resultado_orquestacion_comun.finalizada:"
-        in bloque
+        "return resultado_flujo_comun.respuesta_analisis"
+        in app
     )
     assert (
-        "resultado_orquestacion_comun"
+        "if resultado_orquestacion.finalizada:"
+        in servicio
+    )
+    assert (
+        "respuesta_flujo=("
+        in servicio
+    )
+    assert (
+        "resultado_orquestacion"
+        in servicio
+    )
+    assert (
         ".respuesta_flujo"
-        in bloque.replace("\n", "").replace(" ", "")
+        in servicio
     )
 
-    assert (
+    prohibidos = [
         "resolver_confirmacion_sucursal_"
-        "via_cargo_ofrecida("
-        not in bloque
-    )
-    assert (
-        "planificar_post_confirmacion_sucursal("
-        not in bloque
-    )
-    assert (
+        "via_cargo_ofrecida(",
+        "planificar_post_confirmacion_sucursal(",
         "ejecutar_transicion_ml_tras_"
-        "confirmacion_sucursal("
-        not in bloque
-    )
-    assert (
+        "confirmacion_sucursal(",
         "ejecutar_estado_y_persistencia_"
-        "post_confirmacion("
-        not in bloque
-    )
-    assert (
-        "finalizar_confirmacion_sucursal_persistida("
-        not in bloque
-    )
+        "post_confirmacion(",
+        "finalizar_confirmacion_sucursal_persistida(",
+    ]
+
+    for prohibido in prohibidos:
+        assert prohibido not in servicio
 
 
 def test_consumidores_confirmacion_inyectan_afirmativo():
-    texto = Path("app.py").read_text(encoding="utf-8")
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/ia_recolector_flujo_comun.py"
+    ).read_text(encoding="utf-8")
 
     assert (
         "from modules.whatsapp.text_utils import ("
-        in texto
+        in app
     )
     assert (
         "es_afirmativo as es_afirmativo_sucursal"
-        in texto
-    )
-    compacto = texto.replace("\n", "").replace(
-        " ",
-        "",
+        in app
     )
 
-    assert texto.count(
-        "es_afirmativo_fn=es_afirmativo_sucursal"
-    ) == 1
-    assert compacto.count(
+    compacto_app = app.replace(
+        "\n",
+        "",
+    ).replace(" ", "")
+
+    # Una inyección para confirmación temprana y otra
+    # para el flujo común extraído.
+    assert compacto_app.count(
         "es_afirmativo_fn=(es_afirmativo_sucursal)"
-    ) == 1
+    ) == 2
+
+    compacto_servicio = servicio.replace(
+        "\n",
+        "",
+    ).replace(" ", "")
+
+    assert (
+        "es_afirmativo_fn=(es_afirmativo_fn)"
+        in compacto_servicio
+    )
 
 
 def test_analizador_no_devuelve_respuestas_flask():

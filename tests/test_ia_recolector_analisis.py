@@ -195,6 +195,9 @@ def test_consumidores_usan_analizador_compartido_sin_wrapper():
     flows = Path(
         "modules/whatsapp/flows.py"
     ).read_text(encoding="utf-8")
+    flujo_comun = Path(
+        "services/ia_recolector_flujo_comun.py"
+    ).read_text(encoding="utf-8")
 
     assert (
         "def ia_analizar_datos_cliente_ml_acordas("
@@ -205,9 +208,18 @@ def test_consumidores_usan_analizador_compartido_sin_wrapper():
         not in flows
     )
 
-    assert app.count(
-        "analizar_datos_cliente_ml_acordas("
+    assert (
+        "analizar_datos_fn=("
+        in app
+    )
+    assert (
+        "analizar_datos_cliente_ml_acordas"
+        in app
+    )
+    assert flujo_comun.count(
+        "analizar_datos_fn("
     ) == 1
+
     assert flows.count(
         "analizar_datos_cliente_ml_acordas("
     ) == 1

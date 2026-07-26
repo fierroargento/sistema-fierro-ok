@@ -54,24 +54,35 @@ def test_app_delega_opcion_via_antes_del_fallback():
 
 
 def test_app_no_duplica_confirmacion_afirmativa_unica():
-    texto = Path("app.py").read_text(encoding="utf-8")
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/ia_recolector_flujo_comun.py"
+    ).read_text(encoding="utf-8")
 
     assert (
         "es_afirmativo(_texto_confirmacion)"
-        not in texto
+        not in app
     )
-    assert 'texto_para_sucursal = "1"' not in texto
-    compacto = texto.replace("\n", "").replace(
-        " ",
-        "",
-    )
+    assert 'texto_para_sucursal = "1"' not in app
 
-    assert texto.count(
-        "es_afirmativo_fn=es_afirmativo_sucursal"
-    ) == 1
-    assert compacto.count(
+    compacto_app = app.replace(
+        "\n",
+        "",
+    ).replace(" ", "")
+
+    assert compacto_app.count(
         "es_afirmativo_fn=(es_afirmativo_sucursal)"
-    ) == 1
+    ) == 2
+
+    compacto_servicio = servicio.replace(
+        "\n",
+        "",
+    ).replace(" ", "")
+
+    assert (
+        "es_afirmativo_fn=(es_afirmativo_fn)"
+        in compacto_servicio
+    )
 
 
 def test_app_escalamiento_consulta_delega_en_servicio():
