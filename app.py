@@ -1178,6 +1178,9 @@ from services.ia_recolector_post_cp import (
 from services.workflow_sucursal_decision import (
     procesar_escalamiento_consulta_sucursal,
 )
+from services.workflow_logistica_sucursal import (
+    aplicar_y_persistir_sucursal_detectada,
+)
 from services.ia_recolector_analisis import (
     analizar_datos_cliente_ml_acordas,
 )
@@ -4252,32 +4255,17 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                     texto_para_sucursal,
                 )
 
-            if suc and not getattr(pedido, "sucursal_nombre", None):
-                pedido.sucursal_nombre = suc.get("nombre")
-                pedido.direccion = suc.get("direccion")
-                pedido.localidad = suc.get("localidad")
-                pedido.provincia = suc.get("provincia")
-                # Autocompletar transporte y tipo de entrega según regla de negocio
-                if not (pedido.empresa_envio or "").strip():
-                    pedido.empresa_envio = "Vía Cargo"
-                pedido.tipo_entrega = "Sucursal"
+            resultado_aplicacion_sucursal = (
+                aplicar_y_persistir_sucursal_detectada(
+                    pedido,
+                    suc,
+                    db_session=db.session,
+                    transporte_default="Vía Cargo",
+                    log_fn=print,
+                )
+            )
 
-                try:
-                    from services.transporte_revision import limpiar_revision_correo_resuelta_por_sucursales
-                    limpiar_revision_correo_resuelta_por_sucursales(pedido)
-                except Exception as e:
-                    print("[TRANSPORTE] No se pudo limpiar revisión Correo resuelta:", e)
-
-                try:
-                    from services.correo_argentino_operacion import marcar_correo_sucursal_pendiente_operador
-                    marcar_correo_sucursal_pendiente_operador(pedido)
-                except Exception as e:
-                    print("[CORREO] No se pudo marcar pendiente operador:", e)
-
-                try:
-                    db.session.commit()
-                except:
-                    pass
+            if resultado_aplicacion_sucursal.aplicada:
                 # Confirmar al cliente que la sucursal fue registrada y el despacho está en proceso
                 try:
                     nombre_cliente = (getattr(pedido, "cliente", "") or "Cliente").split()[0] or "Cliente"

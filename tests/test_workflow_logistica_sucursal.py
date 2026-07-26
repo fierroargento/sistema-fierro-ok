@@ -1,4 +1,4 @@
-﻿from types import SimpleNamespace
+from types import SimpleNamespace
 
 from services.workflow_logistica_sucursal import (
     aplicar_sucursal_elegida_al_pedido,
@@ -248,3 +248,178 @@ def test_no_aplica_decision_sucursal_no_seleccionada():
     assert aplicado is False
     assert pedido.sucursal_nombre == ""
     assert pedido.ia_resumen == "Sin cambios"
+
+class SessionSucursalDetectadaFake:
+    def __init__(self, error=None):
+        self.error = error
+        self.commits = 0
+
+    def commit(self):
+        self.commits += 1
+        if self.error:
+            raise self.error
+
+
+def crear_pedido_sucursal_detectada(**cambios):
+    datos = {
+        "sucursal_nombre": "",
+        "direccion": "",
+        "localidad": "",
+        "provincia": "",
+        "codigo_postal": "8500",
+        "empresa_envio": "",
+        "tipo_entrega": "",
+    }
+    datos.update(cambios)
+    return SimpleNamespace(**datos)
+
+
+def sucursal_detectada():
+    return {
+        "nombre": "Correo Centro",
+        "direccion": "San Martín 123",
+        "localidad": "Viedma",
+        "provincia": "Río Negro",
+        "cp": "9999",
+    }
+
+
+def test_aplica_y_persiste_sucursal_detectada_legacy():
+    from services.workflow_logistica_sucursal import (
+        aplicar_y_persistir_sucursal_detectada,
+    )
+
+    pedido = crear_pedido_sucursal_detectada()
+    session = SessionSucursalDetectadaFake()
+    eventos = []
+
+    resultado = aplicar_y_persistir_sucursal_detectada(
+        pedido,
+        sucursal_detectada(),
+        db_session=session,
+        limpiar_revision_fn=lambda valor: (
+            eventos.append(("limpiar", valor))
+        ),
+        marcar_pendiente_fn=lambda valor: (
+            eventos.append(("marcar", valor))
+        ),
+    )
+
+    assert resultado.aplicada is True
+    assert resultado.persistida is True
+    assert pedido.sucursal_nombre == "Correo Centro"
+    assert pedido.direccion == "San Martín 123"
+    assert pedido.localidad == "Viedma"
+    assert pedido.provincia == "Río Negro"
+    assert pedido.empresa_envio == "Vía Cargo"
+    assert pedido.tipo_entrega == "Sucursal"
+    assert pedido.codigo_postal == "8500"
+    assert eventos == [
+        ("limpiar", pedido),
+        ("marcar", pedido),
+    ]
+    assert session.commits == 1
+
+
+def test_adaptador_no_pisa_transporte_existente():
+    from services.workflow_logistica_sucursal import (
+        aplicar_y_persistir_sucursal_detectada,
+    )
+
+    pedido = crear_pedido_sucursal_detectada(
+        empresa_envio="Correo Argentino",
+    )
+
+    resultado = aplicar_y_persistir_sucursal_detectada(
+        pedido,
+        sucursal_detectada(),
+        db_session=SessionSucursalDetectadaFake(),
+        limpiar_revision_fn=lambda _pedido: None,
+        marcar_pendiente_fn=lambda _pedido: None,
+    )
+
+    assert resultado.aplicada is True
+    assert pedido.empresa_envio == "Correo Argentino"
+
+
+def test_adaptador_no_pisa_sucursal_confirmada():
+    from services.workflow_logistica_sucursal import (
+        aplicar_y_persistir_sucursal_detectada,
+    )
+
+    pedido = crear_pedido_sucursal_detectada(
+        sucursal_nombre="Correo Norte",
+    )
+    session = SessionSucursalDetectadaFake()
+    llamadas = []
+
+    resultado = aplicar_y_persistir_sucursal_detectada(
+        pedido,
+        sucursal_detectada(),
+        db_session=session,
+        limpiar_revision_fn=llamadas.append,
+        marcar_pendiente_fn=llamadas.append,
+    )
+
+    assert resultado.aplicada is False
+    assert pedido.sucursal_nombre == "Correo Norte"
+    assert llamadas == []
+    assert session.commits == 0
+
+
+def test_adaptador_tolera_errores_auxiliares():
+    from services.workflow_logistica_sucursal import (
+        aplicar_y_persistir_sucursal_detectada,
+    )
+
+    pedido = crear_pedido_sucursal_detectada()
+    session = SessionSucursalDetectadaFake()
+    logs = []
+
+    def fallar_limpieza(_pedido):
+        raise RuntimeError("fallo limpieza")
+
+    def fallar_marca(_pedido):
+        raise RuntimeError("fallo marca")
+
+    resultado = aplicar_y_persistir_sucursal_detectada(
+        pedido,
+        sucursal_detectada(),
+        db_session=session,
+        limpiar_revision_fn=fallar_limpieza,
+        marcar_pendiente_fn=fallar_marca,
+        log_fn=logs.append,
+    )
+
+    assert resultado.aplicada is True
+    assert resultado.persistida is True
+    assert resultado.errores_auxiliares == (
+        "fallo limpieza",
+        "fallo marca",
+    )
+    assert session.commits == 1
+    assert len(logs) == 2
+
+
+def test_adaptador_tolera_error_de_commit():
+    from services.workflow_logistica_sucursal import (
+        aplicar_y_persistir_sucursal_detectada,
+    )
+
+    pedido = crear_pedido_sucursal_detectada()
+    session = SessionSucursalDetectadaFake(
+        RuntimeError("fallo commit"),
+    )
+
+    resultado = aplicar_y_persistir_sucursal_detectada(
+        pedido,
+        sucursal_detectada(),
+        db_session=session,
+        limpiar_revision_fn=lambda _pedido: None,
+        marcar_pendiente_fn=lambda _pedido: None,
+    )
+
+    assert resultado.aplicada is True
+    assert resultado.persistida is False
+    assert resultado.error_persistencia == "fallo commit"
+    assert session.commits == 1

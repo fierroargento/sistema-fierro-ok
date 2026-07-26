@@ -1,6 +1,7 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Callable
 
 
 def normalizar_sucursal_operativa(sucursal: dict[str, Any] | None) -> dict[str, Any]:
@@ -172,3 +173,126 @@ def aplicar_decision_sucursal_al_pedido(
     )
 
     return True
+
+@dataclass(frozen=True)
+class ResultadoAplicacionSucursalDetectada:
+    aplicada: bool
+    persistida: bool = False
+    error_persistencia: str = ""
+    errores_auxiliares: tuple[str, ...] = ()
+
+
+def aplicar_y_persistir_sucursal_detectada(
+    pedido: Any,
+    sucursal: dict[str, Any] | None,
+    *,
+    db_session: Any,
+    transporte_default: str = "Vía Cargo",
+    limpiar_revision_fn: Callable[[Any], Any] | None = None,
+    marcar_pendiente_fn: Callable[[Any], Any] | None = None,
+    log_fn: Callable[[str], Any] | None = print,
+) -> ResultadoAplicacionSucursalDetectada:
+    """
+    Aplica y persiste una sucursal detectada por el flujo legacy.
+
+    Conserva su contrato histórico:
+    - no pisa una sucursal ya confirmada;
+    - no pisa un transporte existente;
+    - no copia CP ni limpia opciones/flags genéricos;
+    - tolera errores auxiliares y de persistencia;
+    - permite continuar con la confirmación al cliente.
+    """
+
+    if (
+        not pedido
+        or not sucursal
+        or getattr(pedido, "sucursal_nombre", None)
+    ):
+        return ResultadoAplicacionSucursalDetectada(
+            aplicada=False,
+        )
+
+    nombre = sucursal.get("nombre")
+    if not nombre:
+        return ResultadoAplicacionSucursalDetectada(
+            aplicada=False,
+        )
+
+    pedido.sucursal_nombre = nombre
+    pedido.direccion = sucursal.get("direccion")
+    pedido.localidad = sucursal.get("localidad")
+    pedido.provincia = sucursal.get("provincia")
+
+    if not str(
+        getattr(pedido, "empresa_envio", "")
+        or ""
+    ).strip():
+        pedido.empresa_envio = transporte_default
+
+    pedido.tipo_entrega = "Sucursal"
+
+    errores_auxiliares = []
+
+    if limpiar_revision_fn is None:
+        from services.transporte_revision import (
+            limpiar_revision_correo_resuelta_por_sucursales,
+        )
+
+        limpiar_revision_fn = (
+            limpiar_revision_correo_resuelta_por_sucursales
+        )
+
+    try:
+        limpiar_revision_fn(pedido)
+    except Exception as error:
+        errores_auxiliares.append(str(error))
+        if log_fn is not None:
+            try:
+                log_fn(
+                    "[TRANSPORTE] No se pudo limpiar "
+                    f"revisión Correo resuelta: {error}"
+                )
+            except Exception:
+                pass
+
+    if marcar_pendiente_fn is None:
+        from services.correo_argentino_operacion import (
+            marcar_correo_sucursal_pendiente_operador,
+        )
+
+        marcar_pendiente_fn = (
+            marcar_correo_sucursal_pendiente_operador
+        )
+
+    try:
+        marcar_pendiente_fn(pedido)
+    except Exception as error:
+        errores_auxiliares.append(str(error))
+        if log_fn is not None:
+            try:
+                log_fn(
+                    "[CORREO] No se pudo marcar "
+                    f"pendiente operador: {error}"
+                )
+            except Exception:
+                pass
+
+    try:
+        db_session.commit()
+    except Exception as error:
+        return ResultadoAplicacionSucursalDetectada(
+            aplicada=True,
+            persistida=False,
+            error_persistencia=str(error),
+            errores_auxiliares=tuple(
+                errores_auxiliares
+            ),
+        )
+
+    return ResultadoAplicacionSucursalDetectada(
+        aplicada=True,
+        persistida=True,
+        errores_auxiliares=tuple(
+            errores_auxiliares
+        ),
+    )

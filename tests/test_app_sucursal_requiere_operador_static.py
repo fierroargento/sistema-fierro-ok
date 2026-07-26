@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 
 def test_confirmacion_sucursal_limpia_revision_correo_y_permite_envio_seguro():
@@ -7,8 +7,20 @@ def test_confirmacion_sucursal_limpia_revision_correo_y_permite_envio_seguro():
     idx_suc = texto.index("suc = detectar_sucursal(")
     bloque = texto[idx_suc: idx_suc + 7000]
 
-    assert "limpiar_revision_correo_resuelta_por_sucursales" in bloque
+    assert (
+        "aplicar_y_persistir_sucursal_detectada("
+        in bloque
+    )
     assert "permitir_requiere_operador=True" in bloque
+
+    servicio = Path(
+        "services/workflow_logistica_sucursal.py"
+    ).read_text(encoding="utf-8-sig")
+
+    assert (
+        "limpiar_revision_correo_resuelta_por_sucursales"
+        in servicio
+    )
 
 
 def test_consulta_horarios_se_marca_despues_de_enviar_confirmacion():
