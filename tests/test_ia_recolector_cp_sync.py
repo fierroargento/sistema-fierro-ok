@@ -210,6 +210,10 @@ def test_app_delega_aplicacion_y_persistencia_cp():
     app = Path("app.py").read_text(
         encoding="utf-8-sig"
     )
+    servicio = Path(
+        "services/ia_recolector_flujo_cp.py"
+    ).read_text(encoding="utf-8-sig")
+
     inicio = app.index(
         "def ia_analizar_ultimo_mensaje_pedido("
     )
@@ -220,7 +224,12 @@ def test_app_delega_aplicacion_y_persistencia_cp():
     bloque = app[inicio:fin]
 
     assert (
-        "aplicar_codigo_postal_detectado_recolector("
+        "procesar_flujo_codigo_postal_recolector("
+        in bloque
+    )
+    assert "aplicar_cp_fn=(" in bloque
+    assert (
+        "aplicar_codigo_postal_detectado_recolector"
         in bloque
     )
     assert (
@@ -228,5 +237,17 @@ def test_app_delega_aplicacion_y_persistencia_cp():
         in bloque
     )
     assert "faltantes_fn=ia_faltantes_pedido" in bloque
+
+    assert servicio.count(
+        "aplicar_cp_fn("
+    ) == 1
+    assert (
+        "normalizar_ubicacion_fn=("
+        in servicio
+    )
+    assert "faltantes_fn=faltantes_fn" in servicio
+
     assert "IA autocompletó CP simple" not in bloque
     assert "nuevos_faltantes =" not in bloque
+    assert "IA autocompletó CP simple" not in servicio
+    assert "nuevos_faltantes =" not in servicio

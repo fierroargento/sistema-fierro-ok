@@ -1175,6 +1175,9 @@ from services.workflow_orquestador_confirmacion_sucursal import (
 from services.ia_recolector_post_cp import (
     procesar_post_codigo_postal_recolector,
 )
+from services.ia_recolector_flujo_cp import (
+    procesar_flujo_codigo_postal_recolector,
+)
 from services.workflow_sucursal_decision import (
     procesar_escalamiento_consulta_sucursal,
 )
@@ -4165,146 +4168,70 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
         commit=False,
     )
 
-    # APB:
-    # Resolver CP simple o contextual antes de llamar a IA.
-    faltantes_actuales = ia_faltantes_pedido(pedido) or []
-
-    cp_detectado = resolver_codigo_postal_contextual(
-        texto,
-        faltantes_actuales=faltantes_actuales,
-        faltantes_guardados=pedido.ia_faltantes,
-        codigo_postal_actual=pedido.codigo_postal,
-    )
-
-    if cp_detectado:
-        aplicar_codigo_postal_detectado_recolector(
-            pedido,
-            cp_detectado,
+    resultado_flujo_cp = (
+        procesar_flujo_codigo_postal_recolector(
+            pedido=pedido,
+            texto=texto,
+            texto_ultimo=texto_ultimo,
+            faltantes_fn=ia_faltantes_pedido,
+            resolver_cp_fn=(
+                resolver_codigo_postal_contextual
+            ),
+            aplicar_cp_fn=(
+                aplicar_codigo_postal_detectado_recolector
+            ),
             normalizar_ubicacion_fn=(
                 normalizar_ubicacion_pedido
             ),
-            faltantes_fn=ia_faltantes_pedido,
+            procesar_post_cp_fn=(
+                procesar_post_codigo_postal_recolector
+            ),
+            orquestar_confirmacion_temprana_fn=(
+                orquestar_confirmacion_sucursal_temprana
+            ),
+            despacho_completo_fn=despacho_completo,
+            actualizar_estado_fn=(
+                actualizar_estado_automatico
+            ),
+            es_afirmativo_fn=(
+                es_afirmativo_sucursal
+            ),
+            auto_responder_fn=(
+                ia_auto_responder_post_analisis
+            ),
+            procesar_escalamiento_fn=(
+                procesar_escalamiento_consulta_sucursal
+            ),
+            pedido_es_plegable_fn=(
+                pedido_es_plegable_pp6040
+            ),
+            es_consulta_no_eleccion_fn=(
+                _es_consulta_no_eleccion
+            ),
+            detectar_sucursal_fn=detectar_sucursal,
+            aplicar_sucursal_fn=(
+                aplicar_y_persistir_sucursal_detectada
+            ),
+            notificar_sucursal_fn=(
+                notificar_sucursal_detectada_ml
+            ),
+            puede_enviar_fn=puede_enviar_mensaje,
+            enviar_mensaje_fn=(
+                ml_enviar_mensaje_acordas
+            ),
+            registrar_envio_fn=(
+                registrar_envio_automatico
+            ),
+            wa_auto_iniciar_fn=(
+                wa_auto_iniciar_desde_ml_si_corresponde
+            ),
             db_session=db.session,
             logger_fn=print,
         )
+    )
 
-        resultado_post_cp = (
-            procesar_post_codigo_postal_recolector(
-                pedido,
-                texto_ultimo or texto,
-                orquestar_confirmacion_fn=(
-                    orquestar_confirmacion_sucursal_temprana
-                ),
-                despacho_completo_fn=despacho_completo,
-                actualizar_estado_fn=(
-                    actualizar_estado_automatico
-                ),
-                db_session=db.session,
-                es_afirmativo_fn=(
-                    es_afirmativo_sucursal
-                ),
-                auto_responder_fn=(
-                    ia_auto_responder_post_analisis
-                ),
-                logger_fn=print,
-            )
-        )
-
-        resultado_confirmacion_temprana = (
-            resultado_post_cp.confirmacion
-        )
-
-        if resultado_post_cp.finalizar_analisis:
-            return {
-                "ok": True,
-                "estado": "sucursal_confirmada",
-                "sucursal_confirmada": True,
-            }
-
-        # DETECTAR SUCURSAL
-        texto_para_sucursal = texto_ultimo or texto
-
-        resultado_escalamiento_sucursal = (
-            procesar_escalamiento_consulta_sucursal(
-                pedido,
-                texto_para_sucursal,
-                resultado_confirmacion_temprana,
-                pedido_es_plegable_fn=(
-                    pedido_es_plegable_pp6040
-                ),
-                es_consulta_no_eleccion_fn=(
-                    _es_consulta_no_eleccion
-                ),
-                db_session=db.session,
-                logger_fn=print,
-            )
-        )
-
-        resultado_deteccion_sucursal = (
-            resultado_escalamiento_sucursal.deteccion
-        )
-
-        if (
-            resultado_escalamiento_sucursal
-            .finalizar_analisis
-        ):
-            return None
-
-        if resultado_deteccion_sucursal.puede_detectar:
-            suc = None
-            if (
-                resultado_deteccion_sucursal
-                .correo_ofrecidas
-            ):
-                suc = detectar_sucursal(
-                    pedido,
-                    texto_para_sucursal,
-                )
-
-            resultado_aplicacion_sucursal = (
-                aplicar_y_persistir_sucursal_detectada(
-                    pedido,
-                    suc,
-                    db_session=db.session,
-                    transporte_default="Vía Cargo",
-                    log_fn=print,
-                )
-            )
-
-            if resultado_aplicacion_sucursal.aplicada:
-                resultado_notificacion_sucursal = (
-                    notificar_sucursal_detectada_ml(
-                        pedido=pedido,
-                        sucursal=suc,
-                        texto_cliente=(
-                            texto_para_sucursal
-                        ),
-                        puede_enviar_fn=(
-                            puede_enviar_mensaje
-                        ),
-                        enviar_mensaje_fn=(
-                            ml_enviar_mensaje_acordas
-                        ),
-                        registrar_envio_fn=(
-                            registrar_envio_automatico
-                        ),
-                        wa_auto_iniciar_fn=(
-                            wa_auto_iniciar_desde_ml_si_corresponde
-                        ),
-                        db_session=db.session,
-                        log_fn=print,
-                    )
-                )
-
-                if (
-                    resultado_notificacion_sucursal
-                    .respuesta_flujo
-                    is not None
-                ):
-                    return (
-                        resultado_notificacion_sucursal
-                        .respuesta_flujo
-                    )
+    if resultado_flujo_cp.finalizar_analisis:
+        return resultado_flujo_cp.respuesta_analisis
 
     resultado_flujo_comun = (
         procesar_flujo_comun_recolector(

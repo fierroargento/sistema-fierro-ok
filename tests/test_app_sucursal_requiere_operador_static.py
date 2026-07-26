@@ -2,19 +2,29 @@ from pathlib import Path
 
 
 def test_confirmacion_sucursal_limpia_revision_correo_y_permite_envio_seguro():
-    texto = Path("app.py").read_text(encoding="utf-8")
-
-    idx_suc = texto.index("suc = detectar_sucursal(")
-    bloque = texto[idx_suc: idx_suc + 7000]
+    app = Path("app.py").read_text(encoding="utf-8")
+    flujo_cp = Path(
+        "services/ia_recolector_flujo_cp.py"
+    ).read_text(encoding="utf-8-sig")
 
     assert (
-        "aplicar_y_persistir_sucursal_detectada("
-        in bloque
+        "aplicar_sucursal_fn=("
+        in app
     )
     assert (
-        "notificar_sucursal_detectada_ml("
-        in bloque
+        "aplicar_y_persistir_sucursal_detectada"
+        in app
     )
+    assert (
+        "notificar_sucursal_fn=("
+        in app
+    )
+    assert (
+        "notificar_sucursal_detectada_ml"
+        in app
+    )
+    assert "aplicar_sucursal_fn(" in flujo_cp
+    assert "notificar_sucursal_fn(" in flujo_cp
 
     servicio_logistica = Path(
         "services/workflow_logistica_sucursal.py"
@@ -30,7 +40,6 @@ def test_confirmacion_sucursal_limpia_revision_correo_y_permite_envio_seguro():
         "ejecutar_transicion_ml_tras_confirmacion_sucursal("
         in servicio_notificacion
     )
-
     assert (
         "limpiar_revision_correo_resuelta_por_sucursales"
         in servicio_logistica

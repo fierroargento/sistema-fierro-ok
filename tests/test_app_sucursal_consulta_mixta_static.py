@@ -57,14 +57,22 @@ def test_confirmacion_sucursal_delega_consulta_horarios():
     app = Path("app.py").read_text(
         encoding="utf-8"
     )
+    flujo_cp = Path(
+        "services/ia_recolector_flujo_cp.py"
+    ).read_text(encoding="utf-8-sig")
     servicio = Path(
         "services/workflow_notificacion_sucursal_ml.py"
     ).read_text(encoding="utf-8-sig")
 
     assert (
-        "notificar_sucursal_detectada_ml("
+        "notificar_sucursal_fn=("
         in app
     )
+    assert (
+        "notificar_sucursal_detectada_ml"
+        in app
+    )
+    assert "notificar_sucursal_fn(" in flujo_cp
     assert (
         "agregar_respuesta_neutra_horarios_retiro"
         in servicio

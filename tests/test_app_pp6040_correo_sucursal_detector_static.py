@@ -2,29 +2,38 @@ from pathlib import Path
 
 
 def test_app_delega_regla_detector_correo_y_pp6040():
-    texto = Path("app.py").read_text(encoding="utf-8")
-
-    idx = texto.index("# DETECTAR SUCURSAL")
-    bloque = texto[idx:idx + 1500]
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/ia_recolector_flujo_cp.py"
+    ).read_text(encoding="utf-8")
 
     assert (
         "from services.workflow_sucursal_decision import ("
-        in texto
+        in app
+    )
+    assert (
+        "procesar_escalamiento_fn=("
+        in app
     )
     assert (
         "procesar_escalamiento_consulta_sucursal"
-        in bloque
+        in app
+    )
+    assert "pedido_es_plegable_pp6040" in app
+    assert (
+        "if not deteccion.puede_detectar:"
+        in servicio
     )
     assert (
-        "pedido_es_plegable_fn=("
-        in bloque
+        "if deteccion.correo_ofrecidas:"
+        in servicio
     )
-    assert "pedido_es_plegable_pp6040" in bloque
-    assert (
-        "resultado_deteccion_sucursal."
-        "puede_detectar"
-        in bloque
-    )
-    assert "_correo_sucursales_ya_ofrecidas" not in bloque
-    assert "_via_sucursales_ya_ofrecidas" not in bloque
-    assert "_puede_detectar_sucursal" not in bloque
+
+    prohibidos = [
+        "_correo_sucursales_ya_ofrecidas",
+        "_via_sucursales_ya_ofrecidas",
+        "_puede_detectar_sucursal",
+    ]
+
+    for prohibido in prohibidos:
+        assert prohibido not in servicio

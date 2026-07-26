@@ -2,74 +2,64 @@ from pathlib import Path
 
 
 def test_flujo_comun_confirma_sucursal_antes_de_auto_responder_ml():
-    texto = Path("app.py").read_text(encoding="utf-8")
-
-    idx_servicio = texto.index(
-        "procesar_post_codigo_postal_recolector("
-    )
-    idx_resultado = texto.index(
-        "resultado_confirmacion_temprana = (",
-        idx_servicio,
-    )
-    idx_fallback = texto.index(
-        "# DETECTAR SUCURSAL",
-        idx_resultado,
-    )
-
-    assert idx_servicio < idx_resultado < idx_fallback
-
-    bloque = texto[idx_servicio:idx_fallback]
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/ia_recolector_flujo_cp.py"
+    ).read_text(encoding="utf-8")
 
     assert (
-        "orquestar_confirmacion_fn=("
-        in bloque
+        "procesar_flujo_codigo_postal_recolector("
+        in app
+    )
+    assert (
+        "procesar_post_cp_fn=("
+        in app
+    )
+    assert (
+        "procesar_post_codigo_postal_recolector"
+        in app
+    )
+    assert (
+        "orquestar_confirmacion_temprana_fn=("
+        in app
     )
     assert (
         "orquestar_confirmacion_sucursal_temprana"
-        in bloque
+        in app
     )
-    assert (
-        "despacho_completo_fn=despacho_completo"
-        in bloque
+    assert "despacho_completo_fn=despacho_completo" in app
+    assert "actualizar_estado_automatico" in app
+    assert "db_session=db.session" in app
+    assert "es_afirmativo_sucursal" in app
+    assert "ia_auto_responder_post_analisis" in app
+
+    idx_post = servicio.index(
+        "resultado_post_cp = procesar_post_cp_fn("
     )
-    assert "actualizar_estado_automatico" in bloque
-    assert "db_session=db.session" in bloque
-    assert (
-        "es_afirmativo_fn=("
-        in bloque
-    )
-    assert "es_afirmativo_sucursal" in bloque
-    assert (
-        "auto_responder_fn=("
-        in bloque
-    )
-    assert (
-        "ia_auto_responder_post_analisis"
-        in bloque
-    )
-    assert (
-        "resultado_post_cp.confirmacion"
-        in bloque.replace("\n", "").replace(" ", "")
-    )
-    assert (
+    idx_finaliza = servicio.index(
         "if resultado_post_cp.finalizar_analisis:"
-        in bloque
+    )
+    idx_escalamiento = servicio.index(
+        "resultado_escalamiento = procesar_escalamiento_fn("
     )
 
+    assert idx_post < idx_finaliza < idx_escalamiento
     assert (
+        "resultado_post_cp.confirmacion"
+        in servicio
+    )
+
+    prohibidos = [
         "resolver_confirmacion_sucursal_"
-        "via_cargo_ofrecida("
-        not in bloque
-    )
-    assert (
-        "planificar_post_confirmacion_sucursal("
-        not in bloque
-    )
-    assert (
+        "via_cargo_ofrecida(",
+        "planificar_post_confirmacion_sucursal(",
         "ejecutar_estado_y_persistencia_"
-        "post_confirmacion("
-        not in bloque
-    )
+        "post_confirmacion(",
+    ]
+
+    for prohibido in prohibidos:
+        assert prohibido not in servicio
+
 
 def test_resolucion_sucursal_delega_aplicacion_operativa():
     texto = Path(
@@ -303,28 +293,38 @@ def test_consumidores_confirmacion_inyectan_afirmativo():
 
 
 def test_analizador_no_devuelve_respuestas_flask():
-    texto = Path("app.py").read_text(
+    app = Path("app.py").read_text(
         encoding="utf-8-sig"
     )
+    servicio = Path(
+        "services/ia_recolector_flujo_cp.py"
+    ).read_text(encoding="utf-8-sig")
 
-    inicio = texto.index(
+    inicio = app.index(
         "def ia_analizar_ultimo_mensaje_pedido("
     )
-    fin = texto.index(
+    fin = app.index(
         "\ndef ia_auto_responder_post_analisis(",
         inicio,
     )
-    bloque = texto[inicio:fin]
+    analizador = app[inicio:fin]
 
-    assert "redirect(" not in bloque
-    assert "url_for(" not in bloque
+    assert "redirect(" not in analizador
+    assert "url_for(" not in analizador
+    assert "redirect(" not in servicio
+    assert "url_for(" not in servicio
+
     assert (
         '"estado": "sucursal_confirmada"'
-        in bloque
+        in servicio
     )
     assert (
         '"sucursal_confirmada": True'
-        in bloque
+        in servicio
+    )
+    assert (
+        "return resultado_flujo_cp.respuesta_analisis"
+        in analizador
     )
 
 

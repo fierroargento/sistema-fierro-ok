@@ -14,29 +14,42 @@ def _bloque_analisis_ultimo_mensaje():
 
 
 def test_app_delega_opcion_via_antes_del_fallback():
-    bloque = _bloque_analisis_ultimo_mensaje()
-
-    idx_resolver = bloque.index(
-        "resultado_confirmacion_temprana = ("
-    )
-    idx_fallback = bloque.index(
-        "suc = detectar_sucursal("
-    )
-
-    assert idx_resolver < idx_fallback
-
-    bloque_fallback = bloque[
-        idx_resolver:idx_fallback + 300
-    ]
-    compacto = bloque_fallback.replace(
-        "\n",
-        "",
-    ).replace(" ", "")
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/ia_recolector_flujo_cp.py"
+    ).read_text(encoding="utf-8")
 
     assert (
-        "resultado_deteccion_sucursal"
-        ".correo_ofrecidas"
-        in compacto
+        "procesar_flujo_codigo_postal_recolector("
+        in app
+    )
+    assert (
+        "orquestar_confirmacion_temprana_fn=("
+        in app
+    )
+    assert (
+        "detectar_sucursal_fn=detectar_sucursal"
+        in app
+    )
+
+    idx_confirmacion = servicio.index(
+        "resultado_post_cp = procesar_post_cp_fn("
+    )
+    idx_deteccion = servicio.index(
+        "deteccion = resultado_escalamiento.deteccion"
+    )
+    idx_fallback = servicio.index(
+        "sucursal = detectar_sucursal_fn("
+    )
+
+    assert (
+        idx_confirmacion
+        < idx_deteccion
+        < idx_fallback
+    )
+    assert (
+        "if deteccion.correo_ofrecidas:"
+        in servicio
     )
 
     prohibidos = [
@@ -50,7 +63,7 @@ def test_app_delega_opcion_via_antes_del_fallback():
     ]
 
     for prohibido in prohibidos:
-        assert prohibido not in bloque
+        assert prohibido not in servicio
 
 
 def test_app_no_duplica_confirmacion_afirmativa_unica():
@@ -86,46 +99,50 @@ def test_app_no_duplica_confirmacion_afirmativa_unica():
 
 
 def test_app_escalamiento_consulta_delega_en_servicio():
-    bloque = _bloque_analisis_ultimo_mensaje()
-
-    idx = bloque.index(
-        "resultado_escalamiento_sucursal = ("
-    )
-    fin = bloque.index(
-        "suc = detectar_sucursal(",
-        idx,
-    )
-    escalamiento = bloque[idx:fin]
-    compacto = escalamiento.replace(
+    app = Path("app.py").read_text(encoding="utf-8")
+    servicio = Path(
+        "services/ia_recolector_flujo_cp.py"
+    ).read_text(encoding="utf-8")
+    compacto = servicio.replace(
         "\n",
         "",
     ).replace(" ", "")
 
     assert (
-        "procesar_escalamiento_consulta_sucursal("
-        in escalamiento
+        "procesar_escalamiento_fn=("
+        in app
     )
     assert (
-        "resultado_confirmacion_temprana"
-        in escalamiento
+        "procesar_escalamiento_consulta_sucursal"
+        in app
     )
     assert (
         "pedido_es_plegable_fn=("
-        in escalamiento
+        in app
     )
     assert (
         "es_consulta_no_eleccion_fn=("
-        in escalamiento
+        in app
     )
-    assert "_es_consulta_no_eleccion" in escalamiento
-    assert "db_session=db.session" in escalamiento
+    assert "_es_consulta_no_eleccion" in app
+
     assert (
-        "resultado_escalamiento_sucursal.deteccion"
+        "resultado_escalamiento="
+        "procesar_escalamiento_fn("
         in compacto
     )
     assert (
-        "resultado_escalamiento_sucursal"
-        ".finalizar_analisis"
+        "resultado_post_cp.confirmacion"
+        in servicio
+    )
+    assert (
+        "ifresultado_escalamiento."
+        "finalizar_analisis:"
+        in compacto
+    )
+    assert (
+        "deteccion="
+        "resultado_escalamiento.deteccion"
         in compacto
     )
 
@@ -139,4 +156,4 @@ def test_app_escalamiento_consulta_delega_en_servicio():
     ]
 
     for prohibido in prohibidos:
-        assert prohibido not in escalamiento
+        assert prohibido not in servicio

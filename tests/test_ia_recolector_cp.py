@@ -83,6 +83,9 @@ def test_app_conserva_wrapper_y_delega_regla_contextual():
     app = Path("app.py").read_text(
         encoding="utf-8-sig"
     )
+    servicio = Path(
+        "services/ia_recolector_flujo_cp.py"
+    ).read_text(encoding="utf-8-sig")
 
     inicio_wrapper = app.index(
         "def ia_extraer_codigo_postal_simple("
@@ -109,8 +112,22 @@ def test_app_conserva_wrapper_y_delega_regla_contextual():
         in wrapper
     )
     assert (
-        "resolver_codigo_postal_contextual("
+        "procesar_flujo_codigo_postal_recolector("
         in analizador
     )
+    assert (
+        "resolver_cp_fn=("
+        in analizador
+    )
+    assert (
+        "resolver_codigo_postal_contextual"
+        in analizador
+    )
+    assert servicio.count(
+        "resolver_cp_fn("
+    ) == 1
+
     assert "posible_cp_contextual" not in analizador
     assert "texto_limpio_cp" not in analizador
+    assert "posible_cp_contextual" not in servicio
+    assert "texto_limpio_cp" not in servicio
