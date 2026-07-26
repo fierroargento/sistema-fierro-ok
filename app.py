@@ -72,6 +72,7 @@ from services.horario_operativo import (
 )
 from services.ia_mensajes import (
     ia_escalar_si_timeout_operativo_service,
+    ia_hash_texto_service,
     ia_marcar_mensaje_bot_service,
     ia_marcar_respuesta_cliente_service,
     ia_puede_enviar_automatico_service,
@@ -1199,6 +1200,7 @@ from services.ia_recolector_flujo_comun import (
 from services.ia_recolector_sync import (
     aplicar_codigo_postal_detectado_recolector,
     datos_previos_pedido_recolector,
+    faltantes_pedido_recolector,
 )
 from services.ubicacion_cp import (
     normalizar_ubicacion_pedido,
@@ -4169,7 +4171,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             pedido=pedido,
             texto=texto,
             texto_ultimo=texto_ultimo,
-            faltantes_fn=ia_faltantes_pedido,
+            faltantes_fn=faltantes_pedido_recolector,
             resolver_cp_fn=(
                 resolver_codigo_postal_contextual
             ),
@@ -4234,7 +4236,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             pedido=pedido,
             texto=texto,
             forzar=forzar,
-            hash_texto_fn=ia_hash_texto,
+            hash_texto_fn=ia_hash_texto_service,
             datos_previos_fn=(
                 datos_previos_pedido_recolector
             ),

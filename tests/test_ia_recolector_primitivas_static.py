@@ -1,0 +1,55 @@
+from pathlib import Path
+
+
+def bloque_analizador():
+    app = Path("app.py").read_text(
+        encoding="utf-8-sig"
+    )
+    inicio = app.index(
+        "def ia_analizar_ultimo_mensaje_pedido("
+    )
+    fin = app.index(
+        "\ndef ia_auto_responder_post_analisis(",
+        inicio,
+    )
+    return app, app[inicio:fin]
+
+
+def test_analizador_usa_hash_canonico():
+    app, bloque = bloque_analizador()
+
+    assert (
+        "from services.ia_mensajes import ("
+        in app
+    )
+    assert "ia_hash_texto_service," in app
+    assert (
+        "hash_texto_fn=ia_hash_texto_service"
+        in bloque
+    )
+    assert "hash_texto_fn=ia_hash_texto," not in bloque
+
+
+def test_analizador_usa_faltantes_canonicos():
+    app, bloque = bloque_analizador()
+
+    assert (
+        "from services.ia_recolector_sync import ("
+        in app
+    )
+    assert "faltantes_pedido_recolector," in app
+    assert (
+        "faltantes_fn=faltantes_pedido_recolector"
+        in bloque
+    )
+    assert (
+        "faltantes_fn=ia_faltantes_pedido"
+        not in bloque
+    )
+
+
+def test_wrappers_historicos_siguen_disponibles():
+    app, _ = bloque_analizador()
+
+    assert "def ia_hash_texto(texto):" in app
+    assert "def ia_faltantes_pedido(pedido):" in app

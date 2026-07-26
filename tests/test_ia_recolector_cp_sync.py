@@ -236,7 +236,10 @@ def test_app_delega_aplicacion_y_persistencia_cp():
         "normalizar_ubicacion_fn=("
         in bloque
     )
-    assert "faltantes_fn=ia_faltantes_pedido" in bloque
+    assert (
+        "faltantes_fn=faltantes_pedido_recolector"
+        in bloque
+    )
 
     assert servicio.count(
         "aplicar_cp_fn("
