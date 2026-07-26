@@ -1,7 +1,8 @@
-﻿from types import SimpleNamespace
+from types import SimpleNamespace
 
 from services.workflow_sucursal_decision import (
     decidir_sucursal_correo_ofrecida,
+    es_consulta_no_eleccion_sucursal,
     decidir_sucursal_ofrecida,
     decidir_sucursal_via_cargo_ofrecida,
     texto_consulta_sucursal,
@@ -605,3 +606,46 @@ def test_decision_via_cargo_para_pedido_selecciona_por_nombre():
     assert decision.seleccionada is True
     assert decision.indice == 1
     assert decision.sucursal["id"] == "vc-norte"
+
+
+def test_consulta_no_eleccion_conserva_patrones_legacy():
+    consultas = [
+        "¿La primera?",
+        "No lo tienen",
+        "Ese no",
+        "Tienen ese",
+        "Queda cerca",
+        "Está cerca",
+        "Me queda lejos",
+        "Hay alguna",
+        "Tienen alguna",
+        "Podría ser",
+        "O ese",
+        "Sino la segunda",
+        "Si no la otra",
+        "En cambio la segunda",
+        "Por ejemplo la primera",
+        "No sé cuál",
+        "No se cuál",
+        "Me parece lejos",
+        "Creo que la primera",
+    ]
+
+    for consulta in consultas:
+        assert es_consulta_no_eleccion_sucursal(
+            consulta
+        ), consulta
+
+
+def test_consulta_no_eleccion_no_marca_eleccion_simple():
+    elecciones = [
+        "opcion 1",
+        "prefiero la segunda",
+        "la de Viedma",
+        "si perfecto",
+    ]
+
+    for eleccion in elecciones:
+        assert not es_consulta_no_eleccion_sucursal(
+            eleccion
+        ), eleccion

@@ -1079,39 +1079,7 @@ def sugerir_sucursales(pedido):
 
 
 def _es_consulta_no_eleccion(texto):
-    """
-    Detecta si el mensaje del cliente es una pregunta o consulta,
-    no una elección concreta de sucursal.
-    En ese caso NO se debe detectar sucursal — escalar al operador.
-    """
-    texto = texto.lower().strip()
-    patrones_consulta = [
-        r'\?',                          # tiene signo de pregunta
-        r'no lo tienen',                 # preguntando si existe
-        r'ese no',                       # dudando
-        r'tienen ese',
-        r'queda cerca',
-        r'está cerca',
-        r'esta cerca',
-        r'me queda',
-        r'hay alguna',
-        r'tienen alguna',
-        r'podría ser',
-        r'podria ser',
-        r'o ese',
-        r'sino',                         # "sino ese otro"
-        r'si no',
-        r'en cambio',
-        r'por ejemplo',
-        r'pero.*\?',
-        r'\bno\b.*\bsé\b',
-        r'\bno\b.*\bse\b',
-        r'me parece',
-        r'creo que',
-    ]
-    return any(re.search(p, texto) for p in patrones_consulta)
-
-
+    return es_consulta_no_eleccion_sucursal(texto)
 
 
 def detectar_sucursal(pedido, mensaje):
@@ -1187,6 +1155,7 @@ from services.ia_recolector_entrada import (
     preparar_entrada_recolector_ml,
 )
 from services.workflow_sucursal_decision import (
+    es_consulta_no_eleccion_sucursal,
     procesar_escalamiento_consulta_sucursal,
 )
 from services.workflow_logistica_sucursal import (
@@ -4208,7 +4177,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 pedido_es_plegable_pp6040_service
             ),
             es_consulta_no_eleccion_fn=(
-                _es_consulta_no_eleccion
+                es_consulta_no_eleccion_sucursal
             ),
             detectar_sucursal_fn=detectar_sucursal,
             aplicar_sucursal_fn=(

@@ -115,3 +115,35 @@ def test_wrapper_pp6040_historico_sigue_disponible():
         "pedido_es_plegable_pp6040_contacto(pedido)"
         in app
     )
+
+
+def test_analizador_usa_consulta_no_eleccion_compartida():
+    app, bloque = bloque_analizador()
+
+    assert (
+        "from services.workflow_sucursal_decision "
+        "import ("
+        in app
+    )
+    assert (
+        "es_consulta_no_eleccion_sucursal,"
+        in app
+    )
+    assert (
+        "es_consulta_no_eleccion_fn=("
+        in bloque
+    )
+    assert (
+        "es_consulta_no_eleccion_sucursal"
+        in bloque
+    )
+    assert "_es_consulta_no_eleccion\n" not in bloque
+
+    assert (
+        "def _es_consulta_no_eleccion(texto):"
+        in app
+    )
+    assert (
+        "return es_consulta_no_eleccion_sucursal(texto)"
+        in app
+    )

@@ -105,6 +105,48 @@ def _normalizar_sucursal(sucursal: dict[str, Any] | None) -> dict[str, Any] | No
     }
 
 
+def es_consulta_no_eleccion_sucursal(
+    texto: Any,
+) -> bool:
+    """
+    Detecta una consulta que no constituye una elección
+    concreta de sucursal.
+
+    Conserva exactamente la regla histórica de app.py.
+    """
+    import re
+
+    texto = texto.lower().strip()
+    patrones_consulta = [
+        r"\?",
+        r"no lo tienen",
+        r"ese no",
+        r"tienen ese",
+        r"queda cerca",
+        r"está cerca",
+        r"esta cerca",
+        r"me queda",
+        r"hay alguna",
+        r"tienen alguna",
+        r"podría ser",
+        r"podria ser",
+        r"o ese",
+        r"sino",
+        r"si no",
+        r"en cambio",
+        r"por ejemplo",
+        r"pero.*\?",
+        r"\bno\b.*\bsé\b",
+        r"\bno\b.*\bse\b",
+        r"me parece",
+        r"creo que",
+    ]
+    return any(
+        re.search(patron, texto)
+        for patron in patrones_consulta
+    )
+
+
 def texto_consulta_sucursal(texto: Any) -> bool:
     import re
 
