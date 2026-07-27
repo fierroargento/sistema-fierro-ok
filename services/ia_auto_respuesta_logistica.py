@@ -105,3 +105,34 @@ def procesar_asignacion_transporte_pp6040(
             transporte_asignado=False,
             motivo="datos_completos",
         )
+
+
+def aplicar_default_via_cargo_auto_respuesta(
+    pedido: Any,
+    *,
+    aplicar_default_fn,
+    db_session,
+    log_fn=print,
+) -> bool:
+    """
+    Aplica y persiste el default logístico previo a la
+    auto-respuesta. Los errores no interrumpen el flujo.
+    """
+    try:
+        modificado = bool(
+            aplicar_default_fn(pedido)
+        )
+
+        if modificado:
+            db_session.commit()
+
+        return modificado
+
+    except Exception as error:
+        log_fn(
+            "[LOGISTICA-DEFAULTS] No se pudo aplicar "
+            "default Via Cargo pedido "
+            f"#{getattr(pedido, 'id', '?')}: {error}"
+        )
+        _rollback_seguro(db_session)
+        return False

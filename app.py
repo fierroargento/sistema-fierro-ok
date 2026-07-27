@@ -4325,17 +4325,21 @@ def ia_auto_responder_post_analisis(pedido):
                     )
 
             if not pp6040_transporte_asignado:
-                try:
-                    from services.logistica_defaults import aplicar_default_via_cargo_sucursal_ml_acordas
+                from services.ia_auto_respuesta_logistica import (
+                    aplicar_default_via_cargo_auto_respuesta,
+                )
+                from services.logistica_defaults import (
+                    aplicar_default_via_cargo_sucursal_ml_acordas,
+                )
 
-                    if aplicar_default_via_cargo_sucursal_ml_acordas(pedido):
-                        db.session.commit()
-                except Exception as e:
-                    print(f"[LOGISTICA-DEFAULTS] No se pudo aplicar default Via Cargo pedido #{getattr(pedido, 'id', '?')}: {e}")
-                    try:
-                        db.session.rollback()
-                    except Exception:
-                        pass
+                aplicar_default_via_cargo_auto_respuesta(
+                    pedido,
+                    aplicar_default_fn=(
+                        aplicar_default_via_cargo_sucursal_ml_acordas
+                    ),
+                    db_session=db.session,
+                    log_fn=print,
+                )
 
             from services.ml_sucursales_via_cargo import (
                 enviar_sugerencia_sucursales_ml,
