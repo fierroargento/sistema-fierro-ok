@@ -1,8 +1,74 @@
+import os
+
 from dataclasses import dataclass
 
 from services.wa_auto_ml_decision import (
     construir_log_error_wa_auto_ml,
 )
+
+
+@dataclass(frozen=True)
+class ResultadoHabilitacionAutoRespuestaMl:
+    habilitada: bool
+    motivo: str
+
+
+def evaluar_habilitacion_auto_respuesta_ml(
+    pedido,
+    *,
+    es_pedido_aplicable_fn,
+):
+    """Evalua las precondiciones generales del flujo."""
+
+    configuracion = str(
+        os.getenv("IA_AUTO_RESPUESTA", "1") or ""
+    ).strip().lower()
+
+    if configuracion in {"0", "false", "no", "off"}:
+        return ResultadoHabilitacionAutoRespuestaMl(
+            habilitada=False,
+            motivo="apagada",
+        )
+
+    if (
+        not pedido
+        or not es_pedido_aplicable_fn(pedido)
+    ):
+        return ResultadoHabilitacionAutoRespuestaMl(
+            habilitada=False,
+            motivo="no_aplica",
+        )
+
+    if not getattr(
+        pedido,
+        "contacto_iniciado",
+        False,
+    ):
+        return ResultadoHabilitacionAutoRespuestaMl(
+            habilitada=False,
+            motivo="sin_contacto",
+        )
+
+    if (
+        str(
+            getattr(
+                pedido,
+                "ia_recolector_estado",
+                "",
+            )
+            or ""
+        )
+        == "error"
+    ):
+        return ResultadoHabilitacionAutoRespuestaMl(
+            habilitada=False,
+            motivo="error_ia",
+        )
+
+    return ResultadoHabilitacionAutoRespuestaMl(
+        habilitada=True,
+        motivo="habilitada",
+    )
 
 
 @dataclass(frozen=True)

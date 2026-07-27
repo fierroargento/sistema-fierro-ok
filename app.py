@@ -4179,14 +4179,21 @@ def ia_auto_responder_post_analisis(pedido):
     No cambia estados del pedido.
     Se puede apagar con IA_AUTO_RESPUESTA=0.
     """
-    if os.getenv("IA_AUTO_RESPUESTA", "1").strip().lower() in ["0", "false", "no", "off"]:
-        return False, "apagada"
-    if not pedido or not es_ml_acordas_entrega(pedido):
-        return False, "no_aplica"
-    if not getattr(pedido, "contacto_iniciado", False):
-        return False, "sin_contacto"
-    if str(getattr(pedido, "ia_recolector_estado", "") or "") == "error":
-        return False, "error_ia"
+    from services.ia_auto_respuesta_ml import (
+        evaluar_habilitacion_auto_respuesta_ml,
+    )
+
+    resultado_habilitacion = (
+        evaluar_habilitacion_auto_respuesta_ml(
+            pedido,
+            es_pedido_aplicable_fn=(
+                es_ml_acordas_entrega
+            ),
+        )
+    )
+
+    if not resultado_habilitacion.habilitada:
+        return False, resultado_habilitacion.motivo
 
     # APB CANAL:
     # Si WhatsApp realmente tomó la posta, Mercado Libre queda pasivo.

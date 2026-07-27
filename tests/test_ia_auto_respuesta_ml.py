@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 from services.ia_auto_respuesta_ml import (
     enviar_auto_respuesta_ml,
+    evaluar_habilitacion_auto_respuesta_ml,
 )
 
 
@@ -243,6 +244,152 @@ def test_app_delega_envio_final_al_servicio():
         "IA respondió y dejó consulta",
         "construir_log_error_wa_auto_ml",
         'return False, "error_envio"',
+    ]
+
+    for prohibido in prohibidos:
+        assert prohibido not in bloque
+
+
+def evaluar_habilitacion(pedido):
+    return evaluar_habilitacion_auto_respuesta_ml(
+        pedido,
+        es_pedido_aplicable_fn=(
+            lambda valor:
+            getattr(valor, "aplicable", False)
+        ),
+    )
+
+
+def test_habilitacion_auto_respuesta_respeta_feature_flag(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "IA_AUTO_RESPUESTA",
+        "off",
+    )
+    pedido = SimpleNamespace(
+        aplicable=True,
+        contacto_iniciado=True,
+        ia_recolector_estado="ok",
+    )
+
+    resultado = evaluar_habilitacion(pedido)
+
+    assert resultado.habilitada is False
+    assert resultado.motivo == "apagada"
+
+
+def test_habilitacion_rechaza_pedido_no_aplicable(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "IA_AUTO_RESPUESTA",
+        "1",
+    )
+    pedido = SimpleNamespace(
+        aplicable=False,
+        contacto_iniciado=True,
+        ia_recolector_estado="ok",
+    )
+
+    resultado = evaluar_habilitacion(pedido)
+
+    assert resultado.habilitada is False
+    assert resultado.motivo == "no_aplica"
+
+
+def test_habilitacion_requiere_contacto_iniciado(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "IA_AUTO_RESPUESTA",
+        "1",
+    )
+    pedido = SimpleNamespace(
+        aplicable=True,
+        contacto_iniciado=False,
+        ia_recolector_estado="ok",
+    )
+
+    resultado = evaluar_habilitacion(pedido)
+
+    assert resultado.habilitada is False
+    assert resultado.motivo == "sin_contacto"
+
+
+def test_habilitacion_rechaza_error_del_recolector(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "IA_AUTO_RESPUESTA",
+        "1",
+    )
+    pedido = SimpleNamespace(
+        aplicable=True,
+        contacto_iniciado=True,
+        ia_recolector_estado="error",
+    )
+
+    resultado = evaluar_habilitacion(pedido)
+
+    assert resultado.habilitada is False
+    assert resultado.motivo == "error_ia"
+
+
+def test_habilitacion_acepta_pedido_operable(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "IA_AUTO_RESPUESTA",
+        "1",
+    )
+    pedido = SimpleNamespace(
+        aplicable=True,
+        contacto_iniciado=True,
+        ia_recolector_estado="ok",
+    )
+
+    resultado = evaluar_habilitacion(pedido)
+
+    assert resultado.habilitada is True
+    assert resultado.motivo == "habilitada"
+
+
+def test_app_delega_guardas_iniciales_auto_respuesta():
+    app = Path("app.py").read_text(
+        encoding="utf-8-sig"
+    )
+    inicio = app.index(
+        "def ia_auto_responder_post_analisis("
+    )
+    fin = app.find(
+        "\ndef ",
+        inicio + 1,
+    )
+    if fin == -1:
+        fin = len(app)
+
+    bloque = app[inicio:fin]
+
+    assert (
+        "evaluar_habilitacion_auto_respuesta_ml("
+        in bloque
+    )
+    assert (
+        "es_pedido_aplicable_fn=("
+        in bloque
+    )
+    assert (
+        "resultado_habilitacion.motivo"
+        in bloque
+    )
+
+    prohibidos = [
+        'os.getenv("IA_AUTO_RESPUESTA"',
+        'return False, "apagada"',
+        'return False, "no_aplica"',
+        'return False, "sin_contacto"',
+        'return False, "error_ia"',
     ]
 
     for prohibido in prohibidos:
