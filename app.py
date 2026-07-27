@@ -4272,87 +4272,57 @@ def ia_auto_responder_post_analisis(pedido):
         if not faltantes:
             pp6040_transporte_asignado = False
             # Datos del cliente completos.
-            # ML Acordás la Entrega que NO es plegable PP6040 → siempre Via Cargo sucursal.
-            # Si falta elegir sucursal, mandar opciones al cliente.
-            es_via_cargo_acordas = es_ml_acordas_entrega(pedido) and not pedido_es_plegable_pp6040(pedido)
+            # ML Acordás la Entrega que NO es plegable PP6040
+            # continúa por Via Cargo sucursal.
+            es_via_cargo_acordas = (
+                es_ml_acordas_entrega(pedido)
+                and not pedido_es_plegable_pp6040(pedido)
+            )
+
             if not es_via_cargo_acordas:
-                # PP6040 (plegable) → cotizar y asignar transporte automáticamente
-                if pedido_es_plegable_pp6040(pedido):
-                    try:
-                        from modules.transportes import (
-                            preparar_asignacion_transporte_pedido,
-                        )
+                from modules.transportes import (
+                    preparar_asignacion_transporte_pedido,
+                )
+                from services.ia_auto_respuesta_logistica import (
+                    procesar_asignacion_transporte_pp6040,
+                )
+                from services.ia_respuestas import (
+                    agregar_marca_resumen_unica_service,
+                )
+                from services.transporte_revision import (
+                    construir_marca_revision_transporte,
+                )
 
-                        resultado_transporte = (
-                            preparar_asignacion_transporte_pedido(
-                                pedido,
-                            )
-                        )
-                        msg_transporte = resultado_transporte.mensaje
+                resultado_asignacion_pp6040 = (
+                    procesar_asignacion_transporte_pp6040(
+                        pedido,
+                        pedido_es_plegable_fn=(
+                            pedido_es_plegable_pp6040
+                        ),
+                        preparar_asignacion_fn=(
+                            preparar_asignacion_transporte_pedido
+                        ),
+                        construir_marca_revision_fn=(
+                            construir_marca_revision_transporte
+                        ),
+                        agregar_marca_resumen_fn=(
+                            agregar_marca_resumen_unica_service
+                        ),
+                        db_session=db.session,
+                        log_fn=print,
+                    )
+                )
+                pp6040_transporte_asignado = (
+                    resultado_asignacion_pp6040
+                    .transporte_asignado
+                )
 
-                        if resultado_transporte.requiere_rollback:
-                            try:
-                                db.session.rollback()
-                            except Exception:
-                                pass
-
-                        if resultado_transporte.ok:
-                            resumen = (
-                                pedido.ia_resumen or ""
-                            ).strip()
-                            pedido.ia_resumen = (
-                                f"{resumen} | {msg_transporte}"
-                            ).strip(" |")
-
-                            db.session.commit()
-                            pp6040_transporte_asignado = True
-
-                            print(
-                                f"[TRANSPORTES] Pedido #{pedido.id}: "
-                                f"{msg_transporte}"
-                            )
-                        else:
-                            # Sin cobertura → escalar al operador
-                            pedido.ml_mensajes_pendientes = True
-                            pedido.ia_requiere_operador = True
-                            from services.ia_respuestas import (
-                                agregar_marca_resumen_unica_service,
-                            )
-
-                            resumen = (
-                                pedido.ia_resumen or ""
-                            ).strip()
-                            from services.transporte_revision import (
-                                construir_marca_revision_transporte,
-                            )
-
-                            marca = construir_marca_revision_transporte(
-                                getattr(
-                                    pedido,
-                                    "codigo_postal",
-                                    "",
-                                ),
-                                msg_transporte,
-                            )
-                            pedido.ia_resumen = (
-                                agregar_marca_resumen_unica_service(
-                                    resumen,
-                                    marca,
-                                    limite=1000,
-                                )
-                            )
-                            db.session.commit()
-                    except Exception as e:
-                        try:
-                            db.session.rollback()
-                        except Exception:
-                            pass
-                        print(
-                            "[TRANSPORTES] Error asignando transporte "
-                            f"pedido #{pedido.id}: {e}"
-                        )
                 if not pp6040_transporte_asignado:
-                    return False, "datos_completos"
+                    return (
+                        False,
+                        resultado_asignacion_pp6040.motivo
+                        or "datos_completos",
+                    )
 
             if not pp6040_transporte_asignado:
                 try:

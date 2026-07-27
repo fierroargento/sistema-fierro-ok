@@ -15,14 +15,22 @@ def bloque_post_analisis():
 
 def test_pp6040_asignado_sigue_hasta_ofrecer_sucursales():
     bloque = bloque_post_analisis()
+    servicio = Path(
+        "services/ia_auto_respuesta_logistica.py"
+    ).read_text(encoding="utf-8-sig")
 
     assert (
         "pp6040_transporte_asignado = False"
         in bloque
     )
     assert (
-        "pp6040_transporte_asignado = True"
+        "procesar_asignacion_transporte_pp6040("
         in bloque
+    )
+    assert (
+        "resultado_asignacion_pp6040"
+        ".transporte_asignado"
+        in bloque.replace("\n", "").replace(" ", "")
     )
     assert (
         "enviar_sugerencia_sucursales_ml("
@@ -34,15 +42,27 @@ def test_pp6040_asignado_sigue_hasta_ofrecer_sucursales():
     )
     assert "sugerir_sucursales" in bloque
 
-    pos_true = bloque.index(
-        "pp6040_transporte_asignado = True"
+    assert (
+        "transporte_asignado=True"
+        in servicio.replace("\n", "").replace(" ", "")
+    )
+
+    pos_asignacion = bloque.index(
+        "procesar_asignacion_transporte_pp6040("
+    )
+    pos_resultado = bloque.index(
+        ".transporte_asignado",
+        pos_asignacion,
     )
     pos_ofrecer = bloque.index(
         "enviar_sugerencia_sucursales_ml("
     )
 
-    assert pos_true < pos_ofrecer
-
+    assert (
+        pos_asignacion
+        < pos_resultado
+        < pos_ofrecer
+    )
 
 def test_pp6040_no_aplica_default_via_cargo_si_correo_fue_asignado():
     bloque = bloque_post_analisis()
@@ -107,42 +127,53 @@ def test_bloque_comun_delega_envio_sucursales_ml():
     assert "db_session.commit()" in servicio
 
 
-def test_pp6040_ml_prepara_asignacion_y_persiste_una_vez():
+def test_pp6040_ml_delega_asignacion_y_persistencia():
+    app = Path("app.py").read_text(
+        encoding="utf-8-sig"
+    )
+    servicio = Path(
+        "services/ia_auto_respuesta_logistica.py"
+    ).read_text(encoding="utf-8-sig")
+
     bloque = bloque_post_analisis()
 
-    inicio = bloque.index(
-        "if pedido_es_plegable_pp6040(pedido):"
+    assert (
+        "procesar_asignacion_transporte_pp6040("
+        in bloque
     )
-    fin = bloque.index(
-        "if not pp6040_transporte_asignado:",
-        inicio,
+    assert (
+        "preparar_asignacion_fn=("
+        in bloque
     )
-    asignacion = bloque[inicio:fin]
-
     assert (
         "preparar_asignacion_transporte_pedido"
-        in asignacion
+        in bloque
     )
-    assert "resultado_transporte.ok" in asignacion
+    assert "db_session=db.session" in bloque
+
+    assert "resultado_transporte.ok" not in bloque
     assert (
         "resultado_transporte.requiere_rollback"
-        in asignacion
+        not in bloque
     )
-    assert "db.session.rollback()" in asignacion
+
+    assert "if resultado.ok:" in servicio
+    assert "if resultado.requiere_rollback:" in servicio
+    assert "db_session.rollback()" in servicio
+    assert "db_session.commit()" in servicio
+
+    pos_asignacion = bloque.index(
+        "procesar_asignacion_transporte_pp6040("
+    )
+    pos_default_via = bloque.index(
+        "aplicar_default_via_cargo_sucursal_ml_acordas"
+    )
+    pos_sugerencia = bloque.index(
+        "enviar_sugerencia_sucursales_ml("
+    )
+
     assert (
-        "asignar_transporte_pedido("
-        not in asignacion
+        pos_asignacion
+        < pos_default_via
+        < pos_sugerencia
     )
-
-    pos_resumen = asignacion.index(
-        "pedido.ia_resumen ="
-    )
-    pos_commit = asignacion.index(
-        "db.session.commit()",
-        pos_resumen,
-    )
-    pos_asignado = asignacion.index(
-        "pp6040_transporte_asignado = True"
-    )
-
-    assert pos_resumen < pos_commit < pos_asignado
