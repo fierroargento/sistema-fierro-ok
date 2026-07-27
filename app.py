@@ -4367,48 +4367,40 @@ def ia_auto_responder_post_analisis(pedido):
                     except Exception:
                         pass
 
-            msg_sucursales = sugerir_sucursales(pedido)
-            if msg_sucursales:
-                try:
+            from services.ml_sucursales_via_cargo import (
+                enviar_sugerencia_sucursales_ml,
+            )
 
-                    # ---------------------------------------------------
-                    # APB CANAL MANAGER
-                    # ---------------------------------------------------
+            resultado_sucursales = (
+                enviar_sugerencia_sucursales_ml(
+                    pedido=pedido,
+                    sugerir_sucursales_fn=(
+                        sugerir_sucursales
+                    ),
+                    puede_enviar_mensaje_fn=(
+                        puede_enviar_mensaje
+                    ),
+                    enviar_mensaje_ml_fn=(
+                        ml_enviar_mensaje_acordas
+                    ),
+                    registrar_envio_automatico_fn=(
+                        registrar_envio_automatico
+                    ),
+                    ia_hash_texto_fn=ia_hash_texto,
+                    db_session=db.session,
+                    motivo_ok="sucursales_enviadas",
+                    motivo_error="error_sucursales",
+                    now_fn=datetime.utcnow,
+                    log_fn=print,
+                )
+            )
 
-                    permitido, motivo = puede_enviar_mensaje(
-                        pedido=pedido,
-                        canal="ml",
-                        texto=msg_sucursales,
-                    )
+            if resultado_sucursales is not None:
+                return (
+                    resultado_sucursales["ok"],
+                    resultado_sucursales["motivo"],
+                )
 
-                    if not permitido:
-                        print(
-                            f"[CANAL-MANAGER] ML bloqueado pedido #{pedido.id}: {motivo}"
-                        )
-                        return False, motivo
-
-                    ml_enviar_mensaje_acordas(pedido, msg_sucursales)
-
-                    registrar_envio_automatico(
-                        pedido=pedido,
-                        canal="ml",
-                        texto=msg_sucursales,
-                    )
-
-                    pedido.ia_respuesta_sugerida = msg_sucursales
-                    pedido.ia_respuesta_enviada_hash = ia_hash_texto(msg_sucursales)
-                    pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
-                    pedido.ml_mensajes_pendientes = False
-                    pedido.ml_mensajes_pendientes_count = 0
-                    db.session.commit()
-                except Exception as e:
-                    print("[VIA CARGO] No se pudo enviar sugerencia de sucursales:", e)
-                    try:
-                        db.session.rollback()
-                    except Exception:
-                        pass
-                    return False, "error_sucursales"
-                return True, "sucursales_enviadas"
             # APB ML -> WA:
             # Si no hay sucursales para ofrecer por ML porque el pedido ya quedó
             # operativo/completo, intentamos avisar transición por ML e iniciar WhatsApp.
