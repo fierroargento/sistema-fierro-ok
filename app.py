@@ -4427,84 +4427,36 @@ def ia_auto_responder_post_analisis(pedido):
 
         texto = ia_generar_respuesta_faltantes_pedido(pedido)
 
-    texto = str(texto or "").strip()
-    if not texto:
-        return False, "sin_texto"
+    from services.ia_auto_respuesta_ml import (
+        enviar_auto_respuesta_ml,
+    )
 
-    if ia_respuesta_faltantes_ya_enviada(pedido, texto):
-        return False, "duplicada"
+    resultado_envio = enviar_auto_respuesta_ml(
+        pedido,
+        texto,
+        requiere_operador=(
+            requiere_operador_actual
+        ),
+        faltantes=faltantes,
+        respuesta_ya_enviada_fn=(
+            ia_respuesta_faltantes_ya_enviada
+        ),
+        puede_enviar_fn=puede_enviar_mensaje,
+        enviar_mensaje_fn=(
+            ml_enviar_mensaje_acordas
+        ),
+        registrar_envio_fn=(
+            registrar_envio_automatico
+        ),
+        hash_texto_fn=ia_hash_texto,
+        ahora_fn=datetime.utcnow,
+        log_fn=print,
+    )
 
-    from services.wa_auto_ml_decision import construir_log_error_wa_auto_ml
-
-    try:
-
-        # ---------------------------------------------------
-        # APB CANAL MANAGER
-        # ---------------------------------------------------
-
-        permitido, motivo = puede_enviar_mensaje(
-            pedido=pedido,
-            canal="ml",
-            texto=texto,
-        )
-
-        if not permitido:
-            print(
-                f"[CANAL-MANAGER] ML bloqueado pedido #{pedido.id}: {motivo}"
-            )
-            return False, motivo
-
-        ml_enviar_mensaje_acordas(
-            pedido,
-            texto,
-            permitir_requiere_operador=bool(requiere_operador_actual and faltantes),
-        )
-
-        registrar_envio_automatico(
-            pedido=pedido,
-            canal="ml",
-            texto=texto,
-        )
-
-        pedido.ia_respuesta_sugerida = texto
-        pedido.ia_respuesta_enviada_hash = ia_hash_texto(texto)
-        pedido.ia_ultima_respuesta_enviada = datetime.utcnow()
-
-        if requiere_operador_actual:
-            pedido.ia_requiere_operador = True
-            pedido.ia_recolector_estado = "requiere_operador"
-            pedido.ml_mensajes_pendientes = True
-            pedido.ml_mensajes_pendientes_count = max(
-                int(pedido.ml_mensajes_pendientes_count or 0),
-                1,
-            )
-            pedido.ia_resumen = (
-                (pedido.ia_resumen or "")
-                + " | IA respondió y dejó consulta pendiente para operador"
-            ).strip(" |")
-        else:
-            pedido.ml_mensajes_pendientes = False
-            pedido.ml_mensajes_pendientes_count = 0
-            pedido.ia_resumen = (
-                (pedido.ia_resumen or "")
-                + " | IA respondió automáticamente"
-            ).strip(" |")
-
-        print(
-            f"[IA-AUTO-RESPUESTA] OK pedido #{pedido.id}: {texto[:120]}"
-        )
-
-        return True, "enviada"
-    
-    except Exception as e:
-        pedido.ia_error = f"No se pudo enviar respuesta automática IA: {str(e)[:400]}"
-        print(
-            construir_log_error_wa_auto_ml(
-                getattr(pedido, "id", ""),
-                e,
-            )
-        )
-        return False, "error_envio"
+    return (
+        resultado_envio.ok,
+        resultado_envio.motivo,
+    )
 
 def ml_hay_mensaje_pendiente_en_thread(mensajes, seller_id=""):
     """
