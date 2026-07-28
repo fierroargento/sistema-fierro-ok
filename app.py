@@ -4493,7 +4493,10 @@ def ml_obtener_ids_chat_pedido(pedido):
     pack_actual = str(getattr(pedido, "ml_pack_id", "") or "").strip()
     if order_id and (not pack_actual or pack_actual == order_id):
         try:
-            order = ml_api_get(f"/orders/{order_id}")
+            order = ml_obtener_order_de_pedido(
+                pedido,
+                order_id,
+            )
             pack_api = str((order or {}).get("pack_id") or "").strip()
             if pack_api:
                 agregar(pack_api)
@@ -5117,9 +5120,21 @@ def ml_validar_orden_operable_antes_de_despacho(pedido):
     return ml_validar_orden_operable_antes_de_despacho_service(
         pedido,
         db,
-        ml_obtener_order,
-        ml_obtener_shipment,
-        ml_obtener_claim_de_order,
+        lambda order_id: ml_obtener_order_de_pedido(
+            pedido,
+            order_id,
+        ),
+        lambda shipping_id: ml_obtener_shipment_de_pedido(
+            pedido,
+            shipping_id,
+        ),
+        lambda order_id, pack_id=None: (
+            ml_obtener_claim_de_pedido(
+                pedido,
+                order_id,
+                pack_id,
+            )
+        ),
         ml_marcar_claim_en_pedido,
     )
 
@@ -6434,17 +6449,71 @@ def despacho_mobile():
     )
 
 
-def ml_sync_pedido_por_order_id_webhook(order_id):
+def ml_api_contexto_webhook(seller_id=""):
+    """
+    Resuelve la cuenta propietaria de un webhook ML.
+
+    Si ML no envia user_id, el fallback solo es seguro
+    mientras exista exactamente una cuenta activa.
+    """
+    from services.ml_api_context import ml_api_contexto
+    from services.ml_cuentas import (
+        cuenta_por_seller_id,
+        cuentas_activas,
+    )
+
+    seller_id = str(seller_id or "").strip()
+
+    if seller_id:
+        cuenta = cuenta_por_seller_id(
+            seller_id,
+            MercadoLibreCuenta=MercadoLibreCuenta,
+        )
+    else:
+        cuentas = cuentas_activas(
+            MercadoLibreCuenta=MercadoLibreCuenta,
+        )
+
+        if len(cuentas) != 1:
+            raise ValueError(
+                "Webhook ML sin user_id y sin una "
+                "unica cuenta activa segura."
+            )
+
+        cuenta = cuentas[0]
+
+    return ml_api_contexto(
+        cuenta,
+        db_session=db.session,
+        logger_fn=print,
+    )
+
+
+def ml_sync_pedido_por_order_id_webhook(
+    order_id,
+    seller_id="",
+):
     """Sincroniza una orden puntual recibida por webhook ML sin esperar la sync general."""
     order_id = str(order_id or "").strip()
     if not order_id:
         return False
     try:
-        order = ml_obtener_order(order_id)
+        api_context = ml_api_contexto_webhook(
+            seller_id
+        )
+        order = ml_obtener_order_api(
+            order_id,
+            api_context.get,
+        )
         if not order:
             print(f"[WEBHOOK ML] Order vacia o no encontrada: {order_id}")
             return False
-        pedido, creado, motivo = ml_upsert_pedido_desde_order(order)
+        pedido, creado, motivo = (
+            ml_upsert_pedido_desde_order(
+                order,
+                cuenta_ml=api_context.cuenta,
+            )
+        )
 
         # Si ML informa que la orden está cancelada y el pedido ya existe en el sistema,
         # actualizarlo a Cancelado automáticamente
@@ -6486,7 +6555,10 @@ def ml_sync_pedido_por_order_id_webhook(order_id):
 from services.ml_shipment_webhook import ml_actualizar_pedido_con_shipment_webhook
 
 
-def ml_sync_shipment_por_id_webhook(shipment_id):
+def ml_sync_shipment_por_id_webhook(
+    shipment_id,
+    seller_id="",
+):
     """Actualiza datos ML básicos del pedido asociado a un shipment recibido por webhook.
 
     Si el shipment llega antes que la order y todavía no existe Pedido en Fierro,
@@ -6496,7 +6568,13 @@ def ml_sync_shipment_por_id_webhook(shipment_id):
     if not shipment_id:
         return False
     try:
-        shipment = ml_obtener_shipment(shipment_id)
+        api_context = ml_api_contexto_webhook(
+            seller_id
+        )
+        shipment = ml_obtener_shipment(
+            shipment_id,
+            api_context=api_context,
+        )
         if not shipment:
             print(f"[WEBHOOK ML] Shipment vacio o no encontrado: {shipment_id}")
             return False
@@ -6557,7 +6635,12 @@ def ml_sync_shipment_por_id_webhook(shipment_id):
                 f"order asociada {order_id}"
             )
 
-            order_sync_ok = ml_sync_pedido_por_order_id_webhook(order_id)
+            order_sync_ok = (
+                ml_sync_pedido_por_order_id_webhook(
+                    order_id,
+                    seller_id=seller_id,
+                )
+            )
 
             pedido_por_order = (
                 Pedido.query
@@ -6610,7 +6693,10 @@ def ml_sync_shipment_por_id_webhook(shipment_id):
         return False
 
 
-def ml_marcar_reclamo_webhook(resource):
+def ml_marcar_reclamo_webhook(
+    resource,
+    seller_id="",
+):
     """Procesa claims recibidos por webhook ML y los vincula a pedidos Fierro."""
     resource = str(resource or "").strip()
     claim_id = ""
@@ -6624,7 +6710,12 @@ def ml_marcar_reclamo_webhook(resource):
         return False
 
     try:
-        claim = ml_api_get(f"/post-purchase/v1/claims/{claim_id}")
+        api_context = ml_api_contexto_webhook(
+            seller_id
+        )
+        claim = api_context.get(
+            f"/post-purchase/v1/claims/{claim_id}"
+        )
         if not claim:
             print(f"[WEBHOOK ML] Claim {claim_id} no encontrado en API")
             return False
@@ -6760,6 +6851,10 @@ def webhook_mercadolibre():
 
         topic = str(data.get("topic") or data.get("type") or "").lower()
         resource = str(data.get("resource") or "").strip()
+        seller_id_webhook = str(
+            data.get("user_id")
+            or ""
+        ).strip()
         log_id = ml_crear_log_webhook(topic, resource, data)
         detalle_log = "sin accion"
 
@@ -6805,7 +6900,12 @@ def webhook_mercadolibre():
             match = re.search(r"/orders/([^/?#]+)", resource)
             if match:
                 order_id = match.group(1)
-            ok_order = ml_sync_pedido_por_order_id_webhook(order_id)
+            ok_order = (
+                ml_sync_pedido_por_order_id_webhook(
+                    order_id,
+                    seller_id=seller_id_webhook,
+                )
+            )
             detalle_log = f"order {order_id} ok={ok_order}"
 
         elif "shipment" in topic or "/shipments/" in resource:
@@ -6813,11 +6913,19 @@ def webhook_mercadolibre():
             match = re.search(r"/shipments/([^/?#]+)", resource)
             if match:
                 shipment_id = match.group(1)
-            ok_ship = ml_sync_shipment_por_id_webhook(shipment_id)
+            ok_ship = (
+                ml_sync_shipment_por_id_webhook(
+                    shipment_id,
+                    seller_id=seller_id_webhook,
+                )
+            )
             detalle_log = f"shipment {shipment_id} ok={ok_ship}"
 
         elif "claim" in topic or "/claims/" in resource:
-            ok_claim = ml_marcar_reclamo_webhook(resource)
+            ok_claim = ml_marcar_reclamo_webhook(
+                resource,
+                seller_id=seller_id_webhook,
+            )
             detalle_log = f"claim resource={resource} ok={ok_claim}"
 
         ml_cerrar_log_webhook(log_id, ok=True, detalle=detalle_log)
@@ -8395,7 +8503,11 @@ def detalle_pedido(id):
                 order_id_detalle = str(getattr(pedido, "id_venta", "") or "").strip()
                 pack_id_detalle = str(getattr(pedido, "ml_pack_id", "") or "").strip()
                 if order_id_detalle or pack_id_detalle:
-                    claim_live = ml_obtener_claim_de_order(order_id_detalle, pack_id_detalle)
+                    claim_live = ml_obtener_claim_de_pedido(
+                        pedido,
+                        order_id_detalle,
+                        pack_id_detalle,
+                    )
                     ml_marcar_claim_en_pedido(pedido, claim_live)
                     hubo_cambios_ml = True
             else:
