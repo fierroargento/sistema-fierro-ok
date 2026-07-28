@@ -362,18 +362,26 @@ def ml_limpiar_pedidos_ml_no_operables_existentes_service(
         if not order_id:
             continue
 
-        order = ml_obtener_order(
-            pedido,
-            order_id,
-        )
+        try:
+            order = ml_obtener_order(
+                pedido,
+                order_id,
+            )
 
-        if not order:
+            if not order:
+                continue
+
+            shipment = ml_obtener_shipment(
+                pedido,
+                (order.get("shipping") or {}).get("id"),
+            )
+
+        except Exception as error:
+            detalles.append(
+                f"{order_id}: no se pudo verificar "
+                f"con su cuenta ML ({error})"
+            )
             continue
-
-        shipment = ml_obtener_shipment(
-            pedido,
-            (order.get("shipping") or {}).get("id"),
-        )
 
         if ml_order_esta_entregado(
             order,

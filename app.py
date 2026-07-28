@@ -5446,66 +5446,158 @@ def ml_limpiar_pedidos_ml_no_operables_existentes():
     )
 
 
-def ml_sync_manual(limit=20, incluir_auxiliares=False):
-    cuenta = cuenta_ml_actual()
-    if not cuenta:
-        raise ValueError("No hay cuenta de Mercado Libre conectada.")
+def ml_sync_manual(
+    limit=20,
+    incluir_auxiliares=False,
+):
+    from services.ml_cuentas import cuentas_activas
 
-    eliminados_existentes, detalles_eliminados = ml_limpiar_pedidos_ml_no_operables_existentes()
+    cuentas = cuentas_activas(
+        MercadoLibreCuenta=MercadoLibreCuenta,
+    )
 
-    orders = ml_obtener_orders_recientes(cuenta, limit=limit)
-    resultado_sync = (
-        ml_procesar_orders_sync_service(
-            orders,
-            ml_upsert_pedido_desde_order,
+    if not cuentas:
+        raise ValueError(
+            "No hay cuentas de Mercado Libre conectadas."
         )
+
+    eliminados_existentes, detalles_eliminados = (
+        ml_limpiar_pedidos_ml_no_operables_existentes()
     )
 
-    creados = resultado_sync["creados"]
-    actualizados = resultado_sync["actualizados"]
-    omitidos = resultado_sync["omitidos"]
+    resultado_total = {
+        "leidos": 0,
+        "creados": 0,
+        "actualizados": 0,
+        "omitidos": 0,
+        "eliminados": eliminados_existentes,
+        "mensajes_pendientes": 0,
+        "claims_marcados": 0,
+        "errores": list(detalles_eliminados),
+        "me_sin_etiqueta": 0,
+        "me_sin_etiqueta_ids": [],
+        "cuentas_procesadas": 0,
+        "cuentas_fallidas": 0,
+    }
 
-    errores = list(detalles_eliminados)
-    errores.extend(
-        resultado_sync["errores"]
-    )
+    for cuenta in cuentas:
+        cuenta_id = getattr(cuenta, "id", "?")
+        seller_id = str(
+            getattr(cuenta, "user_id_ml", "")
+            or ""
+        ).strip()
 
-    mercado_envios_sin_etiqueta = (
-        resultado_sync["me_sin_etiqueta"]
-    )
+        try:
+            orders = ml_obtener_orders_recientes(
+                cuenta,
+                limit=limit,
+            )
 
-    mercado_envios_sin_etiqueta_ids = (
-        resultado_sync["me_sin_etiqueta_ids"]
-    )
+            resultado_sync = (
+                ml_procesar_orders_sync_service(
+                    orders,
+                    lambda order, cuenta_actual=cuenta: (
+                        ml_upsert_pedido_desde_order(
+                            order,
+                            cuenta_ml=cuenta_actual,
+                        )
+                    ),
+                )
+            )
 
-    mensajes_pendientes = 0
-    claims_marcados = 0
+            errores_cuenta = list(
+                resultado_sync["errores"]
+            )
+
+            ml_actualizar_resumen_sync_service(
+                cuenta,
+                orders,
+                resultado_sync["creados"],
+                resultado_sync["actualizados"],
+                resultado_sync["omitidos"],
+                0,
+                0,
+                0,
+                errores_cuenta,
+                resultado_sync["me_sin_etiqueta"],
+                resultado_sync[
+                    "me_sin_etiqueta_ids"
+                ],
+                session,
+            )
+
+            resultado_total["leidos"] += len(orders)
+
+            for clave in (
+                "creados",
+                "actualizados",
+                "omitidos",
+                "me_sin_etiqueta",
+            ):
+                resultado_total[clave] += (
+                    resultado_sync[clave]
+                )
+
+            resultado_total[
+                "me_sin_etiqueta_ids"
+            ].extend(
+                resultado_sync[
+                    "me_sin_etiqueta_ids"
+                ]
+            )
+
+            resultado_total["errores"].extend(
+                (
+                    f"Cuenta {seller_id or cuenta_id}: "
+                    f"{error}"
+                )
+                for error in errores_cuenta
+            )
+
+            resultado_total[
+                "cuentas_procesadas"
+            ] += 1
+
+        except Exception as error:
+            cuenta.last_sync_at = datetime.utcnow()
+            cuenta.last_sync_status = "error"
+            cuenta.last_sync_detail = str(error)[:1000]
+
+            resultado_total[
+                "cuentas_fallidas"
+            ] += 1
+            resultado_total["errores"].append(
+                f"Cuenta {seller_id or cuenta_id}: "
+                f"{error}"
+            )
+
+            print(
+                "[ML-SYNC] Error sincronizando "
+                f"cuenta {seller_id or cuenta_id}: "
+                f"{error}"
+            )
 
     if incluir_auxiliares:
-        mensajes_pendientes = ml_sync_mensajes_pendientes_pedidos()
-        claims_marcados = ml_sync_claims_pedidos_operativos()
+        resultado_total[
+            "mensajes_pendientes"
+        ] = ml_sync_mensajes_pendientes_pedidos()
 
-    resultado = (
-        ml_actualizar_resumen_sync_service(
-            cuenta,
-            orders,
-            creados,
-            actualizados,
-            omitidos,
-            eliminados_existentes,
-            mensajes_pendientes,
-            claims_marcados,
-            errores,
-            mercado_envios_sin_etiqueta,
-            mercado_envios_sin_etiqueta_ids,
-            session,
-        )
+        resultado_total[
+            "claims_marcados"
+        ] = ml_sync_claims_pedidos_operativos()
+
+    session["ml_me_sin_etiqueta_count"] = (
+        resultado_total["me_sin_etiqueta"]
+    )
+    session["ml_me_sin_etiqueta_ids"] = (
+        resultado_total[
+            "me_sin_etiqueta_ids"
+        ][:10]
     )
 
     db.session.commit()
 
-    return resultado
-
+    return resultado_total
 
 def ia_datos_detectados_pedido(pedido):
     from services.ia_recolector_sync import datos_detectados_pedido_recolector
@@ -7211,7 +7303,10 @@ def sync_mercadolibre():
             incluir_auxiliares=False,
         )
         mensaje = (
-            f"Sync ML OK. Leídos: {resultado['leidos']} | "
+            "Sync ML finalizada. "
+            f"Cuentas: {resultado.get('cuentas_procesadas', 0)} | "
+            f"Fallidas: {resultado.get('cuentas_fallidas', 0)} | "
+            f"Leídos: {resultado['leidos']} | "
             f"Nuevos: {resultado['creados']} | "
             f"Actualizados: {resultado['actualizados']} | "
             f"Omitidos: {resultado['omitidos']} | "
