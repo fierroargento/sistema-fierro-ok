@@ -3643,12 +3643,21 @@ def ml_api_get_binario(path, params=None, accept="application/pdf"):
     )
 
 
-def ml_guardar_etiqueta_pdf(shipping_id):
+def ml_guardar_etiqueta_pdf(
+    shipping_id,
+    api_context=None,
+):
+    api_get_binario_fn = (
+        api_context.get_binario
+        if api_context is not None
+        else ml_api_get_binario
+    )
+
     return ml_guardar_etiqueta_pdf_service(
         shipping_id,
         app.config["UPLOAD_FOLDER"],
         secure_filename,
-        ml_api_get_binario,
+        api_get_binario_fn,
         asegurar_pdf_local_desde_url,
         logger_fn=print,
     )
@@ -3690,17 +3699,35 @@ def ml_obtener_order(order_id):
     )
 
 
-def ml_obtener_shipment(shipping_id):
+def ml_obtener_shipment(
+    shipping_id,
+    api_context=None,
+):
+    api_get_fn = (
+        api_context.get
+        if api_context is not None
+        else ml_api_get
+    )
+
     return ml_obtener_shipment_api(
         shipping_id,
-        ml_api_get,
+        api_get_fn,
     )
 
 
-def ml_obtener_billing_info(order_id):
+def ml_obtener_billing_info(
+    order_id,
+    api_context=None,
+):
+    access_token = (
+        api_context.asegurar_token()
+        if api_context is not None
+        else ml_access_token_vigente()
+    )
+
     return ml_obtener_billing_info_api(
         order_id,
-        ml_access_token_vigente(),
+        access_token,
     )
 
 
@@ -5089,11 +5116,18 @@ def ml_validar_orden_operable_antes_de_despacho(pedido):
 def ml_preparar_etiqueta_mercado_envios(
     order,
     shipment=None,
+    api_context=None,
 ):
+    def guardar_etiqueta_fn(shipping_id):
+        return ml_guardar_etiqueta_pdf(
+            shipping_id,
+            api_context=api_context,
+        )
+
     return ml_preparar_etiqueta_mercado_envios_service(
         order,
         shipment,
-        ml_guardar_etiqueta_pdf,
+        guardar_etiqueta_fn,
     )
 
 
@@ -5214,10 +5248,19 @@ def ml_upsert_pedido_desde_order(
             "Mercado Libre de la order."
         )
 
+    from services.ml_api_context import ml_api_contexto
+
+    api_context = ml_api_contexto(
+        cuenta_resuelta,
+        db_session=db.session,
+        logger_fn=print,
+    )
+
     order_id = str(order.get("id") or "").strip()
 
     shipment = ml_obtener_shipment(
-        (order.get("shipping") or {}).get("id")
+        (order.get("shipping") or {}).get("id"),
+        api_context=api_context,
     )
 
     prevalidacion = ml_prevalidar_importacion_order_service(
@@ -5232,7 +5275,13 @@ def ml_upsert_pedido_desde_order(
         ml_borrar_pedido_importado_si_corresponde,
         ml_es_mercado_envios_order,
         ml_envio_ya_despachado,
-        ml_preparar_etiqueta_mercado_envios,
+        lambda order_actual, shipment_actual=None: (
+            ml_preparar_etiqueta_mercado_envios(
+                order_actual,
+                shipment_actual,
+                api_context=api_context,
+            )
+        ),
     )
 
     if not prevalidacion.get("continuar"):
@@ -5258,7 +5307,10 @@ def ml_upsert_pedido_desde_order(
         if pack_operativo:
             id_operativo_ml = pack_operativo
 
-    billing_info = ml_obtener_billing_info(order_id)
+    billing_info = ml_obtener_billing_info(
+        order_id,
+        api_context=api_context,
+    )
 
     pedido, creado = ml_preparar_pedido_base_importacion_service(
         order,
