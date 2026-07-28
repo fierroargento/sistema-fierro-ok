@@ -253,11 +253,15 @@ class SessionSucursalDetectadaFake:
     def __init__(self, error=None):
         self.error = error
         self.commits = 0
+        self.rollbacks = 0
 
     def commit(self):
         self.commits += 1
         if self.error:
             raise self.error
+
+    def rollback(self):
+        self.rollbacks += 1
 
 
 def crear_pedido_sucursal_detectada(**cambios):
@@ -401,7 +405,7 @@ def test_adaptador_tolera_errores_auxiliares():
     assert len(logs) == 2
 
 
-def test_adaptador_tolera_error_de_commit():
+def test_adaptador_revierte_y_bloquea_si_falla_commit():
     from services.workflow_logistica_sucursal import (
         aplicar_y_persistir_sucursal_detectada,
     )
@@ -419,7 +423,8 @@ def test_adaptador_tolera_error_de_commit():
         marcar_pendiente_fn=lambda _pedido: None,
     )
 
-    assert resultado.aplicada is True
+    assert resultado.aplicada is False
     assert resultado.persistida is False
     assert resultado.error_persistencia == "fallo commit"
     assert session.commits == 1
+    assert session.rollbacks == 1

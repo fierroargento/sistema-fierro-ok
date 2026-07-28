@@ -280,8 +280,23 @@ def aplicar_y_persistir_sucursal_detectada(
     try:
         db_session.commit()
     except Exception as error:
+        try:
+            db_session.rollback()
+        except Exception as error_rollback:
+            errores_auxiliares.append(
+                f"rollback: {error_rollback}"
+            )
+            if log_fn is not None:
+                try:
+                    log_fn(
+                        "[SUCURSAL] No se pudo revertir "
+                        f"la persistencia fallida: {error_rollback}"
+                    )
+                except Exception:
+                    pass
+
         return ResultadoAplicacionSucursalDetectada(
-            aplicada=True,
+            aplicada=False,
             persistida=False,
             error_persistencia=str(error),
             errores_auxiliares=tuple(
