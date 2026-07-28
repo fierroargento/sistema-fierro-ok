@@ -394,3 +394,196 @@ def test_app_delega_guardas_iniciales_auto_respuesta():
 
     for prohibido in prohibidos:
         assert prohibido not in bloque
+
+def test_preparacion_operador_con_faltantes():
+    from services.ia_auto_respuesta_ml import (
+        preparar_respuesta_post_analisis_ml,
+    )
+
+    llamados = []
+    pedido = object()
+
+    resultado = preparar_respuesta_post_analisis_ml(
+        pedido,
+        requiere_operador=True,
+        faltantes=["dni"],
+        generar_derivacion_y_faltantes_fn=(
+            lambda recibido: (
+                llamados.append(("derivacion", recibido))
+                or "derivacion y faltantes"
+            )
+        ),
+        generar_cta_operador_fn=(
+            lambda recibido: (
+                llamados.append(("cta", recibido))
+                or "cta"
+            )
+        ),
+        generar_faltantes_fn=(
+            lambda recibido: (
+                llamados.append(("faltantes", recibido))
+                or "faltantes"
+            )
+        ),
+    )
+
+    assert resultado.texto == "derivacion y faltantes"
+    assert resultado.datos_completos is False
+    assert llamados == [("derivacion", pedido)]
+
+
+def test_preparacion_operador_sin_faltantes():
+    from services.ia_auto_respuesta_ml import (
+        preparar_respuesta_post_analisis_ml,
+    )
+
+    llamados = []
+    pedido = object()
+
+    resultado = preparar_respuesta_post_analisis_ml(
+        pedido,
+        requiere_operador=True,
+        faltantes=[],
+        generar_derivacion_y_faltantes_fn=(
+            lambda recibido: (
+                llamados.append(("derivacion", recibido))
+                or "derivacion"
+            )
+        ),
+        generar_cta_operador_fn=(
+            lambda recibido: (
+                llamados.append(("cta", recibido))
+                or "cta operador"
+            )
+        ),
+        generar_faltantes_fn=(
+            lambda recibido: (
+                llamados.append(("faltantes", recibido))
+                or "faltantes"
+            )
+        ),
+    )
+
+    assert resultado.texto == "cta operador"
+    assert resultado.datos_completos is False
+    assert llamados == [("cta", pedido)]
+
+
+def test_preparacion_datos_completos_no_genera_texto():
+    from services.ia_auto_respuesta_ml import (
+        preparar_respuesta_post_analisis_ml,
+    )
+
+    llamados = []
+
+    def no_debe_llamarse(_pedido):
+        llamados.append("llamado")
+        return "inesperado"
+
+    resultado = preparar_respuesta_post_analisis_ml(
+        object(),
+        requiere_operador=False,
+        faltantes=[],
+        generar_derivacion_y_faltantes_fn=(
+            no_debe_llamarse
+        ),
+        generar_cta_operador_fn=no_debe_llamarse,
+        generar_faltantes_fn=no_debe_llamarse,
+    )
+
+    assert resultado.texto == ""
+    assert resultado.datos_completos is True
+    assert llamados == []
+
+
+def test_preparacion_faltantes_sin_operador():
+    from services.ia_auto_respuesta_ml import (
+        preparar_respuesta_post_analisis_ml,
+    )
+
+    llamados = []
+    pedido = object()
+
+    resultado = preparar_respuesta_post_analisis_ml(
+        pedido,
+        requiere_operador=False,
+        faltantes=["telefono"],
+        generar_derivacion_y_faltantes_fn=(
+            lambda recibido: (
+                llamados.append(("derivacion", recibido))
+                or "derivacion"
+            )
+        ),
+        generar_cta_operador_fn=(
+            lambda recibido: (
+                llamados.append(("cta", recibido))
+                or "cta"
+            )
+        ),
+        generar_faltantes_fn=(
+            lambda recibido: (
+                llamados.append(("faltantes", recibido))
+                or "pedir faltantes"
+            )
+        ),
+    )
+
+    assert resultado.texto == "pedir faltantes"
+    assert resultado.datos_completos is False
+    assert llamados == [("faltantes", pedido)]
+
+
+def test_app_delega_preparacion_post_analisis_ml():
+    from pathlib import Path
+
+    app = Path("app.py").read_text(
+        encoding="utf-8-sig"
+    )
+    inicio = app.index(
+        "def ia_auto_responder_post_analisis("
+    )
+    fin = app.index(
+        "\ndef ia_generar_respuesta_faltantes_pedido",
+        inicio,
+    )
+    bloque = app[inicio:fin]
+
+    assert (
+        "preparar_respuesta_post_analisis_ml("
+        in bloque
+    )
+    assert (
+        "generar_derivacion_y_faltantes_fn=("
+        in bloque
+    )
+    assert "generar_cta_operador_fn=(" in bloque
+    assert "generar_faltantes_fn=(" in bloque
+    assert (
+        "resultado_preparacion.datos_completos"
+        in bloque
+    )
+    assert (
+        "texto = resultado_preparacion.texto"
+        in bloque
+    )
+    assert (
+        "if requiere_operador_actual and faltantes:"
+        not in bloque
+    )
+    assert "elif requiere_operador_actual:" not in bloque
+
+    posicion_preparacion = bloque.index(
+        "preparar_respuesta_post_analisis_ml("
+    )
+    posicion_datos_completos = bloque.index(
+        "procesar_datos_completos_auto_respuesta_ml("
+    )
+    posicion_envio = bloque.index(
+        "enviar_auto_respuesta_ml("
+    )
+
+    assert (
+        posicion_preparacion
+        < posicion_datos_completos
+        < posicion_envio
+    )

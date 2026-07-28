@@ -4220,8 +4220,6 @@ def ia_auto_responder_post_analisis(pedido):
         )
         return False, resultado_ownership.motivo
 
-    texto = ""
-
     requiere_operador_actual = ia_tiene_consulta_pendiente_operador_recolector(pedido)
 
     faltantes = ia_faltantes_pedido(pedido) or []
@@ -4269,79 +4267,95 @@ def ia_auto_responder_post_analisis(pedido):
             resultado_demora.motivo,
         )
 
-    if requiere_operador_actual and faltantes:
-        texto = ia_generar_respuesta_derivacion_y_faltantes_pedido(pedido)
+    from services.ia_auto_respuesta_ml import (
+        preparar_respuesta_post_analisis_ml,
+    )
 
-    elif requiere_operador_actual:
-        texto = ia_generar_cta_operador_pedido(pedido)
+    resultado_preparacion = (
+        preparar_respuesta_post_analisis_ml(
+            pedido,
+            requiere_operador=(
+                requiere_operador_actual
+            ),
+            faltantes=faltantes,
+            generar_derivacion_y_faltantes_fn=(
+                ia_generar_respuesta_derivacion_y_faltantes_pedido
+            ),
+            generar_cta_operador_fn=(
+                ia_generar_cta_operador_pedido
+            ),
+            generar_faltantes_fn=(
+                ia_generar_respuesta_faltantes_pedido
+            ),
+        )
+    )
 
-    else:
-        if not faltantes:
-            from modules.transportes import (
-                preparar_asignacion_transporte_pedido,
-            )
-            from services.ia_auto_respuesta_logistica import (
-                procesar_datos_completos_auto_respuesta_ml,
-            )
-            from services.ia_respuestas import (
-                agregar_marca_resumen_unica_service,
-            )
-            from services.logistica_defaults import (
-                aplicar_default_via_cargo_sucursal_ml_acordas,
-                es_ml_acordas_entrega_service,
-                pedido_es_plegable_pp6040_service,
-            )
-            from services.transporte_revision import (
-                construir_marca_revision_transporte,
-            )
+    if resultado_preparacion.datos_completos:
+        from modules.transportes import (
+            preparar_asignacion_transporte_pedido,
+        )
+        from services.ia_auto_respuesta_logistica import (
+            procesar_datos_completos_auto_respuesta_ml,
+        )
+        from services.ia_respuestas import (
+            agregar_marca_resumen_unica_service,
+        )
+        from services.logistica_defaults import (
+            aplicar_default_via_cargo_sucursal_ml_acordas,
+            es_ml_acordas_entrega_service,
+            pedido_es_plegable_pp6040_service,
+        )
+        from services.transporte_revision import (
+            construir_marca_revision_transporte,
+        )
 
-            resultado_datos_completos = (
-                procesar_datos_completos_auto_respuesta_ml(
-                    pedido,
-                    es_ml_acordas_fn=(
-                        es_ml_acordas_entrega_service
-                    ),
-                    pedido_es_plegable_fn=(
-                        pedido_es_plegable_pp6040_service
-                    ),
-                    preparar_asignacion_fn=(
-                        preparar_asignacion_transporte_pedido
-                    ),
-                    construir_marca_revision_fn=(
-                        construir_marca_revision_transporte
-                    ),
-                    agregar_marca_resumen_fn=(
-                        agregar_marca_resumen_unica_service
-                    ),
-                    aplicar_default_fn=(
-                        aplicar_default_via_cargo_sucursal_ml_acordas
-                    ),
-                    sugerir_sucursales_fn=sugerir_sucursales,
-                    puede_enviar_mensaje_fn=(
-                        puede_enviar_mensaje
-                    ),
-                    enviar_mensaje_ml_fn=(
-                        ml_enviar_mensaje_acordas
-                    ),
-                    registrar_envio_automatico_fn=(
-                        registrar_envio_automatico
-                    ),
-                    ia_hash_texto_fn=ia_hash_texto,
-                    wa_auto_iniciar_fn=(
-                        wa_auto_iniciar_desde_ml_si_corresponde
-                    ),
-                    db_session=db.session,
-                    now_fn=datetime.utcnow,
-                    log_fn=print,
-                )
+        resultado_datos_completos = (
+            procesar_datos_completos_auto_respuesta_ml(
+                pedido,
+                es_ml_acordas_fn=(
+                    es_ml_acordas_entrega_service
+                ),
+                pedido_es_plegable_fn=(
+                    pedido_es_plegable_pp6040_service
+                ),
+                preparar_asignacion_fn=(
+                    preparar_asignacion_transporte_pedido
+                ),
+                construir_marca_revision_fn=(
+                    construir_marca_revision_transporte
+                ),
+                agregar_marca_resumen_fn=(
+                    agregar_marca_resumen_unica_service
+                ),
+                aplicar_default_fn=(
+                    aplicar_default_via_cargo_sucursal_ml_acordas
+                ),
+                sugerir_sucursales_fn=sugerir_sucursales,
+                puede_enviar_mensaje_fn=(
+                    puede_enviar_mensaje
+                ),
+                enviar_mensaje_ml_fn=(
+                    ml_enviar_mensaje_acordas
+                ),
+                registrar_envio_automatico_fn=(
+                    registrar_envio_automatico
+                ),
+                ia_hash_texto_fn=ia_hash_texto,
+                wa_auto_iniciar_fn=(
+                    wa_auto_iniciar_desde_ml_si_corresponde
+                ),
+                db_session=db.session,
+                now_fn=datetime.utcnow,
+                log_fn=print,
             )
+        )
 
-            return (
-                resultado_datos_completos.ok,
-                resultado_datos_completos.motivo,
-            )
+        return (
+            resultado_datos_completos.ok,
+            resultado_datos_completos.motivo,
+        )
 
-        texto = ia_generar_respuesta_faltantes_pedido(pedido)
+    texto = resultado_preparacion.texto
 
     from services.ia_auto_respuesta_ml import (
         enviar_auto_respuesta_ml,

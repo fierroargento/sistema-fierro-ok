@@ -206,3 +206,53 @@ def enviar_auto_respuesta_ml(
             ok=False,
             motivo="error_envio",
         )
+
+@dataclass(frozen=True)
+class ResultadoPreparacionAutoRespuestaMl:
+    texto: str
+    datos_completos: bool
+
+
+def preparar_respuesta_post_analisis_ml(
+    pedido,
+    *,
+    requiere_operador,
+    faltantes,
+    generar_derivacion_y_faltantes_fn,
+    generar_cta_operador_fn,
+    generar_faltantes_fn,
+):
+    """
+    Selecciona la respuesta posterior al analisis.
+
+    No envia mensajes ni modifica el pedido.
+    """
+    faltantes_limpios = list(faltantes or [])
+
+    if requiere_operador and faltantes_limpios:
+        texto = generar_derivacion_y_faltantes_fn(
+            pedido
+        )
+        return ResultadoPreparacionAutoRespuestaMl(
+            texto=str(texto or ""),
+            datos_completos=False,
+        )
+
+    if requiere_operador:
+        texto = generar_cta_operador_fn(pedido)
+        return ResultadoPreparacionAutoRespuestaMl(
+            texto=str(texto or ""),
+            datos_completos=False,
+        )
+
+    if not faltantes_limpios:
+        return ResultadoPreparacionAutoRespuestaMl(
+            texto="",
+            datos_completos=True,
+        )
+
+    texto = generar_faltantes_fn(pedido)
+    return ResultadoPreparacionAutoRespuestaMl(
+        texto=str(texto or ""),
+        datos_completos=False,
+    )
