@@ -3673,7 +3673,7 @@ def ml_obtener_orders_recientes(cuenta, limit=None, horas=168, max_paginas=100):
 
     return ml_obtener_orders_recientes_api(
         cuenta,
-        api_context.get_json,
+        api_context.get,
         horas=horas,
         max_paginas=max_paginas,
     )
@@ -5038,7 +5038,7 @@ def ml_obtener_claim_de_pedido(
     return ml_obtener_claim_de_order_service(
         order_id,
         pack_id=pack_id,
-        ml_api_get=api_context.get_json,
+        ml_api_get=api_context.get,
     )
 
 

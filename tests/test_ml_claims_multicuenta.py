@@ -121,6 +121,7 @@ def test_app_conecta_claims_con_cuenta_del_pedido():
 
     assert "cuenta_por_pedido(" in adaptador
     assert "ml_api_contexto(" in adaptador
-    assert "ml_api_get=api_context.get_json" in adaptador
+    assert "ml_api_get=api_context.get" in adaptador
+    assert "api_context.get_json" not in adaptador
     assert "ml_obtener_claim_de_pedido" in sync
     assert "cuenta_ml_actual" not in sync

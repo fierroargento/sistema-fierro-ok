@@ -17,5 +17,6 @@ def test_orders_recientes_usa_contexto_de_cuenta_recibida():
 
     assert "ml_api_contexto(" in bloque
     assert "cuenta," in bloque
-    assert "api_context.get_json" in bloque
+    assert "api_context.get" in bloque
+    assert "api_context.get_json" not in bloque
     assert "\n        ml_api_get," not in bloque
