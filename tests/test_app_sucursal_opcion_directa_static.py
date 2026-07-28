@@ -28,7 +28,8 @@ def test_app_delega_opcion_via_antes_del_fallback():
         in app
     )
     assert (
-        "detectar_sucursal_fn=detectar_sucursal"
+        "detectar_sucursal_fn="
+        "detectar_sucursal_correo_para_flujo"
         in app
     )
 
