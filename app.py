@@ -2100,7 +2100,22 @@ def alertas_operativas():
         "No entregado",
         "Reclamar a Mercado Libre",
     ]
-    pedidos = Pedido.query.filter(Pedido.estado.in_(estados_activos)).all()
+    try:
+        pedidos = Pedido.query.filter(
+            Pedido.estado.in_(estados_activos)
+        ).all()
+
+    except Exception as error:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+        print(
+            "[ALERTAS-OPERATIVAS] No se pudieron "
+            f"consultar pedidos: {error}"
+        )
+        return []
 
     sin_despachar = 0
     sin_carga = 0
@@ -6225,6 +6240,16 @@ def not_found(e):
 
 @app.errorhandler(500)
 def server_error(e):
+    try:
+        db.session.rollback()
+    except Exception as error_rollback:
+        print(
+            "[ERROR-500] No se pudo revertir "
+            f"la sesión: {error_rollback}"
+        )
+
+    print(f"[ERROR-500] Error original: {e}")
+
     return render_template("500.html"), 500
 
 @app.route("/login", methods=["GET", "POST"])
