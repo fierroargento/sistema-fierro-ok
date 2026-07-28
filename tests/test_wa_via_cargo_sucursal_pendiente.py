@@ -122,3 +122,45 @@ def test_respuesta_cross_sell_prioriza_sucursal_pendiente_y_no_ia(monkeypatch):
     )
 
     assert llamadas == ["Donde es Via Cargo cerca de mi domicilio?"]
+
+
+def test_aplica_sucursal_wa_reemplaza_domicilio_y_cp():
+    pedido = PedidoDummy()
+    pedido.canal = "Tienda Nube"
+    pedido.direccion = (
+        "Fray Justo Santamaria de Oro "
+        "2663 Piso/Depto: 4C"
+    )
+    pedido.codigo_postal = "9999"
+    pedido.localidad = "Capital Federal"
+    pedido.provincia = "Capital Federal"
+    pedido.ia_esperando_respuesta = True
+    pedido.ml_mensajes_pendientes = True
+
+    aplicado = (
+        flows_transporte
+        ._aplicar_sucursal_pedido(
+            pedido,
+            {
+                "id": 5788,
+                "nombre": "Agencia Palermo",
+                "direccion": "Guemes Nro.4326",
+                "localidad": "Palermo",
+                "provincia": "Capital Federal",
+                "cp": 1425,
+            },
+        )
+    )
+
+    assert aplicado is True
+    assert pedido.sucursal_nombre == "Agencia Palermo"
+    assert pedido.direccion == "Guemes Nro.4326"
+    assert pedido.codigo_postal == "1425"
+    assert pedido.localidad == "Palermo"
+    assert pedido.provincia == "Capital Federal"
+    assert pedido.empresa_envio == "Via Cargo"
+    assert pedido.tipo_entrega == "Sucursal"
+    assert pedido.ia_sucursales_ofrecidas is None
+    assert pedido.ia_requiere_operador is False
+    assert pedido.ia_esperando_respuesta is False
+    assert pedido.ml_mensajes_pendientes is False

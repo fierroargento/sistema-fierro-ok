@@ -33,42 +33,19 @@ def _cargar_sucursales_ofrecidas(pedido):
 
 def _aplicar_sucursal_pedido(pedido, sucursal):
     """
-    APB logística:
-    aplica al pedido la sucursal confirmada/elegida por el cliente.
+    Aplica al pedido la sucursal confirmada por WhatsApp.
 
-    No decide la sucursal. Solo persiste una sucursal que ya fue elegida
-    explícitamente por número o confirmada cuando era la única opción ofrecida.
+    Delega en el servicio logístico central para que nombre,
+    dirección, localidad, provincia y CP permanezcan unidos.
     """
-    if not isinstance(sucursal, dict):
-        sucursal = {}
-
-    if not (pedido.empresa_envio or "").strip():
-        pedido.empresa_envio = "Vía Cargo"
-
-    pedido.tipo_entrega = "Sucursal"
-
-    pedido.sucursal_nombre = (
-        sucursal.get("nombre")
-        or sucursal.get("name")
-        or pedido.sucursal_nombre
+    from services.workflow_logistica_sucursal import (
+        aplicar_sucursal_elegida_al_pedido,
     )
 
-    pedido.direccion = (
-        sucursal.get("direccion")
-        or sucursal.get("address")
-        or pedido.direccion
-    )
-
-    pedido.localidad = (
-        sucursal.get("localidad")
-        or sucursal.get("city")
-        or pedido.localidad
-    )
-
-    pedido.provincia = (
-        sucursal.get("provincia")
-        or sucursal.get("state")
-        or pedido.provincia
+    return aplicar_sucursal_elegida_al_pedido(
+        pedido,
+        sucursal,
+        transporte="Vía Cargo",
     )
 
 

@@ -19,7 +19,12 @@ def normalizar_sucursal_operativa(sucursal: dict[str, Any] | None) -> dict[str, 
         "direccion": sucursal.get("direccion") or sucursal.get("address") or sucursal.get("domicilio") or "",
         "localidad": sucursal.get("localidad") or sucursal.get("city") or "",
         "provincia": sucursal.get("provincia") or sucursal.get("province") or "",
-        "cp": sucursal.get("cp") or sucursal.get("codigo_postal") or sucursal.get("postalCode") or "",
+        "cp": str(
+            sucursal.get("cp")
+            or sucursal.get("codigo_postal")
+            or sucursal.get("postalCode")
+            or ""
+        ).strip(),
     }
 
 
