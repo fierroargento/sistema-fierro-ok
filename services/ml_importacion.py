@@ -363,14 +363,16 @@ def ml_limpiar_pedidos_ml_no_operables_existentes_service(
             continue
 
         order = ml_obtener_order(
-            order_id
+            pedido,
+            order_id,
         )
 
         if not order:
             continue
 
         shipment = ml_obtener_shipment(
-            (order.get("shipping") or {}).get("id")
+            pedido,
+            (order.get("shipping") or {}).get("id"),
         )
 
         if ml_order_esta_entregado(

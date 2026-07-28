@@ -5390,11 +5390,54 @@ def ml_borrar_pedidos_ml_cargando_importados():
     return total
 
 
+def ml_api_contexto_de_pedido(pedido):
+    from services.ml_api_context import ml_api_contexto
+    from services.ml_cuentas import (
+        cuenta_por_pedido_o_backfill_unica,
+    )
+
+    cuenta = cuenta_por_pedido_o_backfill_unica(
+        pedido,
+        MercadoLibreCuenta=MercadoLibreCuenta,
+        logger_fn=print,
+    )
+
+    return ml_api_contexto(
+        cuenta,
+        db_session=db.session,
+        logger_fn=print,
+    )
+
+
+def ml_obtener_order_de_pedido(
+    pedido,
+    order_id,
+):
+    api_context = ml_api_contexto_de_pedido(pedido)
+
+    return ml_obtener_order_api(
+        order_id,
+        api_context.get,
+    )
+
+
+def ml_obtener_shipment_de_pedido(
+    pedido,
+    shipping_id,
+):
+    api_context = ml_api_contexto_de_pedido(pedido)
+
+    return ml_obtener_shipment(
+        shipping_id,
+        api_context=api_context,
+    )
+
+
 def ml_limpiar_pedidos_ml_no_operables_existentes():
     return ml_limpiar_pedidos_ml_no_operables_existentes_service(
         Pedido,
-        ml_obtener_order,
-        ml_obtener_shipment,
+        ml_obtener_order_de_pedido,
+        ml_obtener_shipment_de_pedido,
         ml_order_esta_entregado,
         ml_estado_order,
         ml_estado_shipment,
