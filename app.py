@@ -5186,7 +5186,30 @@ def ml_borrar_pedido_importado_si_corresponde(
     )
 
 
-def ml_upsert_pedido_desde_order(order):
+def ml_upsert_pedido_desde_order(
+    order,
+    cuenta_ml=None,
+):
+    from services.ml_importacion_cuentas import (
+        ml_asignar_cuenta_ml_a_pedido_service,
+        ml_resolver_cuenta_desde_order_service,
+    )
+
+    cuenta_resuelta = (
+        ml_resolver_cuenta_desde_order_service(
+            order,
+            MercadoLibreCuenta,
+            cuenta_ml=cuenta_ml,
+            logger_fn=print,
+        )
+    )
+
+    if not cuenta_resuelta:
+        raise ValueError(
+            "No se pudo identificar la cuenta "
+            "Mercado Libre de la order."
+        )
+
     order_id = str(order.get("id") or "").strip()
 
     shipment = ml_obtener_shipment(
@@ -5247,6 +5270,22 @@ def ml_upsert_pedido_desde_order(order):
         ml_aplicar_apb_en_pedido,
         billing_info=billing_info,
     )   
+
+    cuenta_asignada = (
+        ml_asignar_cuenta_ml_a_pedido_service(
+            pedido,
+            order,
+            MercadoLibreCuenta,
+            cuenta_ml=cuenta_resuelta,
+            logger_fn=print,
+        )
+    )
+
+    if not cuenta_asignada:
+        raise ValueError(
+            "No se pudo asignar la cuenta "
+            "Mercado Libre al pedido."
+        )
 
     ml_sincronizar_items_pedido_service(
         pedido,
