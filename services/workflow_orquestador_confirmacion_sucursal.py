@@ -139,10 +139,23 @@ def orquestar_confirmacion_sucursal_comun_ml(
         flujo=FLUJO_CONFIRMACION_COMUN_ML,
     )
 
+    persistencia = (
+        ejecutar_estado_y_persistencia_post_confirmacion(
+            pedido=pedido,
+            plan=plan,
+            actualizar_estado_fn=actualizar_estado_fn,
+            db_session=db_session,
+            log_fn=log_fn,
+        )
+    )
+
     transicion_ml = None
     if (
         plan.confirmada
         and plan.evaluar_transicion_ml
+        and bool(
+            getattr(persistencia, "exitosa", False)
+        )
     ):
         transicion_ml = (
             ejecutar_transicion_ml_tras_confirmacion_sucursal(
@@ -154,16 +167,6 @@ def orquestar_confirmacion_sucursal_comun_ml(
                 log_fn=log_fn,
             )
         )
-
-    persistencia = (
-        ejecutar_estado_y_persistencia_post_confirmacion(
-            pedido=pedido,
-            plan=plan,
-            actualizar_estado_fn=actualizar_estado_fn,
-            db_session=db_session,
-            log_fn=log_fn,
-        )
-    )
 
     finalizacion = (
         finalizar_confirmacion_sucursal_persistida(

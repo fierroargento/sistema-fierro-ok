@@ -140,8 +140,8 @@ def test_orquestacion_comun_respeta_orden_completo(
     assert llamadas == [
         "resolver",
         "planificar",
-        "transicion",
         "persistir",
+        "transicion",
         "finalizar",
     ]
     assert resultado.transicion_ml is transicion
@@ -150,6 +150,81 @@ def test_orquestacion_comun_respeta_orden_completo(
         "ok": True,
         "estado": "sucursal_confirmada",
     }
+
+
+def test_orquestacion_comun_no_envia_si_persistencia_falla(
+    monkeypatch,
+):
+    llamadas = []
+    persistencia = SimpleNamespace(
+        exitosa=False,
+    )
+
+    monkeypatch.setattr(
+        workflow,
+        "resolver_confirmacion_sucursal_via_cargo_ofrecida",
+        lambda *_args, **_kwargs: (
+            SimpleNamespace(confirmada=True)
+        ),
+    )
+    monkeypatch.setattr(
+        workflow,
+        "planificar_post_confirmacion_sucursal",
+        lambda **_kwargs: SimpleNamespace(
+            confirmada=True,
+            evaluar_transicion_ml=True,
+            mensaje_transicion_ml="Transicion",
+        ),
+    )
+    monkeypatch.setattr(
+        workflow,
+        "ejecutar_estado_y_persistencia_post_confirmacion",
+        lambda **_kwargs: (
+            llamadas.append("persistir")
+            or persistencia
+        ),
+    )
+    monkeypatch.setattr(
+        workflow,
+        "ejecutar_transicion_ml_tras_confirmacion_sucursal",
+        lambda **_kwargs: llamadas.append("transicion"),
+    )
+    monkeypatch.setattr(
+        workflow,
+        "finalizar_confirmacion_sucursal_persistida",
+        lambda **_kwargs: (
+            llamadas.append("finalizar")
+            or SimpleNamespace(
+                finalizada=False,
+                respuesta_flujo=None,
+            )
+        ),
+    )
+
+    resultado = (
+        workflow
+        .orquestar_confirmacion_sucursal_comun_ml(
+            SimpleNamespace(id=10),
+            "opcion 1",
+            despacho_completo_fn=lambda _pedido: True,
+            actualizar_estado_fn=lambda _pedido: None,
+            db_session=SimpleNamespace(),
+            puede_enviar_fn=lambda **_kwargs: (True, "ok"),
+            enviar_mensaje_fn=lambda *_args, **_kwargs: None,
+            registrar_envio_fn=lambda **_kwargs: None,
+            intentar_cross_sell_fn=lambda *_args, **_kwargs: None,
+            wa_auto_iniciar_fn=lambda *_args, **_kwargs: None,
+            log_fn=lambda _mensaje: None,
+        )
+    )
+
+    assert llamadas == [
+        "persistir",
+        "finalizar",
+    ]
+    assert resultado.persistencia is persistencia
+    assert resultado.transicion_ml is None
+    assert resultado.finalizada is False
 
 
 def test_orquestacion_comun_omite_transicion_si_plan_no_la_pide(
