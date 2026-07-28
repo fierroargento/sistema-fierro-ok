@@ -3663,9 +3663,17 @@ def ml_obtener_usuario_actual():
 
 
 def ml_obtener_orders_recientes(cuenta, limit=None, horas=168, max_paginas=100):
+    from services.ml_api_context import ml_api_contexto
+
+    api_context = ml_api_contexto(
+        cuenta,
+        db_session=db.session,
+        logger_fn=print,
+    )
+
     return ml_obtener_orders_recientes_api(
         cuenta,
-        ml_api_get,
+        api_context.get_json,
         horas=horas,
         max_paginas=max_paginas,
     )
