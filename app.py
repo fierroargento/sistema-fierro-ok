@@ -4664,10 +4664,6 @@ def ml_sync_mensajes_pendientes_pedidos():
     en vez de depender de /messages/unread, consulta por pack_id/order_id
     en pedidos ML operativos. Es respaldo del webhook.
     """
-    cuenta = cuenta_ml_actual()
-    if not cuenta:
-        return 0
-
     estados_operativos = [
         "Cargando Pedido",
         Estado.ETIQUETA_LISTA,
@@ -8572,9 +8568,18 @@ def resync_ml_pedido(id):
 
     try:
         detalles = []
-        order_id = str(getattr(pedido, "id_venta", "") or "").strip()
+        api_context = ml_api_contexto_de_pedido(
+            pedido
+        )
+        order_id = str(
+            getattr(pedido, "id_venta", "")
+            or ""
+        ).strip()
         if order_id:
-            order = ml_obtener_order(order_id)
+            order = ml_obtener_order_de_pedido(
+                pedido,
+                order_id,
+            )
             if order:
                 print(
                     f"[ML-RESYNC-DEBUG] Pedido #{pedido.id} order_id={order_id} "
@@ -8586,7 +8591,12 @@ def resync_ml_pedido(id):
                     f"date_closed={order.get('date_closed')}"
                 )
 
-                pedido_actualizado, creado, motivo = ml_upsert_pedido_desde_order(order)
+                pedido_actualizado, creado, motivo = (
+                    ml_upsert_pedido_desde_order(
+                        order,
+                        cuenta_ml=api_context.cuenta,
+                    )
+                )
                 if pedido_actualizado:
                     pedido = pedido_actualizado
                     detalles.append("orden")
@@ -8601,7 +8611,12 @@ def resync_ml_pedido(id):
                         detalles.append("estado=Cancelado (ML informa orden cancelada)")
                         print(f"[ML-RESYNC] Pedido #{pedido.id} cancelado — ML status={order_status}")
 
-                    shipment = ml_obtener_shipment((order.get("shipping") or {}).get("id"))
+                    shipment = ml_obtener_shipment(
+                        (order.get("shipping") or {}).get(
+                            "id"
+                        ),
+                        api_context=api_context,
+                    )
 
                     print(
                         f"[ML-RESYNC-DEBUG] Pedido #{pedido.id} "
@@ -8634,7 +8649,11 @@ def resync_ml_pedido(id):
         tiene_msgs, count_msgs = ml_sync_mensajes_pedido(pedido)
         detalles.append(f"mensajes={count_msgs}")
 
-        claim = ml_obtener_claim_de_order(pedido.id_venta, pedido.ml_pack_id)
+        claim = ml_obtener_claim_de_pedido(
+            pedido,
+            pedido.id_venta,
+            pedido.ml_pack_id,
+        )
         ml_marcar_claim_en_pedido(pedido, claim)
         detalles.append("reclamo=activo" if claim else "reclamo=sin activo")
 
@@ -8763,19 +8782,42 @@ def actualizar_tracking_externo_pedido(id):
                     order_live = None
 
                     try:
-                        order_live = ml_obtener_order(pedido.id_venta)
+                        order_live = (
+                            ml_obtener_order_de_pedido(
+                                pedido,
+                                pedido.id_venta,
+                            )
+                        )
 
                     except Exception as e:
                         print(f"[TRACKING] No se pudo consultar order ML para cancelación pedido #{pedido.id}: {e}")
 
                     if not order_live and pedido.ml_tipo == "Mercado Envíos":
                         try:
-                            cuenta_ml = cuenta_ml_actual()
-                            seller_id = str((cuenta_ml.user_id_ml if cuenta_ml else "") or "").strip()
-                            pack_id = str(getattr(pedido, "ml_pack_id", "") or getattr(pedido, "id_venta", "") or "").strip()
+                            api_context = (
+                                ml_api_contexto_de_pedido(
+                                    pedido
+                                )
+                            )
+                            seller_id = (
+                                api_context.seller_id
+                            )
+                            pack_id = str(
+                                getattr(
+                                    pedido,
+                                    "ml_pack_id",
+                                    "",
+                                )
+                                or getattr(
+                                    pedido,
+                                    "id_venta",
+                                    "",
+                                )
+                                or ""
+                            ).strip()
 
                             if seller_id and pack_id:
-                                data_search = ml_api_get(
+                                data_search = api_context.get(
                                     "/orders/search",
                                     params={
                                         "seller": seller_id,
@@ -8818,7 +8860,13 @@ def actualizar_tracking_externo_pedido(id):
 
                     if not evidencia_ml:
                         try:
-                            claim_live = ml_obtener_claim_de_order(pedido.id_venta, pedido.ml_pack_id)
+                            claim_live = (
+                                ml_obtener_claim_de_pedido(
+                                    pedido,
+                                    pedido.id_venta,
+                                    pedido.ml_pack_id,
+                                )
+                            )
 
                             print(
                                 f"[TRACKING-CANCELACION-DEBUG] Pedido #{pedido.id} "
