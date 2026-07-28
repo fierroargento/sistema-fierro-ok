@@ -17,54 +17,97 @@
         {% endif %}
 
         <table class="tabla">
-            <tbody>
+            <thead>
                 <tr>
-                    <th style="width:240px;">Estado conexión</th>
-                    <td>{{ cuenta_ml.estado_conexion if cuenta_ml else 'desconectada' }}</td>
-                </tr>
-                <tr>
+                    <th>Estado</th>
                     <th>Nickname</th>
-                    <td>{{ cuenta_ml.nickname if cuenta_ml and cuenta_ml.nickname else '-' }}</td>
-                </tr>
-                <tr>
                     <th>User ID ML</th>
-                    <td>{{ cuenta_ml.user_id_ml if cuenta_ml and cuenta_ml.user_id_ml else '-' }}</td>
-                </tr>
-                <tr>
                     <th>Token vence</th>
-                    <td>{{ cuenta_ml.token_expires_at.strftime('%d/%m/%Y %H:%M') if cuenta_ml and cuenta_ml.token_expires_at else '-' }}</td>
-                </tr>
-                <tr>
                     <th>Última sync</th>
-                    <td>{{ cuenta_ml.last_sync_at.strftime('%d/%m/%Y %H:%M') if cuenta_ml and cuenta_ml.last_sync_at else '-' }}</td>
+                    <th>Detalle</th>
+                    <th>Acción</th>
                 </tr>
+            </thead>
+            <tbody>
+                {% for cuenta in cuentas_ml %}
                 <tr>
-                    <th>Detalle última sync</th>
-                    <td>{{ cuenta_ml.last_sync_detail if cuenta_ml and cuenta_ml.last_sync_detail else '-' }}</td>
+                    <td>{{ cuenta.estado_conexion or 'desconectada' }}</td>
+                    <td>{{ cuenta.nickname or '-' }}</td>
+                    <td>{{ cuenta.user_id_ml or '-' }}</td>
+                    <td>
+                        {{ fecha_argentina(cuenta.token_expires_at).strftime('%d/%m/%Y %H:%M') if cuenta.token_expires_at else '-' }}
+                    </td>
+                    <td>
+                        {{ fecha_argentina(cuenta.last_sync_at).strftime('%d/%m/%Y %H:%M') if cuenta.last_sync_at else '-' }}
+                    </td>
+                    <td>{{ cuenta.last_sync_detail or '-' }}</td>
+                    <td>
+                        {% if cuenta.estado_conexion == 'conectada' %}
+                        <form
+                            method="post"
+                            action="{{ url_for('desconectar_mercadolibre', cuenta_id=cuenta.id) }}"
+                            onsubmit="return confirm('¿Desconectar esta cuenta de Mercado Libre? Los pedidos históricos conservarán su identidad.');"
+                        >
+                            <button type="submit" class="boton-cancelar">
+                                Desconectar
+                            </button>
+                        </form>
+                        {% else %}
+                        Histórica / desconectada
+                        {% endif %}
+                    </td>
                 </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7">
+                        No hay cuentas de Mercado Libre vinculadas.
+                    </td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
 
-        <div class="acciones" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
-            {% if not faltantes %}
-                {% if cuenta_ml and cuenta_ml.access_token %}
-                <form method="post" action="{{ url_for('sync_mercadolibre') }}">
-                    <button type="submit" class="boton-accion">Sincronizar pedidos ML</button>
-                </form>
-                <form method="post" action="{{ url_for('desconectar_mercadolibre') }}" onsubmit="return confirm('¿Desconectar la cuenta de Mercado Libre?');">
-                    <button type="submit" class="boton-cancelar">Desconectar cuenta</button>
-                </form>
-                <form method="post" action="{{ url_for('reset_prueba_mercadolibre') }}" onsubmit="return confirm('Esto elimina SOLO pedidos importados de Mercado Libre que siguen en Cargando Pedido. No toca manuales, no toca despachados, no toca finalizados. ¿Seguimos?');">
-                    <button type="submit" class="boton-cancelar">Borrar pedidos ML de prueba</button>
-                </form>
-                <form method="post" action="{{ url_for('reset_total_mercadolibre') }}" onsubmit="return confirm('RESET TOTAL ML EN FIERRO: elimina TODOS los pedidos importados desde Mercado Libre dentro del Sistema Fierro. NO toca Mercado Libre real. ¿Confirmás?');">
-                    <button type="submit" class="boton-cancelar">Reset total ML en Fierro</button>
-                </form>
-                {% else %}
-                <a href="{{ url_for('conectar_mercadolibre') }}" class="boton-accion">Conectar Mercado Libre</a>
-                {% endif %}
+        {% if not faltantes %}
+        <div
+            class="acciones"
+            style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;"
+        >
+            <a
+                href="{{ url_for('conectar_mercadolibre') }}"
+                class="boton-accion"
+            >
+                Agregar cuenta Mercado Libre
+            </a>
+
+            {% if hay_cuentas_ml_activas %}
+            <form method="post" action="{{ url_for('sync_mercadolibre') }}">
+                <button type="submit" class="boton-accion">
+                    Sincronizar todas las cuentas ML
+                </button>
+            </form>
+
+            <form
+                method="post"
+                action="{{ url_for('reset_prueba_mercadolibre') }}"
+                onsubmit="return confirm('Esto elimina SOLO pedidos importados de Mercado Libre que siguen en Cargando Pedido. No toca manuales, despachados ni finalizados. ¿Seguimos?');"
+            >
+                <button type="submit" class="boton-cancelar">
+                    Borrar pedidos ML de prueba
+                </button>
+            </form>
+
+            <form
+                method="post"
+                action="{{ url_for('reset_total_mercadolibre') }}"
+                onsubmit="return confirm('RESET TOTAL ML EN FIERRO: elimina TODOS los pedidos importados desde Mercado Libre dentro del Sistema Fierro. NO toca Mercado Libre real. ¿Confirmás?');"
+            >
+                <button type="submit" class="boton-cancelar">
+                    Reset total ML en Fierro
+                </button>
+            </form>
             {% endif %}
         </div>
+        {% endif %}
 
         <div class="card" style="margin-top:16px;">
             <h3>Qué hace esta fase</h3>

@@ -7032,7 +7032,19 @@ def admin_integraciones():
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
 
-    cuenta_ml = cuenta_ml_actual()
+    cuentas_ml = (
+        MercadoLibreCuenta.query
+        .order_by(MercadoLibreCuenta.id.asc())
+        .all()
+    )
+    hay_cuentas_ml_activas = any(
+        str(
+            getattr(cuenta, "estado_conexion", "")
+            or ""
+        ).strip().lower() == "conectada"
+        and bool(getattr(cuenta, "access_token", None))
+        for cuenta in cuentas_ml
+    )
     faltantes = ml_config_faltante()
     cuenta_tn = cuenta_tn_actual()
     faltantes_tn = tn_config_faltante()
@@ -7042,7 +7054,10 @@ def admin_integraciones():
 
     return render_template(
         "admin_integraciones.html",
-        cuenta_ml=cuenta_ml,
+        cuentas_ml=cuentas_ml,
+        hay_cuentas_ml_activas=(
+            hay_cuentas_ml_activas
+        ),
         faltantes=faltantes,
         cuenta_tn=cuenta_tn,
         faltantes_tn=faltantes_tn,
@@ -7229,14 +7244,30 @@ def conectar_mercadolibre():
 
     faltantes = ml_config_faltante()
     if faltantes:
-        return redirect(url_for("admin_integraciones", error=f"Faltan variables: {', '.join(faltantes)}"))
+        return redirect(url_for(
+            "admin_integraciones",
+            error=(
+                "Faltan variables: "
+                + ", ".join(faltantes)
+            ),
+        ))
+
+    import secrets
+
+    oauth_state = secrets.token_urlsafe(32)
+    session["ml_oauth_state"] = oauth_state
 
     params = urlencode({
         "response_type": "code",
         "client_id": ml_client_id(),
         "redirect_uri": ml_redirect_uri(),
+        "state": oauth_state,
     })
-    return redirect(f"https://auth.mercadolibre.com.ar/authorization?{params}")
+
+    return redirect(
+        "https://auth.mercadolibre.com.ar/"
+        f"authorization?{params}"
+    )
 
 
 @app.route("/admin/integraciones/mercadolibre/callback")
@@ -7245,46 +7276,180 @@ def callback_mercadolibre():
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
 
-    error = (request.args.get("error") or "").strip()
-    code = (request.args.get("code") or "").strip()
+    error = (
+        request.args.get("error")
+        or ""
+    ).strip()
+    code = (
+        request.args.get("code")
+        or ""
+    ).strip()
+    estado_recibido = (
+        request.args.get("state")
+        or ""
+    ).strip()
+    estado_esperado = str(
+        session.pop("ml_oauth_state", "")
+        or ""
+    ).strip()
+
+    if (
+        not estado_esperado
+        or not estado_recibido
+        or estado_recibido != estado_esperado
+    ):
+        return redirect(url_for(
+            "admin_integraciones",
+            error=(
+                "No se pudo validar el inicio de sesión "
+                "de Mercado Libre. Volvé a conectar "
+                "la cuenta."
+            ),
+        ))
 
     if error:
-        return redirect(url_for("admin_integraciones", error=f"Mercado Libre devolvió error: {error}"))
+        return redirect(url_for(
+            "admin_integraciones",
+            error=(
+                "Mercado Libre devolvió error: "
+                f"{error}"
+            ),
+        ))
 
     if not code:
-        return redirect(url_for("admin_integraciones", error="Mercado Libre no devolvió código de autorización."))
+        return redirect(url_for(
+            "admin_integraciones",
+            error=(
+                "Mercado Libre no devolvió código "
+                "de autorización."
+            ),
+        ))
 
     try:
         token_data = ml_exchange_code_for_token(code)
-        cuenta = cuenta_ml_actual() or MercadoLibreCuenta()
-        ml_guardar_token_en_cuenta(cuenta, token_data)
-        if cuenta.id is None:
+        access_token = str(
+            token_data.get("access_token")
+            or ""
+        ).strip()
+
+        if not access_token:
+            raise ValueError(
+                "Mercado Libre no devolvió access token."
+            )
+
+        perfil = ml_obtener_usuario_actual_api(
+            lambda path: ml_api_get_con_token(
+                access_token,
+                path,
+            )
+        )
+
+        seller_id = str(
+            (perfil or {}).get("id")
+            or ""
+        ).strip()
+
+        if not seller_id:
+            raise ValueError(
+                "Mercado Libre no devolvió el "
+                "seller_id de la cuenta."
+            )
+
+        cuenta = (
+            MercadoLibreCuenta.query
+            .filter_by(user_id_ml=seller_id)
+            .first()
+        )
+
+        cuenta_nueva = cuenta is None
+
+        if cuenta_nueva:
+            cuenta = MercadoLibreCuenta(
+                user_id_ml=seller_id,
+            )
             db.session.add(cuenta)
-        db.session.flush()
 
-        perfil = ml_obtener_usuario_actual()
-        cuenta.user_id_ml = str(perfil.get("id") or cuenta.user_id_ml or "")
-        cuenta.nickname = perfil.get("nickname") or cuenta.nickname
+        ml_guardar_token_en_cuenta(
+            cuenta,
+            token_data,
+        )
+
+        cuenta.user_id_ml = seller_id
+        cuenta.nickname = (
+            (perfil or {}).get("nickname")
+            or cuenta.nickname
+        )
         cuenta.estado_conexion = "conectada"
+
         db.session.commit()
-        return redirect(url_for("admin_integraciones", ok="Cuenta de Mercado Libre vinculada correctamente."))
-    except Exception as e:
+
+        accion = (
+            "vinculada"
+            if cuenta_nueva
+            else "reconectada"
+        )
+
+        return redirect(url_for(
+            "admin_integraciones",
+            ok=(
+                "Cuenta de Mercado Libre "
+                f"{accion} correctamente: "
+                f"{cuenta.nickname or seller_id}."
+            ),
+        ))
+
+    except Exception as error_callback:
         db.session.rollback()
-        return redirect(url_for("admin_integraciones", error=f"No se pudo vincular Mercado Libre: {e}"))
+
+        return redirect(url_for(
+            "admin_integraciones",
+            error=(
+                "No se pudo vincular Mercado Libre: "
+                f"{error_callback}"
+            ),
+        ))
 
 
-@app.route("/admin/integraciones/mercadolibre/desconectar", methods=["POST"])
+@app.route(
+    "/admin/integraciones/mercadolibre/"
+    "<int:cuenta_id>/desconectar",
+    methods=["POST"],
+)
 @login_required
-def desconectar_mercadolibre():
+def desconectar_mercadolibre(cuenta_id):
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
 
-    cuenta = cuenta_ml_actual()
-    if cuenta:
-        db.session.delete(cuenta)
-        db.session.commit()
+    cuenta = MercadoLibreCuenta.query.get_or_404(
+        cuenta_id
+    )
+    identificacion = (
+        cuenta.nickname
+        or cuenta.user_id_ml
+        or str(cuenta.id)
+    )
 
-    return redirect(url_for("admin_integraciones", ok="Cuenta de Mercado Libre desconectada."))
+    cuenta.estado_conexion = "desconectada"
+    cuenta.access_token = None
+    cuenta.refresh_token = None
+    cuenta.token_expires_at = None
+    cuenta.scope = None
+    cuenta.last_sync_status = "desconectada"
+    cuenta.last_sync_detail = (
+        "Cuenta desconectada manualmente. "
+        "Se conserva su identidad y el vínculo "
+        "con pedidos históricos."
+    )
+
+    db.session.commit()
+
+    return redirect(url_for(
+        "admin_integraciones",
+        ok=(
+            "Cuenta de Mercado Libre desconectada: "
+            f"{identificacion}."
+        ),
+    ))
 
 
 @app.route("/admin/integraciones/mercadolibre/sync", methods=["POST"])
@@ -7293,9 +7458,20 @@ def sync_mercadolibre():
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
 
-    cuenta = cuenta_ml_actual()
-    if not cuenta:
-        return redirect(url_for("admin_integraciones", error="Primero conectá una cuenta de Mercado Libre."))
+    from services.ml_cuentas import cuentas_activas
+
+    cuentas = cuentas_activas(
+        MercadoLibreCuenta=MercadoLibreCuenta,
+    )
+
+    if not cuentas:
+        return redirect(url_for(
+            "admin_integraciones",
+            error=(
+                "Primero conectá una cuenta "
+                "de Mercado Libre."
+            ),
+        ))
 
     try:
         resultado = ml_sync_manual(
@@ -7317,12 +7493,11 @@ def sync_mercadolibre():
         )
         return redirect(url_for("admin_integraciones", ok=mensaje))
     except Exception as e:
-        if cuenta:
-            cuenta.last_sync_at = datetime.utcnow()
-            cuenta.last_sync_status = "error"
-            cuenta.last_sync_detail = str(e)
-            db.session.commit()
-        return redirect(url_for("admin_integraciones", error=f"Falló la sincronización: {e}"))
+        db.session.rollback()
+        return redirect(url_for(
+            "admin_integraciones",
+            error=f"Falló la sincronización: {e}",
+        ))
 
 
 @app.route("/admin/integraciones/mercadolibre/reset-prueba", methods=["POST"])
