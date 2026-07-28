@@ -227,8 +227,7 @@ def ml_marcar_claim_en_pedido_service(
 def ml_sync_claims_pedidos_operativos_service(
     Pedido,
     db,
-    cuenta_ml_actual,
-    ml_obtener_claim_de_order,
+    ml_obtener_claim_de_pedido,
     ml_marcar_claim_en_pedido,
     estados_operativos,
 ):
@@ -236,11 +235,6 @@ def ml_sync_claims_pedidos_operativos_service(
     Consulta claims para pedidos ML operativos.
     Respaldo para cuando el webhook no trae/impacta el evento.
     """
-
-    cuenta = cuenta_ml_actual()
-
-    if not cuenta:
-        return 0
 
     pedidos = Pedido.query.filter(
         Pedido.canal == "Mercado Libre",
@@ -261,10 +255,19 @@ def ml_sync_claims_pedidos_operativos_service(
         if not order_id and not pack_id:
             continue
 
-        claim = ml_obtener_claim_de_order(
-            order_id,
-            pack_id,
-        )
+        try:
+            claim = ml_obtener_claim_de_pedido(
+                pedido,
+                order_id,
+                pack_id,
+            )
+        except Exception as error:
+            print(
+                "[ML-CLAIMS-SYNC] No se pudo consultar "
+                f"pedido #{getattr(pedido, 'id', '?')}: "
+                f"{error}"
+            )
+            continue
 
         ml_marcar_claim_en_pedido(
             pedido,

@@ -5009,6 +5009,31 @@ def ml_marcar_claim_en_pedido(
     )
 
 
+def ml_obtener_claim_de_pedido(
+    pedido,
+    order_id,
+    pack_id=None,
+):
+    from services.ml_api_context import ml_api_contexto
+    from services.ml_cuentas import cuenta_por_pedido
+
+    cuenta = cuenta_por_pedido(
+        pedido,
+        MercadoLibreCuenta=MercadoLibreCuenta,
+    )
+    api_context = ml_api_contexto(
+        cuenta,
+        db_session=db.session,
+        logger_fn=print,
+    )
+
+    return ml_obtener_claim_de_order_service(
+        order_id,
+        pack_id=pack_id,
+        ml_api_get=api_context.get_json,
+    )
+
+
 def ml_sync_claims_pedidos_operativos():
     estados_operativos = [
         Estado.CARGANDO,
@@ -5026,8 +5051,7 @@ def ml_sync_claims_pedidos_operativos():
     return ml_sync_claims_pedidos_operativos_service(
         Pedido,
         db,
-        cuenta_ml_actual,
-        ml_obtener_claim_de_order,
+        ml_obtener_claim_de_pedido,
         ml_marcar_claim_en_pedido,
         estados_operativos,
     )
