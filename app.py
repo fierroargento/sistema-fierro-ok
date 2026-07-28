@@ -3490,12 +3490,16 @@ def tn_importar_o_actualizar_pedido(order):
         pedido.seguimiento = None
     if url_tracking:
         pedido.tn_tracking_url = url_tracking[:300]
-    pedido.empresa_envio = empresa or pedido.empresa_envio
-    pedido.tipo_entrega = tipo_entrega or pedido.tipo_entrega
-    pedido.direccion = direccion["direccion"][:200] or pedido.direccion
-    pedido.codigo_postal = direccion["codigo_postal"][:10] or pedido.codigo_postal
-    pedido.localidad = direccion["localidad"][:100] or pedido.localidad
-    pedido.provincia = direccion["provincia"][:100] or pedido.provincia
+    from services.tiendanube_datos import (
+        aplicar_destino_tiendanube_service,
+    )
+
+    aplicar_destino_tiendanube_service(
+        pedido,
+        direccion,
+        empresa=empresa,
+        tipo_entrega=tipo_entrega,
+    )
     pedido.ultima_sync_tn = datetime.utcnow()
 
     if creado or pedido.estado == "Cargando Pedido":
