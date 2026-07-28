@@ -911,6 +911,18 @@ def procesar_escalamiento_consulta_sucursal(
     except Exception as error:
         error_texto = str(error)
 
+        try:
+            db_session.rollback()
+        except Exception as error_rollback:
+            if logger_fn is not None:
+                try:
+                    logger_fn(
+                        "[VIA CARGO] No se pudo revertir "
+                        f"el escalamiento fallido: {error_rollback}"
+                    )
+                except Exception:
+                    pass
+
         if logger_fn is not None:
             try:
                 logger_fn(

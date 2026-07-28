@@ -9,12 +9,16 @@ from services.workflow_sucursal_decision import (
 class SessionFake:
     def __init__(self, error=None):
         self.commits = 0
+        self.rollbacks = 0
         self.error = error
 
     def commit(self):
         self.commits += 1
         if self.error:
             raise self.error
+
+    def rollback(self):
+        self.rollbacks += 1
 
 
 def crear_pedido(**cambios):
@@ -163,6 +167,7 @@ def test_error_de_commit_conserva_finalizacion_legacy():
     assert resultado.error == "fallo simulado"
     assert pedido.ia_requiere_operador is True
     assert session.commits == 1
+    assert session.rollbacks == 1
     assert any(
         "fallo simulado" in mensaje
         for mensaje in logs
