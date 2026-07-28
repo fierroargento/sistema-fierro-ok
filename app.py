@@ -6336,7 +6336,12 @@ def inicio():
                 pedidos = list(pedidos_por_id.values())
 
             except Exception as e:
-                print("[CROSS-SELL PREPARACION] Error filtrando Inicio Carga:", e)
+                db.session.rollback()
+                print(
+                    "[CROSS-SELL PREPARACION] "
+                    "Error filtrando Inicio Carga:",
+                    e,
+                )
 
     actualizar_demoras_inicio_pedidos(pedidos)
 
