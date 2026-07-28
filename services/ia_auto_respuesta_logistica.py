@@ -136,3 +136,146 @@ def aplicar_default_via_cargo_auto_respuesta(
         )
         _rollback_seguro(db_session)
         return False
+
+
+@dataclass(frozen=True)
+class ResultadoDatosCompletosAutoRespuestaMl:
+    ok: bool
+    motivo: str
+
+
+def procesar_datos_completos_auto_respuesta_ml(
+    pedido: Any,
+    *,
+    es_ml_acordas_fn,
+    pedido_es_plegable_fn,
+    preparar_asignacion_fn,
+    construir_marca_revision_fn,
+    agregar_marca_resumen_fn,
+    aplicar_default_fn,
+    sugerir_sucursales_fn,
+    puede_enviar_mensaje_fn,
+    enviar_mensaje_ml_fn,
+    registrar_envio_automatico_fn,
+    ia_hash_texto_fn,
+    wa_auto_iniciar_fn,
+    db_session,
+    now_fn,
+    log_fn=print,
+    procesar_asignacion_service_fn=None,
+    aplicar_default_service_fn=None,
+    enviar_sugerencia_service_fn=None,
+):
+    """
+    Coordina el camino de datos completos:
+    transporte, default, sucursales y handoff.
+    """
+    if procesar_asignacion_service_fn is None:
+        procesar_asignacion_service_fn = (
+            procesar_asignacion_transporte_pp6040
+        )
+
+    if aplicar_default_service_fn is None:
+        aplicar_default_service_fn = (
+            aplicar_default_via_cargo_auto_respuesta
+        )
+
+    if enviar_sugerencia_service_fn is None:
+        from services.ml_sucursales_via_cargo import (
+            enviar_sugerencia_sucursales_ml,
+        )
+
+        enviar_sugerencia_service_fn = (
+            enviar_sugerencia_sucursales_ml
+        )
+
+    pp6040_transporte_asignado = False
+    es_via_cargo_acordas = bool(
+        es_ml_acordas_fn(pedido)
+        and not pedido_es_plegable_fn(pedido)
+    )
+
+    if not es_via_cargo_acordas:
+        resultado_asignacion = (
+            procesar_asignacion_service_fn(
+                pedido,
+                pedido_es_plegable_fn=(
+                    pedido_es_plegable_fn
+                ),
+                preparar_asignacion_fn=(
+                    preparar_asignacion_fn
+                ),
+                construir_marca_revision_fn=(
+                    construir_marca_revision_fn
+                ),
+                agregar_marca_resumen_fn=(
+                    agregar_marca_resumen_fn
+                ),
+                db_session=db_session,
+                log_fn=log_fn,
+            )
+        )
+        pp6040_transporte_asignado = bool(
+            resultado_asignacion.transporte_asignado
+        )
+
+        if not pp6040_transporte_asignado:
+            return ResultadoDatosCompletosAutoRespuestaMl(
+                ok=False,
+                motivo=(
+                    resultado_asignacion.motivo
+                    or "datos_completos"
+                ),
+            )
+
+    if not pp6040_transporte_asignado:
+        aplicar_default_service_fn(
+            pedido,
+            aplicar_default_fn=aplicar_default_fn,
+            db_session=db_session,
+            log_fn=log_fn,
+        )
+
+    resultado_sucursales = enviar_sugerencia_service_fn(
+        pedido=pedido,
+        sugerir_sucursales_fn=sugerir_sucursales_fn,
+        puede_enviar_mensaje_fn=(
+            puede_enviar_mensaje_fn
+        ),
+        enviar_mensaje_ml_fn=enviar_mensaje_ml_fn,
+        registrar_envio_automatico_fn=(
+            registrar_envio_automatico_fn
+        ),
+        ia_hash_texto_fn=ia_hash_texto_fn,
+        db_session=db_session,
+        motivo_ok="sucursales_enviadas",
+        motivo_error="error_sucursales",
+        now_fn=now_fn,
+        log_fn=log_fn,
+    )
+
+    if resultado_sucursales is not None:
+        return ResultadoDatosCompletosAutoRespuestaMl(
+            ok=bool(resultado_sucursales["ok"]),
+            motivo=resultado_sucursales["motivo"],
+        )
+
+    ok_wa, motivo_wa = wa_auto_iniciar_fn(
+        pedido,
+        faltantes=[],
+        motivo=(
+            "ia_auto_responder_post_analisis_"
+            "datos_completos"
+        ),
+    )
+
+    if ok_wa:
+        return ResultadoDatosCompletosAutoRespuestaMl(
+            ok=True,
+            motivo="wa_iniciado_datos_completos",
+        )
+
+    return ResultadoDatosCompletosAutoRespuestaMl(
+        ok=False,
+        motivo=motivo_wa or "datos_completos",
+    )

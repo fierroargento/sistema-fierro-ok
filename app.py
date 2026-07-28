@@ -4277,87 +4277,46 @@ def ia_auto_responder_post_analisis(pedido):
 
     else:
         if not faltantes:
-            pp6040_transporte_asignado = False
-            # Datos del cliente completos.
-            # ML Acordás la Entrega que NO es plegable PP6040
-            # continúa por Via Cargo sucursal.
-            es_via_cargo_acordas = (
-                es_ml_acordas_entrega(pedido)
-                and not pedido_es_plegable_pp6040(pedido)
+            from modules.transportes import (
+                preparar_asignacion_transporte_pedido,
+            )
+            from services.ia_auto_respuesta_logistica import (
+                procesar_datos_completos_auto_respuesta_ml,
+            )
+            from services.ia_respuestas import (
+                agregar_marca_resumen_unica_service,
+            )
+            from services.logistica_defaults import (
+                aplicar_default_via_cargo_sucursal_ml_acordas,
+                es_ml_acordas_entrega_service,
+                pedido_es_plegable_pp6040_service,
+            )
+            from services.transporte_revision import (
+                construir_marca_revision_transporte,
             )
 
-            if not es_via_cargo_acordas:
-                from modules.transportes import (
-                    preparar_asignacion_transporte_pedido,
-                )
-                from services.ia_auto_respuesta_logistica import (
-                    procesar_asignacion_transporte_pp6040,
-                )
-                from services.ia_respuestas import (
-                    agregar_marca_resumen_unica_service,
-                )
-                from services.transporte_revision import (
-                    construir_marca_revision_transporte,
-                )
-
-                resultado_asignacion_pp6040 = (
-                    procesar_asignacion_transporte_pp6040(
-                        pedido,
-                        pedido_es_plegable_fn=(
-                            pedido_es_plegable_pp6040
-                        ),
-                        preparar_asignacion_fn=(
-                            preparar_asignacion_transporte_pedido
-                        ),
-                        construir_marca_revision_fn=(
-                            construir_marca_revision_transporte
-                        ),
-                        agregar_marca_resumen_fn=(
-                            agregar_marca_resumen_unica_service
-                        ),
-                        db_session=db.session,
-                        log_fn=print,
-                    )
-                )
-                pp6040_transporte_asignado = (
-                    resultado_asignacion_pp6040
-                    .transporte_asignado
-                )
-
-                if not pp6040_transporte_asignado:
-                    return (
-                        False,
-                        resultado_asignacion_pp6040.motivo
-                        or "datos_completos",
-                    )
-
-            if not pp6040_transporte_asignado:
-                from services.ia_auto_respuesta_logistica import (
-                    aplicar_default_via_cargo_auto_respuesta,
-                )
-                from services.logistica_defaults import (
-                    aplicar_default_via_cargo_sucursal_ml_acordas,
-                )
-
-                aplicar_default_via_cargo_auto_respuesta(
+            resultado_datos_completos = (
+                procesar_datos_completos_auto_respuesta_ml(
                     pedido,
+                    es_ml_acordas_fn=(
+                        es_ml_acordas_entrega_service
+                    ),
+                    pedido_es_plegable_fn=(
+                        pedido_es_plegable_pp6040_service
+                    ),
+                    preparar_asignacion_fn=(
+                        preparar_asignacion_transporte_pedido
+                    ),
+                    construir_marca_revision_fn=(
+                        construir_marca_revision_transporte
+                    ),
+                    agregar_marca_resumen_fn=(
+                        agregar_marca_resumen_unica_service
+                    ),
                     aplicar_default_fn=(
                         aplicar_default_via_cargo_sucursal_ml_acordas
                     ),
-                    db_session=db.session,
-                    log_fn=print,
-                )
-
-            from services.ml_sucursales_via_cargo import (
-                enviar_sugerencia_sucursales_ml,
-            )
-
-            resultado_sucursales = (
-                enviar_sugerencia_sucursales_ml(
-                    pedido=pedido,
-                    sugerir_sucursales_fn=(
-                        sugerir_sucursales
-                    ),
+                    sugerir_sucursales_fn=sugerir_sucursales,
                     puede_enviar_mensaje_fn=(
                         puede_enviar_mensaje
                     ),
@@ -4368,35 +4327,19 @@ def ia_auto_responder_post_analisis(pedido):
                         registrar_envio_automatico
                     ),
                     ia_hash_texto_fn=ia_hash_texto,
+                    wa_auto_iniciar_fn=(
+                        wa_auto_iniciar_desde_ml_si_corresponde
+                    ),
                     db_session=db.session,
-                    motivo_ok="sucursales_enviadas",
-                    motivo_error="error_sucursales",
                     now_fn=datetime.utcnow,
                     log_fn=print,
                 )
             )
 
-            if resultado_sucursales is not None:
-                return (
-                    resultado_sucursales["ok"],
-                    resultado_sucursales["motivo"],
-                )
-
-            # APB ML -> WA:
-            # Si no hay sucursales para ofrecer por ML porque el pedido ya quedó
-            # operativo/completo, intentamos avisar transición por ML e iniciar WhatsApp.
-            ok_wa, motivo_wa = wa_auto_iniciar_desde_ml_si_corresponde(
-                pedido,
-                faltantes=[],
-                motivo="ia_auto_responder_post_analisis_datos_completos",
+            return (
+                resultado_datos_completos.ok,
+                resultado_datos_completos.motivo,
             )
-
-            if ok_wa:
-                return True, "wa_iniciado_datos_completos"
-
-            # No es Via Cargo, todavía falta una condición de handoff, o ya quedó bloqueado
-            # por regla de canal. No generamos texto ML adicional desde acá.
-            return False, motivo_wa or "datos_completos"
 
         texto = ia_generar_respuesta_faltantes_pedido(pedido)
 
