@@ -102,6 +102,24 @@ def test_resuelve_cuenta_por_seller_de_order():
     assert p.ml_seller_id == "222"
 
 
+def test_no_usa_default_si_order_trae_seller_desconocido():
+    c = cuenta(1, "111")
+    p = pedido_ml()
+    logs = []
+
+    resultado = ml_asignar_cuenta_ml_a_pedido_service(
+        p,
+        {"seller": {"id": "222"}},
+        modelo_cuentas([c]),
+        logger_fn=lambda *partes: logs.append(partes),
+    )
+
+    assert resultado is None
+    assert p.ml_cuenta_id is None
+    assert p.ml_seller_id == ""
+    assert logs
+
+
 def test_usa_default_si_hay_una_sola_cuenta_y_order_no_trae_seller():
     c = cuenta(1, "111")
     p = pedido_ml()

@@ -60,6 +60,7 @@ def ml_resolver_cuenta_desde_order_service(
                 f"[ML CUENTAS] No se pudo resolver cuenta por seller_id={seller_id}:",
                 e,
             )
+            return None
 
     try:
         return cuenta_default(MercadoLibreCuenta=MercadoLibreCuenta)
