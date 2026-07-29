@@ -246,6 +246,8 @@ db.init_app(app)
 
 from models.auditoria import Auditoria
 from models.usuario_sistema import UsuarioSistema
+from models.organizacion import Organizacion
+from models.unidad_negocio import UnidadNegocio
 from models.nota_pedido import NotaPedido
 from models.estado_conversacional_pedido import EstadoConversacionalPedido
 from models.pedido_agregado_apb import PedidoAgregadoAPB
@@ -11530,7 +11532,18 @@ def asegurar_usuarios_iniciales():
 
 with app.app_context():
     db.create_all()
-    
+
+    from services.estructura_empresarial import (
+        asegurar_estructura_empresarial_inicial,
+    )
+
+    asegurar_estructura_empresarial_inicial(
+        Organizacion=Organizacion,
+        UnidadNegocio=UnidadNegocio,
+        db_session=db.session,
+        logger_fn=print,
+    )
+
     asegurar_columnas_extra()
     asegurar_columnas_integracion_ml()
     backfill_ml_identidad_cuenta_pedidos()
