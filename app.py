@@ -254,6 +254,11 @@ from models.catalogo import Catalogo
 from models.catalogo_producto import CatalogoProducto
 from models.modulo_organizacion import ModuloOrganizacion
 from models.vinculo_canal_comercial import VinculoCanalComercial
+from models.cliente_crm import ClienteCRM
+from models.cliente_identidad_canal import ClienteIdentidadCanal
+from models.etapa_crm import EtapaCRM
+from models.oportunidad_crm import OportunidadCRM
+from models.actividad_crm import ActividadCRM
 from models.nota_pedido import NotaPedido
 from models.estado_conversacional_pedido import EstadoConversacionalPedido
 from models.pedido_agregado_apb import PedidoAgregadoAPB
@@ -7306,6 +7311,204 @@ def admin_estructura_guardar():
 
         return redirect(url_for(
             "admin_estructura",
+            error=str(error),
+        ))
+
+
+@app.route("/admin/crm")
+@login_required
+def admin_crm():
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    organizacion = (
+        Organizacion.query
+        .filter_by(slug="grupo-fierro")
+        .first()
+    )
+
+    if organizacion is None:
+        return redirect(url_for(
+            "inicio",
+            error="No se encontró la organización.",
+        ))
+
+    modulo_crm = (
+        ModuloOrganizacion.query
+        .filter_by(
+            organizacion_id=organizacion.id,
+            codigo="crm",
+        )
+        .first()
+    )
+    unidades = (
+        UnidadNegocio.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            UnidadNegocio.nombre.asc()
+        )
+        .all()
+    )
+    etapas = (
+        EtapaCRM.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            EtapaCRM.orden.asc(),
+            EtapaCRM.nombre.asc(),
+        )
+        .all()
+    )
+    clientes = (
+        ClienteCRM.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            ClienteCRM.nombre.asc()
+        )
+        .all()
+    )
+    identidades = (
+        ClienteIdentidadCanal.query
+        .join(ClienteCRM)
+        .filter(
+            ClienteCRM.organizacion_id
+            == organizacion.id
+        )
+        .order_by(
+            ClienteIdentidadCanal.id.asc()
+        )
+        .all()
+    )
+    oportunidades = (
+        OportunidadCRM.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            OportunidadCRM.id.desc()
+        )
+        .all()
+    )
+    actividades = (
+        ActividadCRM.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            ActividadCRM.id.desc()
+        )
+        .all()
+    )
+
+    return render_template(
+        "admin_crm.html",
+        modulo_crm=modulo_crm,
+        unidades=unidades,
+        etapas=etapas,
+        clientes=clientes,
+        identidades=identidades,
+        oportunidades=oportunidades,
+        actividades=actividades,
+        ok_feedback=(
+            request.args.get("ok")
+            or ""
+        ).strip(),
+        error=(
+            request.args.get("error")
+            or ""
+        ).strip(),
+    )
+
+
+@app.route(
+    "/admin/crm/guardar",
+    methods=["POST"],
+)
+@login_required
+def admin_crm_guardar():
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    organizacion = (
+        Organizacion.query
+        .filter_by(slug="grupo-fierro")
+        .first()
+    )
+
+    if organizacion is None:
+        return redirect(url_for(
+            "admin_crm",
+            error="No se encontró la organización.",
+        ))
+
+    accion = (
+        request.form.get("accion")
+        or ""
+    ).strip()
+
+    from services.crm_admin import (
+        procesar_accion_crm_admin,
+    )
+
+    actual = usuario_actual()
+
+    try:
+        mensaje = procesar_accion_crm_admin(
+            accion,
+            request.form,
+            organizacion=organizacion,
+            modelos={
+                "ClienteCRM": ClienteCRM,
+                "ClienteIdentidadCanal": (
+                    ClienteIdentidadCanal
+                ),
+                "EtapaCRM": EtapaCRM,
+                "OportunidadCRM": (
+                    OportunidadCRM
+                ),
+                "ActividadCRM": ActividadCRM,
+                "UnidadNegocio": UnidadNegocio,
+            },
+            db_session=db.session,
+            usuario=(
+                getattr(
+                    actual,
+                    "username",
+                    None,
+                )
+                or "admin"
+            ),
+        )
+
+        registrar_auditoria(
+            "Configuró CRM interno",
+            entidad="crm",
+            entidad_id=organizacion.id,
+            detalle=(
+                f"Acción: {accion}. {mensaje}"
+            ),
+        )
+
+        return redirect(url_for(
+            "admin_crm",
+            ok=mensaje,
+        ))
+
+    except Exception as error:
+        db.session.rollback()
+
+        print(
+            "[CRM ADMIN] "
+            f"No se pudo ejecutar {accion}: {error}"
+        )
+
+        return redirect(url_for(
+            "admin_crm",
             error=str(error),
         ))
 

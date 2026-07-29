@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h1>CRM interno</h1>
+
+    <p>
+        Preparación comercial de Grupo Fierro. Este módulo todavía
+        no importa pedidos, no sincroniza canales y no envía mensajes.
+    </p>
+
+    <div class="alerta {% if modulo_crm and modulo_crm.estado == 'activo' %}alerta-ok{% else %}alerta-error{% endif %}">
+        Estado del módulo CRM:
+        <strong>{{ modulo_crm.estado if modulo_crm else "desactivado" }}</strong>.
+        Las automatizaciones permanecen bloqueadas en todos los estados.
+    </div>
+
+    {% if ok_feedback %}
+    <div class="alerta alerta-ok">{{ ok_feedback }}</div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alerta alerta-error">{{ error }}</div>
+    {% endif %}
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Etapas comerciales</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_crm_guardar') }}"
+              style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="hidden" name="accion" value="crear_etapa">
+            <input required name="codigo" maxlength="80" placeholder="Código">
+            <input required name="nombre" maxlength="150" placeholder="Nombre">
+            <input name="orden" type="number" value="0" placeholder="Orden">
+            <input name="color" type="color" value="#64748b">
+            <button type="submit">Crear desactivada</button>
+        </form>
+
+        <table style="width:100%;margin-top:12px;">
+            <thead>
+                <tr>
+                    <th>Orden</th>
+                    <th>Etapa</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for etapa in etapas %}
+                <tr>
+                    <td>{{ etapa.orden }}</td>
+                    <td>
+                        <span style="display:inline-block;width:12px;height:12px;background:{{ etapa.color }};"></span>
+                        {{ etapa.nombre }}
+                    </td>
+                    <td>{{ "activa" if etapa.activa else "desactivada" }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('admin_crm_guardar') }}">
+                            <input type="hidden" name="accion" value="toggle_etapa">
+                            <input type="hidden" name="etapa_id" value="{{ etapa.id }}">
+                            <button type="submit">
+                                {{ "Desactivar" if etapa.activa else "Activar" }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4">No hay etapas creadas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Clientes CRM</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_crm_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+            <input type="hidden" name="accion" value="crear_cliente">
+            <input required name="codigo" maxlength="80" placeholder="Código interno">
+            <input required name="nombre" maxlength="200" placeholder="Nombre o razón social">
+
+            <select name="tipo">
+                <option value="persona">Persona</option>
+                <option value="empresa">Empresa</option>
+            </select>
+
+            <select name="unidad_negocio_id">
+                <option value="">Sin unidad definida</option>
+                {% for unidad in unidades %}
+                <option value="{{ unidad.id }}">{{ unidad.nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <input name="documento" maxlength="30" placeholder="DNI / CUIT">
+            <input name="email" type="email" maxlength="200" placeholder="Email">
+            <input name="telefono" maxlength="50" placeholder="Teléfono">
+            <input name="localidad" maxlength="120" placeholder="Localidad">
+            <input name="provincia" maxlength="120" placeholder="Provincia">
+            <input name="origen" maxlength="50" placeholder="Origen">
+
+            <select name="estado">
+                <option value="potencial">Potencial</option>
+                <option value="cliente">Cliente</option>
+                <option value="inactivo">Inactivo</option>
+            </select>
+
+            <input name="observaciones" maxlength="2000" placeholder="Observaciones">
+            <button type="submit">Crear desactivado</button>
+        </form>
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Cliente</th>
+                        <th>Contacto</th>
+                        <th>Unidad</th>
+                        <th>Estado</th>
+                        <th>Registro</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cliente in clientes %}
+                    <tr>
+                        <td>{{ cliente.codigo }}</td>
+                        <td>{{ cliente.nombre }}</td>
+                        <td>
+                            {{ cliente.telefono or "-" }}<br>
+                            {{ cliente.email or "-" }}
+                        </td>
+                        <td>
+                            {{ cliente.unidad_negocio.nombre if cliente.unidad_negocio else "-" }}
+                        </td>
+                        <td>{{ cliente.estado }}</td>
+                        <td>{{ "activo" if cliente.activo else "desactivado" }}</td>
+                        <td>
+                            <form method="post" action="{{ url_for('admin_crm_guardar') }}">
+                                <input type="hidden" name="accion" value="toggle_cliente">
+                                <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
+                                <button type="submit">
+                                    {{ "Desactivar" if cliente.activo else "Activar" }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7">No hay clientes CRM.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if clientes %}
+    <div class="card" style="margin-top:16px;">
+        <h2>Identidades por canal</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_crm_guardar') }}"
+              style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="hidden" name="accion" value="agregar_identidad">
+
+            <select required name="cliente_id">
+                <option value="">Cliente</option>
+                {% for cliente in clientes %}
+                <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <select required name="canal">
+                <option value="">Canal</option>
+                <option value="mercadolibre">Mercado Libre</option>
+                <option value="tiendanube">Tienda Nube</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="presencial">Presencial</option>
+                <option value="mayorista">Mayorista</option>
+                <option value="otro">Otro</option>
+            </select>
+
+            <input required
+                   name="identificador_externo"
+                   maxlength="150"
+                   placeholder="Identificador externo">
+            <input name="alias" maxlength="150" placeholder="Alias">
+            <input name="detalle" maxlength="500" placeholder="Detalle">
+            <button type="submit">Agregar desactivada</button>
+        </form>
+
+        <table style="width:100%;margin-top:12px;">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Canal</th>
+                    <th>Identificador</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for identidad in identidades %}
+                <tr>
+                    <td>{{ identidad.cliente.nombre }}</td>
+                    <td>{{ identidad.canal }}</td>
+                    <td>{{ identidad.identificador_externo }}</td>
+                    <td>{{ "activa" if identidad.activo else "desactivada" }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('admin_crm_guardar') }}">
+                            <input type="hidden" name="accion" value="toggle_identidad">
+                            <input type="hidden" name="identidad_id" value="{{ identidad.id }}">
+                            <button type="submit">
+                                {{ "Desactivar" if identidad.activo else "Activar" }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">No hay identidades registradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Oportunidades</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_crm_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+            <input type="hidden" name="accion" value="crear_oportunidad">
+
+            <select required name="cliente_id">
+                <option value="">Cliente</option>
+                {% for cliente in clientes %}
+                <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <input required name="titulo" maxlength="200" placeholder="Oportunidad">
+
+            <select name="unidad_negocio_id">
+                <option value="">Sin unidad</option>
+                {% for unidad in unidades %}
+                <option value="{{ unidad.id }}">{{ unidad.nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="etapa_crm_id">
+                <option value="">Sin etapa</option>
+                {% for etapa in etapas %}
+                <option value="{{ etapa.id }}">{{ etapa.nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <input name="importe_estimado"
+                   inputmode="decimal"
+                   value="0"
+                   placeholder="Importe">
+            <input name="probabilidad"
+                   type="number"
+                   min="0"
+                   max="100"
+                   value="0"
+                   placeholder="Probabilidad">
+            <input name="fecha_cierre_estimada" type="date">
+            <input name="responsable" maxlength="100" placeholder="Responsable">
+            <input name="origen" maxlength="50" placeholder="Origen">
+            <input name="detalle" maxlength="2000" placeholder="Detalle">
+            <button type="submit">Crear desactivada</button>
+        </form>
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Oportunidad</th>
+                        <th>Cliente</th>
+                        <th>Etapa</th>
+                        <th>Importe</th>
+                        <th>Prob.</th>
+                        <th>Estado</th>
+                        <th>Registro</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for oportunidad in oportunidades %}
+                    <tr>
+                        <td>{{ oportunidad.titulo }}</td>
+                        <td>{{ oportunidad.cliente.nombre }}</td>
+                        <td>{{ oportunidad.etapa.nombre if oportunidad.etapa else "-" }}</td>
+                        <td>
+                            $ {{ "%.2f"|format(oportunidad.importe_estimado_centavos / 100) }}
+                        </td>
+                        <td>{{ oportunidad.probabilidad }}%</td>
+                        <td>{{ oportunidad.estado }}</td>
+                        <td>{{ "activa" if oportunidad.activa else "desactivada" }}</td>
+                        <td>
+                            <form method="post"
+                                  action="{{ url_for('admin_crm_guardar') }}"
+                                  style="display:inline;">
+                                <input type="hidden" name="accion" value="estado_oportunidad">
+                                <input type="hidden"
+                                       name="oportunidad_id"
+                                       value="{{ oportunidad.id }}">
+                                <select name="estado">
+                                    <option value="abierta">Abierta</option>
+                                    <option value="ganada">Ganada</option>
+                                    <option value="perdida">Perdida</option>
+                                    <option value="cancelada">Cancelada</option>
+                                </select>
+                                <button type="submit">Estado</button>
+                            </form>
+
+                            <form method="post"
+                                  action="{{ url_for('admin_crm_guardar') }}"
+                                  style="display:inline;">
+                                <input type="hidden" name="accion" value="toggle_oportunidad">
+                                <input type="hidden"
+                                       name="oportunidad_id"
+                                       value="{{ oportunidad.id }}">
+                                <button type="submit">
+                                    {{ "Desactivar" if oportunidad.activa else "Activar" }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8">No hay oportunidades.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Actividades y tareas</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_crm_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+            <input type="hidden" name="accion" value="crear_actividad">
+
+            <select required name="cliente_id">
+                <option value="">Cliente</option>
+                {% for cliente in clientes %}
+                <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="oportunidad_crm_id">
+                <option value="">Sin oportunidad</option>
+                {% for oportunidad in oportunidades %}
+                <option value="{{ oportunidad.id }}">
+                    {{ oportunidad.titulo }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select name="tipo">
+                <option value="nota">Nota</option>
+                <option value="tarea">Tarea</option>
+                <option value="llamada">Llamada</option>
+                <option value="reunion">Reunión</option>
+                <option value="email">Email</option>
+                <option value="whatsapp">WhatsApp</option>
+            </select>
+
+            <input required name="asunto" maxlength="200" placeholder="Asunto">
+            <input name="fecha_vencimiento" type="date">
+            <input name="detalle" maxlength="2000" placeholder="Detalle">
+            <button type="submit">Crear actividad</button>
+        </form>
+
+        <table style="width:100%;margin-top:12px;">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Tipo</th>
+                    <th>Asunto</th>
+                    <th>Vencimiento</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for actividad in actividades %}
+                <tr>
+                    <td>{{ actividad.cliente.nombre }}</td>
+                    <td>{{ actividad.tipo }}</td>
+                    <td>{{ actividad.asunto }}</td>
+                    <td>
+                        {{ actividad.fecha_vencimiento.strftime("%d/%m/%Y") if actividad.fecha_vencimiento else "-" }}
+                    </td>
+                    <td>{{ actividad.estado }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('admin_crm_guardar') }}">
+                            <input type="hidden" name="accion" value="completar_actividad">
+                            <input type="hidden" name="actividad_id" value="{{ actividad.id }}">
+                            <button type="submit">
+                                {{ "Reabrir" if actividad.estado == "completada" else "Completar" }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">No hay actividades.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
