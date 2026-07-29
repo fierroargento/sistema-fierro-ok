@@ -250,6 +250,9 @@ from models.organizacion import Organizacion
 from models.unidad_negocio import UnidadNegocio
 from models.sucursal_operativa import SucursalOperativa
 from models.entidad_fiscal import EntidadFiscal
+from models.catalogo import Catalogo
+from models.catalogo_producto import CatalogoProducto
+from models.modulo_organizacion import ModuloOrganizacion
 from models.nota_pedido import NotaPedido
 from models.estado_conversacional_pedido import EstadoConversacionalPedido
 from models.pedido_agregado_apb import PedidoAgregadoAPB
@@ -7058,6 +7061,214 @@ def admin_productos():
     )
 
 
+@app.route("/admin/estructura")
+@login_required
+def admin_estructura():
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    organizacion = (
+        Organizacion.query
+        .filter_by(slug="grupo-fierro")
+        .first()
+    )
+
+    if organizacion is None:
+        return redirect(url_for(
+            "inicio",
+            error=(
+                "No se encontró la estructura "
+                "empresarial inicial."
+            ),
+        ))
+
+    unidades = (
+        UnidadNegocio.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            UnidadNegocio.nombre.asc()
+        )
+        .all()
+    )
+    sucursales = (
+        SucursalOperativa.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            SucursalOperativa.nombre.asc()
+        )
+        .all()
+    )
+    entidades_fiscales = (
+        EntidadFiscal.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            EntidadFiscal.razon_social.asc()
+        )
+        .all()
+    )
+    catalogos = (
+        Catalogo.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            Catalogo.nombre.asc()
+        )
+        .all()
+    )
+    modulos = (
+        ModuloOrganizacion.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            ModuloOrganizacion.nombre.asc()
+        )
+        .all()
+    )
+    productos = (
+        Producto.query
+        .order_by(
+            Producto.sku.asc()
+        )
+        .all()
+    )
+    productos_catalogo = (
+        CatalogoProducto.query
+        .join(Catalogo)
+        .filter(
+            Catalogo.organizacion_id
+            == organizacion.id
+        )
+        .order_by(
+            CatalogoProducto.id.asc()
+        )
+        .all()
+    )
+
+    from services.modulos_organizacion import (
+        ESTADO_ACTIVO,
+        ESTADO_DESACTIVADO,
+        ESTADO_PRUEBA,
+    )
+
+    return render_template(
+        "admin_estructura.html",
+        organizacion=organizacion,
+        unidades=unidades,
+        sucursales=sucursales,
+        entidades_fiscales=entidades_fiscales,
+        catalogos=catalogos,
+        productos=productos,
+        productos_catalogo=productos_catalogo,
+        modulos=modulos,
+        estados_modulo=(
+            ESTADO_DESACTIVADO,
+            ESTADO_PRUEBA,
+            ESTADO_ACTIVO,
+        ),
+        ok_feedback=(
+            request.args.get("ok")
+            or ""
+        ).strip(),
+        error=(
+            request.args.get("error")
+            or ""
+        ).strip(),
+    )
+
+
+@app.route(
+    "/admin/estructura/guardar",
+    methods=["POST"],
+)
+@login_required
+def admin_estructura_guardar():
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    organizacion = (
+        Organizacion.query
+        .filter_by(slug="grupo-fierro")
+        .first()
+    )
+
+    if organizacion is None:
+        return redirect(url_for(
+            "admin_estructura",
+            error=(
+                "No se encontró la organización."
+            ),
+        ))
+
+    accion = (
+        request.form.get("accion")
+        or ""
+    ).strip()
+
+    from services.estructura_admin import (
+        procesar_accion_estructura_admin,
+    )
+
+    try:
+        mensaje = (
+            procesar_accion_estructura_admin(
+                accion,
+                request.form,
+                organizacion=organizacion,
+                modelos={
+                    "SucursalOperativa": (
+                        SucursalOperativa
+                    ),
+                    "EntidadFiscal": EntidadFiscal,
+                    "Catalogo": Catalogo,
+                    "CatalogoProducto": (
+                        CatalogoProducto
+                    ),
+                    "Producto": Producto,
+                    "UnidadNegocio": UnidadNegocio,
+                    "ModuloOrganizacion": (
+                        ModuloOrganizacion
+                    ),
+                },
+                db_session=db.session,
+            )
+        )
+
+        registrar_auditoria(
+            "Configuró estructura empresarial",
+            entidad="estructura_empresarial",
+            entidad_id=organizacion.id,
+            detalle=(
+                f"Acción: {accion}. {mensaje}"
+            ),
+        )
+
+        return redirect(url_for(
+            "admin_estructura",
+            ok=mensaje,
+        ))
+
+    except Exception as error:
+        db.session.rollback()
+
+        print(
+            "[ESTRUCTURA ADMIN] "
+            f"No se pudo ejecutar {accion}: {error}"
+        )
+
+        return redirect(url_for(
+            "admin_estructura",
+            error=str(error),
+        ))
+
+
 @app.route("/admin/usuarios")
 @login_required
 def admin_usuarios():
@@ -11539,9 +11750,26 @@ with app.app_context():
         asegurar_estructura_empresarial_inicial,
     )
 
-    asegurar_estructura_empresarial_inicial(
-        Organizacion=Organizacion,
-        UnidadNegocio=UnidadNegocio,
+    estructura_inicial = (
+        asegurar_estructura_empresarial_inicial(
+            Organizacion=Organizacion,
+            UnidadNegocio=UnidadNegocio,
+            db_session=db.session,
+            logger_fn=print,
+        )
+    )
+
+    from services.modulos_organizacion import (
+        asegurar_modulos_iniciales,
+    )
+
+    asegurar_modulos_iniciales(
+        ModuloOrganizacion=ModuloOrganizacion,
+        organizacion_id=(
+            estructura_inicial[
+                "organizacion"
+            ].id
+        ),
         db_session=db.session,
         logger_fn=print,
     )

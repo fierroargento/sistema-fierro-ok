@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h1>Estructura empresarial</h1>
+    <p>
+        Configuración interna de Grupo Fierro. Los registros nuevos
+        no se conectan automáticamente con pedidos, canales ni facturación.
+    </p>
+
+    {% if ok_feedback %}
+    <div class="alerta alerta-ok">{{ ok_feedback }}</div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alerta alerta-error">{{ error }}</div>
+    {% endif %}
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Organización y unidades</h2>
+        <p>
+            <strong>{{ organizacion.nombre }}</strong>
+            — {{ organizacion.slug }}
+        </p>
+        <ul>
+            {% for unidad in unidades %}
+            <li>
+                {{ unidad.nombre }} — {{ unidad.codigo }}
+                {% if unidad.activa %}
+                <strong>(activa)</strong>
+                {% else %}
+                (desactivada)
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Módulos</h2>
+        <p>
+            El estado <strong>prueba</strong> no habilita producción.
+            Actualmente ningún flujo productivo consume estos estados.
+        </p>
+
+        <div style="overflow-x:auto;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Módulo</th>
+                        <th>Estado</th>
+                        <th>Detalle</th>
+                        <th>Actualizar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for modulo in modulos %}
+                    <tr>
+                        <td>{{ modulo.nombre }}</td>
+                        <td><strong>{{ modulo.estado }}</strong></td>
+                        <td>{{ modulo.detalle or "-" }}</td>
+                        <td>
+                            <form method="post"
+                                  action="{{ url_for('admin_estructura_guardar') }}">
+                                <input type="hidden" name="accion" value="estado_modulo">
+                                <input type="hidden" name="modulo_id" value="{{ modulo.id }}">
+                                <select name="estado">
+                                    {% for estado in estados_modulo %}
+                                    <option value="{{ estado }}"
+                                        {% if modulo.estado == estado %}selected{% endif %}>
+                                        {{ estado }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <input name="detalle"
+                                       maxlength="500"
+                                       value="{{ modulo.detalle or '' }}"
+                                       placeholder="Detalle interno">
+                                <button type="submit">Guardar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Sucursales operativas</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_estructura_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <input type="hidden" name="accion" value="crear_sucursal">
+            <input name="codigo" required maxlength="80" placeholder="Código">
+            <input name="nombre" required maxlength="150" placeholder="Nombre">
+            <input name="direccion" maxlength="250" placeholder="Dirección">
+            <input name="localidad" maxlength="120" placeholder="Localidad">
+            <input name="provincia" maxlength="120" placeholder="Provincia">
+            <input name="codigo_postal" maxlength="20" placeholder="Código postal">
+            <button type="submit">Crear desactivada</button>
+        </form>
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nombre</th>
+                        <th>Ubicación</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sucursal in sucursales %}
+                    <tr>
+                        <td>{{ sucursal.codigo }}</td>
+                        <td>{{ sucursal.nombre }}</td>
+                        <td>
+                            {{ sucursal.direccion or "-" }}
+                            / {{ sucursal.localidad or "-" }}
+                        </td>
+                        <td>
+                            {{ "activa" if sucursal.activa else "desactivada" }}
+                        </td>
+                        <td>
+                            <form method="post"
+                                  action="{{ url_for('admin_estructura_guardar') }}">
+                                <input type="hidden" name="accion" value="toggle_sucursal">
+                                <input type="hidden" name="sucursal_id" value="{{ sucursal.id }}">
+                                <button type="submit">
+                                    {{ "Desactivar" if sucursal.activa else "Activar" }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">No hay sucursales creadas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Entidades fiscales</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_estructura_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <input type="hidden" name="accion" value="crear_entidad_fiscal">
+            <input name="codigo" required maxlength="80" placeholder="Código">
+            <input name="razon_social" required maxlength="200" placeholder="Razón social">
+            <input name="nombre_fantasia" maxlength="200" placeholder="Nombre de fantasía">
+            <input name="cuit" maxlength="20" placeholder="CUIT">
+            <input name="condicion_iva" maxlength="80" placeholder="Condición IVA">
+            <input name="domicilio_fiscal" maxlength="300" placeholder="Domicilio fiscal">
+            <input name="punto_venta_predeterminado"
+                   maxlength="20"
+                   placeholder="Punto de venta futuro">
+            <button type="submit">Crear desactivada</button>
+        </form>
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Razón social</th>
+                        <th>CUIT</th>
+                        <th>Entidad</th>
+                        <th>Facturación</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entidad in entidades_fiscales %}
+                    <tr>
+                        <td>{{ entidad.codigo }}</td>
+                        <td>{{ entidad.razon_social }}</td>
+                        <td>{{ entidad.cuit or "-" }}</td>
+                        <td>
+                            {{ "activa" if entidad.activa else "desactivada" }}
+                        </td>
+                        <td>
+                            {{ "habilitada" if entidad.facturacion_habilitada else "deshabilitada" }}
+                        </td>
+                        <td>
+                            <form method="post"
+                                  action="{{ url_for('admin_estructura_guardar') }}"
+                                  style="display:inline;">
+                                <input type="hidden" name="accion" value="toggle_entidad_fiscal">
+                                <input type="hidden"
+                                       name="entidad_fiscal_id"
+                                       value="{{ entidad.id }}">
+                                <button type="submit">
+                                    {{ "Desactivar" if entidad.activa else "Activar" }}
+                                </button>
+                            </form>
+
+                            <form method="post"
+                                  action="{{ url_for('admin_estructura_guardar') }}"
+                                  style="display:inline;">
+                                <input type="hidden" name="accion" value="toggle_facturacion">
+                                <input type="hidden"
+                                       name="entidad_fiscal_id"
+                                       value="{{ entidad.id }}">
+                                <button type="submit"
+                                        {% if not entidad.activa %}disabled{% endif %}>
+                                    {{ "Deshabilitar facturación" if entidad.facturacion_habilitada else "Habilitar facturación" }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6">No hay entidades fiscales creadas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Catálogos comerciales</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_estructura_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <input type="hidden" name="accion" value="crear_catalogo">
+            <input name="codigo" required maxlength="80" placeholder="Código">
+            <input name="nombre" required maxlength="150" placeholder="Nombre">
+            <select name="unidad_negocio_id">
+                <option value="">Compartido por la organización</option>
+                {% for unidad in unidades %}
+                <option value="{{ unidad.id }}">{{ unidad.nombre }}</option>
+                {% endfor %}
+            </select>
+            <input name="moneda" maxlength="10" value="ARS" placeholder="Moneda">
+            <input name="descripcion" maxlength="500" placeholder="Descripción">
+            <button type="submit">Crear desactivado</button>
+        </form>
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Catálogo</th>
+                        <th>Unidad</th>
+                        <th>Moneda</th>
+                        <th>Estado</th>
+                        <th>Actualizar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for catalogo in catalogos %}
+                    <tr>
+                        <td>
+                            <strong>{{ catalogo.nombre }}</strong><br>
+                            {{ catalogo.codigo }}
+                        </td>
+                        <td>
+                            {{ catalogo.unidad_negocio.nombre if catalogo.unidad_negocio else "Compartido" }}
+                        </td>
+                        <td>{{ catalogo.moneda }}</td>
+                        <td>{{ catalogo.estado }}</td>
+                        <td>
+                            <form method="post"
+                                  action="{{ url_for('admin_estructura_guardar') }}">
+                                <input type="hidden" name="accion" value="estado_catalogo">
+                                <input type="hidden" name="catalogo_id" value="{{ catalogo.id }}">
+                                <select name="estado">
+                                    {% for estado in estados_modulo %}
+                                    <option value="{{ estado }}"
+                                        {% if catalogo.estado == estado %}selected{% endif %}>
+                                        {{ estado }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit">Guardar estado</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">No hay catálogos creados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if catalogos and productos %}
+        <h3 style="margin-top:20px;">Agregar producto a un catálogo</h3>
+
+        <form method="post"
+              action="{{ url_for('admin_estructura_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <input type="hidden" name="accion" value="agregar_producto_catalogo">
+
+            <select name="catalogo_id" required>
+                <option value="">Seleccionar catálogo</option>
+                {% for catalogo in catalogos %}
+                <option value="{{ catalogo.id }}">{{ catalogo.nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="producto_id" required>
+                <option value="">Seleccionar producto base</option>
+                {% for producto in productos %}
+                <option value="{{ producto.id }}">
+                    {{ producto.sku }} — {{ producto.descripcion }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <input name="sku_comercial"
+                   maxlength="100"
+                   placeholder="SKU comercial (opcional)">
+            <input name="nombre_comercial"
+                   maxlength="255"
+                   placeholder="Nombre comercial (opcional)">
+            <input name="precio"
+                   required
+                   inputmode="decimal"
+                   placeholder="Precio">
+            <input name="precio_lista"
+                   inputmode="decimal"
+                   placeholder="Precio de lista (opcional)">
+            <button type="submit">Agregar inactivo</button>
+        </form>
+        {% endif %}
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Catálogo</th>
+                        <th>Producto</th>
+                        <th>SKU comercial</th>
+                        <th>Precio</th>
+                        <th>Activo</th>
+                        <th>Disponible</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inclusion in productos_catalogo %}
+                    <tr>
+                        <td>{{ inclusion.catalogo.nombre }}</td>
+                        <td>{{ inclusion.nombre_comercial }}</td>
+                        <td>{{ inclusion.sku_comercial }}</td>
+                        <td>
+                            {{ "%.2f"|format(inclusion.precio_centavos / 100) }}
+                            {{ inclusion.catalogo.moneda }}
+                        </td>
+                        <td>{{ "sí" if inclusion.activo else "no" }}</td>
+                        <td>{{ "sí" if inclusion.disponible else "no" }}</td>
+                        <td>
+                            <form method="post"
+                                  action="{{ url_for('admin_estructura_guardar') }}"
+                                  style="display:inline;">
+                                <input type="hidden" name="accion" value="toggle_producto_catalogo">
+                                <input type="hidden"
+                                       name="catalogo_producto_id"
+                                       value="{{ inclusion.id }}">
+                                <input type="hidden" name="campo" value="activo">
+                                <button type="submit">
+                                    {{ "Desactivar" if inclusion.activo else "Activar" }}
+                                </button>
+                            </form>
+
+                            <form method="post"
+                                  action="{{ url_for('admin_estructura_guardar') }}"
+                                  style="display:inline;">
+                                <input type="hidden" name="accion" value="toggle_producto_catalogo">
+                                <input type="hidden"
+                                       name="catalogo_producto_id"
+                                       value="{{ inclusion.id }}">
+                                <input type="hidden" name="campo" value="disponible">
+                                <button type="submit">
+                                    {{ "Sin stock" if inclusion.disponible else "Disponible" }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7">No hay productos incluidos.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
