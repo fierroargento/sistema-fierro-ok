@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h1>Inventario multisucursal</h1>
+
+    <p>
+        Configuración interna y manual. Este inventario todavía no
+        descuenta pedidos ni publica cantidades en canales externos.
+    </p>
+
+    <div class="alerta {% if modulo_inventario and modulo_inventario.estado == 'activo' %}alerta-ok{% else %}alerta-error{% endif %}">
+        Estado del módulo:
+        <strong>
+            {{ modulo_inventario.estado if modulo_inventario else "desactivado" }}
+        </strong>.
+        La sincronización con canales permanece bloqueada.
+    </div>
+
+    {% if ok_feedback %}
+    <div class="alerta alerta-ok">{{ ok_feedback }}</div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alerta alerta-error">{{ error }}</div>
+    {% endif %}
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Existencias por sucursal</h2>
+
+        {% if sucursales and productos %}
+        <form method="post"
+              action="{{ url_for('admin_inventario_guardar') }}"
+              style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="hidden"
+                   name="accion"
+                   value="crear_existencia">
+
+            <select required name="sucursal_operativa_id">
+                <option value="">Sucursal</option>
+                {% for sucursal in sucursales %}
+                <option value="{{ sucursal.id }}">
+                    {{ sucursal.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select required name="producto_id">
+                <option value="">Producto</option>
+                {% for producto in productos %}
+                <option value="{{ producto.id }}">
+                    {{ producto.sku }} — {{ producto.descripcion }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <input required
+                   type="number"
+                   min="0"
+                   name="stock_minimo"
+                   value="0"
+                   placeholder="Mínimo">
+            <input type="number"
+                   min="0"
+                   name="stock_maximo"
+                   placeholder="Máximo opcional">
+            <button type="submit">
+                Crear con stock cero
+            </button>
+        </form>
+        {% else %}
+        <p>
+            Para crear existencias primero deben existir
+            sucursales operativas y productos.
+        </p>
+        {% endif %}
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Sucursal</th>
+                        <th>Producto</th>
+                        <th>Actual</th>
+                        <th>Reservado</th>
+                        <th>Disponible</th>
+                        <th>Mín./Máx.</th>
+                        <th>Control</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for existencia in existencias %}
+                    <tr>
+                        <td>{{ existencia.sucursal.nombre }}</td>
+                        <td>
+                            {{ existencia.producto.sku }} —
+                            {{ existencia.producto.descripcion }}
+                        </td>
+                        <td>{{ existencia.stock_actual }}</td>
+                        <td>{{ existencia.stock_reservado }}</td>
+                        <td>
+                            {{ existencia.stock_actual - existencia.stock_reservado }}
+                        </td>
+                        <td>
+                            {{ existencia.stock_minimo }} /
+                            {{ existencia.stock_maximo if existencia.stock_maximo is not none else "-" }}
+                        </td>
+                        <td>
+                            {{ "activo" if existencia.control_activo else "desactivado" }}
+                        </td>
+                        <td>
+                            <form method="post"
+                                  action="{{ url_for('admin_inventario_guardar') }}">
+                                <input type="hidden"
+                                       name="accion"
+                                       value="toggle_control_existencia">
+                                <input type="hidden"
+                                       name="existencia_id"
+                                       value="{{ existencia.id }}">
+                                <button type="submit">
+                                    {{ "Desactivar" if existencia.control_activo else "Activar" }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8">
+                            No hay existencias configuradas.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if existencias %}
+    <div class="card" style="margin-top:16px;">
+        <h2>Registrar movimiento manual</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_inventario_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+            <input type="hidden"
+                   name="accion"
+                   value="registrar_movimiento">
+
+            <select required name="existencia_id">
+                <option value="">Existencia</option>
+                {% for existencia in existencias %}
+                <option value="{{ existencia.id }}">
+                    {{ existencia.sucursal.nombre }} /
+                    {{ existencia.producto.sku }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select required name="tipo">
+                <option value="ingreso">Ingreso</option>
+                <option value="egreso">Egreso</option>
+                <option value="ajuste">Ajuste +/-</option>
+                <option value="reserva">Reserva</option>
+                <option value="liberacion">Liberación</option>
+            </select>
+
+            <input required
+                   type="number"
+                   name="cantidad"
+                   placeholder="Cantidad">
+            <input required
+                   name="motivo"
+                   maxlength="300"
+                   placeholder="Motivo">
+            <input name="referencia"
+                   maxlength="150"
+                   placeholder="Referencia">
+            <button type="submit">
+                Registrar movimiento
+            </button>
+        </form>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Últimos movimientos</h2>
+
+        <div style="overflow-x:auto;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Sucursal / producto</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Stock</th>
+                        <th>Reserva</th>
+                        <th>Motivo</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movimiento in movimientos %}
+                    <tr>
+                        <td>
+                            {{ movimiento.fecha.strftime("%d/%m/%Y %H:%M") if movimiento.fecha else "-" }}
+                        </td>
+                        <td>
+                            {{ movimiento.existencia.sucursal.nombre }} /
+                            {{ movimiento.existencia.producto.sku }}
+                        </td>
+                        <td>{{ movimiento.tipo }}</td>
+                        <td>{{ movimiento.cantidad }}</td>
+                        <td>
+                            {{ movimiento.stock_actual_anterior }}
+                            → {{ movimiento.stock_actual_nuevo }}
+                        </td>
+                        <td>
+                            {{ movimiento.stock_reservado_anterior }}
+                            → {{ movimiento.stock_reservado_nuevo }}
+                        </td>
+                        <td>{{ movimiento.motivo }}</td>
+                        <td>{{ movimiento.usuario or "-" }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8">No hay movimientos.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Políticas de disponibilidad comercial</h2>
+
+        <p>
+            Son reglas futuras. Aunque estén activas, todavía no
+            publican cantidades en Mercado Libre o Tienda Nube.
+        </p>
+
+        {% if productos_catalogo and sucursales %}
+        <form method="post"
+              action="{{ url_for('admin_inventario_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+            <input type="hidden"
+                   name="accion"
+                   value="crear_politica_disponibilidad">
+
+            <select required name="catalogo_producto_id">
+                <option value="">Producto de catálogo</option>
+                {% for inclusion in productos_catalogo %}
+                <option value="{{ inclusion.id }}">
+                    {{ inclusion.catalogo.nombre }} /
+                    {{ inclusion.sku_comercial }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select required name="sucursal_operativa_id">
+                <option value="">Sucursal</option>
+                {% for sucursal in sucursales %}
+                <option value="{{ sucursal.id }}">
+                    {{ sucursal.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <input required
+                   type="number"
+                   min="0"
+                   name="umbral_publicacion"
+                   value="0"
+                   placeholder="Umbral">
+            <input type="number"
+                   min="0"
+                   name="maximo_publicable"
+                   placeholder="Máximo publicable">
+            <input required
+                   type="number"
+                   min="0"
+                   name="dias_preparacion"
+                   value="0"
+                   placeholder="Días preparación">
+            <button type="submit">
+                Crear desactivada
+            </button>
+        </form>
+        {% endif %}
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Catálogo / producto</th>
+                        <th>Sucursal</th>
+                        <th>Umbral</th>
+                        <th>Máximo</th>
+                        <th>Días</th>
+                        <th>Activa</th>
+                        <th>Sin stock</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for politica in politicas %}
+                    <tr>
+                        <td>
+                            {{ politica.catalogo_producto.catalogo.nombre }} /
+                            {{ politica.catalogo_producto.sku_comercial }}
+                        </td>
+                        <td>{{ politica.sucursal.nombre }}</td>
+                        <td>{{ politica.umbral_publicacion }}</td>
+                        <td>
+                            {{ politica.maximo_publicable if politica.maximo_publicable is not none else "-" }}
+                        </td>
+                        <td>{{ politica.dias_preparacion }}</td>
+                        <td>{{ "sí" if politica.activa else "no" }}</td>
+                        <td>
+                            {{ "permitido" if politica.permite_sin_stock else "bloqueado" }}
+                        </td>
+                        <td>
+                            <form method="post"
+                                  action="{{ url_for('admin_inventario_guardar') }}"
+                                  style="display:inline;">
+                                <input type="hidden" name="accion" value="toggle_politica">
+                                <input type="hidden" name="politica_id" value="{{ politica.id }}">
+                                <input type="hidden" name="campo" value="activa">
+                                <button type="submit">
+                                    {{ "Desactivar" if politica.activa else "Activar" }}
+                                </button>
+                            </form>
+
+                            <form method="post"
+                                  action="{{ url_for('admin_inventario_guardar') }}"
+                                  style="display:inline;">
+                                <input type="hidden" name="accion" value="toggle_politica">
+                                <input type="hidden" name="politica_id" value="{{ politica.id }}">
+                                <input type="hidden" name="campo" value="permite_sin_stock">
+                                <button type="submit">
+                                    {{ "Bloquear sin stock" if politica.permite_sin_stock else "Permitir sin stock" }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8">No hay políticas creadas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

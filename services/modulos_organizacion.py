@@ -36,6 +36,10 @@ MODULOS_INICIALES = (
         "crm",
         "CRM comercial",
     ),
+    (
+        "inventario-sucursales",
+        "Inventario por sucursal",
+    ),
 )
 
 

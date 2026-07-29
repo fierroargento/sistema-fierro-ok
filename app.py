@@ -259,6 +259,9 @@ from models.cliente_identidad_canal import ClienteIdentidadCanal
 from models.etapa_crm import EtapaCRM
 from models.oportunidad_crm import OportunidadCRM
 from models.actividad_crm import ActividadCRM
+from models.existencia_sucursal import ExistenciaSucursal
+from models.movimiento_inventario import MovimientoInventario
+from models.politica_disponibilidad_catalogo import PoliticaDisponibilidadCatalogo
 from models.nota_pedido import NotaPedido
 from models.estado_conversacional_pedido import EstadoConversacionalPedido
 from models.pedido_agregado_apb import PedidoAgregadoAPB
@@ -7509,6 +7512,211 @@ def admin_crm_guardar():
 
         return redirect(url_for(
             "admin_crm",
+            error=str(error),
+        ))
+
+
+@app.route("/admin/inventario")
+@login_required
+def admin_inventario():
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    organizacion = (
+        Organizacion.query
+        .filter_by(slug="grupo-fierro")
+        .first()
+    )
+
+    if organizacion is None:
+        return redirect(url_for(
+            "inicio",
+            error="No se encontró la organización.",
+        ))
+
+    modulo_inventario = (
+        ModuloOrganizacion.query
+        .filter_by(
+            organizacion_id=organizacion.id,
+            codigo="inventario-sucursales",
+        )
+        .first()
+    )
+    sucursales = (
+        SucursalOperativa.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            SucursalOperativa.nombre.asc()
+        )
+        .all()
+    )
+    productos = (
+        Producto.query
+        .order_by(
+            Producto.sku.asc()
+        )
+        .all()
+    )
+    existencias = (
+        ExistenciaSucursal.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            ExistenciaSucursal.id.asc()
+        )
+        .all()
+    )
+    movimientos = (
+        MovimientoInventario.query
+        .join(ExistenciaSucursal)
+        .filter(
+            ExistenciaSucursal.organizacion_id
+            == organizacion.id
+        )
+        .order_by(
+            MovimientoInventario.id.desc()
+        )
+        .limit(200)
+        .all()
+    )
+    politicas = (
+        PoliticaDisponibilidadCatalogo.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            PoliticaDisponibilidadCatalogo.id.asc()
+        )
+        .all()
+    )
+    productos_catalogo = (
+        CatalogoProducto.query
+        .join(Catalogo)
+        .filter(
+            Catalogo.organizacion_id
+            == organizacion.id
+        )
+        .order_by(
+            CatalogoProducto.id.asc()
+        )
+        .all()
+    )
+
+    return render_template(
+        "admin_inventario.html",
+        modulo_inventario=modulo_inventario,
+        sucursales=sucursales,
+        productos=productos,
+        existencias=existencias,
+        movimientos=movimientos,
+        politicas=politicas,
+        productos_catalogo=productos_catalogo,
+        ok_feedback=(
+            request.args.get("ok")
+            or ""
+        ).strip(),
+        error=(
+            request.args.get("error")
+            or ""
+        ).strip(),
+    )
+
+
+@app.route(
+    "/admin/inventario/guardar",
+    methods=["POST"],
+)
+@login_required
+def admin_inventario_guardar():
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    organizacion = (
+        Organizacion.query
+        .filter_by(slug="grupo-fierro")
+        .first()
+    )
+
+    if organizacion is None:
+        return redirect(url_for(
+            "admin_inventario",
+            error="No se encontró la organización.",
+        ))
+
+    accion = (
+        request.form.get("accion")
+        or ""
+    ).strip()
+
+    from services.inventario_admin import (
+        procesar_accion_inventario_admin,
+    )
+
+    actual = usuario_actual()
+
+    try:
+        mensaje = (
+            procesar_accion_inventario_admin(
+                accion,
+                request.form,
+                organizacion=organizacion,
+                modelos={
+                    "ExistenciaSucursal": (
+                        ExistenciaSucursal
+                    ),
+                    "MovimientoInventario": (
+                        MovimientoInventario
+                    ),
+                    "PoliticaDisponibilidadCatalogo": (
+                        PoliticaDisponibilidadCatalogo
+                    ),
+                    "SucursalOperativa": (
+                        SucursalOperativa
+                    ),
+                    "Producto": Producto,
+                    "CatalogoProducto": (
+                        CatalogoProducto
+                    ),
+                },
+                db_session=db.session,
+                usuario=(
+                    getattr(
+                        actual,
+                        "username",
+                        None,
+                    )
+                    or "admin"
+                ),
+            )
+        )
+
+        registrar_auditoria(
+            "Configuró inventario interno",
+            entidad="inventario",
+            entidad_id=organizacion.id,
+            detalle=(
+                f"Acción: {accion}. {mensaje}"
+            ),
+        )
+
+        return redirect(url_for(
+            "admin_inventario",
+            ok=mensaje,
+        ))
+
+    except Exception as error:
+        db.session.rollback()
+
+        print(
+            "[INVENTARIO ADMIN] "
+            f"No se pudo ejecutar {accion}: {error}"
+        )
+
+        return redirect(url_for(
+            "admin_inventario",
             error=str(error),
         ))
 
