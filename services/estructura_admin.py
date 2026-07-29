@@ -99,6 +99,15 @@ def procesar_accion_estructura_admin(
     ModuloOrganizacion = modelos[
         "ModuloOrganizacion"
     ]
+    VinculoCanalComercial = modelos[
+        "VinculoCanalComercial"
+    ]
+    MercadoLibreCuenta = modelos[
+        "MercadoLibreCuenta"
+    ]
+    TiendaNubeCuenta = modelos[
+        "TiendaNubeCuenta"
+    ]
 
     if accion == "crear_sucursal":
         codigo = _texto(
@@ -604,6 +613,214 @@ def procesar_accion_estructura_admin(
         )
 
         return "Estado del módulo actualizado."
+
+    if accion == "crear_vinculo_canal":
+        from services.vinculos_canales import (
+            CANAL_MERCADO_LIBRE,
+            CANAL_TIENDA_NUBE,
+            normalizar_canal,
+            validar_cuenta_exclusiva,
+            validar_pertenencia_organizacion,
+        )
+
+        canal = normalizar_canal(
+            _texto(
+                formulario,
+                "canal",
+                30,
+            )
+        )
+        unidad = _obtener_por_id(
+            UnidadNegocio,
+            _id_entero(
+                formulario,
+                "unidad_negocio_id",
+            ),
+            "la unidad de negocio",
+        )
+
+        def opcional(Modelo, campo, nombre):
+            valor = _texto(
+                formulario,
+                campo,
+                30,
+            )
+            if not valor:
+                return None
+            try:
+                identificador = int(valor)
+            except ValueError as error:
+                raise ValueError(
+                    f"No es válido el registro de {nombre}."
+                ) from error
+            return _obtener_por_id(
+                Modelo,
+                identificador,
+                nombre,
+            )
+
+        catalogo = opcional(
+            Catalogo,
+            "catalogo_id",
+            "el catálogo",
+        )
+        sucursal = opcional(
+            SucursalOperativa,
+            "sucursal_operativa_id",
+            "la sucursal",
+        )
+        entidad = opcional(
+            EntidadFiscal,
+            "entidad_fiscal_id",
+            "la entidad fiscal",
+        )
+
+        cuenta_ml = None
+        cuenta_tn = None
+
+        if canal == CANAL_MERCADO_LIBRE:
+            cuenta_ml = _obtener_por_id(
+                MercadoLibreCuenta,
+                _id_entero(
+                    formulario,
+                    "mercado_libre_cuenta_id",
+                ),
+                "la cuenta de Mercado Libre",
+            )
+            duplicado = (
+                VinculoCanalComercial.query
+                .filter_by(
+                    mercado_libre_cuenta_id=(
+                        cuenta_ml.id
+                    )
+                )
+                .first()
+            )
+        elif canal == CANAL_TIENDA_NUBE:
+            cuenta_tn = _obtener_por_id(
+                TiendaNubeCuenta,
+                _id_entero(
+                    formulario,
+                    "tienda_nube_cuenta_id",
+                ),
+                "la cuenta Tienda Nube",
+            )
+            duplicado = (
+                VinculoCanalComercial.query
+                .filter_by(
+                    tienda_nube_cuenta_id=(
+                        cuenta_tn.id
+                    )
+                )
+                .first()
+            )
+
+        if duplicado is not None:
+            raise ValueError(
+                "Esa cuenta ya tiene un vínculo comercial."
+            )
+
+        validar_cuenta_exclusiva(
+            canal,
+            mercado_libre_cuenta=cuenta_ml,
+            tienda_nube_cuenta=cuenta_tn,
+        )
+        validar_pertenencia_organizacion(
+            organizacion.id,
+            unidad_negocio=unidad,
+            catalogo=catalogo,
+            sucursal=sucursal,
+            entidad_fiscal=entidad,
+        )
+
+        nombre = _texto(
+            formulario,
+            "nombre",
+            150,
+        )
+
+        if not nombre:
+            raise ValueError(
+                "Ingresá un nombre para el vínculo."
+            )
+
+        vinculo = VinculoCanalComercial(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad.id,
+            catalogo_id=(
+                catalogo.id
+                if catalogo is not None
+                else None
+            ),
+            sucursal_operativa_id=(
+                sucursal.id
+                if sucursal is not None
+                else None
+            ),
+            entidad_fiscal_id=(
+                entidad.id
+                if entidad is not None
+                else None
+            ),
+            canal=canal,
+            mercado_libre_cuenta_id=(
+                cuenta_ml.id
+                if cuenta_ml is not None
+                else None
+            ),
+            tienda_nube_cuenta_id=(
+                cuenta_tn.id
+                if cuenta_tn is not None
+                else None
+            ),
+            nombre=nombre,
+            estado="desactivado",
+            detalle=_texto(
+                formulario,
+                "detalle",
+                500,
+            ),
+        )
+        db_session.add(vinculo)
+        _guardar(db_session)
+
+        return (
+            "Vínculo comercial creado "
+            "en estado desactivado."
+        )
+
+    if accion == "estado_vinculo_canal":
+        from services.vinculos_canales import (
+            cambiar_estado_vinculo,
+        )
+
+        vinculo = _obtener_por_id(
+            VinculoCanalComercial,
+            _id_entero(
+                formulario,
+                "vinculo_id",
+            ),
+            "el vínculo comercial",
+        )
+
+        cambiar_estado_vinculo(
+            vinculo,
+            _texto(
+                formulario,
+                "estado",
+                20,
+            ),
+            detalle=_texto(
+                formulario,
+                "detalle",
+                500,
+            ),
+            db_session=db_session,
+        )
+
+        return (
+            "Estado del vínculo comercial actualizado."
+        )
 
     raise ValueError(
         "La acción administrativa no es válida."

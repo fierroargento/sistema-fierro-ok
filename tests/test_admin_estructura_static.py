@@ -51,18 +51,18 @@ def test_guardado_admin_delega_en_servicio_y_revierte():
     assert "registrar_auditoria(" in bloque
 
 
-def test_panel_no_modifica_pedidos_ni_integraciones():
+def test_panel_no_ejecuta_operacion_productiva():
     servicio = Path(
         "services/estructura_admin.py"
     ).read_text(encoding="utf-8")
 
     prohibidos = [
         "Pedido.query",
-        "MercadoLibreCuenta",
-        "TiendaNubeCuenta",
         "ml_sync",
         "tn_sync",
         "facturar_pedido",
+        "ml_upsert_pedido",
+        "tn_importar_o_actualizar_pedido",
     ]
 
     for prohibido in prohibidos:

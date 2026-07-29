@@ -222,6 +222,169 @@
     </div>
 
     <div class="card" style="margin-top:16px;">
+        <h2>Vínculos de canales comerciales</h2>
+        <p>
+            Estas asignaciones son preparatorias. Aunque un vínculo
+            figure activo, todavía ningún pedido, webhook, sincronización
+            ni factura consulta esta tabla.
+        </p>
+
+        <form method="post"
+              action="{{ url_for('admin_estructura_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <input type="hidden"
+                   name="accion"
+                   value="crear_vinculo_canal">
+
+            <input name="nombre"
+                   required
+                   maxlength="150"
+                   placeholder="Nombre interno">
+
+            <select name="canal" required>
+                <option value="">Seleccionar canal</option>
+                <option value="mercadolibre">Mercado Libre</option>
+                <option value="tiendanube">Tienda Nube</option>
+            </select>
+
+            <select name="mercado_libre_cuenta_id">
+                <option value="">Cuenta ML si corresponde</option>
+                {% for cuenta in cuentas_ml_estructura %}
+                <option value="{{ cuenta.id }}">
+                    {{ cuenta.nickname or cuenta.user_id_ml or ("Cuenta ML #" ~ cuenta.id) }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select name="tienda_nube_cuenta_id">
+                <option value="">Cuenta TN si corresponde</option>
+                {% for cuenta in cuentas_tn_estructura %}
+                <option value="{{ cuenta.id }}">
+                    {{ cuenta.store_id or ("Cuenta TN #" ~ cuenta.id) }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select name="unidad_negocio_id" required>
+                <option value="">Unidad de negocio</option>
+                {% for unidad in unidades %}
+                <option value="{{ unidad.id }}">
+                    {{ unidad.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select name="catalogo_id">
+                <option value="">Sin catálogo asignado</option>
+                {% for catalogo in catalogos %}
+                <option value="{{ catalogo.id }}">
+                    {{ catalogo.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select name="sucursal_operativa_id">
+                <option value="">Sin sucursal asignada</option>
+                {% for sucursal in sucursales %}
+                <option value="{{ sucursal.id }}">
+                    {{ sucursal.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select name="entidad_fiscal_id">
+                <option value="">Sin entidad fiscal asignada</option>
+                {% for entidad in entidades_fiscales %}
+                <option value="{{ entidad.id }}">
+                    {{ entidad.razon_social }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <input name="detalle"
+                   maxlength="500"
+                   placeholder="Detalle interno">
+
+            <button type="submit">
+                Crear vínculo desactivado
+            </button>
+        </form>
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Canal / cuenta</th>
+                        <th>Unidad</th>
+                        <th>Catálogo</th>
+                        <th>Sucursal</th>
+                        <th>Entidad fiscal</th>
+                        <th>Estado</th>
+                        <th>Actualizar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vinculo in vinculos_canales %}
+                    <tr>
+                        <td>{{ vinculo.nombre }}</td>
+                        <td>
+                            {{ vinculo.canal }}
+                            {% if vinculo.mercado_libre_cuenta %}
+                            / {{ vinculo.mercado_libre_cuenta.nickname or vinculo.mercado_libre_cuenta.user_id_ml }}
+                            {% elif vinculo.tienda_nube_cuenta %}
+                            / {{ vinculo.tienda_nube_cuenta.store_id }}
+                            {% endif %}
+                        </td>
+                        <td>{{ vinculo.unidad_negocio.nombre }}</td>
+                        <td>
+                            {{ vinculo.catalogo.nombre if vinculo.catalogo else "-" }}
+                        </td>
+                        <td>
+                            {{ vinculo.sucursal_operativa.nombre if vinculo.sucursal_operativa else "-" }}
+                        </td>
+                        <td>
+                            {{ vinculo.entidad_fiscal.razon_social if vinculo.entidad_fiscal else "-" }}
+                        </td>
+                        <td><strong>{{ vinculo.estado }}</strong></td>
+                        <td>
+                            <form method="post"
+                                  action="{{ url_for('admin_estructura_guardar') }}">
+                                <input type="hidden"
+                                       name="accion"
+                                       value="estado_vinculo_canal">
+                                <input type="hidden"
+                                       name="vinculo_id"
+                                       value="{{ vinculo.id }}">
+                                <select name="estado">
+                                    {% for estado in estados_modulo %}
+                                    <option value="{{ estado }}"
+                                        {% if vinculo.estado == estado %}selected{% endif %}>
+                                        {{ estado }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <input name="detalle"
+                                       maxlength="500"
+                                       value="{{ vinculo.detalle or '' }}"
+                                       placeholder="Detalle">
+                                <button type="submit">Guardar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8">
+                            No hay cuentas vinculadas a la estructura.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
         <h2>Catálogos comerciales</h2>
 
         <form method="post"

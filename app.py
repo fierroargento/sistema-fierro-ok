@@ -253,6 +253,7 @@ from models.entidad_fiscal import EntidadFiscal
 from models.catalogo import Catalogo
 from models.catalogo_producto import CatalogoProducto
 from models.modulo_organizacion import ModuloOrganizacion
+from models.vinculo_canal_comercial import VinculoCanalComercial
 from models.nota_pedido import NotaPedido
 from models.estado_conversacional_pedido import EstadoConversacionalPedido
 from models.pedido_agregado_apb import PedidoAgregadoAPB
@@ -7151,6 +7152,30 @@ def admin_estructura():
         )
         .all()
     )
+    vinculos_canales = (
+        VinculoCanalComercial.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            VinculoCanalComercial.id.asc()
+        )
+        .all()
+    )
+    cuentas_ml_estructura = (
+        MercadoLibreCuenta.query
+        .order_by(
+            MercadoLibreCuenta.id.asc()
+        )
+        .all()
+    )
+    cuentas_tn_estructura = (
+        TiendaNubeCuenta.query
+        .order_by(
+            TiendaNubeCuenta.id.asc()
+        )
+        .all()
+    )
 
     from services.modulos_organizacion import (
         ESTADO_ACTIVO,
@@ -7168,6 +7193,13 @@ def admin_estructura():
         productos=productos,
         productos_catalogo=productos_catalogo,
         modulos=modulos,
+        vinculos_canales=vinculos_canales,
+        cuentas_ml_estructura=(
+            cuentas_ml_estructura
+        ),
+        cuentas_tn_estructura=(
+            cuentas_tn_estructura
+        ),
         estados_modulo=(
             ESTADO_DESACTIVADO,
             ESTADO_PRUEBA,
@@ -7235,6 +7267,15 @@ def admin_estructura_guardar():
                     "UnidadNegocio": UnidadNegocio,
                     "ModuloOrganizacion": (
                         ModuloOrganizacion
+                    ),
+                    "VinculoCanalComercial": (
+                        VinculoCanalComercial
+                    ),
+                    "MercadoLibreCuenta": (
+                        MercadoLibreCuenta
+                    ),
+                    "TiendaNubeCuenta": (
+                        TiendaNubeCuenta
                     ),
                 },
                 db_session=db.session,
