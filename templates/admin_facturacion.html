@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h1>Facturación multi-CUIT</h1>
+
+    <p>
+        Configuración y borradores internos. No existe todavía
+        conexión con ARCA ni emisión real de comprobantes.
+    </p>
+
+    <div class="alerta alerta-error">
+        Módulo:
+        <strong>
+            {{ modulo_facturacion.estado if modulo_facturacion else "desactivado" }}
+        </strong>.
+        La emisión real está bloqueada por código en todos los ambientes.
+    </div>
+
+    {% if ok_feedback %}
+    <div class="alerta alerta-ok">{{ ok_feedback }}</div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alerta alerta-error">{{ error }}</div>
+    {% endif %}
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Configuraciones por entidad fiscal</h2>
+
+        {% if entidades_fiscales %}
+        <form method="post"
+              action="{{ url_for('admin_facturacion_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <input type="hidden" name="accion" value="crear_configuracion">
+
+            <select required name="entidad_fiscal_id">
+                <option value="">Entidad fiscal</option>
+                {% for entidad in entidades_fiscales %}
+                <option value="{{ entidad.id }}">
+                    {{ entidad.razon_social }} — {{ entidad.cuit or "sin CUIT" }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select required name="ambiente">
+                <option value="homologacion">Homologación</option>
+                <option value="produccion">Producción bloqueada</option>
+            </select>
+
+            <input name="certificado_env"
+                   maxlength="120"
+                   placeholder="Variable del certificado">
+            <input name="clave_privada_env"
+                   maxlength="120"
+                   placeholder="Variable de clave privada">
+            <input name="token_env"
+                   maxlength="120"
+                   placeholder="Variable de token">
+            <input name="detalle"
+                   maxlength="500"
+                   placeholder="Detalle">
+            <button type="submit">Crear desactivada</button>
+        </form>
+        {% endif %}
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Entidad</th>
+                        <th>Ambiente</th>
+                        <th>Variables</th>
+                        <th>Estado</th>
+                        <th>Actualizar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for configuracion in configuraciones %}
+                    <tr>
+                        <td>{{ configuracion.entidad_fiscal.razon_social }}</td>
+                        <td>{{ configuracion.ambiente }}</td>
+                        <td>
+                            {{ configuracion.certificado_env or "-" }}<br>
+                            {{ configuracion.clave_privada_env or "-" }}
+                        </td>
+                        <td>{{ configuracion.estado }}</td>
+                        <td>
+                            <form method="post"
+                                  action="{{ url_for('admin_facturacion_guardar') }}">
+                                <input type="hidden"
+                                       name="accion"
+                                       value="estado_configuracion">
+                                <input type="hidden"
+                                       name="configuracion_id"
+                                       value="{{ configuracion.id }}">
+                                <select name="estado">
+                                    <option value="desactivada">Desactivada</option>
+                                    <option value="configurada">Configurada</option>
+                                    <option value="prueba">Prueba</option>
+                                </select>
+                                <input name="detalle"
+                                       maxlength="500"
+                                       value="{{ configuracion.detalle or '' }}">
+                                <button type="submit">Guardar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">No hay configuraciones fiscales.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if configuraciones %}
+    <div class="card" style="margin-top:16px;">
+        <h2>Puntos de venta</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_facturacion_guardar') }}"
+              style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="hidden" name="accion" value="crear_punto_venta">
+
+            <select required name="configuracion_fiscal_id">
+                <option value="">Configuración</option>
+                {% for configuracion in configuraciones %}
+                <option value="{{ configuracion.id }}">
+                    {{ configuracion.entidad_fiscal.razon_social }}
+                    / {{ configuracion.ambiente }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <input required
+                   type="number"
+                   min="1"
+                   name="numero"
+                   placeholder="Número">
+            <input required
+                   name="nombre"
+                   maxlength="150"
+                   placeholder="Nombre">
+            <button type="submit">Crear desactivado</button>
+        </form>
+
+        <table style="width:100%;margin-top:12px;">
+            <thead>
+                <tr>
+                    <th>Entidad</th>
+                    <th>Número</th>
+                    <th>Nombre</th>
+                    <th>Estado</th>
+                    <th>Emisión real</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for punto in puntos_venta %}
+                <tr>
+                    <td>{{ punto.entidad_fiscal.razon_social }}</td>
+                    <td>{{ "%05d"|format(punto.numero) }}</td>
+                    <td>{{ punto.nombre }}</td>
+                    <td>{{ punto.estado }}</td>
+                    <td><strong>bloqueada</strong></td>
+                    <td>
+                        <form method="post"
+                              action="{{ url_for('admin_facturacion_guardar') }}">
+                            <input type="hidden"
+                                   name="accion"
+                                   value="toggle_punto_venta">
+                            <input type="hidden"
+                                   name="punto_venta_id"
+                                   value="{{ punto.id }}">
+                            <button type="submit">
+                                {{ "Desactivar" if punto.estado == "activo" else "Activar administrativamente" }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">No hay puntos de venta.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if puntos_venta %}
+    <div class="card" style="margin-top:16px;">
+        <h2>Tipos de comprobante</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_facturacion_guardar') }}"
+              style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="hidden"
+                   name="accion"
+                   value="crear_tipo_comprobante">
+
+            <select required name="punto_venta_fiscal_id">
+                <option value="">Punto de venta</option>
+                {% for punto in puntos_venta %}
+                <option value="{{ punto.id }}">
+                    {{ punto.entidad_fiscal.razon_social }}
+                    / {{ "%05d"|format(punto.numero) }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <input required
+                   type="number"
+                   min="1"
+                   name="codigo_arca"
+                   placeholder="Código ARCA">
+            <input required
+                   name="nombre"
+                   maxlength="150"
+                   placeholder="Nombre">
+            <input required
+                   name="letra"
+                   maxlength="5"
+                   placeholder="Letra">
+            <button type="submit">Crear desactivado</button>
+        </form>
+
+        <table style="width:100%;margin-top:12px;">
+            <thead>
+                <tr>
+                    <th>Punto de venta</th>
+                    <th>Código</th>
+                    <th>Tipo</th>
+                    <th>Último autorizado</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tipo in tipos_comprobante %}
+                <tr>
+                    <td>{{ "%05d"|format(tipo.punto_venta.numero) }}</td>
+                    <td>{{ tipo.codigo_arca }}</td>
+                    <td>{{ tipo.nombre }} {{ tipo.letra }}</td>
+                    <td>{{ tipo.ultimo_numero_autorizado }}</td>
+                    <td>{{ "activo" if tipo.activo else "desactivado" }}</td>
+                    <td>
+                        <form method="post"
+                              action="{{ url_for('admin_facturacion_guardar') }}">
+                            <input type="hidden"
+                                   name="accion"
+                                   value="toggle_tipo_comprobante">
+                            <input type="hidden"
+                                   name="tipo_comprobante_id"
+                                   value="{{ tipo.id }}">
+                            <button type="submit">
+                                {{ "Desactivar" if tipo.activo else "Activar" }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">No hay tipos configurados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if puntos_venta and tipos_comprobante %}
+    <div class="card" style="margin-top:16px;">
+        <h2>Borradores fiscales</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_facturacion_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <input type="hidden" name="accion" value="crear_borrador">
+
+            <select required name="entidad_fiscal_id">
+                <option value="">Entidad fiscal</option>
+                {% for entidad in entidades_fiscales %}
+                <option value="{{ entidad.id }}">{{ entidad.razon_social }}</option>
+                {% endfor %}
+            </select>
+
+            <select required name="punto_venta_fiscal_id">
+                <option value="">Punto de venta</option>
+                {% for punto in puntos_venta %}
+                <option value="{{ punto.id }}">
+                    {{ punto.entidad_fiscal.razon_social }}
+                    / {{ "%05d"|format(punto.numero) }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select required name="tipo_comprobante_fiscal_id">
+                <option value="">Tipo de comprobante</option>
+                {% for tipo in tipos_comprobante %}
+                <option value="{{ tipo.id }}">
+                    {{ tipo.nombre }} {{ tipo.letra }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <select name="cliente_crm_id">
+                <option value="">Sin cliente CRM</option>
+                {% for cliente in clientes_crm %}
+                <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <input required
+                   name="receptor_nombre"
+                   maxlength="200"
+                   placeholder="Receptor">
+            <input name="receptor_documento"
+                   maxlength="30"
+                   placeholder="DNI / CUIT">
+            <input name="receptor_condicion_iva"
+                   maxlength="80"
+                   placeholder="Condición IVA">
+            <input name="moneda"
+                   maxlength="10"
+                   value="ARS"
+                   placeholder="Moneda">
+            <button type="submit">Crear borrador</button>
+        </form>
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Entidad / PV</th>
+                        <th>Receptor</th>
+                        <th>Estado</th>
+                        <th>Neto</th>
+                        <th>IVA</th>
+                        <th>Total</th>
+                        <th>Estado manual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for borrador in borradores %}
+                    <tr>
+                        <td>#{{ borrador.id }}</td>
+                        <td>
+                            {{ borrador.entidad_fiscal.razon_social }} /
+                            {{ "%05d"|format(borrador.punto_venta.numero) }}
+                        </td>
+                        <td>{{ borrador.receptor_nombre }}</td>
+                        <td>{{ borrador.estado }}</td>
+                        <td>$ {{ "%.2f"|format(borrador.neto_centavos / 100) }}</td>
+                        <td>$ {{ "%.2f"|format(borrador.iva_centavos / 100) }}</td>
+                        <td>$ {{ "%.2f"|format(borrador.total_centavos / 100) }}</td>
+                        <td>
+                            {% if borrador.estado in ["borrador", "listo"] %}
+                            <form method="post"
+                                  action="{{ url_for('admin_facturacion_guardar') }}">
+                                <input type="hidden"
+                                       name="accion"
+                                       value="estado_borrador">
+                                <input type="hidden"
+                                       name="borrador_id"
+                                       value="{{ borrador.id }}">
+                                <select name="estado">
+                                    {% if borrador.estado == "borrador" %}
+                                    <option value="listo">Listo</option>
+                                    {% else %}
+                                    <option value="borrador">Reabrir</option>
+                                    {% endif %}
+                                    <option value="cancelado">Cancelar</option>
+                                </select>
+                                <button type="submit">Actualizar</button>
+                            </form>
+                            {% else %}
+                            Cerrado
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8">No hay borradores.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if borradores %}
+    <div class="card" style="margin-top:16px;">
+        <h2>Agregar ítem a borrador</h2>
+
+        <form method="post"
+              action="{{ url_for('admin_facturacion_guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+            <input type="hidden"
+                   name="accion"
+                   value="agregar_item_borrador">
+
+            <select required name="borrador_id">
+                <option value="">Borrador abierto</option>
+                {% for borrador in borradores %}
+                {% if borrador.estado == "borrador" %}
+                <option value="{{ borrador.id }}">
+                    #{{ borrador.id }} — {{ borrador.receptor_nombre }}
+                </option>
+                {% endif %}
+                {% endfor %}
+            </select>
+
+            <input required
+                   name="descripcion"
+                   maxlength="300"
+                   placeholder="Descripción">
+            <input name="sku"
+                   maxlength="100"
+                   placeholder="SKU opcional">
+            <input required
+                   name="cantidad"
+                   inputmode="decimal"
+                   value="1"
+                   placeholder="Cantidad">
+            <input required
+                   name="precio_unitario"
+                   inputmode="decimal"
+                   placeholder="Precio final unitario">
+            <input required
+                   name="alicuota_iva"
+                   inputmode="decimal"
+                   value="21"
+                   placeholder="IVA %">
+            <button type="submit">Agregar ítem</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Eventos fiscales recientes</h2>
+
+        <table style="width:100%;">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Borrador</th>
+                    <th>Detalle</th>
+                    <th>Usuario</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for evento in eventos %}
+                <tr>
+                    <td>
+                        {{ evento.fecha.strftime("%d/%m/%Y %H:%M") if evento.fecha else "-" }}
+                    </td>
+                    <td>{{ evento.tipo }}</td>
+                    <td>
+                        {{ ("#" ~ evento.borrador_comprobante_fiscal_id) if evento.borrador_comprobante_fiscal_id else "-" }}
+                    </td>
+                    <td>{{ evento.detalle or "-" }}</td>
+                    <td>{{ evento.usuario or "-" }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">No hay eventos fiscales.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

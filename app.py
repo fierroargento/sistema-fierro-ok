@@ -262,6 +262,12 @@ from models.actividad_crm import ActividadCRM
 from models.existencia_sucursal import ExistenciaSucursal
 from models.movimiento_inventario import MovimientoInventario
 from models.politica_disponibilidad_catalogo import PoliticaDisponibilidadCatalogo
+from models.configuracion_fiscal import ConfiguracionFiscal
+from models.punto_venta_fiscal import PuntoVentaFiscal
+from models.tipo_comprobante_fiscal import TipoComprobanteFiscal
+from models.borrador_comprobante_fiscal import BorradorComprobanteFiscal
+from models.borrador_item_fiscal import BorradorItemFiscal
+from models.evento_fiscal import EventoFiscal
 from models.nota_pedido import NotaPedido
 from models.estado_conversacional_pedido import EstadoConversacionalPedido
 from models.pedido_agregado_apb import PedidoAgregadoAPB
@@ -7717,6 +7723,222 @@ def admin_inventario_guardar():
 
         return redirect(url_for(
             "admin_inventario",
+            error=str(error),
+        ))
+
+
+@app.route("/admin/facturacion")
+@login_required
+def admin_facturacion():
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    organizacion = (
+        Organizacion.query
+        .filter_by(slug="grupo-fierro")
+        .first()
+    )
+
+    if organizacion is None:
+        return redirect(url_for(
+            "inicio",
+            error="No se encontró la organización.",
+        ))
+
+    modulo_facturacion = (
+        ModuloOrganizacion.query
+        .filter_by(
+            organizacion_id=organizacion.id,
+            codigo="facturacion-multicuit",
+        )
+        .first()
+    )
+    entidades_fiscales = (
+        EntidadFiscal.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            EntidadFiscal.razon_social.asc()
+        )
+        .all()
+    )
+    configuraciones = (
+        ConfiguracionFiscal.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            ConfiguracionFiscal.id.asc()
+        )
+        .all()
+    )
+    puntos_venta = (
+        PuntoVentaFiscal.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            PuntoVentaFiscal.numero.asc()
+        )
+        .all()
+    )
+    tipos_comprobante = (
+        TipoComprobanteFiscal.query
+        .join(PuntoVentaFiscal)
+        .filter(
+            PuntoVentaFiscal.organizacion_id
+            == organizacion.id
+        )
+        .order_by(
+            TipoComprobanteFiscal.id.asc()
+        )
+        .all()
+    )
+    clientes_crm = (
+        ClienteCRM.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            ClienteCRM.nombre.asc()
+        )
+        .all()
+    )
+    borradores = (
+        BorradorComprobanteFiscal.query
+        .filter_by(
+            organizacion_id=organizacion.id
+        )
+        .order_by(
+            BorradorComprobanteFiscal.id.desc()
+        )
+        .all()
+    )
+    eventos = (
+        EventoFiscal.query
+        .order_by(
+            EventoFiscal.id.desc()
+        )
+        .limit(200)
+        .all()
+    )
+
+    return render_template(
+        "admin_facturacion.html",
+        modulo_facturacion=modulo_facturacion,
+        entidades_fiscales=entidades_fiscales,
+        configuraciones=configuraciones,
+        puntos_venta=puntos_venta,
+        tipos_comprobante=tipos_comprobante,
+        clientes_crm=clientes_crm,
+        borradores=borradores,
+        eventos=eventos,
+        ok_feedback=(
+            request.args.get("ok")
+            or ""
+        ).strip(),
+        error=(
+            request.args.get("error")
+            or ""
+        ).strip(),
+    )
+
+
+@app.route(
+    "/admin/facturacion/guardar",
+    methods=["POST"],
+)
+@login_required
+def admin_facturacion_guardar():
+    if rol_actual() != "admin":
+        return redirect(url_for("inicio"))
+
+    organizacion = (
+        Organizacion.query
+        .filter_by(slug="grupo-fierro")
+        .first()
+    )
+
+    if organizacion is None:
+        return redirect(url_for(
+            "admin_facturacion",
+            error="No se encontró la organización.",
+        ))
+
+    accion = (
+        request.form.get("accion")
+        or ""
+    ).strip()
+
+    from services.facturacion_admin import (
+        procesar_accion_facturacion_admin,
+    )
+
+    actual = usuario_actual()
+
+    try:
+        mensaje = (
+            procesar_accion_facturacion_admin(
+                accion,
+                request.form,
+                organizacion=organizacion,
+                modelos={
+                    "ConfiguracionFiscal": (
+                        ConfiguracionFiscal
+                    ),
+                    "PuntoVentaFiscal": (
+                        PuntoVentaFiscal
+                    ),
+                    "TipoComprobanteFiscal": (
+                        TipoComprobanteFiscal
+                    ),
+                    "BorradorComprobanteFiscal": (
+                        BorradorComprobanteFiscal
+                    ),
+                    "BorradorItemFiscal": (
+                        BorradorItemFiscal
+                    ),
+                    "EventoFiscal": EventoFiscal,
+                    "EntidadFiscal": EntidadFiscal,
+                    "ClienteCRM": ClienteCRM,
+                },
+                db_session=db.session,
+                usuario=(
+                    getattr(
+                        actual,
+                        "username",
+                        None,
+                    )
+                    or "admin"
+                ),
+            )
+        )
+
+        registrar_auditoria(
+            "Configuró facturación multi-CUIT",
+            entidad="facturacion_config",
+            entidad_id=organizacion.id,
+            detalle=(
+                f"Acción: {accion}. {mensaje}"
+            ),
+        )
+
+        return redirect(url_for(
+            "admin_facturacion",
+            ok=mensaje,
+        ))
+
+    except Exception as error:
+        db.session.rollback()
+
+        print(
+            "[FACTURACION ADMIN] "
+            f"No se pudo ejecutar {accion}: {error}"
+        )
+
+        return redirect(url_for(
+            "admin_facturacion",
             error=str(error),
         ))
 
