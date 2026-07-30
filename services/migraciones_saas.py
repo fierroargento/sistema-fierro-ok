@@ -1,0 +1,113 @@
+"""
+Migraciones aditivas para la transicion SaaS.
+
+No elimina columnas ni modifica flujos operativos.
+"""
+
+
+def organizacion_evento_legacy(
+    evento,
+    organizacion_id_predeterminada,
+):
+    borrador = getattr(
+        evento,
+        "borrador",
+        None,
+    )
+    configuracion = getattr(
+        evento,
+        "configuracion",
+        None,
+    )
+
+    if borrador is not None:
+        organizacion_id = getattr(
+            borrador,
+            "organizacion_id",
+            None,
+        )
+        if organizacion_id:
+            return int(organizacion_id)
+
+    if configuracion is not None:
+        organizacion_id = getattr(
+            configuracion,
+            "organizacion_id",
+            None,
+        )
+        if organizacion_id:
+            return int(organizacion_id)
+
+    return int(organizacion_id_predeterminada)
+
+
+def asegurar_evento_fiscal_tenant(
+    *,
+    db,
+    inspect_fn,
+    text_fn,
+    EventoFiscal,
+    organizacion_id_predeterminada,
+    logger_fn=print,
+):
+    """
+    Agrega organizacion_id si la tabla fiscal fue creada antes
+    de incorporar aislamiento tenant.
+    """
+    inspector = inspect_fn(db.engine)
+    columnas = {
+        columna["name"]
+        for columna in inspector.get_columns(
+            "evento_fiscal"
+        )
+    }
+
+    columna_creada = False
+
+    if "organizacion_id" not in columnas:
+        db.session.execute(text_fn(
+            "ALTER TABLE evento_fiscal "
+            "ADD COLUMN organizacion_id INTEGER"
+        ))
+        db.session.commit()
+        columna_creada = True
+
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS "
+        "ix_evento_fiscal_organizacion_id "
+        "ON evento_fiscal (organizacion_id)"
+    ))
+    db.session.commit()
+
+    pendientes = (
+        EventoFiscal.query
+        .filter(
+            EventoFiscal.organizacion_id.is_(None)
+        )
+        .all()
+    )
+
+    for evento in pendientes:
+        evento.organizacion_id = (
+            organizacion_evento_legacy(
+                evento,
+                organizacion_id_predeterminada,
+            )
+        )
+
+    if pendientes:
+        db.session.commit()
+
+    if (
+        logger_fn is not None
+        and (columna_creada or pendientes)
+    ):
+        logger_fn(
+            "[SAAS] Eventos fiscales asociados "
+            "a una organizacion."
+        )
+
+    return {
+        "columna_creada": columna_creada,
+        "eventos_actualizados": len(pendientes),
+    }

@@ -246,6 +246,7 @@ db.init_app(app)
 
 from models.auditoria import Auditoria
 from models.usuario_sistema import UsuarioSistema
+from models.usuario_organizacion import UsuarioOrganizacion
 from models.organizacion import Organizacion
 from models.unidad_negocio import UnidadNegocio
 from models.sucursal_operativa import SucursalOperativa
@@ -7727,222 +7728,6 @@ def admin_inventario_guardar():
         ))
 
 
-@app.route("/admin/facturacion")
-@login_required
-def admin_facturacion():
-    if rol_actual() != "admin":
-        return redirect(url_for("inicio"))
-
-    organizacion = (
-        Organizacion.query
-        .filter_by(slug="grupo-fierro")
-        .first()
-    )
-
-    if organizacion is None:
-        return redirect(url_for(
-            "inicio",
-            error="No se encontró la organización.",
-        ))
-
-    modulo_facturacion = (
-        ModuloOrganizacion.query
-        .filter_by(
-            organizacion_id=organizacion.id,
-            codigo="facturacion-multicuit",
-        )
-        .first()
-    )
-    entidades_fiscales = (
-        EntidadFiscal.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            EntidadFiscal.razon_social.asc()
-        )
-        .all()
-    )
-    configuraciones = (
-        ConfiguracionFiscal.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            ConfiguracionFiscal.id.asc()
-        )
-        .all()
-    )
-    puntos_venta = (
-        PuntoVentaFiscal.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            PuntoVentaFiscal.numero.asc()
-        )
-        .all()
-    )
-    tipos_comprobante = (
-        TipoComprobanteFiscal.query
-        .join(PuntoVentaFiscal)
-        .filter(
-            PuntoVentaFiscal.organizacion_id
-            == organizacion.id
-        )
-        .order_by(
-            TipoComprobanteFiscal.id.asc()
-        )
-        .all()
-    )
-    clientes_crm = (
-        ClienteCRM.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            ClienteCRM.nombre.asc()
-        )
-        .all()
-    )
-    borradores = (
-        BorradorComprobanteFiscal.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            BorradorComprobanteFiscal.id.desc()
-        )
-        .all()
-    )
-    eventos = (
-        EventoFiscal.query
-        .order_by(
-            EventoFiscal.id.desc()
-        )
-        .limit(200)
-        .all()
-    )
-
-    return render_template(
-        "admin_facturacion.html",
-        modulo_facturacion=modulo_facturacion,
-        entidades_fiscales=entidades_fiscales,
-        configuraciones=configuraciones,
-        puntos_venta=puntos_venta,
-        tipos_comprobante=tipos_comprobante,
-        clientes_crm=clientes_crm,
-        borradores=borradores,
-        eventos=eventos,
-        ok_feedback=(
-            request.args.get("ok")
-            or ""
-        ).strip(),
-        error=(
-            request.args.get("error")
-            or ""
-        ).strip(),
-    )
-
-
-@app.route(
-    "/admin/facturacion/guardar",
-    methods=["POST"],
-)
-@login_required
-def admin_facturacion_guardar():
-    if rol_actual() != "admin":
-        return redirect(url_for("inicio"))
-
-    organizacion = (
-        Organizacion.query
-        .filter_by(slug="grupo-fierro")
-        .first()
-    )
-
-    if organizacion is None:
-        return redirect(url_for(
-            "admin_facturacion",
-            error="No se encontró la organización.",
-        ))
-
-    accion = (
-        request.form.get("accion")
-        or ""
-    ).strip()
-
-    from services.facturacion_admin import (
-        procesar_accion_facturacion_admin,
-    )
-
-    actual = usuario_actual()
-
-    try:
-        mensaje = (
-            procesar_accion_facturacion_admin(
-                accion,
-                request.form,
-                organizacion=organizacion,
-                modelos={
-                    "ConfiguracionFiscal": (
-                        ConfiguracionFiscal
-                    ),
-                    "PuntoVentaFiscal": (
-                        PuntoVentaFiscal
-                    ),
-                    "TipoComprobanteFiscal": (
-                        TipoComprobanteFiscal
-                    ),
-                    "BorradorComprobanteFiscal": (
-                        BorradorComprobanteFiscal
-                    ),
-                    "BorradorItemFiscal": (
-                        BorradorItemFiscal
-                    ),
-                    "EventoFiscal": EventoFiscal,
-                    "EntidadFiscal": EntidadFiscal,
-                    "ClienteCRM": ClienteCRM,
-                },
-                db_session=db.session,
-                usuario=(
-                    getattr(
-                        actual,
-                        "username",
-                        None,
-                    )
-                    or "admin"
-                ),
-            )
-        )
-
-        registrar_auditoria(
-            "Configuró facturación multi-CUIT",
-            entidad="facturacion_config",
-            entidad_id=organizacion.id,
-            detalle=(
-                f"Acción: {accion}. {mensaje}"
-            ),
-        )
-
-        return redirect(url_for(
-            "admin_facturacion",
-            ok=mensaje,
-        ))
-
-    except Exception as error:
-        db.session.rollback()
-
-        print(
-            "[FACTURACION ADMIN] "
-            f"No se pudo ejecutar {accion}: {error}"
-        )
-
-        return redirect(url_for(
-            "admin_facturacion",
-            error=str(error),
-        ))
-
-
 @app.route("/admin/usuarios")
 @login_required
 def admin_usuarios():
@@ -12417,6 +12202,50 @@ def asegurar_usuarios_iniciales():
 
 
 
+from modules.admin.facturacion.routes import (
+    crear_blueprint_facturacion,
+)
+
+app.register_blueprint(
+    crear_blueprint_facturacion(
+        dependencias={
+            "db": db,
+            "login_required": login_required,
+            "usuario_actual": usuario_actual,
+            "registrar_auditoria": (
+                registrar_auditoria
+            ),
+            "UsuarioOrganizacion": (
+                UsuarioOrganizacion
+            ),
+            "modelos": {
+                "ModuloOrganizacion": (
+                    ModuloOrganizacion
+                ),
+                "EntidadFiscal": EntidadFiscal,
+                "ConfiguracionFiscal": (
+                    ConfiguracionFiscal
+                ),
+                "PuntoVentaFiscal": (
+                    PuntoVentaFiscal
+                ),
+                "TipoComprobanteFiscal": (
+                    TipoComprobanteFiscal
+                ),
+                "ClienteCRM": ClienteCRM,
+                "BorradorComprobanteFiscal": (
+                    BorradorComprobanteFiscal
+                ),
+                "BorradorItemFiscal": (
+                    BorradorItemFiscal
+                ),
+                "EventoFiscal": EventoFiscal,
+            },
+        },
+    )
+)
+
+
 with app.app_context():
     db.create_all()
 
@@ -12431,6 +12260,23 @@ with app.app_context():
             db_session=db.session,
             logger_fn=print,
         )
+    )
+
+    from services.migraciones_saas import (
+        asegurar_evento_fiscal_tenant,
+    )
+
+    asegurar_evento_fiscal_tenant(
+        db=db,
+        inspect_fn=inspect,
+        text_fn=text,
+        EventoFiscal=EventoFiscal,
+        organizacion_id_predeterminada=(
+            estructura_inicial[
+                "organizacion"
+            ].id
+        ),
+        logger_fn=print,
     )
 
     from services.modulos_organizacion import (
@@ -12456,6 +12302,23 @@ with app.app_context():
     from services.productos_catalogo_db import asegurar_columnas_producto_logistica
     asegurar_columnas_producto_logistica(db, inspect, text)
     asegurar_usuarios_iniciales()
+
+    from services.tenant_context import (
+        asegurar_membresias_organizacion_inicial,
+    )
+
+    asegurar_membresias_organizacion_inicial(
+        UsuarioSistema=UsuarioSistema,
+        UsuarioOrganizacion=UsuarioOrganizacion,
+        organizacion_id=(
+            estructura_inicial[
+                "organizacion"
+            ].id
+        ),
+        db_session=db.session,
+        logger_fn=print,
+    )
+
     asegurar_configuracion_inicial()
 
     # ── Módulo WhatsApp Bot ──────────────────────────────────────────

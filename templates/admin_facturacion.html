@@ -29,7 +29,7 @@
 
         {% if entidades_fiscales %}
         <form method="post"
-              action="{{ url_for('admin_facturacion_guardar') }}"
+              action="{{ url_for('admin_facturacion.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_configuracion">
 
@@ -86,7 +86,7 @@
                         <td>{{ configuracion.estado }}</td>
                         <td>
                             <form method="post"
-                                  action="{{ url_for('admin_facturacion_guardar') }}">
+                                  action="{{ url_for('admin_facturacion.guardar') }}">
                                 <input type="hidden"
                                        name="accion"
                                        value="estado_configuracion">
@@ -118,7 +118,7 @@
         <h2>Puntos de venta</h2>
 
         <form method="post"
-              action="{{ url_for('admin_facturacion_guardar') }}"
+              action="{{ url_for('admin_facturacion.guardar') }}"
               style="display:flex;gap:8px;flex-wrap:wrap;">
             <input type="hidden" name="accion" value="crear_punto_venta">
 
@@ -165,7 +165,7 @@
                     <td><strong>bloqueada</strong></td>
                     <td>
                         <form method="post"
-                              action="{{ url_for('admin_facturacion_guardar') }}">
+                              action="{{ url_for('admin_facturacion.guardar') }}">
                             <input type="hidden"
                                    name="accion"
                                    value="toggle_punto_venta">
@@ -191,7 +191,7 @@
         <h2>Tipos de comprobante</h2>
 
         <form method="post"
-              action="{{ url_for('admin_facturacion_guardar') }}"
+              action="{{ url_for('admin_facturacion.guardar') }}"
               style="display:flex;gap:8px;flex-wrap:wrap;">
             <input type="hidden"
                    name="accion"
@@ -244,7 +244,7 @@
                     <td>{{ "activo" if tipo.activo else "desactivado" }}</td>
                     <td>
                         <form method="post"
-                              action="{{ url_for('admin_facturacion_guardar') }}">
+                              action="{{ url_for('admin_facturacion.guardar') }}">
                             <input type="hidden"
                                    name="accion"
                                    value="toggle_tipo_comprobante">
@@ -270,7 +270,7 @@
         <h2>Borradores fiscales</h2>
 
         <form method="post"
-              action="{{ url_for('admin_facturacion_guardar') }}"
+              action="{{ url_for('admin_facturacion.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_borrador">
 
@@ -354,7 +354,7 @@
                         <td>
                             {% if borrador.estado in ["borrador", "listo"] %}
                             <form method="post"
-                                  action="{{ url_for('admin_facturacion_guardar') }}">
+                                  action="{{ url_for('admin_facturacion.guardar') }}">
                                 <input type="hidden"
                                        name="accion"
                                        value="estado_borrador">
@@ -390,7 +390,7 @@
         <h2>Agregar ítem a borrador</h2>
 
         <form method="post"
-              action="{{ url_for('admin_facturacion_guardar') }}"
+              action="{{ url_for('admin_facturacion.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
             <input type="hidden"
                    name="accion"

@@ -14,8 +14,14 @@ class EventoFiscal(db.Model):
     __tablename__ = "evento_fiscal"
 
     id = db.Column(
-        db.Integer,
+        db       .Integer,
         primary_key=True,
+    )
+    organizacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizacion.id"),
+        nullable=False,
+        index=True,
     )
     borrador_comprobante_fiscal_id = db.Column(
         db.Integer,
@@ -44,6 +50,10 @@ class EventoFiscal(db.Model):
         index=True,
     )
 
+    organizacion = db.relationship(
+        "Organizacion",
+        backref="eventos_fiscales",
+    )
     borrador = db.relationship(
         "BorradorComprobanteFiscal",
         backref="eventos",

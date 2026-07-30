@@ -128,10 +128,12 @@ def _crear_evento(
     tipo,
     usuario,
     detalle,
+    organizacion_id,
     borrador_id=None,
     configuracion_id=None,
 ):
     evento = EventoFiscal(
+        organizacion_id=organizacion_id,
         borrador_comprobante_fiscal_id=(
             borrador_id
         ),
@@ -282,6 +284,7 @@ def procesar_accion_facturacion_admin(
         _crear_evento(
             EventoFiscal,
             db_session,
+            organizacion_id=organizacion.id,
             tipo="configuracion_creada",
             usuario=usuario,
             detalle=(
@@ -331,6 +334,7 @@ def procesar_accion_facturacion_admin(
         _crear_evento(
             EventoFiscal,
             db_session,
+            organizacion_id=organizacion.id,
             tipo="configuracion_estado",
             usuario=usuario,
             detalle=f"Nuevo estado: {estado}.",
@@ -420,6 +424,7 @@ def procesar_accion_facturacion_admin(
         _crear_evento(
             EventoFiscal,
             db_session,
+            organizacion_id=organizacion.id,
             tipo="punto_venta_creado",
             usuario=usuario,
             detalle=(
@@ -459,6 +464,7 @@ def procesar_accion_facturacion_admin(
         _crear_evento(
             EventoFiscal,
             db_session,
+            organizacion_id=organizacion.id,
             tipo="punto_venta_estado",
             usuario=usuario,
             detalle=(
@@ -708,6 +714,7 @@ def procesar_accion_facturacion_admin(
         _crear_evento(
             EventoFiscal,
             db_session,
+            organizacion_id=organizacion.id,
             tipo="borrador_creado",
             usuario=usuario,
             detalle=(
@@ -809,6 +816,7 @@ def procesar_accion_facturacion_admin(
         _crear_evento(
             EventoFiscal,
             db_session,
+            organizacion_id=organizacion.id,
             tipo="item_agregado",
             usuario=usuario,
             detalle=(
@@ -851,6 +859,7 @@ def procesar_accion_facturacion_admin(
         _crear_evento(
             EventoFiscal,
             db_session,
+            organizacion_id=organizacion.id,
             tipo="borrador_estado",
             usuario=usuario,
             detalle=(
