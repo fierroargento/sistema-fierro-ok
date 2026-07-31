@@ -403,7 +403,6 @@ def procesar_accion_inventario_admin(
             30,
         )
 
-               )
 
         if campo == "activa":
             politica.activa = not bool(

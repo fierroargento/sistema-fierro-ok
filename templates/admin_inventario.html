@@ -29,7 +29,7 @@
 
         {% if sucursales and productos %}
         <form method="post"
-              action="{{ url_for('admin_inventario_guardar') }}"
+              action="{{ url_for('admin_inventario.guardar') }}"
               style="display:flex;gap:8px;flex-wrap:wrap;">
             <input type="hidden"
                    name="accion"
@@ -110,7 +110,7 @@
                         </td>
                         <td>
                             <form method="post"
-                                  action="{{ url_for('admin_inventario_guardar') }}">
+                                  action="{{ url_for('admin_inventario.guardar') }}">
                                 <input type="hidden"
                                        name="accion"
                                        value="toggle_control_existencia">
@@ -140,7 +140,7 @@
         <h2>Registrar movimiento manual</h2>
 
         <form method="post"
-              action="{{ url_for('admin_inventario_guardar') }}"
+              action="{{ url_for('admin_inventario.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
             <input type="hidden"
                    name="accion"
@@ -240,7 +240,7 @@
 
         {% if productos_catalogo and sucursales %}
         <form method="post"
-              action="{{ url_for('admin_inventario_guardar') }}"
+              action="{{ url_for('admin_inventario.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
             <input type="hidden"
                    name="accion"
@@ -320,7 +320,7 @@
                         </td>
                         <td>
                             <form method="post"
-                                  action="{{ url_for('admin_inventario_guardar') }}"
+                                  action="{{ url_for('admin_inventario.guardar') }}"
                                   style="display:inline;">
                                 <input type="hidden" name="accion" value="toggle_politica">
                                 <input type="hidden" name="politica_id" value="{{ politica.id }}">
@@ -331,7 +331,7 @@
                             </form>
 
                             <form method="post"
-                                  action="{{ url_for('admin_inventario_guardar') }}"
+                                  action="{{ url_for('admin_inventario.guardar') }}"
                                   style="display:inline;">
                                 <input type="hidden" name="accion" value="toggle_politica">
                                 <input type="hidden" name="politica_id" value="{{ politica.id }}">

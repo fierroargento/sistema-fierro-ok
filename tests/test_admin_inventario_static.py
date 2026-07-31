@@ -1,58 +1,119 @@
 from pathlib import Path
 
 
-def _app():
-    return Path("app.py").read_text(
-        encoding="utf-8-sig"
+RAIZ = Path(__file__).resolve().parents[1]
+
+
+def _leer(ruta):
+    return (
+        RAIZ
+        .joinpath(ruta)
+        .read_text(encoding="utf-8")
     )
 
 
-def test_panel_inventario_es_solo_admin():
-    app = _app()
-    inicio = app.index(
-        "def admin_inventario("
+def test_inventario_usa_blueprint_modular():
+    rutas = _leer(
+        "modules/admin/inventario/routes.py"
     )
-    previo = app[
-        app.rfind(
-            "@app.route",
-            0,
-            inicio,
-        ):inicio
-    ]
-    fin = app.index(
-        "\n\n@app.route(",
-        inicio,
-    )
-    bloque = app[inicio:fin]
 
-    assert "@login_required" in previo
-    assert 'rol_actual() != "admin"' in bloque
-    assert '"admin_inventario.html"' in bloque
+    assert "Blueprint(" in rutas
+    assert (
+        '"admin_inventario"'
+        in rutas
+    )
+    assert (
+        '"/admin/inventario"'
+        in rutas
+    )
+    assert (
+        '"/admin/inventario/guardar"'
+        in rutas
+    )
+
+
+def test_panel_resuelve_tenant_y_rol_admin():
+    rutas = _leer(
+        "modules/admin/inventario/routes.py"
+    )
+
+    assert (
+        "resolver_tenant_usuario("
+        in rutas
+    )
+    assert (
+        'session.get(\n'
+        '                    "organizacion_id"'
+        in rutas
+    )
+    assert (
+        'membresia.rol != "admin"'
+        in rutas
+    )
+    assert (
+        'session["organizacion_id"]'
+        in rutas
+    )
+
+
+def test_panel_delega_consultas_tenant():
+    rutas = _leer(
+        "modules/admin/inventario/routes.py"
+    )
+
+    assert (
+        "obtener_datos_panel_inventario("
+        in rutas
+    )
+    assert ".query" not in rutas
+    assert (
+        '"admin_inventario.html"'
+        in rutas
+    )
 
 
 def test_guardado_delega_y_hace_rollback():
-    app = _app()
-    inicio = app.index(
-        "def admin_inventario_guardar("
+    rutas = _leer(
+        "modules/admin/inventario/routes.py"
     )
-    fin = app.index(
-        "\n\n@app.route(",
-        inicio,
-    )
-    bloque = app[inicio:fin]
 
     assert (
         "procesar_accion_inventario_admin("
-        in bloque
+        in rutas
     )
-    assert "db.session.rollback()" in bloque
-    assert "registrar_auditoria(" in bloque
+    assert "db.session.rollback()" in rutas
+    assert "registrar_auditoria(" in rutas
+    assert (
+        '"admin_inventario.panel"'
+        in rutas
+    )
 
 
-def test_servicio_no_toca_pedidos_o_canales():
-    servicio = Path(
-        "services/inventario_admin.py"
-    ).read_text(encoding="utf-8")
+def test_app_solo_compone_blueprint_inventario():
+    app = _leer("app.py")
+
+    assert (
+        "crear_blueprint_inventario("
+        in app
+    )
+    assert (
+        "app.register_blueprint("
+        in app
+    )
+    assert "def admin_inventario()" not in app
+    assert (
+        "def admin_inventario_guardar()"
+        not in app
+    )
+
+
+def test_servicios_no_tocan_pedidos_o_canales():
+    servicios = (
+        _leer("services/inventario_admin.py")
+        + _leer(
+            "services/inventario_consultas.py"
+        )
+    )
 
     prohibidos = [
         "Pedido.query",
@@ -63,14 +124,13 @@ def test_servicio_no_toca_pedidos_o_canales():
     ]
 
     for prohibido in prohibidos:
-        assert prohibido not in servicio
+        assert prohibido not in servicios
 
 
 def test_template_declara_aislamiento():
-    template = Path(
+    template = _leer(
         "templates/admin_inventario.html"
-    ).read_text(encoding="utf-8")
-
+    )
     compacto = " ".join(
         template.split()
     )
@@ -84,12 +144,33 @@ def test_template_declara_aislamiento():
     )
 
 
-def test_menu_incluye_inventario():
-    base = Path(
-        "templates/base.html"
-    ).read_text(encoding="utf-8-sig")
+def test_endpoints_namespaced_en_vistas():
+    template = _leer(
+        "templates/admin_inventario.html"
+    )
+    base = _leer("templates/base.html")
 
     assert (
-        "url_for('admin_inventario')"
+        "url_for('admin_inventario.guardar')"
+        in template
+    )
+    assert (
+        "admin_inventario_guardar"
+        not in template
+    )
+    assert (
+        "url_for('admin_inventario.panel')"
         in base
+    )
+
+
+def test_blueprint_no_importa_modelos_concretos():
+    rutas = _leer(
+        "modules/admin/inventario/routes.py"
+    )
+
+    assert "from models." not in rutas
+    assert (
+        'modelos = dependencias["modelos"]'
+        in rutas
     )

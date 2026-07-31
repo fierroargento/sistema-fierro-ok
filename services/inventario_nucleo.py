@@ -217,6 +217,7 @@ def registrar_movimiento(
     )
 
     movimiento = MovimientoInventario(
+        organizacion_id=existencia.organizacion_id,
         existencia_sucursal_id=existencia.id,
         tipo=str(tipo).strip().lower(),
         cantidad=int(cantidad),

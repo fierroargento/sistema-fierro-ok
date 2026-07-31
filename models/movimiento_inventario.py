@@ -19,6 +19,12 @@ class MovimientoInventario(db.Model):
         db.Integer,
         primary_key=True,
     )
+    organizacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizacion.id"),
+        nullable=False,
+        index=True,
+    )
     existencia_sucursal_id = db.Column(
         db.Integer,
         db.ForeignKey("existencia_sucursal.id"),
@@ -63,6 +69,10 @@ class MovimientoInventario(db.Model):
         index=True,
     )
 
+    organizacion = db.relationship(
+        "Organizacion",
+        backref="movimientos_inventario",
+    )
     existencia = db.relationship(
         "ExistenciaSucursal",
         backref="movimientos",
