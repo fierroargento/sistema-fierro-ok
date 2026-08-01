@@ -7325,204 +7325,6 @@ def admin_estructura_guardar():
         ))
 
 
-@app.route("/admin/crm")
-@login_required
-def admin_crm():
-    if rol_actual() != "admin":
-        return redirect(url_for("inicio"))
-
-    organizacion = (
-        Organizacion.query
-        .filter_by(slug="grupo-fierro")
-        .first()
-    )
-
-    if organizacion is None:
-        return redirect(url_for(
-            "inicio",
-            error="No se encontró la organización.",
-        ))
-
-    modulo_crm = (
-        ModuloOrganizacion.query
-        .filter_by(
-            organizacion_id=organizacion.id,
-            codigo="crm",
-        )
-        .first()
-    )
-    unidades = (
-        UnidadNegocio.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            UnidadNegocio.nombre.asc()
-        )
-        .all()
-    )
-    etapas = (
-        EtapaCRM.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            EtapaCRM.orden.asc(),
-            EtapaCRM.nombre.asc(),
-        )
-        .all()
-    )
-    clientes = (
-        ClienteCRM.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            ClienteCRM.nombre.asc()
-        )
-        .all()
-    )
-    identidades = (
-        ClienteIdentidadCanal.query
-        .join(ClienteCRM)
-        .filter(
-            ClienteCRM.organizacion_id
-            == organizacion.id
-        )
-        .order_by(
-            ClienteIdentidadCanal.id.asc()
-        )
-        .all()
-    )
-    oportunidades = (
-        OportunidadCRM.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            OportunidadCRM.id.desc()
-        )
-        .all()
-    )
-    actividades = (
-        ActividadCRM.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            ActividadCRM.id.desc()
-        )
-        .all()
-    )
-
-    return render_template(
-        "admin_crm.html",
-        modulo_crm=modulo_crm,
-        unidades=unidades,
-        etapas=etapas,
-        clientes=clientes,
-        identidades=identidades,
-        oportunidades=oportunidades,
-        actividades=actividades,
-        ok_feedback=(
-            request.args.get("ok")
-            or ""
-        ).strip(),
-        error=(
-            request.args.get("error")
-            or ""
-        ).strip(),
-    )
-
-
-@app.route(
-    "/admin/crm/guardar",
-    methods=["POST"],
-)
-@login_required
-def admin_crm_guardar():
-    if rol_actual() != "admin":
-        return redirect(url_for("inicio"))
-
-    organizacion = (
-        Organizacion.query
-        .filter_by(slug="grupo-fierro")
-        .first()
-    )
-
-    if organizacion is None:
-        return redirect(url_for(
-            "admin_crm",
-            error="No se encontró la organización.",
-        ))
-
-    accion = (
-        request.form.get("accion")
-        or ""
-    ).strip()
-
-    from services.crm_admin import (
-        procesar_accion_crm_admin,
-    )
-
-    actual = usuario_actual()
-
-    try:
-        mensaje = procesar_accion_crm_admin(
-            accion,
-            request.form,
-            organizacion=organizacion,
-            modelos={
-                "ClienteCRM": ClienteCRM,
-                "ClienteIdentidadCanal": (
-                    ClienteIdentidadCanal
-                ),
-                "EtapaCRM": EtapaCRM,
-                "OportunidadCRM": (
-                    OportunidadCRM
-                ),
-                "ActividadCRM": ActividadCRM,
-                "UnidadNegocio": UnidadNegocio,
-            },
-            db_session=db.session,
-            usuario=(
-                getattr(
-                    actual,
-                    "username",
-                    None,
-                )
-                or "admin"
-            ),
-        )
-
-        registrar_auditoria(
-            "Configuró CRM interno",
-            entidad="crm",
-            entidad_id=organizacion.id,
-            detalle=(
-                f"Acción: {accion}. {mensaje}"
-            ),
-        )
-
-        return redirect(url_for(
-            "admin_crm",
-            ok=mensaje,
-        ))
-
-    except Exception as error:
-        db.session.rollback()
-
-        print(
-            "[CRM ADMIN] "
-            f"No se pudo ejecutar {accion}: {error}"
-        )
-
-        return redirect(url_for(
-            "admin_crm",
-            error=str(error),
-        ))
-
-
 @app.route("/admin/usuarios")
 @login_required
 def admin_usuarios():
@@ -11997,6 +11799,46 @@ def asegurar_usuarios_iniciales():
 
 
 
+from modules.admin.crm.routes import (
+    crear_blueprint_crm,
+)
+
+app.register_blueprint(
+    crear_blueprint_crm(
+        dependencias={
+            "db": db,
+            "login_required": login_required,
+            "usuario_actual": usuario_actual,
+            "registrar_auditoria": (
+                registrar_auditoria
+            ),
+            "UsuarioOrganizacion": (
+                UsuarioOrganizacion
+            ),
+            "modelos": {
+                "ModuloOrganizacion": (
+                    ModuloOrganizacion
+                ),
+                "UnidadNegocio": (
+                    UnidadNegocio
+                ),
+                "ClienteCRM": ClienteCRM,
+                "ClienteIdentidadCanal": (
+                    ClienteIdentidadCanal
+                ),
+                "EtapaCRM": EtapaCRM,
+                "OportunidadCRM": (
+                    OportunidadCRM
+                ),
+                "ActividadCRM": (
+                    ActividadCRM
+                ),
+            },
+        },
+    )
+)
+
+
 from modules.admin.inventario.routes import (
     crear_blueprint_inventario,
 )
@@ -12103,6 +11945,7 @@ with app.app_context():
     from services.migraciones_saas import (
         asegurar_evento_fiscal_tenant,
         asegurar_movimiento_inventario_tenant,
+        asegurar_identidad_canal_crm_tenant,
     )
 
     asegurar_evento_fiscal_tenant(
@@ -12124,6 +11967,21 @@ with app.app_context():
         text_fn=text,
         MovimientoInventario=(
             MovimientoInventario
+        ),
+        organizacion_id_predeterminada=(
+            estructura_inicial[
+                "organizacion"
+            ].id
+        ),
+        logger_fn=print,
+    )
+
+    asegurar_identidad_canal_crm_tenant(
+        db=db,
+        inspect_fn=inspect,
+        text_fn=text,
+        ClienteIdentidadCanal=(
+            ClienteIdentidadCanal
         ),
         organizacion_id_predeterminada=(
             estructura_inicial[

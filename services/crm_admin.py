@@ -156,7 +156,10 @@ def procesar_accion_crm_admin(
 
         if (
             EtapaCRM.query
-            .filter_by(codigo=codigo)
+            .filter_by(
+                organizacion_id=organizacion.id,
+                codigo=codigo,
+            )
             .first()
             is not None
         ):
@@ -242,7 +245,10 @@ def procesar_accion_crm_admin(
 
         if (
             ClienteCRM.query
-            .filter_by(codigo=codigo)
+            .filter_by(
+                organizacion_id=organizacion.id,
+                codigo=codigo,
+            )
             .first()
             is not None
         ):
@@ -396,6 +402,7 @@ def procesar_accion_crm_admin(
         existente = (
             ClienteIdentidadCanal.query
             .filter_by(
+                organizacion_id=organizacion.id,
                 canal=canal,
                 identificador_externo=(
                     identificador
@@ -410,6 +417,7 @@ def procesar_accion_crm_admin(
             )
 
         identidad = ClienteIdentidadCanal(
+            organizacion_id=organizacion.id,
             cliente_crm_id=cliente.id,
             canal=canal,
             identificador_externo=identificador,
@@ -438,6 +446,12 @@ def procesar_accion_crm_admin(
                 "identidad_id",
             ),
             "la identidad",
+        )
+
+        _misma_organizacion(
+            organizacion,
+            identidad,
+            "La identidad",
         )
 
         cliente = _obtener(

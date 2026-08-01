@@ -19,6 +19,12 @@ class ClienteIdentidadCanal(db.Model):
         db.Integer,
         primary_key=True,
     )
+    organizacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizacion.id"),
+        nullable=False,
+        index=True,
+    )
     cliente_crm_id = db.Column(
         db.Integer,
         db.ForeignKey("cliente_crm.id"),
@@ -53,6 +59,10 @@ class ClienteIdentidadCanal(db.Model):
         onupdate=ahora_utc_naive,
     )
 
+    organizacion = db.relationship(
+        "Organizacion",
+        backref="identidades_canal_crm",
+    )
     cliente = db.relationship(
         "ClienteCRM",
         backref="identidades_canal",

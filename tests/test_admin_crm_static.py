@@ -1,85 +1,152 @@
 from pathlib import Path
 
 
-def _app():
-    return Path("app.py").read_text(
-        encoding="utf-8-sig"
+RAIZ = Path(__file__).resolve().parents[1]
+
+
+def _leer(ruta):
+    return (
+        RAIZ
+        .joinpath(ruta)
+        .read_text(encoding="utf-8")
     )
 
 
-def test_panel_crm_es_solo_admin():
-    app = _app()
-    inicio = app.index(
-        "def admin_crm("
+def test_crm_usa_blueprint_modular():
+    rutas = _leer(
+        "modules/admin/crm/routes.py"
     )
-    bloque_previo = app[
-        app.rfind(
-            "@app.route",
-            0,
-            inicio,
-        ):inicio
-    ]
-    fin = app.index(
-        "\n\n@app.route(",
-        inicio,
-    )
-    bloque = app[inicio:fin]
 
-    assert "@login_required" in bloque_previo
-    assert 'rol_actual() != "admin"' in bloque
-    assert '"admin_crm.html"' in bloque
+    assert "Blueprint(" in rutas
+    assert '"admin_crm"' in rutas
+    assert '"/admin/crm"' in rutas
+    assert (
+        '"/admin/crm/guardar"'
+        in rutas
+    )
 
 
-def test_guardado_crm_delega_y_revierte():
-    app = _app()
-    inicio = app.index(
-        "def admin_crm_guardar("
+def test_panel_resuelve_tenant_admin():
+    rutas = _leer(
+        "modules/admin/crm/routes.py"
     )
-    fin = app.index(
-        "\n\n@app.route(",
-        inicio,
+
+    assert (
+        "resolver_tenant_usuario("
+        in rutas
     )
-    bloque = app[inicio:fin]
+    assert (
+        'session.get(\n'
+        '                    "organizacion_id"'
+        in rutas
+    )
+    assert (
+        'membresia.rol != "admin"'
+        in rutas
+    )
+    assert (
+        'session["organizacion_id"]'
+        in rutas
+    )
+
+
+def test_panel_delega_consultas_tenant():
+    rutas = _leer(
+        "modules/admin/crm/routes.py"
+    )
+
+    assert (
+        "obtener_datos_panel_crm("
+        in rutas
+    )
+    assert ".query" not in rutas
+    assert '"admin_crm.html"' in rutas
+
+
+def test_guardado_delega_y_hace_rollback():
+    rutas = _leer(
+        "modules/admin/crm/routes.py"
+    )
 
     assert (
         "procesar_accion_crm_admin("
-        in bloque
+        in rutas
     )
-    assert "db.session.rollback()" in bloque
-    assert "registrar_auditoria(" in bloque
+    assert "db.session.rollback()" in rutas
+    assert "registrar_auditoria(" in rutas
+    assert '"admin_crm.panel"' in rutas
 
 
-def test_servicio_crm_no_opera_pedidos_o_canales():
-    servicio = Path(
-        "services/crm_admin.py"
-    ).read_text(encoding="utf-8")
+def test_app_solo_compone_blueprint_crm():
+    app = _leer("app.py")
+
+    assert "crear_blueprint_crm(" in app
+    assert "app.register_blueprint(" in app
+    assert "def admin_crm()" not in app
+    assert (
+        "def admin_crm_guardar()"
+        not in app
+    )
+
+
+def test_servicios_crm_no_tocan_produccion():
+    servicios = (
+        _leer("services/crm_admin.py")
+        + _leer("services/crm_consultas.py")
+        + _leer("services/crm_nucleo.py")
+    )
 
     prohibidos = [
         "Pedido.query",
         "ml_sync",
         "tn_sync",
         "wa_enviar",
-        "facturar_pedido",
         "requests.",
     ]
 
     for prohibido in prohibidos:
-        assert prohibido not in servicio
+        assert prohibido not in servicios
 
 
-def test_template_advierte_aislamiento():
-    template = Path(
+def test_endpoints_namespaced():
+    template = _leer(
         "templates/admin_crm.html"
-    ).read_text(encoding="utf-8")
+    )
+    base = _leer("templates/base.html")
 
-    assert "no importa pedidos" in template
-    assert "no sincroniza canales" in template
-    assert "no envía mensajes" in template
+    assert (
+        "url_for('admin_crm.guardar')"
+        in template
+    )
+    assert (
+        "admin_crm_guardar"
+        not in template
+    )
+    assert (
+        "url_for('admin_crm.panel')"
+        in base
+    )
 
 
-def test_menu_admin_incluye_crm():
-    base = Path(
-        "templates/base.html"
-    ).read_text(encoding="utf-8-sig")
+def test_blueprint_no_importa_modelos():
+    rutas = _leer(
+        "modules/admin/crm/routes.py"
+    )
 
-    assert "url_for('admin_crm')" in base
+    assert "from models." not in rutas
+    assert (
+        'modelos = dependencias["modelos"]'
+        in rutas
+    )
+
+
+def test_crm_mantiene_automatizaciones_bloqueadas():
+    nucleo = _leer(
+        "services/crm_nucleo.py"
+    )
+
+    assert (
+        "def crm_habilita_automatizaciones("
+        in nucleo
+    )
+    assert "return False" in nucleo

@@ -26,7 +26,7 @@
         <h2>Etapas comerciales</h2>
 
         <form method="post"
-              action="{{ url_for('admin_crm_guardar') }}"
+              action="{{ url_for('admin_crm.guardar') }}"
               style="display:flex;gap:8px;flex-wrap:wrap;">
             <input type="hidden" name="accion" value="crear_etapa">
             <input required name="codigo" maxlength="80" placeholder="Código">
@@ -55,7 +55,7 @@
                     </td>
                     <td>{{ "activa" if etapa.activa else "desactivada" }}</td>
                     <td>
-                        <form method="post" action="{{ url_for('admin_crm_guardar') }}">
+                        <form method="post" action="{{ url_for('admin_crm.guardar') }}">
                             <input type="hidden" name="accion" value="toggle_etapa">
                             <input type="hidden" name="etapa_id" value="{{ etapa.id }}">
                             <button type="submit">
@@ -75,7 +75,7 @@
         <h2>Clientes CRM</h2>
 
         <form method="post"
-              action="{{ url_for('admin_crm_guardar') }}"
+              action="{{ url_for('admin_crm.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_cliente">
             <input required name="codigo" maxlength="80" placeholder="Código interno">
@@ -138,7 +138,7 @@
                         <td>{{ cliente.estado }}</td>
                         <td>{{ "activo" if cliente.activo else "desactivado" }}</td>
                         <td>
-                            <form method="post" action="{{ url_for('admin_crm_guardar') }}">
+                            <form method="post" action="{{ url_for('admin_crm.guardar') }}">
                                 <input type="hidden" name="accion" value="toggle_cliente">
                                 <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
                                 <button type="submit">
@@ -160,7 +160,7 @@
         <h2>Identidades por canal</h2>
 
         <form method="post"
-              action="{{ url_for('admin_crm_guardar') }}"
+              action="{{ url_for('admin_crm.guardar') }}"
               style="display:flex;gap:8px;flex-wrap:wrap;">
             <input type="hidden" name="accion" value="agregar_identidad">
 
@@ -208,7 +208,7 @@
                     <td>{{ identidad.identificador_externo }}</td>
                     <td>{{ "activa" if identidad.activo else "desactivada" }}</td>
                     <td>
-                        <form method="post" action="{{ url_for('admin_crm_guardar') }}">
+                        <form method="post" action="{{ url_for('admin_crm.guardar') }}">
                             <input type="hidden" name="accion" value="toggle_identidad">
                             <input type="hidden" name="identidad_id" value="{{ identidad.id }}">
                             <button type="submit">
@@ -228,7 +228,7 @@
         <h2>Oportunidades</h2>
 
         <form method="post"
-              action="{{ url_for('admin_crm_guardar') }}"
+              action="{{ url_for('admin_crm.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_oportunidad">
 
@@ -300,7 +300,7 @@
                         <td>{{ "activa" if oportunidad.activa else "desactivada" }}</td>
                         <td>
                             <form method="post"
-                                  action="{{ url_for('admin_crm_guardar') }}"
+                                  action="{{ url_for('admin_crm.guardar') }}"
                                   style="display:inline;">
                                 <input type="hidden" name="accion" value="estado_oportunidad">
                                 <input type="hidden"
@@ -316,7 +316,7 @@
                             </form>
 
                             <form method="post"
-                                  action="{{ url_for('admin_crm_guardar') }}"
+                                  action="{{ url_for('admin_crm.guardar') }}"
                                   style="display:inline;">
                                 <input type="hidden" name="accion" value="toggle_oportunidad">
                                 <input type="hidden"
@@ -340,7 +340,7 @@
         <h2>Actividades y tareas</h2>
 
         <form method="post"
-              action="{{ url_for('admin_crm_guardar') }}"
+              action="{{ url_for('admin_crm.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_actividad">
 
@@ -397,7 +397,7 @@
                     </td>
                     <td>{{ actividad.estado }}</td>
                     <td>
-                        <form method="post" action="{{ url_for('admin_crm_guardar') }}">
+                        <form method="post" action="{{ url_for('admin_crm.guardar') }}">
                             <input type="hidden" name="accion" value="completar_actividad">
                             <input type="hidden" name="actividad_id" value="{{ actividad.id }}">
                             <button type="submit">
