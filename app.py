@@ -11946,6 +11946,7 @@ with app.app_context():
         asegurar_evento_fiscal_tenant,
         asegurar_movimiento_inventario_tenant,
         asegurar_identidad_canal_crm_tenant,
+        asegurar_codigos_unicos_por_tenant,
     )
 
     asegurar_evento_fiscal_tenant(
@@ -11988,6 +11989,13 @@ with app.app_context():
                 "organizacion"
             ].id
         ),
+        logger_fn=print,
+    )
+
+    asegurar_codigos_unicos_por_tenant(
+        db=db,
+        inspect_fn=inspect,
+        text_fn=text,
         logger_fn=print,
     )
 

@@ -316,3 +316,201 @@ def asegurar_identidad_canal_crm_tenant(
             pendientes
         ),
     }
+
+
+def especificaciones_codigos_tenant():
+    return (
+        (
+            "catalogo",
+            "uq_catalogo_organizacion_codigo",
+        ),
+        (
+            "cliente_crm",
+            "uq_cliente_crm_organizacion_codigo",
+        ),
+        (
+            "etapa_crm",
+            "uq_etapa_crm_organizacion_codigo",
+        ),
+        (
+            "unidad_negocio",
+            "uq_unidad_negocio_organizacion_codigo",
+        ),
+        (
+            "sucursal_operativa",
+            "uq_sucursal_operativa_organizacion_codigo",
+        ),
+        (
+            "entidad_fiscal",
+            "uq_entidad_fiscal_organizacion_codigo",
+        ),
+        (
+            "modulo_organizacion",
+            "uq_modulo_organizacion_codigo",
+        ),
+    )
+
+
+def _columnas_constraint(constraint):
+    return tuple(
+        constraint.get("column_names")
+        or ()
+    )
+
+
+def asegurar_codigos_unicos_por_tenant(
+    *,
+    db,
+    inspect_fn,
+    text_fn,
+    logger_fn=print,
+):
+    """
+    Convierte unicidades globales de codigo en tenant.
+
+    PostgreSQL permite retirar el constraint legacy.
+    SQLite legacy conserva la restriccion global para
+    evitar reconstruir tablas automaticamente.
+    """
+    dialecto = str(
+        db.engine.dialect.name
+        or ""
+    ).lower()
+    preparador = (
+        db.engine.dialect.identifier_preparer
+    )
+    resultados = []
+
+    for tabla, nombre_compuesto in (
+        especificaciones_codigos_tenant()
+    ):
+        inspector = inspect_fn(db.engine)
+        restricciones = (
+            inspector.get_unique_constraints(
+                tabla
+            )
+            or []
+        )
+        indices = (
+            inspector.get_indexes(tabla)
+            or []
+        )
+
+        globales = [
+            restriccion
+            for restriccion in restricciones
+            if _columnas_constraint(
+                restriccion
+            ) == ("codigo",)
+        ]
+
+        compuesto_existe = any(
+            _columnas_constraint(
+                restriccion
+            )
+            == (
+                "organizacion_id",
+                "codigo",
+            )
+            for restriccion in restricciones
+        ) or any(
+            tuple(
+                indice.get("column_names")
+                or ()
+            )
+            == (
+                "organizacion_id",
+                "codigo",
+            )
+            and bool(
+                indice.get("unique")
+            )
+            for indice in indices
+        )
+
+        global_retirado = False
+        global_pendiente = False
+
+        if not compuesto_existe:
+            tabla_sql = preparador.quote(tabla)
+            indice_sql = preparador.quote(
+                nombre_compuesto
+            )
+            organizacion_sql = preparador.quote(
+                "organizacion_id"
+            )
+            codigo_sql = preparador.quote(
+                "codigo"
+            )
+
+            db.session.execute(text_fn(
+                f"CREATE UNIQUE INDEX IF NOT EXISTS "
+                f"{indice_sql} ON {tabla_sql} "
+                f"({organizacion_sql}, {codigo_sql})"
+            ))
+            db.session.commit()
+
+        if globales and dialecto == "postgresql":
+            tabla_sql = preparador.quote(tabla)
+
+            for restriccion in globales:
+                nombre = restriccion.get(
+                    "name"
+                )
+
+                if not nombre:
+                    raise RuntimeError(
+                        "Constraint global sin nombre "
+                        f"en {tabla}."
+                    )
+
+                nombre_sql = preparador.quote(
+                    nombre
+                )
+
+                db.session.execute(text_fn(
+                    f"ALTER TABLE {tabla_sql} "
+                    f"DROP CONSTRAINT {nombre_sql}"
+                ))
+
+            db.session.commit()
+            global_retirado = True
+
+        elif globales:
+            global_pendiente = True
+
+        resultado = {
+            "tabla": tabla,
+            "global_retirado": global_retirado,
+            "global_pendiente": global_pendiente,
+            "compuesto_creado": (
+                not compuesto_existe
+            ),
+        }
+        resultados.append(resultado)
+
+        if (
+            logger_fn is not None
+            and (
+                global_retirado
+                or global_pendiente
+                or not compuesto_existe
+            )
+        ):
+            detalle = (
+                "constraint global retirado"
+                if global_retirado
+                else (
+                    "constraint global legacy "
+                    "conservado"
+                    if global_pendiente
+                    else "sin constraint global"
+                )
+            )
+
+            logger_fn(
+                f"[SAAS] {tabla}: unicidad tenant; "
+                f"{detalle}."
+            )
+
+    return resultados

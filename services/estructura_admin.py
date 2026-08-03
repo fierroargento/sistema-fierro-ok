@@ -128,7 +128,10 @@ def procesar_accion_estructura_admin(
 
         existente = (
             SucursalOperativa.query
-            .filter_by(codigo=codigo)
+            .filter_by(
+                organizacion_id=organizacion.id,
+                codigo=codigo,
+            )
             .first()
         )
 
@@ -216,7 +219,10 @@ def procesar_accion_estructura_admin(
 
         existente = (
             EntidadFiscal.query
-            .filter_by(codigo=codigo)
+            .filter_by(
+                organizacion_id=organizacion.id,
+                codigo=codigo,
+            )
             .first()
         )
 
@@ -351,7 +357,10 @@ def procesar_accion_estructura_admin(
 
         existente = (
             Catalogo.query
-            .filter_by(codigo=codigo)
+            .filter_by(
+                organizacion_id=organizacion.id,
+                codigo=codigo,
+            )
             .first()
         )
 

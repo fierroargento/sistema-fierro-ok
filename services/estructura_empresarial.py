@@ -55,7 +55,10 @@ def asegurar_estructura_empresarial_inicial(
     for codigo, nombre in UNIDADES_INICIALES:
         unidad = (
             UnidadNegocio.query
-            .filter_by(codigo=codigo)
+            .filter_by(
+                organizacion_id=organizacion.id,
+                codigo=codigo,
+            )
             .first()
         )
 

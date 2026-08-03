@@ -2,6 +2,8 @@
 Modelo de catálogos comerciales del Grupo Fierro.
 """
 
+from sqlalchemy import UniqueConstraint
+
 from extensions import db
 from services.fechas import ahora_utc_naive
 
@@ -15,6 +17,14 @@ class Catalogo(db.Model):
     """
 
     __tablename__ = "catalogo"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "organizacion_id",
+            "codigo",
+            name="uq_catalogo_organizacion_codigo",
+        ),
+    )
 
     id = db.Column(
         db.Integer,
@@ -34,7 +44,6 @@ class Catalogo(db.Model):
     )
     codigo = db.Column(
         db.String(80),
-        unique=True,
         nullable=False,
         index=True,
     )

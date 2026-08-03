@@ -2,6 +2,8 @@
 Estado de los módulos opcionales de una organización.
 """
 
+from sqlalchemy import UniqueConstraint
+
 from extensions import db
 from services.fechas import ahora_utc_naive
 
@@ -16,6 +18,14 @@ class ModuloOrganizacion(db.Model):
 
     __tablename__ = "modulo_organizacion"
 
+    __table_args__ = (
+        UniqueConstraint(
+            "organizacion_id",
+            "codigo",
+            name="uq_modulo_organizacion_codigo",
+        ),
+    )
+
     id = db.Column(
         db.Integer,
         primary_key=True,
@@ -28,7 +38,6 @@ class ModuloOrganizacion(db.Model):
     )
     codigo = db.Column(
         db.String(80),
-        unique=True,
         nullable=False,
         index=True,
     )

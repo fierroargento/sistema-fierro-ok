@@ -2,6 +2,8 @@
 Etapas configurables del proceso comercial.
 """
 
+from sqlalchemy import UniqueConstraint
+
 from extensions import db
 from services.fechas import ahora_utc_naive
 
@@ -15,6 +17,14 @@ class EtapaCRM(db.Model):
 
     __tablename__ = "etapa_crm"
 
+    __table_args__ = (
+        UniqueConstraint(
+            "organizacion_id",
+            "codigo",
+            name="uq_etapa_crm_organizacion_codigo",
+        ),
+    )
+
     id = db.Column(
         db.Integer,
         primary_key=True,
@@ -27,7 +37,6 @@ class EtapaCRM(db.Model):
     )
     codigo = db.Column(
         db.String(80),
-        unique=True,
         nullable=False,
         index=True,
     )
