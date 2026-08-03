@@ -4,94 +4,162 @@
 <div class="panel-card">
     <div class="page-header">
         <div>
-            <h1>Usuarios</h1>
-            <p>Alta, roles y estado de acceso. Solo Admin puede modificar usuarios.</p>
+            <h1>Usuarios de la organización</h1>
+            <p>
+                Accesos y roles de
+                <strong>{{ organizacion.nombre }}</strong>.
+                Los permisos se aplican solamente al tenant activo.
+            </p>
         </div>
     </div>
 
     {% if error %}
-    <div class="error" style="margin-bottom: 14px;">{{ error }}</div>
+    <div class="error" style="margin-bottom:14px;">
+        {{ error }}
+    </div>
     {% endif %}
 
-    <div class="detalle-box detalle-box-full" style="margin-bottom:18px;">
-        <h3>Crear usuario</h3>
-        <form method="POST" action="{{ url_for('admin_usuario_nuevo') }}" class="form-grid">
+    {% if ok_feedback %}
+    <div class="success" style="margin-bottom:14px;">
+        {{ ok_feedback }}
+    </div>
+    {% endif %}
+
+    <div class="detalle-box detalle-box-full"
+         style="margin-bottom:18px;">
+        <h3>Crear usuario y membresía</h3>
+
+        <form method="post"
+              action="{{ url_for('admin_usuarios.nuevo') }}"
+              class="form-grid">
             <div>
                 <label>Usuario</label>
-                <input type="text" name="username" required>
+                <input type="text"
+                       name="username"
+                       required>
             </div>
+
             <div>
                 <label>Nombre</label>
-                <input type="text" name="nombre" required>
+                <input type="text"
+                       name="nombre"
+                       required>
             </div>
+
             <div>
-                <label>Rol</label>
+                <label>Rol en la organización</label>
                 <select name="rol">
                     {% for rol in roles %}
-                    <option value="{{ rol }}">{{ rol }}</option>
+                    <option value="{{ rol }}">
+                        {{ rol }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
+
             <div>
-                <label>Contraseña</label>
-                <input type="password" name="password" required>
+                <label>Contraseña inicial</label>
+                <input type="password"
+                       name="password"
+                       required>
             </div>
+
             <div style="align-self:end;">
-                <button class="btn btn-accion-rapida btn-confirmar" type="submit">Crear usuario</button>
+                <button class="btn btn-accion-rapida btn-confirmar"
+                        type="submit">
+                    Crear usuario
+                </button>
             </div>
         </form>
     </div>
 
     <div class="detalle-box detalle-box-full">
-        <h3>Usuarios del sistema</h3>
+        <h3>Membresías del tenant</h3>
+
         <table class="tabla-items">
             <thead>
                 <tr>
                     <th>Usuario</th>
                     <th>Nombre</th>
-                    <th>Rol</th>
-                    <th>Estado</th>
+                    <th>Rol tenant</th>
+                    <th>Acceso tenant</th>
                     <th>Editar</th>
                     <th>Acción</th>
                 </tr>
             </thead>
+
             <tbody>
-                {% for usuario in usuarios %}
+                {% for membresia in membresias %}
+                {% set usuario = membresia.usuario %}
                 <tr>
-                    <td><strong>{{ usuario.username }}</strong></td>
-                    <td>{{ usuario.nombre }}</td>
-                    <td>{{ usuario.rol }}</td>
                     <td>
-                        {% if usuario.activo %}
-                        <span class="badge-estado badge-verde">Activo</span>
+                        <strong>{{ usuario.username }}</strong>
+                    </td>
+                    <td>{{ usuario.nombre }}</td>
+                    <td>{{ membresia.rol }}</td>
+                    <td>
+                        {% if membresia.activa %}
+                        <span class="badge-estado badge-verde">
+                            Activo
+                        </span>
                         {% else %}
-                        <span class="badge-estado badge-gris">Inactivo</span>
+                        <span class="badge-estado badge-gris">
+                            Inactivo
+                        </span>
                         {% endif %}
                     </td>
                     <td>
-                        <form method="POST" action="{{ url_for('admin_usuario_editar', id=usuario.id) }}" class="form-grid form-grid-compact">
-                            <input type="text" name="nombre" value="{{ usuario.nombre }}" required>
+                        <form method="post"
+                              action="{{ url_for('admin_usuarios.editar', id=membresia.id) }}"
+                              class="form-grid form-grid-compact">
+                            <input type="text"
+                                   name="nombre"
+                                   value="{{ usuario.nombre }}"
+                                   required>
+
                             <select name="rol">
                                 {% for rol in roles %}
-                                <option value="{{ rol }}" {% if usuario.rol == rol %}selected{% endif %}>{{ rol }}</option>
+                                <option value="{{ rol }}"
+                                    {% if membresia.rol == rol %}selected{% endif %}>
+                                    {{ rol }}
+                                </option>
                                 {% endfor %}
                             </select>
-                            <input type="password" name="password" placeholder="Nueva contraseña (opcional)">
-                            <button class="btn btn-secundario" type="submit">Guardar</button>
+
+                            <input type="password"
+                                   name="password"
+                                   placeholder="Nueva contraseña (opcional)">
+
+                            <button class="btn btn-secundario"
+                                    type="submit">
+                                Guardar
+                            </button>
                         </form>
                     </td>
                     <td>
-                        <form method="POST" action="{{ url_for('admin_usuario_toggle', id=usuario.id) }}" onsubmit="return confirm('¿Confirmás cambiar el estado de este usuario?');">
-                            {% if usuario.activo %}
-                            <button class="btn btn-secundario" type="submit">Desactivar</button>
+                        <form method="post"
+                              action="{{ url_for('admin_usuarios.toggle', id=membresia.id) }}"
+                              onsubmit="return confirm('¿Confirmás cambiar el acceso de esta membresía?');">
+                            {% if membresia.activa %}
+                            <button class="btn btn-secundario"
+                                    type="submit">
+                                Desactivar
+                            </button>
                             {% else %}
-                            <button class="btn btn-accion-rapida btn-confirmar" type="submit">Activar</button>
+                            <button class="btn btn-accion-rapida btn-confirmar"
+                                    type="submit">
+                                Activar
+                            </button>
                             {% endif %}
                         </form>
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6">No hay usuarios cargados.</td></tr>
+                <tr>
+                    <td colspan="6">
+                        No hay membresías en esta organización.
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>

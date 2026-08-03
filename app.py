@@ -288,7 +288,6 @@ from models.whatsapp_media import WhatsAppMediaRecibida
 from models.whatsapp_mensaje import WhatsAppMensaje
 
 
-ROLES_SISTEMA = ["admin", "carga", "despacho"]
 
 
 
@@ -7077,102 +7076,6 @@ def admin_productos():
     )
 
 
-@app.route("/admin/usuarios")
-@login_required
-def admin_usuarios():
-    if rol_actual() != "admin":
-        return redirect(url_for("inicio"))
-
-    usuarios = UsuarioSistema.query.order_by(UsuarioSistema.activo.desc(), UsuarioSistema.rol.asc(), UsuarioSistema.username.asc()).all()
-    return render_template(
-        "admin_usuarios.html",
-        usuarios=usuarios,
-        roles=ROLES_SISTEMA,
-        ok_feedback=(request.args.get("ok") or "").strip(),
-        error=(request.args.get("error") or "").strip(),
-    )
-
-
-@app.route("/admin/usuarios/nuevo", methods=["POST"])
-@login_required
-def admin_usuario_nuevo():
-    if rol_actual() != "admin":
-        return redirect(url_for("inicio"))
-
-    username = (request.form.get("username") or "").strip()
-    nombre = (request.form.get("nombre") or "").strip()
-    rol = (request.form.get("rol") or "carga").strip()
-    password = request.form.get("password") or ""
-
-    if not username or not nombre or not password:
-        return redirect(url_for("admin_usuarios", error="Completá usuario, nombre y contraseña."))
-    if rol not in ROLES_SISTEMA:
-        return redirect(url_for("admin_usuarios", error="Rol inválido."))
-    if UsuarioSistema.query.filter_by(username=username).first():
-        return redirect(url_for("admin_usuarios", error="Ese usuario ya existe."))
-
-    creador = usuario_actual()
-    usuario = UsuarioSistema(
-        username=username,
-        nombre=nombre,
-        rol=rol,
-        password_hash=generate_password_hash(password),
-        activo=True,
-        creado_por=creador.username if creador else "admin",
-    )
-    db.session.add(usuario)
-    db.session.commit()
-    registrar_auditoria("Creó usuario", entidad="usuario", entidad_id=usuario.id, detalle=f"Usuario {username} / rol {rol}")
-    return redirect(url_for("admin_usuarios", ok="Usuario creado correctamente."))
-
-
-@app.route("/admin/usuarios/<int:id>/editar", methods=["POST"])
-@login_required
-def admin_usuario_editar(id):
-    if rol_actual() != "admin":
-        return redirect(url_for("inicio"))
-
-    usuario = UsuarioSistema.query.get_or_404(id)
-    nombre = (request.form.get("nombre") or "").strip()
-    rol = (request.form.get("rol") or "").strip()
-    password = request.form.get("password") or ""
-
-    if not nombre:
-        return redirect(url_for("admin_usuarios", error="El nombre no puede quedar vacío."))
-    if rol not in ROLES_SISTEMA:
-        return redirect(url_for("admin_usuarios", error="Rol inválido."))
-
-    antes = f"nombre={usuario.nombre}, rol={usuario.rol}, activo={usuario.activo}"
-    usuario.nombre = nombre
-    usuario.rol = rol
-    if password:
-        usuario.password_hash = generate_password_hash(password)
-        detalle_pass = " Contraseña actualizada."
-    else:
-        detalle_pass = ""
-    db.session.commit()
-    registrar_auditoria("Editó usuario", entidad="usuario", entidad_id=usuario.id, detalle=f"Antes: {antes}. Ahora: nombre={nombre}, rol={rol}.{detalle_pass}")
-    return redirect(url_for("admin_usuarios", ok="Usuario actualizado correctamente."))
-
-
-@app.route("/admin/usuarios/<int:id>/toggle", methods=["POST"])
-@login_required
-def admin_usuario_toggle(id):
-    if rol_actual() != "admin":
-        return redirect(url_for("inicio"))
-
-    usuario = UsuarioSistema.query.get_or_404(id)
-    actual = usuario_actual()
-    if actual and usuario.id == actual.id and usuario.activo:
-        return redirect(url_for("admin_usuarios", error="No podés desactivar tu propio usuario."))
-
-    usuario.activo = not usuario.activo
-    db.session.commit()
-    estado = "activado" if usuario.activo else "desactivado"
-    registrar_auditoria("Activó/desactivó usuario", entidad="usuario", entidad_id=usuario.id, detalle=f"Usuario {usuario.username} {estado}")
-    return redirect(url_for("admin_usuarios", ok=f"Usuario {estado} correctamente."))
-
-
 @app.route("/admin/auditoria")
 @login_required
 def admin_auditoria():
@@ -11549,6 +11452,28 @@ def asegurar_usuarios_iniciales():
         ))
     db.session.commit()
 
+
+
+from modules.admin.usuarios.routes import (
+    crear_blueprint_usuarios,
+)
+
+app.register_blueprint(
+    crear_blueprint_usuarios(
+        dependencias={
+            "db": db,
+            "login_required": login_required,
+            "usuario_actual": usuario_actual,
+            "registrar_auditoria": (
+                registrar_auditoria
+            ),
+            "UsuarioOrganizacion": (
+                UsuarioOrganizacion
+            ),
+            "UsuarioSistema": UsuarioSistema,
+        },
+    )
+)
 
 
 from modules.admin.estructura.routes import (
