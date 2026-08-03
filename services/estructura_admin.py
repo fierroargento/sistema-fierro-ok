@@ -57,6 +57,32 @@ def _obtener_por_id(Modelo, identificador, nombre):
     return registro
 
 
+def _exigir_pertenencia_tenant(
+    organizacion,
+    registro,
+    nombre,
+    *,
+    organizacion_id=None,
+):
+    pertenencia = (
+        organizacion_id
+        if organizacion_id is not None
+        else getattr(
+            registro,
+            "organizacion_id",
+            None,
+        )
+    )
+
+    if pertenencia != organizacion.id:
+        raise ValueError(
+            f"{nombre} no pertenece "
+            "al tenant activo."
+        )
+
+    return registro
+
+
 def _guardar(db_session):
     try:
         db_session.commit()
@@ -183,6 +209,12 @@ def procesar_accion_estructura_admin(
             ),
             "la sucursal",
         )
+        _exigir_pertenencia_tenant(
+            organizacion,
+            sucursal,
+            "La sucursal",
+        )
+
         sucursal.activa = not bool(
             sucursal.activa
         )
@@ -293,6 +325,12 @@ def procesar_accion_estructura_admin(
             "la entidad fiscal",
         )
 
+        _exigir_pertenencia_tenant(
+            organizacion,
+            entidad,
+            "La entidad fiscal",
+        )
+
         entidad.activa = not bool(
             entidad.activa
         )
@@ -317,6 +355,12 @@ def procesar_accion_estructura_admin(
                 "entidad_fiscal_id",
             ),
             "la entidad fiscal",
+        )
+
+        _exigir_pertenencia_tenant(
+            organizacion,
+            entidad,
+            "La entidad fiscal",
         )
 
         if not entidad.activa:
@@ -438,6 +482,12 @@ def procesar_accion_estructura_admin(
             "el catálogo",
         )
 
+        _exigir_pertenencia_tenant(
+            organizacion,
+            catalogo,
+            "El catalogo",
+        )
+
         cambiar_estado_catalogo(
             catalogo,
             _texto(
@@ -461,6 +511,12 @@ def procesar_accion_estructura_admin(
             ),
             "el catálogo",
         )
+        _exigir_pertenencia_tenant(
+            organizacion,
+            catalogo,
+            "El catalogo",
+        )
+
         producto = _obtener_por_id(
             Producto,
             _id_entero(
@@ -563,6 +619,21 @@ def procesar_accion_estructura_admin(
             ),
             "el producto del catálogo",
         )
+        _exigir_pertenencia_tenant(
+            organizacion,
+            inclusion,
+            "El producto del catalogo",
+            organizacion_id=getattr(
+                getattr(
+                    inclusion,
+                    "catalogo",
+                    None,
+                ),
+                "organizacion_id",
+                None,
+            ),
+        )
+
         campo = _texto(
             formulario,
             "campo",
@@ -604,6 +675,12 @@ def procesar_accion_estructura_admin(
                 "modulo_id",
             ),
             "el módulo",
+        )
+
+        _exigir_pertenencia_tenant(
+            organizacion,
+            modulo,
+            "El modulo",
         )
 
         cambiar_estado_modulo(
@@ -810,6 +887,12 @@ def procesar_accion_estructura_admin(
                 "vinculo_id",
             ),
             "el vínculo comercial",
+        )
+
+        _exigir_pertenencia_tenant(
+            organizacion,
+            vinculo,
+            "El vinculo comercial",
         )
 
         cambiar_estado_vinculo(

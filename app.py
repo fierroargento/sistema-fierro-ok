@@ -7077,254 +7077,6 @@ def admin_productos():
     )
 
 
-@app.route("/admin/estructura")
-@login_required
-def admin_estructura():
-    if rol_actual() != "admin":
-        return redirect(url_for("inicio"))
-
-    organizacion = (
-        Organizacion.query
-        .filter_by(slug="grupo-fierro")
-        .first()
-    )
-
-    if organizacion is None:
-        return redirect(url_for(
-            "inicio",
-            error=(
-                "No se encontró la estructura "
-                "empresarial inicial."
-            ),
-        ))
-
-    unidades = (
-        UnidadNegocio.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            UnidadNegocio.nombre.asc()
-        )
-        .all()
-    )
-    sucursales = (
-        SucursalOperativa.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            SucursalOperativa.nombre.asc()
-        )
-        .all()
-    )
-    entidades_fiscales = (
-        EntidadFiscal.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            EntidadFiscal.razon_social.asc()
-        )
-        .all()
-    )
-    catalogos = (
-        Catalogo.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            Catalogo.nombre.asc()
-        )
-        .all()
-    )
-    modulos = (
-        ModuloOrganizacion.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            ModuloOrganizacion.nombre.asc()
-        )
-        .all()
-    )
-    productos = (
-        Producto.query
-        .order_by(
-            Producto.sku.asc()
-        )
-        .all()
-    )
-    productos_catalogo = (
-        CatalogoProducto.query
-        .join(Catalogo)
-        .filter(
-            Catalogo.organizacion_id
-            == organizacion.id
-        )
-        .order_by(
-            CatalogoProducto.id.asc()
-        )
-        .all()
-    )
-    vinculos_canales = (
-        VinculoCanalComercial.query
-        .filter_by(
-            organizacion_id=organizacion.id
-        )
-        .order_by(
-            VinculoCanalComercial.id.asc()
-        )
-        .all()
-    )
-    cuentas_ml_estructura = (
-        MercadoLibreCuenta.query
-        .order_by(
-            MercadoLibreCuenta.id.asc()
-        )
-        .all()
-    )
-    cuentas_tn_estructura = (
-        TiendaNubeCuenta.query
-        .order_by(
-            TiendaNubeCuenta.id.asc()
-        )
-        .all()
-    )
-
-    from services.modulos_organizacion import (
-        ESTADO_ACTIVO,
-        ESTADO_DESACTIVADO,
-        ESTADO_PRUEBA,
-    )
-
-    return render_template(
-        "admin_estructura.html",
-        organizacion=organizacion,
-        unidades=unidades,
-        sucursales=sucursales,
-        entidades_fiscales=entidades_fiscales,
-        catalogos=catalogos,
-        productos=productos,
-        productos_catalogo=productos_catalogo,
-        modulos=modulos,
-        vinculos_canales=vinculos_canales,
-        cuentas_ml_estructura=(
-            cuentas_ml_estructura
-        ),
-        cuentas_tn_estructura=(
-            cuentas_tn_estructura
-        ),
-        estados_modulo=(
-            ESTADO_DESACTIVADO,
-            ESTADO_PRUEBA,
-            ESTADO_ACTIVO,
-        ),
-        ok_feedback=(
-            request.args.get("ok")
-            or ""
-        ).strip(),
-        error=(
-            request.args.get("error")
-            or ""
-        ).strip(),
-    )
-
-
-@app.route(
-    "/admin/estructura/guardar",
-    methods=["POST"],
-)
-@login_required
-def admin_estructura_guardar():
-    if rol_actual() != "admin":
-        return redirect(url_for("inicio"))
-
-    organizacion = (
-        Organizacion.query
-        .filter_by(slug="grupo-fierro")
-        .first()
-    )
-
-    if organizacion is None:
-        return redirect(url_for(
-            "admin_estructura",
-            error=(
-                "No se encontró la organización."
-            ),
-        ))
-
-    accion = (
-        request.form.get("accion")
-        or ""
-    ).strip()
-
-    from services.estructura_admin import (
-        procesar_accion_estructura_admin,
-    )
-
-    try:
-        mensaje = (
-            procesar_accion_estructura_admin(
-                accion,
-                request.form,
-                organizacion=organizacion,
-                modelos={
-                    "SucursalOperativa": (
-                        SucursalOperativa
-                    ),
-                    "EntidadFiscal": EntidadFiscal,
-                    "Catalogo": Catalogo,
-                    "CatalogoProducto": (
-                        CatalogoProducto
-                    ),
-                    "Producto": Producto,
-                    "UnidadNegocio": UnidadNegocio,
-                    "ModuloOrganizacion": (
-                        ModuloOrganizacion
-                    ),
-                    "VinculoCanalComercial": (
-                        VinculoCanalComercial
-                    ),
-                    "MercadoLibreCuenta": (
-                        MercadoLibreCuenta
-                    ),
-                    "TiendaNubeCuenta": (
-                        TiendaNubeCuenta
-                    ),
-                },
-                db_session=db.session,
-            )
-        )
-
-        registrar_auditoria(
-            "Configuró estructura empresarial",
-            entidad="estructura_empresarial",
-            entidad_id=organizacion.id,
-            detalle=(
-                f"Acción: {accion}. {mensaje}"
-            ),
-        )
-
-        return redirect(url_for(
-            "admin_estructura",
-            ok=mensaje,
-        ))
-
-    except Exception as error:
-        db.session.rollback()
-
-        print(
-            "[ESTRUCTURA ADMIN] "
-            f"No se pudo ejecutar {accion}: {error}"
-        )
-
-        return redirect(url_for(
-            "admin_estructura",
-            error=str(error),
-        ))
-
-
 @app.route("/admin/usuarios")
 @login_required
 def admin_usuarios():
@@ -11797,6 +11549,51 @@ def asegurar_usuarios_iniciales():
         ))
     db.session.commit()
 
+
+
+from modules.admin.estructura.routes import (
+    crear_blueprint_estructura,
+)
+
+app.register_blueprint(
+    crear_blueprint_estructura(
+        dependencias={
+            "db": db,
+            "login_required": login_required,
+            "usuario_actual": usuario_actual,
+            "registrar_auditoria": (
+                registrar_auditoria
+            ),
+            "UsuarioOrganizacion": (
+                UsuarioOrganizacion
+            ),
+            "modelos": {
+                "UnidadNegocio": UnidadNegocio,
+                "SucursalOperativa": (
+                    SucursalOperativa
+                ),
+                "EntidadFiscal": EntidadFiscal,
+                "Catalogo": Catalogo,
+                "CatalogoProducto": (
+                    CatalogoProducto
+                ),
+                "ModuloOrganizacion": (
+                    ModuloOrganizacion
+                ),
+                "Producto": Producto,
+                "VinculoCanalComercial": (
+                    VinculoCanalComercial
+                ),
+                "MercadoLibreCuenta": (
+                    MercadoLibreCuenta
+                ),
+                "TiendaNubeCuenta": (
+                    TiendaNubeCuenta
+                ),
+            },
+        },
+    )
+)
 
 
 from modules.admin.crm.routes import (

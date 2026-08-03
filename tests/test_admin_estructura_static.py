@@ -1,96 +1,139 @@
 from pathlib import Path
 
 
-def _app():
-    return Path("app.py").read_text(
-        encoding="utf-8-sig"
+def _routes():
+    return Path(
+        "modules/admin/estructura/routes.py"
+    ).read_text(encoding="utf-8")
+
+
+def test_panel_estructura_es_blueprint_tenant():
+    routes = _routes()
+
+    assert 'Blueprint(' in routes
+    assert '"admin_estructura"' in routes
+    assert 'resolver_tenant_usuario(' in routes
+    assert 'membresia.rol != "admin"' in routes
+    assert 'session["organizacion_id"]' in routes
+    assert '@blueprint.route("/admin/estructura")' in routes
+    assert (
+        '"/admin/estructura/guardar"'
+        in routes
     )
 
 
-def test_panel_estructura_es_exclusivo_de_admin():
-    app = _app()
-
-    inicio = app.index(
-        "def admin_estructura("
-    )
-    fin = app.index(
-        "\n\n@app.route(",
-        inicio,
-    )
-    bloque = app[inicio:fin]
-
-    assert '@login_required' in app[
-        app.rfind(
-            "@app.route",
-            0,
-            inicio,
-        ):inicio
-    ]
-    assert 'rol_actual() != "admin"' in bloque
-    assert 'render_template(' in bloque
-    assert '"admin_estructura.html"' in bloque
-
-
-def test_guardado_admin_delega_en_servicio_y_revierte():
-    app = _app()
-
-    inicio = app.index(
-        "def admin_estructura_guardar("
-    )
-    fin = app.index(
-        "\n\n@app.route(",
-        inicio,
-    )
-    bloque = app[inicio:fin]
+def test_guardado_delega_y_revierte():
+    routes = _routes()
 
     assert (
         "procesar_accion_estructura_admin("
-        in bloque
+        in routes
     )
-    assert "db.session.rollback()" in bloque
-    assert "registrar_auditoria(" in bloque
+    assert "db.session.rollback()" in routes
+    assert "registrar_auditoria(" in routes
+
+
+def test_app_solo_registra_blueprint():
+    app = Path("app.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        "crear_blueprint_estructura("
+        in app
+    )
+    assert (
+        "app.register_blueprint("
+        in app
+    )
+    assert "def admin_estructura(" not in app
+    assert (
+        "def admin_estructura_guardar("
+        not in app
+    )
+    assert (
+        '@app.route("/admin/estructura")'
+        not in app
+    )
+
+
+def test_consultas_panel_filtran_tenant():
+    consultas = Path(
+        "services/estructura_consultas.py"
+    ).read_text(encoding="utf-8")
+
+    assert consultas.count(
+        "organizacion_id=organizacion_id"
+    ) >= 5
+    assert (
+        "Catalogo.organizacion_id"
+        in consultas
+    )
+    assert ".outerjoin(" in consultas
+    assert "VinculoCanalComercial.id.is_(None)" in consultas
 
 
 def test_panel_no_ejecuta_operacion_productiva():
-    servicio = Path(
-        "services/estructura_admin.py"
-    ).read_text(encoding="utf-8")
+    contenidos = (
+        Path(
+            "services/estructura_admin.py"
+        ).read_text(encoding="utf-8"),
+        Path(
+            "services/estructura_consultas.py"
+        ).read_text(encoding="utf-8"),
+        _routes(),
+    )
 
-    prohibidos = [
+    prohibidos = (
         "Pedido.query",
         "ml_sync",
         "tn_sync",
         "facturar_pedido",
         "ml_upsert_pedido",
         "tn_importar_o_actualizar_pedido",
-    ]
+    )
 
-    for prohibido in prohibidos:
-        assert prohibido not in servicio
+    for contenido in contenidos:
+        for prohibido in prohibidos:
+            assert prohibido not in contenido
 
 
-def test_menu_admin_incluye_estructura():
+def test_menu_y_template_usan_blueprint():
     base = Path(
         "templates/base.html"
     ).read_text(encoding="utf-8-sig")
-
-    assert (
-        "url_for('admin_estructura')"
-        in base
-    )
-
-
-def test_template_informa_aislamiento_productivo():
     template = Path(
         "templates/admin_estructura.html"
     ).read_text(encoding="utf-8")
 
     assert (
-        "no se conectan automáticamente"
+        "url_for('admin_estructura.panel')"
+        in base
+    )
+    assert (
+        "url_for('admin_estructura.guardar')"
         in template
     )
-    assert "estado_modulo" in template
-    assert "crear_sucursal" in template
-    assert "crear_entidad_fiscal" in template
-    assert "crear_catalogo" in template
-    assert "agregar_producto_catalogo" in template
+    assert "admin_estructura_guardar" not in template
+    assert (
+        "no se conectan automaticamente"
+        in template.lower()
+        or "no se conectan autom" in template.lower()
+    )
+
+
+def test_template_conserva_acciones():
+    template = Path(
+        "templates/admin_estructura.html"
+    ).read_text(encoding="utf-8")
+
+    for accion in (
+        "estado_modulo",
+        "crear_sucursal",
+        "crear_entidad_fiscal",
+        "crear_catalogo",
+        "agregar_producto_catalogo",
+        "crear_vinculo_canal",
+        "estado_vinculo_canal",
+    ):
+        assert accion in template

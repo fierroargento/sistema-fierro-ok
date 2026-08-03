@@ -60,7 +60,7 @@
                         <td>{{ modulo.detalle or "-" }}</td>
                         <td>
                             <form method="post"
-                                  action="{{ url_for('admin_estructura_guardar') }}">
+                                  action="{{ url_for('admin_estructura.guardar') }}">
                                 <input type="hidden" name="accion" value="estado_modulo">
                                 <input type="hidden" name="modulo_id" value="{{ modulo.id }}">
                                 <select name="estado">
@@ -89,7 +89,7 @@
         <h2>Sucursales operativas</h2>
 
         <form method="post"
-              action="{{ url_for('admin_estructura_guardar') }}"
+              action="{{ url_for('admin_estructura.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_sucursal">
             <input name="codigo" required maxlength="80" placeholder="Código">
@@ -126,7 +126,7 @@
                         </td>
                         <td>
                             <form method="post"
-                                  action="{{ url_for('admin_estructura_guardar') }}">
+                                  action="{{ url_for('admin_estructura.guardar') }}">
                                 <input type="hidden" name="accion" value="toggle_sucursal">
                                 <input type="hidden" name="sucursal_id" value="{{ sucursal.id }}">
                                 <button type="submit">
@@ -147,7 +147,7 @@
         <h2>Entidades fiscales</h2>
 
         <form method="post"
-              action="{{ url_for('admin_estructura_guardar') }}"
+              action="{{ url_for('admin_estructura.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_entidad_fiscal">
             <input name="codigo" required maxlength="80" placeholder="Código">
@@ -188,7 +188,7 @@
                         </td>
                         <td>
                             <form method="post"
-                                  action="{{ url_for('admin_estructura_guardar') }}"
+                                  action="{{ url_for('admin_estructura.guardar') }}"
                                   style="display:inline;">
                                 <input type="hidden" name="accion" value="toggle_entidad_fiscal">
                                 <input type="hidden"
@@ -200,7 +200,7 @@
                             </form>
 
                             <form method="post"
-                                  action="{{ url_for('admin_estructura_guardar') }}"
+                                  action="{{ url_for('admin_estructura.guardar') }}"
                                   style="display:inline;">
                                 <input type="hidden" name="accion" value="toggle_facturacion">
                                 <input type="hidden"
@@ -230,7 +230,7 @@
         </p>
 
         <form method="post"
-              action="{{ url_for('admin_estructura_guardar') }}"
+              action="{{ url_for('admin_estructura.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden"
                    name="accion"
@@ -349,7 +349,7 @@
                         <td><strong>{{ vinculo.estado }}</strong></td>
                         <td>
                             <form method="post"
-                                  action="{{ url_for('admin_estructura_guardar') }}">
+                                  action="{{ url_for('admin_estructura.guardar') }}">
                                 <input type="hidden"
                                        name="accion"
                                        value="estado_vinculo_canal">
@@ -388,7 +388,7 @@
         <h2>Catálogos comerciales</h2>
 
         <form method="post"
-              action="{{ url_for('admin_estructura_guardar') }}"
+              action="{{ url_for('admin_estructura.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_catalogo">
             <input name="codigo" required maxlength="80" placeholder="Código">
@@ -429,7 +429,7 @@
                         <td>{{ catalogo.estado }}</td>
                         <td>
                             <form method="post"
-                                  action="{{ url_for('admin_estructura_guardar') }}">
+                                  action="{{ url_for('admin_estructura.guardar') }}">
                                 <input type="hidden" name="accion" value="estado_catalogo">
                                 <input type="hidden" name="catalogo_id" value="{{ catalogo.id }}">
                                 <select name="estado">
@@ -455,7 +455,7 @@
         <h3 style="margin-top:20px;">Agregar producto a un catálogo</h3>
 
         <form method="post"
-              action="{{ url_for('admin_estructura_guardar') }}"
+              action="{{ url_for('admin_estructura.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="agregar_producto_catalogo">
 
@@ -519,7 +519,7 @@
                         <td>{{ "sí" if inclusion.disponible else "no" }}</td>
                         <td>
                             <form method="post"
-                                  action="{{ url_for('admin_estructura_guardar') }}"
+                                  action="{{ url_for('admin_estructura.guardar') }}"
                                   style="display:inline;">
                                 <input type="hidden" name="accion" value="toggle_producto_catalogo">
                                 <input type="hidden"
@@ -532,7 +532,7 @@
                             </form>
 
                             <form method="post"
-                                  action="{{ url_for('admin_estructura_guardar') }}"
+                                  action="{{ url_for('admin_estructura.guardar') }}"
                                   style="display:inline;">
                                 <input type="hidden" name="accion" value="toggle_producto_catalogo">
                                 <input type="hidden"
