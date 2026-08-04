@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block content %}
 <div class="card">
     <h1>Productos</h1>
@@ -133,7 +133,7 @@
                 <button type="submit">Buscar</button>
 
                 {% if filtro_sku %}
-                    <a href="{{ url_for('admin_productos') }}" class="inline-edit-link">Limpiar filtro</a>
+                    <a href="{{ url_for('admin_productos.panel') }}" class="inline-edit-link">Limpiar filtro</a>
                 {% endif %}
             </form>
         </div>
