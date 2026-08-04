@@ -8,16 +8,16 @@ def _leer(ruta):
 
 
 def test_app_registra_blueprint_usuarios():
-    contenido = _leer("app.py")
+    app = Path("app.py").read_text(
+        encoding="utf-8"
+    )
+    bootstrap = Path(
+        "services/bootstrap_modulos_web.py"
+    ).read_text(encoding="utf-8")
 
-    assert (
-        "crear_blueprint_usuarios"
-        in contenido
-    )
-    assert (
-        "app.register_blueprint("
-        in contenido
-    )
+    assert "registrar_modulos_web(" in app
+    assert "crear_blueprint_usuarios" in bootstrap
+    assert "app.register_blueprint(" in bootstrap
 
 
 def test_app_no_conserva_rutas_monoliticas():

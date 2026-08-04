@@ -24,13 +24,19 @@ def test_facturacion_usa_blueprint_propio():
 
 
 def test_app_solo_registra_modulo_fiscal():
-    app = leer("app.py")
+    app = Path("app.py").read_text(
+        encoding="utf-8"
+    )
+    bootstrap = Path(
+        "services/bootstrap_modulos_web.py"
+    ).read_text(encoding="utf-8")
 
+    assert "registrar_modulos_web(" in app
     assert (
         "crear_blueprint_facturacion"
-        in app
+        in bootstrap
     )
-    assert "app.register_blueprint(" in app
+    assert "app.register_blueprint(" in bootstrap
     assert (
         "def admin_facturacion("
         not in app

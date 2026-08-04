@@ -90,16 +90,19 @@ def test_guardado_delega_y_hace_rollback():
 
 
 def test_app_solo_compone_blueprint_inventario():
-    app = _leer("app.py")
+    app = Path("app.py").read_text(
+        encoding="utf-8"
+    )
+    bootstrap = Path(
+        "services/bootstrap_modulos_web.py"
+    ).read_text(encoding="utf-8")
 
+    assert "registrar_modulos_web(" in app
     assert (
         "crear_blueprint_inventario("
-        in app
+        in bootstrap
     )
-    assert (
-        "app.register_blueprint("
-        in app
-    )
+    assert "app.register_blueprint(" in bootstrap
     assert "def admin_inventario()" not in app
     assert (
         "def admin_inventario_guardar()"

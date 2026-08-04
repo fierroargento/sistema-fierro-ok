@@ -34,19 +34,14 @@ def test_login_no_autoriza_por_rol_global():
 
 
 def test_app_no_conserva_rutas_auth():
-    contenido = Path("app.py").read_text(
+    app = Path("app.py").read_text(
         encoding="utf-8"
     )
+    bootstrap = Path(
+        "services/bootstrap_modulos_web.py"
+    ).read_text(encoding="utf-8")
 
-    assert (
-        '@app.route("/login"'
-        not in contenido
-    )
-    assert (
-        '@app.route("/logout")'
-        not in contenido
-    )
-    assert (
-        "registrar_rutas_auth("
-        in contenido
-    )
+    assert '@app.route("/login"' not in app
+    assert '@app.route("/logout")' not in app
+    assert "registrar_modulos_web(" in app
+    assert "registrar_rutas_auth(" in bootstrap

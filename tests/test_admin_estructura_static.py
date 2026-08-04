@@ -37,15 +37,16 @@ def test_app_solo_registra_blueprint():
     app = Path("app.py").read_text(
         encoding="utf-8"
     )
+    bootstrap = Path(
+        "services/bootstrap_modulos_web.py"
+    ).read_text(encoding="utf-8")
 
+    assert "registrar_modulos_web(" in app
     assert (
         "crear_blueprint_estructura("
-        in app
+        in bootstrap
     )
-    assert (
-        "app.register_blueprint("
-        in app
-    )
+    assert "app.register_blueprint(" in bootstrap
     assert "def admin_estructura(" not in app
     assert (
         "def admin_estructura_guardar("

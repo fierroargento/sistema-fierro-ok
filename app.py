@@ -11434,218 +11434,72 @@ def asegurar_usuarios_iniciales():
 
 
 
-from modules.admin.usuarios.routes import (
-    crear_blueprint_usuarios,
-)
-
-app.register_blueprint(
-    crear_blueprint_usuarios(
-        dependencias={
-            "db": db,
-            "login_required": login_required,
-            "usuario_actual": usuario_actual,
-            "registrar_auditoria": (
-                registrar_auditoria
-            ),
-            "UsuarioOrganizacion": (
-                UsuarioOrganizacion
-            ),
-            "UsuarioSistema": UsuarioSistema,
-        },
-    )
+from services.bootstrap_modulos_web import (
+    registrar_modulos_web,
 )
 
 
-from modules.auth.routes import (
-    registrar_rutas_auth,
-)
-
-registrar_rutas_auth(
+registrar_modulos_web(
     app,
     dependencias={
         "db": db,
         "limiter": limiter,
-        "UsuarioSistema": UsuarioSistema,
-        "Auditoria": Auditoria,
-        "check_password_hash": check_password_hash,
+        "login_required": login_required,
         "usuario_actual": usuario_actual,
         "membresia_actual": membresia_actual,
         "registrar_auditoria": registrar_auditoria,
+        "check_password_hash": check_password_hash,
+        "UsuarioOrganizacion": UsuarioOrganizacion,
+        "UsuarioSistema": UsuarioSistema,
+        "Auditoria": Auditoria,
+        "modelos": {
+            "UnidadNegocio": UnidadNegocio,
+            "SucursalOperativa": SucursalOperativa,
+            "EntidadFiscal": EntidadFiscal,
+            "Catalogo": Catalogo,
+            "CatalogoProducto": CatalogoProducto,
+            "ModuloOrganizacion": ModuloOrganizacion,
+            "Producto": Producto,
+            "VinculoCanalComercial": (
+                VinculoCanalComercial
+            ),
+            "MercadoLibreCuenta": (
+                MercadoLibreCuenta
+            ),
+            "TiendaNubeCuenta": TiendaNubeCuenta,
+            "ClienteCRM": ClienteCRM,
+            "ClienteIdentidadCanal": (
+                ClienteIdentidadCanal
+            ),
+            "EtapaCRM": EtapaCRM,
+            "OportunidadCRM": OportunidadCRM,
+            "ActividadCRM": ActividadCRM,
+            "ExistenciaSucursal": (
+                ExistenciaSucursal
+            ),
+            "MovimientoInventario": (
+                MovimientoInventario
+            ),
+            "PoliticaDisponibilidadCatalogo": (
+                PoliticaDisponibilidadCatalogo
+            ),
+            "ConfiguracionFiscal": (
+                ConfiguracionFiscal
+            ),
+            "PuntoVentaFiscal": PuntoVentaFiscal,
+            "TipoComprobanteFiscal": (
+                TipoComprobanteFiscal
+            ),
+            "BorradorComprobanteFiscal": (
+                BorradorComprobanteFiscal
+            ),
+            "BorradorItemFiscal": (
+                BorradorItemFiscal
+            ),
+            "EventoFiscal": EventoFiscal,
+        },
     },
 )
-
-
-from modules.admin.estructura.routes import (
-    crear_blueprint_estructura,
-)
-
-app.register_blueprint(
-    crear_blueprint_estructura(
-        dependencias={
-            "db": db,
-            "login_required": login_required,
-            "usuario_actual": usuario_actual,
-            "registrar_auditoria": (
-                registrar_auditoria
-            ),
-            "UsuarioOrganizacion": (
-                UsuarioOrganizacion
-            ),
-            "modelos": {
-                "UnidadNegocio": UnidadNegocio,
-                "SucursalOperativa": (
-                    SucursalOperativa
-                ),
-                "EntidadFiscal": EntidadFiscal,
-                "Catalogo": Catalogo,
-                "CatalogoProducto": (
-                    CatalogoProducto
-                ),
-                "ModuloOrganizacion": (
-                    ModuloOrganizacion
-                ),
-                "Producto": Producto,
-                "VinculoCanalComercial": (
-                    VinculoCanalComercial
-                ),
-                "MercadoLibreCuenta": (
-                    MercadoLibreCuenta
-                ),
-                "TiendaNubeCuenta": (
-                    TiendaNubeCuenta
-                ),
-            },
-        },
-    )
-)
-
-
-from modules.admin.crm.routes import (
-    crear_blueprint_crm,
-)
-
-app.register_blueprint(
-    crear_blueprint_crm(
-        dependencias={
-            "db": db,
-            "login_required": login_required,
-            "usuario_actual": usuario_actual,
-            "registrar_auditoria": (
-                registrar_auditoria
-            ),
-            "UsuarioOrganizacion": (
-                UsuarioOrganizacion
-            ),
-            "modelos": {
-                "ModuloOrganizacion": (
-                    ModuloOrganizacion
-                ),
-                "UnidadNegocio": (
-                    UnidadNegocio
-                ),
-                "ClienteCRM": ClienteCRM,
-                "ClienteIdentidadCanal": (
-                    ClienteIdentidadCanal
-                ),
-                "EtapaCRM": EtapaCRM,
-                "OportunidadCRM": (
-                    OportunidadCRM
-                ),
-                "ActividadCRM": (
-                    ActividadCRM
-                ),
-            },
-        },
-    )
-)
-
-
-from modules.admin.inventario.routes import (
-    crear_blueprint_inventario,
-)
-
-app.register_blueprint(
-    crear_blueprint_inventario(
-        dependencias={
-            "db": db,
-            "login_required": login_required,
-            "usuario_actual": usuario_actual,
-            "registrar_auditoria": (
-                registrar_auditoria
-            ),
-            "UsuarioOrganizacion": (
-                UsuarioOrganizacion
-            ),
-            "modelos": {
-                "ModuloOrganizacion": (
-                    ModuloOrganizacion
-                ),
-                "SucursalOperativa": (
-                    SucursalOperativa
-                ),
-                "Producto": Producto,
-                "Catalogo": Catalogo,
-                "CatalogoProducto": (
-                    CatalogoProducto
-                ),
-                "ExistenciaSucursal": (
-                    ExistenciaSucursal
-                ),
-                "MovimientoInventario": (
-                    MovimientoInventario
-                ),
-                "PoliticaDisponibilidadCatalogo": (
-                    PoliticaDisponibilidadCatalogo
-                ),
-            },
-        },
-    )
-)
-
-
-from modules.admin.facturacion.routes import (
-    crear_blueprint_facturacion,
-)
-
-app.register_blueprint(
-    crear_blueprint_facturacion(
-        dependencias={
-            "db": db,
-            "login_required": login_required,
-            "usuario_actual": usuario_actual,
-            "registrar_auditoria": (
-                registrar_auditoria
-            ),
-            "UsuarioOrganizacion": (
-                UsuarioOrganizacion
-            ),
-            "modelos": {
-                "ModuloOrganizacion": (
-                    ModuloOrganizacion
-                ),
-                "EntidadFiscal": EntidadFiscal,
-                "ConfiguracionFiscal": (
-                    ConfiguracionFiscal
-                ),
-                "PuntoVentaFiscal": (
-                    PuntoVentaFiscal
-                ),
-                "TipoComprobanteFiscal": (
-                    TipoComprobanteFiscal
-                ),
-                "ClienteCRM": ClienteCRM,
-                "BorradorComprobanteFiscal": (
-                    BorradorComprobanteFiscal
-                ),
-                "BorradorItemFiscal": (
-                    BorradorItemFiscal
-                ),
-                "EventoFiscal": EventoFiscal,
-            },
-        },
-    )
-)
-
 
 with app.app_context():
     db.create_all()
