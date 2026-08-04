@@ -34,6 +34,18 @@ def test_ruta_monolitica_fue_eliminada():
     )
 
 
+def test_registro_inyecta_usuario_actual_real():
+    contenido = Path(
+        "app.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        '"usuario_actual": usuario_actual'
+        in contenido
+    )
+    assert "lambda: current_user" not in contenido
+
+
 def test_blueprint_conserva_url():
     contenido = Path(
         "modules/admin/productos/routes.py"

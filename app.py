@@ -6950,9 +6950,7 @@ app.register_blueprint(
         dependencias={
             "db": db,
             "login_required": login_required,
-            "usuario_actual": (
-                lambda: current_user
-            ),
+            "usuario_actual": usuario_actual,
             "registrar_auditoria": (
                 registrar_auditoria
             ),
