@@ -14,7 +14,7 @@ def test_handler_500_revierte_antes_de_renderizar():
         "def server_error("
     )
     fin = app.index(
-        "\n@app.route(\"/login\"",
+        "\n@app.route(\"/\"",
         inicio,
     )
     bloque = app[inicio:fin]

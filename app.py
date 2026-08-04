@@ -2289,11 +2289,26 @@ def usuario_actual():
     return usuario
 
 
+def membresia_actual():
+    from services.autorizacion_web import (
+        membresia_actual_web,
+    )
+
+    return membresia_actual_web(
+        usuario_actual(),
+        UsuarioOrganizacion=(
+            UsuarioOrganizacion
+        ),
+    )
+
+
 def rol_actual():
-    usuario = usuario_actual()
-    if not usuario:
+    membresia = membresia_actual()
+
+    if membresia is None:
         return ""
-    return usuario.rol
+
+    return membresia.rol
 
 
 def es_dispositivo_movil():
@@ -2321,6 +2336,16 @@ def login_required(fn):
     def wrapper(*args, **kwargs):
         if not usuario_actual():
             return redirect(url_for("login"))
+
+        if membresia_actual() is None:
+            return redirect(url_for(
+                "login",
+                error=(
+                    "El usuario no tiene acceso "
+                    "a una organizacion activa."
+                ),
+            ))
+
         return fn(*args, **kwargs)
     return wrapper
 
@@ -6288,51 +6313,6 @@ def server_error(e):
     print(f"[ERROR-500] Error original: {e}")
 
     return render_template("500.html"), 500
-
-@app.route("/login", methods=["GET", "POST"])
-@limiter.limit("10 per minute")
-def login():
-    if usuario_actual():
-        return redirect(url_for("inicio"))
-
-    error = ""
-
-    if request.method == "POST":
-        username = (request.form.get("username") or "").strip()
-        password = request.form.get("password") or ""
-        usuario = UsuarioSistema.query.filter_by(username=username).first()
-
-        if not usuario or not usuario.activo or not check_password_hash(usuario.password_hash, password):
-            error = "Usuario o contraseña incorrectos."
-            try:
-                aud = Auditoria(
-                    username=username or "sin_usuario",
-                    accion="Login fallido",
-                    entidad="usuario",
-                    entidad_id=username or "",
-                    detalle="Intento de ingreso rechazado",
-                    ip=(request.headers.get("X-Forwarded-For") or request.remote_addr or "")[:80],
-                    metodo=request.method,
-                    path=request.path,
-                )
-                db.session.add(aud)
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-        else:
-            session["user_id"] = usuario.id
-            session["username"] = usuario.username
-            registrar_auditoria("Login correcto", entidad="usuario", entidad_id=usuario.id, detalle=f"Ingreso de {usuario.username}", usuario=usuario)
-            return redirect(url_for("inicio"))
-
-    return render_template("login.html", error=error)
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
-
 
 @app.route("/")
 @login_required
@@ -11473,6 +11453,25 @@ app.register_blueprint(
             "UsuarioSistema": UsuarioSistema,
         },
     )
+)
+
+
+from modules.auth.routes import (
+    registrar_rutas_auth,
+)
+
+registrar_rutas_auth(
+    app,
+    dependencias={
+        "db": db,
+        "limiter": limiter,
+        "UsuarioSistema": UsuarioSistema,
+        "Auditoria": Auditoria,
+        "check_password_hash": check_password_hash,
+        "usuario_actual": usuario_actual,
+        "membresia_actual": membresia_actual,
+        "registrar_auditoria": registrar_auditoria,
+    },
 )
 
 
