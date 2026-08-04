@@ -143,13 +143,15 @@ def test_consultas_crm_no_dependen_de_flask():
 
 
 def test_bootstrap_ejecuta_migracion_crm():
-    contenido = _leer("app.py")
+    contenido = _leer(
+        "services/bootstrap_base_datos.py"
+    )
 
     assert (
         "asegurar_identidad_canal_crm_tenant("
         in contenido
     )
     assert (
-        "ClienteIdentidadCanal=("
+        'modelos["ClienteIdentidadCanal"]'
         in contenido
     )

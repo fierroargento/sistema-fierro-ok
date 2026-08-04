@@ -164,8 +164,11 @@ def test_modelos_nuevos_nacen_inactivos():
 
 def test_app_registra_modelos_y_modulos_sin_runtime():
     app = Path("app.py").read_text(
-        encoding="utf-8-sig"
+        encoding="utf-8"
     )
+    bootstrap = Path(
+        "services/bootstrap_base_datos.py"
+    ).read_text(encoding="utf-8")
 
     assert (
         "from models.catalogo import Catalogo"
@@ -182,19 +185,18 @@ def test_app_registra_modelos_y_modulos_sin_runtime():
         in app
     )
     assert (
-        "asegurar_modulos_iniciales("
+        "inicializar_base_datos_saas("
         in app
     )
-
-    bloque_arranque = app[
-        app.index("with app.app_context():"):
-    ]
-
     assert (
-        bloque_arranque.index(
+        "asegurar_modulos_iniciales("
+        in bootstrap
+    )
+    assert (
+        bootstrap.index(
             "asegurar_estructura_empresarial_inicial("
         )
-        < bloque_arranque.index(
+        < bootstrap.index(
             "asegurar_modulos_iniciales("
         )
     )

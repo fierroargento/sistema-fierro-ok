@@ -14,14 +14,14 @@ def test_app_importa_modelo_membresia_tenant():
 
 
 def test_bootstrap_tenant_ocurre_despues_de_create_all():
-    app = Path("app.py").read_text(
-        encoding="utf-8-sig"
-    )
+    contenido = Path(
+        "services/bootstrap_base_datos.py"
+    ).read_text(encoding="utf-8")
 
-    indice_create_all = app.index(
+    indice_create_all = contenido.index(
         "db.create_all()"
     )
-    indice_backfill = app.index(
+    indice_backfill = contenido.index(
         "asegurar_membresias_organizacion_inicial("
     )
 
@@ -29,22 +29,24 @@ def test_bootstrap_tenant_ocurre_despues_de_create_all():
 
 
 def test_backfill_usa_organizacion_inicial():
-    app = Path("app.py").read_text(
-        encoding="utf-8-sig"
-    )
+    contenido = Path(
+        "services/bootstrap_base_datos.py"
+    ).read_text(encoding="utf-8")
 
-    inicio = app.index(
+    inicio = contenido.index(
         "asegurar_membresias_organizacion_inicial("
     )
-    bloque = app[inicio:inicio + 700]
+    bloque = contenido[inicio:inicio + 700]
 
-    assert "UsuarioSistema=UsuarioSistema" in bloque
     assert (
-        "UsuarioOrganizacion=UsuarioOrganizacion"
+        'modelos["UsuarioSistema"]'
         in bloque
     )
     assert (
-        '"organizacion"'
+        'modelos["UsuarioOrganizacion"]'
         in bloque
     )
-    assert ".id" in bloque
+    assert (
+        "organizacion_id=organizacion_id"
+        in bloque
+    )

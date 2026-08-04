@@ -71,8 +71,11 @@ def test_bootstrap_empresarial_es_idempotente_y_sin_pedidos():
 
 def test_app_registra_y_crea_estructura_empresarial():
     app = Path("app.py").read_text(
-        encoding="utf-8-sig"
+        encoding="utf-8"
     )
+    bootstrap = Path(
+        "services/bootstrap_base_datos.py"
+    ).read_text(encoding="utf-8")
 
     assert (
         "from models.organizacion import Organizacion"
@@ -83,18 +86,16 @@ def test_app_registra_y_crea_estructura_empresarial():
         in app
     )
     assert (
-        "asegurar_estructura_empresarial_inicial("
+        "inicializar_base_datos_saas("
         in app
     )
-
-    inicio = app.index(
-        "with app.app_context():"
-    )
-    bloque = app[inicio:]
-
     assert (
-        bloque.index("db.create_all()")
-        < bloque.index(
+        "asegurar_estructura_empresarial_inicial("
+        in bootstrap
+    )
+    assert (
+        bootstrap.index("db.create_all()")
+        < bootstrap.index(
             "asegurar_estructura_empresarial_inicial("
         )
     )

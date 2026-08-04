@@ -11501,125 +11501,62 @@ registrar_modulos_web(
     },
 )
 
-with app.app_context():
-    db.create_all()
+from services.bootstrap_base_datos import (
+    inicializar_base_datos_saas,
+)
 
-    from services.estructura_empresarial import (
-        asegurar_estructura_empresarial_inicial,
-    )
 
-    estructura_inicial = (
-        asegurar_estructura_empresarial_inicial(
-            Organizacion=Organizacion,
-            UnidadNegocio=UnidadNegocio,
-            db_session=db.session,
-            logger_fn=print,
-        )
-    )
-
-    from services.migraciones_saas import (
-        asegurar_evento_fiscal_tenant,
-        asegurar_movimiento_inventario_tenant,
-        asegurar_identidad_canal_crm_tenant,
-        asegurar_codigos_unicos_por_tenant,
-    )
-
-    asegurar_evento_fiscal_tenant(
-        db=db,
-        inspect_fn=inspect,
-        text_fn=text,
-        EventoFiscal=EventoFiscal,
-        organizacion_id_predeterminada=(
-            estructura_inicial[
-                "organizacion"
-            ].id
+inicializar_base_datos_saas(
+    app,
+    dependencias={
+        "db": db,
+        "inspect": inspect,
+        "text": text,
+        "logger_fn": print,
+        "asegurar_columnas_extra": (
+            asegurar_columnas_extra
         ),
-        logger_fn=print,
-    )
-
-    asegurar_movimiento_inventario_tenant(
-        db=db,
-        inspect_fn=inspect,
-        text_fn=text,
-        MovimientoInventario=(
-            MovimientoInventario
+        "asegurar_columnas_integracion_ml": (
+            asegurar_columnas_integracion_ml
         ),
-        organizacion_id_predeterminada=(
-            estructura_inicial[
-                "organizacion"
-            ].id
+        "backfill_ml_identidad_cuenta_pedidos": (
+            backfill_ml_identidad_cuenta_pedidos
         ),
-        logger_fn=print,
-    )
-
-    asegurar_identidad_canal_crm_tenant(
-        db=db,
-        inspect_fn=inspect,
-        text_fn=text,
-        ClienteIdentidadCanal=(
-            ClienteIdentidadCanal
+        "asegurar_columnas_integracion_tn": (
+            asegurar_columnas_integracion_tn
         ),
-        organizacion_id_predeterminada=(
-            estructura_inicial[
-                "organizacion"
-            ].id
+        "asegurar_usuarios_iniciales": (
+            asegurar_usuarios_iniciales
         ),
-        logger_fn=print,
-    )
-
-    asegurar_codigos_unicos_por_tenant(
-        db=db,
-        inspect_fn=inspect,
-        text_fn=text,
-        logger_fn=print,
-    )
-
-    from services.modulos_organizacion import (
-        asegurar_modulos_iniciales,
-    )
-
-    asegurar_modulos_iniciales(
-        ModuloOrganizacion=ModuloOrganizacion,
-        organizacion_id=(
-            estructura_inicial[
-                "organizacion"
-            ].id
+        "asegurar_configuracion_inicial": (
+            asegurar_configuracion_inicial
         ),
-        db_session=db.session,
-        logger_fn=print,
-    )
+        "modelos": {
+            "Organizacion": Organizacion,
+            "UnidadNegocio": UnidadNegocio,
+            "EventoFiscal": EventoFiscal,
+            "MovimientoInventario": (
+                MovimientoInventario
+            ),
+            "ClienteIdentidadCanal": (
+                ClienteIdentidadCanal
+            ),
+            "ModuloOrganizacion": (
+                ModuloOrganizacion
+            ),
+            "UsuarioSistema": UsuarioSistema,
+            "UsuarioOrganizacion": (
+                UsuarioOrganizacion
+            ),
+        },
+    },
+)
 
-    asegurar_columnas_extra()
-    asegurar_columnas_integracion_ml()
-    backfill_ml_identidad_cuenta_pedidos()
-    asegurar_columnas_integracion_tn()
+# Modulo WhatsApp Bot. Su activacion queda
+# separada del bootstrap de base de datos.
+from modules.whatsapp import activar
 
-    from services.productos_catalogo_db import asegurar_columnas_producto_logistica
-    asegurar_columnas_producto_logistica(db, inspect, text)
-    asegurar_usuarios_iniciales()
-
-    from services.tenant_context import (
-        asegurar_membresias_organizacion_inicial,
-    )
-
-    asegurar_membresias_organizacion_inicial(
-        UsuarioSistema=UsuarioSistema,
-        UsuarioOrganizacion=UsuarioOrganizacion,
-        organizacion_id=(
-            estructura_inicial[
-                "organizacion"
-            ].id
-        ),
-        db_session=db.session,
-        logger_fn=print,
-    )
-
-    asegurar_configuracion_inicial()
-
-    # ── Módulo WhatsApp Bot ──────────────────────────────────────────
-    # Para activar: configurar WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID
-    # y WHATSAPP_VERIFY_TOKEN en el .env y descomentar la línea siguiente:
-    from modules.whatsapp import activar; activar(app)
+activar(app)
 
 # ── Scheduler: jobs periódicos ───────────────────────────────────
 try:

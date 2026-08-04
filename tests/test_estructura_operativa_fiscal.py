@@ -76,8 +76,11 @@ def test_componentes_nuevos_nacen_desactivados():
 
 def test_app_registra_modelos_sin_crear_registros():
     app = Path("app.py").read_text(
-        encoding="utf-8-sig"
+        encoding="utf-8"
     )
+    bootstrap = Path(
+        "services/bootstrap_base_datos.py"
+    ).read_text(encoding="utf-8")
 
     assert (
         "from models.sucursal_operativa "
@@ -89,10 +92,9 @@ def test_app_registra_modelos_sin_crear_registros():
         "import EntidadFiscal"
         in app
     )
-
-    bloque_inicio = app[
-        app.index("with app.app_context():"):
-    ]
-
-    assert "SucursalOperativa(" not in bloque_inicio
-    assert "EntidadFiscal(" not in bloque_inicio
+    assert (
+        "inicializar_base_datos_saas("
+        in app
+    )
+    assert "SucursalOperativa(" not in bootstrap
+    assert "EntidadFiscal(" not in bootstrap

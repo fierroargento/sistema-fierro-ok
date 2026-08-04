@@ -147,10 +147,15 @@ def test_consultas_no_dependen_de_flask():
 
 
 def test_bootstrap_ejecuta_migracion_inventario():
-    contenido = _leer("app.py")
+    contenido = _leer(
+        "services/bootstrap_base_datos.py"
+    )
 
     assert (
         "asegurar_movimiento_inventario_tenant("
         in contenido
     )
-    assert "MovimientoInventario=(" in contenido
+    assert (
+        'modelos["MovimientoInventario"]'
+        in contenido
+    )

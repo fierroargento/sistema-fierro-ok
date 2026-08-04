@@ -182,7 +182,9 @@ def test_sqlite_legacy_se_conserva_seguro():
 
 
 def test_bootstrap_ejecuta_unicidad_tenant():
-    contenido = _leer("app.py")
+    contenido = _leer(
+        "services/bootstrap_base_datos.py"
+    )
 
     assert (
         "asegurar_codigos_unicos_por_tenant("
