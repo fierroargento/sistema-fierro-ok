@@ -15,8 +15,11 @@ from flask import (
 )
 
 from services.integraciones_tenant import (
-    cuentas_mercado_libre_tenant,
     cuentas_tienda_nube_tenant,
+    obtener_vinculos_canal_tenant,
+)
+from services.vinculos_canales import (
+    CANAL_MERCADO_LIBRE,
 )
 from services.tenant_context import (
     TenantError,
@@ -141,15 +144,27 @@ def crear_blueprint_integraciones(
             .all()
         )
 
-        cuentas_ml = (
-            cuentas_mercado_libre_tenant(
+        vinculos_ml = (
+            obtener_vinculos_canal_tenant(
                 organizacion,
                 VinculoCanalComercial=(
                     VinculoCanalComercial
                 ),
-                solo_activas=False,
+                canal=CANAL_MERCADO_LIBRE,
+                solo_activos=False,
             )
         )
+
+        cuentas_ml = [
+            vinculo.mercado_libre_cuenta
+            for vinculo in vinculos_ml
+            if getattr(
+                vinculo,
+                "mercado_libre_cuenta",
+                None,
+            )
+            is not None
+        ]
 
         cuentas_tn = (
             cuentas_tienda_nube_tenant(
@@ -170,7 +185,22 @@ def crear_blueprint_integraciones(
         hay_cuentas_ml_activas = any(
             str(
                 getattr(
-                    cuenta,
+                    vinculo,
+                    "estado",
+                    "",
+                )
+                or ""
+            ).strip().lower()
+            == "activo"
+            and getattr(
+                vinculo,
+                "mercado_libre_cuenta",
+                None,
+            )
+            is not None
+            and str(
+                getattr(
+                    vinculo.mercado_libre_cuenta,
                     "estado_conexion",
                     "",
                 )
@@ -179,12 +209,12 @@ def crear_blueprint_integraciones(
             == "conectada"
             and bool(
                 getattr(
-                    cuenta,
+                    vinculo.mercado_libre_cuenta,
                     "access_token",
                     None,
                 )
             )
-            for cuenta in cuentas_ml
+            for vinculo in vinculos_ml
         )
 
         ultimos_logs_tn = (
@@ -202,6 +232,7 @@ def crear_blueprint_integraciones(
             unidades_negocio=(
                 unidades_negocio
             ),
+            vinculos_ml=vinculos_ml,
             cuentas_ml=cuentas_ml,
             hay_cuentas_ml_activas=(
                 hay_cuentas_ml_activas

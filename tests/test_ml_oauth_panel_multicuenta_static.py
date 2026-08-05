@@ -13,7 +13,7 @@ def test_panel_carga_cuentas_del_tenant():
     ).read_text(encoding="utf-8")
 
     assert (
-        "cuentas_mercado_libre_tenant("
+        "obtener_vinculos_canal_tenant("
         in rutas
     )
     assert (
@@ -119,7 +119,7 @@ def test_template_lista_y_acciona_por_cuenta():
         encoding="utf-8-sig"
     )
 
-    assert "{% for cuenta in cuentas_ml %}" in template
+    assert "{% for vinculo in vinculos_ml %}" in template
     assert "cuenta_id=cuenta.id" in template
     assert "Agregar cuenta Mercado Libre" in template
     assert "Sincronizar todas las cuentas ML" in template

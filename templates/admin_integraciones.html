@@ -19,7 +19,9 @@
         <table class="tabla">
             <thead>
                 <tr>
-                    <th>Estado</th>
+                    <th>Estado cuenta</th>
+                    <th>V?nculo</th>
+                    <th>Unidad</th>
                     <th>Nickname</th>
                     <th>User ID ML</th>
                     <th>Token vence</th>
@@ -29,9 +31,12 @@
                 </tr>
             </thead>
             <tbody>
-                {% for cuenta in cuentas_ml %}
+                {% for vinculo in vinculos_ml %}
+                {% set cuenta = vinculo.mercado_libre_cuenta %}
                 <tr>
                     <td>{{ cuenta.estado_conexion or 'desconectada' }}</td>
+                    <td>{{ vinculo.estado or 'desactivado' }}</td>
+                    <td>{{ vinculo.unidad_negocio.nombre if vinculo.unidad_negocio else '-' }}</td>
                     <td>{{ cuenta.nickname or '-' }}</td>
                     <td>{{ cuenta.user_id_ml or '-' }}</td>
                     <td>
@@ -59,7 +64,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7">
+                    <td colspan="9">
                         No hay cuentas de Mercado Libre vinculadas.
                     </td>
                 </tr>

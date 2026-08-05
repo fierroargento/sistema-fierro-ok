@@ -7700,7 +7700,7 @@ def sync_mercadolibre():
             VinculoCanalComercial=(
                 VinculoCanalComercial
             ),
-            solo_activas=False,
+            solo_activas=True,
         )
     )
 

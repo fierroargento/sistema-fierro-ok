@@ -73,7 +73,7 @@ def test_ruta_resuelve_cuentas_del_tenant():
         "VinculoCanalComercial"
         in bloque
     )
-    assert "solo_activas=False" in bloque
+    assert "solo_activas=True" in bloque
     assert (
         "cuentas_activas("
         not in bloque

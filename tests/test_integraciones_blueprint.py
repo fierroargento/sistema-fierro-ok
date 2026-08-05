@@ -53,7 +53,7 @@ def test_panel_consulta_cuentas_del_tenant():
     contenido = _rutas()
 
     assert (
-        "cuentas_mercado_libre_tenant("
+        "obtener_vinculos_canal_tenant("
         in contenido
     )
     assert (
@@ -64,7 +64,7 @@ def test_panel_consulta_cuentas_del_tenant():
         contenido.count(
             "solo_activas=False"
         )
-        == 2
+        == 1
     )
     assert (
         "VinculoCanalComercial"
