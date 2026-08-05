@@ -5556,12 +5556,20 @@ def ml_limpiar_pedidos_ml_no_operables_existentes():
 def ml_sync_manual(
     limit=20,
     incluir_auxiliares=False,
+    cuentas=None,
 ):
-    from services.ml_cuentas import cuentas_activas
+    if cuentas is None:
+        from services.ml_cuentas import (
+            cuentas_activas,
+        )
 
-    cuentas = cuentas_activas(
-        MercadoLibreCuenta=MercadoLibreCuenta,
-    )
+        cuentas = cuentas_activas(
+            MercadoLibreCuenta=(
+                MercadoLibreCuenta
+            ),
+        )
+    else:
+        cuentas = list(cuentas)
 
     if not cuentas:
         raise ValueError(
@@ -7473,11 +7481,51 @@ def sync_mercadolibre():
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
 
-    from services.ml_cuentas import cuentas_activas
 
-    cuentas = cuentas_activas(
-        MercadoLibreCuenta=MercadoLibreCuenta,
+    from services.integraciones_tenant import (
+        cuentas_mercado_libre_tenant,
     )
+    from services.tenant_context import (
+        TenantError,
+        resolver_tenant_usuario,
+    )
+
+    try:
+        membresia = resolver_tenant_usuario(
+            usuario_actual(),
+            UsuarioOrganizacion=(
+                UsuarioOrganizacion
+            ),
+            organizacion_id=session.get(
+                "organizacion_id"
+            ),
+        )
+    except TenantError:
+        return redirect(url_for("inicio"))
+
+    cuentas_vinculadas = (
+        cuentas_mercado_libre_tenant(
+            membresia.organizacion,
+            VinculoCanalComercial=(
+                VinculoCanalComercial
+            ),
+            solo_activas=False,
+        )
+    )
+
+    cuentas = [
+        cuenta
+        for cuenta in cuentas_vinculadas
+        if str(
+            getattr(
+                cuenta,
+                "estado_conexion",
+                "",
+            )
+            or ""
+        ).strip().lower()
+        == "conectada"
+    ]
 
     if not cuentas:
         return redirect(url_for(
@@ -7492,6 +7540,7 @@ def sync_mercadolibre():
         resultado = ml_sync_manual(
             limit=5,
             incluir_auxiliares=False,
+            cuentas=cuentas,
         )
         mensaje = (
             "Sync ML finalizada. "
