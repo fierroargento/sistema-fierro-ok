@@ -7032,6 +7032,7 @@ app.register_blueprint(
             "UsuarioOrganizacion": (
                 UsuarioOrganizacion
             ),
+            "UnidadNegocio": UnidadNegocio,
             "VinculoCanalComercial": (
                 VinculoCanalComercial
             ),
@@ -7253,6 +7254,49 @@ def conectar_mercadolibre():
     except TenantError:
         return redirect(url_for("inicio"))
 
+    unidad_negocio_id = (
+        request.args.get(
+            "unidad_negocio_id"
+        )
+        or ""
+    ).strip()
+
+    try:
+        unidad_negocio_id = int(
+            unidad_negocio_id
+        )
+    except (TypeError, ValueError):
+        return redirect(url_for(
+            "admin_integraciones.panel",
+            error=(
+                "Selecciona una unidad de "
+                "negocio valida."
+            ),
+        ))
+
+    unidad_oauth = (
+        UnidadNegocio.query
+        .filter_by(
+            id=unidad_negocio_id,
+            organizacion_id=(
+                membresia_oauth
+                .organizacion_id
+            ),
+            activa=True,
+        )
+        .first()
+    )
+
+    if unidad_oauth is None:
+        return redirect(url_for(
+            "admin_integraciones.panel",
+            error=(
+                "La unidad de negocio no "
+                "pertenece a la organizacion "
+                "activa o esta desactivada."
+            ),
+        ))
+
     import secrets
 
     oauth_state = secrets.token_urlsafe(32)
@@ -7261,6 +7305,10 @@ def conectar_mercadolibre():
     session["ml_oauth_organizacion_id"] = (
         membresia_oauth.organizacion_id
     )
+
+    session[
+        "ml_oauth_unidad_negocio_id"
+    ] = unidad_oauth.id
 
     params = urlencode({
         "response_type": "code",
@@ -7302,6 +7350,13 @@ def callback_mercadolibre():
     organizacion_id_esperada = session.pop(
         "ml_oauth_organizacion_id",
         None,
+    )
+
+    unidad_negocio_id_esperada = (
+        session.pop(
+            "ml_oauth_unidad_negocio_id",
+            None,
+        )
     )
 
     if (
@@ -7357,6 +7412,53 @@ def callback_mercadolibre():
                 "La organizacion activa no coincide "
                 "con la que inicio la conexion de "
                 "Mercado Libre."
+            ),
+        ))
+
+    if unidad_negocio_id_esperada is None:
+        return redirect(url_for(
+            "admin_integraciones.panel",
+            error=(
+                "No se pudo validar la unidad "
+                "de negocio que inicio la "
+                "conexion con Mercado Libre."
+            ),
+        ))
+
+    try:
+        unidad_negocio_id_esperada = int(
+            unidad_negocio_id_esperada
+        )
+    except (TypeError, ValueError):
+        return redirect(url_for(
+            "admin_integraciones.panel",
+            error=(
+                "La unidad de negocio de la "
+                "conexion no es valida."
+            ),
+        ))
+
+    unidad_oauth_callback = (
+        UnidadNegocio.query
+        .filter_by(
+            id=(
+                unidad_negocio_id_esperada
+            ),
+            organizacion_id=(
+                organizacion_id_esperada
+            ),
+            activa=True,
+        )
+        .first()
+    )
+
+    if unidad_oauth_callback is None:
+        return redirect(url_for(
+            "admin_integraciones.panel",
+            error=(
+                "La unidad de negocio ya no "
+                "esta disponible para esta "
+                "organizacion."
             ),
         ))
 

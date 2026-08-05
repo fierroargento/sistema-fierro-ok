@@ -72,12 +72,37 @@
             class="acciones"
             style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;"
         >
-            <a
-                href="{{ url_for('conectar_mercadolibre') }}"
-                class="boton-accion"
+            {% if unidades_negocio %}
+            <form
+                method="get"
+                action="{{ url_for('conectar_mercadolibre') }}"
+                style="display:flex; gap:8px; flex-wrap:wrap;"
             >
-                Agregar cuenta Mercado Libre
-            </a>
+                <select
+                    name="unidad_negocio_id"
+                    required
+                >
+                    <option value="">
+                        Unidad de negocio
+                    </option>
+                    {% for unidad in unidades_negocio %}
+                    <option value="{{ unidad.id }}">
+                        {{ unidad.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button
+                    type="submit"
+                    class="boton-accion"
+                >
+                    Agregar cuenta Mercado Libre
+                </button>
+            </form>
+            {% else %}
+            <span>
+                No hay unidades de negocio activas.
+            </span>
+            {% endif %}
 
             {% if hay_cuentas_ml_activas %}
             <form method="post" action="{{ url_for('sync_mercadolibre') }}">

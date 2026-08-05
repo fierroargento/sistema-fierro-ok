@@ -47,6 +47,9 @@ def crear_blueprint_integraciones(
     UsuarioOrganizacion = dependencias[
         "UsuarioOrganizacion"
     ]
+    UnidadNegocio = dependencias.get(
+        "UnidadNegocio"
+    )
     VinculoCanalComercial = dependencias[
         "VinculoCanalComercial"
     ]
@@ -124,6 +127,20 @@ def crear_blueprint_integraciones(
         if respuesta is not None:
             return respuesta
 
+        unidades_negocio = (
+            UnidadNegocio.query
+            .filter_by(
+                organizacion_id=(
+                    organizacion.id
+                ),
+                activa=True,
+            )
+            .order_by(
+                UnidadNegocio.nombre.asc()
+            )
+            .all()
+        )
+
         cuentas_ml = (
             cuentas_mercado_libre_tenant(
                 organizacion,
@@ -182,6 +199,9 @@ def crear_blueprint_integraciones(
 
         return render_template(
             "admin_integraciones.html",
+            unidades_negocio=(
+                unidades_negocio
+            ),
             cuentas_ml=cuentas_ml,
             hay_cuentas_ml_activas=(
                 hay_cuentas_ml_activas
