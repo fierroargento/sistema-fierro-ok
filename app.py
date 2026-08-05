@@ -7234,10 +7234,33 @@ def conectar_mercadolibre():
             ),
         ))
 
+
+    from services.tenant_context import (
+        TenantError,
+        resolver_tenant_usuario,
+    )
+
+    try:
+        membresia_oauth = resolver_tenant_usuario(
+            usuario_actual(),
+            UsuarioOrganizacion=(
+                UsuarioOrganizacion
+            ),
+            organizacion_id=session.get(
+                "organizacion_id"
+            ),
+        )
+    except TenantError:
+        return redirect(url_for("inicio"))
+
     import secrets
 
     oauth_state = secrets.token_urlsafe(32)
     session["ml_oauth_state"] = oauth_state
+
+    session["ml_oauth_organizacion_id"] = (
+        membresia_oauth.organizacion_id
+    )
 
     params = urlencode({
         "response_type": "code",
@@ -7275,6 +7298,12 @@ def callback_mercadolibre():
         or ""
     ).strip()
 
+
+    organizacion_id_esperada = session.pop(
+        "ml_oauth_organizacion_id",
+        None,
+    )
+
     if (
         not estado_esperado
         or not estado_recibido
@@ -7286,6 +7315,48 @@ def callback_mercadolibre():
                 "No se pudo validar el inicio de sesión "
                 "de Mercado Libre. Volvé a conectar "
                 "la cuenta."
+            ),
+        ))
+
+
+    if organizacion_id_esperada is None:
+        return redirect(url_for(
+            "admin_integraciones.panel",
+            error=(
+                "No se pudo validar la organizacion "
+                "que inicio la conexion con "
+                "Mercado Libre."
+            ),
+        ))
+
+    from services.tenant_context import (
+        TenantError,
+        resolver_tenant_usuario,
+    )
+
+    try:
+        membresia_oauth = resolver_tenant_usuario(
+            usuario_actual(),
+            UsuarioOrganizacion=(
+                UsuarioOrganizacion
+            ),
+            organizacion_id=session.get(
+                "organizacion_id"
+            ),
+        )
+    except TenantError:
+        return redirect(url_for("inicio"))
+
+    if (
+        membresia_oauth.organizacion_id
+        != organizacion_id_esperada
+    ):
+        return redirect(url_for(
+            "admin_integraciones.panel",
+            error=(
+                "La organizacion activa no coincide "
+                "con la que inicio la conexion de "
+                "Mercado Libre."
             ),
         ))
 
