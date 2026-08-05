@@ -58,7 +58,6 @@ def test_todas_las_acciones_usan_la_guardia():
     ).read_text(encoding="utf-8")
 
     acciones = (
-        "admin_integraciones",
         "test_tiendanube",
         "sync_tiendanube",
         "registrar_webhooks_tiendanube",

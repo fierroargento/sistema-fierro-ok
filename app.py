@@ -7011,45 +7011,34 @@ def admin_auditoria():
     return render_template("admin_auditoria.html", auditorias=auditorias, ok_feedback="", error="")
 
 
-@app.route("/admin/integraciones")
-@login_required
-def admin_integraciones():
-    if not puede_administrar_integraciones():
-        return redirect(url_for("inicio"))
+from modules.admin.integraciones.routes import (
+    crear_blueprint_integraciones,
+)
 
-    cuentas_ml = (
-        MercadoLibreCuenta.query
-        .order_by(MercadoLibreCuenta.id.asc())
-        .all()
-    )
-    hay_cuentas_ml_activas = any(
-        str(
-            getattr(cuenta, "estado_conexion", "")
-            or ""
-        ).strip().lower() == "conectada"
-        and bool(getattr(cuenta, "access_token", None))
-        for cuenta in cuentas_ml
-    )
-    faltantes = ml_config_faltante()
-    cuenta_tn = cuenta_tn_actual()
-    faltantes_tn = tn_config_faltante()
-    ultimos_logs_tn = TiendaNubeWebhookLog.query.order_by(TiendaNubeWebhookLog.fecha.desc()).limit(10).all()
-    ok_feedback = (request.args.get("ok") or "").strip()
-    error = (request.args.get("error") or "").strip()
 
-    return render_template(
-        "admin_integraciones.html",
-        cuentas_ml=cuentas_ml,
-        hay_cuentas_ml_activas=(
-            hay_cuentas_ml_activas
-        ),
-        faltantes=faltantes,
-        cuenta_tn=cuenta_tn,
-        faltantes_tn=faltantes_tn,
-        ultimos_logs_tn=ultimos_logs_tn,
-        ok_feedback=ok_feedback,
-        error=error,
+app.register_blueprint(
+    crear_blueprint_integraciones(
+        dependencias={
+            "login_required": login_required,
+            "usuario_actual": usuario_actual,
+            "UsuarioOrganizacion": (
+                UsuarioOrganizacion
+            ),
+            "VinculoCanalComercial": (
+                VinculoCanalComercial
+            ),
+            "TiendaNubeWebhookLog": (
+                TiendaNubeWebhookLog
+            ),
+            "ml_config_faltante": (
+                ml_config_faltante
+            ),
+            "tn_config_faltante": (
+                tn_config_faltante
+            ),
+        },
     )
+)
 
 
 @app.route("/webhook/tiendanube", methods=["POST"])
@@ -7131,7 +7120,7 @@ def test_tiendanube():
         return redirect(url_for("inicio"))
     faltantes = tn_config_faltante()
     if faltantes:
-        return redirect(url_for("admin_integraciones", error=f"Faltan variables TN: {', '.join(faltantes)}"))
+        return redirect(url_for("admin_integraciones.panel", error=f"Faltan variables TN: {', '.join(faltantes)}"))
     try:
         orders = tn_http_json("GET", "/orders", params={"per_page": 1})
         cuenta = cuenta_tn_actual()
@@ -7143,7 +7132,7 @@ def test_tiendanube():
             cuenta.last_sync_detail = "Conexión TN OK"
             db.session.commit()
         cantidad = len(orders) if isinstance(orders, list) else 0
-        return redirect(url_for("admin_integraciones", ok=f"Conexión Tienda Nube OK. Pedidos leídos de prueba: {cantidad}."))
+        return redirect(url_for("admin_integraciones.panel", ok=f"Conexión Tienda Nube OK. Pedidos leídos de prueba: {cantidad}."))
     except Exception as e:
         cuenta = cuenta_tn_actual()
         if cuenta:
@@ -7152,7 +7141,7 @@ def test_tiendanube():
             cuenta.last_sync_status = "test_error"
             cuenta.last_sync_detail = str(e)
             db.session.commit()
-        return redirect(url_for("admin_integraciones", error=f"Falló test Tienda Nube: {e}"))
+        return redirect(url_for("admin_integraciones.panel", error=f"Falló test Tienda Nube: {e}"))
 
 
 @app.route("/admin/integraciones/tiendanube/sync", methods=["POST"])
@@ -7162,7 +7151,7 @@ def sync_tiendanube():
         return redirect(url_for("inicio"))
     faltantes = tn_config_faltante()
     if faltantes:
-        return redirect(url_for("admin_integraciones", error=f"Faltan variables TN: {', '.join(faltantes)}"))
+        return redirect(url_for("admin_integraciones.panel", error=f"Faltan variables TN: {', '.join(faltantes)}"))
     try:
         resultado = tn_sync_manual(limit=50)
         mensaje = (
@@ -7171,7 +7160,7 @@ def sync_tiendanube():
             f"Actualizados: {resultado['actualizados']} | "
             f"Omitidos: {resultado['omitidos']}"
         )
-        return redirect(url_for("admin_integraciones", ok=mensaje))
+        return redirect(url_for("admin_integraciones.panel", ok=mensaje))
     except Exception as e:
         db.session.rollback()
         cuenta = cuenta_tn_actual()
@@ -7180,7 +7169,7 @@ def sync_tiendanube():
             cuenta.last_sync_status = "error"
             cuenta.last_sync_detail = str(e)
             db.session.commit()
-        return redirect(url_for("admin_integraciones", error=f"Falló sincronización Tienda Nube: {e}"))
+        return redirect(url_for("admin_integraciones.panel", error=f"Falló sincronización Tienda Nube: {e}"))
 
 
 @app.route("/admin/integraciones/tiendanube/registrar-webhooks", methods=["POST"])
@@ -7190,15 +7179,15 @@ def registrar_webhooks_tiendanube():
         return redirect(url_for("inicio"))
     faltantes = tn_config_faltante()
     if faltantes:
-        return redirect(url_for("admin_integraciones", error=f"Faltan variables TN: {', '.join(faltantes)}"))
+        return redirect(url_for("admin_integraciones.panel", error=f"Faltan variables TN: {', '.join(faltantes)}"))
     try:
         resultados = tn_registrar_webhooks_sistema_fierro()
         ok_count = sum(1 for r in resultados if r.get("ok"))
         mensaje = f"Webhooks TN solicitados. Creados OK: {ok_count}/{len(resultados)}. Si alguno ya existía, TN puede devolver advertencia sin afectar."
-        return redirect(url_for("admin_integraciones", ok=mensaje))
+        return redirect(url_for("admin_integraciones.panel", ok=mensaje))
     except Exception as e:
         db.session.rollback()
-        return redirect(url_for("admin_integraciones", error=f"No se pudieron registrar webhooks TN: {e}"))
+        return redirect(url_for("admin_integraciones.panel", error=f"No se pudieron registrar webhooks TN: {e}"))
 
 
 @app.route("/admin/integraciones/tiendanube/reset-prueba", methods=["POST"])
@@ -7215,10 +7204,10 @@ def reset_prueba_tiendanube():
         for pedido in pedidos:
             db.session.delete(pedido)
         db.session.commit()
-        return redirect(url_for("admin_integraciones", ok=f"Pedidos TN de prueba eliminados: {eliminados}."))
+        return redirect(url_for("admin_integraciones.panel", ok=f"Pedidos TN de prueba eliminados: {eliminados}."))
     except Exception as e:
         db.session.rollback()
-        return redirect(url_for("admin_integraciones", error=f"No se pudieron borrar pedidos TN de prueba: {e}"))
+        return redirect(url_for("admin_integraciones.panel", error=f"No se pudieron borrar pedidos TN de prueba: {e}"))
 
 
 @app.route("/admin/integraciones/mercadolibre/conectar")
@@ -7476,7 +7465,7 @@ def sync_mercadolibre():
             f"Reclamos: {resultado.get('claims_marcados', 0)} | "
             f"ME sin etiqueta: {resultado.get('me_sin_etiqueta', 0)}"
         )
-        return redirect(url_for("admin_integraciones", ok=mensaje))
+        return redirect(url_for("admin_integraciones.panel", ok=mensaje))
     except Exception as e:
         db.session.rollback()
         return redirect(url_for(
@@ -7493,9 +7482,9 @@ def reset_prueba_mercadolibre():
 
     try:
         eliminados = ml_borrar_pedidos_ml_cargando_importados()
-        return redirect(url_for("admin_integraciones", ok=f"Pedidos ML de prueba eliminados: {eliminados}. Ahora podés sincronizar de nuevo."))
+        return redirect(url_for("admin_integraciones.panel", ok=f"Pedidos ML de prueba eliminados: {eliminados}. Ahora podés sincronizar de nuevo."))
     except Exception as e:
-        return redirect(url_for("admin_integraciones", error=f"No se pudieron eliminar pedidos ML de prueba: {e}"))
+        return redirect(url_for("admin_integraciones.panel", error=f"No se pudieron eliminar pedidos ML de prueba: {e}"))
 
 @app.route("/admin/integraciones/mercadolibre/reset-total", methods=["POST"])
 @login_required
@@ -7526,7 +7515,7 @@ def reset_total_mercadolibre():
         ))
     except Exception as e:
         db.session.rollback()
-        return redirect(url_for("admin_integraciones", error=f"No se pudo hacer reset total ML: {e}"))
+        return redirect(url_for("admin_integraciones.panel", error=f"No se pudo hacer reset total ML: {e}"))
 
 
 @app.route("/admin/reset_ml", methods=["POST"])

@@ -7,22 +7,43 @@ def _app():
     )
 
 
-def test_panel_carga_todas_las_cuentas():
+def test_panel_carga_cuentas_del_tenant():
+    rutas = Path(
+        "modules/admin/integraciones/routes.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "cuentas_mercado_libre_tenant("
+        in rutas
+    )
+    assert (
+        "cuentas_tienda_nube_tenant("
+        in rutas
+    )
+    assert "solo_activas=False" in rutas
+    assert (
+        "VinculoCanalComercial"
+        in rutas
+    )
+    assert (
+        "MercadoLibreCuenta.query"
+        not in rutas
+    )
+    assert (
+        "cuenta_tn_actual()"
+        not in rutas
+    )
+
     app = _app()
 
-    inicio = app.index(
+    assert (
         "def admin_integraciones("
+        not in app
     )
-    fin = app.index(
-        "\ndef webhook_tiendanube(",
-        inicio,
+    assert (
+        "crear_blueprint_integraciones("
+        in app
     )
-    bloque = app[inicio:fin]
-
-    assert "cuentas_ml = (" in bloque
-    assert "MercadoLibreCuenta.query" in bloque
-    assert "hay_cuentas_ml_activas" in bloque
-    assert "cuenta_ml_actual()" not in bloque
 
 
 def test_oauth_usa_state_y_token_nuevo():
