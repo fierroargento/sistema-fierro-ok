@@ -7219,7 +7219,7 @@ def conectar_mercadolibre():
     faltantes = ml_config_faltante()
     if faltantes:
         return redirect(url_for(
-            "admin_integraciones",
+            "admin_integraciones.panel",
             error=(
                 "Faltan variables: "
                 + ", ".join(faltantes)
@@ -7273,7 +7273,7 @@ def callback_mercadolibre():
         or estado_recibido != estado_esperado
     ):
         return redirect(url_for(
-            "admin_integraciones",
+            "admin_integraciones.panel",
             error=(
                 "No se pudo validar el inicio de sesión "
                 "de Mercado Libre. Volvé a conectar "
@@ -7283,7 +7283,7 @@ def callback_mercadolibre():
 
     if error:
         return redirect(url_for(
-            "admin_integraciones",
+            "admin_integraciones.panel",
             error=(
                 "Mercado Libre devolvió error: "
                 f"{error}"
@@ -7292,7 +7292,7 @@ def callback_mercadolibre():
 
     if not code:
         return redirect(url_for(
-            "admin_integraciones",
+            "admin_integraciones.panel",
             error=(
                 "Mercado Libre no devolvió código "
                 "de autorización."
@@ -7364,7 +7364,7 @@ def callback_mercadolibre():
         )
 
         return redirect(url_for(
-            "admin_integraciones",
+            "admin_integraciones.panel",
             ok=(
                 "Cuenta de Mercado Libre "
                 f"{accion} correctamente: "
@@ -7376,7 +7376,7 @@ def callback_mercadolibre():
         db.session.rollback()
 
         return redirect(url_for(
-            "admin_integraciones",
+            "admin_integraciones.panel",
             error=(
                 "No se pudo vincular Mercado Libre: "
                 f"{error_callback}"
@@ -7397,6 +7397,47 @@ def desconectar_mercadolibre(cuenta_id):
     cuenta = MercadoLibreCuenta.query.get_or_404(
         cuenta_id
     )
+
+    from services.integraciones_tenant import (
+        exigir_vinculo_cuenta_tenant,
+    )
+    from services.tenant_context import (
+        TenantError,
+        resolver_tenant_usuario,
+    )
+    from services.vinculos_canales import (
+        CANAL_MERCADO_LIBRE,
+    )
+
+    try:
+        membresia = resolver_tenant_usuario(
+            usuario_actual(),
+            UsuarioOrganizacion=(
+                UsuarioOrganizacion
+            ),
+            organizacion_id=session.get(
+                "organizacion_id"
+            ),
+        )
+    except TenantError:
+        return redirect(url_for("inicio"))
+
+    try:
+        exigir_vinculo_cuenta_tenant(
+            membresia.organizacion,
+            cuenta,
+            canal=CANAL_MERCADO_LIBRE,
+            VinculoCanalComercial=(
+                VinculoCanalComercial
+            ),
+            solo_activo=False,
+        )
+    except ValueError as error:
+        return redirect(url_for(
+            "admin_integraciones.panel",
+            error=str(error),
+        ))
+
     identificacion = (
         cuenta.nickname
         or cuenta.user_id_ml
@@ -7418,7 +7459,7 @@ def desconectar_mercadolibre(cuenta_id):
     db.session.commit()
 
     return redirect(url_for(
-        "admin_integraciones",
+        "admin_integraciones.panel",
         ok=(
             "Cuenta de Mercado Libre desconectada: "
             f"{identificacion}."
@@ -7440,7 +7481,7 @@ def sync_mercadolibre():
 
     if not cuentas:
         return redirect(url_for(
-            "admin_integraciones",
+            "admin_integraciones.panel",
             error=(
                 "Primero conectá una cuenta "
                 "de Mercado Libre."
@@ -7469,7 +7510,7 @@ def sync_mercadolibre():
     except Exception as e:
         db.session.rollback()
         return redirect(url_for(
-            "admin_integraciones",
+            "admin_integraciones.panel",
             error=f"Falló la sincronización: {e}",
         ))
 
@@ -7510,7 +7551,7 @@ def reset_total_mercadolibre():
 
         db.session.commit()
         return redirect(url_for(
-            "admin_integraciones",
+            "admin_integraciones.panel",
             ok=f"Reset total ML realizado. Pedidos importados de Mercado Libre eliminados en Fierro: {eliminados}. Ahora podés sincronizar de nuevo."
         ))
     except Exception as e:
