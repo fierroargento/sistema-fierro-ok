@@ -2910,7 +2910,41 @@ def items_detectados_a_texto(items):
 
 
 def puede_administrar_integraciones():
-    return rol_actual() == "admin"
+    if rol_actual() != "admin":
+        return False
+
+    from services.tenant_context import (
+        TenantError,
+        resolver_tenant_usuario,
+    )
+
+    try:
+        membresia = resolver_tenant_usuario(
+            usuario_actual(),
+            UsuarioOrganizacion=(
+                UsuarioOrganizacion
+            ),
+            organizacion_id=session.get(
+                "organizacion_id"
+            ),
+        )
+    except TenantError:
+        return False
+
+    organizacion = getattr(
+        membresia,
+        "organizacion",
+        None,
+    )
+
+    return (
+        getattr(
+            organizacion,
+            "slug",
+            None,
+        )
+        == "grupo-fierro"
+    )
 
 
 def tn_store_id():
