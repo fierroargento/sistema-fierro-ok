@@ -80,7 +80,7 @@ def test_template_muestra_estado_y_unidad():
         "templates/admin_integraciones.html"
     )
 
-    assert "<th>V?nculo</th>" in contenido
+    assert "<th>V\u00ednculo</th>" in contenido
     assert "<th>Unidad</th>" in contenido
     assert (
         "{% for vinculo in vinculos_ml %}"
