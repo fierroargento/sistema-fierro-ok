@@ -7536,6 +7536,24 @@ def callback_mercadolibre():
         )
         cuenta.estado_conexion = "conectada"
 
+        from services.integraciones_tenant import (
+            asegurar_vinculo_ml_oauth,
+        )
+
+        db.session.flush()
+
+        vinculo_oauth, vinculo_creado = (
+            asegurar_vinculo_ml_oauth(
+                membresia_oauth.organizacion,
+                unidad_oauth_callback,
+                cuenta,
+                VinculoCanalComercial=(
+                    VinculoCanalComercial
+                ),
+                db_session=db.session,
+            )
+        )
+
         db.session.commit()
 
         accion = (

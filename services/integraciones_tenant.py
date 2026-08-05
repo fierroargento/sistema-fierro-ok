@@ -185,3 +185,127 @@ def exigir_vinculo_cuenta_tenant(
         )
 
     return vinculo
+
+
+def asegurar_vinculo_ml_oauth(
+    organizacion,
+    unidad_negocio,
+    cuenta,
+    *,
+    VinculoCanalComercial,
+    db_session,
+):
+    """
+    Crea el vinculo preparatorio de una cuenta ML.
+
+    Un vinculo nuevo siempre nace desactivado.
+    Un vinculo existente nunca se reasigna ni cambia
+    de estado durante OAuth.
+    """
+    organizacion_id = _organizacion_id(
+        organizacion
+    )
+
+    unidad_id = getattr(
+        unidad_negocio,
+        "id",
+        None,
+    )
+    unidad_organizacion_id = getattr(
+        unidad_negocio,
+        "organizacion_id",
+        None,
+    )
+
+    if (
+        unidad_id is None
+        or unidad_organizacion_id
+        != organizacion_id
+    ):
+        raise ValueError(
+            "La unidad de negocio no pertenece "
+            "a la organizacion activa."
+        )
+
+    cuenta_id = getattr(
+        cuenta,
+        "id",
+        None,
+    )
+
+    if cuenta_id is None:
+        raise ValueError(
+            "La cuenta de Mercado Libre todavia "
+            "no tiene identificador."
+        )
+
+    vinculo = (
+        VinculoCanalComercial.query
+        .filter_by(
+            mercado_libre_cuenta_id=cuenta_id
+        )
+        .first()
+    )
+
+    if vinculo is not None:
+        if (
+            getattr(
+                vinculo,
+                "canal",
+                None,
+            )
+            != CANAL_MERCADO_LIBRE
+            or getattr(
+                vinculo,
+                "organizacion_id",
+                None,
+            )
+            != organizacion_id
+            or getattr(
+                vinculo,
+                "unidad_negocio_id",
+                None,
+            )
+            != unidad_id
+        ):
+            raise ValueError(
+                "La cuenta de Mercado Libre ya "
+                "pertenece a otro vinculo comercial."
+            )
+
+        return vinculo, False
+
+    identificacion = str(
+        getattr(
+            cuenta,
+            "nickname",
+            None,
+        )
+        or getattr(
+            cuenta,
+            "user_id_ml",
+            None,
+        )
+        or cuenta_id
+    ).strip()
+
+    nombre = (
+        f"Mercado Libre - {identificacion}"
+    )[:150]
+
+    vinculo = VinculoCanalComercial(
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_id,
+        canal=CANAL_MERCADO_LIBRE,
+        mercado_libre_cuenta_id=cuenta_id,
+        nombre=nombre,
+        estado="desactivado",
+        detalle=(
+            "Vinculo preparatorio creado "
+            "automaticamente desde OAuth."
+        ),
+    )
+
+    db_session.add(vinculo)
+
+    return vinculo, True
