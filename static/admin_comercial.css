@@ -118,7 +118,13 @@
 .comercial-form label > span:first-child { color: #445064; font-size: 12px; font-weight: 800; }
 .comercial-form label small { color: #8490a1; font-weight: 400; }
 .product-master-field { position: relative; }
-.product-master-field > small { min-height: 14px; font-size: 11px; }
+.product-master-field > small {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  font-size: 11px;
+}
+.form-inclusion { margin-bottom: 8px; }
 .product-master-source { display: none; }
 .product-combobox { position: relative; display: block; }
 .product-combobox-options {

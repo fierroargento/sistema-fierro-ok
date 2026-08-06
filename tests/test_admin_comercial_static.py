@@ -54,6 +54,7 @@ def test_panel_administra_catalogos_sin_app_py():
 def test_selector_del_maestro_usa_un_solo_combobox_sin_dependencias():
     template = Path("templates/admin_comercial.html").read_text(encoding="utf-8")
     javascript = Path("static/admin_comercial.js").read_text(encoding="utf-8")
+    estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
 
     assert 'id="buscar-producto-maestro"' in template
     assert 'id="producto-maestro"' in template
@@ -65,6 +66,8 @@ def test_selector_del_maestro_usa_un_solo_combobox_sin_dependencias():
     assert "elegir(producto)" in javascript
     assert 'selector.value = producto.value' in javascript
     assert 'setCustomValidity("Elegí un producto de la lista.")' in javascript
+    assert ".product-master-field > small" in estilos
+    assert "position: absolute" in estilos
 
 
 def test_catalogos_comerciales_no_conectan_consumidores_productivos():
