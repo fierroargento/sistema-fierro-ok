@@ -59,7 +59,13 @@ def validar_datos_ml(pedido, parece_nickname_ml):
                 errores.append("Falta adjuntar etiqueta.")
 
         elif pedido.ml_tipo == "Acordás la Entrega":
-            if parece_nickname_ml(pedido.cliente, pedido.ml_buyer_nickname) and not (pedido.ml_billing_nombre or "").strip():
+            nombre_real_confirmado = bool(
+                getattr(pedido, "ml_nombre_real", False)
+            ) or bool((pedido.ml_billing_nombre or "").strip())
+            if (
+                parece_nickname_ml(pedido.cliente, pedido.ml_buyer_nickname)
+                and not nombre_real_confirmado
+            ):
                 errores.append("Falta nombre real del cliente.")
             if not (pedido.dni or "").strip() and not (pedido.ml_billing_documento or "").strip():
                 errores.append("Falta DNI/CUIT del cliente.")
@@ -152,4 +158,4 @@ def validar_transporte_obligatorio(pedido, usa_flujo_etiqueta_directa):
     ):
         errores.append("Falta transporte.")
 
-    return errores    
+    return errores

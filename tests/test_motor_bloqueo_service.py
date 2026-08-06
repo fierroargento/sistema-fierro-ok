@@ -36,6 +36,7 @@ def pedido_base(**overrides):
         "ml_tipo": "",
         "ml_buyer_nickname": "",
         "ml_billing_nombre": "",
+        "ml_nombre_real": False,
         "ml_billing_documento": "",
         "dni": "12345678",
         "telefono": "+5492920123456",
@@ -95,6 +96,40 @@ def test_validar_datos_ml_acordas_requiere_datos_cliente():
     assert "Falta nombre real del cliente." in errores
     assert "Falta DNI/CUIT del cliente." in errores
     assert "Falta teléfono del cliente." in errores
+
+
+def test_acordas_acepta_nombre_real_confirmado_por_mercado_libre():
+    pedido = pedido_base(
+        canal="Mercado Libre",
+        ml_tipo="Acordás la Entrega",
+        cliente="Emilio Sarich",
+        ml_buyer_nickname="Emilio Sarich",
+        ml_nombre_real=True,
+    )
+
+    errores = validar_datos_ml(
+        pedido,
+        parece_nickname_ml=lambda cliente, nickname: cliente == nickname,
+    )
+
+    assert "Falta nombre real del cliente." not in errores
+
+
+def test_acordas_acepta_nombre_fiscal_aunque_cliente_sea_nickname():
+    pedido = pedido_base(
+        canal="Mercado Libre",
+        ml_tipo="Acordás la Entrega",
+        cliente="comprador_123",
+        ml_buyer_nickname="comprador_123",
+        ml_billing_nombre="Emilio Sarich",
+    )
+
+    errores = validar_datos_ml(
+        pedido,
+        parece_nickname_ml=lambda cliente, nickname: True,
+    )
+
+    assert "Falta nombre real del cliente." not in errores
 
 
 def test_validar_datos_entrega_domicilio_incompleto():
