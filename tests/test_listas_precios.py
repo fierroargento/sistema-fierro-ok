@@ -10,6 +10,7 @@ from services.listas_precios import (
     calcular_precio_comercial,
     redondear_hacia_arriba,
     validar_alcance_lista,
+    validar_organizacion_unidad,
 )
 
 
@@ -99,3 +100,19 @@ def test_runtime_sqlite_real():
     )
     assert resultado.returncode == 0, resultado.stdout + resultado.stderr
     assert "Runtime SQLite de listas OK" in resultado.stdout
+
+
+def test_rechaza_unidad_ajena_con_sesion_fake():
+    organizacion = SimpleNamespace(id=1)
+    unidad = SimpleNamespace(id=2, organizacion_id=9)
+
+    class Sesion:
+        def get(self, modelo, identificador):
+            return organizacion if identificador == 1 else unidad
+
+    with pytest.raises(ValueError, match="no pertenece"):
+        validar_organizacion_unidad(
+            organizacion_id=1, unidad_negocio_id=2,
+            Organizacion=object(), UnidadNegocio=object(),
+            db_session=Sesion(),
+        )
