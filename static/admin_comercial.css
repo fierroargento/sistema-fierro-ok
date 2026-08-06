@@ -107,7 +107,7 @@
   border-radius: 12px;
   background: #f7f9fb;
 }
-.form-costos { grid-template-columns: 1fr 2fr 1fr auto; }
+.form-costos { grid-template-columns: 3fr 1fr auto; }
 .form-catalogos { grid-template-columns: 1.2fr .7fr 1.2fr .5fr 1.4fr auto; }
 .form-inclusion { grid-template-columns: 1fr 2.2fr 1fr 1.4fr auto; }
 .form-listas { grid-template-columns: 1.1fr .8fr 1.5fr 1fr .55fr auto; }

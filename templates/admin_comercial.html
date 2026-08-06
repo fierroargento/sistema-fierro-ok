@@ -78,8 +78,7 @@
     {% if inclusiones_activas %}
     <form class="comercial-form form-costos" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_costo_manual">
-      <label><span>Unidad de negocio</span><select name="unidad_negocio_id"><option value="">General</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
-      <label><span>Producto</span><select name="catalogo_producto_id" required>{% for p in inclusiones_activas %}<option value="{{ p.id }}">{{ p.nombre_comercial }} ({{ p.sku_comercial }})</option>{% endfor %}</select></label>
+      <label><span>Producto y unidad de negocio</span><select name="catalogo_producto_id" required>{% for p in inclusiones_activas %}<option value="{{ p.id }}">{{ p.catalogo.unidad_negocio.nombre if p.catalogo.unidad_negocio else 'General' }} · {{ p.nombre_comercial }} ({{ p.sku_comercial }})</option>{% endfor %}</select></label>
       <label><span>Costo base</span><div class="money-input"><span>$</span><input name="costo_base" inputmode="decimal" placeholder="0,00" required></div></label>
       <button class="comercial-primary" type="submit">Crear versión</button>
     </form>

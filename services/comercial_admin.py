@@ -29,7 +29,6 @@ def procesar_accion_comercial(
             accion, formulario, organizacion=organizacion,
             modelos=modelos, db_session=db_session,
         )
-    unidad_id = _id(formulario, "unidad_negocio_id", opcional=True)
     if accion == "crear_costo_manual":
         inclusion = modelos["CatalogoProducto"].query.get(
             _id(formulario, "catalogo_producto_id")
@@ -38,6 +37,7 @@ def procesar_accion_comercial(
             raise ValueError("El producto no pertenece a la organizacion.")
         if not inclusion.activo:
             raise ValueError("Primero activá el producto en su catálogo.")
+        unidad_id = inclusion.catalogo.unidad_negocio_id
         version = crear_version_costo(
             organizacion_id=organizacion.id, unidad_negocio_id=unidad_id,
             producto_id=inclusion.producto_id, moneda=inclusion.catalogo.moneda,
@@ -66,6 +66,7 @@ def procesar_accion_comercial(
         )
         return "Costo activado."
     if accion == "crear_lista":
+        unidad_id = _id(formulario, "unidad_negocio_id", opcional=True)
         lista = crear_lista_precio(
             organizacion_id=organizacion.id, unidad_negocio_id=unidad_id,
             codigo=formulario.get("codigo"), nombre=formulario.get("nombre"),

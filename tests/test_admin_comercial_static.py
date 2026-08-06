@@ -99,6 +99,18 @@ def test_panel_bloquea_etapas_sin_prerrequisitos():
     assert template.count("prerequisite-warning") >= 4
 
 
+def test_costo_toma_la_unidad_del_catalogo_sin_eleccion_duplicada():
+    template = Path("templates/admin_comercial.html").read_text(encoding="utf-8")
+    servicio = Path("services/comercial_admin.py").read_text(encoding="utf-8")
+    seccion_costos = template.split('id="costos"', 1)[1].split(
+        'id="listas"', 1
+    )[0]
+
+    assert 'name="unidad_negocio_id"' not in seccion_costos
+    assert "p.catalogo.unidad_negocio.nombre" in seccion_costos
+    assert "unidad_id = inclusion.catalogo.unidad_negocio_id" in servicio
+
+
 def test_runtime_catalogos_comerciales_sqlite():
     resultado = subprocess.run(
         [sys.executable, "scripts/verificar_catalogos_comerciales_runtime.py"],
