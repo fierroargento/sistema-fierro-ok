@@ -51,6 +51,18 @@ def test_panel_administra_catalogos_sin_app_py():
     assert "/admin/comercial" not in app
 
 
+def test_selector_del_maestro_permite_buscar_sin_dependencias():
+    template = Path("templates/admin_comercial.html").read_text(encoding="utf-8")
+    javascript = Path("static/admin_comercial.js").read_text(encoding="utf-8")
+
+    assert 'id="buscar-producto-maestro"' in template
+    assert 'id="producto-maestro"' in template
+    assert "admin_comercial.js" in template
+    assert 'getElementById("buscar-producto-maestro")' in javascript
+    assert "productos.filter" in javascript
+    assert "slice(0, limite)" in javascript
+
+
 def test_catalogos_comerciales_no_conectan_consumidores_productivos():
     contenidos = "\n".join(
         Path(ruta).read_text(encoding="utf-8")

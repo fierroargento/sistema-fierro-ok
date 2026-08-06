@@ -109,7 +109,7 @@
 }
 .form-costos { grid-template-columns: 1fr 2fr 1fr auto; }
 .form-catalogos { grid-template-columns: 1.2fr .7fr 1.2fr .5fr 1.4fr auto; }
-.form-inclusion { grid-template-columns: 1fr 1.7fr 1fr 1.4fr auto; }
+.form-inclusion { grid-template-columns: 1fr 1.2fr 1.7fr 1fr 1.4fr auto; }
 .form-listas { grid-template-columns: 1.1fr .8fr 1.5fr 1fr .55fr auto; }
 .form-politicas { grid-template-columns: 1.5fr repeat(5, .75fr) auto; }
 .form-precios { grid-template-columns: 1.1fr 1.4fr 1.1fr 1.2fr .65fr .9fr auto; }
@@ -117,6 +117,7 @@
 .comercial-form label { display: flex; flex-direction: column; min-width: 0; gap: 6px; }
 .comercial-form label > span:first-child { color: #445064; font-size: 12px; font-weight: 800; }
 .comercial-form label small { color: #8490a1; font-weight: 400; }
+.product-master-search small { min-height: 14px; font-size: 11px; }
 .comercial-form input, .comercial-form select {
   width: 100%;
   min-width: 0;

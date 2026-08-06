@@ -2,6 +2,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}">
+<script src="{{ url_for('static', filename='admin_comercial.js') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -59,7 +60,8 @@
     <form class="comercial-form form-inclusion" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="agregar_producto_catalogo">
       <label><span>Catálogo</span><select name="catalogo_id" required><option value="">Seleccionar</option>{% for c in catalogos %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}</select></label>
-      <label><span>Producto maestro</span><select name="producto_id" required><option value="">Seleccionar producto</option>{% for p in productos_maestro %}<option value="{{ p.id }}">{{ p.sku }} · {{ p.descripcion }}</option>{% endfor %}</select></label>
+      <label class="product-master-search"><span>Buscar producto maestro</span><input id="buscar-producto-maestro" type="search" placeholder="SKU o descripción" autocomplete="off" aria-controls="producto-maestro"><small id="resultado-busqueda-producto" aria-live="polite">Escribí al menos 2 caracteres.</small></label>
+      <label><span>Producto maestro</span><select id="producto-maestro" name="producto_id" required><option value="">Seleccionar producto</option>{% for p in productos_maestro %}<option value="{{ p.id }}">{{ p.sku }} · {{ p.descripcion }}</option>{% endfor %}</select></label>
       <label><span>SKU comercial <small>opcional</small></span><input name="sku_comercial" maxlength="100" placeholder="Usa el SKU maestro"></label>
       <label><span>Nombre comercial <small>opcional</small></span><input name="nombre_comercial" maxlength="255" placeholder="Usa la descripción maestra"></label>
       <button class="comercial-primary" type="submit">Incorporar producto</button>
