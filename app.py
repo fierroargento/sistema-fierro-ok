@@ -253,6 +253,8 @@ from models.sucursal_operativa import SucursalOperativa
 from models.entidad_fiscal import EntidadFiscal
 from models.catalogo import Catalogo
 from models.catalogo_producto import CatalogoProducto
+from models.costo_producto_version import CostoProductoVersion
+from models.costo_producto_detalle import CostoProductoDetalle
 from models.modulo_organizacion import ModuloOrganizacion
 from models.vinculo_canal_comercial import VinculoCanalComercial
 from models.cliente_crm import ClienteCRM
