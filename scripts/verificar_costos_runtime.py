@@ -7,8 +7,18 @@ real sin los stubs generales de tests/conftest.py.
 
 from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
+import sys
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 
 from flask import Flask
+from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
@@ -260,7 +270,7 @@ def main():
         db.create_all()
 
         tablas = set(
-            db.inspect(db.engine).get_table_names()
+            inspect(db.engine).get_table_names()
         )
 
         assert "costo_producto_version" in tablas
