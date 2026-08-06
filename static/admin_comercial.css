@@ -49,7 +49,7 @@
 
 .comercial-steps {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
   margin-bottom: 18px;
 }
@@ -108,6 +108,8 @@
   background: #f7f9fb;
 }
 .form-costos { grid-template-columns: 1fr 2fr 1fr auto; }
+.form-catalogos { grid-template-columns: 1.2fr .7fr 1.2fr .5fr 1.4fr auto; }
+.form-inclusion { grid-template-columns: 1fr 1.7fr 1fr 1.4fr auto; }
 .form-listas { grid-template-columns: 1.1fr .8fr 1.5fr 1fr .55fr auto; }
 .form-politicas { grid-template-columns: 1.5fr repeat(5, .75fr) auto; }
 .form-precios { grid-template-columns: 1.1fr 1.4fr 1.1fr 1.2fr .65fr .9fr auto; }
@@ -162,6 +164,7 @@
 
 .status { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: capitalize; }
 .status-active { background: #dcf8ea; color: #176345; }
+.status-test { background: #e4f3ff; color: #176b89; }
 .status-draft { background: #fff3d6; color: #875a08; }
 .table-action { padding: 6px 10px; border: 1px solid #8ac4da; border-radius: 7px; background: #edf8fc; color: #176b89; font-weight: 800; cursor: pointer; }
 .table-action:hover { background: #dff3fa; }
@@ -175,8 +178,24 @@
 .list-summary article span { color: #778294; font-size: 12px; }
 .empty-card { grid-column: 1 / -1; margin: 0; padding: 22px; border: 1px dashed #cfd6df; border-radius: 10px; color: #8490a1; text-align: center; }
 
+.subsection-title { margin: 0 0 10px; color: #445064; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+.subsection-spaced { margin-top: 20px; }
+.catalog-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.catalog-card { padding: 14px; border: 1px solid #e1e5eb; border-radius: 11px; background: #fff; }
+.catalog-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.catalog-card-head > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.catalog-card-head span, .catalog-card p { color: #778294; font-size: 12px; }
+.catalog-card p { margin: 9px 0 12px; }
+.catalog-card form { display: flex; gap: 8px; }
+.catalog-card select { flex: 1; min-width: 0; height: 34px; margin: 0; border: 1px solid #cbd2dc; border-radius: 7px; background: #fff; }
+.row-actions { display: flex; gap: 6px; }
+.boolean-state { font-size: 12px; font-weight: 800; }
+.boolean-state.yes { color: #176345; }
+.boolean-state.no { color: #875a08; }
+.prerequisite-warning { padding: 14px 16px; border: 1px solid #f0d397; border-radius: 10px; background: #fff9e9; color: #79550d; font-size: 13px; font-weight: 700; }
+
 @media (max-width: 1250px) {
-  .form-costos, .form-listas, .form-politicas, .form-precios { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .form-catalogos, .form-inclusion, .form-costos, .form-listas, .form-politicas, .form-precios { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .comercial-primary { width: 100%; }
 }
 
@@ -188,10 +207,11 @@
   .comercial-steps { grid-template-columns: repeat(2, 1fr); }
   .form-costos, .form-listas, .form-politicas, .form-precios { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .list-summary { grid-template-columns: 1fr; }
+  .catalog-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {
   .comercial-header h1 { font-size: 25px; }
-  .comercial-steps, .form-costos, .form-listas, .form-politicas, .form-precios { grid-template-columns: 1fr; }
+  .comercial-steps, .form-catalogos, .form-inclusion, .form-costos, .form-listas, .form-politicas, .form-precios { grid-template-columns: 1fr; }
   .comercial-section { padding: 16px; }
 }

@@ -3,21 +3,32 @@
 
 def obtener_datos_panel_comercial(organizacion_id, *, modelos):
     Unidad = modelos["UnidadNegocio"]
+    Producto = modelos["Producto"]
+    Catalogo = modelos["Catalogo"]
     CatalogoProducto = modelos["CatalogoProducto"]
     Costo = modelos["CostoProductoVersion"]
     Lista = modelos["ListaPrecio"]
     Politica = modelos["PoliticaComercialLista"]
     Item = modelos["ListaPrecioItem"]
     inclusiones = CatalogoProducto.query.join(
-        modelos["Catalogo"]
+        Catalogo
     ).filter(
-        modelos["Catalogo"].organizacion_id == organizacion_id
+        Catalogo.organizacion_id == organizacion_id
     ).order_by(CatalogoProducto.nombre_comercial).all()
     return {
         "unidades": Unidad.query.filter_by(
             organizacion_id=organizacion_id, activa=True
         ).order_by(Unidad.nombre).all(),
+        "productos_maestro": Producto.query.order_by(
+            Producto.sku.asc()
+        ).all(),
+        "catalogos": Catalogo.query.filter_by(
+            organizacion_id=organizacion_id
+        ).order_by(Catalogo.nombre.asc()).all(),
         "inclusiones": inclusiones,
+        "inclusiones_activas": [
+            inclusion for inclusion in inclusiones if inclusion.activo
+        ],
         "costos": Costo.query.filter_by(
             organizacion_id=organizacion_id
         ).order_by(Costo.fecha_creacion.desc()).all(),

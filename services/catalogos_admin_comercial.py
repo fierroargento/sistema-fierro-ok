@@ -1,0 +1,148 @@
+"""Administración tenant de catálogos para el módulo comercial interno."""
+
+from services.catalogos_comerciales import cambiar_estado_catalogo
+
+
+def _texto(formulario, campo, limite):
+    return str(formulario.get(campo) or "").strip()[:limite]
+
+
+def _id(formulario, campo):
+    valor = _texto(formulario, campo, 30)
+    if not valor.isdigit() or int(valor) <= 0:
+        raise ValueError(f"{campo} no es válido.")
+    return int(valor)
+
+
+def _guardar(db_session):
+    try:
+        db_session.commit()
+    except Exception:
+        db_session.rollback()
+        raise
+
+
+def _catalogo_tenant(catalogo_id, organizacion, Catalogo):
+    catalogo = Catalogo.query.filter_by(
+        id=catalogo_id,
+        organizacion_id=organizacion.id,
+    ).first()
+    if catalogo is None:
+        raise ValueError("El catálogo no pertenece a la organización.")
+    return catalogo
+
+
+def procesar_accion_catalogo_comercial(
+    accion,
+    formulario,
+    *,
+    organizacion,
+    modelos,
+    db_session,
+):
+    """Muta únicamente Catalogo y CatalogoProducto del tenant activo."""
+    Catalogo = modelos["Catalogo"]
+    CatalogoProducto = modelos["CatalogoProducto"]
+    Producto = modelos["Producto"]
+    UnidadNegocio = modelos["UnidadNegocio"]
+
+    if accion == "crear_catalogo":
+        codigo = _texto(formulario, "codigo_catalogo", 80).lower()
+        nombre = _texto(formulario, "nombre_catalogo", 150)
+        moneda = _texto(formulario, "moneda_catalogo", 10).upper() or "ARS"
+        unidad_texto = _texto(formulario, "unidad_catalogo_id", 30)
+        if not codigo or not nombre:
+            raise ValueError("Completá código y nombre del catálogo.")
+        if Catalogo.query.filter_by(
+            organizacion_id=organizacion.id,
+            codigo=codigo,
+        ).first() is not None:
+            raise ValueError("Ya existe un catálogo con ese código.")
+        unidad_id = None
+        if unidad_texto:
+            if not unidad_texto.isdigit():
+                raise ValueError("La unidad de negocio no es válida.")
+            unidad_id = int(unidad_texto)
+            if UnidadNegocio.query.filter_by(
+                id=unidad_id,
+                organizacion_id=organizacion.id,
+                activa=True,
+            ).first() is None:
+                raise ValueError("La unidad no pertenece a la organización.")
+        catalogo = Catalogo(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_id,
+            codigo=codigo,
+            nombre=nombre,
+            descripcion=_texto(formulario, "descripcion_catalogo", 500),
+            moneda=moneda,
+            estado="desactivado",
+        )
+        db_session.add(catalogo)
+        _guardar(db_session)
+        return f"Catálogo {nombre} creado desactivado."
+
+    if accion == "estado_catalogo":
+        catalogo = _catalogo_tenant(
+            _id(formulario, "catalogo_id"), organizacion, Catalogo
+        )
+        cambiar_estado_catalogo(
+            catalogo,
+            _texto(formulario, "estado", 20),
+            db_session=db_session,
+        )
+        return f"Catálogo {catalogo.nombre} actualizado a {catalogo.estado}."
+
+    if accion == "agregar_producto_catalogo":
+        catalogo = _catalogo_tenant(
+            _id(formulario, "catalogo_id"), organizacion, Catalogo
+        )
+        producto = Producto.query.get(_id(formulario, "producto_id"))
+        if producto is None:
+            raise ValueError("No se encontró el producto maestro.")
+        if CatalogoProducto.query.filter_by(
+            catalogo_id=catalogo.id,
+            producto_id=producto.id,
+        ).first() is not None:
+            raise ValueError("Ese producto ya está incluido en el catálogo.")
+        sku = _texto(formulario, "sku_comercial", 100) or str(
+            producto.sku or ""
+        ).strip()
+        nombre = _texto(formulario, "nombre_comercial", 255) or str(
+            producto.descripcion or ""
+        ).strip()
+        if not sku or not nombre:
+            raise ValueError("El producto necesita SKU y nombre comercial.")
+        inclusion = CatalogoProducto(
+            catalogo_id=catalogo.id,
+            producto_id=producto.id,
+            sku_comercial=sku,
+            nombre_comercial=nombre,
+            precio_centavos=0,
+            precio_lista_centavos=None,
+            disponible=False,
+            activo=False,
+        )
+        db_session.add(inclusion)
+        _guardar(db_session)
+        return f"{sku} incorporado como inactivo y no disponible."
+
+    if accion in {"activar_producto_catalogo", "disponibilidad_producto_catalogo"}:
+        inclusion = CatalogoProducto.query.get(
+            _id(formulario, "catalogo_producto_id")
+        )
+        if (
+            inclusion is None
+            or inclusion.catalogo.organizacion_id != organizacion.id
+        ):
+            raise ValueError("El producto no pertenece a la organización.")
+        if accion == "activar_producto_catalogo":
+            inclusion.activo = not bool(inclusion.activo)
+            resultado = "activo" if inclusion.activo else "inactivo"
+        else:
+            inclusion.disponible = not bool(inclusion.disponible)
+            resultado = "disponible" if inclusion.disponible else "no disponible"
+        _guardar(db_session)
+        return f"{inclusion.sku_comercial} quedó {resultado}."
+
+    raise ValueError("Acción de catálogo no reconocida.")

@@ -1,6 +1,7 @@
 """Acciones del panel comercial interno."""
 
 from services.catalogos_comerciales import importe_a_centavos
+from services.catalogos_admin_comercial import procesar_accion_catalogo_comercial
 from services.costos_productos import crear_version_costo, activar_version_costo
 from services.listas_precios import (
     activar_item_lista, activar_politica_lista, crear_item_lista,
@@ -20,6 +21,14 @@ def _id(formulario, campo, opcional=False):
 def procesar_accion_comercial(
     accion, formulario, *, organizacion, modelos, db_session, usuario,
 ):
+    if accion in {
+        "crear_catalogo", "estado_catalogo", "agregar_producto_catalogo",
+        "activar_producto_catalogo", "disponibilidad_producto_catalogo",
+    }:
+        return procesar_accion_catalogo_comercial(
+            accion, formulario, organizacion=organizacion,
+            modelos=modelos, db_session=db_session,
+        )
     unidad_id = _id(formulario, "unidad_negocio_id", opcional=True)
     if accion == "crear_costo_manual":
         inclusion = modelos["CatalogoProducto"].query.get(
@@ -27,6 +36,8 @@ def procesar_accion_comercial(
         )
         if inclusion is None or inclusion.catalogo.organizacion_id != organizacion.id:
             raise ValueError("El producto no pertenece a la organizacion.")
+        if not inclusion.activo:
+            raise ValueError("Primero activá el producto en su catálogo.")
         version = crear_version_costo(
             organizacion_id=organizacion.id, unidad_negocio_id=unidad_id,
             producto_id=inclusion.producto_id, moneda=inclusion.catalogo.moneda,
@@ -97,6 +108,12 @@ def procesar_accion_comercial(
         inclusion = modelos["CatalogoProducto"].query.get(
             _id(formulario, "catalogo_producto_id")
         )
+        if (
+            inclusion is None
+            or inclusion.catalogo.organizacion_id != organizacion.id
+            or not inclusion.activo
+        ):
+            raise ValueError("El producto de catálogo no está activo.")
         costo = modelos["CostoProductoVersion"].query.filter_by(
             id=_id(formulario, "costo_id"), organizacion_id=organizacion.id,
             vigente=True,

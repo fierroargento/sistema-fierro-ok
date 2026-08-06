@@ -10,7 +10,7 @@
     <div>
       <p class="comercial-eyebrow">Administración</p>
       <h1>Costos y precios</h1>
-      <p class="comercial-intro">Configurá costos, listas y políticas comerciales de {{ organizacion.nombre }}.</p>
+      <p class="comercial-intro">Administrá catálogos, costos, listas y políticas comerciales de {{ organizacion.nombre }}.</p>
     </div>
     <div class="comercial-safe"><strong>Entorno interno</strong><span>No publica ni sincroniza canales.</span></div>
   </header>
@@ -19,28 +19,77 @@
   {% if error %}<div class="comercial-message comercial-message-error">{{ error }}</div>{% endif %}
 
   <nav class="comercial-steps" aria-label="Flujo de configuración comercial">
-    <a href="#costos"><span>1</span>Costos</a>
-    <a href="#listas"><span>2</span>Listas</a>
-    <a href="#politicas"><span>3</span>Políticas</a>
-    <a href="#precios"><span>4</span>Precios</a>
+    <a href="#catalogos"><span>1</span>Catálogos</a>
+    <a href="#costos"><span>2</span>Costos</a>
+    <a href="#listas"><span>3</span>Listas</a>
+    <a href="#politicas"><span>4</span>Políticas</a>
+    <a href="#precios"><span>5</span>Precios</a>
   </nav>
 
+  <section class="comercial-section" id="catalogos">
+    <div class="section-heading"><div><span class="section-number">1</span><h2>Catálogos y productos</h2></div><p>Definí qué productos comercializa cada unidad de negocio.</p></div>
+
+    <h3 class="subsection-title">Crear catálogo</h3>
+    <form class="comercial-form form-catalogos" method="post" action="{{ url_for('admin_comercial.guardar') }}">
+      <input type="hidden" name="accion" value="crear_catalogo">
+      <label><span>Unidad de negocio</span><select name="unidad_catalogo_id"><option value="">Compartido por la organización</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
+      <label><span>Código</span><input name="codigo_catalogo" maxlength="80" placeholder="Ej. fierro" required></label>
+      <label><span>Nombre</span><input name="nombre_catalogo" maxlength="150" placeholder="Ej. Catálogo Fierro" required></label>
+      <label><span>Moneda</span><input name="moneda_catalogo" value="ARS" maxlength="10"></label>
+      <label><span>Descripción <small>opcional</small></span><input name="descripcion_catalogo" maxlength="500" placeholder="Uso interno"></label>
+      <button class="comercial-primary" type="submit">Crear catálogo</button>
+    </form>
+
+    <div class="catalog-grid">
+      {% for catalogo in catalogos %}
+      <article class="catalog-card">
+        <div class="catalog-card-head"><div><strong>{{ catalogo.nombre }}</strong><span>{{ catalogo.codigo }} · {{ catalogo.moneda }}</span></div><span class="status status-{{ 'active' if catalogo.estado == 'activo' else 'test' if catalogo.estado == 'prueba' else 'draft' }}">{{ catalogo.estado }}</span></div>
+        <p>{{ catalogo.unidad_negocio.nombre if catalogo.unidad_negocio else 'Compartido por la organización' }}</p>
+        <form method="post" action="{{ url_for('admin_comercial.guardar') }}">
+          <input type="hidden" name="accion" value="estado_catalogo"><input type="hidden" name="catalogo_id" value="{{ catalogo.id }}">
+          <select name="estado"><option value="desactivado" {% if catalogo.estado == 'desactivado' %}selected{% endif %}>Desactivado</option><option value="prueba" {% if catalogo.estado == 'prueba' %}selected{% endif %}>Prueba interna</option><option value="activo" {% if catalogo.estado == 'activo' %}selected{% endif %}>Activo</option></select>
+          <button class="table-action" type="submit">Guardar estado</button>
+        </form>
+      </article>
+      {% else %}<p class="empty-card">Primero creá un catálogo para Fierro o Náutica.</p>{% endfor %}
+    </div>
+
+    <h3 class="subsection-title subsection-spaced">Incorporar producto del maestro</h3>
+    {% if catalogos and productos_maestro %}
+    <form class="comercial-form form-inclusion" method="post" action="{{ url_for('admin_comercial.guardar') }}">
+      <input type="hidden" name="accion" value="agregar_producto_catalogo">
+      <label><span>Catálogo</span><select name="catalogo_id" required><option value="">Seleccionar</option>{% for c in catalogos %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}</select></label>
+      <label><span>Producto maestro</span><select name="producto_id" required><option value="">Seleccionar producto</option>{% for p in productos_maestro %}<option value="{{ p.id }}">{{ p.sku }} · {{ p.descripcion }}</option>{% endfor %}</select></label>
+      <label><span>SKU comercial <small>opcional</small></span><input name="sku_comercial" maxlength="100" placeholder="Usa el SKU maestro"></label>
+      <label><span>Nombre comercial <small>opcional</small></span><input name="nombre_comercial" maxlength="255" placeholder="Usa la descripción maestra"></label>
+      <button class="comercial-primary" type="submit">Incorporar producto</button>
+    </form>
+    {% elif not catalogos %}<div class="prerequisite-warning">Creá al menos un catálogo para poder incorporar productos.</div>
+    {% else %}<div class="prerequisite-warning">No hay productos en el maestro global. Cargalos desde Administración → Productos.</div>{% endif %}
+
+    <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Catálogo</th><th>Unidad</th><th>Producto</th><th>SKU comercial</th><th>Activo</th><th>Disponible</th><th>Acciones</th></tr></thead><tbody>
+      {% for i in inclusiones %}<tr><td><strong>{{ i.catalogo.nombre }}</strong></td><td>{{ i.catalogo.unidad_negocio.nombre if i.catalogo.unidad_negocio else 'Compartido' }}</td><td>{{ i.nombre_comercial }}</td><td>{{ i.sku_comercial }}</td><td><span class="boolean-state {{ 'yes' if i.activo else 'no' }}">{{ 'Sí' if i.activo else 'No' }}</span></td><td><span class="boolean-state {{ 'yes' if i.disponible else 'no' }}">{{ 'Sí' if i.disponible else 'No' }}</span></td><td><div class="row-actions"><form method="post" action="{{ url_for('admin_comercial.guardar') }}"><input type="hidden" name="accion" value="activar_producto_catalogo"><input type="hidden" name="catalogo_producto_id" value="{{ i.id }}"><button class="table-action">{{ 'Desactivar' if i.activo else 'Activar' }}</button></form><form method="post" action="{{ url_for('admin_comercial.guardar') }}"><input type="hidden" name="accion" value="disponibilidad_producto_catalogo"><input type="hidden" name="catalogo_producto_id" value="{{ i.id }}"><button class="table-action">{{ 'Marcar sin stock' if i.disponible else 'Marcar disponible' }}</button></form></div></td></tr>{% else %}<tr><td class="empty-state" colspan="7">Todavía no hay productos incluidos en los catálogos.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
   <section class="comercial-section" id="costos">
-    <div class="section-heading"><div><span class="section-number">1</span><h2>Costos base</h2></div><p>Registrá una nueva versión histórica del costo de un producto.</p></div>
+    <div class="section-heading"><div><span class="section-number">2</span><h2>Costos base</h2></div><p>Registrá una nueva versión histórica del costo de un producto.</p></div>
+    {% if inclusiones_activas %}
     <form class="comercial-form form-costos" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_costo_manual">
       <label><span>Unidad de negocio</span><select name="unidad_negocio_id"><option value="">General</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
-      <label><span>Producto</span><select name="catalogo_producto_id" required>{% for p in inclusiones %}<option value="{{ p.id }}">{{ p.nombre_comercial }} ({{ p.sku_comercial }})</option>{% endfor %}</select></label>
+      <label><span>Producto</span><select name="catalogo_producto_id" required>{% for p in inclusiones_activas %}<option value="{{ p.id }}">{{ p.nombre_comercial }} ({{ p.sku_comercial }})</option>{% endfor %}</select></label>
       <label><span>Costo base</span><div class="money-input"><span>$</span><input name="costo_base" inputmode="decimal" placeholder="0,00" required></div></label>
       <button class="comercial-primary" type="submit">Crear versión</button>
     </form>
+    {% else %}<div class="prerequisite-warning">Incorporá y activá al menos un producto en un catálogo antes de registrar costos.</div>{% endif %}
     <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Producto</th><th>Unidad</th><th>Versión</th><th class="numeric">Costo</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
       {% for c in costos %}<tr><td><strong>{{ c.producto.sku }}</strong></td><td>{{ c.unidad_negocio.nombre if c.unidad_negocio else 'General' }}</td><td>v{{ c.numero_version }}</td><td class="numeric">${{ '%.2f'|format(c.costo_total_centavos / 100) }}</td><td><span class="status status-{{ 'active' if c.vigente else 'draft' }}">{{ c.estado }}</span></td><td>{% if not c.vigente %}<form method="post" action="{{ url_for('admin_comercial.guardar') }}"><input type="hidden" name="accion" value="activar_costo"><input type="hidden" name="costo_id" value="{{ c.id }}"><button class="table-action">Activar</button></form>{% else %}<span class="current-label">Vigente</span>{% endif %}</td></tr>{% else %}<tr><td class="empty-state" colspan="6">Todavía no hay versiones de costos.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
 
   <section class="comercial-section" id="listas">
-    <div class="section-heading"><div><span class="section-number">2</span><h2>Listas de precios</h2></div><p>Creá listas generales o específicas para Fierro y Náutica.</p></div>
+    <div class="section-heading"><div><span class="section-number">3</span><h2>Listas de precios</h2></div><p>Creá listas generales o específicas para Fierro y Náutica.</p></div>
     <form class="comercial-form form-listas" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_lista">
       <label><span>Unidad de negocio</span><select name="unidad_negocio_id"><option value="">General</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
@@ -56,7 +105,8 @@
   </section>
 
   <section class="comercial-section" id="politicas">
-    <div class="section-heading"><div><span class="section-number">3</span><h2>Políticas comerciales</h2></div><p>Definí comisión, margen, cargos, flete y redondeo para cada lista.</p></div>
+    <div class="section-heading"><div><span class="section-number">4</span><h2>Políticas comerciales</h2></div><p>Definí comisión, margen, cargos, flete y redondeo para cada lista.</p></div>
+    {% if listas %}
     <form class="comercial-form form-politicas" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_politica">
       <label class="field-wide"><span>Lista de precios</span><select name="lista_precio_id" required>{% for l in listas %}<option value="{{ l.id }}">{{ l.nombre }}</option>{% endfor %}</select></label>
@@ -67,23 +117,28 @@
       <label><span>Redondeo</span><div class="money-input"><span>$</span><input name="redondeo" value="100" inputmode="decimal"></div></label>
       <button class="comercial-primary" type="submit">Crear política</button>
     </form>
+    {% else %}<div class="prerequisite-warning">Creá primero una lista de precios.</div>{% endif %}
     <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Lista</th><th>Versión</th><th class="numeric">Comisión</th><th class="numeric">Margen</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
       {% for p in politicas %}<tr><td><strong>{{ p.lista_precio.nombre }}</strong></td><td>v{{ p.numero_version }}</td><td class="numeric">{{ p.comision_pct }}%</td><td class="numeric">{{ p.margen_objetivo_pct }}%</td><td><span class="status status-{{ 'active' if p.vigente else 'draft' }}">{{ p.estado }}</span></td><td>{% if not p.vigente %}<form method="post" action="{{ url_for('admin_comercial.guardar') }}"><input type="hidden" name="accion" value="activar_politica"><input type="hidden" name="lista_precio_id" value="{{ p.lista_precio_id }}"><input type="hidden" name="politica_id" value="{{ p.id }}"><button class="table-action">Activar</button></form>{% else %}<span class="current-label">Vigente</span>{% endif %}</td></tr>{% else %}<tr><td class="empty-state" colspan="6">Todavía no hay políticas comerciales.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
 
   <section class="comercial-section" id="precios">
-    <div class="section-heading"><div><span class="section-number">4</span><h2>Cálculo de precios</h2></div><p>Calculá el precio sugerido usando un costo y una política vigentes.</p></div>
+    <div class="section-heading"><div><span class="section-number">5</span><h2>Cálculo de precios</h2></div><p>Calculá el precio sugerido usando un costo y una política vigentes.</p></div>
+    {% set hay_costos_vigentes = costos|selectattr('vigente')|list %}
+    {% set hay_politicas_vigentes = politicas|selectattr('vigente')|list %}
+    {% if inclusiones_activas and listas and hay_costos_vigentes and hay_politicas_vigentes %}
     <form class="comercial-form form-precios" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_precio">
       <label><span>Lista</span><select name="lista_precio_id" required>{% for l in listas %}<option value="{{ l.id }}">{{ l.nombre }}</option>{% endfor %}</select></label>
-      <label><span>Producto</span><select name="catalogo_producto_id" required>{% for p in inclusiones %}<option value="{{ p.id }}">{{ p.nombre_comercial }}</option>{% endfor %}</select></label>
+      <label><span>Producto</span><select name="catalogo_producto_id" required>{% for p in inclusiones_activas %}<option value="{{ p.id }}">{{ p.nombre_comercial }}</option>{% endfor %}</select></label>
       <label><span>Costo vigente</span><select name="costo_id" required>{% for c in costos if c.vigente %}<option value="{{ c.id }}">{{ c.producto.sku }} · ${{ '%.2f'|format(c.costo_total_centavos / 100) }}</option>{% endfor %}</select></label>
       <label><span>Política vigente</span><select name="politica_id" required>{% for p in politicas if p.vigente %}<option value="{{ p.id }}">{{ p.lista_precio.nombre }} · v{{ p.numero_version }}</option>{% endfor %}</select></label>
       <label><span>Impuesto</span><div class="suffix-input"><input name="impuesto_pct" value="21" inputmode="decimal"><span>%</span></div></label>
       <label><span>Precio elegido <small>opcional</small></span><div class="money-input"><span>$</span><input name="precio_elegido" inputmode="decimal" placeholder="Automático"></div></label>
       <button class="comercial-primary" type="submit">Calcular y guardar</button>
     </form>
+    {% else %}<div class="prerequisite-warning">Para calcular un precio necesitás un producto incluido, una lista, un costo vigente y una política vigente.</div>{% endif %}
     <div class="table-wrap"><table class="comercial-table price-table"><thead><tr><th>Lista</th><th>Producto</th><th class="numeric">Sugerido</th><th class="numeric">Elegido</th><th class="numeric">Impuestos</th><th class="numeric">Final</th><th class="numeric">Margen</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
       {% for i in items %}<tr><td><strong>{{ i.lista_precio.nombre }}</strong></td><td>{{ i.catalogo_producto.nombre_comercial }}</td><td class="numeric">${{ '%.2f'|format(i.precio_neto_sugerido_centavos / 100) }}</td><td class="numeric">${{ '%.2f'|format(i.precio_elegido_centavos / 100) }}</td><td class="numeric">${{ '%.2f'|format(i.impuestos_centavos / 100) }}</td><td class="numeric price-final">${{ '%.2f'|format(i.precio_final_centavos / 100) }}</td><td class="numeric">${{ '%.2f'|format(i.margen_centavos / 100) }}<small>{{ i.margen_pct }}%</small></td><td><span class="status status-{{ 'active' if i.vigente else 'draft' }}">{{ i.estado }}</span></td><td>{% if not i.vigente %}<form method="post" action="{{ url_for('admin_comercial.guardar') }}"><input type="hidden" name="accion" value="activar_precio"><input type="hidden" name="lista_precio_id" value="{{ i.lista_precio_id }}"><input type="hidden" name="item_id" value="{{ i.id }}"><button class="table-action">Activar</button></form>{% else %}<span class="current-label">Vigente</span>{% endif %}</td></tr>{% else %}<tr><td class="empty-state" colspan="9">Todavía no hay precios calculados.</td></tr>{% endfor %}
     </tbody></table></div>
