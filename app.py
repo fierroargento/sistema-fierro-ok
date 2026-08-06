@@ -11673,11 +11673,17 @@ registrar_modulos_web(
         "UsuarioSistema": UsuarioSistema,
         "Auditoria": Auditoria,
         "modelos": {
+            "Organizacion": Organizacion,
             "UnidadNegocio": UnidadNegocio,
             "SucursalOperativa": SucursalOperativa,
             "EntidadFiscal": EntidadFiscal,
             "Catalogo": Catalogo,
             "CatalogoProducto": CatalogoProducto,
+            "CostoProductoVersion": CostoProductoVersion,
+            "CostoProductoDetalle": CostoProductoDetalle,
+            "ListaPrecio": ListaPrecio,
+            "PoliticaComercialLista": PoliticaComercialLista,
+            "ListaPrecioItem": ListaPrecioItem,
             "ModuloOrganizacion": ModuloOrganizacion,
             "Producto": Producto,
             "VinculoCanalComercial": (

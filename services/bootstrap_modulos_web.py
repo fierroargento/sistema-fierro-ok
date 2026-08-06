@@ -8,6 +8,7 @@ def registrar_modulos_web(
     *,
     dependencias,
 ):
+    from modules.admin.comercial.routes import crear_blueprint_comercial
     from modules.admin.crm.routes import (
         crear_blueprint_crm,
     )
@@ -45,6 +46,24 @@ def registrar_modulos_web(
             dependencias["UsuarioOrganizacion"]
         ),
     }
+
+    app.register_blueprint(
+        crear_blueprint_comercial(
+            dependencias={
+                **comunes,
+                "modelos": {
+                    nombre: modelos[nombre]
+                    for nombre in (
+                        "Organizacion", "UnidadNegocio", "Producto",
+                        "Catalogo", "CatalogoProducto",
+                        "CostoProductoVersion", "CostoProductoDetalle",
+                        "ListaPrecio", "PoliticaComercialLista",
+                        "ListaPrecioItem",
+                    )
+                },
+            },
+        )
+    )
 
     app.register_blueprint(
         crear_blueprint_usuarios(
