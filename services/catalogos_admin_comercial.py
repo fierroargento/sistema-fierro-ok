@@ -37,6 +37,7 @@ def procesar_accion_catalogo_comercial(
     formulario,
     *,
     organizacion,
+    unidad_activa,
     modelos,
     db_session,
 ):
@@ -50,7 +51,6 @@ def procesar_accion_catalogo_comercial(
         codigo = _texto(formulario, "codigo_catalogo", 80).lower()
         nombre = _texto(formulario, "nombre_catalogo", 150)
         moneda = _texto(formulario, "moneda_catalogo", 10).upper() or "ARS"
-        unidad_texto = _texto(formulario, "unidad_catalogo_id", 30)
         if not codigo or not nombre:
             raise ValueError("Completá código y nombre del catálogo.")
         if Catalogo.query.filter_by(
@@ -58,20 +58,9 @@ def procesar_accion_catalogo_comercial(
             codigo=codigo,
         ).first() is not None:
             raise ValueError("Ya existe un catálogo con ese código.")
-        unidad_id = None
-        if unidad_texto:
-            if not unidad_texto.isdigit():
-                raise ValueError("La unidad de negocio no es válida.")
-            unidad_id = int(unidad_texto)
-            if UnidadNegocio.query.filter_by(
-                id=unidad_id,
-                organizacion_id=organizacion.id,
-                activa=True,
-            ).first() is None:
-                raise ValueError("La unidad no pertenece a la organización.")
         catalogo = Catalogo(
             organizacion_id=organizacion.id,
-            unidad_negocio_id=unidad_id,
+            unidad_negocio_id=unidad_activa.id,
             codigo=codigo,
             nombre=nombre,
             descripcion=_texto(formulario, "descripcion_catalogo", 500),
@@ -86,6 +75,8 @@ def procesar_accion_catalogo_comercial(
         catalogo = _catalogo_tenant(
             _id(formulario, "catalogo_id"), organizacion, Catalogo
         )
+        if catalogo.unidad_negocio_id != unidad_activa.id:
+            raise ValueError("El catálogo no pertenece a la unidad activa.")
         cambiar_estado_catalogo(
             catalogo,
             _texto(formulario, "estado", 20),
@@ -97,6 +88,8 @@ def procesar_accion_catalogo_comercial(
         catalogo = _catalogo_tenant(
             _id(formulario, "catalogo_id"), organizacion, Catalogo
         )
+        if catalogo.unidad_negocio_id != unidad_activa.id:
+            raise ValueError("El catálogo no pertenece a la unidad activa.")
         producto = Producto.query.get(_id(formulario, "producto_id"))
         if producto is None:
             raise ValueError("No se encontró el producto maestro.")
@@ -134,6 +127,7 @@ def procesar_accion_catalogo_comercial(
         if (
             inclusion is None
             or inclusion.catalogo.organizacion_id != organizacion.id
+            or inclusion.catalogo.unidad_negocio_id != unidad_activa.id
         ):
             raise ValueError("El producto no pertenece a la organización.")
         if accion == "activar_producto_catalogo":

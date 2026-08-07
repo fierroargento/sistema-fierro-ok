@@ -14,6 +14,10 @@
       <p class="comercial-intro">Registrá valores vigentes e históricos sin mezclar costos comerciales.</p>
     </div>
     <div class="header-actions">
+      <form class="unit-context-form" method="post" action="{{ url_for('admin_comercial.seleccionar_unidad') }}">
+        <input type="hidden" name="destino" value="admin_comercial.fuentes_costos">
+        <label><span>Unidad administrativa</span><select name="unidad_negocio_id" onchange="this.form.submit()">{% for unidad in unidades %}<option value="{{ unidad.id }}" {% if unidad.id == unidad_activa.id %}selected{% endif %}>{{ unidad.nombre }}</option>{% endfor %}</select></label>
+      </form>
       <a class="secondary-link" href="{{ url_for('admin_comercial.panel') }}#costos">Volver a Costos y precios</a>
       <div class="comercial-safe"><strong>Entorno interno</strong><span>No publica ni sincroniza canales.</span></div>
     </div>
@@ -62,7 +66,7 @@
     <div class="section-heading"><div><span class="section-number">2</span><h2>Insumos y precios</h2></div><p>Materias primas, consumibles, servicios y embalajes propios de producción.</p></div>
     <form class="comercial-form form-source-insumo" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_insumo">
-      <label><span>Unidad</span><select name="unidad_negocio_id"><option value="">Compartido</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
+      <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
       <label><span>Código</span><input name="codigo" maxlength="80" placeholder="Ej. hierro-6mm" required></label>
       <label><span>Nombre</span><input name="nombre" maxlength="200" placeholder="Ej. Hierro redondo 6 mm" required></label>
       <label><span>Tipo</span><select name="tipo"><option value="materia_prima">Materia prima</option><option value="consumible">Consumible</option><option value="servicio_productivo">Servicio productivo</option><option value="embalaje_productivo">Embalaje productivo</option></select></label>
@@ -88,7 +92,7 @@
     <div class="section-heading"><div><span class="section-number">3</span><h2>Empleados y mano de obra</h2></div><p>La tarifa se calcula con el costo laboral mensual y las horas realmente productivas.</p></div>
     <form class="comercial-form form-source-employee" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_empleado">
-      <label><span>Unidad</span><select name="unidad_negocio_id"><option value="">Compartido</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
+      <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
       <label><span>Código o legajo</span><input name="codigo" maxlength="80" required></label>
       <label><span>Nombre</span><input name="nombre" maxlength="200" required></label>
       <label><span>Sector</span><input name="sector" maxlength="120" placeholder="Ej. Herrería" required></label>
@@ -118,7 +122,7 @@
     <div class="section-heading"><div><span class="section-number">4</span><h2>Costos fijos</h2></div><p>Solo los conceptos marcados como productivos podrán distribuirse al costo de fabricación.</p></div>
     <form class="comercial-form form-source-fixed" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_costo_fijo">
-      <label><span>Unidad</span><select name="unidad_negocio_id"><option value="">Compartido</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
+      <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
       <label><span>Código</span><input name="codigo" maxlength="80" placeholder="Ej. alquiler-galpon" required></label>
       <label><span>Nombre</span><input name="nombre" maxlength="200" placeholder="Ej. Alquiler del galpón" required></label>
       <label><span>Categoría</span><input name="categoria" maxlength="100" placeholder="Infraestructura" required></label>

@@ -19,7 +19,7 @@ def _id(formulario, campo, opcional=False):
 
 
 def procesar_accion_comercial(
-    accion, formulario, *, organizacion, modelos, db_session, usuario,
+    accion, formulario, *, organizacion, unidad_activa, modelos, db_session, usuario,
 ):
     if accion in {
         "crear_catalogo", "estado_catalogo", "agregar_producto_catalogo",
@@ -27,7 +27,7 @@ def procesar_accion_comercial(
     }:
         return procesar_accion_catalogo_comercial(
             accion, formulario, organizacion=organizacion,
-            modelos=modelos, db_session=db_session,
+            unidad_activa=unidad_activa, modelos=modelos, db_session=db_session,
         )
     if accion == "crear_costo_manual":
         inclusion = modelos["CatalogoProducto"].query.get(
@@ -35,6 +35,8 @@ def procesar_accion_comercial(
         )
         if inclusion is None or inclusion.catalogo.organizacion_id != organizacion.id:
             raise ValueError("El producto no pertenece a la organizacion.")
+        if inclusion.catalogo.unidad_negocio_id != unidad_activa.id:
+            raise ValueError("El producto no pertenece a la unidad activa.")
         if not inclusion.activo:
             raise ValueError("Primero activá el producto en su catálogo.")
         unidad_id = inclusion.catalogo.unidad_negocio_id
@@ -58,7 +60,8 @@ def procesar_accion_comercial(
         return f"Costo version {version.numero_version} creado."
     if accion == "activar_costo":
         costo = modelos["CostoProductoVersion"].query.filter_by(
-            id=_id(formulario, "costo_id"), organizacion_id=organizacion.id
+            id=_id(formulario, "costo_id"), organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
         ).first()
         activar_version_costo(
             costo, CostoProductoVersion=modelos["CostoProductoVersion"],
@@ -66,9 +69,8 @@ def procesar_accion_comercial(
         )
         return "Costo activado."
     if accion == "crear_lista":
-        unidad_id = _id(formulario, "unidad_negocio_id", opcional=True)
         lista = crear_lista_precio(
-            organizacion_id=organizacion.id, unidad_negocio_id=unidad_id,
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
             codigo=formulario.get("codigo"), nombre=formulario.get("nombre"),
             tipo=formulario.get("tipo"), moneda=formulario.get("moneda", "ARS"),
             Organizacion=modelos["Organizacion"],
@@ -78,7 +80,8 @@ def procesar_accion_comercial(
         )
         return f"Lista {lista.nombre} creada."
     lista = modelos["ListaPrecio"].query.filter_by(
-        id=_id(formulario, "lista_precio_id"), organizacion_id=organizacion.id
+        id=_id(formulario, "lista_precio_id"), organizacion_id=organizacion.id,
+        unidad_negocio_id=unidad_activa.id,
     ).first()
     if lista is None:
         raise ValueError("La lista no pertenece a la organizacion.")
@@ -112,11 +115,13 @@ def procesar_accion_comercial(
         if (
             inclusion is None
             or inclusion.catalogo.organizacion_id != organizacion.id
+            or inclusion.catalogo.unidad_negocio_id != unidad_activa.id
             or not inclusion.activo
         ):
             raise ValueError("El producto de catálogo no está activo.")
         costo = modelos["CostoProductoVersion"].query.filter_by(
             id=_id(formulario, "costo_id"), organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
             vigente=True,
         ).first()
         politica = modelos["PoliticaComercialLista"].query.filter_by(

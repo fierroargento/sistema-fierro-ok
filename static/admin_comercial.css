@@ -40,6 +40,33 @@
   background: #eefbf5;
   color: #176345;
 }
+
+.commercial-context,
+.unit-context-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.commercial-context label,
+.unit-context-form label {
+  display: grid;
+  gap: 5px;
+  color: #42566a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.commercial-context select,
+.unit-context-form select {
+  min-width: 220px;
+  border: 1px solid #a9d7e8;
+  border-radius: 7px;
+  background: #fff;
+  padding: 9px 34px 9px 10px;
+  color: #173248;
+  font-weight: 700;
+}
 .comercial-safe strong { font-size: 13px; }
 .comercial-safe span { margin-top: 2px; font-size: 12px; }
 

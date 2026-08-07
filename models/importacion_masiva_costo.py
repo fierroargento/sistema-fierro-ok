@@ -19,6 +19,9 @@ class ImportacionMasivaCosto(db.Model):
     organizacion_id = db.Column(
         db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True,
     )
+    unidad_negocio_id = db.Column(
+        db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=True, index=True,
+    )
     usuario_id = db.Column(
         db.Integer, db.ForeignKey("usuario_sistema.id"), nullable=True, index=True,
     )
@@ -39,3 +42,5 @@ class ImportacionMasivaCosto(db.Model):
     detalle_error = db.Column(db.Text)
     fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
     fecha_confirmacion = db.Column(db.DateTime)
+
+    unidad_negocio = db.relationship("UnidadNegocio")

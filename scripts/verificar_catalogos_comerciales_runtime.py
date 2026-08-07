@@ -49,7 +49,8 @@ def main():
                 "nombre_catalogo": "Catálogo Fierro",
                 "moneda_catalogo": "ars",
             },
-            organizacion=organizacion, modelos=modelos, db_session=db.session,
+            organizacion=organizacion, unidad_activa=unidad,
+            modelos=modelos, db_session=db.session,
         )
         catalogo = Catalogo.query.filter_by(codigo="fierro").one()
         assert catalogo.estado == "desactivado"
@@ -58,12 +59,14 @@ def main():
         procesar_accion_catalogo_comercial(
             "estado_catalogo",
             {"catalogo_id": str(catalogo.id), "estado": "prueba"},
-            organizacion=organizacion, modelos=modelos, db_session=db.session,
+            organizacion=organizacion, unidad_activa=unidad,
+            modelos=modelos, db_session=db.session,
         )
         procesar_accion_catalogo_comercial(
             "agregar_producto_catalogo",
             {"catalogo_id": str(catalogo.id), "producto_id": str(producto.id)},
-            organizacion=organizacion, modelos=modelos, db_session=db.session,
+            organizacion=organizacion, unidad_activa=unidad,
+            modelos=modelos, db_session=db.session,
         )
         inclusion = CatalogoProducto.query.one()
         assert catalogo.estado == "prueba"
@@ -78,7 +81,8 @@ def main():
             procesar_accion_catalogo_comercial(
                 accion,
                 {"catalogo_producto_id": str(inclusion.id)},
-                organizacion=organizacion, modelos=modelos, db_session=db.session,
+                organizacion=organizacion, unidad_activa=unidad,
+                modelos=modelos, db_session=db.session,
             )
         assert inclusion.activo is True
         assert inclusion.disponible is True
@@ -87,7 +91,8 @@ def main():
             procesar_accion_catalogo_comercial(
                 "estado_catalogo",
                 {"catalogo_id": str(catalogo.id), "estado": "activo"},
-                organizacion=otra, modelos=modelos, db_session=db.session,
+                organizacion=otra, unidad_activa=unidad,
+                modelos=modelos, db_session=db.session,
             )
         except ValueError as error:
             assert "no pertenece" in str(error)

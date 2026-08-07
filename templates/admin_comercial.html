@@ -13,7 +13,7 @@
       <h1>Costos y precios</h1>
       <p class="comercial-intro">Administrá catálogos, costos, listas y políticas comerciales de {{ organizacion.nombre }}.</p>
     </div>
-    <div class="comercial-safe"><strong>Entorno interno</strong><span>No publica ni sincroniza canales.</span></div>
+    <div class="commercial-context"><form method="post" action="{{ url_for('admin_comercial.seleccionar_unidad') }}"><input type="hidden" name="destino" value="admin_comercial.panel"><label><span>Unidad administrativa</span><select name="unidad_negocio_id" onchange="this.form.submit()">{% for unidad in unidades %}<option value="{{ unidad.id }}" {% if unidad.id == unidad_activa.id %}selected{% endif %}>{{ unidad.nombre }}</option>{% endfor %}</select></label></form><div class="comercial-safe"><strong>Entorno interno</strong><span>No publica ni sincroniza canales.</span></div></div>
   </header>
 
   {% if ok_feedback %}<div class="comercial-message comercial-message-ok">{{ ok_feedback }}</div>{% endif %}
@@ -33,7 +33,7 @@
     <h3 class="subsection-title">Crear catálogo</h3>
     <form class="comercial-form form-catalogos" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_catalogo">
-      <label><span>Unidad de negocio</span><select name="unidad_catalogo_id"><option value="">Compartido por la organización</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
+      <input type="hidden" name="unidad_catalogo_id" value="{{ unidad_activa.id }}"><label><span>Unidad de negocio</span><input value="{{ unidad_activa.nombre }}" disabled></label>
       <label><span>Código</span><input name="codigo_catalogo" maxlength="80" placeholder="Ej. fierro" required></label>
       <label><span>Nombre</span><input name="nombre_catalogo" maxlength="150" placeholder="Ej. Catálogo Fierro" required></label>
       <label><span>Moneda</span><input name="moneda_catalogo" value="ARS" maxlength="10"></label>
@@ -92,7 +92,7 @@
     <div class="section-heading"><div><span class="section-number">3</span><h2>Listas de precios</h2></div><p>Creá listas generales o específicas para Fierro y Náutica.</p></div>
     <form class="comercial-form form-listas" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_lista">
-      <label><span>Unidad de negocio</span><select name="unidad_negocio_id"><option value="">General</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
+      <input type="hidden" name="unidad_negocio_id" value="{{ unidad_activa.id }}"><label><span>Unidad de negocio</span><input value="{{ unidad_activa.nombre }}" disabled></label>
       <label><span>Código</span><input name="codigo" placeholder="Ej. FIE-MOS" required></label>
       <label><span>Nombre</span><input name="nombre" placeholder="Ej. Mostrador Fierro" required></label>
       <label><span>Tipo</span><select name="tipo"><option value="mostrador">Mostrador</option><option value="tiendanube">Tienda Nube</option><option value="mercadolibre">Mercado Libre</option><option value="mayorista">Mayorista</option></select></label>

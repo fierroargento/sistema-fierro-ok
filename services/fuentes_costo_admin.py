@@ -24,13 +24,15 @@ def _id(formulario, campo, opcional=False):
     return int(valor)
 
 
-def _registro_tenant(Modelo, registro_id, organizacion_id, nombre):
+def _registro_tenant(Modelo, registro_id, organizacion_id, nombre, unidad_id=None):
     registro = Modelo.query.filter_by(
         id=registro_id,
         organizacion_id=organizacion_id,
     ).first()
     if registro is None:
         raise ValueError(f"{nombre} no pertenece a la organizacion.")
+    if unidad_id is not None and registro.unidad_negocio_id not in {None, unidad_id}:
+        raise ValueError(f"{nombre} no pertenece a la unidad activa.")
     return registro
 
 
@@ -45,13 +47,14 @@ def _comunes(organizacion, modelos, db_session):
 
 
 def procesar_accion_fuente_costo(
-    accion, formulario, *, organizacion, modelos, db_session, usuario,
+    accion, formulario, *, organizacion, unidad_activa, modelos, db_session, usuario,
 ):
     usuario_id = getattr(usuario, "id", None)
     comunes = _comunes(organizacion, modelos, db_session)
-    comunes["unidad_negocio_id"] = _id(
-        formulario, "unidad_negocio_id", opcional=True,
-    )
+    unidad_solicitada = _id(formulario, "unidad_negocio_id", opcional=True)
+    if unidad_solicitada not in {None, unidad_activa.id}:
+        raise ValueError("La fuente no pertenece a la unidad activa.")
+    comunes["unidad_negocio_id"] = unidad_solicitada
 
     if accion == "configurar_perfil_costeo":
         inclusion = modelos["CatalogoProducto"].query.get(
@@ -60,6 +63,7 @@ def procesar_accion_fuente_costo(
         if (
             inclusion is None
             or inclusion.catalogo.organizacion_id != organizacion.id
+            or inclusion.catalogo.unidad_negocio_id != unidad_activa.id
         ):
             raise ValueError("El producto no pertenece a la organizacion.")
         perfil = crear_o_actualizar_perfil(
@@ -88,6 +92,8 @@ def procesar_accion_fuente_costo(
             organizacion.id,
             "El componente",
         )
+        if combo.unidad_negocio_id != unidad_activa.id or componente.unidad_negocio_id != unidad_activa.id:
+            raise ValueError("El combo y su componente deben pertenecer a la unidad activa.")
         item = agregar_componente_combo(
             combo,
             componente,
@@ -132,6 +138,7 @@ def procesar_accion_fuente_costo(
             _id(formulario, "insumo_id"),
             organizacion.id,
             "El insumo",
+            unidad_activa.id,
         )
         version = registrar_precio_insumo(
             insumo,
@@ -189,6 +196,7 @@ def procesar_accion_fuente_costo(
             _id(formulario, "empleado_id"),
             organizacion.id,
             "El empleado",
+            unidad_activa.id,
         )
         version = registrar_costo_empleado(
             empleado,
@@ -244,6 +252,7 @@ def procesar_accion_fuente_costo(
             _id(formulario, "costo_fijo_id"),
             organizacion.id,
             "El costo fijo",
+            unidad_activa.id,
         )
         version = registrar_importe_costo_fijo(
             costo,
@@ -262,13 +271,14 @@ def procesar_accion_fuente_costo(
     raise ValueError("Accion de fuente de costo no reconocida.")
 
 
-def obtener_fuentes_costo(organizacion_id, *, modelos):
+def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
     perfiles = modelos["PerfilCosteoProducto"].query.filter_by(
-        organizacion_id=organizacion_id
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id
     ).order_by(modelos["PerfilCosteoProducto"].fecha_creacion).all()
     Catalogo = modelos["Catalogo"]
     inclusiones = modelos["CatalogoProducto"].query.join(Catalogo).filter(
         Catalogo.organizacion_id == organizacion_id,
+        Catalogo.unidad_negocio_id == unidad_negocio_id,
         modelos["CatalogoProducto"].activo.is_(True),
     ).order_by(modelos["CatalogoProducto"].nombre_comercial).all()
     return {
@@ -278,13 +288,19 @@ def obtener_fuentes_costo(organizacion_id, *, modelos):
         "perfiles_componentes": [
             perfil for perfil in perfiles if perfil.tipo in {"simple", "produccion"}
         ],
-        "insumos": modelos["InsumoProductivo"].query.filter_by(
-            organizacion_id=organizacion_id
+        "insumos": modelos["InsumoProductivo"].query.filter(
+            modelos["InsumoProductivo"].organizacion_id == organizacion_id,
+            (modelos["InsumoProductivo"].unidad_negocio_id.is_(None))
+            | (modelos["InsumoProductivo"].unidad_negocio_id == unidad_negocio_id),
         ).order_by(modelos["InsumoProductivo"].nombre).all(),
-        "empleados": modelos["EmpleadoProductivo"].query.filter_by(
-            organizacion_id=organizacion_id
+        "empleados": modelos["EmpleadoProductivo"].query.filter(
+            modelos["EmpleadoProductivo"].organizacion_id == organizacion_id,
+            (modelos["EmpleadoProductivo"].unidad_negocio_id.is_(None))
+            | (modelos["EmpleadoProductivo"].unidad_negocio_id == unidad_negocio_id),
         ).order_by(modelos["EmpleadoProductivo"].nombre).all(),
-        "costos_fijos": modelos["CostoFijoProductivo"].query.filter_by(
-            organizacion_id=organizacion_id
+        "costos_fijos": modelos["CostoFijoProductivo"].query.filter(
+            modelos["CostoFijoProductivo"].organizacion_id == organizacion_id,
+            (modelos["CostoFijoProductivo"].unidad_negocio_id.is_(None))
+            | (modelos["CostoFijoProductivo"].unidad_negocio_id == unidad_negocio_id),
         ).order_by(modelos["CostoFijoProductivo"].nombre).all(),
     }

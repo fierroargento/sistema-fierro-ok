@@ -33,6 +33,10 @@ from services.exportacion_perfiles_costeo import (
     plantilla_excel_productos,
 )
 from services.tenant_context import TenantError, resolver_tenant_usuario
+from services.unidad_negocio_contexto import (
+    UnidadNegocioError,
+    resolver_unidad_activa,
+)
 
 
 def crear_blueprint_comercial(*, dependencias):
@@ -55,15 +59,48 @@ def crear_blueprint_comercial(*, dependencias):
         session["organizacion_id"] = membresia.organizacion_id
         return usuario, membresia.organizacion, None
 
+    def contexto_comercial(organizacion):
+        unidad, unidades = resolver_unidad_activa(
+            organizacion.id, session.get("unidad_negocio_id"),
+            UnidadNegocio=modelos["UnidadNegocio"],
+        )
+        session["unidad_negocio_id"] = unidad.id
+        return unidad, unidades
+
+    @blueprint.route("/admin/comercial/unidad", methods=["POST"])
+    @dependencias["login_required"]
+    def seleccionar_unidad():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        try:
+            unidad_id = int(request.form.get("unidad_negocio_id"))
+            unidad = modelos["UnidadNegocio"].query.filter_by(
+                id=unidad_id, organizacion_id=organizacion.id, activa=True,
+            ).first()
+            if unidad is None:
+                raise UnidadNegocioError("La unidad no pertenece a la organización.")
+            session["unidad_negocio_id"] = unidad.id
+        except (TypeError, ValueError, UnidadNegocioError) as error:
+            return redirect(url_for("admin_comercial.panel", error=str(error)))
+        destino = request.form.get("destino") or "admin_comercial.panel"
+        if destino not in {"admin_comercial.panel", "admin_comercial.fuentes_costos"}:
+            destino = "admin_comercial.panel"
+        return redirect(url_for(destino))
+
     @blueprint.route("/admin/comercial")
     @dependencias["login_required"]
     def panel():
         _usuario, organizacion, respuesta = acceso()
         if respuesta is not None:
             return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
         return render_template(
             "admin_comercial.html", organizacion=organizacion,
-            **obtener_datos_panel_comercial(organizacion.id, modelos=modelos),
+            unidad_activa=unidad_activa, unidades=unidades,
+            **obtener_datos_panel_comercial(
+                organizacion.id, unidad_activa.id, modelos=modelos,
+            ),
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(),
         )
@@ -76,8 +113,10 @@ def crear_blueprint_comercial(*, dependencias):
             return respuesta
         accion = (request.form.get("accion") or "").strip()
         try:
+            unidad_activa, _unidades = contexto_comercial(organizacion)
             mensaje = procesar_accion_comercial(
                 accion, request.form, organizacion=organizacion,
+                unidad_activa=unidad_activa,
                 modelos=modelos, db_session=db.session, usuario=usuario,
             )
             dependencias["registrar_auditoria"](
@@ -96,14 +135,14 @@ def crear_blueprint_comercial(*, dependencias):
         _usuario, organizacion, respuesta = acceso()
         if respuesta is not None:
             return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
         return render_template(
             "admin_fuentes_costos.html",
             organizacion=organizacion,
-            unidades=modelos["UnidadNegocio"].query.filter_by(
-                organizacion_id=organizacion.id,
-                activa=True,
-            ).order_by(modelos["UnidadNegocio"].nombre).all(),
-            **obtener_fuentes_costo(organizacion.id, modelos=modelos),
+            unidad_activa=unidad_activa, unidades=unidades,
+            **obtener_fuentes_costo(
+                organizacion.id, unidad_activa.id, modelos=modelos,
+            ),
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(),
         )
@@ -119,10 +158,12 @@ def crear_blueprint_comercial(*, dependencias):
             return respuesta
         accion = (request.form.get("accion") or "").strip()
         try:
+            unidad_activa, _unidades = contexto_comercial(organizacion)
             mensaje = procesar_accion_fuente_costo(
                 accion,
                 request.form,
                 organizacion=organizacion,
+                unidad_activa=unidad_activa,
                 modelos=modelos,
                 db_session=db.session,
                 usuario=usuario,
@@ -154,6 +195,7 @@ def crear_blueprint_comercial(*, dependencias):
         if respuesta is not None:
             return respuesta
         Lote = modelos["ImportacionMasivaCosto"]
+        unidad_activa, unidades = contexto_comercial(organizacion)
         try:
             if request.method == "POST":
                 accion = (request.form.get("accion") or "").strip()
@@ -164,6 +206,7 @@ def crear_blueprint_comercial(*, dependencias):
                     lectura = leer_archivo(archivo, request.form.get("hoja"))
                     lote = Lote(
                         organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad_activa.id,
                         usuario_id=getattr(usuario, "id", None),
                         tipo_datos="productos_clasificacion",
                         nombre_archivo=archivo.filename,
@@ -181,6 +224,7 @@ def crear_blueprint_comercial(*, dependencias):
                 lote = Lote.query.filter_by(
                     id=int(request.form.get("lote_id")),
                     organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad_activa.id,
                 ).first()
                 if lote is None:
                     raise ValueError("El lote no existe.")
@@ -197,6 +241,7 @@ def crear_blueprint_comercial(*, dependencias):
                     vista = previsualizar(
                         deserializar(lote.filas_json, []), mapeo,
                         organizacion_id=organizacion.id, modelos=modelos,
+                        unidad_negocio_id=unidad_activa.id,
                     )
                     lote.modo = (request.form.get("modo") or "crear_actualizar").strip()
                     if lote.modo not in {"crear", "actualizar", "crear_actualizar", "validar"}:
@@ -240,10 +285,11 @@ def crear_blueprint_comercial(*, dependencias):
         lote_id = request.args.get("lote", type=int)
         lote = Lote.query.filter_by(
             id=lote_id, organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
         ).first() if lote_id else None
         return render_template(
             "admin_importacion_productos_costeo.html",
-            organizacion=organizacion, lote=lote,
+            organizacion=organizacion, unidad_activa=unidad_activa, lote=lote,
             encabezados=deserializar(lote.encabezados_json, []) if lote else [],
             filas=deserializar(lote.filas_json, []) if lote else [],
             mapeo=deserializar(lote.mapeo_json, {}) if lote else {},
@@ -251,6 +297,7 @@ def crear_blueprint_comercial(*, dependencias):
             campos=CAMPOS_PRODUCTOS,
             historial=Lote.query.filter_by(
                 organizacion_id=organizacion.id,
+                unidad_negocio_id=unidad_activa.id,
                 tipo_datos="productos_clasificacion",
             ).order_by(Lote.fecha_creacion.desc()).limit(20).all(),
             error=(request.args.get("error") or "").strip(),
@@ -274,8 +321,10 @@ def crear_blueprint_comercial(*, dependencias):
         _usuario, organizacion, respuesta = acceso()
         if respuesta is not None:
             return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
         perfiles = modelos["PerfilCosteoProducto"].query.filter_by(
-            organizacion_id=organizacion.id
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
         ).order_by(modelos["PerfilCosteoProducto"].fecha_creacion).all()
         if formato == "xlsx":
             return send_file(
@@ -285,7 +334,7 @@ def crear_blueprint_comercial(*, dependencias):
             )
         if formato == "pdf":
             return send_file(
-                exportar_pdf_perfiles(perfiles, organizacion.nombre),
+                exportar_pdf_perfiles(perfiles, unidad_activa.nombre),
                 as_attachment=True, download_name="productos_clasificacion.pdf",
                 mimetype="application/pdf",
             )
@@ -298,6 +347,7 @@ def crear_blueprint_comercial(*, dependencias):
         if respuesta is not None:
             return respuesta
         Lote = modelos["ImportacionMasivaCosto"]
+        unidad_activa, unidades = contexto_comercial(organizacion)
         try:
             if request.method == "POST":
                 accion = (request.form.get("accion") or "").strip()
@@ -307,7 +357,9 @@ def crear_blueprint_comercial(*, dependencias):
                         raise ValueError("Seleccioná un archivo.")
                     lectura = leer_archivo(archivo)
                     lote = Lote(
-                        organizacion_id=organizacion.id, usuario_id=getattr(usuario, "id", None),
+                        organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad_activa.id,
+                        usuario_id=getattr(usuario, "id", None),
                         tipo_datos="componentes_combos", nombre_archivo=archivo.filename,
                         modo=(request.form.get("modo") or "crear_actualizar").strip(),
                         nombre_hoja=lectura["hoja"], estado="cargado",
@@ -320,6 +372,7 @@ def crear_blueprint_comercial(*, dependencias):
                     return redirect(url_for("admin_comercial.importar_combos_costeo", lote=lote.id))
                 lote = Lote.query.filter_by(
                     id=int(request.form.get("lote_id")), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad_activa.id,
                     tipo_datos="componentes_combos",
                 ).first()
                 if lote is None:
@@ -330,6 +383,7 @@ def crear_blueprint_comercial(*, dependencias):
                     vista = previsualizar_combos(
                         deserializar(lote.filas_json, []), mapeo,
                         organizacion_id=organizacion.id, modelos=modelos, modo=lote.modo,
+                        unidad_negocio_id=unidad_activa.id,
                     )
                     lote.mapeo_json, lote.vista_previa_json = serializar(mapeo), serializar(vista)
                     lote.estado = "mapeado"; db.session.commit()
@@ -351,14 +405,15 @@ def crear_blueprint_comercial(*, dependencias):
             db.session.rollback()
             return redirect(url_for("admin_comercial.importar_combos_costeo", error=str(error)))
         lote_id = request.args.get("lote", type=int)
-        lote = Lote.query.filter_by(id=lote_id, organizacion_id=organizacion.id, tipo_datos="componentes_combos").first() if lote_id else None
+        lote = Lote.query.filter_by(id=lote_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos="componentes_combos").first() if lote_id else None
         return render_template(
-            "admin_importacion_combos.html", organizacion=organizacion, lote=lote,
+            "admin_importacion_combos.html", organizacion=organizacion,
+            unidad_activa=unidad_activa, lote=lote,
             encabezados=deserializar(lote.encabezados_json, []) if lote else [],
             filas=deserializar(lote.filas_json, []) if lote else [],
             mapeo=deserializar(lote.mapeo_json, {}) if lote else {},
             vista=deserializar(lote.vista_previa_json, []) if lote else [], campos=CAMPOS_COMBOS,
-            historial=Lote.query.filter_by(organizacion_id=organizacion.id, tipo_datos="componentes_combos").order_by(Lote.fecha_creacion.desc()).limit(20).all(),
+            historial=Lote.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos="componentes_combos").order_by(Lote.fecha_creacion.desc()).limit(20).all(),
             error=(request.args.get("error") or "").strip(),
         )
 
@@ -374,11 +429,12 @@ def crear_blueprint_comercial(*, dependencias):
     def exportar_combos_costeo(formato):
         _usuario, organizacion, respuesta = acceso()
         if respuesta is not None: return respuesta
-        combos = modelos["PerfilCosteoProducto"].query.filter_by(organizacion_id=organizacion.id, tipo="combo").all()
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        combos = modelos["PerfilCosteoProducto"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo="combo").all()
         if formato == "xlsx":
             return send_file(exportar_excel_combos(combos), as_attachment=True, download_name="componentes_combos.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         if formato == "pdf":
-            return send_file(exportar_pdf_combos(combos, organizacion.nombre), as_attachment=True, download_name="componentes_combos.pdf", mimetype="application/pdf")
+            return send_file(exportar_pdf_combos(combos, unidad_activa.nombre), as_attachment=True, download_name="componentes_combos.pdf", mimetype="application/pdf")
         raise ValueError("Formato de exportacion no valido.")
 
     return blueprint

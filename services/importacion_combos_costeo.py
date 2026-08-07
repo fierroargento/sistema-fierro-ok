@@ -56,9 +56,14 @@ def _cantidad(valor):
     return str(numero)
 
 
-def previsualizar_combos(filas, mapeo, *, organizacion_id, modelos, modo="crear_actualizar"):
+def previsualizar_combos(
+    filas, mapeo, *, organizacion_id, modelos, modo="crear_actualizar",
+    unidad_negocio_id=None,
+):
     validar_mapeo_combo(mapeo)
     perfiles = modelos["PerfilCosteoProducto"].query.filter_by(organizacion_id=organizacion_id).all()
+    if unidad_negocio_id is not None:
+        perfiles = [p for p in perfiles if p.unidad_negocio_id == unidad_negocio_id]
     resultado = []
     for fila in filas:
         datos, errores = _datos(fila, mapeo), []

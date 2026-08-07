@@ -5,6 +5,32 @@ No elimina columnas ni modifica flujos operativos.
 """
 
 
+def asegurar_unidad_importacion_costos(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Agrega alcance por unidad a lotes comerciales sin alterar lotes previos."""
+    inspector = inspect_fn(db.engine)
+    if "importacion_masiva_costo" not in inspector.get_table_names():
+        return {"columna_creada": False}
+    columnas = {
+        columna["name"]
+        for columna in inspector.get_columns("importacion_masiva_costo")
+    }
+    creada = "unidad_negocio_id" not in columnas
+    if creada:
+        db.session.execute(text_fn(
+            "ALTER TABLE importacion_masiva_costo "
+            "ADD COLUMN unidad_negocio_id INTEGER"
+        ))
+        db.session.commit()
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_importacion_masiva_costo_unidad_negocio_id "
+        "ON importacion_masiva_costo (unidad_negocio_id)"
+    ))
+    db.session.commit()
+    if creada and logger_fn is not None:
+        logger_fn("[SAAS] Importaciones comerciales aisladas por unidad.")
+    return {"columna_creada": creada}
+
+
 def organizacion_evento_legacy(
     evento,
     organizacion_id_predeterminada,

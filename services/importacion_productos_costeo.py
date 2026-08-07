@@ -96,7 +96,7 @@ def validar_mapeo(mapeo):
         raise ValueError("Faltan campos obligatorios: " + ", ".join(faltantes) + ".")
 
 
-def previsualizar(filas, mapeo, *, organizacion_id, modelos):
+def previsualizar(filas, mapeo, *, organizacion_id, unidad_negocio_id=None, modelos):
     validar_mapeo(mapeo)
     perfiles = modelos["PerfilCosteoProducto"].query.filter_by(
         organizacion_id=organizacion_id
@@ -124,6 +124,10 @@ def previsualizar(filas, mapeo, *, organizacion_id, modelos):
                 Catalogo.organizacion_id == organizacion_id,
                 modelos["Producto"].sku.ilike(sku),
             )
+            if unidad_negocio_id is not None:
+                consulta = consulta.filter(
+                    Catalogo.unidad_negocio_id == unidad_negocio_id
+                )
             unidad = normalizar(datos.get("unidad"))
             opciones = consulta.all()
             if unidad:
