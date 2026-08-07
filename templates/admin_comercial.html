@@ -74,7 +74,7 @@
   </section>
 
   <section class="comercial-section" id="costos">
-    <div class="section-heading"><div><span class="section-number">2</span><h2>Costos base</h2></div><p>Registrá una nueva versión histórica del costo de un producto.</p></div>
+    <div class="section-heading"><div><span class="section-number">2</span><h2>Costos base</h2></div><div class="section-heading-actions"><p>Registrá una nueva versión histórica del costo de un producto.</p><a class="section-link" href="{{ url_for('admin_comercial.fuentes_costos') }}">Administrar fuentes de costo</a></div></div>
     {% if inclusiones_activas %}
     <form class="comercial-form form-costos" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_costo_manual">

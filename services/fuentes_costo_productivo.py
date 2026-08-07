@@ -76,7 +76,7 @@ def _validar_alcance(
 
 def _crear_maestro(
     Modelo, *, organizacion_id, unidad_negocio_id, codigo, nombre,
-    Organizacion, UnidadNegocio, db_session, campos,
+    Organizacion, UnidadNegocio, db_session, campos, commit,
 ):
     _validar_alcance(
         organizacion_id=organizacion_id,
@@ -101,7 +101,10 @@ def _crear_maestro(
     )
     try:
         db_session.add(registro)
-        db_session.commit()
+        if commit:
+            db_session.commit()
+        else:
+            db_session.flush()
     except Exception:
         db_session.rollback()
         raise
@@ -111,7 +114,7 @@ def _crear_maestro(
 def crear_insumo(
     *, organizacion_id, unidad_negocio_id, codigo, nombre, tipo,
     unidad_medida, observacion=None, Organizacion, UnidadNegocio,
-    InsumoProductivo, db_session,
+    InsumoProductivo, db_session, commit=True,
 ):
     tipo_normalizado = str(tipo or "").strip().lower()
     if tipo_normalizado not in TIPOS_INSUMO:
@@ -125,6 +128,7 @@ def crear_insumo(
         Organizacion=Organizacion,
         UnidadNegocio=UnidadNegocio,
         db_session=db_session,
+        commit=commit,
         campos={
             "tipo": tipo_normalizado,
             "unidad_medida": _texto_requerido(
@@ -138,7 +142,7 @@ def crear_insumo(
 def crear_empleado(
     *, organizacion_id, unidad_negocio_id, codigo, nombre, sector,
     puesto=None, observacion=None, Organizacion, UnidadNegocio,
-    EmpleadoProductivo, db_session,
+    EmpleadoProductivo, db_session, commit=True,
 ):
     return _crear_maestro(
         EmpleadoProductivo,
@@ -149,6 +153,7 @@ def crear_empleado(
         Organizacion=Organizacion,
         UnidadNegocio=UnidadNegocio,
         db_session=db_session,
+        commit=commit,
         campos={
             "sector": _texto_requerido(sector, "El sector", 120),
             "puesto": str(puesto or "").strip() or None,
@@ -160,7 +165,7 @@ def crear_empleado(
 def crear_costo_fijo(
     *, organizacion_id, unidad_negocio_id, codigo, nombre, categoria,
     integra_costo_produccion, criterio_distribucion, observacion=None,
-    Organizacion, UnidadNegocio, CostoFijoProductivo, db_session,
+    Organizacion, UnidadNegocio, CostoFijoProductivo, db_session, commit=True,
 ):
     criterio = str(criterio_distribucion or "").strip().lower()
     if criterio not in CRITERIOS_DISTRIBUCION:
@@ -178,6 +183,7 @@ def crear_costo_fijo(
         Organizacion=Organizacion,
         UnidadNegocio=UnidadNegocio,
         db_session=db_session,
+        commit=commit,
         campos={
             "categoria": _texto_requerido(categoria, "La categoria", 100),
             "integra_costo_produccion": bool(integra_costo_produccion),

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}">
+<script src="{{ url_for('static', filename='admin_fuentes_costos.js') }}" defer></script>
+{% endblock %}
+
+{% block content %}
+<main class="comercial-page cost-sources-page">
+  <header class="comercial-header">
+    <div>
+      <p class="comercial-eyebrow">Administración · Costos</p>
+      <h1>Fuentes de costo productivo</h1>
+      <p class="comercial-intro">Registrá valores vigentes e históricos sin mezclar costos comerciales.</p>
+    </div>
+    <div class="header-actions">
+      <a class="secondary-link" href="{{ url_for('admin_comercial.panel') }}#costos">Volver a Costos y precios</a>
+      <div class="comercial-safe"><strong>Entorno interno</strong><span>No publica ni sincroniza canales.</span></div>
+    </div>
+  </header>
+
+  {% if ok_feedback %}<div class="comercial-message comercial-message-ok">{{ ok_feedback }}</div>{% endif %}
+  {% if error %}<div class="comercial-message comercial-message-error">{{ error }}</div>{% endif %}
+
+  <nav class="comercial-steps source-steps" aria-label="Fuentes de costo productivo">
+    <a href="#insumos"><span>1</span>Insumos</a>
+    <a href="#empleados"><span>2</span>Empleados</a>
+    <a href="#costos-fijos"><span>3</span>Costos fijos</a>
+  </nav>
+
+  <section class="comercial-section" id="insumos">
+    <div class="section-heading"><div><span class="section-number">1</span><h2>Insumos y precios</h2></div><p>Materias primas, consumibles, servicios y embalajes propios de producción.</p></div>
+    <form class="comercial-form form-source-insumo" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+      <input type="hidden" name="accion" value="crear_insumo">
+      <label><span>Unidad</span><select name="unidad_negocio_id"><option value="">Compartido</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
+      <label><span>Código</span><input name="codigo" maxlength="80" placeholder="Ej. hierro-6mm" required></label>
+      <label><span>Nombre</span><input name="nombre" maxlength="200" placeholder="Ej. Hierro redondo 6 mm" required></label>
+      <label><span>Tipo</span><select name="tipo"><option value="materia_prima">Materia prima</option><option value="consumible">Consumible</option><option value="servicio_productivo">Servicio productivo</option><option value="embalaje_productivo">Embalaje productivo</option></select></label>
+      <label><span>Unidad de medida</span><input name="unidad_medida" maxlength="30" placeholder="metro, kg, unidad" required></label>
+      <label><span>Precio unitario</span><div class="money-input"><span>$</span><input name="precio_unitario" inputmode="decimal" placeholder="0,00" required></div></label>
+      <label><span>Proveedor <small>opcional</small></span><input name="proveedor_referencia" maxlength="200"></label>
+      <button class="comercial-primary" type="submit">Crear insumo</button>
+    </form>
+    <div class="source-grid">
+      {% for insumo in insumos %}
+      {% set vigente = insumo.versiones_precio|selectattr('vigente')|first %}
+      <article class="source-card">
+        <div class="source-card-head"><div><strong>{{ insumo.nombre }}</strong><span>{{ insumo.codigo }} · {{ insumo.unidad_medida }}</span></div><span class="status status-active">{{ insumo.tipo|replace('_', ' ') }}</span></div>
+        <dl class="source-metrics"><div><dt>Precio vigente</dt><dd>{% if vigente %}${{ '%.2f'|format(vigente.precio_unitario_centavos / 100) }}{% else %}Sin precio{% endif %}</dd></div><div><dt>Versión</dt><dd>{{ 'v' ~ vigente.numero_version if vigente else '—' }}</dd></div><div><dt>Unidad</dt><dd>{{ insumo.unidad_negocio.nombre if insumo.unidad_negocio else 'Compartido' }}</dd></div></dl>
+        <details class="source-update"><summary>Registrar nuevo precio</summary><form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_precio_insumo"><input type="hidden" name="insumo_id" value="{{ insumo.id }}"><input type="hidden" name="moneda" value="ARS"><label><span>Nuevo precio</span><div class="money-input"><span>$</span><input name="precio_unitario" inputmode="decimal" required></div></label><label><span>Proveedor</span><input name="proveedor_referencia"></label><label><span>Comprobante</span><input name="comprobante_referencia"></label><button class="table-action" type="submit">Guardar versión</button></form></details>
+        <details class="source-history"><summary>Ver historial ({{ insumo.versiones_precio|length }})</summary><div class="mini-history">{% for version in insumo.versiones_precio|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }}</span><strong>${{ '%.2f'|format(version.precio_unitario_centavos / 100) }}</strong></div>{% endfor %}</div></details>
+      </article>
+      {% else %}<p class="empty-card">Todavía no hay insumos productivos.</p>{% endfor %}
+    </div>
+  </section>
+
+  <section class="comercial-section" id="empleados">
+    <div class="section-heading"><div><span class="section-number">2</span><h2>Empleados y mano de obra</h2></div><p>La tarifa se calcula con el costo laboral mensual y las horas realmente productivas.</p></div>
+    <form class="comercial-form form-source-employee" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+      <input type="hidden" name="accion" value="crear_empleado">
+      <label><span>Unidad</span><select name="unidad_negocio_id"><option value="">Compartido</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
+      <label><span>Código o legajo</span><input name="codigo" maxlength="80" required></label>
+      <label><span>Nombre</span><input name="nombre" maxlength="200" required></label>
+      <label><span>Sector</span><input name="sector" maxlength="120" placeholder="Ej. Herrería" required></label>
+      <label><span>Puesto</span><input name="puesto" maxlength="120" placeholder="Ej. Soldador"></label>
+      <label><span>Sueldo base</span><div class="money-input"><span>$</span><input name="sueldo_base" inputmode="decimal" required></div></label>
+      <label><span>Cargas sociales</span><div class="money-input"><span>$</span><input name="cargas_sociales" inputmode="decimal" value="0"></div></label>
+      <label><span>Adicionales</span><div class="money-input"><span>$</span><input name="adicionales" inputmode="decimal" value="0"></div></label>
+      <label><span>Otros costos</span><div class="money-input"><span>$</span><input name="otros_costos" inputmode="decimal" value="0"></div></label>
+      <label><span>Horas mensuales</span><input name="horas_mensuales" inputmode="decimal" placeholder="176" required></label>
+      <label><span>Horas productivas</span><input name="horas_productivas" inputmode="decimal" placeholder="160" required></label>
+      <button class="comercial-primary" type="submit">Crear empleado</button>
+    </form>
+    <div class="source-grid source-grid-wide">
+      {% for empleado in empleados %}
+      {% set vigente = empleado.versiones_costo|selectattr('vigente')|first %}
+      <article class="source-card">
+        <div class="source-card-head"><div><strong>{{ empleado.nombre }}</strong><span>{{ empleado.codigo }} · {{ empleado.sector }}{% if empleado.puesto %} · {{ empleado.puesto }}{% endif %}</span></div><span class="status status-active">Activo</span></div>
+        <dl class="source-metrics"><div><dt>Costo mensual</dt><dd>{% if vigente %}${{ '%.2f'|format(vigente.costo_mensual_total_centavos / 100) }}{% else %}—{% endif %}</dd></div><div><dt>Hora productiva</dt><dd>{% if vigente %}${{ '%.2f'|format(vigente.costo_hora_productiva_centavos / 100) }}{% else %}—{% endif %}</dd></div><div><dt>Minuto productivo</dt><dd>{% if vigente %}${{ '%.2f'|format(vigente.costo_minuto_productivo_centavos / 100) }}{% else %}—{% endif %}</dd></div></dl>
+        <details class="source-update"><summary>Registrar nuevo costo laboral</summary><form class="employee-update-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_costo_empleado"><input type="hidden" name="empleado_id" value="{{ empleado.id }}"><input type="hidden" name="moneda" value="ARS"><label><span>Sueldo base</span><input name="sueldo_base" inputmode="decimal" required></label><label><span>Cargas sociales</span><input name="cargas_sociales" inputmode="decimal" value="0"></label><label><span>Adicionales</span><input name="adicionales" inputmode="decimal" value="0"></label><label><span>Otros costos</span><input name="otros_costos" inputmode="decimal" value="0"></label><label><span>Horas mensuales</span><input name="horas_mensuales" inputmode="decimal" required></label><label><span>Horas productivas</span><input name="horas_productivas" inputmode="decimal" required></label><button class="table-action" type="submit">Guardar versión</button></form></details>
+        <details class="source-history"><summary>Ver historial ({{ empleado.versiones_costo|length }})</summary><div class="mini-history">{% for version in empleado.versiones_costo|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }}</span><strong>${{ '%.2f'|format(version.costo_hora_productiva_centavos / 100) }}/h</strong></div>{% endfor %}</div></details>
+      </article>
+      {% else %}<p class="empty-card">Todavía no hay empleados cargados.</p>{% endfor %}
+    </div>
+  </section>
+
+  <section class="comercial-section" id="costos-fijos">
+    <div class="section-heading"><div><span class="section-number">3</span><h2>Costos fijos</h2></div><p>Solo los conceptos marcados como productivos podrán distribuirse al costo de fabricación.</p></div>
+    <form class="comercial-form form-source-fixed" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+      <input type="hidden" name="accion" value="crear_costo_fijo">
+      <label><span>Unidad</span><select name="unidad_negocio_id"><option value="">Compartido</option>{% for u in unidades %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
+      <label><span>Código</span><input name="codigo" maxlength="80" placeholder="Ej. alquiler-galpon" required></label>
+      <label><span>Nombre</span><input name="nombre" maxlength="200" placeholder="Ej. Alquiler del galpón" required></label>
+      <label><span>Categoría</span><input name="categoria" maxlength="100" placeholder="Infraestructura" required></label>
+      <label><span>Tratamiento</span><select name="integra_costo_produccion" data-production-cost><option value="0">Solo informativo</option><option value="1">Integra producción</option></select></label>
+      <label><span>Distribución</span><select name="criterio_distribucion" data-distribution><option value="sin_distribuir">Sin distribuir</option><option value="horas_productivas">Horas productivas</option><option value="horas_maquina">Horas de máquina</option><option value="unidades_producidas">Unidades producidas</option><option value="porcentaje">Porcentaje</option><option value="importe_directo">Importe directo</option></select></label>
+      <label><span>Importe mensual</span><div class="money-input"><span>$</span><input name="importe_mensual" inputmode="decimal" required></div></label>
+      <label><span>Comprobante <small>opcional</small></span><input name="comprobante_referencia" maxlength="120"></label>
+      <button class="comercial-primary" type="submit">Crear costo fijo</button>
+    </form>
+    <div class="source-grid">
+      {% for costo in costos_fijos %}
+      {% set vigente = costo.versiones|selectattr('vigente')|first %}
+      <article class="source-card">
+        <div class="source-card-head"><div><strong>{{ costo.nombre }}</strong><span>{{ costo.codigo }} · {{ costo.categoria }}</span></div><span class="status status-{{ 'active' if costo.integra_costo_produccion else 'draft' }}">{{ 'Productivo' if costo.integra_costo_produccion else 'Informativo' }}</span></div>
+        <dl class="source-metrics"><div><dt>Importe mensual</dt><dd>{% if vigente %}${{ '%.2f'|format(vigente.importe_mensual_centavos / 100) }}{% else %}—{% endif %}</dd></div><div><dt>Distribución</dt><dd>{{ costo.criterio_distribucion|replace('_', ' ') }}</dd></div><div><dt>Versión</dt><dd>{{ 'v' ~ vigente.numero_version if vigente else '—' }}</dd></div></dl>
+        <details class="source-update"><summary>Registrar nuevo importe</summary><form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_importe_costo_fijo"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}"><input type="hidden" name="moneda" value="ARS"><label><span>Importe mensual</span><div class="money-input"><span>$</span><input name="importe_mensual" inputmode="decimal" required></div></label><label><span>Comprobante</span><input name="comprobante_referencia"></label><label><span>Observación</span><input name="observacion"></label><button class="table-action" type="submit">Guardar versión</button></form></details>
+        <details class="source-history"><summary>Ver historial ({{ costo.versiones|length }})</summary><div class="mini-history">{% for version in costo.versiones|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }}</span><strong>${{ '%.2f'|format(version.importe_mensual_centavos / 100) }}</strong></div>{% endfor %}</div></details>
+      </article>
+      {% else %}<p class="empty-card">Todavía no hay costos fijos cargados.</p>{% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}

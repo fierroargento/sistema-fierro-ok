@@ -42,6 +42,8 @@ class InsumoProductivo(db.Model):
         db.DateTime, default=ahora_utc_naive, nullable=False,
     )
 
+    unidad_negocio = db.relationship("UnidadNegocio")
+
 
 class InsumoPrecioVersion(db.Model):
     """Precio historico normalizado por unidad de un insumo."""
@@ -119,6 +121,8 @@ class EmpleadoProductivo(db.Model):
     fecha_creacion = db.Column(
         db.DateTime, default=ahora_utc_naive, nullable=False,
     )
+
+    unidad_negocio = db.relationship("UnidadNegocio")
 
 
 class EmpleadoCostoVersion(db.Model):
@@ -220,6 +224,8 @@ class CostoFijoProductivo(db.Model):
     fecha_creacion = db.Column(
         db.DateTime, default=ahora_utc_naive, nullable=False,
     )
+
+    unidad_negocio = db.relationship("UnidadNegocio")
 
 
 class CostoFijoVersion(db.Model):

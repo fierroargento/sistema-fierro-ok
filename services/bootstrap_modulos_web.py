@@ -57,6 +57,9 @@ def registrar_modulos_web(
                         "Organizacion", "UnidadNegocio", "Producto",
                         "Catalogo", "CatalogoProducto",
                         "CostoProductoVersion", "CostoProductoDetalle",
+                        "InsumoProductivo", "InsumoPrecioVersion",
+                        "EmpleadoProductivo", "EmpleadoCostoVersion",
+                        "CostoFijoProductivo", "CostoFijoVersion",
                         "ListaPrecio", "PoliticaComercialLista",
                         "ListaPrecioItem",
                     )
