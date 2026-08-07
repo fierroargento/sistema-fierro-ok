@@ -19,7 +19,7 @@ def _cantidad_positiva(valor):
 def crear_o_actualizar_perfil(
     *, organizacion_id, unidad_negocio_id, producto_id, tipo,
     observacion=None, PerfilCosteoProducto, UnidadNegocio, Producto,
-    db_session,
+    db_session, commit=True,
 ):
     tipo_normalizado = str(tipo or "").strip().lower()
     if tipo_normalizado not in TIPOS_PERFIL_COSTEO:
@@ -54,7 +54,10 @@ def crear_o_actualizar_perfil(
     perfil.tipo = tipo_normalizado
     perfil.observacion = str(observacion or "").strip() or None
     try:
-        db_session.commit()
+        if commit:
+            db_session.commit()
+        else:
+            db_session.flush()
     except Exception:
         db_session.rollback()
         raise
