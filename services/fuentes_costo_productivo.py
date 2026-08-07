@@ -1,0 +1,344 @@
+"""Administracion aislada de fuentes historicas del costo productivo."""
+
+from decimal import Decimal
+from decimal import InvalidOperation
+from decimal import ROUND_HALF_UP
+
+from sqlalchemy import func
+
+from services.costos_productos import normalizar_moneda
+from services.fechas import ahora_utc_naive
+
+
+TIPOS_INSUMO = {
+    "materia_prima",
+    "consumible",
+    "servicio_productivo",
+    "embalaje_productivo",
+}
+
+CRITERIOS_DISTRIBUCION = {
+    "horas_productivas",
+    "horas_maquina",
+    "unidades_producidas",
+    "porcentaje",
+    "importe_directo",
+    "sin_distribuir",
+}
+
+
+def _texto_requerido(valor, campo, limite):
+    texto = str(valor or "").strip()
+    if not texto:
+        raise ValueError(f"{campo} es obligatorio.")
+    if len(texto) > limite:
+        raise ValueError(f"{campo} supera {limite} caracteres.")
+    return texto
+
+
+def _entero_no_negativo(valor, campo):
+    try:
+        numero = int(valor)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{campo} no es valido.") from error
+    if numero < 0:
+        raise ValueError(f"{campo} no puede ser negativo.")
+    return numero
+
+
+def _decimal_positivo(valor, campo):
+    try:
+        numero = Decimal(str(valor).strip())
+    except (InvalidOperation, AttributeError, TypeError, ValueError) as error:
+        raise ValueError(f"{campo} no es valido.") from error
+    if not numero.is_finite() or numero <= 0:
+        raise ValueError(f"{campo} debe ser mayor que cero.")
+    return numero
+
+
+def _validar_alcance(
+    *, organizacion_id, unidad_negocio_id, Organizacion, UnidadNegocio,
+    db_session,
+):
+    organizacion = db_session.get(Organizacion, organizacion_id)
+    if organizacion is None:
+        raise ValueError("La organizacion indicada no existe.")
+
+    unidad = None
+    if unidad_negocio_id is not None:
+        unidad = db_session.get(UnidadNegocio, unidad_negocio_id)
+        if unidad is None:
+            raise ValueError("La unidad de negocio indicada no existe.")
+        if int(unidad.organizacion_id) != int(organizacion_id):
+            raise ValueError("La unidad no pertenece a la organizacion.")
+    return organizacion, unidad
+
+
+def _crear_maestro(
+    Modelo, *, organizacion_id, unidad_negocio_id, codigo, nombre,
+    Organizacion, UnidadNegocio, db_session, campos,
+):
+    _validar_alcance(
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+        Organizacion=Organizacion,
+        UnidadNegocio=UnidadNegocio,
+        db_session=db_session,
+    )
+    codigo_normalizado = _texto_requerido(codigo, "El codigo", 80).lower()
+    if Modelo.query.filter_by(
+        organizacion_id=organizacion_id,
+        codigo=codigo_normalizado,
+    ).first() is not None:
+        raise ValueError("El codigo ya existe en la organizacion.")
+
+    registro = Modelo(
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+        codigo=codigo_normalizado,
+        nombre=_texto_requerido(nombre, "El nombre", 200),
+        **campos,
+    )
+    try:
+        db_session.add(registro)
+        db_session.commit()
+    except Exception:
+        db_session.rollback()
+        raise
+    return registro
+
+
+def crear_insumo(
+    *, organizacion_id, unidad_negocio_id, codigo, nombre, tipo,
+    unidad_medida, observacion=None, Organizacion, UnidadNegocio,
+    InsumoProductivo, db_session,
+):
+    tipo_normalizado = str(tipo or "").strip().lower()
+    if tipo_normalizado not in TIPOS_INSUMO:
+        raise ValueError("El tipo de insumo no es valido.")
+    return _crear_maestro(
+        InsumoProductivo,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+        codigo=codigo,
+        nombre=nombre,
+        Organizacion=Organizacion,
+        UnidadNegocio=UnidadNegocio,
+        db_session=db_session,
+        campos={
+            "tipo": tipo_normalizado,
+            "unidad_medida": _texto_requerido(
+                unidad_medida, "La unidad de medida", 30,
+            ),
+            "observacion": str(observacion or "").strip() or None,
+        },
+    )
+
+
+def crear_empleado(
+    *, organizacion_id, unidad_negocio_id, codigo, nombre, sector,
+    puesto=None, observacion=None, Organizacion, UnidadNegocio,
+    EmpleadoProductivo, db_session,
+):
+    return _crear_maestro(
+        EmpleadoProductivo,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+        codigo=codigo,
+        nombre=nombre,
+        Organizacion=Organizacion,
+        UnidadNegocio=UnidadNegocio,
+        db_session=db_session,
+        campos={
+            "sector": _texto_requerido(sector, "El sector", 120),
+            "puesto": str(puesto or "").strip() or None,
+            "observacion": str(observacion or "").strip() or None,
+        },
+    )
+
+
+def crear_costo_fijo(
+    *, organizacion_id, unidad_negocio_id, codigo, nombre, categoria,
+    integra_costo_produccion, criterio_distribucion, observacion=None,
+    Organizacion, UnidadNegocio, CostoFijoProductivo, db_session,
+):
+    criterio = str(criterio_distribucion or "").strip().lower()
+    if criterio not in CRITERIOS_DISTRIBUCION:
+        raise ValueError("El criterio de distribucion no es valido.")
+    if not integra_costo_produccion and criterio != "sin_distribuir":
+        raise ValueError(
+            "Un costo que no integra produccion debe quedar sin distribuir."
+        )
+    return _crear_maestro(
+        CostoFijoProductivo,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+        codigo=codigo,
+        nombre=nombre,
+        Organizacion=Organizacion,
+        UnidadNegocio=UnidadNegocio,
+        db_session=db_session,
+        campos={
+            "categoria": _texto_requerido(categoria, "La categoria", 100),
+            "integra_costo_produccion": bool(integra_costo_produccion),
+            "criterio_distribucion": criterio,
+            "observacion": str(observacion or "").strip() or None,
+        },
+    )
+
+
+def _crear_version_vigente(
+    *, maestro, moneda, ModeloVersion, fk_nombre, valores, vigente_desde,
+    db_session,
+):
+    if maestro is None:
+        raise ValueError("El registro base no existe.")
+    moneda_normalizada = normalizar_moneda(moneda)
+    momento = vigente_desde or ahora_utc_naive()
+    filtro_fk = getattr(ModeloVersion, fk_nombre) == maestro.id
+
+    numero = (
+        db_session.query(func.max(ModeloVersion.numero_version))
+        .filter(filtro_fk, ModeloVersion.moneda == moneda_normalizada)
+        .scalar()
+        or 0
+    ) + 1
+
+    anteriores = ModeloVersion.query.filter(
+        filtro_fk,
+        ModeloVersion.moneda == moneda_normalizada,
+        ModeloVersion.vigente.is_(True),
+    ).all()
+    version = ModeloVersion(
+        **{fk_nombre: maestro.id},
+        moneda=moneda_normalizada,
+        numero_version=numero,
+        vigente=True,
+        vigente_desde=momento,
+        **valores,
+    )
+    try:
+        for anterior in anteriores:
+            anterior.vigente = False
+            anterior.vigente_hasta = momento
+        db_session.add(version)
+        db_session.commit()
+    except Exception:
+        db_session.rollback()
+        raise
+    return version
+
+
+def registrar_precio_insumo(
+    insumo, *, moneda, precio_unitario_centavos, vigente_desde=None,
+    proveedor_referencia=None, comprobante_referencia=None, observacion=None,
+    creado_por_usuario_id=None, InsumoPrecioVersion, db_session,
+):
+    return _crear_version_vigente(
+        maestro=insumo,
+        moneda=moneda,
+        ModeloVersion=InsumoPrecioVersion,
+        fk_nombre="insumo_id",
+        vigente_desde=vigente_desde,
+        db_session=db_session,
+        valores={
+            "precio_unitario_centavos": _entero_no_negativo(
+                precio_unitario_centavos, "El precio unitario",
+            ),
+            "proveedor_referencia": str(proveedor_referencia or "").strip() or None,
+            "comprobante_referencia": str(comprobante_referencia or "").strip() or None,
+            "observacion": str(observacion or "").strip() or None,
+            "creado_por_usuario_id": creado_por_usuario_id,
+        },
+    )
+
+
+def calcular_tarifa_laboral(
+    *, sueldo_base_centavos, cargas_sociales_centavos=0,
+    adicionales_centavos=0, otros_costos_centavos=0,
+    horas_mensuales, horas_productivas,
+):
+    importes = [
+        _entero_no_negativo(sueldo_base_centavos, "El sueldo base"),
+        _entero_no_negativo(cargas_sociales_centavos, "Las cargas sociales"),
+        _entero_no_negativo(adicionales_centavos, "Los adicionales"),
+        _entero_no_negativo(otros_costos_centavos, "Los otros costos"),
+    ]
+    horas_mes = _decimal_positivo(horas_mensuales, "Las horas mensuales")
+    horas_prod = _decimal_positivo(horas_productivas, "Las horas productivas")
+    if horas_prod > horas_mes:
+        raise ValueError(
+            "Las horas productivas no pueden superar las horas mensuales."
+        )
+    total = sum(importes)
+    hora = int(
+        (Decimal(total) / horas_prod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    )
+    minuto = int(
+        (Decimal(total) / horas_prod / Decimal("60")).quantize(
+            Decimal("1"), rounding=ROUND_HALF_UP,
+        )
+    )
+    return {
+        "sueldo_base_centavos": importes[0],
+        "cargas_sociales_centavos": importes[1],
+        "adicionales_centavos": importes[2],
+        "otros_costos_centavos": importes[3],
+        "horas_mensuales": horas_mes,
+        "horas_productivas": horas_prod,
+        "costo_mensual_total_centavos": total,
+        "costo_hora_productiva_centavos": hora,
+        "costo_minuto_productivo_centavos": minuto,
+    }
+
+
+def registrar_costo_empleado(
+    empleado, *, moneda, sueldo_base_centavos, cargas_sociales_centavos=0,
+    adicionales_centavos=0, otros_costos_centavos=0, horas_mensuales,
+    horas_productivas, vigente_desde=None, observacion=None,
+    creado_por_usuario_id=None, EmpleadoCostoVersion, db_session,
+):
+    valores = calcular_tarifa_laboral(
+        sueldo_base_centavos=sueldo_base_centavos,
+        cargas_sociales_centavos=cargas_sociales_centavos,
+        adicionales_centavos=adicionales_centavos,
+        otros_costos_centavos=otros_costos_centavos,
+        horas_mensuales=horas_mensuales,
+        horas_productivas=horas_productivas,
+    )
+    valores.update({
+        "observacion": str(observacion or "").strip() or None,
+        "creado_por_usuario_id": creado_por_usuario_id,
+    })
+    return _crear_version_vigente(
+        maestro=empleado,
+        moneda=moneda,
+        ModeloVersion=EmpleadoCostoVersion,
+        fk_nombre="empleado_id",
+        valores=valores,
+        vigente_desde=vigente_desde,
+        db_session=db_session,
+    )
+
+
+def registrar_importe_costo_fijo(
+    costo_fijo, *, moneda, importe_mensual_centavos, vigente_desde=None,
+    comprobante_referencia=None, observacion=None, creado_por_usuario_id=None,
+    CostoFijoVersion, db_session,
+):
+    return _crear_version_vigente(
+        maestro=costo_fijo,
+        moneda=moneda,
+        ModeloVersion=CostoFijoVersion,
+        fk_nombre="costo_fijo_id",
+        vigente_desde=vigente_desde,
+        db_session=db_session,
+        valores={
+            "importe_mensual_centavos": _entero_no_negativo(
+                importe_mensual_centavos, "El importe mensual",
+            ),
+            "comprobante_referencia": str(comprobante_referencia or "").strip() or None,
+            "observacion": str(observacion or "").strip() or None,
+            "creado_por_usuario_id": creado_por_usuario_id,
+        },
+    )

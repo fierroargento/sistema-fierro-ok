@@ -255,6 +255,14 @@ from models.catalogo import Catalogo
 from models.catalogo_producto import CatalogoProducto
 from models.costo_producto_version import CostoProductoVersion
 from models.costo_producto_detalle import CostoProductoDetalle
+from models.fuentes_costo_productivo import (
+    CostoFijoProductivo,
+    CostoFijoVersion,
+    EmpleadoCostoVersion,
+    EmpleadoProductivo,
+    InsumoPrecioVersion,
+    InsumoProductivo,
+)
 from models.lista_precio import ListaPrecio
 from models.politica_comercial_lista import PoliticaComercialLista
 from models.lista_precio_item import ListaPrecioItem
