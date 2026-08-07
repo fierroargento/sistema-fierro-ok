@@ -3,6 +3,9 @@
   function iniciar() {
     const maestro = document.getElementById("seleccionar-columnas");
     const checks = Array.from(document.querySelectorAll("[data-map-check]"));
+    if (maestro && maestro.nextElementSibling) {
+      maestro.nextElementSibling.textContent = "Seleccionar todo";
+    }
     function sincronizar(check) {
       const fila = check.closest(".mapping-row");
       const selector = fila && fila.querySelector("[data-map-select]");

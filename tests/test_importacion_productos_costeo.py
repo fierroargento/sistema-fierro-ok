@@ -48,6 +48,9 @@ def test_interfaz_tiene_flujo_y_exportaciones():
     assert "seleccionar-columnas" in template
     assert "data-map-check" in template
     assert 'name="modo"' in template
+    assert "Seleccionar todo" in Path(
+        "static/admin_importacion_costos.js"
+    ).read_text(encoding="utf-8")
     assert "plantilla_productos_costeo" in rutas
     assert "exportar_productos_costeo" in rutas
 
