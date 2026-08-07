@@ -263,6 +263,10 @@ from models.fuentes_costo_productivo import (
     InsumoPrecioVersion,
     InsumoProductivo,
 )
+from models.perfil_costeo_producto import (
+    ComboProductoComponente,
+    PerfilCosteoProducto,
+)
 from models.lista_precio import ListaPrecio
 from models.politica_comercial_lista import PoliticaComercialLista
 from models.lista_precio_item import ListaPrecioItem
@@ -11695,6 +11699,8 @@ registrar_modulos_web(
             "EmpleadoCostoVersion": EmpleadoCostoVersion,
             "CostoFijoProductivo": CostoFijoProductivo,
             "CostoFijoVersion": CostoFijoVersion,
+            "PerfilCosteoProducto": PerfilCosteoProducto,
+            "ComboProductoComponente": ComboProductoComponente,
             "ListaPrecio": ListaPrecio,
             "PoliticaComercialLista": PoliticaComercialLista,
             "ListaPrecioItem": ListaPrecioItem,

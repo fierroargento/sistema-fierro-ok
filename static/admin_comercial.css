@@ -114,7 +114,7 @@
 }
 .section-link:hover, .secondary-link:hover { background: #dff3fa; }
 .header-actions { display: flex; align-items: center; gap: 12px; }
-.source-steps { grid-template-columns: repeat(3, 1fr); }
+.source-steps { grid-template-columns: repeat(4, 1fr); }
 
 .comercial-form {
   display: grid;
@@ -135,6 +135,8 @@
 .form-source-employee { grid-template-columns: repeat(5, minmax(120px, 1fr)) 1.1fr 1.1fr; }
 .form-source-employee .comercial-primary { grid-column: -2 / -1; }
 .form-source-fixed { grid-template-columns: .9fr .8fr 1.3fr .9fr 1fr 1.1fr 1fr 1fr auto; }
+.form-cost-profile { grid-template-columns: 2fr 1fr 1.5fr auto; }
+.form-combo { grid-template-columns: 1.5fr 1.5fr .55fr 1.2fr auto; }
 
 .comercial-form label { display: flex; flex-direction: column; min-width: 0; gap: 6px; }
 .comercial-form label > span:first-child { color: #445064; font-size: 12px; font-weight: 800; }
@@ -286,9 +288,10 @@
 .mini-history div:last-child { border-bottom: 0; }
 .mini-history span { color: #778294; }
 .mini-history strong { color: #344054; }
+.combo-component { display: inline-block; margin-right: 5px; padding: 3px 7px; border-radius: 999px; background: #edf8fc; color: #176b89; font-size: 11px; font-weight: 700; }
 
 @media (max-width: 1250px) {
-  .form-catalogos, .form-inclusion, .form-costos, .form-listas, .form-politicas, .form-precios, .form-source-insumo, .form-source-employee, .form-source-fixed { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .form-catalogos, .form-inclusion, .form-costos, .form-listas, .form-politicas, .form-precios, .form-source-insumo, .form-source-employee, .form-source-fixed, .form-cost-profile, .form-combo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .form-source-employee .comercial-primary { grid-column: auto; }
   .comercial-primary { width: 100%; }
 }
@@ -308,6 +311,6 @@
 
 @media (max-width: 560px) {
   .comercial-header h1 { font-size: 25px; }
-  .comercial-steps, .form-catalogos, .form-inclusion, .form-costos, .form-listas, .form-politicas, .form-precios, .form-source-insumo, .form-source-employee, .form-source-fixed, .source-update form, .employee-update-form { grid-template-columns: 1fr !important; }
+  .comercial-steps, .form-catalogos, .form-inclusion, .form-costos, .form-listas, .form-politicas, .form-precios, .form-source-insumo, .form-source-employee, .form-source-fixed, .form-cost-profile, .form-combo, .source-update form, .employee-update-form { grid-template-columns: 1fr !important; }
   .comercial-section { padding: 16px; }
 }

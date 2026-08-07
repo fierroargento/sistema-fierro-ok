@@ -9,6 +9,10 @@ from services.fuentes_costo_productivo import (
     registrar_importe_costo_fijo,
     registrar_precio_insumo,
 )
+from services.perfiles_costeo import (
+    agregar_componente_combo,
+    crear_o_actualizar_perfil,
+)
 
 
 def _id(formulario, campo, opcional=False):
@@ -48,6 +52,54 @@ def procesar_accion_fuente_costo(
     comunes["unidad_negocio_id"] = _id(
         formulario, "unidad_negocio_id", opcional=True,
     )
+
+    if accion == "configurar_perfil_costeo":
+        inclusion = modelos["CatalogoProducto"].query.get(
+            _id(formulario, "catalogo_producto_id")
+        )
+        if (
+            inclusion is None
+            or inclusion.catalogo.organizacion_id != organizacion.id
+        ):
+            raise ValueError("El producto no pertenece a la organizacion.")
+        perfil = crear_o_actualizar_perfil(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=inclusion.catalogo.unidad_negocio_id,
+            producto_id=inclusion.producto_id,
+            tipo=formulario.get("tipo"),
+            observacion=formulario.get("observacion"),
+            PerfilCosteoProducto=modelos["PerfilCosteoProducto"],
+            UnidadNegocio=modelos["UnidadNegocio"],
+            Producto=modelos["Producto"],
+            db_session=db_session,
+        )
+        return f"{perfil.producto.sku} clasificado como {perfil.tipo}."
+
+    if accion == "agregar_componente_combo":
+        combo = _registro_tenant(
+            modelos["PerfilCosteoProducto"],
+            _id(formulario, "combo_perfil_id"),
+            organizacion.id,
+            "El combo",
+        )
+        componente = _registro_tenant(
+            modelos["PerfilCosteoProducto"],
+            _id(formulario, "componente_perfil_id"),
+            organizacion.id,
+            "El componente",
+        )
+        item = agregar_componente_combo(
+            combo,
+            componente,
+            cantidad=formulario.get("cantidad"),
+            observacion=formulario.get("observacion"),
+            ComboProductoComponente=modelos["ComboProductoComponente"],
+            db_session=db_session,
+        )
+        return (
+            f"{item.componente.producto.sku} incorporado al combo "
+            f"{item.combo.producto.sku}."
+        )
 
     if accion == "crear_insumo":
         insumo = crear_insumo(
@@ -211,7 +263,21 @@ def procesar_accion_fuente_costo(
 
 
 def obtener_fuentes_costo(organizacion_id, *, modelos):
+    perfiles = modelos["PerfilCosteoProducto"].query.filter_by(
+        organizacion_id=organizacion_id
+    ).order_by(modelos["PerfilCosteoProducto"].fecha_creacion).all()
+    Catalogo = modelos["Catalogo"]
+    inclusiones = modelos["CatalogoProducto"].query.join(Catalogo).filter(
+        Catalogo.organizacion_id == organizacion_id,
+        modelos["CatalogoProducto"].activo.is_(True),
+    ).order_by(modelos["CatalogoProducto"].nombre_comercial).all()
     return {
+        "inclusiones_costeo": inclusiones,
+        "perfiles_costeo": perfiles,
+        "perfiles_combo": [perfil for perfil in perfiles if perfil.tipo == "combo"],
+        "perfiles_componentes": [
+            perfil for perfil in perfiles if perfil.tipo in {"simple", "produccion"}
+        ],
         "insumos": modelos["InsumoProductivo"].query.filter_by(
             organizacion_id=organizacion_id
         ).order_by(modelos["InsumoProductivo"].nombre).all(),
