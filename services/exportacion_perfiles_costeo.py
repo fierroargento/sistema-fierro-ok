@@ -48,7 +48,11 @@ def exportar_pdf_perfiles(perfiles, organizacion_nombre):
     pdf.setFont("Helvetica", 9)
     pdf.drawString(36, y, organizacion_nombre)
     y -= 24
-    for fila in filas_exportables_perfiles(perfiles):
+    filas = filas_exportables_perfiles(perfiles)
+    if not filas:
+        pdf.setFont("Helvetica-Oblique", 10)
+        pdf.drawString(36, y, "No hay productos clasificados.")
+    for fila in filas:
         if y < 42:
             pdf.showPage()
             y = alto - 42

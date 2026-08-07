@@ -178,7 +178,11 @@ def crear_blueprint_comercial(*, dependencias):
                 if accion == "mapear":
                     encabezados = deserializar(lote.encabezados_json, [])
                     mapeo = {
-                        str(i): (request.form.get(f"col_{i}") or "").strip()
+                        str(i): (
+                            (request.form.get(f"col_{i}") or "").strip()
+                            if request.form.get(f"usar_{i}") == "1"
+                            else ""
+                        )
                         for i in range(len(encabezados))
                     }
                     vista = previsualizar(

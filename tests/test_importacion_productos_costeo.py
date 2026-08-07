@@ -45,6 +45,9 @@ def test_interfaz_tiene_flujo_y_exportaciones():
     assert "Descargar plantilla Excel" in template
     assert "Exportar Excel" in template
     assert "Exportar PDF" in template
+    assert "seleccionar-columnas" in template
+    assert "data-map-check" in template
+    assert 'name="modo"' in template
     assert "plantilla_productos_costeo" in rutas
     assert "exportar_productos_costeo" in rutas
 

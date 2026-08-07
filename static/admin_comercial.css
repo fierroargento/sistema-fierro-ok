@@ -295,11 +295,16 @@
 .import-flow span.done { border-color: #9bd8bc; background: #ecfdf3; color: #176345; }
 .import-upload { grid-template-columns: 1fr auto; }
 .mapping-table { overflow: hidden; border: 1px solid #e1e5eb; border-radius: 10px; }
-.mapping-head, .mapping-row { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 12px; align-items: center; padding: 10px 12px; border-bottom: 1px solid #e8ebf0; }
+.mapping-head, .mapping-row { display: grid; grid-template-columns: 70px 1fr 1.4fr 1fr; gap: 12px; align-items: center; padding: 10px 12px; border-bottom: 1px solid #e8ebf0; }
 .mapping-head { background: #f6f8fa; color: #667085; font-size: 11px; font-weight: 800; text-transform: uppercase; }
 .mapping-row:last-child { border-bottom: 0; }
 .mapping-row > span { overflow: hidden; color: #778294; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .mapping-row select { height: 36px; border: 1px solid #cbd2dc; border-radius: 7px; background: #fff; }
+.mapping-head label, .mapping-check { display: flex; align-items: center; gap: 6px; }
+.mapping-check input, .mapping-head input { width: 17px; height: 17px; }
+.import-mode { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; color: #445064; font-size: 12px; font-weight: 800; }
+.import-mode select { min-width: 220px; height: 36px; border: 1px solid #cbd2dc; border-radius: 7px; background: #fff; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .import-next, .confirm-import { margin-top: 14px; }
 .export-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 
