@@ -99,6 +99,45 @@ def agregar_componente_combo(
     return registro
 
 
+def crear_o_actualizar_componente_combo(
+    combo, componente, *, cantidad, observacion=None,
+    ComboProductoComponente, db_session, commit=True,
+):
+    if combo is None or combo.tipo != "combo":
+        raise ValueError("El producto principal no es un combo.")
+    if componente is None or componente.tipo == "combo":
+        raise ValueError("El componente debe ser simple o de produccion.")
+    if combo.id == componente.id:
+        raise ValueError("Un combo no puede contenerse a si mismo.")
+    if (
+        int(combo.organizacion_id) != int(componente.organizacion_id)
+        or combo.unidad_negocio_id != componente.unidad_negocio_id
+    ):
+        raise ValueError("El componente debe pertenecer al mismo tenant y unidad.")
+    registro = ComboProductoComponente.query.filter_by(
+        combo_perfil_id=combo.id,
+        componente_perfil_id=componente.id,
+    ).first()
+    creado = registro is None
+    if creado:
+        registro = ComboProductoComponente(
+            combo_perfil_id=combo.id,
+            componente_perfil_id=componente.id,
+        )
+        db_session.add(registro)
+    registro.cantidad = _cantidad_positiva(cantidad)
+    registro.observacion = str(observacion or "").strip() or None
+    try:
+        if commit:
+            db_session.commit()
+        else:
+            db_session.flush()
+    except Exception:
+        db_session.rollback()
+        raise
+    return registro, creado
+
+
 def filas_exportables_perfiles(perfiles):
     """Contrato comun para futuras salidas Excel y PDF."""
     filas = []

@@ -17,10 +17,19 @@ from services.importacion_productos_costeo import (
     serializar,
     sugerir_mapeo,
 )
+from services.importacion_combos_costeo import (
+    CAMPOS_COMBOS,
+    aplicar_combos,
+    previsualizar_combos,
+    sugerir_mapeo_combo,
+)
 from services.fechas import ahora_utc_naive
 from services.exportacion_perfiles_costeo import (
+    exportar_excel_combos,
     exportar_excel_perfiles,
+    exportar_pdf_combos,
     exportar_pdf_perfiles,
+    plantilla_excel_combos,
     plantilla_excel_productos,
 )
 from services.tenant_context import TenantError, resolver_tenant_usuario
@@ -280,6 +289,96 @@ def crear_blueprint_comercial(*, dependencias):
                 as_attachment=True, download_name="productos_clasificacion.pdf",
                 mimetype="application/pdf",
             )
+        raise ValueError("Formato de exportacion no valido.")
+
+    @blueprint.route("/admin/comercial/importaciones/combos", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def importar_combos_costeo():
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        Lote = modelos["ImportacionMasivaCosto"]
+        try:
+            if request.method == "POST":
+                accion = (request.form.get("accion") or "").strip()
+                if accion == "subir":
+                    archivo = request.files.get("archivo")
+                    if archivo is None or not archivo.filename:
+                        raise ValueError("Seleccioná un archivo.")
+                    lectura = leer_archivo(archivo)
+                    lote = Lote(
+                        organizacion_id=organizacion.id, usuario_id=getattr(usuario, "id", None),
+                        tipo_datos="componentes_combos", nombre_archivo=archivo.filename,
+                        modo=(request.form.get("modo") or "crear_actualizar").strip(),
+                        nombre_hoja=lectura["hoja"], estado="cargado",
+                        encabezados_json=serializar(lectura["encabezados"]),
+                        filas_json=serializar(lectura["filas"]),
+                        mapeo_json=serializar(sugerir_mapeo_combo(lectura["encabezados"])),
+                        total_filas=len(lectura["filas"]),
+                    )
+                    db.session.add(lote); db.session.commit()
+                    return redirect(url_for("admin_comercial.importar_combos_costeo", lote=lote.id))
+                lote = Lote.query.filter_by(
+                    id=int(request.form.get("lote_id")), organizacion_id=organizacion.id,
+                    tipo_datos="componentes_combos",
+                ).first()
+                if lote is None:
+                    raise ValueError("El lote no existe.")
+                if accion == "mapear":
+                    encabezados = deserializar(lote.encabezados_json, [])
+                    mapeo = {str(i): ((request.form.get(f"col_{i}") or "").strip() if request.form.get(f"usar_{i}") == "1" else "") for i in range(len(encabezados))}
+                    vista = previsualizar_combos(
+                        deserializar(lote.filas_json, []), mapeo,
+                        organizacion_id=organizacion.id, modelos=modelos, modo=lote.modo,
+                    )
+                    lote.mapeo_json, lote.vista_previa_json = serializar(mapeo), serializar(vista)
+                    lote.estado = "mapeado"; db.session.commit()
+                elif accion == "confirmar":
+                    if lote.estado != "mapeado":
+                        raise ValueError("Primero validá el mapeo.")
+                    if lote.modo == "solo_validar":
+                        raise ValueError("El modo Solo validar no permite confirmar cambios.")
+                    conteos = aplicar_combos(
+                        deserializar(lote.vista_previa_json, []), modelos=modelos,
+                        db_session=db.session,
+                    )
+                    lote = db.session.get(Lote, lote.id)
+                    for campo, valor in conteos.items(): setattr(lote, campo, valor)
+                    lote.estado, lote.fecha_confirmacion = "confirmado", ahora_utc_naive()
+                    db.session.commit()
+                return redirect(url_for("admin_comercial.importar_combos_costeo", lote=lote.id))
+        except Exception as error:
+            db.session.rollback()
+            return redirect(url_for("admin_comercial.importar_combos_costeo", error=str(error)))
+        lote_id = request.args.get("lote", type=int)
+        lote = Lote.query.filter_by(id=lote_id, organizacion_id=organizacion.id, tipo_datos="componentes_combos").first() if lote_id else None
+        return render_template(
+            "admin_importacion_combos.html", organizacion=organizacion, lote=lote,
+            encabezados=deserializar(lote.encabezados_json, []) if lote else [],
+            filas=deserializar(lote.filas_json, []) if lote else [],
+            mapeo=deserializar(lote.mapeo_json, {}) if lote else {},
+            vista=deserializar(lote.vista_previa_json, []) if lote else [], campos=CAMPOS_COMBOS,
+            historial=Lote.query.filter_by(organizacion_id=organizacion.id, tipo_datos="componentes_combos").order_by(Lote.fecha_creacion.desc()).limit(20).all(),
+            error=(request.args.get("error") or "").strip(),
+        )
+
+    @blueprint.route("/admin/comercial/importaciones/combos/plantilla")
+    @dependencias["login_required"]
+    def plantilla_combos_costeo():
+        _usuario, _organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        return send_file(plantilla_excel_combos(), as_attachment=True, download_name="plantilla_componentes_combos.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    @blueprint.route("/admin/comercial/exportaciones/combos/<formato>")
+    @dependencias["login_required"]
+    def exportar_combos_costeo(formato):
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        combos = modelos["PerfilCosteoProducto"].query.filter_by(organizacion_id=organizacion.id, tipo="combo").all()
+        if formato == "xlsx":
+            return send_file(exportar_excel_combos(combos), as_attachment=True, download_name="componentes_combos.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        if formato == "pdf":
+            return send_file(exportar_pdf_combos(combos, organizacion.nombre), as_attachment=True, download_name="componentes_combos.pdf", mimetype="application/pdf")
         raise ValueError("Formato de exportacion no valido.")
 
     return blueprint

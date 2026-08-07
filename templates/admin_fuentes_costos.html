@@ -30,7 +30,7 @@
   </nav>
 
   <section class="comercial-section" id="productos-costeo">
-    <div class="section-heading"><div><span class="section-number">1</span><h2>Tipos de producto</h2></div><div class="section-heading-actions"><p>Simple comprado, producto fabricado o combo de productos.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_productos_costeo') }}">Importar o exportar</a></div></div>
+    <div class="section-heading"><div><span class="section-number">1</span><h2>Tipos de producto</h2></div><div class="section-heading-actions"><p>Simple comprado, producto fabricado o combo de productos.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_productos_costeo') }}">Importar productos</a><a class="section-link" href="{{ url_for('admin_comercial.importar_combos_costeo') }}">Importar combos</a></div></div>
     {% if inclusiones_costeo %}
     <form class="comercial-form form-cost-profile" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="configurar_perfil_costeo">
