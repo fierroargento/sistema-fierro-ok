@@ -121,15 +121,21 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
         try:
             if tipo == "insumos":
                 existente = modelos["InsumoProductivo"].query.filter_by(organizacion_id=organizacion_id, codigo=str(datos.get("codigo") or "").strip().lower()).first()
+                if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
+                    raise ValueError("El código ya pertenece a otra unidad")
                 if existente: ids = {"insumo_id": existente.id}
                 _numero(datos.get("precio_unitario"), "Precio unitario")
             elif tipo == "empleados":
                 existente = modelos["EmpleadoProductivo"].query.filter_by(organizacion_id=organizacion_id, codigo=str(datos.get("codigo") or "").strip().lower()).first()
+                if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
+                    raise ValueError("El código ya pertenece a otra unidad")
                 if existente: ids = {"empleado_id": existente.id}
                 for campo in ("sueldo_base", "cargas_sociales", "adicionales", "otros_costos", "horas_mensuales", "horas_productivas"):
                     datos[campo] = _numero(datos.get(campo), campo, campo in {"sueldo_base", "horas_mensuales", "horas_productivas"})
             elif tipo == "costos-fijos":
                 existente = modelos["CostoFijoProductivo"].query.filter_by(organizacion_id=organizacion_id, codigo=str(datos.get("codigo") or "").strip().lower()).first()
+                if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
+                    raise ValueError("El código ya pertenece a otra unidad")
                 if existente: ids = {"costo_fijo_id": existente.id}
                 _numero(datos.get("importe_mensual"), "Importe mensual")
             else:
@@ -149,7 +155,12 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                 recurso = modelos[nombre_modelo].query.filter_by(organizacion_id=organizacion_id, codigo=codigo).first()
                 if recurso is None or recurso.unidad_negocio_id not in {None, unidad_negocio_id}: raise ValueError("No se encontró el recurso en la unidad activa")
                 ids = {"perfil_costeo_id": perfil.id, campo_id: recurso.id}
-                existente = True
+                if linea == "insumo":
+                    existente = next((x for x in perfil.insumos_costeo if x.insumo_id == recurso.id), None)
+                elif linea in {"costo fijo", "fijo"}:
+                    existente = next((x for x in perfil.costos_fijos_costeo if x.costo_fijo_id == recurso.id), None)
+                else:
+                    existente = None
         except ValueError as error:
             errores.append(str(error))
         resultado.append({"numero": fila["numero"], "datos": datos, "ids": ids, "accion": "rechazado" if errores else "actualizar" if existente else "crear", "errores": errores})

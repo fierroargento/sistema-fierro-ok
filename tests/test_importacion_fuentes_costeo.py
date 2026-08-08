@@ -33,3 +33,26 @@ def test_importador_productivo_no_conecta_canales():
     contenido = Path("services/importacion_fuentes_costeo.py").read_text(encoding="utf-8")
     for prohibido in ("MercadoLibre", "TiendaNube", "Pedido", "Webhook", "OAuth"):
         assert prohibido not in contenido
+
+
+def test_las_cuatro_plantillas_tienen_contratos_completos():
+    for tipo, config in DEFINICIONES.items():
+        assert config["titulo"]
+        assert len(config["ejemplo"]) == len(config["campos"])
+    servicio = Path("services/importacion_fuentes_costeo.py").read_text(encoding="utf-8")
+    assert "def plantilla_excel_fuente" in servicio
+    assert "libro.save(salida)" in servicio
+
+
+def test_historial_distingue_validacion_sin_cambios():
+    template = Path("templates/admin_importacion_fuentes_costeo.html").read_text(encoding="utf-8")
+    assert "Validado sin cambios" in template
+    assert "Sin modificaciones" in template
+
+
+def test_fichas_distinguen_altas_y_actualizaciones():
+    servicio = Path("services/importacion_fuentes_costeo.py").read_text(encoding="utf-8")
+    assert "perfil.insumos_costeo" in servicio
+    assert "perfil.costos_fijos_costeo" in servicio
+    assert 'existente = None' in servicio
+    assert "El código ya pertenece a otra unidad" in servicio
