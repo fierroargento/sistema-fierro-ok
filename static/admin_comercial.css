@@ -67,6 +67,60 @@
   color: #173248;
   font-weight: 700;
 }
+
+.form-source-insumo > label:first-of-type,
+.form-source-employee > label:first-of-type,
+.form-source-fixed > label:first-of-type {
+  min-width: 175px;
+}
+
+.cost-sheet-forms {
+  display: grid;
+  gap: 12px;
+}
+
+.cost-sheet-forms .comercial-form {
+  grid-template-columns: 1.4fr 1.4fr 1fr 0.7fr auto;
+}
+
+.cost-sheet-card {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #d9e4ea;
+  border-radius: 10px;
+}
+
+.cost-sheet-lines {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.cost-sheet-lines > div {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f5f8fa;
+  font-size: 12px;
+}
+
+.cost-sheet-lines span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inline-remove {
+  border: 0;
+  background: transparent;
+  color: #a33b3b;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
 .comercial-safe strong { font-size: 13px; }
 .comercial-safe span { margin-top: 2px; font-size: 12px; }
 

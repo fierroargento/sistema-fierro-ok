@@ -28,9 +28,10 @@
 
   <nav class="comercial-steps source-steps" aria-label="Fuentes de costo productivo">
     <a href="#productos-costeo"><span>1</span>Productos</a>
-    <a href="#insumos"><span>2</span>Insumos</a>
-    <a href="#empleados"><span>3</span>Empleados</a>
-    <a href="#costos-fijos"><span>4</span>Costos fijos</a>
+    <a href="#fichas-tecnicas"><span>2</span>Fichas técnicas</a>
+    <a href="#insumos"><span>3</span>Insumos</a>
+    <a href="#empleados"><span>4</span>Empleados</a>
+    <a href="#costos-fijos"><span>5</span>Costos fijos</a>
   </nav>
 
   <section class="comercial-section" id="productos-costeo">
@@ -58,12 +59,26 @@
     {% endif %}
 
     <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Unidad</th><th>SKU</th><th>Producto</th><th>Tipo</th><th>Composición</th></tr></thead><tbody>
-      {% for perfil in perfiles_costeo %}<tr><td>{{ perfil.unidad_negocio.nombre if perfil.unidad_negocio else 'Compartido' }}</td><td><strong>{{ perfil.producto.sku }}</strong></td><td>{{ perfil.producto.descripcion }}</td><td><span class="status status-{{ 'active' if perfil.tipo == 'produccion' else 'test' if perfil.tipo == 'combo' else 'draft' }}">{{ perfil.tipo }}</span></td><td>{% if perfil.tipo == 'combo' %}{% for item in perfil.componentes_combo %}<span class="combo-component">{{ item.cantidad }} × {{ item.componente.producto.sku }}</span>{% else %}Sin componentes{% endfor %}{% else %}—{% endif %}</td></tr>{% else %}<tr><td class="empty-state" colspan="5">Todavía no hay productos clasificados.</td></tr>{% endfor %}
+      {% for perfil in perfiles_costeo %}<tr><td>{{ perfil.unidad_negocio.nombre if perfil.unidad_negocio else 'Compartido' }}</td><td><strong>{{ perfil.producto.sku }}</strong></td><td>{{ perfil.producto.descripcion }}</td><td><span class="status status-{{ 'active' if perfil.tipo == 'produccion' else 'test' if perfil.tipo == 'combo' else 'draft' }}">{{ perfil.tipo }}</span></td><td>{% if perfil.tipo == 'combo' %}{% for item in perfil.componentes_combo %}<span class="combo-component">{{ item.cantidad }} × {{ item.componente.producto.sku }}</span>{% else %}Sin componentes{% endfor %}<form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="calcular_combo"><input type="hidden" name="perfil_costeo_id" value="{{ perfil.id }}"><button class="table-action">Calcular costo del combo</button></form>{% else %}—{% endif %}</td></tr>{% else %}<tr><td class="empty-state" colspan="5">Todavía no hay productos clasificados.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
 
+  <section class="comercial-section" id="fichas-tecnicas">
+    <div class="section-heading"><div><span class="section-number">2</span><h2>Composición del costo productivo</h2></div><p>Insumos, tiempos laborales y costos fijos por unidad producida.</p></div>
+    {% if perfiles_produccion %}
+    <div class="cost-sheet-forms">
+      <form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_insumo"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }} · {{ p.producto.descripcion }}</option>{% endfor %}</select></label><label><span>Insumo</span><select name="insumo_id" required>{% for i in insumos %}<option value="{{ i.id }}">{{ i.codigo }} · {{ i.nombre }}</option>{% endfor %}</select></label><label><span>Cantidad</span><input name="cantidad" inputmode="decimal" required></label><label><span>Merma %</span><input name="merma" inputmode="decimal" value="0"></label><button class="comercial-primary">Agregar insumo</button></form>
+      <form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_operacion"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }}</option>{% endfor %}</select></label><label><span>Empleado/recurso</span><select name="empleado_id" required>{% for e in empleados %}<option value="{{ e.id }}">{{ e.nombre }} · {{ e.puesto or e.sector }}</option>{% endfor %}</select></label><label><span>Operación</span><input name="nombre_operacion" placeholder="Ej. Soldadura" required></label><label><span>Minutos</span><input name="minutos" inputmode="decimal" required></label><button class="comercial-primary">Agregar operación</button></form>
+      <form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_costo_fijo"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }}</option>{% endfor %}</select></label><label><span>Costo fijo productivo</span><select name="costo_fijo_id" required>{% for c in costos_fijos if c.integra_costo_produccion %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}</select></label><label><span>Asignación %</span><input name="porcentaje" inputmode="decimal" required></label><label><span>Unidades mensuales</span><input name="unidades_mensuales" inputmode="decimal" required></label><button class="comercial-primary">Aplicar costo fijo</button></form>
+    </div>
+    {% for perfil in perfiles_produccion %}
+    <article class="cost-sheet-card"><div class="source-card-head"><div><strong>{{ perfil.producto.sku }} · {{ perfil.producto.descripcion }}</strong><span>{{ unidad_activa.nombre }}</span></div><form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="calcular_ficha"><input type="hidden" name="perfil_costeo_id" value="{{ perfil.id }}"><button class="comercial-primary">Calcular nueva versión</button></form></div><div class="cost-sheet-lines"><div><b>Insumos</b>{% for l in perfil.insumos_costeo %}<span>{{ l.cantidad }} {{ l.insumo.unidad_medida }} · {{ l.insumo.nombre }}{% if l.porcentaje_merma %} + {{ l.porcentaje_merma }}% merma{% endif %}<form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="eliminar_linea_ficha"><input type="hidden" name="perfil_costeo_id" value="{{ perfil.id }}"><input type="hidden" name="tipo_linea" value="insumo"><input type="hidden" name="linea_id" value="{{ l.id }}"><button class="inline-remove">Quitar</button></form></span>{% else %}<span>Sin insumos</span>{% endfor %}</div><div><b>Mano de obra</b>{% for l in perfil.operaciones_costeo %}<span>{{ l.minutos }} min · {{ l.nombre }} · {{ l.empleado.nombre }}<form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="eliminar_linea_ficha"><input type="hidden" name="perfil_costeo_id" value="{{ perfil.id }}"><input type="hidden" name="tipo_linea" value="operacion"><input type="hidden" name="linea_id" value="{{ l.id }}"><button class="inline-remove">Quitar</button></form></span>{% else %}<span>Sin operaciones</span>{% endfor %}</div><div><b>Costos fijos</b>{% for l in perfil.costos_fijos_costeo %}<span>{{ l.porcentaje_asignacion }}% · {{ l.costo_fijo.nombre }} / {{ l.unidades_mensuales }} unidades<form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="eliminar_linea_ficha"><input type="hidden" name="perfil_costeo_id" value="{{ perfil.id }}"><input type="hidden" name="tipo_linea" value="fijo"><input type="hidden" name="linea_id" value="{{ l.id }}"><button class="inline-remove">Quitar</button></form></span>{% else %}<span>Sin distribución</span>{% endfor %}</div></div></article>
+    {% endfor %}
+    {% else %}<div class="prerequisite-warning">Clasificá al menos un producto como De producción para crear su ficha técnica.</div>{% endif %}
+  </section>
+
   <section class="comercial-section" id="insumos">
-    <div class="section-heading"><div><span class="section-number">2</span><h2>Insumos y precios</h2></div><p>Materias primas, consumibles, servicios y embalajes propios de producción.</p></div>
+    <div class="section-heading"><div><span class="section-number">3</span><h2>Insumos y precios</h2></div><p>Materias primas, consumibles, servicios y embalajes propios de producción.</p></div>
     <form class="comercial-form form-source-insumo" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_insumo">
       <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
@@ -89,7 +104,7 @@
   </section>
 
   <section class="comercial-section" id="empleados">
-    <div class="section-heading"><div><span class="section-number">3</span><h2>Empleados y mano de obra</h2></div><p>La tarifa se calcula con el costo laboral mensual y las horas realmente productivas.</p></div>
+    <div class="section-heading"><div><span class="section-number">4</span><h2>Empleados y mano de obra</h2></div><p>La tarifa se calcula con el costo laboral mensual y las horas realmente productivas.</p></div>
     <form class="comercial-form form-source-employee" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_empleado">
       <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
@@ -119,7 +134,7 @@
   </section>
 
   <section class="comercial-section" id="costos-fijos">
-    <div class="section-heading"><div><span class="section-number">4</span><h2>Costos fijos</h2></div><p>Solo los conceptos marcados como productivos podrán distribuirse al costo de fabricación.</p></div>
+    <div class="section-heading"><div><span class="section-number">5</span><h2>Costos fijos</h2></div><p>Solo los conceptos marcados como productivos podrán distribuirse al costo de fabricación.</p></div>
     <form class="comercial-form form-source-fixed" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_costo_fijo">
       <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>

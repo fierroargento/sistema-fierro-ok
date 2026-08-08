@@ -34,8 +34,8 @@
     <form class="comercial-form form-catalogos" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_catalogo">
       <input type="hidden" name="unidad_catalogo_id" value="{{ unidad_activa.id }}"><label><span>Unidad de negocio</span><input value="{{ unidad_activa.nombre }}" disabled></label>
-      <label><span>Código</span><input name="codigo_catalogo" maxlength="80" placeholder="Ej. fierro" required></label>
-      <label><span>Nombre</span><input name="nombre_catalogo" maxlength="150" placeholder="Ej. Catálogo Fierro" required></label>
+      <label><span>Código</span><input name="codigo_catalogo" maxlength="80" placeholder="Ej. {{ unidad_activa.codigo }}" required></label>
+      <label><span>Nombre</span><input name="nombre_catalogo" maxlength="150" placeholder="Ej. Catálogo {{ unidad_activa.nombre }}" required></label>
       <label><span>Moneda</span><input name="moneda_catalogo" value="ARS" maxlength="10"></label>
       <label><span>Descripción <small>opcional</small></span><input name="descripcion_catalogo" maxlength="500" placeholder="Uso interno"></label>
       <button class="comercial-primary" type="submit">Crear catálogo</button>

@@ -61,6 +61,8 @@ def registrar_modulos_web(
                         "EmpleadoProductivo", "EmpleadoCostoVersion",
                         "CostoFijoProductivo", "CostoFijoVersion",
                         "PerfilCosteoProducto", "ComboProductoComponente",
+                        "ProductoInsumoCosteo", "ProductoOperacionCosteo",
+                        "ProductoCostoFijoCosteo",
                         "ImportacionMasivaCosto",
                         "ListaPrecio", "PoliticaComercialLista",
                         "ListaPrecioItem",

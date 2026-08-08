@@ -268,6 +268,11 @@ from models.perfil_costeo_producto import (
     PerfilCosteoProducto,
 )
 from models.importacion_masiva_costo import ImportacionMasivaCosto
+from models.composicion_costo_producto import (
+    ProductoCostoFijoCosteo,
+    ProductoInsumoCosteo,
+    ProductoOperacionCosteo,
+)
 from models.lista_precio import ListaPrecio
 from models.politica_comercial_lista import PoliticaComercialLista
 from models.lista_precio_item import ListaPrecioItem
@@ -11703,6 +11708,9 @@ registrar_modulos_web(
             "PerfilCosteoProducto": PerfilCosteoProducto,
             "ComboProductoComponente": ComboProductoComponente,
             "ImportacionMasivaCosto": ImportacionMasivaCosto,
+            "ProductoInsumoCosteo": ProductoInsumoCosteo,
+            "ProductoOperacionCosteo": ProductoOperacionCosteo,
+            "ProductoCostoFijoCosteo": ProductoCostoFijoCosteo,
             "ListaPrecio": ListaPrecio,
             "PoliticaComercialLista": PoliticaComercialLista,
             "ListaPrecioItem": ListaPrecioItem,

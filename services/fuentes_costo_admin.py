@@ -13,6 +13,12 @@ from services.perfiles_costeo import (
     agregar_componente_combo,
     crear_o_actualizar_perfil,
 )
+from services.composicion_costo_producto import (
+    construir_detalles, construir_detalles_combo, eliminar_linea,
+    guardar_costo_fijo as guardar_fijo_ficha,
+    guardar_insumo as guardar_insumo_ficha, guardar_operacion,
+)
+from services.costos_productos import crear_version_costo
 
 
 def _id(formulario, campo, opcional=False):
@@ -106,6 +112,50 @@ def procesar_accion_fuente_costo(
             f"{item.componente.producto.sku} incorporado al combo "
             f"{item.combo.producto.sku}."
         )
+
+    if accion in {"ficha_insumo", "ficha_operacion", "ficha_costo_fijo", "calcular_ficha", "calcular_combo", "eliminar_linea_ficha"}:
+        perfil = _registro_tenant(
+            modelos["PerfilCosteoProducto"], _id(formulario, "perfil_costeo_id"),
+            organizacion.id, "El producto",
+        )
+        if perfil.unidad_negocio_id != unidad_activa.id:
+            raise ValueError("El producto no pertenece a la unidad activa.")
+        if accion == "ficha_insumo":
+            recurso = _registro_tenant(modelos["InsumoProductivo"], _id(formulario, "insumo_id"), organizacion.id, "El insumo", unidad_activa.id)
+            guardar_insumo_ficha(perfil, recurso, cantidad=formulario.get("cantidad"), merma=formulario.get("merma", 0), observacion=formulario.get("observacion"), Modelo=modelos["ProductoInsumoCosteo"], db_session=db_session)
+            return "Insumo incorporado a la ficha técnica."
+        if accion == "ficha_operacion":
+            recurso = _registro_tenant(modelos["EmpleadoProductivo"], _id(formulario, "empleado_id"), organizacion.id, "El empleado", unidad_activa.id)
+            guardar_operacion(perfil, recurso, nombre=formulario.get("nombre_operacion"), minutos=formulario.get("minutos"), observacion=formulario.get("observacion"), Modelo=modelos["ProductoOperacionCosteo"], db_session=db_session)
+            return "Operación incorporada a la ficha técnica."
+        if accion == "ficha_costo_fijo":
+            recurso = _registro_tenant(modelos["CostoFijoProductivo"], _id(formulario, "costo_fijo_id"), organizacion.id, "El costo fijo", unidad_activa.id)
+            guardar_fijo_ficha(perfil, recurso, porcentaje=formulario.get("porcentaje"), unidades_mensuales=formulario.get("unidades_mensuales"), observacion=formulario.get("observacion"), Modelo=modelos["ProductoCostoFijoCosteo"], db_session=db_session)
+            return "Costo fijo incorporado a la ficha técnica."
+        if accion == "eliminar_linea_ficha":
+            tipos = {"insumo": modelos["ProductoInsumoCosteo"], "operacion": modelos["ProductoOperacionCosteo"], "fijo": modelos["ProductoCostoFijoCosteo"]}
+            modelo = tipos.get(str(formulario.get("tipo_linea") or ""))
+            if modelo is None:
+                raise ValueError("El tipo de línea no es válido.")
+            eliminar_linea(modelo, _id(formulario, "linea_id"), perfil, db_session=db_session)
+            return "Línea eliminada de la ficha técnica."
+        detalles = (
+            construir_detalles_combo(
+                perfil, CostoProductoVersion=modelos["CostoProductoVersion"],
+            )
+            if accion == "calcular_combo" else construir_detalles(perfil)
+        )
+        version = crear_version_costo(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+            producto_id=perfil.producto_id, moneda="ARS", tipo="calculado",
+            detalles=detalles, creado_por_usuario_id=usuario_id,
+            creado_por_username=getattr(usuario, "username", None),
+            observacion=formulario.get("observacion"),
+            Organizacion=modelos["Organizacion"], UnidadNegocio=modelos["UnidadNegocio"],
+            Producto=modelos["Producto"], CostoProductoVersion=modelos["CostoProductoVersion"],
+            CostoProductoDetalle=modelos["CostoProductoDetalle"], db_session=db_session,
+        )
+        return f"Costo calculado v{version.numero_version}: ${version.costo_total_centavos / 100:.2f}."
 
     if accion == "crear_insumo":
         insumo = crear_insumo(
@@ -288,6 +338,7 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
         "perfiles_componentes": [
             perfil for perfil in perfiles if perfil.tipo in {"simple", "produccion"}
         ],
+        "perfiles_produccion": [perfil for perfil in perfiles if perfil.tipo == "produccion"],
         "insumos": modelos["InsumoProductivo"].query.filter(
             modelos["InsumoProductivo"].organizacion_id == organizacion_id,
             (modelos["InsumoProductivo"].unidad_negocio_id.is_(None))
