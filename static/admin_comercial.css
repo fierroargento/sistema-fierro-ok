@@ -121,6 +121,20 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+.cost-sources-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.cost-sources-page > .comercial-header { order: 1; }
+.cost-sources-page > .comercial-message { order: 2; }
+.cost-sources-page > .source-steps { order: 3; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.cost-sources-page > #productos-costeo { order: 4; }
+.cost-sources-page > #insumos { order: 5; }
+.cost-sources-page > #empleados { order: 6; }
+.cost-sources-page > #costos-fijos { order: 7; }
+.cost-sources-page > #fichas-tecnicas { order: 8; }
 .comercial-safe strong { font-size: 13px; }
 .comercial-safe span { margin-top: 2px; font-size: 12px; }
 

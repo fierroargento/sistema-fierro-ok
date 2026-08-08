@@ -23,6 +23,11 @@ from services.importacion_combos_costeo import (
     previsualizar_combos,
     sugerir_mapeo_combo,
 )
+from services.importacion_fuentes_costeo import (
+    aplicar_fuentes, definicion as definicion_fuente,
+    exportar_excel_tabla, exportar_pdf_tabla, plantilla_excel_fuente,
+    previsualizar_fuentes, sugerir_mapeo_fuente,
+)
 from services.fechas import ahora_utc_naive
 from services.exportacion_perfiles_costeo import (
     exportar_excel_combos,
@@ -436,5 +441,94 @@ def crear_blueprint_comercial(*, dependencias):
         if formato == "pdf":
             return send_file(exportar_pdf_combos(combos, unidad_activa.nombre), as_attachment=True, download_name="componentes_combos.pdf", mimetype="application/pdf")
         raise ValueError("Formato de exportacion no valido.")
+
+    @blueprint.route("/admin/comercial/importaciones/fuentes/<tipo>", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def importar_fuente_costeo(tipo):
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        config = definicion_fuente(tipo); Lote = modelos["ImportacionMasivaCosto"]
+        tipo_lote = f"fuente_{tipo}"
+        try:
+            if request.method == "POST":
+                accion = (request.form.get("accion") or "").strip()
+                if accion == "subir":
+                    archivo = request.files.get("archivo")
+                    if archivo is None or not archivo.filename: raise ValueError("Seleccioná un archivo.")
+                    lectura = leer_archivo(archivo)
+                    lote = Lote(
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                        usuario_id=getattr(usuario, "id", None), tipo_datos=tipo_lote,
+                        nombre_archivo=archivo.filename, nombre_hoja=lectura["hoja"],
+                        estado="cargado", modo=(request.form.get("modo") or "crear_actualizar"),
+                        encabezados_json=serializar(lectura["encabezados"]), filas_json=serializar(lectura["filas"]),
+                        mapeo_json=serializar(sugerir_mapeo_fuente(tipo, lectura["encabezados"])), total_filas=len(lectura["filas"]),
+                    )
+                    db.session.add(lote); db.session.commit()
+                    return redirect(url_for("admin_comercial.importar_fuente_costeo", tipo=tipo, lote=lote.id))
+                lote = Lote.query.filter_by(id=int(request.form.get("lote_id")), organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).first()
+                if lote is None: raise ValueError("El lote no existe en la unidad activa.")
+                if accion == "mapear":
+                    encabezados = deserializar(lote.encabezados_json, [])
+                    mapeo = {str(i): ((request.form.get(f"col_{i}") or "").strip() if request.form.get(f"usar_{i}") == "1" else "") for i in range(len(encabezados))}
+                    vista = previsualizar_fuentes(tipo, deserializar(lote.filas_json, []), mapeo, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, modelos=modelos)
+                    for fila in vista:
+                        if lote.modo == "solo_crear" and fila["accion"] == "actualizar": fila["accion"], fila["errores"] = "rechazado", ["El registro ya existe"]
+                        if lote.modo == "solo_actualizar" and fila["accion"] == "crear": fila["accion"], fila["errores"] = "rechazado", ["El registro todavía no existe"]
+                    lote.mapeo_json, lote.vista_previa_json, lote.estado = serializar(mapeo), serializar(vista), "mapeado"; db.session.commit()
+                elif accion == "confirmar":
+                    if lote.estado != "mapeado" or lote.modo == "solo_validar": raise ValueError("El lote no admite confirmación.")
+                    conteos = aplicar_fuentes(tipo, deserializar(lote.vista_previa_json, []), organizacion=organizacion, unidad_activa=unidad_activa, modelos=modelos, db_session=db.session, usuario=usuario)
+                    lote = db.session.get(Lote, lote.id)
+                    for campo, valor in conteos.items(): setattr(lote, campo, valor)
+                    lote.estado, lote.fecha_confirmacion = "confirmado", ahora_utc_naive(); db.session.commit()
+                return redirect(url_for("admin_comercial.importar_fuente_costeo", tipo=tipo, lote=lote.id))
+        except Exception as error:
+            db.session.rollback(); return redirect(url_for("admin_comercial.importar_fuente_costeo", tipo=tipo, error=str(error)))
+        lote_id = request.args.get("lote", type=int)
+        lote = Lote.query.filter_by(id=lote_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).first() if lote_id else None
+        return render_template("admin_importacion_fuentes_costeo.html", tipo=tipo, config=config, unidad_activa=unidad_activa, lote=lote, encabezados=deserializar(lote.encabezados_json, []) if lote else [], filas=deserializar(lote.filas_json, []) if lote else [], mapeo=deserializar(lote.mapeo_json, {}) if lote else {}, vista=deserializar(lote.vista_previa_json, []) if lote else [], historial=Lote.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).order_by(Lote.fecha_creacion.desc()).limit(20).all(), error=(request.args.get("error") or "").strip())
+
+    @blueprint.route("/admin/comercial/importaciones/fuentes/<tipo>/plantilla")
+    @dependencias["login_required"]
+    def plantilla_fuente_costeo(tipo):
+        _usuario, _organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        definicion_fuente(tipo)
+        return send_file(plantilla_excel_fuente(tipo), as_attachment=True, download_name=f"plantilla_{tipo}.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    @blueprint.route("/admin/comercial/exportaciones/fuentes/<tipo>/<formato>")
+    @dependencias["login_required"]
+    def exportar_fuente_costeo(tipo, formato):
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad, _unidades = contexto_comercial(organizacion); config = definicion_fuente(tipo)
+        filas = []
+        if tipo == "insumos":
+            registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["insumos"]
+            encabezados = ["CÓDIGO", "NOMBRE", "TIPO", "UNIDAD", "PRECIO"]
+            for r in registros:
+                v = next((x for x in r.versiones_precio if x.vigente), None); filas.append([r.codigo, r.nombre, r.tipo, r.unidad_medida, v.precio_unitario_centavos / 100 if v else ""])
+        elif tipo == "empleados":
+            registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["empleados"]
+            encabezados = ["CÓDIGO", "NOMBRE", "SECTOR", "PUESTO", "COSTO HORA"]
+            for r in registros:
+                v = next((x for x in r.versiones_costo if x.vigente), None); filas.append([r.codigo, r.nombre, r.sector, r.puesto, v.costo_hora_productiva_centavos / 100 if v else ""])
+        elif tipo == "costos-fijos":
+            registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["costos_fijos"]
+            encabezados = ["CÓDIGO", "NOMBRE", "CATEGORÍA", "CRITERIO", "IMPORTE"]
+            for r in registros:
+                v = next((x for x in r.versiones if x.vigente), None); filas.append([r.codigo, r.nombre, r.categoria, r.criterio_distribucion, v.importe_mensual_centavos / 100 if v else ""])
+        else:
+            registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["perfiles_produccion"]
+            encabezados = ["SKU", "TIPO", "RECURSO", "CANTIDAD", "DATO"]
+            for p in registros:
+                filas += [[p.producto.sku, "insumo", x.insumo.codigo, x.cantidad, x.porcentaje_merma] for x in p.insumos_costeo]
+                filas += [[p.producto.sku, "operacion", x.empleado.codigo, x.minutos, x.nombre] for x in p.operaciones_costeo]
+                filas += [[p.producto.sku, "costo_fijo", x.costo_fijo.codigo, x.porcentaje_asignacion, x.unidades_mensuales] for x in p.costos_fijos_costeo]
+        salida = exportar_excel_tabla(config["titulo"], encabezados, filas) if formato == "xlsx" else exportar_pdf_tabla(config["titulo"], unidad.nombre, encabezados, filas) if formato == "pdf" else None
+        if salida is None: raise ValueError("Formato no válido.")
+        return send_file(salida, as_attachment=True, download_name=f"{tipo}.{formato}", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" if formato == "xlsx" else "application/pdf")
 
     return blueprint

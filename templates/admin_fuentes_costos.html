@@ -28,10 +28,10 @@
 
   <nav class="comercial-steps source-steps" aria-label="Fuentes de costo productivo">
     <a href="#productos-costeo"><span>1</span>Productos</a>
-    <a href="#fichas-tecnicas"><span>2</span>Fichas técnicas</a>
-    <a href="#insumos"><span>3</span>Insumos</a>
-    <a href="#empleados"><span>4</span>Empleados</a>
-    <a href="#costos-fijos"><span>5</span>Costos fijos</a>
+    <a href="#insumos"><span>2</span>Insumos</a>
+    <a href="#empleados"><span>3</span>Empleados</a>
+    <a href="#costos-fijos"><span>4</span>Costos fijos</a>
+    <a href="#fichas-tecnicas"><span>5</span>Fichas técnicas</a>
   </nav>
 
   <section class="comercial-section" id="productos-costeo">
@@ -64,7 +64,7 @@
   </section>
 
   <section class="comercial-section" id="fichas-tecnicas">
-    <div class="section-heading"><div><span class="section-number">2</span><h2>Composición del costo productivo</h2></div><p>Insumos, tiempos laborales y costos fijos por unidad producida.</p></div>
+    <div class="section-heading"><div><span class="section-number">5</span><h2>Composición del costo productivo</h2></div><div class="section-heading-actions"><p>Insumos, tiempos laborales y costos fijos por unidad producida.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='fichas') }}">Importar fichas</a></div></div>
     {% if perfiles_produccion %}
     <div class="cost-sheet-forms">
       <form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_insumo"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }} · {{ p.producto.descripcion }}</option>{% endfor %}</select></label><label><span>Insumo</span><select name="insumo_id" required>{% for i in insumos %}<option value="{{ i.id }}">{{ i.codigo }} · {{ i.nombre }}</option>{% endfor %}</select></label><label><span>Cantidad</span><input name="cantidad" inputmode="decimal" required></label><label><span>Merma %</span><input name="merma" inputmode="decimal" value="0"></label><button class="comercial-primary">Agregar insumo</button></form>
@@ -78,7 +78,7 @@
   </section>
 
   <section class="comercial-section" id="insumos">
-    <div class="section-heading"><div><span class="section-number">3</span><h2>Insumos y precios</h2></div><p>Materias primas, consumibles, servicios y embalajes propios de producción.</p></div>
+    <div class="section-heading"><div><span class="section-number">2</span><h2>Insumos y precios</h2></div><div class="section-heading-actions"><p>Materias primas, consumibles, servicios y embalajes propios de producción.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='insumos') }}">Importar insumos</a></div></div>
     <form class="comercial-form form-source-insumo" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_insumo">
       <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
@@ -104,7 +104,7 @@
   </section>
 
   <section class="comercial-section" id="empleados">
-    <div class="section-heading"><div><span class="section-number">4</span><h2>Empleados y mano de obra</h2></div><p>La tarifa se calcula con el costo laboral mensual y las horas realmente productivas.</p></div>
+    <div class="section-heading"><div><span class="section-number">3</span><h2>Empleados y mano de obra</h2></div><div class="section-heading-actions"><p>La tarifa se calcula con el costo laboral mensual y las horas realmente productivas.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='empleados') }}">Importar empleados</a></div></div>
     <form class="comercial-form form-source-employee" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_empleado">
       <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
@@ -134,7 +134,7 @@
   </section>
 
   <section class="comercial-section" id="costos-fijos">
-    <div class="section-heading"><div><span class="section-number">5</span><h2>Costos fijos</h2></div><p>Solo los conceptos marcados como productivos podrán distribuirse al costo de fabricación.</p></div>
+    <div class="section-heading"><div><span class="section-number">4</span><h2>Costos fijos</h2></div><div class="section-heading-actions"><p>Solo los conceptos productivos podrán distribuirse al costo de fabricación.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='costos-fijos') }}">Importar costos fijos</a></div></div>
     <form class="comercial-form form-source-fixed" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_costo_fijo">
       <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
