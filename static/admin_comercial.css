@@ -498,6 +498,24 @@
   .import-completed-actions { justify-content:flex-start; width:100%; }
 }
 .export-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.labor-distributions { margin-top:12px; }
+.labor-distributions-content { display:grid; gap:12px; padding:14px; }
+.labor-distributions-help { margin:0; color:#667085; font-size:12px; }
+.labor-distribution-form { padding:14px; border:1px solid #dfe5ec; border-radius:10px; background:#fff; }
+.labor-distribution-title { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; }
+.labor-distribution-title > div { display:flex; flex-direction:column; gap:3px; }
+.labor-distribution-title span { color:#778294; font-size:11px; }
+.labor-total { padding:5px 9px; border-radius:999px; background:#edf8fc; color:#176b89 !important; font-weight:800; }
+.labor-distribution-head, .labor-distribution-row { display:grid; grid-template-columns:minmax(150px,1fr) 150px minmax(180px,1fr) minmax(210px,1fr); gap:10px; align-items:center; }
+.labor-distribution-head { padding:0 8px 6px; color:#667085; font-size:10px; font-weight:800; text-transform:uppercase; }
+.labor-distribution-row { padding:8px; border-top:1px solid #edf0f4; }
+.labor-distribution-row input, .labor-distribution-row select { width:100%; height:36px; padding:6px 9px; border:1px solid #cbd2dc; border-radius:7px; background:#fff; }
+.labor-distribution-row .percent-input { display:grid; grid-template-columns:1fr 28px; }
+.labor-distribution-row .percent-input input { border-radius:7px 0 0 7px; }
+.labor-distribution-row .percent-input span { display:flex; align-items:center; justify-content:center; height:36px; border:1px solid #cbd2dc; border-left:0; border-radius:0 7px 7px 0; color:#667085; font-weight:800; }
+.labor-distribution-actions { display:grid; grid-template-columns:minmax(260px,1fr) auto; gap:12px; align-items:end; margin-top:12px; }
+.labor-distribution-actions label { display:flex; flex-direction:column; gap:5px; color:#344054; font-size:11px; font-weight:800; }
+.labor-distribution-actions input { height:36px; padding:6px 9px; border:1px solid #cbd2dc; border-radius:7px; }
 
 @media (max-width: 1250px) {
   .labor-general-config { grid-template-columns:1fr 1fr; }
@@ -517,6 +535,9 @@
   .list-summary { grid-template-columns: 1fr; }
   .catalog-grid { grid-template-columns: 1fr; }
   .source-grid, .source-grid-wide { grid-template-columns: 1fr; }
+  .labor-distribution-head { display:none; }
+  .labor-distribution-row { grid-template-columns:1fr 120px; }
+  .labor-distribution-row input:not([type="hidden"]), .labor-distribution-row select { grid-column:1 / -1; }
 }
 
 @media (max-width: 560px) {
@@ -529,4 +550,6 @@
   .form-labor-resource { grid-template-columns:1fr !important; }
   .resource-actions, .resource-actions form { align-items:stretch; flex-direction:column; }
   .resource-actions select, .resource-actions input, .resource-actions .compact-field input { width:100%; min-width:0; }
+  .labor-distribution-title { align-items:flex-start; flex-direction:column; }
+  .labor-distribution-row, .labor-distribution-actions { grid-template-columns:1fr; }
 }

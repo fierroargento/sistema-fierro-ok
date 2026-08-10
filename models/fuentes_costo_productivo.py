@@ -312,6 +312,63 @@ class ConfiguracionCostoLaboralVersion(db.Model):
     unidad_negocio = db.relationship("UnidadNegocio")
 
 
+class EmpleadoDistribucionVersion(db.Model):
+    """Asignación histórica del costo laboral entre unidades de negocio."""
+
+    __tablename__ = "empleado_distribucion_version"
+    __table_args__ = (
+        CheckConstraint(
+            "porcentaje_asignacion > 0 AND porcentaje_asignacion <= 100",
+            name="ck_empleado_distribucion_porcentaje",
+        ),
+        CheckConstraint(
+            "tipo_funcion IN ('directa', 'indirecta_productiva', "
+            "'comercial_administrativa', 'mixta')",
+            name="ck_empleado_distribucion_funcion",
+        ),
+        UniqueConstraint(
+            "empleado_id", "numero_revision", "unidad_negocio_id",
+            name="uq_empleado_distribucion_revision_unidad",
+        ),
+        Index(
+            "ix_empleado_distribucion_vigente",
+            "empleado_id", "vigente",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True,
+    )
+    empleado_id = db.Column(
+        db.Integer, db.ForeignKey("empleado_productivo.id"),
+        nullable=False, index=True,
+    )
+    unidad_negocio_id = db.Column(
+        db.Integer, db.ForeignKey("unidad_negocio.id"),
+        nullable=False, index=True,
+    )
+    numero_revision = db.Column(db.Integer, nullable=False)
+    ubicacion_trabajo = db.Column(db.String(120), nullable=False)
+    tipo_funcion = db.Column(db.String(30), nullable=False, index=True)
+    porcentaje_asignacion = db.Column(db.Numeric(9, 4), nullable=False)
+    vigente = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    vigente_desde = db.Column(db.DateTime, nullable=False, index=True)
+    vigente_hasta = db.Column(db.DateTime)
+    observacion = db.Column(db.String(500))
+    creado_por_usuario_id = db.Column(
+        db.Integer, db.ForeignKey("usuario_sistema.id"), nullable=True,
+    )
+    fecha_creacion = db.Column(
+        db.DateTime, default=ahora_utc_naive, nullable=False,
+    )
+
+    empleado = db.relationship(
+        "EmpleadoProductivo", backref="distribuciones_versionadas",
+    )
+    unidad_negocio = db.relationship("UnidadNegocio")
+
+
 class CostoFijoProductivo(db.Model):
     """Concepto fijo, productivo o general, administrado por tenant."""
 

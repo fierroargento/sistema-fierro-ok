@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260810-9') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260810-10') }}">
 <script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260810-3') }}" defer></script>
 {% endblock %}
 
@@ -179,6 +179,37 @@
         data-horas-productivas="{{ numero_decimal_limpio(actual.horas_productivas) }}"></span>
       {% endif %}{% endfor %}
     </div>
+    <details class="labor-distributions source-catalog">
+      <summary><span>Distribuir costos laborales entre unidades</span><strong>{{ empleados|length }}</strong></summary>
+      <div class="labor-distributions-content">
+        <p class="labor-distributions-help">Asigná el costo mensual de cada empleado entre las unidades. Cada revisión debe sumar exactamente 100% y conserva su historial.</p>
+        {% for empleado in empleados %}
+        {% set asignaciones = distribuciones_laborales.get(empleado.id, {}) %}
+        {% set vigente = empleado.versiones_costo|selectattr('vigente')|first %}
+        <form class="labor-distribution-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+          <input type="hidden" name="accion" value="configurar_distribucion_laboral">
+          <input type="hidden" name="empleado_id" value="{{ empleado.id }}">
+          <div class="labor-distribution-title">
+            <div><strong>{{ empleado.nombre }}</strong><span>{{ empleado.codigo }} · {{ empleado.puesto or empleado.sector }}</span></div>
+            <span class="labor-total">Total requerido: 100%</span>
+          </div>
+          <div class="labor-distribution-head"><span>Unidad</span><span>Participación</span><span>Ubicación</span><span>Función</span></div>
+          {% for unidad in unidades %}
+          {% set asignacion = asignaciones.get(unidad.id) %}
+          <div class="labor-distribution-row">
+            <input type="hidden" name="distribucion_unidad_id" value="{{ unidad.id }}">
+            <strong>{{ unidad.nombre }}</strong>
+            <div class="percent-input"><input name="distribucion_porcentaje" inputmode="decimal" value="{% if asignacion %}{{ numero_decimal_limpio(asignacion.porcentaje_asignacion) }}{% elif not asignaciones and unidad.id == unidad_activa.id %}100{% else %}0{% endif %}" required><span>%</span></div>
+            <input name="distribucion_ubicacion" maxlength="120" value="{% if asignacion %}{{ asignacion.ubicacion_trabajo }}{% elif not asignaciones and unidad.id == unidad_activa.id and vigente %}{{ vigente.ubicacion_trabajo }}{% endif %}" placeholder="Ej. Taller o salón">
+            {% set funcion = asignacion.tipo_funcion if asignacion else (vigente.tipo_funcion if not asignaciones and unidad.id == unidad_activa.id and vigente else 'directa') %}
+            <select name="distribucion_funcion"><option value="directa" {% if funcion == 'directa' %}selected{% endif %}>Directa productiva</option><option value="indirecta_productiva" {% if funcion == 'indirecta_productiva' %}selected{% endif %}>Indirecta productiva</option><option value="comercial_administrativa" {% if funcion == 'comercial_administrativa' %}selected{% endif %}>Comercial / administrativa</option><option value="mixta" {% if funcion == 'mixta' %}selected{% endif %}>Mixta</option></select>
+          </div>
+          {% endfor %}
+          <div class="labor-distribution-actions"><label><span>Observación <small>opcional</small></span><input name="observacion_distribucion" placeholder="Ej. distribución vigente desde agosto"></label><button class="table-action" type="submit">Guardar distribución</button></div>
+        </form>
+        {% endfor %}
+      </div>
+    </details>
     {% else %}<p class="empty-card">Todavía no hay empleados cargados.</p>{% endif %}
   </section>
 

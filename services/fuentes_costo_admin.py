@@ -31,6 +31,10 @@ from services.configuracion_costo_laboral import (
     registrar_configuracion,
     validar_porcentaje,
 )
+from services.distribucion_laboral import (
+    distribuciones_vigentes,
+    registrar_distribucion,
+)
 
 
 def _id(formulario, campo, opcional=False):
@@ -73,6 +77,41 @@ def procesar_accion_fuente_costo(
     if unidad_solicitada not in {None, unidad_activa.id}:
         raise ValueError("La fuente no pertenece a la unidad activa.")
     comunes["unidad_negocio_id"] = unidad_solicitada
+
+    if accion == "configurar_distribucion_laboral":
+        empleado = _registro_tenant(
+            modelos["EmpleadoProductivo"],
+            _id(formulario, "empleado_id"), organizacion.id,
+            "El empleado", unidad_activa.id,
+        )
+        campos = zip(
+            formulario.getlist("distribucion_unidad_id"),
+            formulario.getlist("distribucion_porcentaje"),
+            formulario.getlist("distribucion_ubicacion"),
+            formulario.getlist("distribucion_funcion"),
+        )
+        filas = [
+            {
+                "unidad_negocio_id": unidad_id,
+                "porcentaje_asignacion": porcentaje,
+                "ubicacion_trabajo": ubicacion,
+                "tipo_funcion": funcion,
+            }
+            for unidad_id, porcentaje, ubicacion, funcion in campos
+        ]
+        unidades = modelos["UnidadNegocio"].query.filter_by(
+            organizacion_id=organizacion.id,
+        ).all()
+        revision, _creadas = registrar_distribucion(
+            empleado, filas,
+            organizacion_id=organizacion.id,
+            unidades_validas=unidades,
+            Modelo=modelos["EmpleadoDistribucionVersion"],
+            db_session=db_session,
+            usuario_id=usuario_id,
+            observacion=formulario.get("observacion_distribucion"),
+        )
+        return f"Distribución de {empleado.nombre} guardada en revisión {revision}."
 
     if accion == "configurar_porcentaje_costo_laboral":
         version = registrar_configuracion(
@@ -509,6 +548,12 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
         Catalogo.unidad_negocio_id == unidad_negocio_id,
         modelos["CatalogoProducto"].activo.is_(True),
     ).order_by(modelos["CatalogoProducto"].nombre_comercial).all()
+    empleados = modelos["EmpleadoProductivo"].query.filter(
+        modelos["EmpleadoProductivo"].organizacion_id == organizacion_id,
+        modelos["EmpleadoProductivo"].tipo_registro == "empleado",
+        (modelos["EmpleadoProductivo"].unidad_negocio_id.is_(None))
+        | (modelos["EmpleadoProductivo"].unidad_negocio_id == unidad_negocio_id),
+    ).order_by(modelos["EmpleadoProductivo"].nombre).all()
     return {
         "configuracion_costo_laboral": configuracion_vigente(
             organizacion_id, unidad_negocio_id,
@@ -526,12 +571,10 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
             (modelos["InsumoProductivo"].unidad_negocio_id.is_(None))
             | (modelos["InsumoProductivo"].unidad_negocio_id == unidad_negocio_id),
         ).order_by(modelos["InsumoProductivo"].nombre).all(),
-        "empleados": modelos["EmpleadoProductivo"].query.filter(
-            modelos["EmpleadoProductivo"].organizacion_id == organizacion_id,
-            modelos["EmpleadoProductivo"].tipo_registro == "empleado",
-            (modelos["EmpleadoProductivo"].unidad_negocio_id.is_(None))
-            | (modelos["EmpleadoProductivo"].unidad_negocio_id == unidad_negocio_id),
-        ).order_by(modelos["EmpleadoProductivo"].nombre).all(),
+        "empleados": empleados,
+        "distribuciones_laborales": distribuciones_vigentes(
+            empleados, Modelo=modelos["EmpleadoDistribucionVersion"],
+        ),
         "recursos_productivos": modelos["EmpleadoProductivo"].query.filter(
             modelos["EmpleadoProductivo"].organizacion_id == organizacion_id,
             modelos["EmpleadoProductivo"].tipo_registro == "recurso",
