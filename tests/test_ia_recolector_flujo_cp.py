@@ -90,6 +90,7 @@ def ejecutar(
             puede_enviar_fn=lambda *args, **kwargs: (True, ""),
             enviar_mensaje_fn=lambda *args, **kwargs: (True, ""),
             registrar_envio_fn=lambda *args, **kwargs: None,
+            intentar_cross_sell_fn=lambda *args, **kwargs: None,
             wa_auto_iniciar_fn=lambda *args, **kwargs: None,
             db_session=SimpleNamespace(),
             logger_fn=lambda mensaje: None,

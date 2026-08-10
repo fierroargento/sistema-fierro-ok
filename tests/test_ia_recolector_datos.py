@@ -140,6 +140,7 @@ def _pedido_autocompletar(**cambios):
         "id": 10,
         "cliente": "",
         "ml_buyer_nickname": "",
+        "ml_nombre_real": False,
         "dni": "",
         "telefono": "",
         "direccion": "",
@@ -218,6 +219,58 @@ def test_autocompletar_no_pisa_campos_existentes():
     assert pedido.telefono == "2920999999"
     assert pedido.direccion == "Dirección Manual"
     assert pedido.codigo_postal == "9000"
+
+
+def test_autocompletar_reemplaza_alias_ml_sin_nickname_con_nombre_confirmado():
+    from services.ia_recolector_datos import (
+        ia_autocompletar_pedido_con_datos,
+    )
+
+    pedido = _pedido_autocompletar(
+        cliente="SEBA CHUKI",
+        ml_buyer_nickname="",
+        ml_nombre_real=False,
+    )
+
+    completados = ia_autocompletar_pedido_con_datos(
+        pedido,
+        {
+            "nombre": "Sebastián Alberto",
+            "apellido": "Vacaflor",
+            "dni": "27.979.807",
+        },
+        texto_cliente=(
+            "Sebastián Alberto Vacaflor\n"
+            "27.979.807\nResistencia-Chaco"
+        ),
+    )
+
+    assert pedido.cliente == "Sebastián Alberto Vacaflor"
+    assert pedido.ml_nombre_real is True
+    assert "cliente" in completados
+
+
+def test_autocompletar_no_reemplaza_nombre_real_confirmado():
+    from services.ia_recolector_datos import (
+        ia_autocompletar_pedido_con_datos,
+    )
+
+    pedido = _pedido_autocompletar(
+        cliente="NOMBRE REAL",
+        ml_nombre_real=True,
+    )
+
+    ia_autocompletar_pedido_con_datos(
+        pedido,
+        {
+            "nombre": "Otro",
+            "apellido": "Cliente",
+            "dni": "27.979.807",
+        },
+        texto_cliente="Otro Cliente 27.979.807",
+    )
+
+    assert pedido.cliente == "NOMBRE REAL"
 
 
 def test_autocompletar_datos_autorizado_no_pisa_titular():

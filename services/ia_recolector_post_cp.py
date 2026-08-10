@@ -30,6 +30,11 @@ def procesar_post_codigo_postal_recolector(
     db_session,
     es_afirmativo_fn: Callable[..., Any],
     auto_responder_fn: Callable[..., Any],
+    puede_enviar_fn: Callable[..., Any] | None = None,
+    enviar_mensaje_fn: Callable[..., Any] | None = None,
+    registrar_envio_fn: Callable[..., Any] | None = None,
+    intentar_cross_sell_fn: Callable[..., Any] | None = None,
+    wa_auto_iniciar_fn: Callable[..., Any] | None = None,
     logger_fn=print,
 ):
     """Confirma sucursal temprano o reengancha la automatización."""
@@ -51,6 +56,11 @@ def procesar_post_codigo_postal_recolector(
                 es_afirmativo_fn=(
                     es_afirmativo_fn
                 ),
+                puede_enviar_fn=puede_enviar_fn,
+                enviar_mensaje_fn=enviar_mensaje_fn,
+                registrar_envio_fn=registrar_envio_fn,
+                intentar_cross_sell_fn=intentar_cross_sell_fn,
+                wa_auto_iniciar_fn=wa_auto_iniciar_fn,
             )
         )
         confirmacion = getattr(

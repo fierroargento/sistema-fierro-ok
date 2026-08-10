@@ -40,6 +40,7 @@ def procesar_flujo_codigo_postal_recolector(
     puede_enviar_fn: Callable[..., Any],
     enviar_mensaje_fn: Callable[..., Any],
     registrar_envio_fn: Callable[..., Any],
+    intentar_cross_sell_fn: Callable[..., Any],
     wa_auto_iniciar_fn: Callable[..., Any],
     db_session: Any,
     logger_fn: Callable[[str], Any] = print,
@@ -88,6 +89,11 @@ def procesar_flujo_codigo_postal_recolector(
         db_session=db_session,
         es_afirmativo_fn=es_afirmativo_fn,
         auto_responder_fn=auto_responder_fn,
+        puede_enviar_fn=puede_enviar_fn,
+        enviar_mensaje_fn=enviar_mensaje_fn,
+        registrar_envio_fn=registrar_envio_fn,
+        intentar_cross_sell_fn=intentar_cross_sell_fn,
+        wa_auto_iniciar_fn=wa_auto_iniciar_fn,
         logger_fn=logger_fn,
     )
 

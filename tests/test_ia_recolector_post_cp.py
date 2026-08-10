@@ -61,6 +61,40 @@ def test_confirmacion_persistida_finaliza_sin_reenganche():
     assert llamados_auto == []
 
 
+def test_confirmacion_temprana_recibe_transicion_antes_de_wa():
+    pedido = SimpleNamespace(id=1188)
+    orden = []
+
+    def orquestar(*_args, **dependencias):
+        dependencias["enviar_mensaje_fn"](
+            pedido,
+            "Continuamos por WhatsApp",
+        )
+        dependencias["wa_auto_iniciar_fn"](
+            pedido,
+        )
+        return SimpleNamespace(
+            confirmacion=SimpleNamespace(confirmada=True),
+            persistida=True,
+        )
+
+    resultado = procesar_post_codigo_postal_recolector(
+        pedido,
+        "Perfecto",
+        orquestar_confirmacion_fn=orquestar,
+        auto_responder_fn=lambda _pedido: None,
+        puede_enviar_fn=lambda **_kwargs: (True, "ok"),
+        enviar_mensaje_fn=lambda *_args, **_kwargs: orden.append("ml"),
+        registrar_envio_fn=lambda **_kwargs: None,
+        intentar_cross_sell_fn=lambda *_args, **_kwargs: None,
+        wa_auto_iniciar_fn=lambda *_args, **_kwargs: orden.append("wa"),
+        **dependencias_base(),
+    )
+
+    assert resultado.persistida is True
+    assert orden == ["ml", "wa"]
+
+
 def test_sin_persistencia_reengancha_flujo():
     pedido = SimpleNamespace(id=11)
     confirmacion = SimpleNamespace(

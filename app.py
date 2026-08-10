@@ -4233,7 +4233,7 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
                 procesar_post_codigo_postal_recolector
             ),
             orquestar_confirmacion_temprana_fn=(
-                orquestar_confirmacion_sucursal_temprana
+                orquestar_confirmacion_sucursal_comun_ml
             ),
             despacho_completo_fn=despacho_completo,
             actualizar_estado_fn=(
@@ -4267,6 +4267,9 @@ def ia_analizar_ultimo_mensaje_pedido(pedido, mensajes, seller_id="", forzar=Fal
             ),
             registrar_envio_fn=(
                 registrar_envio_automatico
+            ),
+            intentar_cross_sell_fn=(
+                intentar_wa_cross_sell_tras_sucursal_ml
             ),
             wa_auto_iniciar_fn=(
                 wa_auto_iniciar_desde_ml_si_corresponde

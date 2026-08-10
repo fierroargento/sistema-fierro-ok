@@ -492,12 +492,36 @@ def ia_autocompletar_pedido_con_datos(pedido, datos, texto_cliente=""):
             completados.append("autorizado_telefono")
     else:
         cliente_actual = str(getattr(pedido, "cliente", "") or "").strip()
-        puede_reemplazar_cliente = ia_campo_vacio(cliente_actual) or parece_nickname_ml(cliente_actual, getattr(pedido, "ml_buyer_nickname", ""))
+        dni_detectado = ia_dni_valido(datos.get("dni"))
+        nombre_explicito_confiable = bool(
+            nombre_completo
+            and len(nombre_completo.split()) >= 2
+            and dni_detectado
+        )
+        cliente_actual_parece_alias = bool(
+            cliente_actual
+            and cliente_actual == cliente_actual.upper()
+            and any(caracter.isalpha() for caracter in cliente_actual)
+            and not bool(getattr(pedido, "ml_nombre_real", False))
+        )
+        puede_reemplazar_cliente = (
+            ia_campo_vacio(cliente_actual)
+            or parece_nickname_ml(
+                cliente_actual,
+                getattr(pedido, "ml_buyer_nickname", ""),
+            )
+            or (
+                cliente_actual_parece_alias
+                and nombre_explicito_confiable
+            )
+        )
         if nombre_completo and puede_reemplazar_cliente:
             pedido.cliente = nombre_completo
+            if hasattr(pedido, "ml_nombre_real"):
+                pedido.ml_nombre_real = True
             completados.append("cliente")
 
-        dni = ia_dni_valido(datos.get("dni"))
+        dni = dni_detectado
         if dni and ia_campo_vacio(getattr(pedido, "dni", "")):
             pedido.dni = dni
             completados.append("dni")
