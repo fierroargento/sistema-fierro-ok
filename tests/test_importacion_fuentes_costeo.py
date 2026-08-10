@@ -10,9 +10,10 @@ from services.importacion_fuentes_costeo import (
 
 
 def test_cada_conjunto_tiene_campos_y_plantilla_propia():
-    assert set(DEFINICIONES) == {"insumos", "empleados", "costos-fijos", "fichas"}
+    assert set(DEFINICIONES) == {"insumos", "empleados", "recursos", "costos-fijos", "fichas"}
     assert "precio_unitario" in DEFINICIONES["insumos"]["campos"]
     assert "horas_productivas" in DEFINICIONES["empleados"]["campos"]
+    assert "porcentaje_dedicacion" in DEFINICIONES["recursos"]["campos"]
     assert "importe_mensual" in DEFINICIONES["costos-fijos"]["campos"]
     assert "tipo_linea" in DEFINICIONES["fichas"]["campos"]
 
@@ -41,7 +42,7 @@ def test_importador_productivo_no_conecta_canales():
         assert prohibido not in contenido
 
 
-def test_las_cuatro_plantillas_tienen_contratos_completos():
+def test_las_cinco_plantillas_tienen_contratos_completos():
     for tipo, config in DEFINICIONES.items():
         assert config["titulo"]
         assert len(config["ejemplo"]) == len(config["campos"])

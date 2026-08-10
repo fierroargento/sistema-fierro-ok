@@ -19,6 +19,12 @@ from services.composicion_costo_producto import (
     guardar_insumo as guardar_insumo_ficha, guardar_operacion,
 )
 from services.costos_productos import crear_version_costo
+from services.recursos_productivos import (
+    crear_recurso,
+    recalcular_recursos_del_empleado,
+    recalcular_tarifa_recurso,
+    vincular_empleado,
+)
 
 
 def _id(formulario, campo, opcional=False):
@@ -61,6 +67,79 @@ def procesar_accion_fuente_costo(
     if unidad_solicitada not in {None, unidad_activa.id}:
         raise ValueError("La fuente no pertenece a la unidad activa.")
     comunes["unidad_negocio_id"] = unidad_solicitada
+
+    if accion == "crear_recurso_productivo":
+        recurso = crear_recurso(
+            **comunes,
+            codigo=formulario.get("codigo"),
+            nombre=formulario.get("nombre"),
+            sector=formulario.get("sector"),
+            porcentaje_indirecto=formulario.get("porcentaje_indirecto", 0),
+            observacion=formulario.get("observacion"),
+            EmpleadoProductivo=modelos["EmpleadoProductivo"],
+        )
+        return f"Recurso productivo {recurso.nombre} creado."
+
+    if accion in {
+        "vincular_empleado_recurso", "recalcular_recurso_productivo",
+        "desvincular_empleado_recurso",
+    }:
+        recurso = _registro_tenant(
+            modelos["EmpleadoProductivo"],
+            _id(formulario, "recurso_id"), organizacion.id,
+            "El recurso", unidad_activa.id,
+        )
+        if recurso.tipo_registro != "recurso":
+            raise ValueError("El registro seleccionado no es un recurso productivo.")
+        if accion == "vincular_empleado_recurso":
+            empleado = _registro_tenant(
+                modelos["EmpleadoProductivo"],
+                _id(formulario, "empleado_id"), organizacion.id,
+                "El empleado", unidad_activa.id,
+            )
+            vincular_empleado(
+                recurso, empleado,
+                porcentaje_dedicacion=formulario.get("porcentaje_dedicacion", 100),
+                observacion=formulario.get("observacion"),
+                RecursoEmpleadoProductivo=modelos["RecursoEmpleadoProductivo"],
+                db_session=db_session,
+            )
+            version, _valores = recalcular_tarifa_recurso(
+                recurso,
+                EmpleadoCostoVersion=modelos["EmpleadoCostoVersion"],
+                db_session=db_session, usuario_id=usuario_id,
+            )
+            return (
+                f"{empleado.nombre} incorporado a {recurso.nombre}. "
+                f"Tarifa: ${version.costo_hora_productiva_centavos / 100:.2f}/h."
+            )
+        if accion == "desvincular_empleado_recurso":
+            vinculo = modelos["RecursoEmpleadoProductivo"].query.filter_by(
+                id=_id(formulario, "vinculo_id"), recurso_id=recurso.id,
+            ).first()
+            if vinculo is None:
+                raise ValueError("La asignación no pertenece al recurso.")
+            db_session.delete(vinculo)
+            db_session.commit()
+            if recurso.miembros_recurso:
+                recalcular_tarifa_recurso(
+                    recurso,
+                    EmpleadoCostoVersion=modelos["EmpleadoCostoVersion"],
+                    db_session=db_session, usuario_id=usuario_id,
+                )
+            return "Empleado retirado del recurso productivo."
+        recurso.porcentaje_indirecto = formulario.get(
+            "porcentaje_indirecto", recurso.porcentaje_indirecto,
+        )
+        version, _valores = recalcular_tarifa_recurso(
+            recurso,
+            EmpleadoCostoVersion=modelos["EmpleadoCostoVersion"],
+            db_session=db_session, usuario_id=usuario_id,
+        )
+        return (
+            f"Tarifa de {recurso.nombre} actualizada: "
+            f"${version.costo_hora_productiva_centavos / 100:.2f}/h."
+        )
 
     if accion == "configurar_perfil_costeo":
         inclusion = modelos["CatalogoProducto"].query.get(
@@ -125,7 +204,16 @@ def procesar_accion_fuente_costo(
             guardar_insumo_ficha(perfil, recurso, cantidad=formulario.get("cantidad"), merma=formulario.get("merma", 0), observacion=formulario.get("observacion"), Modelo=modelos["ProductoInsumoCosteo"], db_session=db_session)
             return "Insumo incorporado a la ficha técnica."
         if accion == "ficha_operacion":
-            recurso = _registro_tenant(modelos["EmpleadoProductivo"], _id(formulario, "empleado_id"), organizacion.id, "El empleado", unidad_activa.id)
+            recurso = _registro_tenant(
+                modelos["EmpleadoProductivo"],
+                _id(
+                    formulario,
+                    "recurso_laboral_id"
+                    if formulario.get("recurso_laboral_id")
+                    else "empleado_id",
+                ),
+                organizacion.id, "El recurso laboral", unidad_activa.id,
+            )
             guardar_operacion(perfil, recurso, nombre=formulario.get("nombre_operacion"), minutos=formulario.get("minutos"), observacion=formulario.get("observacion"), Modelo=modelos["ProductoOperacionCosteo"], db_session=db_session, registro_id=formulario.get("operacion_id"))
             return "Operación incorporada a la ficha técnica."
         if accion == "ficha_costo_fijo":
@@ -244,6 +332,11 @@ def procesar_accion_fuente_costo(
             EmpleadoCostoVersion=modelos["EmpleadoCostoVersion"],
             db_session=db_session,
         )
+        recalcular_recursos_del_empleado(
+            empleado,
+            EmpleadoCostoVersion=modelos["EmpleadoCostoVersion"],
+            db_session=db_session, usuario_id=usuario_id,
+        )
         return (
             f"Empleado {empleado.nombre} creado. "
             f"Costo por hora: ${tarifa.costo_hora_productiva_centavos / 100:.2f}."
@@ -282,6 +375,11 @@ def procesar_accion_fuente_costo(
             creado_por_usuario_id=usuario_id,
             EmpleadoCostoVersion=modelos["EmpleadoCostoVersion"],
             db_session=db_session,
+        )
+        recalcular_recursos_del_empleado(
+            empleado,
+            EmpleadoCostoVersion=modelos["EmpleadoCostoVersion"],
+            db_session=db_session, usuario_id=usuario_id,
         )
         return f"Costo laboral de {empleado.nombre} actualizado a version {version.numero_version}."
 
@@ -375,6 +473,13 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
         ).order_by(modelos["InsumoProductivo"].nombre).all(),
         "empleados": modelos["EmpleadoProductivo"].query.filter(
             modelos["EmpleadoProductivo"].organizacion_id == organizacion_id,
+            modelos["EmpleadoProductivo"].tipo_registro == "empleado",
+            (modelos["EmpleadoProductivo"].unidad_negocio_id.is_(None))
+            | (modelos["EmpleadoProductivo"].unidad_negocio_id == unidad_negocio_id),
+        ).order_by(modelos["EmpleadoProductivo"].nombre).all(),
+        "recursos_productivos": modelos["EmpleadoProductivo"].query.filter(
+            modelos["EmpleadoProductivo"].organizacion_id == organizacion_id,
+            modelos["EmpleadoProductivo"].tipo_registro == "recurso",
             (modelos["EmpleadoProductivo"].unidad_negocio_id.is_(None))
             | (modelos["EmpleadoProductivo"].unidad_negocio_id == unidad_negocio_id),
         ).order_by(modelos["EmpleadoProductivo"].nombre).all(),

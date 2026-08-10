@@ -5,6 +5,38 @@ No elimina columnas ni modifica flujos operativos.
 """
 
 
+def asegurar_recursos_mano_obra(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Completa el maestro laboral legacy sin alterar empleados existentes."""
+    inspector = inspect_fn(db.engine)
+    if "empleado_productivo" not in inspector.get_table_names():
+        return {"columnas_creadas": []}
+    columnas = {
+        columna["name"]
+        for columna in inspector.get_columns("empleado_productivo")
+    }
+    creadas = []
+    if "tipo_registro" not in columnas:
+        db.session.execute(text_fn(
+            "ALTER TABLE empleado_productivo "
+            "ADD COLUMN tipo_registro VARCHAR(20) NOT NULL DEFAULT 'empleado'"
+        ))
+        creadas.append("tipo_registro")
+    if "porcentaje_indirecto" not in columnas:
+        db.session.execute(text_fn(
+            "ALTER TABLE empleado_productivo "
+            "ADD COLUMN porcentaje_indirecto NUMERIC(9, 4) NOT NULL DEFAULT 0"
+        ))
+        creadas.append("porcentaje_indirecto")
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_empleado_productivo_tipo_registro "
+        "ON empleado_productivo (tipo_registro)"
+    ))
+    db.session.commit()
+    if creadas and logger_fn is not None:
+        logger_fn("[SAAS] Recursos productivos habilitados en mano de obra.")
+    return {"columnas_creadas": creadas}
+
+
 def asegurar_unidad_importacion_costos(*, db, inspect_fn, text_fn, logger_fn=print):
     """Agrega alcance por unidad a lotes comerciales sin alterar lotes previos."""
     inspector = inspect_fn(db.engine)

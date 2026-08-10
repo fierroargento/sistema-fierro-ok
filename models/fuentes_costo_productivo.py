@@ -103,6 +103,14 @@ class EmpleadoProductivo(db.Model):
             "organizacion_id", "codigo",
             name="uq_empleado_productivo_organizacion_codigo",
         ),
+        CheckConstraint(
+            "tipo_registro IN ('empleado', 'recurso')",
+            name="ck_empleado_productivo_tipo_registro",
+        ),
+        CheckConstraint(
+            "porcentaje_indirecto >= 0 AND porcentaje_indirecto <= 100",
+            name="ck_empleado_productivo_indirecto",
+        ),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -116,6 +124,12 @@ class EmpleadoProductivo(db.Model):
     nombre = db.Column(db.String(200), nullable=False, index=True)
     sector = db.Column(db.String(120), nullable=False, index=True)
     puesto = db.Column(db.String(120))
+    tipo_registro = db.Column(
+        db.String(20), default="empleado", nullable=False, index=True,
+    )
+    porcentaje_indirecto = db.Column(
+        db.Numeric(9, 4), default=0, nullable=False,
+    )
     activo = db.Column(db.Boolean, default=True, nullable=False, index=True)
     observacion = db.Column(db.String(500))
     fecha_creacion = db.Column(
@@ -123,6 +137,48 @@ class EmpleadoProductivo(db.Model):
     )
 
     unidad_negocio = db.relationship("UnidadNegocio")
+
+
+class RecursoEmpleadoProductivo(db.Model):
+    """Participacion de un empleado en la tarifa ponderada de un recurso."""
+
+    __tablename__ = "recurso_empleado_productivo"
+    __table_args__ = (
+        UniqueConstraint(
+            "recurso_id", "empleado_id",
+            name="uq_recurso_empleado_productivo",
+        ),
+        CheckConstraint(
+            "porcentaje_dedicacion > 0 AND porcentaje_dedicacion <= 100",
+            name="ck_recurso_empleado_dedicacion",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    recurso_id = db.Column(
+        db.Integer, db.ForeignKey("empleado_productivo.id"),
+        nullable=False, index=True,
+    )
+    empleado_id = db.Column(
+        db.Integer, db.ForeignKey("empleado_productivo.id"),
+        nullable=False, index=True,
+    )
+    porcentaje_dedicacion = db.Column(
+        db.Numeric(9, 4), default=100, nullable=False,
+    )
+    observacion = db.Column(db.String(500))
+    fecha_creacion = db.Column(
+        db.DateTime, default=ahora_utc_naive, nullable=False,
+    )
+
+    recurso = db.relationship(
+        "EmpleadoProductivo", foreign_keys=[recurso_id],
+        backref="miembros_recurso",
+    )
+    empleado = db.relationship(
+        "EmpleadoProductivo", foreign_keys=[empleado_id],
+        backref="participaciones_recurso",
+    )
 
 
 class EmpleadoCostoVersion(db.Model):

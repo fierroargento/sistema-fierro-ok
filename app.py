@@ -262,6 +262,7 @@ from models.fuentes_costo_productivo import (
     EmpleadoProductivo,
     InsumoPrecioVersion,
     InsumoProductivo,
+    RecursoEmpleadoProductivo,
 )
 from models.perfil_costeo_producto import (
     ComboProductoComponente,
@@ -11708,6 +11709,7 @@ registrar_modulos_web(
             "InsumoPrecioVersion": InsumoPrecioVersion,
             "EmpleadoProductivo": EmpleadoProductivo,
             "EmpleadoCostoVersion": EmpleadoCostoVersion,
+            "RecursoEmpleadoProductivo": RecursoEmpleadoProductivo,
             "CostoFijoProductivo": CostoFijoProductivo,
             "CostoFijoVersion": CostoFijoVersion,
             "PerfilCosteoProducto": PerfilCosteoProducto,

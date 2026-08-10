@@ -36,6 +36,18 @@ DEFINICIONES = {
         },
         "ejemplo": ["EMP-1", "Operario", "Herrería", "Soldador", "1000000", "300000", "0", "0", "176", "160"],
     },
+    "recursos": {
+        "titulo": "Recursos y equipos de mano de obra",
+        "campos": {
+            "codigo_recurso": ("Código del recurso", True),
+            "nombre_recurso": ("Nombre del recurso", True),
+            "sector": ("Sector", True),
+            "porcentaje_indirecto": ("Tiempo indirecto %", True),
+            "codigo_empleado": ("Código del empleado", True),
+            "porcentaje_dedicacion": ("Dedicación %", True),
+        },
+        "ejemplo": ["HERRERIA", "Equipo Herrería", "Herrería", "10", "EMP-1", "100"],
+    },
     "costos-fijos": {
         "titulo": "Costos fijos",
         "campos": {
@@ -81,7 +93,9 @@ CAMPOS_MONEDA = {
     "otros_costos", "importe_mensual",
 }
 
-CAMPOS_PORCENTAJE = {"merma", "porcentaje"}
+CAMPOS_PORCENTAJE = {
+    "merma", "porcentaje", "porcentaje_indirecto", "porcentaje_dedicacion",
+}
 
 TIPOS_INSUMO_VALIDOS = {
     "materia_prima", "consumible", "servicio_productivo", "embalaje_productivo",
@@ -242,6 +256,7 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
     resultado, identidades = [], set()
     for fila in filas:
         datos, errores, existente, ids = _extraer(fila, mapeo), [], None, {}
+        vinculo = None
         try:
             for clave, (nombre, obligatorio) in config["campos"].items():
                 if obligatorio:
@@ -266,6 +281,41 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                 datos["horas_productivas"] = _numero_positivo(datos["horas_productivas"], "Horas productivas")
                 if Decimal(datos["horas_productivas"]) > Decimal(datos["horas_mensuales"]):
                     raise ValueError("Las horas productivas no pueden superar las horas mensuales")
+            elif tipo == "recursos":
+                codigo_recurso = str(datos.get("codigo_recurso") or "").strip().lower()
+                codigo_empleado = str(datos.get("codigo_empleado") or "").strip().lower()
+                existente = modelos["EmpleadoProductivo"].query.filter_by(
+                    organizacion_id=organizacion_id,
+                    codigo=codigo_recurso,
+                ).first()
+                if existente and existente.tipo_registro != "recurso":
+                    raise ValueError("El código del recurso corresponde a un empleado")
+                if existente and existente.unidad_negocio_id != unidad_negocio_id:
+                    raise ValueError("El recurso pertenece a otra unidad")
+                empleado = modelos["EmpleadoProductivo"].query.filter_by(
+                    organizacion_id=organizacion_id,
+                    codigo=codigo_empleado,
+                    tipo_registro="empleado",
+                ).first()
+                if empleado is None or empleado.unidad_negocio_id != unidad_negocio_id:
+                    raise ValueError("No se encontró el empleado en la unidad activa")
+                datos["porcentaje_indirecto"] = _numero(
+                    datos.get("porcentaje_indirecto"), "Tiempo indirecto",
+                )
+                datos["porcentaje_dedicacion"] = _numero_positivo(
+                    datos.get("porcentaje_dedicacion"), "Dedicación", 100,
+                )
+                if Decimal(datos["porcentaje_indirecto"]) > Decimal("100"):
+                    raise ValueError("Tiempo indirecto está fuera de rango")
+                ids = {"empleado_id": empleado.id}
+                if existente:
+                    ids["recurso_id"] = existente.id
+                    vinculo = modelos["RecursoEmpleadoProductivo"].query.filter_by(
+                        recurso_id=existente.id, empleado_id=empleado.id,
+                    ).first()
+                    if vinculo:
+                        ids["vinculo_id"] = vinculo.id
+                existente = vinculo
             elif tipo == "costos-fijos":
                 integra = _clave_valor(datos.get("integra_produccion"))
                 equivalencias = {"si": "si", "1": "si", "true": "si", "no": "no", "0": "no", "false": "no"}
@@ -282,7 +332,7 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                     raise ValueError("El código ya pertenece a otra unidad")
                 if existente: ids = {"costo_fijo_id": existente.id}
                 datos["importe_mensual"] = _numero(datos.get("importe_mensual"), "Importe mensual")
-            else:
+            elif tipo == "fichas":
                 sku = str(datos.get("sku") or "").strip().upper()
                 perfil = modelos["PerfilCosteoProducto"].query.join(modelos["Producto"]).filter(
                     modelos["PerfilCosteoProducto"].organizacion_id == organizacion_id,
@@ -318,9 +368,9 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                     existente = next((x for x in perfil.operaciones_costeo if x.empleado_id == recurso.id and normalizar(x.nombre) == normalizar(datos["operacion"])), None)
                     if existente: ids["operacion_id"] = existente.id
             identidad = (
-                tipo, str(datos.get("codigo") or datos.get("sku") or "").strip().lower(),
+                tipo, str(datos.get("codigo") or datos.get("codigo_recurso") or datos.get("sku") or "").strip().lower(),
                 str(datos.get("tipo_linea") or ""), str(datos.get("codigo_recurso") or "").strip().lower(),
-                normalizar(datos.get("operacion")) if tipo == "fichas" else "",
+                normalizar(datos.get("operacion")) if tipo == "fichas" else str(datos.get("codigo_empleado") or "").strip().lower(),
             )
             if identidad in identidades:
                 raise ValueError("El archivo contiene una fila duplicada para el mismo registro")
@@ -359,6 +409,41 @@ def aplicar_fuentes(tipo, vista, *, organizacion, unidad_activa, modelos, db_ses
         elif tipo == "empleados":
             accion = "crear_empleado" if fila["accion"] == "crear" else "actualizar_costo_empleado"
             datos["empleado_id"] = datos.get("empleado_id")
+        elif tipo == "recursos":
+            recurso = modelos["EmpleadoProductivo"].query.filter_by(
+                organizacion_id=organizacion.id,
+                codigo=str(datos.get("codigo_recurso") or "").strip().lower(),
+            ).first()
+            if recurso is None:
+                procesar_accion_fuente_costo(
+                    "crear_recurso_productivo", {
+                        "unidad_negocio_id": str(unidad_activa.id),
+                        "codigo": datos.get("codigo_recurso"),
+                        "nombre": datos.get("nombre_recurso"),
+                        "sector": datos.get("sector"),
+                        "porcentaje_indirecto": datos.get("porcentaje_indirecto"),
+                    }, organizacion=organizacion, unidad_activa=unidad_activa,
+                    modelos=modelos, db_session=db_session, usuario=usuario,
+                )
+                recurso = modelos["EmpleadoProductivo"].query.filter_by(
+                    organizacion_id=organizacion.id,
+                    codigo=str(datos.get("codigo_recurso") or "").strip().lower(),
+                ).first()
+            else:
+                recurso.nombre = str(datos.get("nombre_recurso") or "").strip()
+                recurso.sector = str(datos.get("sector") or "").strip()
+                recurso.porcentaje_indirecto = Decimal(datos.get("porcentaje_indirecto") or "0")
+                db_session.commit()
+            procesar_accion_fuente_costo(
+                "vincular_empleado_recurso", {
+                    "recurso_id": recurso.id,
+                    "empleado_id": datos.get("empleado_id"),
+                    "porcentaje_dedicacion": datos.get("porcentaje_dedicacion"),
+                }, organizacion=organizacion, unidad_activa=unidad_activa,
+                modelos=modelos, db_session=db_session, usuario=usuario,
+            )
+            conteos["creados" if fila["accion"] == "crear" else "actualizados"] += 1
+            continue
         elif tipo == "costos-fijos":
             accion = "crear_costo_fijo" if fila["accion"] == "crear" else "actualizar_importe_costo_fijo"
             datos.update({"costo_fijo_id": datos.get("costo_fijo_id"), "integra_costo_produccion": "1" if normalizar(datos.get("integra_produccion")) in {"si", "sí", "1", "true"} else "0", "criterio_distribucion": datos.get("criterio"), "comprobante_referencia": datos.get("comprobante")})

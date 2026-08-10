@@ -558,6 +558,17 @@ def crear_blueprint_comercial(*, dependencias):
                     v.otros_costos_centavos / 100 if v else "",
                     v.horas_mensuales if v else "", v.horas_productivas if v else "",
                 ])
+        elif tipo == "recursos":
+            registros = obtener_fuentes_costo(
+                organizacion.id, unidad.id, modelos=modelos,
+            )["recursos_productivos"]
+            for recurso in registros:
+                for vinculo in recurso.miembros_recurso:
+                    filas.append([
+                        recurso.codigo, recurso.nombre, recurso.sector,
+                        recurso.porcentaje_indirecto,
+                        vinculo.empleado.codigo, vinculo.porcentaje_dedicacion,
+                    ])
         elif tipo == "costos-fijos":
             registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["costos_fijos"]
             for r in registros:

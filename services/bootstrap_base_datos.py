@@ -16,6 +16,7 @@ def inicializar_base_datos_saas(
         asegurar_evento_fiscal_tenant,
         asegurar_identidad_canal_crm_tenant,
         asegurar_movimiento_inventario_tenant,
+        asegurar_recursos_mano_obra,
         asegurar_unidad_importacion_costos,
     )
     from services.modulos_organizacion import (
@@ -41,6 +42,10 @@ def inicializar_base_datos_saas(
         db.create_all()
 
         asegurar_unidad_importacion_costos(
+            db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
+        )
+
+        asegurar_recursos_mano_obra(
             db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
         )
 

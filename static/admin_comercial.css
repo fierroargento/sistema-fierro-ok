@@ -398,6 +398,25 @@
 .source-update .money-input { height: 36px; }
 .source-update .money-input input { height: 34px; border: 0; }
 .employee-update-form { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+.labor-resources { margin:14px 0; border:1px solid #d9e4e9; border-radius:10px; background:#f8fbfc; }
+.labor-resources > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; color:#176b89; font-size:12px; font-weight:800; cursor:pointer; list-style:none; }
+.labor-resources > summary::-webkit-details-marker { display:none; }
+.labor-resources > summary::before { content:"▸"; margin-right:7px; }
+.labor-resources[open] > summary::before { content:"▾"; }
+.labor-resources > summary strong { margin-left:auto; padding:3px 9px; border-radius:999px; background:#dff3f8; }
+.labor-resources-content { display:grid; gap:12px; padding:0 14px 14px; }
+.form-labor-resource { grid-template-columns:1fr 1.5fr 1fr .8fr auto; }
+.labor-resource-card { padding:14px; border:1px solid #dfe6eb; border-radius:10px; background:#fff; }
+.resource-rate { align-items:flex-end !important; flex:0 0 auto; }
+.resource-rate small { color:#778294; font-size:10px; font-weight:700; text-transform:uppercase; }
+.resource-members { display:flex; gap:7px; flex-wrap:wrap; margin:12px 0; }
+.resource-members > span { display:inline-flex; align-items:center; gap:7px; padding:6px 9px; border-radius:999px; background:#edf8fc; color:#344054; font-size:11px; font-weight:700; }
+.resource-members form { display:inline-flex; }
+.resource-actions { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; border-top:1px solid #edf0f4; padding-top:12px; }
+.resource-actions form { display:flex; align-items:flex-end; gap:8px; }
+.resource-actions label { display:flex; flex-direction:column; gap:4px; color:#667085; font-size:10px; font-weight:800; }
+.resource-actions select, .resource-actions input { min-width:150px; height:36px; padding:6px 8px; border:1px solid #cbd2dc; border-radius:7px; background:#fff; }
+.resource-actions .compact-field input { min-width:90px; width:90px; }
 .source-history { margin-top: 8px; }
 .source-history summary { color: #667085; font-size: 11px; font-weight: 700; cursor: pointer; }
 .mini-history { margin-top: 7px; border: 1px solid #edf0f4; border-radius: 8px; overflow: hidden; }
@@ -446,7 +465,7 @@
 .export-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 
 @media (max-width: 1250px) {
-  .form-catalogos, .form-inclusion, .form-costos, .form-listas, .form-politicas, .form-precios, .form-source-insumo, .form-source-employee, .form-source-fixed, .form-cost-profile, .form-combo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .form-catalogos, .form-inclusion, .form-costos, .form-listas, .form-politicas, .form-precios, .form-source-insumo, .form-source-employee, .form-source-fixed, .form-cost-profile, .form-combo, .form-labor-resource { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .form-source-employee .comercial-primary { grid-column: auto; }
   .comercial-primary { width: 100%; }
 }
@@ -470,4 +489,7 @@
   .comercial-section { padding: 16px; }
   .source-row-panel { min-width:280px; }
   .source-table-update { grid-template-columns:1fr; }
+  .form-labor-resource { grid-template-columns:1fr !important; }
+  .resource-actions, .resource-actions form { align-items:stretch; flex-direction:column; }
+  .resource-actions select, .resource-actions input, .resource-actions .compact-field input { width:100%; min-width:0; }
 }
