@@ -99,3 +99,17 @@ def test_porcentajes_laborales_no_muestran_ceros_decimales_innecesarios():
     assert ".rstrip('0').rstrip('.')" in template
     assert "numero_decimal_limpio(configuracion_costo_laboral.porcentaje_cargas)" in template
     assert "numero_decimal_limpio(vigente.porcentaje_cargas)" in template
+
+
+def test_listados_productivos_similares_usan_tablas_y_accion_gestionar():
+    template = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
+
+    assert "<th>Empleado</th>" in template
+    assert "<th>Recurso</th>" in template
+    assert "<th>Concepto</th>" in template
+    assert template.count('class="table-wrap source-catalog-table"') >= 4
+    assert template.count('<summary>Gestionar</summary>') >= 4
+    assert 'class="source-grid source-grid-wide source-catalog-content"' not in template
+    assert 'class="source-grid source-catalog-content"' not in template
+    assert ".employee-table-update" in estilos

@@ -398,6 +398,8 @@
 .source-row-action > summary::-webkit-details-marker { display:none; }
 .source-row-panel { min-width:620px; padding:12px 0 4px; white-space:normal; }
 .source-table-update { display:grid; grid-template-columns:repeat(3, minmax(130px, 1fr)) auto; gap:8px; align-items:end; }
+.employee-table-update { grid-template-columns:repeat(3, minmax(130px, 1fr)); }
+.employee-table-update .table-action { min-height:36px; }
 .source-table-update label { display:flex; flex-direction:column; gap:4px; min-width:0; color:#667085; font-size:10px; font-weight:800; }
 .source-table-update input { width:100%; min-width:0; height:36px; padding:7px 9px; border:1px solid #cbd2dc; border-radius:7px; }
 .source-table-update .money-input { height:36px; }

@@ -31,6 +31,7 @@ from services.importacion_fuentes_costeo import (
     sugerir_mapeo_fuente,
 )
 from services.fechas import ahora_utc_naive
+from services.presentacion_monetaria import formatear_centavos_ars
 from services.exportacion_perfiles_costeo import (
     exportar_excel_combos,
     exportar_excel_perfiles,
@@ -147,6 +148,7 @@ def crear_blueprint_comercial(*, dependencias):
             "admin_fuentes_costos.html",
             organizacion=organizacion,
             unidad_activa=unidad_activa, unidades=unidades,
+            formatear_centavos_ars=formatear_centavos_ars,
             **obtener_fuentes_costo(
                 organizacion.id, unidad_activa.id, modelos=modelos,
             ),
