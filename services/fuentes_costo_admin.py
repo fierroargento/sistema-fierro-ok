@@ -126,7 +126,7 @@ def procesar_accion_fuente_costo(
             return "Insumo incorporado a la ficha técnica."
         if accion == "ficha_operacion":
             recurso = _registro_tenant(modelos["EmpleadoProductivo"], _id(formulario, "empleado_id"), organizacion.id, "El empleado", unidad_activa.id)
-            guardar_operacion(perfil, recurso, nombre=formulario.get("nombre_operacion"), minutos=formulario.get("minutos"), observacion=formulario.get("observacion"), Modelo=modelos["ProductoOperacionCosteo"], db_session=db_session)
+            guardar_operacion(perfil, recurso, nombre=formulario.get("nombre_operacion"), minutos=formulario.get("minutos"), observacion=formulario.get("observacion"), Modelo=modelos["ProductoOperacionCosteo"], db_session=db_session, registro_id=formulario.get("operacion_id"))
             return "Operación incorporada a la ficha técnica."
         if accion == "ficha_costo_fijo":
             recurso = _registro_tenant(modelos["CostoFijoProductivo"], _id(formulario, "costo_fijo_id"), organizacion.id, "El costo fijo", unidad_activa.id)
@@ -190,6 +190,15 @@ def procesar_accion_fuente_costo(
             "El insumo",
             unidad_activa.id,
         )
+        if formulario.get("nombre") is not None:
+            insumo.nombre = str(formulario.get("nombre") or "").strip()
+        if formulario.get("tipo") is not None:
+            tipo = str(formulario.get("tipo") or "").strip().lower()
+            if tipo not in {"materia_prima", "consumible", "servicio_productivo", "embalaje_productivo"}:
+                raise ValueError("El tipo de insumo no es valido.")
+            insumo.tipo = tipo
+        if formulario.get("unidad_medida") is not None:
+            insumo.unidad_medida = str(formulario.get("unidad_medida") or "").strip()
         version = registrar_precio_insumo(
             insumo,
             moneda=formulario.get("moneda", "ARS"),
@@ -248,6 +257,12 @@ def procesar_accion_fuente_costo(
             "El empleado",
             unidad_activa.id,
         )
+        if formulario.get("nombre") is not None:
+            empleado.nombre = str(formulario.get("nombre") or "").strip()
+        if formulario.get("sector") is not None:
+            empleado.sector = str(formulario.get("sector") or "").strip()
+        if formulario.get("puesto") is not None:
+            empleado.puesto = str(formulario.get("puesto") or "").strip() or None
         version = registrar_costo_empleado(
             empleado,
             moneda=formulario.get("moneda", "ARS"),
@@ -304,6 +319,20 @@ def procesar_accion_fuente_costo(
             "El costo fijo",
             unidad_activa.id,
         )
+        if formulario.get("nombre") is not None:
+            costo.nombre = str(formulario.get("nombre") or "").strip()
+        if formulario.get("categoria") is not None:
+            costo.categoria = str(formulario.get("categoria") or "").strip()
+        if formulario.get("integra_costo_produccion") is not None:
+            integra = formulario.get("integra_costo_produccion") == "1"
+            criterio = str(formulario.get("criterio_distribucion") or "").strip().lower()
+            permitidos = {"horas_productivas", "horas_maquina", "unidades_producidas", "porcentaje", "importe_directo", "sin_distribuir"}
+            if criterio not in permitidos:
+                raise ValueError("El criterio de distribucion no es valido.")
+            if not integra and criterio != "sin_distribuir":
+                raise ValueError("Un costo que no integra produccion debe quedar sin distribuir.")
+            costo.integra_costo_produccion = integra
+            costo.criterio_distribucion = criterio
         version = registrar_importe_costo_fijo(
             costo,
             moneda=formulario.get("moneda", "ARS"),

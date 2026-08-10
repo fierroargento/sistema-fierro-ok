@@ -83,6 +83,15 @@ CAMPOS_MONEDA = {
 
 CAMPOS_PORCENTAJE = {"merma", "porcentaje"}
 
+TIPOS_INSUMO_VALIDOS = {
+    "materia_prima", "consumible", "servicio_productivo", "embalaje_productivo",
+}
+
+CRITERIOS_DISTRIBUCION_VALIDOS = {
+    "horas_productivas", "horas_maquina", "unidades_producidas",
+    "porcentaje", "importe_directo", "sin_distribuir",
+}
+
 
 def definicion(tipo):
     if tipo not in DEFINICIONES:
@@ -203,6 +212,25 @@ def _numero(valor, nombre, obligatorio=True):
     return str(numero)
 
 
+def _clave_valor(valor):
+    return normalizar(valor).replace(" ", "_").replace("-", "_")
+
+
+def _texto_requerido(datos, campo, nombre):
+    texto = str(datos.get(campo) or "").strip()
+    if not texto:
+        raise ValueError(f"{nombre} es obligatorio")
+    datos[campo] = texto
+    return texto
+
+
+def _numero_positivo(valor, nombre, maximo=None):
+    numero = Decimal(_numero(valor, nombre))
+    if numero <= 0 or (maximo is not None and numero > Decimal(str(maximo))):
+        raise ValueError(f"{nombre} está fuera de rango")
+    return str(numero)
+
+
 def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio_id, modelos):
     config = definicion(tipo)
     destinos = [campo for campo in mapeo.values() if campo]
@@ -211,16 +239,22 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
         raise ValueError("Faltan campos obligatorios: " + ", ".join(faltantes) + ".")
     if len(destinos) != len(set(destinos)):
         raise ValueError("Un campo del sistema no puede recibir dos columnas.")
-    resultado = []
+    resultado, identidades = [], set()
     for fila in filas:
         datos, errores, existente, ids = _extraer(fila, mapeo), [], None, {}
         try:
+            for clave, (nombre, obligatorio) in config["campos"].items():
+                if obligatorio:
+                    _texto_requerido(datos, clave, nombre)
             if tipo == "insumos":
+                datos["tipo"] = _clave_valor(datos.get("tipo"))
+                if datos["tipo"] not in TIPOS_INSUMO_VALIDOS:
+                    raise ValueError("Tipo de insumo inválido")
                 existente = modelos["InsumoProductivo"].query.filter_by(organizacion_id=organizacion_id, codigo=str(datos.get("codigo") or "").strip().lower()).first()
                 if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
                     raise ValueError("El código ya pertenece a otra unidad")
                 if existente: ids = {"insumo_id": existente.id}
-                _numero(datos.get("precio_unitario"), "Precio unitario")
+                datos["precio_unitario"] = _numero(datos.get("precio_unitario"), "Precio unitario")
             elif tipo == "empleados":
                 existente = modelos["EmpleadoProductivo"].query.filter_by(organizacion_id=organizacion_id, codigo=str(datos.get("codigo") or "").strip().lower()).first()
                 if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
@@ -228,12 +262,26 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                 if existente: ids = {"empleado_id": existente.id}
                 for campo in ("sueldo_base", "cargas_sociales", "adicionales", "otros_costos", "horas_mensuales", "horas_productivas"):
                     datos[campo] = _numero(datos.get(campo), campo, campo in {"sueldo_base", "horas_mensuales", "horas_productivas"})
+                datos["horas_mensuales"] = _numero_positivo(datos["horas_mensuales"], "Horas mensuales")
+                datos["horas_productivas"] = _numero_positivo(datos["horas_productivas"], "Horas productivas")
+                if Decimal(datos["horas_productivas"]) > Decimal(datos["horas_mensuales"]):
+                    raise ValueError("Las horas productivas no pueden superar las horas mensuales")
             elif tipo == "costos-fijos":
+                integra = _clave_valor(datos.get("integra_produccion"))
+                equivalencias = {"si": "si", "1": "si", "true": "si", "no": "no", "0": "no", "false": "no"}
+                if integra not in equivalencias:
+                    raise ValueError("Integra producción debe indicar sí o no")
+                datos["integra_produccion"] = equivalencias[integra]
+                datos["criterio"] = _clave_valor(datos.get("criterio"))
+                if datos["criterio"] not in CRITERIOS_DISTRIBUCION_VALIDOS:
+                    raise ValueError("Criterio de distribución inválido")
+                if datos["integra_produccion"] == "no" and datos["criterio"] != "sin_distribuir":
+                    raise ValueError("Un costo informativo debe quedar sin distribuir")
                 existente = modelos["CostoFijoProductivo"].query.filter_by(organizacion_id=organizacion_id, codigo=str(datos.get("codigo") or "").strip().lower()).first()
                 if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
                     raise ValueError("El código ya pertenece a otra unidad")
                 if existente: ids = {"costo_fijo_id": existente.id}
-                _numero(datos.get("importe_mensual"), "Importe mensual")
+                datos["importe_mensual"] = _numero(datos.get("importe_mensual"), "Importe mensual")
             else:
                 sku = str(datos.get("sku") or "").strip().upper()
                 perfil = modelos["PerfilCosteoProducto"].query.join(modelos["Producto"]).filter(
@@ -243,7 +291,8 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                     modelos["Producto"].sku.ilike(sku),
                 ).first()
                 if perfil is None: raise ValueError("No se encontró el producto de producción")
-                linea = normalizar(datos.get("tipo_linea"))
+                linea = normalizar(datos.get("tipo_linea")).replace("_", " ")
+                datos["tipo_linea"] = "costo_fijo" if linea in {"costo fijo", "fijo"} else linea
                 codigo = str(datos.get("codigo_recurso") or "").strip().lower()
                 mapa = {"insumo": ("InsumoProductivo", "insumo_id"), "operacion": ("EmpleadoProductivo", "empleado_id"), "costo fijo": ("CostoFijoProductivo", "costo_fijo_id"), "fijo": ("CostoFijoProductivo", "costo_fijo_id")}
                 if linea not in mapa: raise ValueError("Tipo de línea inválido")
@@ -252,11 +301,30 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                 if recurso is None or recurso.unidad_negocio_id not in {None, unidad_negocio_id}: raise ValueError("No se encontró el recurso en la unidad activa")
                 ids = {"perfil_costeo_id": perfil.id, campo_id: recurso.id}
                 if linea == "insumo":
+                    datos["cantidad"] = _numero_positivo(datos.get("cantidad"), "Cantidad")
+                    datos["merma"] = _numero(datos.get("merma"), "Merma", False)
+                    if Decimal(datos["merma"]) > Decimal("100"):
+                        raise ValueError("Merma está fuera de rango")
                     existente = next((x for x in perfil.insumos_costeo if x.insumo_id == recurso.id), None)
                 elif linea in {"costo fijo", "fijo"}:
+                    if not recurso.integra_costo_produccion:
+                        raise ValueError("El costo fijo no está marcado como productivo")
+                    datos["porcentaje"] = _numero_positivo(datos.get("porcentaje"), "Asignación %", 100)
+                    datos["unidades_mensuales"] = _numero_positivo(datos.get("unidades_mensuales"), "Unidades mensuales")
                     existente = next((x for x in perfil.costos_fijos_costeo if x.costo_fijo_id == recurso.id), None)
                 else:
-                    existente = None
+                    _texto_requerido(datos, "operacion", "Operación")
+                    datos["minutos"] = _numero_positivo(datos.get("minutos"), "Minutos")
+                    existente = next((x for x in perfil.operaciones_costeo if x.empleado_id == recurso.id and normalizar(x.nombre) == normalizar(datos["operacion"])), None)
+                    if existente: ids["operacion_id"] = existente.id
+            identidad = (
+                tipo, str(datos.get("codigo") or datos.get("sku") or "").strip().lower(),
+                str(datos.get("tipo_linea") or ""), str(datos.get("codigo_recurso") or "").strip().lower(),
+                normalizar(datos.get("operacion")) if tipo == "fichas" else "",
+            )
+            if identidad in identidades:
+                raise ValueError("El archivo contiene una fila duplicada para el mismo registro")
+            identidades.add(identidad)
         except ValueError as error:
             errores.append(str(error))
         resultado.append({"numero": fila["numero"], "datos": datos, "ids": ids, "accion": "rechazado" if errores else "actualizar" if existente else "crear", "errores": errores})

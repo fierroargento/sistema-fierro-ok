@@ -540,28 +540,41 @@ def crear_blueprint_comercial(*, dependencias):
         if respuesta is not None: return respuesta
         unidad, _unidades = contexto_comercial(organizacion); config = definicion_fuente(tipo)
         filas = []
+        encabezados = [nombre.upper() for nombre, _obligatorio in config["campos"].values()]
         if tipo == "insumos":
             registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["insumos"]
-            encabezados = ["CÓDIGO", "NOMBRE", "TIPO", "UNIDAD", "PRECIO"]
             for r in registros:
-                v = next((x for x in r.versiones_precio if x.vigente), None); filas.append([r.codigo, r.nombre, r.tipo, r.unidad_medida, v.precio_unitario_centavos / 100 if v else ""])
+                v = next((x for x in r.versiones_precio if x.vigente), None)
+                filas.append([r.codigo, r.nombre, r.tipo, r.unidad_medida, v.precio_unitario_centavos / 100 if v else "", v.proveedor_referencia if v else ""])
         elif tipo == "empleados":
             registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["empleados"]
-            encabezados = ["CÓDIGO", "NOMBRE", "SECTOR", "PUESTO", "COSTO HORA"]
             for r in registros:
-                v = next((x for x in r.versiones_costo if x.vigente), None); filas.append([r.codigo, r.nombre, r.sector, r.puesto, v.costo_hora_productiva_centavos / 100 if v else ""])
+                v = next((x for x in r.versiones_costo if x.vigente), None)
+                filas.append([
+                    r.codigo, r.nombre, r.sector, r.puesto or "",
+                    v.sueldo_base_centavos / 100 if v else "",
+                    v.cargas_sociales_centavos / 100 if v else "",
+                    v.adicionales_centavos / 100 if v else "",
+                    v.otros_costos_centavos / 100 if v else "",
+                    v.horas_mensuales if v else "", v.horas_productivas if v else "",
+                ])
         elif tipo == "costos-fijos":
             registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["costos_fijos"]
-            encabezados = ["CÓDIGO", "NOMBRE", "CATEGORÍA", "CRITERIO", "IMPORTE"]
             for r in registros:
-                v = next((x for x in r.versiones if x.vigente), None); filas.append([r.codigo, r.nombre, r.categoria, r.criterio_distribucion, v.importe_mensual_centavos / 100 if v else ""])
+                v = next((x for x in r.versiones if x.vigente), None)
+                filas.append([
+                    r.codigo, r.nombre, r.categoria,
+                    "si" if r.integra_costo_produccion else "no",
+                    r.criterio_distribucion,
+                    v.importe_mensual_centavos / 100 if v else "",
+                    v.comprobante_referencia if v else "",
+                ])
         else:
             registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["perfiles_produccion"]
-            encabezados = ["SKU", "TIPO", "RECURSO", "CANTIDAD", "DATO"]
             for p in registros:
-                filas += [[p.producto.sku, "insumo", x.insumo.codigo, x.cantidad, x.porcentaje_merma] for x in p.insumos_costeo]
-                filas += [[p.producto.sku, "operacion", x.empleado.codigo, x.minutos, x.nombre] for x in p.operaciones_costeo]
-                filas += [[p.producto.sku, "costo_fijo", x.costo_fijo.codigo, x.porcentaje_asignacion, x.unidades_mensuales] for x in p.costos_fijos_costeo]
+                filas += [[p.producto.sku, "insumo", x.insumo.codigo, x.cantidad, x.porcentaje_merma, "", "", "", ""] for x in p.insumos_costeo]
+                filas += [[p.producto.sku, "operacion", x.empleado.codigo, "", "", x.nombre, x.minutos, "", ""] for x in p.operaciones_costeo]
+                filas += [[p.producto.sku, "costo_fijo", x.costo_fijo.codigo, "", "", "", "", x.porcentaje_asignacion, x.unidades_mensuales] for x in p.costos_fijos_costeo]
         salida = exportar_excel_tabla(config["titulo"], encabezados, filas) if formato == "xlsx" else exportar_pdf_tabla(config["titulo"], unidad.nombre, encabezados, filas) if formato == "pdf" else None
         if salida is None: raise ValueError("Formato no válido.")
         return send_file(salida, as_attachment=True, download_name=f"{tipo}.{formato}", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" if formato == "xlsx" else "application/pdf")

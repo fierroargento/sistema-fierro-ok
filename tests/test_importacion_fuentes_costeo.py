@@ -101,7 +101,8 @@ def test_fichas_distinguen_altas_y_actualizaciones():
     servicio = Path("services/importacion_fuentes_costeo.py").read_text(encoding="utf-8")
     assert "perfil.insumos_costeo" in servicio
     assert "perfil.costos_fijos_costeo" in servicio
-    assert 'existente = None' in servicio
+    assert "perfil.operaciones_costeo" in servicio
+    assert 'ids["operacion_id"] = existente.id' in servicio
     assert "El código ya pertenece a otra unidad" in servicio
 
 
@@ -150,3 +151,39 @@ def test_confirmacion_oculta_vista_previa_y_muestra_cierre_compacto():
     assert ".import-completed-actions .comercial-primary" in estilos
     assert "min-height:40px" in estilos
     assert "width:auto" in estilos
+
+
+def test_exportaciones_son_reimportables_y_conservan_todos_los_campos():
+    rutas = Path("modules/admin/comercial/routes.py").read_text(encoding="utf-8")
+
+    assert 'encabezados = [nombre.upper() for nombre, _obligatorio in config["campos"].values()]' in rutas
+    assert "v.proveedor_referencia if v else" in rutas
+    assert "v.sueldo_base_centavos / 100" in rutas
+    assert "v.horas_productivas if v else" in rutas
+    assert '"si" if r.integra_costo_produccion else "no"' in rutas
+    assert "v.comprobante_referencia if v else" in rutas
+    assert 'x.porcentaje_asignacion, x.unidades_mensuales' in rutas
+
+
+def test_validaciones_especificas_rechazan_datos_productivos_inconsistentes():
+    servicio = Path("services/importacion_fuentes_costeo.py").read_text(encoding="utf-8")
+
+    assert "TIPOS_INSUMO_VALIDOS" in servicio
+    assert "CRITERIOS_DISTRIBUCION_VALIDOS" in servicio
+    assert "Las horas productivas no pueden superar las horas mensuales" in servicio
+    assert "Un costo informativo debe quedar sin distribuir" in servicio
+    assert "El costo fijo no está marcado como productivo" in servicio
+    assert "El archivo contiene una fila duplicada" in servicio
+
+
+def test_reimportacion_actualiza_maestros_y_operaciones_sin_duplicarlos():
+    administrador = Path("services/fuentes_costo_admin.py").read_text(encoding="utf-8")
+    composicion = Path("services/composicion_costo_producto.py").read_text(encoding="utf-8")
+    importador = Path("services/importacion_fuentes_costeo.py").read_text(encoding="utf-8")
+
+    assert "insumo.nombre =" in administrador
+    assert "empleado.sector =" in administrador
+    assert "costo.criterio_distribucion =" in administrador
+    assert "registro_id=formulario.get(\"operacion_id\")" in administrador
+    assert "registro_id=None" in composicion
+    assert 'ids["operacion_id"] = existente.id' in importador

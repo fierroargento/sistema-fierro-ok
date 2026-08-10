@@ -35,18 +35,25 @@ def guardar_insumo(perfil, insumo, *, cantidad, merma, observacion, Modelo, db_s
     return registro
 
 
-def guardar_operacion(perfil, empleado, *, nombre, minutos, observacion, Modelo, db_session):
+def guardar_operacion(perfil, empleado, *, nombre, minutos, observacion, Modelo, db_session, registro_id=None):
     _alcance(perfil, empleado)
     descripcion = str(nombre or "").strip()
     if not descripcion:
         raise ValueError("La operación requiere un nombre.")
-    orden = len(perfil.operaciones_costeo)
-    registro = Modelo(
-        perfil_costeo_id=perfil.id, empleado_id=empleado.id,
-        nombre=descripcion[:160], minutos=_positivo(minutos, "Los minutos"),
-        orden=orden, observacion=str(observacion or "").strip() or None,
-    )
-    db_session.add(registro); db_session.commit(); return registro
+    registro = None
+    if registro_id is not None:
+        registro = Modelo.query.filter_by(id=int(registro_id), perfil_costeo_id=perfil.id).first()
+        if registro is None:
+            raise ValueError("La operación no pertenece a la ficha activa.")
+    if registro is None:
+        registro = Modelo(perfil_costeo_id=perfil.id, orden=len(perfil.operaciones_costeo))
+        db_session.add(registro)
+    registro.empleado_id = empleado.id
+    registro.nombre = descripcion[:160]
+    registro.minutos = _positivo(minutos, "Los minutos")
+    registro.observacion = str(observacion or "").strip() or None
+    db_session.commit()
+    return registro
 
 
 def guardar_costo_fijo(perfil, costo_fijo, *, porcentaje, unidades_mensuales, observacion, Modelo, db_session):
