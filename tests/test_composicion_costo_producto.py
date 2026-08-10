@@ -117,3 +117,19 @@ def test_listados_productivos_similares_usan_tablas_y_accion_gestionar():
     assert 'class="source-grid source-grid-wide source-catalog-content"' not in template
     assert 'class="source-grid source-catalog-content"' not in template
     assert ".employee-table-update" in estilos
+
+
+def test_gestion_empleado_precarga_la_version_vigente_completa():
+    template = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    javascript = Path("static/admin_fuentes_costos.js").read_text(encoding="utf-8")
+
+    assert "data-employee-current" in template
+    assert "actual.sueldo_base_centavos / 100" in template
+    assert "actual.adicionales_centavos / 100" in template
+    assert "actual.otros_costos_centavos / 100" in template
+    assert "actual.horas_mensuales" in template
+    assert "actual.horas_productivas" in template
+    assert "actual.usa_porcentaje_general" in template
+    assert "precargarCostoEmpleado(dialogo)" in javascript
+    assert 'control && !control.value' in javascript
+    assert "v='20260810-3'" in template

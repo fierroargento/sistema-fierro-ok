@@ -40,11 +40,35 @@
     document.querySelectorAll("[data-source-dialog]").forEach(function (boton) {
       const dialogo = boton.nextElementSibling;
       if (!dialogo || !dialogo.matches("dialog.source-dialog")) return;
-      boton.addEventListener("click", function () { dialogo.showModal(); });
+      boton.addEventListener("click", function () {
+        precargarCostoEmpleado(dialogo);
+        dialogo.showModal();
+      });
       dialogo.querySelector(".source-dialog-close").addEventListener("click", function () { dialogo.close(); });
       dialogo.addEventListener("click", function (evento) {
         if (evento.target === dialogo) dialogo.close();
       });
+    });
+  }
+
+  function precargarCostoEmpleado(dialogo) {
+    const formulario = dialogo.querySelector('form input[name="accion"][value="actualizar_costo_empleado"]');
+    if (!formulario) return;
+    const form = formulario.form;
+    const empleadoId = form.querySelector('[name="empleado_id"]').value;
+    const valores = document.querySelector('[data-employee-current="' + empleadoId + '"]');
+    if (!valores) return;
+    const campos = {
+      sueldo_base: "sueldoBase",
+      porcentaje_cargas: "porcentajeCargas",
+      adicionales: "adicionales",
+      otros_costos: "otrosCostos",
+      horas_mensuales: "horasMensuales",
+      horas_productivas: "horasProductivas"
+    };
+    Object.keys(campos).forEach(function (nombre) {
+      const control = form.elements[nombre];
+      if (control && !control.value) control.value = valores.dataset[campos[nombre]] || "";
     });
   }
 

@@ -2,7 +2,7 @@
 
 {% block extra_head %}
   <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260810-9') }}">
-<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260810-2') }}" defer></script>
+<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260810-3') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -167,7 +167,19 @@
       {% set vigente = empleado.versiones_costo|selectattr('vigente')|first %}
       <tr><td><strong>{{ empleado.codigo }}</strong></td><td>{{ empleado.nombre }}<small class="table-subline">{{ empleado.sector }} · {{ empleado.puesto or 'Sin puesto' }}</small></td><td>{{ vigente.ubicacion_trabajo if vigente else '—' }}</td><td>{{ vigente.tipo_funcion|replace('_', ' ') if vigente else '—' }}</td><td>{{ numero_decimal_limpio(vigente.porcentaje_productivo) ~ '%' if vigente else '—' }}</td><td>{% if vigente %}<strong>$ {{ formatear_centavos_ars(vigente.costo_mensual_total_centavos) }}</strong>{% else %}—{% endif %}</td><td>{% if vigente %}<strong>$ {{ formatear_centavos_ars(vigente.costo_hora_productiva_centavos) }}</strong>{% else %}—{% endif %}</td><td>{% if vigente %}{{ numero_decimal_limpio(vigente.porcentaje_cargas) }}% {{ 'general' if vigente.usa_porcentaje_general else 'excepción' }}{% else %}—{% endif %}</td><td><details class="source-row-action"><summary>Gestionar</summary><div class="source-row-panel"><form class="source-table-update employee-table-update" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_costo_empleado"><input type="hidden" name="empleado_id" value="{{ empleado.id }}"><input type="hidden" name="moneda" value="ARS"><label><span>Ubicación</span><input name="ubicacion_trabajo" value="{{ vigente.ubicacion_trabajo if vigente else '' }}" required></label><label><span>Función</span><select name="tipo_funcion"><option value="directa" {% if vigente and vigente.tipo_funcion == 'directa' %}selected{% endif %}>Directa productiva</option><option value="indirecta_productiva" {% if vigente and vigente.tipo_funcion == 'indirecta_productiva' %}selected{% endif %}>Indirecta productiva</option><option value="comercial_administrativa" {% if vigente and vigente.tipo_funcion == 'comercial_administrativa' %}selected{% endif %}>Comercial / administrativa</option><option value="mixta" {% if vigente and vigente.tipo_funcion == 'mixta' %}selected{% endif %}>Mixta</option></select></label><label><span>Productivo %</span><input name="porcentaje_productivo" inputmode="decimal" value="{{ numero_decimal_limpio(vigente.porcentaje_productivo) if vigente else 100 }}" required></label><label><span>Sueldo base</span><input name="sueldo_base" inputmode="decimal" required></label><label><span>Excepción cargas %</span><input name="porcentaje_cargas" inputmode="decimal" placeholder="Usa el general"></label><label><span>Adicionales</span><input name="adicionales" inputmode="decimal" value="0"></label><label><span>Otros costos</span><input name="otros_costos" inputmode="decimal" value="0"></label><label><span>Horas mensuales</span><input name="horas_mensuales" inputmode="decimal" required></label><label><span>Horas productivas</span><input name="horas_productivas" inputmode="decimal" required></label><button class="table-action" type="submit">Guardar versión</button></form><details class="source-table-history"><summary>Ver historial ({{ empleado.versiones_costo|length }})</summary><div class="mini-history">{% for version in empleado.versiones_costo|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }} · {{ version.ubicacion_trabajo }} · {{ numero_decimal_limpio(version.porcentaje_productivo) }}% productivo</span><strong>$ {{ formatear_centavos_ars(version.costo_hora_productiva_centavos) }}/h</strong></div>{% endfor %}</div></details></div></details></td></tr>
       {% endfor %}
-    </tbody></table></div></details>{% else %}<p class="empty-card">Todavía no hay empleados cargados.</p>{% endif %}
+    </tbody></table></div></details>
+    <div id="employee-current-values" hidden>
+      {% for empleado in empleados %}{% set actual = empleado.versiones_costo|selectattr('vigente')|first %}{% if actual %}
+      <span data-employee-current="{{ empleado.id }}"
+        data-sueldo-base="{{ numero_decimal_limpio(actual.sueldo_base_centavos / 100) }}"
+        data-porcentaje-cargas="{{ '' if actual.usa_porcentaje_general else numero_decimal_limpio(actual.porcentaje_cargas) }}"
+        data-adicionales="{{ numero_decimal_limpio(actual.adicionales_centavos / 100) }}"
+        data-otros-costos="{{ numero_decimal_limpio(actual.otros_costos_centavos / 100) }}"
+        data-horas-mensuales="{{ numero_decimal_limpio(actual.horas_mensuales) }}"
+        data-horas-productivas="{{ numero_decimal_limpio(actual.horas_productivas) }}"></span>
+      {% endif %}{% endfor %}
+    </div>
+    {% else %}<p class="empty-card">Todavía no hay empleados cargados.</p>{% endif %}
   </section>
 
   <section class="comercial-section" id="costos-fijos">
