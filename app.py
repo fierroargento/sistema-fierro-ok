@@ -11689,11 +11689,13 @@ registrar_modulos_web(
         "usuario_actual": usuario_actual,
         "membresia_actual": membresia_actual,
         "registrar_auditoria": registrar_auditoria,
+        "normalizar_telefono": normalizar_telefono,
         "check_password_hash": check_password_hash,
         "UsuarioOrganizacion": UsuarioOrganizacion,
         "UsuarioSistema": UsuarioSistema,
         "Auditoria": Auditoria,
         "modelos": {
+            "Pedido": Pedido,
             "Organizacion": Organizacion,
             "UnidadNegocio": UnidadNegocio,
             "SucursalOperativa": SucursalOperativa,

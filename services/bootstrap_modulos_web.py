@@ -27,6 +27,9 @@ def registrar_modulos_web(
     from modules.auth.routes import (
         registrar_rutas_auth,
     )
+    from modules.pedidos.edicion_cliente_routes import (
+        crear_blueprint_edicion_cliente,
+    )
 
     db = dependencias["db"]
     modelos = dependencias["modelos"]
@@ -46,6 +49,18 @@ def registrar_modulos_web(
             dependencias["UsuarioOrganizacion"]
         ),
     }
+
+    app.register_blueprint(
+        crear_blueprint_edicion_cliente(
+            dependencias={
+                **comunes,
+                "Pedido": modelos["Pedido"],
+                "normalizar_telefono": dependencias[
+                    "normalizar_telefono"
+                ],
+            },
+        )
+    )
 
     app.register_blueprint(
         crear_blueprint_comercial(

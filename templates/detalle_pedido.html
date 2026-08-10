@@ -256,6 +256,14 @@ body { background: #f4f7f8; }
     </div>
     {% endif %}
 
+    {% if rol_actual in ["admin", "carga"] and not pedido.fecha_etiqueta_impresa and pedido.estado in ["Cargando Pedido", "Etiqueta Lista"] %}
+    <div style="margin: 8px 0 14px 0; display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="{{ url_for('pedidos_edicion_cliente.editar', id=pedido.id) }}" class="btn btn-secundario" style="padding: 7px 12px; font-size: 0.82rem;">
+            Corregir datos para etiqueta
+        </a>
+    </div>
+    {% endif %}
+
 
     {% if rol_actual == "admin" %}
     <div style="margin: 8px 0 14px 0; display:flex; gap:8px; flex-wrap:wrap;">

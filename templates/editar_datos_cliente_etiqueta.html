@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card detalle-card" style="max-width: 920px; margin: 0 auto;">
+    <div class="detalle-header">
+        <div>
+            <h2>Corregir datos para etiqueta</h2>
+            <p class="detalle-sub">Pedido #{{ pedido.id }} · Edición operativa limitada</p>
+        </div>
+        <a href="{{ url_for('detalle_pedido', id=pedido.id) }}" class="btn btn-secundario">Volver</a>
+    </div>
+
+    <div style="margin:14px 0; padding:12px 14px; border:1px solid #bae6fd; background:#f0f9ff; border-radius:12px; color:#0c4a6e;">
+        Solo se modificarán datos del cliente y de entrega usados para confeccionar la etiqueta.
+        Canal, venta, productos, cantidades, estados y archivos permanecen bloqueados.
+        {% if pedido.etiqueta_archivo %}
+        <br><strong>Atención:</strong> ya existe una etiqueta adjunta; verificá que refleje la corrección antes de imprimirla.
+        {% endif %}
+    </div>
+
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+    <form method="POST">
+        <div class="detalle-grid">
+            <div class="detalle-box">
+                <h3>Cliente</h3>
+                <input name="cliente" placeholder="Nombre y apellido / Razón social" value="{{ pedido.cliente or '' }}">
+                <input name="dni" placeholder="DNI / CUIT" value="{{ pedido.dni or '' }}">
+                <input name="telefono" placeholder="Teléfono" value="{{ pedido.telefono or '' }}">
+                <input name="mail" placeholder="Correo electrónico" value="{{ pedido.mail or '' }}">
+            </div>
+
+            <div class="detalle-box">
+                <h3>Entrega</h3>
+                <input name="direccion" placeholder="Dirección" value="{{ pedido.direccion or '' }}">
+                <input name="localidad" placeholder="Localidad" value="{{ pedido.localidad or '' }}">
+                <input name="provincia" placeholder="Provincia" value="{{ pedido.provincia or '' }}">
+                <input name="codigo_postal" placeholder="Código postal" value="{{ pedido.codigo_postal or '' }}">
+                <input name="sucursal_nombre" placeholder="Sucursal de transporte" value="{{ pedido.sucursal_nombre or '' }}">
+            </div>
+
+            <div class="detalle-box detalle-box-full">
+                <h3>Autorizado a recibir o retirar</h3>
+                <input name="autorizado_nombre" placeholder="Nombre completo" value="{{ pedido.autorizado_nombre or '' }}">
+                <input name="autorizado_dni" placeholder="DNI" value="{{ pedido.autorizado_dni or '' }}">
+                <input name="autorizado_telefono" placeholder="Teléfono" value="{{ pedido.autorizado_telefono or '' }}">
+            </div>
+        </div>
+
+        <div class="detalle-acciones" style="margin-top:18px;">
+            <a href="{{ url_for('detalle_pedido', id=pedido.id) }}" class="btn btn-secundario">Cancelar</a>
+            <button type="submit" class="btn btn-confirmar">Guardar corrección</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
