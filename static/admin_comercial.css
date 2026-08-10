@@ -361,6 +361,25 @@
   margin-top: 16px;
 }
 .source-grid-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.source-catalog { margin-top: 16px; }
+.source-catalog > summary { display:flex; align-items:center; justify-content:space-between; min-height:44px; padding:0 14px; border:1px solid #cdd9e2; border-radius:10px; background:#f7fafc; color:#176b89; font-size:13px; font-weight:800; cursor:pointer; list-style:none; }
+.source-catalog > summary::-webkit-details-marker { display:none; }
+.source-catalog > summary::before { content:"▶"; margin-right:8px; font-size:10px; }
+.source-catalog[open] > summary::before { content:"▼"; }
+.source-catalog > summary > span { flex:1; }
+.source-catalog > summary > strong { display:inline-flex; align-items:center; justify-content:center; min-width:28px; height:24px; padding:0 8px; border-radius:999px; background:#dff3fa; color:#0f5268; }
+.source-catalog-content { margin-top:12px; }
+.source-catalog-table { margin-top:12px; }
+.source-row-action > summary { display:inline-flex; align-items:center; min-height:30px; padding:0 10px; border:1px solid #8ac4da; border-radius:7px; background:#edf8fc; color:#176b89; font-size:11px; font-weight:800; cursor:pointer; list-style:none; }
+.source-row-action > summary::-webkit-details-marker { display:none; }
+.source-row-panel { min-width:620px; padding:12px 0 4px; white-space:normal; }
+.source-table-update { display:grid; grid-template-columns:repeat(3, minmax(130px, 1fr)) auto; gap:8px; align-items:end; }
+.source-table-update label { display:flex; flex-direction:column; gap:4px; min-width:0; color:#667085; font-size:10px; font-weight:800; }
+.source-table-update input { width:100%; min-width:0; height:36px; padding:7px 9px; border:1px solid #cbd2dc; border-radius:7px; }
+.source-table-update .money-input { height:36px; }
+.source-table-update .money-input input { height:34px; border:0; }
+.source-table-history { margin-top:10px; }
+.source-table-history > summary { color:#667085; font-size:11px; font-weight:700; cursor:pointer; }
 .source-card { padding: 15px; border: 1px solid #e1e5eb; border-radius: 12px; background: #fff; }
 .source-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .source-card-head > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -449,4 +468,6 @@
   .comercial-header h1 { font-size: 25px; }
   .comercial-steps, .form-catalogos, .form-inclusion, .form-costos, .form-listas, .form-politicas, .form-precios, .form-source-insumo, .form-source-employee, .form-source-fixed, .form-cost-profile, .form-combo, .source-update form, .employee-update-form { grid-template-columns: 1fr !important; }
   .comercial-section { padding: 16px; }
+  .source-row-panel { min-width:280px; }
+  .source-table-update { grid-template-columns:1fr; }
 }

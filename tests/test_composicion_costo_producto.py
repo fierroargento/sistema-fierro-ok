@@ -50,3 +50,20 @@ def test_estetica_usa_unidad_activa():
     assert "Ej. {{ unidad_activa.codigo }}" in comercial
     assert "Ej. Catálogo {{ unidad_activa.nombre }}" in comercial
     assert ".form-source-insumo > label:first-of-type" in estilos
+
+
+def test_listados_productivos_quedan_plegados_y_los_insumos_en_tabla():
+    template = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
+
+    assert "Ver insumos cargados" in template
+    assert "Ver empleados cargados" in template
+    assert "Ver costos fijos cargados" in template
+    assert "Ver fichas técnicas" in template
+    assert "Ver productos clasificados" in template
+    assert 'class="table-wrap source-catalog-table"' in template
+    assert "Gestionar" in template
+    assert "source-table-update" in template
+    assert "v='20260810-3'" in template
+    assert ".source-catalog > summary" in estilos
+    assert ".source-row-action > summary" in estilos
