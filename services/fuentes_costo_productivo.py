@@ -261,11 +261,26 @@ def registrar_precio_insumo(
 
 def calcular_tarifa_laboral(
     *, sueldo_base_centavos, cargas_sociales_centavos=0,
+    porcentaje_cargas=None,
     adicionales_centavos=0, otros_costos_centavos=0,
     horas_mensuales, horas_productivas,
 ):
+    sueldo = _entero_no_negativo(sueldo_base_centavos, "El sueldo base")
+    porcentaje = Decimal("0")
+    if porcentaje_cargas is not None:
+        try:
+            porcentaje = Decimal(str(porcentaje_cargas).replace(",", "."))
+        except (InvalidOperation, ValueError) as error:
+            raise ValueError("El porcentaje de cargas no es valido.") from error
+        if not porcentaje.is_finite() or porcentaje < 0 or porcentaje > 100:
+            raise ValueError("El porcentaje de cargas debe estar entre 0 y 100.")
+        cargas_sociales_centavos = int(
+            (Decimal(sueldo) * porcentaje / Decimal("100")).quantize(
+                Decimal("1"), rounding=ROUND_HALF_UP,
+            )
+        )
     importes = [
-        _entero_no_negativo(sueldo_base_centavos, "El sueldo base"),
+        sueldo,
         _entero_no_negativo(cargas_sociales_centavos, "Las cargas sociales"),
         _entero_no_negativo(adicionales_centavos, "Los adicionales"),
         _entero_no_negativo(otros_costos_centavos, "Los otros costos"),
@@ -288,6 +303,7 @@ def calcular_tarifa_laboral(
     return {
         "sueldo_base_centavos": importes[0],
         "cargas_sociales_centavos": importes[1],
+        "porcentaje_cargas": porcentaje,
         "adicionales_centavos": importes[2],
         "otros_costos_centavos": importes[3],
         "horas_mensuales": horas_mes,
@@ -300,6 +316,7 @@ def calcular_tarifa_laboral(
 
 def registrar_costo_empleado(
     empleado, *, moneda, sueldo_base_centavos, cargas_sociales_centavos=0,
+    porcentaje_cargas=None, usa_porcentaje_general=False,
     adicionales_centavos=0, otros_costos_centavos=0, horas_mensuales,
     horas_productivas, vigente_desde=None, observacion=None,
     creado_por_usuario_id=None, EmpleadoCostoVersion, db_session,
@@ -307,12 +324,14 @@ def registrar_costo_empleado(
     valores = calcular_tarifa_laboral(
         sueldo_base_centavos=sueldo_base_centavos,
         cargas_sociales_centavos=cargas_sociales_centavos,
+        porcentaje_cargas=porcentaje_cargas,
         adicionales_centavos=adicionales_centavos,
         otros_costos_centavos=otros_costos_centavos,
         horas_mensuales=horas_mensuales,
         horas_productivas=horas_productivas,
     )
     valores.update({
+        "usa_porcentaje_general": bool(usa_porcentaje_general),
         "observacion": str(observacion or "").strip() or None,
         "creado_por_usuario_id": creado_por_usuario_id,
     })

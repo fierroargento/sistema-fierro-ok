@@ -32,6 +32,25 @@ def asegurar_recursos_mano_obra(*, db, inspect_fn, text_fn, logger_fn=print):
         "ON empleado_productivo (tipo_registro)"
     ))
     db.session.commit()
+    inspector = inspect_fn(db.engine)
+    if "empleado_costo_version" in inspector.get_table_names():
+        columnas_version = {
+            columna["name"]
+            for columna in inspector.get_columns("empleado_costo_version")
+        }
+        if "porcentaje_cargas" not in columnas_version:
+            db.session.execute(text_fn(
+                "ALTER TABLE empleado_costo_version "
+                "ADD COLUMN porcentaje_cargas NUMERIC(9, 4) NOT NULL DEFAULT 0"
+            ))
+            creadas.append("porcentaje_cargas")
+        if "usa_porcentaje_general" not in columnas_version:
+            db.session.execute(text_fn(
+                "ALTER TABLE empleado_costo_version "
+                "ADD COLUMN usa_porcentaje_general BOOLEAN NOT NULL DEFAULT FALSE"
+            ))
+            creadas.append("usa_porcentaje_general")
+        db.session.commit()
     if creadas and logger_fn is not None:
         logger_fn("[SAAS] Recursos productivos habilitados en mano de obra.")
     return {"columnas_creadas": creadas}

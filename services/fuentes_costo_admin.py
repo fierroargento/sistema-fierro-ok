@@ -25,6 +25,12 @@ from services.recursos_productivos import (
     recalcular_tarifa_recurso,
     vincular_empleado,
 )
+from services.configuracion_costo_laboral import (
+    configuracion_vigente,
+    recalcular_empleados_generales,
+    registrar_configuracion,
+    validar_porcentaje,
+)
 
 
 def _id(formulario, campo, opcional=False):
@@ -67,6 +73,31 @@ def procesar_accion_fuente_costo(
     if unidad_solicitada not in {None, unidad_activa.id}:
         raise ValueError("La fuente no pertenece a la unidad activa.")
     comunes["unidad_negocio_id"] = unidad_solicitada
+
+    if accion == "configurar_porcentaje_costo_laboral":
+        version = registrar_configuracion(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+            porcentaje=formulario.get("porcentaje_cargas_general"),
+            observacion=formulario.get("observacion"),
+            usuario_id=usuario_id,
+            Modelo=modelos["ConfiguracionCostoLaboralVersion"],
+            db_session=db_session,
+        )
+        empleados = modelos["EmpleadoProductivo"].query.filter_by(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+            tipo_registro="empleado",
+        ).all()
+        cantidad = recalcular_empleados_generales(
+            empleados, version.porcentaje_cargas,
+            EmpleadoCostoVersion=modelos["EmpleadoCostoVersion"],
+            db_session=db_session, usuario_id=usuario_id,
+        )
+        return (
+            f"Porcentaje general actualizado a {version.porcentaje_cargas}%. "
+            f"{cantidad} empleados recalculados."
+        )
 
     if accion == "crear_recurso_productivo":
         recurso = crear_recurso(
@@ -303,6 +334,14 @@ def procesar_accion_fuente_costo(
         return f"Precio de {insumo.nombre} actualizado a version {version.numero_version}."
 
     if accion == "crear_empleado":
+        excepcion = str(formulario.get("porcentaje_cargas") or "").strip()
+        general = configuracion_vigente(
+            organizacion.id, unidad_activa.id,
+            Modelo=modelos["ConfiguracionCostoLaboralVersion"],
+        )
+        porcentaje = validar_porcentaje(
+            excepcion if excepcion else general.porcentaje_cargas if general else 0
+        )
         empleado = crear_empleado(
             **comunes,
             codigo=formulario.get("codigo"),
@@ -317,9 +356,8 @@ def procesar_accion_fuente_costo(
             empleado,
             moneda=formulario.get("moneda", "ARS"),
             sueldo_base_centavos=importe_a_centavos(formulario.get("sueldo_base")),
-            cargas_sociales_centavos=importe_a_centavos(
-                formulario.get("cargas_sociales", 0)
-            ),
+            porcentaje_cargas=porcentaje,
+            usa_porcentaje_general=not bool(excepcion),
             adicionales_centavos=importe_a_centavos(
                 formulario.get("adicionales", 0)
             ),
@@ -356,13 +394,20 @@ def procesar_accion_fuente_costo(
             empleado.sector = str(formulario.get("sector") or "").strip()
         if formulario.get("puesto") is not None:
             empleado.puesto = str(formulario.get("puesto") or "").strip() or None
+        excepcion = str(formulario.get("porcentaje_cargas") or "").strip()
+        general = configuracion_vigente(
+            organizacion.id, unidad_activa.id,
+            Modelo=modelos["ConfiguracionCostoLaboralVersion"],
+        )
+        porcentaje = validar_porcentaje(
+            excepcion if excepcion else general.porcentaje_cargas if general else 0
+        )
         version = registrar_costo_empleado(
             empleado,
             moneda=formulario.get("moneda", "ARS"),
             sueldo_base_centavos=importe_a_centavos(formulario.get("sueldo_base")),
-            cargas_sociales_centavos=importe_a_centavos(
-                formulario.get("cargas_sociales", 0)
-            ),
+            porcentaje_cargas=porcentaje,
+            usa_porcentaje_general=not bool(excepcion),
             adicionales_centavos=importe_a_centavos(
                 formulario.get("adicionales", 0)
             ),
@@ -459,6 +504,10 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
         modelos["CatalogoProducto"].activo.is_(True),
     ).order_by(modelos["CatalogoProducto"].nombre_comercial).all()
     return {
+        "configuracion_costo_laboral": configuracion_vigente(
+            organizacion_id, unidad_negocio_id,
+            Modelo=modelos["ConfiguracionCostoLaboralVersion"],
+        ),
         "inclusiones_costeo": inclusiones,
         "perfiles_costeo": perfiles,
         "perfiles_combo": [perfil for perfil in perfiles if perfil.tipo == "combo"],

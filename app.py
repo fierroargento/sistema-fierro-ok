@@ -256,6 +256,7 @@ from models.catalogo_producto import CatalogoProducto
 from models.costo_producto_version import CostoProductoVersion
 from models.costo_producto_detalle import CostoProductoDetalle
 from models.fuentes_costo_productivo import (
+    ConfiguracionCostoLaboralVersion,
     CostoFijoProductivo,
     CostoFijoVersion,
     EmpleadoCostoVersion,
@@ -11709,6 +11710,7 @@ registrar_modulos_web(
             "InsumoPrecioVersion": InsumoPrecioVersion,
             "EmpleadoProductivo": EmpleadoProductivo,
             "EmpleadoCostoVersion": EmpleadoCostoVersion,
+            "ConfiguracionCostoLaboralVersion": ConfiguracionCostoLaboralVersion,
             "RecursoEmpleadoProductivo": RecursoEmpleadoProductivo,
             "CostoFijoProductivo": CostoFijoProductivo,
             "CostoFijoVersion": CostoFijoVersion,

@@ -202,6 +202,10 @@ class EmpleadoCostoVersion(db.Model):
             "AND costo_minuto_productivo_centavos >= 0",
             name="ck_empleado_costo_totales_no_negativos",
         ),
+        CheckConstraint(
+            "porcentaje_cargas >= 0 AND porcentaje_cargas <= 100",
+            name="ck_empleado_costo_porcentaje_cargas",
+        ),
         Index(
             "uq_empleado_costo_numero", "empleado_id", "moneda", "numero_version",
             unique=True,
@@ -223,6 +227,8 @@ class EmpleadoCostoVersion(db.Model):
     numero_version = db.Column(db.Integer, nullable=False)
     sueldo_base_centavos = db.Column(db.BigInteger, nullable=False)
     cargas_sociales_centavos = db.Column(db.BigInteger, default=0, nullable=False)
+    porcentaje_cargas = db.Column(db.Numeric(9, 4), default=0, nullable=False)
+    usa_porcentaje_general = db.Column(db.Boolean, default=False, nullable=False)
     adicionales_centavos = db.Column(db.BigInteger, default=0, nullable=False)
     otros_costos_centavos = db.Column(db.BigInteger, default=0, nullable=False)
     horas_mensuales = db.Column(db.Numeric(12, 4), nullable=False)
@@ -242,6 +248,50 @@ class EmpleadoCostoVersion(db.Model):
     )
 
     empleado = db.relationship("EmpleadoProductivo", backref="versiones_costo")
+
+
+class ConfiguracionCostoLaboralVersion(db.Model):
+    """Porcentaje general historico aplicado por unidad de negocio."""
+
+    __tablename__ = "configuracion_costo_laboral_version"
+    __table_args__ = (
+        CheckConstraint(
+            "porcentaje_cargas >= 0 AND porcentaje_cargas <= 100",
+            name="ck_config_costo_laboral_porcentaje",
+        ),
+        Index(
+            "uq_config_costo_laboral_numero", "unidad_negocio_id",
+            "numero_version", unique=True,
+        ),
+        Index(
+            "uq_config_costo_laboral_vigente", "unidad_negocio_id",
+            unique=True,
+            postgresql_where=text("vigente IS TRUE"),
+            sqlite_where=text("vigente IS TRUE"),
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True,
+    )
+    unidad_negocio_id = db.Column(
+        db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=False, index=True,
+    )
+    numero_version = db.Column(db.Integer, nullable=False)
+    porcentaje_cargas = db.Column(db.Numeric(9, 4), nullable=False)
+    vigente = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    vigente_desde = db.Column(db.DateTime, nullable=False, index=True)
+    vigente_hasta = db.Column(db.DateTime)
+    observacion = db.Column(db.String(500))
+    creado_por_usuario_id = db.Column(
+        db.Integer, db.ForeignKey("usuario_sistema.id"), nullable=True,
+    )
+    fecha_creacion = db.Column(
+        db.DateTime, default=ahora_utc_naive, nullable=False,
+    )
+
+    unidad_negocio = db.relationship("UnidadNegocio")
 
 
 class CostoFijoProductivo(db.Model):

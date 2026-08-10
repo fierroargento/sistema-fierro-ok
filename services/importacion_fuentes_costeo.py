@@ -30,11 +30,12 @@ DEFINICIONES = {
         "campos": {
             "codigo": ("Código o legajo", True), "nombre": ("Nombre", True),
             "sector": ("Sector", True), "puesto": ("Puesto", False),
-            "sueldo_base": ("Sueldo base", True), "cargas_sociales": ("Cargas sociales", False),
+            "sueldo_base": ("Sueldo base", True),
+            "porcentaje_cargas": ("Excepción cargas %", False),
             "adicionales": ("Adicionales", False), "otros_costos": ("Otros costos", False),
             "horas_mensuales": ("Horas mensuales", True), "horas_productivas": ("Horas productivas", True),
         },
-        "ejemplo": ["EMP-1", "Operario", "Herrería", "Soldador", "1000000", "300000", "0", "0", "176", "160"],
+        "ejemplo": ["EMP-1", "Operario", "Herrería", "Soldador", "1000000", "", "0", "0", "176", "160"],
     },
     "recursos": {
         "titulo": "Recursos y equipos de mano de obra",
@@ -89,12 +90,13 @@ ETIQUETAS_VALORES = {
 }
 
 CAMPOS_MONEDA = {
-    "precio_unitario", "sueldo_base", "cargas_sociales", "adicionales",
+    "precio_unitario", "sueldo_base", "adicionales",
     "otros_costos", "importe_mensual",
 }
 
 CAMPOS_PORCENTAJE = {
     "merma", "porcentaje", "porcentaje_indirecto", "porcentaje_dedicacion",
+    "porcentaje_cargas",
 }
 
 TIPOS_INSUMO_VALIDOS = {
@@ -275,8 +277,14 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                 if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
                     raise ValueError("El código ya pertenece a otra unidad")
                 if existente: ids = {"empleado_id": existente.id}
-                for campo in ("sueldo_base", "cargas_sociales", "adicionales", "otros_costos", "horas_mensuales", "horas_productivas"):
+                for campo in ("sueldo_base", "adicionales", "otros_costos", "horas_mensuales", "horas_productivas"):
                     datos[campo] = _numero(datos.get(campo), campo, campo in {"sueldo_base", "horas_mensuales", "horas_productivas"})
+                excepcion = str(datos.get("porcentaje_cargas") or "").strip()
+                datos["porcentaje_cargas"] = (
+                    _numero(excepcion, "Excepción de cargas") if excepcion else ""
+                )
+                if excepcion and Decimal(datos["porcentaje_cargas"]) > Decimal("100"):
+                    raise ValueError("Excepción de cargas está fuera de rango")
                 datos["horas_mensuales"] = _numero_positivo(datos["horas_mensuales"], "Horas mensuales")
                 datos["horas_productivas"] = _numero_positivo(datos["horas_productivas"], "Horas productivas")
                 if Decimal(datos["horas_productivas"]) > Decimal(datos["horas_mensuales"]):

@@ -553,7 +553,7 @@ def crear_blueprint_comercial(*, dependencias):
                 filas.append([
                     r.codigo, r.nombre, r.sector, r.puesto or "",
                     v.sueldo_base_centavos / 100 if v else "",
-                    v.cargas_sociales_centavos / 100 if v else "",
+                    "" if v and v.usa_porcentaje_general else v.porcentaje_cargas if v else "",
                     v.adicionales_centavos / 100 if v else "",
                     v.otros_costos_centavos / 100 if v else "",
                     v.horas_mensuales if v else "", v.horas_productivas if v else "",

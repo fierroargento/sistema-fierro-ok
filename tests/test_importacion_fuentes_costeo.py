@@ -13,6 +13,7 @@ def test_cada_conjunto_tiene_campos_y_plantilla_propia():
     assert set(DEFINICIONES) == {"insumos", "empleados", "recursos", "costos-fijos", "fichas"}
     assert "precio_unitario" in DEFINICIONES["insumos"]["campos"]
     assert "horas_productivas" in DEFINICIONES["empleados"]["campos"]
+    assert "porcentaje_cargas" in DEFINICIONES["empleados"]["campos"]
     assert "porcentaje_dedicacion" in DEFINICIONES["recursos"]["campos"]
     assert "importe_mensual" in DEFINICIONES["costos-fijos"]["campos"]
     assert "tipo_linea" in DEFINICIONES["fichas"]["campos"]
@@ -160,6 +161,8 @@ def test_exportaciones_son_reimportables_y_conservan_todos_los_campos():
     assert 'encabezados = [nombre.upper() for nombre, _obligatorio in config["campos"].values()]' in rutas
     assert "v.proveedor_referencia if v else" in rutas
     assert "v.sueldo_base_centavos / 100" in rutas
+    assert "v.usa_porcentaje_general" in rutas
+    assert "v.porcentaje_cargas" in rutas
     assert "v.horas_productivas if v else" in rutas
     assert '"si" if r.integra_costo_produccion else "no"' in rutas
     assert "v.comprobante_referencia if v else" in rutas

@@ -64,7 +64,7 @@ def test_listados_productivos_quedan_plegados_y_los_insumos_en_tabla():
     assert 'class="table-wrap source-catalog-table"' in template
     assert "Gestionar" in template
     assert "source-table-update" in template
-    assert "v='20260810-5'" in template
+    assert "v='20260810-6'" in template
     assert ".source-catalog > summary" in estilos
     assert ".source-row-action > summary" in estilos
 
