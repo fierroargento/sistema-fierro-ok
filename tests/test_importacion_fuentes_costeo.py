@@ -50,6 +50,16 @@ def test_historial_distingue_validacion_sin_cambios():
     assert "Sin modificaciones" in template
 
 
+def test_vista_previa_cierra_configuracion_y_permite_reabrirla():
+    template = Path("templates/admin_importacion_fuentes_costeo.html").read_text(encoding="utf-8")
+    rutas = Path("modules/admin/comercial/routes.py").read_text(encoding="utf-8")
+    assert "{% if mostrar_configuracion %}" in template
+    assert "Volver a configurar" in template
+    assert "Cerrar configuración" in template
+    assert 'request.args.get("configurar") == "1"' in rutas
+    assert "mostrar_configuracion=mostrar_configuracion" in rutas
+
+
 def test_fichas_distinguen_altas_y_actualizaciones():
     servicio = Path("services/importacion_fuentes_costeo.py").read_text(encoding="utf-8")
     assert "perfil.insumos_costeo" in servicio

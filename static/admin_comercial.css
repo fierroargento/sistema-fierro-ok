@@ -402,6 +402,11 @@
 .import-mode select { min-width: 220px; height: 36px; border: 1px solid #cbd2dc; border-radius: 7px; background: #fff; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .import-next, .confirm-import { margin-top: 14px; }
+.preview-heading-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.preview-heading-actions p { margin: 0; }
+@media (max-width: 760px) {
+  .preview-heading-actions { align-items: flex-end; flex-direction: column; gap: 8px; }
+}
 .export-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 
 @media (max-width: 1250px) {

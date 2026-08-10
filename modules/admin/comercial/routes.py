@@ -488,7 +488,9 @@ def crear_blueprint_comercial(*, dependencias):
             db.session.rollback(); return redirect(url_for("admin_comercial.importar_fuente_costeo", tipo=tipo, error=str(error)))
         lote_id = request.args.get("lote", type=int)
         lote = Lote.query.filter_by(id=lote_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).first() if lote_id else None
-        return render_template("admin_importacion_fuentes_costeo.html", tipo=tipo, config=config, unidad_activa=unidad_activa, lote=lote, encabezados=deserializar(lote.encabezados_json, []) if lote else [], filas=deserializar(lote.filas_json, []) if lote else [], mapeo=deserializar(lote.mapeo_json, {}) if lote else {}, vista=deserializar(lote.vista_previa_json, []) if lote else [], historial=Lote.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).order_by(Lote.fecha_creacion.desc()).limit(20).all(), error=(request.args.get("error") or "").strip())
+        vista = deserializar(lote.vista_previa_json, []) if lote else []
+        mostrar_configuracion = not vista or request.args.get("configurar") == "1"
+        return render_template("admin_importacion_fuentes_costeo.html", tipo=tipo, config=config, unidad_activa=unidad_activa, lote=lote, encabezados=deserializar(lote.encabezados_json, []) if lote else [], filas=deserializar(lote.filas_json, []) if lote else [], mapeo=deserializar(lote.mapeo_json, {}) if lote else {}, vista=vista, mostrar_configuracion=mostrar_configuracion, historial=Lote.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).order_by(Lote.fecha_creacion.desc()).limit(20).all(), error=(request.args.get("error") or "").strip())
 
     @blueprint.route("/admin/comercial/importaciones/fuentes/<tipo>/plantilla")
     @dependencias["login_required"]
