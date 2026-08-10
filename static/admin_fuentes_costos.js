@@ -17,9 +17,45 @@
     });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", iniciarCriteriosDistribucion);
-  } else {
+  function abrirDialogosDeGestion() {
+    document.querySelectorAll(".source-row-action").forEach(function (detalle) {
+      const panel = detalle.querySelector(":scope > .source-row-panel");
+      if (!panel) return;
+      const boton = document.createElement("button");
+      boton.type = "button";
+      boton.className = "source-dialog-trigger";
+      boton.setAttribute("data-source-dialog", "");
+      boton.textContent = "Gestionar";
+      const dialogo = document.createElement("dialog");
+      dialogo.className = "source-dialog";
+      const cerrar = document.createElement("button");
+      cerrar.type = "button";
+      cerrar.className = "source-dialog-close";
+      cerrar.setAttribute("aria-label", "Cerrar");
+      cerrar.textContent = "×";
+      dialogo.append(cerrar, panel);
+      detalle.replaceWith(boton, dialogo);
+    });
+
+    document.querySelectorAll("[data-source-dialog]").forEach(function (boton) {
+      const dialogo = boton.nextElementSibling;
+      if (!dialogo || !dialogo.matches("dialog.source-dialog")) return;
+      boton.addEventListener("click", function () { dialogo.showModal(); });
+      dialogo.querySelector(".source-dialog-close").addEventListener("click", function () { dialogo.close(); });
+      dialogo.addEventListener("click", function (evento) {
+        if (evento.target === dialogo) dialogo.close();
+      });
+    });
+  }
+
+  function iniciar() {
     iniciarCriteriosDistribucion();
+    abrirDialogosDeGestion();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", iniciar);
+  } else {
+    iniciar();
   }
 })();

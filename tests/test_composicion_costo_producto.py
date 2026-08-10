@@ -64,9 +64,9 @@ def test_listados_productivos_quedan_plegados_y_los_insumos_en_tabla():
     assert 'class="table-wrap source-catalog-table"' in template
     assert "Gestionar" in template
     assert "source-table-update" in template
-    assert "v='20260810-8'" in template
+    assert "v='20260810-9'" in template
     assert ".source-catalog > summary" in estilos
-    assert ".source-row-action > summary" in estilos
+    assert ".source-dialog::backdrop" in estilos
 
 
 def test_fichas_explican_y_bloquean_fuentes_que_aun_no_existen():
@@ -109,7 +109,11 @@ def test_listados_productivos_similares_usan_tablas_y_accion_gestionar():
     assert "<th>Recurso</th>" in template
     assert "<th>Concepto</th>" in template
     assert template.count('class="table-wrap source-catalog-table"') >= 4
-    assert template.count('<summary>Gestionar</summary>') >= 4
+    javascript = Path("static/admin_fuentes_costos.js").read_text(encoding="utf-8")
+    assert template.count('data-source-dialog') >= 2
+    assert 'document.querySelectorAll(".source-row-action")' in javascript
+    assert "showModal()" in javascript
+    assert "dialogo.close()" in javascript
     assert 'class="source-grid source-grid-wide source-catalog-content"' not in template
     assert 'class="source-grid source-catalog-content"' not in template
     assert ".employee-table-update" in estilos

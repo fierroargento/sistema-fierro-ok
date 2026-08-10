@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260810-8') }}">
-<script src="{{ url_for('static', filename='admin_fuentes_costos.js') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260810-9') }}">
+<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260810-2') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -105,10 +105,10 @@
       {% for insumo in insumos %}
       {% set vigente = insumo.versiones_precio|selectattr('vigente')|first %}
       <tr><td><strong>{{ insumo.codigo }}</strong></td><td>{{ insumo.nombre }}</td><td><span class="status status-active">{{ insumo.tipo|replace('_', ' ') }}</span></td><td>{{ insumo.unidad_medida }}</td><td>{% if vigente %}<strong>$ {{ formatear_centavos_ars(vigente.precio_unitario_centavos) }}</strong>{% else %}Sin precio{% endif %}</td><td>{{ 'v' ~ vigente.numero_version if vigente else '—' }}</td><td>{{ vigente.proveedor_referencia if vigente and vigente.proveedor_referencia else '—' }}</td><td>
-        <details class="source-row-action"><summary>Gestionar</summary><div class="source-row-panel">
+        <button class="source-dialog-trigger" type="button" data-source-dialog>Gestionar</button><dialog class="source-dialog"><button class="source-dialog-close" type="button" aria-label="Cerrar">×</button><div class="source-row-panel">
           <form class="source-table-update" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_precio_insumo"><input type="hidden" name="insumo_id" value="{{ insumo.id }}"><input type="hidden" name="moneda" value="ARS"><label><span>Nuevo precio</span><div class="money-input"><span>$</span><input name="precio_unitario" inputmode="decimal" required></div></label><label><span>Proveedor</span><input name="proveedor_referencia" value="{{ vigente.proveedor_referencia if vigente and vigente.proveedor_referencia else '' }}"></label><label><span>Comprobante</span><input name="comprobante_referencia"></label><button class="table-action" type="submit">Guardar versión</button></form>
           <details class="source-table-history"><summary>Ver historial ({{ insumo.versiones_precio|length }})</summary><div class="mini-history">{% for version in insumo.versiones_precio|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }}{% if version.proveedor_referencia %} · {{ version.proveedor_referencia }}{% endif %}</span><strong>$ {{ formatear_centavos_ars(version.precio_unitario_centavos) }}</strong></div>{% endfor %}</div></details>
-        </div></details>
+        </div></dialog>
       </td></tr>
       {% endfor %}
       </tbody></table></div>
@@ -156,10 +156,10 @@
         </form>
         {% if recursos_productivos %}<div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Código</th><th>Recurso</th><th>Sector</th><th>Integrantes</th><th>Indirectos</th><th>Tarifa vigente</th><th>Acciones</th></tr></thead><tbody>
         {% for recurso in recursos_productivos %}{% set tarifa = recurso.versiones_costo|selectattr('vigente')|first %}
-        <tr><td><strong>{{ recurso.codigo }}</strong></td><td>{{ recurso.nombre }}</td><td>{{ recurso.sector }}</td><td>{{ recurso.miembros_recurso|length }}</td><td>{{ numero_decimal_limpio(recurso.porcentaje_indirecto) }}%</td><td>{% if tarifa %}<strong>$ {{ formatear_centavos_ars(tarifa.costo_hora_productiva_centavos) }}/h</strong>{% else %}Sin calcular{% endif %}</td><td><details class="source-row-action"><summary>Gestionar</summary><div class="source-row-panel">
+        <tr><td><strong>{{ recurso.codigo }}</strong></td><td>{{ recurso.nombre }}</td><td>{{ recurso.sector }}</td><td>{{ recurso.miembros_recurso|length }}</td><td>{{ numero_decimal_limpio(recurso.porcentaje_indirecto) }}%</td><td>{% if tarifa %}<strong>$ {{ formatear_centavos_ars(tarifa.costo_hora_productiva_centavos) }}/h</strong>{% else %}Sin calcular{% endif %}</td><td><button class="source-dialog-trigger" type="button" data-source-dialog>Gestionar</button><dialog class="source-dialog"><button class="source-dialog-close" type="button" aria-label="Cerrar">×</button><div class="source-row-panel">
           <div class="resource-members">{% for vinculo in recurso.miembros_recurso %}<span>{{ vinculo.empleado.nombre }} · {{ numero_decimal_limpio(vinculo.porcentaje_dedicacion) }}%<form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="desvincular_empleado_recurso"><input type="hidden" name="recurso_id" value="{{ recurso.id }}"><input type="hidden" name="vinculo_id" value="{{ vinculo.id }}"><button class="inline-remove">Quitar</button></form></span>{% else %}<span>Sin empleados asignados.</span>{% endfor %}</div>
           <div class="resource-actions"><form class="resource-member-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="vincular_empleado_recurso"><input type="hidden" name="recurso_id" value="{{ recurso.id }}"><label><span>Empleado</span><select name="empleado_id" required>{% for e in empleados %}<option value="{{ e.id }}">{{ e.nombre }} · {{ e.puesto or e.sector }}</option>{% endfor %}</select></label><label><span>Dedicación %</span><input name="porcentaje_dedicacion" inputmode="decimal" value="100" required></label><button class="table-action">Incorporar</button></form>{% if recurso.miembros_recurso %}<form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="recalcular_recurso_productivo"><input type="hidden" name="recurso_id" value="{{ recurso.id }}"><label class="compact-field"><span>Indirectos %</span><input name="porcentaje_indirecto" inputmode="decimal" value="{{ numero_decimal_limpio(recurso.porcentaje_indirecto) }}"></label><button class="comercial-primary">Recalcular tarifa</button></form>{% endif %}</div>
-        </div></details></td></tr>{% endfor %}</tbody></table></div>{% endif %}
+        </div></dialog></td></tr>{% endfor %}</tbody></table></div>{% endif %}
       </div>
     </details>
     {% if empleados %}<details class="source-catalog"><summary><span>Ver empleados cargados</span><strong>{{ empleados|length }}</strong></summary><div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Legajo</th><th>Empleado</th><th>Ubicación</th><th>Función</th><th>Productivo</th><th>Costo mensual</th><th>Hora productiva</th><th>Cargas</th><th>Acciones</th></tr></thead><tbody>
