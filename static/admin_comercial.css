@@ -412,8 +412,15 @@
 .import-summary { display:flex; gap:10px; flex-wrap:wrap; margin:0 0 14px; }
 .import-summary span { padding:8px 12px; border-radius:10px; background:#f1f5f9; color:#334155; font-size:.85rem; }
 .import-summary strong { color:#0f5268; font-size:1rem; }
+.import-completed { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+.import-completed h2 { margin:10px 0 4px; }
+.import-completed p { margin:0 0 14px; color:#667085; }
+.import-completed .import-summary { margin:0; }
+.import-completed-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.import-completed-actions .comercial-primary { display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
 @media (max-width: 760px) {
   .preview-heading-actions { align-items: flex-end; flex-direction: column; gap: 8px; }
+  .import-completed { align-items:flex-start; flex-direction:column; }
 }
 .export-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 

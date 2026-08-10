@@ -132,3 +132,15 @@ def test_confirmacion_revalida_audita_y_pide_confirmacion_humana():
     assert "Confirmó importación productiva" in rutas
     assert "resumen_vista.aplicables" in template
     assert "¿Confirmás la importación?" in template
+
+
+def test_confirmacion_oculta_vista_previa_y_muestra_cierre_compacto():
+    template = Path("templates/admin_importacion_fuentes_costeo.html").read_text(encoding="utf-8")
+
+    assert "{% if vista and lote.estado != 'confirmado' %}" in template
+    assert "Importación finalizada" in template
+    assert "Nueva importación" in template
+    assert "Volver a fuentes de costo" in template
+    assert "{{ lote.creados }}" in template
+    assert "{{ lote.actualizados }}" in template
+    assert "{{ lote.rechazados }}" in template
