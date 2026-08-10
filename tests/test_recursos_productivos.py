@@ -105,3 +105,4 @@ def test_configuracion_general_es_historica_por_unidad_y_no_engrosa_app():
     assert "def recalcular_empleados_generales" in servicio
     assert "configuracion_costo_laboral_version" not in app.lower()
     assert "ADD COLUMN porcentaje_cargas" in migracion
+    assert "ADD COLUMN porcentaje_productivo" in migracion

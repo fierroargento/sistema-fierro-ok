@@ -206,6 +206,15 @@ class EmpleadoCostoVersion(db.Model):
             "porcentaje_cargas >= 0 AND porcentaje_cargas <= 100",
             name="ck_empleado_costo_porcentaje_cargas",
         ),
+        CheckConstraint(
+            "porcentaje_productivo >= 0 AND porcentaje_productivo <= 100",
+            name="ck_empleado_costo_porcentaje_productivo",
+        ),
+        CheckConstraint(
+            "tipo_funcion IN ('directa', 'indirecta_productiva', "
+            "'comercial_administrativa', 'mixta')",
+            name="ck_empleado_costo_tipo_funcion",
+        ),
         Index(
             "uq_empleado_costo_numero", "empleado_id", "moneda", "numero_version",
             unique=True,
@@ -229,6 +238,15 @@ class EmpleadoCostoVersion(db.Model):
     cargas_sociales_centavos = db.Column(db.BigInteger, default=0, nullable=False)
     porcentaje_cargas = db.Column(db.Numeric(9, 4), default=0, nullable=False)
     usa_porcentaje_general = db.Column(db.Boolean, default=False, nullable=False)
+    ubicacion_trabajo = db.Column(
+        db.String(120), default="Sin definir", nullable=False,
+    )
+    tipo_funcion = db.Column(
+        db.String(30), default="directa", nullable=False, index=True,
+    )
+    porcentaje_productivo = db.Column(
+        db.Numeric(9, 4), default=100, nullable=False,
+    )
     adicionales_centavos = db.Column(db.BigInteger, default=0, nullable=False)
     otros_costos_centavos = db.Column(db.BigInteger, default=0, nullable=False)
     horas_mensuales = db.Column(db.Numeric(12, 4), nullable=False)

@@ -50,6 +50,24 @@ def asegurar_recursos_mano_obra(*, db, inspect_fn, text_fn, logger_fn=print):
                 "ADD COLUMN usa_porcentaje_general BOOLEAN NOT NULL DEFAULT FALSE"
             ))
             creadas.append("usa_porcentaje_general")
+        if "ubicacion_trabajo" not in columnas_version:
+            db.session.execute(text_fn(
+                "ALTER TABLE empleado_costo_version ADD COLUMN ubicacion_trabajo "
+                "VARCHAR(120) NOT NULL DEFAULT 'Sin definir'"
+            ))
+            creadas.append("ubicacion_trabajo")
+        if "tipo_funcion" not in columnas_version:
+            db.session.execute(text_fn(
+                "ALTER TABLE empleado_costo_version ADD COLUMN tipo_funcion "
+                "VARCHAR(30) NOT NULL DEFAULT 'directa'"
+            ))
+            creadas.append("tipo_funcion")
+        if "porcentaje_productivo" not in columnas_version:
+            db.session.execute(text_fn(
+                "ALTER TABLE empleado_costo_version ADD COLUMN porcentaje_productivo "
+                "NUMERIC(9, 4) NOT NULL DEFAULT 100"
+            ))
+            creadas.append("porcentaje_productivo")
         db.session.commit()
     if creadas and logger_fn is not None:
         logger_fn("[SAAS] Recursos productivos habilitados en mano de obra.")

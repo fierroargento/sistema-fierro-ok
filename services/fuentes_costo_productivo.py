@@ -26,6 +26,10 @@ CRITERIOS_DISTRIBUCION = {
     "sin_distribuir",
 }
 
+TIPOS_FUNCION_LABORAL = {
+    "directa", "indirecta_productiva", "comercial_administrativa", "mixta",
+}
+
 
 def _texto_requerido(valor, campo, limite):
     texto = str(valor or "").strip()
@@ -263,7 +267,7 @@ def calcular_tarifa_laboral(
     *, sueldo_base_centavos, cargas_sociales_centavos=0,
     porcentaje_cargas=None,
     adicionales_centavos=0, otros_costos_centavos=0,
-    horas_mensuales, horas_productivas,
+    horas_mensuales, horas_productivas, porcentaje_productivo=100,
 ):
     sueldo = _entero_no_negativo(sueldo_base_centavos, "El sueldo base")
     porcentaje = Decimal("0")
@@ -291,6 +295,9 @@ def calcular_tarifa_laboral(
         raise ValueError(
             "Las horas productivas no pueden superar las horas mensuales."
         )
+    porcentaje_prod = Decimal(str(porcentaje_productivo or "0").replace(",", "."))
+    if not porcentaje_prod.is_finite() or porcentaje_prod < 0 or porcentaje_prod > 100:
+        raise ValueError("El porcentaje productivo debe estar entre 0 y 100.")
     total = sum(importes)
     hora = int(
         (Decimal(total) / horas_prod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
@@ -308,6 +315,7 @@ def calcular_tarifa_laboral(
         "otros_costos_centavos": importes[3],
         "horas_mensuales": horas_mes,
         "horas_productivas": horas_prod,
+        "porcentaje_productivo": porcentaje_prod,
         "costo_mensual_total_centavos": total,
         "costo_hora_productiva_centavos": hora,
         "costo_minuto_productivo_centavos": minuto,
@@ -318,7 +326,8 @@ def registrar_costo_empleado(
     empleado, *, moneda, sueldo_base_centavos, cargas_sociales_centavos=0,
     porcentaje_cargas=None, usa_porcentaje_general=False,
     adicionales_centavos=0, otros_costos_centavos=0, horas_mensuales,
-    horas_productivas, vigente_desde=None, observacion=None,
+    horas_productivas, ubicacion_trabajo="Sin definir", tipo_funcion="directa",
+    porcentaje_productivo=100, vigente_desde=None, observacion=None,
     creado_por_usuario_id=None, EmpleadoCostoVersion, db_session,
 ):
     valores = calcular_tarifa_laboral(
@@ -329,9 +338,17 @@ def registrar_costo_empleado(
         otros_costos_centavos=otros_costos_centavos,
         horas_mensuales=horas_mensuales,
         horas_productivas=horas_productivas,
+        porcentaje_productivo=porcentaje_productivo,
     )
+    tipo = str(tipo_funcion or "").strip().lower()
+    if tipo not in TIPOS_FUNCION_LABORAL:
+        raise ValueError("El tipo de función laboral no es válido.")
     valores.update({
         "usa_porcentaje_general": bool(usa_porcentaje_general),
+        "ubicacion_trabajo": _texto_requerido(
+            ubicacion_trabajo, "La ubicación de trabajo", 120,
+        ),
+        "tipo_funcion": tipo,
         "observacion": str(observacion or "").strip() or None,
         "creado_por_usuario_id": creado_por_usuario_id,
     })

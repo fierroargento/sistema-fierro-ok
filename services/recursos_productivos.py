@@ -107,7 +107,11 @@ def calcular_componentes_recurso(recurso):
         version = _vigente(vinculo.empleado)
         if version is None:
             raise ValueError(f"{vinculo.empleado.nombre} no tiene costo vigente.")
-        factor = Decimal(str(vinculo.porcentaje_dedicacion)) / Decimal("100")
+        factor = (
+            Decimal(str(vinculo.porcentaje_dedicacion)) / Decimal("100")
+            * Decimal(str(getattr(version, "porcentaje_productivo", 100)))
+            / Decimal("100")
+        )
         for campo in (
             "sueldo_base_centavos", "cargas_sociales_centavos",
             "adicionales_centavos", "otros_costos_centavos",
