@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260810-6') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260810-7') }}">
 <script src="{{ url_for('static', filename='admin_fuentes_costos.js') }}" defer></script>
 {% endblock %}
 
@@ -117,7 +117,7 @@
     <div class="section-heading"><div><span class="section-number">3</span><h2>Empleados y mano de obra</h2></div><div class="section-heading-actions"><p>La tarifa se calcula con el costo laboral mensual y las horas realmente productivas.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='empleados') }}">Importar empleados</a><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='recursos') }}">Importar recursos</a></div></div>
     <form class="labor-general-config" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="configurar_porcentaje_costo_laboral">
-      <div><strong>Estimación general del costo laboral</strong><span>Se aplica sobre el sueldo base y queda versionada para {{ unidad_activa.nombre }}.</span></div>
+      <div class="labor-general-copy"><strong>Estimación general del costo laboral</strong><span>Se aplica sobre el sueldo base y queda versionada para {{ unidad_activa.nombre }}.</span></div>
       <label><span>Porcentaje general</span><div class="percent-input"><input name="porcentaje_cargas_general" inputmode="decimal" value="{{ configuracion_costo_laboral.porcentaje_cargas if configuracion_costo_laboral else 0 }}" required><span>%</span></div></label>
       <label><span>Observación <small>opcional</small></span><input name="observacion" placeholder="Ej. estimación agosto"></label>
       <button class="table-action" type="submit">Guardar nueva versión</button>

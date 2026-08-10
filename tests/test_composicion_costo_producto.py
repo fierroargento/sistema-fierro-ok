@@ -64,7 +64,7 @@ def test_listados_productivos_quedan_plegados_y_los_insumos_en_tabla():
     assert 'class="table-wrap source-catalog-table"' in template
     assert "Gestionar" in template
     assert "source-table-update" in template
-    assert "v='20260810-6'" in template
+    assert "v='20260810-7'" in template
     assert ".source-catalog > summary" in estilos
     assert ".source-row-action > summary" in estilos
 
@@ -80,3 +80,13 @@ def test_fichas_explican_y_bloquean_fuentes_que_aun_no_existen():
     assert "not costos_fijos_productivos %}disabled" in template
     assert ".comercial-primary:disabled" in estilos
     assert ".cost-sheet-forms select:disabled" in estilos
+
+
+def test_configuracion_laboral_separa_titulo_y_explicacion():
+    template = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
+
+    assert 'class="labor-general-copy"' in template
+    assert ".labor-general-copy {" in estilos
+    assert ".labor-general-copy strong," in estilos
+    assert "flex-direction:column" in estilos

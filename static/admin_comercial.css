@@ -322,11 +322,12 @@
   color:#71808b;
   cursor:not-allowed;
 }
-.labor-general-config { display:grid; grid-template-columns:minmax(260px,1fr) 170px minmax(220px,.7fr) auto; gap:12px; align-items:end; padding:14px; margin:0 0 12px; border:1px solid #cfe4ec; border-radius:10px; background:#f3fafc; }
-.labor-general-config > div:first-child { align-self:center; }
-.labor-general-config > div:first-child strong,
-.labor-general-config > div:first-child span { display:block; }
-.labor-general-config > div:first-child span { margin-top:3px; color:#607484; font-size:12px; }
+.labor-general-config { display:grid; grid-template-columns:minmax(330px,1.35fr) 170px minmax(220px,.7fr) auto; gap:16px; align-items:end; padding:14px; margin:0 0 12px; border:1px solid #cfe4ec; border-radius:10px; background:#f3fafc; }
+.labor-general-copy { display:flex; min-width:0; align-self:center; flex-direction:column; gap:4px; }
+.labor-general-copy strong,
+.labor-general-copy span { display:block; }
+.labor-general-copy strong { line-height:1.25; }
+.labor-general-copy span { color:#607484; font-size:12px; line-height:1.35; }
 .percent-input { display:flex; align-items:center; overflow:hidden; border:1px solid #cbd5df; border-radius:8px; background:#fff; }
 .percent-input input { min-width:0; border:0 !important; }
 .percent-input span { padding:0 11px; color:#567080; font-weight:800; }
