@@ -24,9 +24,11 @@ from services.importacion_combos_costeo import (
     sugerir_mapeo_combo,
 )
 from services.importacion_fuentes_costeo import (
-    aplicar_fuentes, definicion as definicion_fuente,
+    aplicar_fuentes, aplicar_modo_vista_fuentes,
+    definicion as definicion_fuente,
     exportar_excel_tabla, exportar_pdf_tabla, plantilla_excel_fuente,
-    presentar_vista_fuentes, previsualizar_fuentes, sugerir_mapeo_fuente,
+    presentar_vista_fuentes, previsualizar_fuentes, resumir_vista_fuentes,
+    sugerir_mapeo_fuente,
 )
 from services.fechas import ahora_utc_naive
 from services.exportacion_perfiles_costeo import (
@@ -473,16 +475,45 @@ def crear_blueprint_comercial(*, dependencias):
                     encabezados = deserializar(lote.encabezados_json, [])
                     mapeo = {str(i): ((request.form.get(f"col_{i}") or "").strip() if request.form.get(f"usar_{i}") == "1" else "") for i in range(len(encabezados))}
                     vista = previsualizar_fuentes(tipo, deserializar(lote.filas_json, []), mapeo, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, modelos=modelos)
-                    for fila in vista:
-                        if lote.modo == "solo_crear" and fila["accion"] == "actualizar": fila["accion"], fila["errores"] = "rechazado", ["El registro ya existe"]
-                        if lote.modo == "solo_actualizar" and fila["accion"] == "crear": fila["accion"], fila["errores"] = "rechazado", ["El registro todavía no existe"]
+                    vista = aplicar_modo_vista_fuentes(vista, lote.modo)
                     lote.mapeo_json, lote.vista_previa_json, lote.estado = serializar(mapeo), serializar(vista), "mapeado"; db.session.commit()
                 elif accion == "confirmar":
                     if lote.estado != "mapeado" or lote.modo == "solo_validar": raise ValueError("El lote no admite confirmación.")
-                    conteos = aplicar_fuentes(tipo, deserializar(lote.vista_previa_json, []), organizacion=organizacion, unidad_activa=unidad_activa, modelos=modelos, db_session=db.session, usuario=usuario)
+                    vista_guardada = deserializar(lote.vista_previa_json, [])
+                    vista_actual = previsualizar_fuentes(
+                        tipo, deserializar(lote.filas_json, []),
+                        deserializar(lote.mapeo_json, {}),
+                        organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad_activa.id,
+                        modelos=modelos,
+                    )
+                    vista_actual = aplicar_modo_vista_fuentes(vista_actual, lote.modo)
+                    if serializar(vista_actual) != serializar(vista_guardada):
+                        lote.vista_previa_json = serializar(vista_actual)
+                        db.session.commit()
+                        return redirect(url_for(
+                            "admin_comercial.importar_fuente_costeo",
+                            tipo=tipo, lote=lote.id,
+                            error="Los datos cambiaron desde la validación. Revisá la vista actualizada y confirmá nuevamente.",
+                        ))
+                    resumen_confirmacion = resumir_vista_fuentes(vista_actual)
+                    if not resumen_confirmacion["aplicables"]:
+                        raise ValueError("El lote no contiene filas aplicables.")
+                    conteos = aplicar_fuentes(tipo, vista_actual, organizacion=organizacion, unidad_activa=unidad_activa, modelos=modelos, db_session=db.session, usuario=usuario)
                     lote = db.session.get(Lote, lote.id)
                     for campo, valor in conteos.items(): setattr(lote, campo, valor)
                     lote.estado, lote.fecha_confirmacion = "confirmado", ahora_utc_naive(); db.session.commit()
+                    dependencias["registrar_auditoria"](
+                        "Confirmó importación productiva",
+                        entidad="importacion_masiva_costo",
+                        entidad_id=lote.id,
+                        detalle=(
+                            f"Unidad {unidad_activa.id}; tipo {tipo}; "
+                            f"{conteos['creados']} creados; "
+                            f"{conteos['actualizados']} actualizados; "
+                            f"{conteos['rechazados']} rechazados."
+                        ),
+                    )
                 return redirect(url_for("admin_comercial.importar_fuente_costeo", tipo=tipo, lote=lote.id))
         except Exception as error:
             db.session.rollback(); return redirect(url_for("admin_comercial.importar_fuente_costeo", tipo=tipo, error=str(error)))
@@ -490,8 +521,9 @@ def crear_blueprint_comercial(*, dependencias):
         lote = Lote.query.filter_by(id=lote_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).first() if lote_id else None
         vista = deserializar(lote.vista_previa_json, []) if lote else []
         columnas_vista, vista_presentada = presentar_vista_fuentes(tipo, vista)
+        resumen_vista = resumir_vista_fuentes(vista)
         mostrar_configuracion = not vista or request.args.get("configurar") == "1"
-        return render_template("admin_importacion_fuentes_costeo.html", tipo=tipo, config=config, unidad_activa=unidad_activa, lote=lote, encabezados=deserializar(lote.encabezados_json, []) if lote else [], filas=deserializar(lote.filas_json, []) if lote else [], mapeo=deserializar(lote.mapeo_json, {}) if lote else {}, vista=vista, columnas_vista=columnas_vista, vista_presentada=vista_presentada, mostrar_configuracion=mostrar_configuracion, historial=Lote.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).order_by(Lote.fecha_creacion.desc()).limit(20).all(), error=(request.args.get("error") or "").strip())
+        return render_template("admin_importacion_fuentes_costeo.html", tipo=tipo, config=config, unidad_activa=unidad_activa, lote=lote, encabezados=deserializar(lote.encabezados_json, []) if lote else [], filas=deserializar(lote.filas_json, []) if lote else [], mapeo=deserializar(lote.mapeo_json, {}) if lote else {}, vista=vista, columnas_vista=columnas_vista, vista_presentada=vista_presentada, resumen_vista=resumen_vista, mostrar_configuracion=mostrar_configuracion, historial=Lote.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).order_by(Lote.fecha_creacion.desc()).limit(20).all(), error=(request.args.get("error") or "").strip())
 
     @blueprint.route("/admin/comercial/importaciones/fuentes/<tipo>/plantilla")
     @dependencias["login_required"]

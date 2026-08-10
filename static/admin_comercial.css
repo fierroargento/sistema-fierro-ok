@@ -409,6 +409,9 @@
 .preview-heading-actions p { margin: 0; }
 .import-preview-table { min-width: 980px; }
 .import-preview-table td { white-space: nowrap; }
+.import-summary { display:flex; gap:10px; flex-wrap:wrap; margin:0 0 14px; }
+.import-summary span { padding:8px 12px; border-radius:10px; background:#f1f5f9; color:#334155; font-size:.85rem; }
+.import-summary strong { color:#0f5268; font-size:1rem; }
 @media (max-width: 760px) {
   .preview-heading-actions { align-items: flex-end; flex-direction: column; gap: 8px; }
 }

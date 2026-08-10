@@ -155,6 +155,35 @@ def presentar_vista_fuentes(tipo, vista):
     return columnas, filas
 
 
+def aplicar_modo_vista_fuentes(vista, modo):
+    """Aplica el alcance elegido sin modificar las filas originales."""
+    resultado = []
+    for fila_original in vista:
+        fila = {
+            **fila_original,
+            "errores": list(fila_original.get("errores") or []),
+        }
+        if modo == "solo_crear" and fila.get("accion") == "actualizar":
+            fila["accion"] = "rechazado"
+            fila["errores"] = ["El registro ya existe"]
+        elif modo == "solo_actualizar" and fila.get("accion") == "crear":
+            fila["accion"] = "rechazado"
+            fila["errores"] = ["El registro todavía no existe"]
+        resultado.append(fila)
+    return resultado
+
+
+def resumir_vista_fuentes(vista):
+    resumen = {"crear": 0, "actualizar": 0, "rechazado": 0, "aplicables": 0}
+    for fila in vista:
+        accion = str(fila.get("accion") or "")
+        if accion in resumen:
+            resumen[accion] += 1
+        if accion in {"crear", "actualizar"}:
+            resumen["aplicables"] += 1
+    return resumen
+
+
 def _extraer(fila, mapeo):
     return {
         campo: (fila["valores"][int(indice)] if int(indice) < len(fila["valores"]) else "")

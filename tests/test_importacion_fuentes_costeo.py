@@ -2,7 +2,9 @@ from pathlib import Path
 
 from services.importacion_fuentes_costeo import (
     DEFINICIONES,
+    aplicar_modo_vista_fuentes,
     presentar_vista_fuentes,
+    resumir_vista_fuentes,
     sugerir_mapeo_fuente,
 )
 
@@ -101,3 +103,32 @@ def test_fichas_distinguen_altas_y_actualizaciones():
     assert "perfil.costos_fijos_costeo" in servicio
     assert 'existente = None' in servicio
     assert "El código ya pertenece a otra unidad" in servicio
+
+
+def test_resumen_y_modo_se_calculan_sin_mutar_vista():
+    original = [
+        {"accion": "crear", "errores": []},
+        {"accion": "actualizar", "errores": []},
+        {"accion": "rechazado", "errores": ["dato inválido"]},
+    ]
+    solo_crear = aplicar_modo_vista_fuentes(original, "solo_crear")
+
+    assert original[1]["accion"] == "actualizar"
+    assert solo_crear[1]["accion"] == "rechazado"
+    assert resumir_vista_fuentes(solo_crear) == {
+        "crear": 1,
+        "actualizar": 0,
+        "rechazado": 2,
+        "aplicables": 1,
+    }
+
+
+def test_confirmacion_revalida_audita_y_pide_confirmacion_humana():
+    rutas = Path("modules/admin/comercial/routes.py").read_text(encoding="utf-8")
+    template = Path("templates/admin_importacion_fuentes_costeo.html").read_text(encoding="utf-8")
+
+    assert "vista_actual = previsualizar_fuentes(" in rutas
+    assert "Los datos cambiaron desde la validación" in rutas
+    assert "Confirmó importación productiva" in rutas
+    assert "resumen_vista.aplicables" in template
+    assert "¿Confirmás la importación?" in template
