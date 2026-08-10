@@ -90,3 +90,12 @@ def test_configuracion_laboral_separa_titulo_y_explicacion():
     assert ".labor-general-copy {" in estilos
     assert ".labor-general-copy strong," in estilos
     assert "flex-direction:column" in estilos
+
+
+def test_porcentajes_laborales_no_muestran_ceros_decimales_innecesarios():
+    template = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+
+    assert "macro numero_decimal_limpio(valor)" in template
+    assert ".rstrip('0').rstrip('.')" in template
+    assert "numero_decimal_limpio(configuracion_costo_laboral.porcentaje_cargas)" in template
+    assert "numero_decimal_limpio(vigente.porcentaje_cargas)" in template

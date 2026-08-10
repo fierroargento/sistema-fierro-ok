@@ -6,6 +6,9 @@
 {% endblock %}
 
 {% block content %}
+{% macro numero_decimal_limpio(valor) -%}
+  {{- ('%.4f'|format(valor|float)).rstrip('0').rstrip('.') -}}
+{%- endmacro %}
 <main class="comercial-page cost-sources-page">
   <header class="comercial-header">
     <div>
@@ -118,7 +121,7 @@
     <form class="labor-general-config" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="configurar_porcentaje_costo_laboral">
       <div class="labor-general-copy"><strong>Estimación general del costo laboral</strong><span>Se aplica sobre el sueldo base y queda versionada para {{ unidad_activa.nombre }}.</span></div>
-      <label><span>Porcentaje general</span><div class="percent-input"><input name="porcentaje_cargas_general" inputmode="decimal" value="{{ configuracion_costo_laboral.porcentaje_cargas if configuracion_costo_laboral else 0 }}" required><span>%</span></div></label>
+      <label><span>Porcentaje general</span><div class="percent-input"><input name="porcentaje_cargas_general" inputmode="decimal" value="{{ numero_decimal_limpio(configuracion_costo_laboral.porcentaje_cargas) if configuracion_costo_laboral else 0 }}" required><span>%</span></div></label>
       <label><span>Observación <small>opcional</small></span><input name="observacion" placeholder="Ej. estimación agosto"></label>
       <button class="table-action" type="submit">Guardar nueva versión</button>
     </form>
@@ -166,7 +169,7 @@
       {% set vigente = empleado.versiones_costo|selectattr('vigente')|first %}
       <article class="source-card">
         <div class="source-card-head"><div><strong>{{ empleado.nombre }}</strong><span>{{ empleado.codigo }} · {{ empleado.sector }}{% if empleado.puesto %} · {{ empleado.puesto }}{% endif %}</span></div><span class="status status-active">Activo</span></div>
-        <dl class="source-metrics"><div><dt>Costo mensual</dt><dd>{% if vigente %}${{ '%.2f'|format(vigente.costo_mensual_total_centavos / 100) }}{% else %}—{% endif %}</dd></div><div><dt>Hora productiva</dt><dd>{% if vigente %}${{ '%.2f'|format(vigente.costo_hora_productiva_centavos / 100) }}{% else %}—{% endif %}</dd></div><div><dt>Cargas</dt><dd>{% if vigente %}{{ vigente.porcentaje_cargas }}% {{ 'general' if vigente.usa_porcentaje_general else 'excepción' }}{% else %}—{% endif %}</dd></div></dl>
+        <dl class="source-metrics"><div><dt>Costo mensual</dt><dd>{% if vigente %}${{ '%.2f'|format(vigente.costo_mensual_total_centavos / 100) }}{% else %}—{% endif %}</dd></div><div><dt>Hora productiva</dt><dd>{% if vigente %}${{ '%.2f'|format(vigente.costo_hora_productiva_centavos / 100) }}{% else %}—{% endif %}</dd></div><div><dt>Cargas</dt><dd>{% if vigente %}{{ numero_decimal_limpio(vigente.porcentaje_cargas) }}% {{ 'general' if vigente.usa_porcentaje_general else 'excepción' }}{% else %}—{% endif %}</dd></div></dl>
         <details class="source-update"><summary>Registrar nuevo costo laboral</summary><form class="employee-update-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_costo_empleado"><input type="hidden" name="empleado_id" value="{{ empleado.id }}"><input type="hidden" name="moneda" value="ARS"><label><span>Sueldo base</span><input name="sueldo_base" inputmode="decimal" required></label><label><span>Excepción cargas %</span><input name="porcentaje_cargas" inputmode="decimal" placeholder="Usa el general"></label><label><span>Adicionales</span><input name="adicionales" inputmode="decimal" value="0"></label><label><span>Otros costos</span><input name="otros_costos" inputmode="decimal" value="0"></label><label><span>Horas mensuales</span><input name="horas_mensuales" inputmode="decimal" required></label><label><span>Horas productivas</span><input name="horas_productivas" inputmode="decimal" required></label><button class="table-action" type="submit">Guardar versión</button></form></details>
         <details class="source-history"><summary>Ver historial ({{ empleado.versiones_costo|length }})</summary><div class="mini-history">{% for version in empleado.versiones_costo|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }}</span><strong>${{ '%.2f'|format(version.costo_hora_productiva_centavos / 100) }}/h</strong></div>{% endfor %}</div></details>
       </article>
