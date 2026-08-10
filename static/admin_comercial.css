@@ -307,6 +307,21 @@
   cursor: pointer;
 }
 .comercial-primary:hover { background: #0b3e51; }
+.comercial-primary:disabled,
+.comercial-primary:disabled:hover {
+  background:#91a4ad;
+  border-color:#91a4ad;
+  color:#f7fafb;
+  cursor:not-allowed;
+  opacity:.78;
+  box-shadow:none;
+}
+.cost-sheet-forms select:disabled,
+.cost-sheet-forms input:disabled {
+  background:#eef2f4;
+  color:#71808b;
+  cursor:not-allowed;
+}
 
 .table-wrap { width: 100%; margin-top: 16px; overflow-x: auto; border: 1px solid #e1e5eb; border-radius: 11px; }
 .comercial-table { width: 100%; margin: 0; border-collapse: collapse; table-layout: auto !important; background: #fff; }

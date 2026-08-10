@@ -64,6 +64,19 @@ def test_listados_productivos_quedan_plegados_y_los_insumos_en_tabla():
     assert 'class="table-wrap source-catalog-table"' in template
     assert "Gestionar" in template
     assert "source-table-update" in template
-    assert "v='20260810-4'" in template
+    assert "v='20260810-5'" in template
     assert ".source-catalog > summary" in estilos
     assert ".source-row-action > summary" in estilos
+
+
+def test_fichas_explican_y_bloquean_fuentes_que_aun_no_existen():
+    template = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
+
+    assert "Primero cargá un insumo productivo" in template
+    assert "Primero cargá un empleado o recurso" in template
+    assert "No hay costos fijos productivos" in template
+    assert "not hay_recursos_laborales %}disabled" in template
+    assert "not costos_fijos_productivos %}disabled" in template
+    assert ".comercial-primary:disabled" in estilos
+    assert ".cost-sheet-forms select:disabled" in estilos
