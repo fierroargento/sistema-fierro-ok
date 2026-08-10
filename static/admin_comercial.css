@@ -416,11 +416,13 @@
 .import-completed h2 { margin:10px 0 4px; }
 .import-completed p { margin:0 0 14px; color:#667085; }
 .import-completed .import-summary { margin:0; }
-.import-completed-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-.import-completed-actions .comercial-primary { display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
+.import-completed-actions { display:flex; align-items:center; justify-content:flex-end; gap:10px; flex:0 0 auto; flex-wrap:wrap; }
+.import-completed-actions .comercial-primary { display:inline-flex; align-items:center; justify-content:center; width:auto; min-height:40px; height:40px; padding:0 17px; line-height:1; text-decoration:none; }
+.import-completed-actions .section-link { min-height:40px; }
 @media (max-width: 760px) {
   .preview-heading-actions { align-items: flex-end; flex-direction: column; gap: 8px; }
   .import-completed { align-items:flex-start; flex-direction:column; }
+  .import-completed-actions { justify-content:flex-start; width:100%; }
 }
 .export-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 

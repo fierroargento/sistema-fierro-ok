@@ -144,3 +144,9 @@ def test_confirmacion_oculta_vista_previa_y_muestra_cierre_compacto():
     assert "{{ lote.creados }}" in template
     assert "{{ lote.actualizados }}" in template
     assert "{{ lote.rechazados }}" in template
+    assert "v='20260810-2'" in template
+
+    estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
+    assert ".import-completed-actions .comercial-primary" in estilos
+    assert "min-height:40px" in estilos
+    assert "width:auto" in estilos
