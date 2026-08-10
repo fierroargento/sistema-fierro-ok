@@ -323,6 +323,9 @@
 .status-active { background: #dcf8ea; color: #176345; }
 .status-test { background: #e4f3ff; color: #176b89; }
 .status-draft { background: #fff3d6; color: #875a08; }
+.status-create { background: #dcf8ea; color: #176345; }
+.status-update { background: #e4f3ff; color: #176b89; }
+.status-rejected { background: #ffe4e4; color: #a52a2a; }
 .table-action { padding: 6px 10px; border: 1px solid #8ac4da; border-radius: 7px; background: #edf8fc; color: #176b89; font-weight: 800; cursor: pointer; }
 .table-action:hover { background: #dff3fa; }
 .current-label { color: #54816d; font-size: 12px; font-weight: 700; }
@@ -404,6 +407,8 @@
 .import-next, .confirm-import { margin-top: 14px; }
 .preview-heading-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .preview-heading-actions p { margin: 0; }
+.import-preview-table { min-width: 980px; }
+.import-preview-table td { white-space: nowrap; }
 @media (max-width: 760px) {
   .preview-heading-actions { align-items: flex-end; flex-direction: column; gap: 8px; }
 }

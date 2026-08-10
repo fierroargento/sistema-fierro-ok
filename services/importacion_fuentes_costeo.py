@@ -60,6 +60,30 @@ DEFINICIONES = {
 }
 
 
+ETIQUETAS_VALORES = {
+    "materia_prima": "Materia prima",
+    "consumible": "Consumible",
+    "servicio_productivo": "Servicio productivo",
+    "embalaje_productivo": "Embalaje productivo",
+    "insumo": "Insumo",
+    "operacion": "Operación",
+    "costo_fijo": "Costo fijo",
+    "fijo": "Costo fijo",
+    "unidades_producidas": "Unidades producidas",
+    "horas_productivas": "Horas productivas",
+    "si": "Sí",
+    "sí": "Sí",
+    "no": "No",
+}
+
+CAMPOS_MONEDA = {
+    "precio_unitario", "sueldo_base", "cargas_sociales", "adicionales",
+    "otros_costos", "importe_mensual",
+}
+
+CAMPOS_PORCENTAJE = {"merma", "porcentaje"}
+
+
 def definicion(tipo):
     if tipo not in DEFINICIONES:
         raise ValueError("El tipo de importación no es válido.")
@@ -86,6 +110,49 @@ def sugerir_mapeo_fuente(tipo, encabezados):
                 break
         resultado[str(indice)] = destino
     return resultado
+
+
+def _formatear_decimal(valor, decimales=2):
+    try:
+        numero = Decimal(str(valor).replace(",", ".").strip())
+    except (InvalidOperation, ValueError, AttributeError):
+        return str(valor or "")
+    texto = f"{numero:,.{decimales}f}"
+    return texto.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def _valor_presentado(campo, valor):
+    if valor is None or str(valor).strip() == "":
+        return "—"
+    limpio = normalizar(valor)
+    if campo in CAMPOS_MONEDA:
+        return f"$ {_formatear_decimal(valor)}"
+    if campo in CAMPOS_PORCENTAJE:
+        return f"{_formatear_decimal(valor)} %"
+    return ETIQUETAS_VALORES.get(limpio, str(valor))
+
+
+def presentar_vista_fuentes(tipo, vista):
+    """Prepara etiquetas legibles sin alterar los datos confirmables del lote."""
+    campos = definicion(tipo)["campos"]
+    columnas = [{"clave": clave, "nombre": nombre} for clave, (nombre, _obligatorio) in campos.items()]
+    acciones = {
+        "crear": ("Crear", "create"),
+        "actualizar": ("Actualizar", "update"),
+        "rechazado": ("Rechazado", "rejected"),
+    }
+    filas = []
+    for fila in vista:
+        etiqueta, clase = acciones.get(fila.get("accion"), (str(fila.get("accion") or ""), "draft"))
+        datos = fila.get("datos") or {}
+        filas.append({
+            "numero": fila.get("numero"),
+            "valores": [_valor_presentado(columna["clave"], datos.get(columna["clave"])) for columna in columnas],
+            "accion": etiqueta,
+            "clase_accion": clase,
+            "detalle": ", ".join(fila.get("errores") or []),
+        })
+    return columnas, filas
 
 
 def _extraer(fila, mapeo):

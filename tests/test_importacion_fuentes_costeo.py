@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from services.importacion_fuentes_costeo import DEFINICIONES, sugerir_mapeo_fuente
+from services.importacion_fuentes_costeo import (
+    DEFINICIONES,
+    presentar_vista_fuentes,
+    sugerir_mapeo_fuente,
+)
 
 
 def test_cada_conjunto_tiene_campos_y_plantilla_propia():
@@ -58,6 +62,37 @@ def test_vista_previa_cierra_configuracion_y_permite_reabrirla():
     assert "Cerrar configuración" in template
     assert 'request.args.get("configurar") == "1"' in rutas
     assert "mostrar_configuracion=mostrar_configuracion" in rutas
+
+
+def test_vista_previa_presenta_columnas_monedas_y_estados_legibles():
+    columnas, filas = presentar_vista_fuentes("insumos", [{
+        "numero": 2,
+        "datos": {
+            "codigo": "1955", "nombre": "Barra ángulo", "tipo": "materia_prima",
+            "unidad_medida": "metro", "precio_unitario": "1910.8009090909", "proveedor": "CODIMAT",
+        },
+        "accion": "crear", "errores": [],
+    }])
+    assert [columna["nombre"] for columna in columnas] == [
+        "Código", "Nombre", "Tipo", "Unidad de medida", "Precio unitario", "Proveedor",
+    ]
+    assert filas[0]["valores"] == [
+        "1955", "Barra ángulo", "Materia prima", "metro", "$ 1.910,80", "CODIMAT",
+    ]
+    assert filas[0]["accion"] == "Crear"
+    assert filas[0]["clase_accion"] == "create"
+
+
+def test_vista_previa_rechazada_muestra_detalle_y_guion_para_vacios():
+    _columnas, filas = presentar_vista_fuentes("insumos", [{
+        "numero": 3,
+        "datos": {"codigo": "X", "nombre": "Prueba"},
+        "accion": "rechazado", "errores": ["Precio unitario no es válido"],
+    }])
+    assert "—" in filas[0]["valores"]
+    assert filas[0]["accion"] == "Rechazado"
+    assert filas[0]["clase_accion"] == "rejected"
+    assert filas[0]["detalle"] == "Precio unitario no es válido"
 
 
 def test_fichas_distinguen_altas_y_actualizaciones():

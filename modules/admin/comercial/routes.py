@@ -26,7 +26,7 @@ from services.importacion_combos_costeo import (
 from services.importacion_fuentes_costeo import (
     aplicar_fuentes, definicion as definicion_fuente,
     exportar_excel_tabla, exportar_pdf_tabla, plantilla_excel_fuente,
-    previsualizar_fuentes, sugerir_mapeo_fuente,
+    presentar_vista_fuentes, previsualizar_fuentes, sugerir_mapeo_fuente,
 )
 from services.fechas import ahora_utc_naive
 from services.exportacion_perfiles_costeo import (
@@ -489,8 +489,9 @@ def crear_blueprint_comercial(*, dependencias):
         lote_id = request.args.get("lote", type=int)
         lote = Lote.query.filter_by(id=lote_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).first() if lote_id else None
         vista = deserializar(lote.vista_previa_json, []) if lote else []
+        columnas_vista, vista_presentada = presentar_vista_fuentes(tipo, vista)
         mostrar_configuracion = not vista or request.args.get("configurar") == "1"
-        return render_template("admin_importacion_fuentes_costeo.html", tipo=tipo, config=config, unidad_activa=unidad_activa, lote=lote, encabezados=deserializar(lote.encabezados_json, []) if lote else [], filas=deserializar(lote.filas_json, []) if lote else [], mapeo=deserializar(lote.mapeo_json, {}) if lote else {}, vista=vista, mostrar_configuracion=mostrar_configuracion, historial=Lote.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).order_by(Lote.fecha_creacion.desc()).limit(20).all(), error=(request.args.get("error") or "").strip())
+        return render_template("admin_importacion_fuentes_costeo.html", tipo=tipo, config=config, unidad_activa=unidad_activa, lote=lote, encabezados=deserializar(lote.encabezados_json, []) if lote else [], filas=deserializar(lote.filas_json, []) if lote else [], mapeo=deserializar(lote.mapeo_json, {}) if lote else {}, vista=vista, columnas_vista=columnas_vista, vista_presentada=vista_presentada, mostrar_configuracion=mostrar_configuracion, historial=Lote.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).order_by(Lote.fecha_creacion.desc()).limit(20).all(), error=(request.args.get("error") or "").strip())
 
     @blueprint.route("/admin/comercial/importaciones/fuentes/<tipo>/plantilla")
     @dependencias["login_required"]
