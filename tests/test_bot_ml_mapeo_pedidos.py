@@ -5,7 +5,7 @@ from modules.bot_ml.mapeo_pedidos import (
 )
 
 
-def test_ml_nombre_cliente_prefiere_receiver_address():
+def test_ml_nombre_cliente_no_confunde_receptor_con_comprador():
     order = {
         "buyer": {
             "first_name": "Juan",
@@ -19,7 +19,31 @@ def test_ml_nombre_cliente_prefiere_receiver_address():
         }
     }
 
-    assert ml_nombre_cliente(order, shipment) == "Maria Gomez"
+    assert ml_nombre_cliente(order, shipment) == "Juan Perez"
+
+
+def test_ml_nombre_cliente_caso_club_estudiantes():
+    order = {
+        "buyer": {
+            "first_name": "Priscilia Karen",
+            "last_name": "Pagola Gomez",
+            "nickname": "PAGOLAPRISCILIA",
+        }
+    }
+    shipment = {
+        "receiver_address": {
+            "receiver_name": "Club Estudiantes",
+        }
+    }
+
+    assert ml_nombre_cliente(order, shipment) == "Priscilia Karen Pagola Gomez"
+
+
+def test_ml_nombre_cliente_sin_nombre_real_no_usa_receptor():
+    order = {"buyer": {"nickname": "PAGOLAPRISCILIA"}}
+    shipment = {"receiver_address": {"receiver_name": "Club Estudiantes"}}
+
+    assert ml_nombre_cliente(order, shipment) == "PAGOLAPRISCILIA"
 
 
 def test_ml_nombre_cliente_usa_nombre_buyer_si_no_hay_receiver():

@@ -12,33 +12,19 @@ APB / SaaS:
 
 
 def ml_nombre_cliente(order, shipment=None):
+    """Devuelve al comprador titular, nunca al receptor logistico."""
     order = order or {}
-    shipment = shipment or {}
-
     buyer = order.get("buyer") or {}
-    receiver_address = shipment.get("receiver_address") or {}
-
-    candidatos = [
-        receiver_address.get("receiver_name"),
-        receiver_address.get("recipient_name"),
-        shipment.get("receiver_name"),
-        order.get("receiver_name"),
-        order.get("recipient_name"),
-    ]
 
     nombre_buyer = " ".join([
         str(buyer.get("first_name") or "").strip(),
         str(buyer.get("last_name") or "").strip(),
     ]).strip()
+    if nombre_buyer:
+        return nombre_buyer
 
-    candidatos.append(nombre_buyer)
-
-    for candidato in candidatos:
-        valor = str(candidato or "").strip()
-        if valor:
-            return valor
-
-    return str(buyer.get("nickname") or "Cliente Mercado Libre").strip()
+    nickname = str(buyer.get("nickname") or "").strip()
+    return nickname or "Cliente Mercado Libre"
 
 
 def ml_mapear_tipo(order, shipment):
