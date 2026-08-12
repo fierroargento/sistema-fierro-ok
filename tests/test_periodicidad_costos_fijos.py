@@ -40,3 +40,19 @@ def test_periodicidad_es_aditiva_y_modular():
     assert "def calcular_equivalente_mensual" not in app
     assert "Importe del período" in plantilla
     assert "Meses que cubre" in plantilla
+
+
+def test_presentacion_separa_bloques_y_muestra_cobertura_solo_en_eventuales():
+    plantilla = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    javascript = Path("static/admin_fuentes_costos.js").read_text(encoding="utf-8")
+    estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
+
+    assert "Costos indirectos productivos" in plantilla
+    assert "fixed-cost-identity" in plantilla
+    assert "fixed-cost-valuation" in plantilla
+    assert "fixed-cost-complement" in plantilla
+    assert "data-cost-periodicity" in plantilla
+    assert "data-eventual-months hidden" in plantilla
+    assert 'control.value === "eventual"' in javascript
+    assert "meses.required = eventual" in javascript
+    assert ".fixed-cost-valuation" in estilos

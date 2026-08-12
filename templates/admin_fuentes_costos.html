@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260812-2') }}">
-<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260812-2') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260812-3') }}">
+<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260812-3') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -33,7 +33,7 @@
     <a href="#productos-costeo"><span>1</span>Productos</a>
     <a href="#insumos"><span>2</span>Insumos</a>
     <a href="#empleados"><span>3</span>Empleados</a>
-    <a href="#costos-fijos"><span>4</span>Costos fijos</a>
+    <a href="#costos-fijos"><span>4</span>Costos indirectos</a>
     <a href="#fichas-tecnicas"><span>5</span>Fichas técnicas</a>
   </nav>
 
@@ -220,30 +220,36 @@
   </section>
 
   <section class="comercial-section" id="costos-fijos">
-    <div class="section-heading"><div><span class="section-number">4</span><h2>Costos fijos</h2></div><div class="section-heading-actions"><p>Solo los conceptos productivos podrán distribuirse al costo de fabricación.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='costos-fijos') }}">Importar costos fijos</a></div></div>
+    <div class="section-heading"><div><span class="section-number">4</span><h2>Costos indirectos productivos</h2></div><div class="section-heading-actions"><p>Costos fijos, variables y provisiones; solo la parte productiva integra fabricación.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='costos-fijos') }}">Importar costos indirectos</a></div></div>
     <form class="comercial-form form-source-fixed" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_costo_fijo">
-      <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
-      <label><span>Código</span><input name="codigo" maxlength="80" placeholder="Ej. alquiler-galpon" required></label>
-      <label><span>Nombre</span><input name="nombre" maxlength="200" placeholder="Ej. Alquiler del galpón" required></label>
-      <label><span>Categoría</span><input name="categoria" maxlength="100" placeholder="Infraestructura" required></label>
-      <label><span>Naturaleza</span><select name="naturaleza"><option value="fijo">Fijo recurrente</option><option value="variable">Variable</option><option value="provision">Provisión</option></select></label>
-      <label><span>Tratamiento</span><select name="integra_costo_produccion" data-production-cost><option value="0">Solo informativo</option><option value="1">Integra producción</option></select></label>
-      <label><span>Distribución</span><select name="criterio_distribucion" data-distribution><option value="sin_distribuir">Sin distribuir</option><option value="horas_productivas">Horas productivas</option><option value="horas_maquina">Horas de máquina</option><option value="unidades_producidas">Unidades producidas</option><option value="porcentaje">Porcentaje</option><option value="importe_directo">Importe directo</option></select></label>
-      <label><span>Periodicidad</span><select name="periodicidad"><option value="mensual">Mensual</option><option value="bimestral">Bimestral</option><option value="trimestral">Trimestral</option><option value="cuatrimestral">Cuatrimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option><option value="eventual">Eventual</option></select></label>
-      <label><span>Importe del período</span><div class="money-input"><span>$</span><input name="importe_periodo" inputmode="decimal" required></div></label>
-      <label><span>Meses que cubre <small>solo eventual</small></span><input name="meses_cobertura" inputmode="decimal" placeholder="Ej. 12"></label>
-      <label><span>Comprobante <small>opcional</small></span><input name="comprobante_referencia" maxlength="120"></label>
-      <button class="comercial-primary" type="submit">Crear costo fijo</button>
+      <div class="fixed-cost-row fixed-cost-identity">
+        <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
+        <label><span>Código</span><input name="codigo" maxlength="80" placeholder="Ej. alquiler-galpon" required></label>
+        <label><span>Nombre</span><input name="nombre" maxlength="200" placeholder="Ej. Alquiler del galpón" required></label>
+        <label><span>Categoría</span><input name="categoria" maxlength="100" placeholder="Infraestructura" required></label>
+      </div>
+      <div class="fixed-cost-row fixed-cost-valuation">
+        <label><span>Naturaleza</span><select name="naturaleza"><option value="fijo">Fijo recurrente</option><option value="variable">Variable</option><option value="provision">Provisión</option></select></label>
+        <label><span>Tratamiento</span><select name="integra_costo_produccion" data-production-cost><option value="0">Solo informativo</option><option value="1">Integra producción</option></select></label>
+        <label><span>Distribución</span><select name="criterio_distribucion" data-distribution><option value="sin_distribuir">Sin distribuir</option><option value="horas_productivas">Horas productivas</option><option value="horas_maquina">Horas de máquina</option><option value="unidades_producidas">Unidades producidas</option><option value="porcentaje">Porcentaje</option><option value="importe_directo">Importe directo</option></select></label>
+        <label><span>Periodicidad</span><select name="periodicidad" data-cost-periodicity><option value="mensual">Mensual</option><option value="bimestral">Bimestral</option><option value="trimestral">Trimestral</option><option value="cuatrimestral">Cuatrimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option><option value="eventual">Eventual</option></select></label>
+        <label><span>Importe del período</span><div class="money-input"><span>$</span><input name="importe_periodo" inputmode="decimal" required></div></label>
+      </div>
+      <div class="fixed-cost-row fixed-cost-complement">
+        <label data-eventual-months hidden><span>Meses que cubre</span><input name="meses_cobertura" inputmode="decimal" placeholder="Ej. 12" disabled></label>
+        <label><span>Comprobante <small>opcional</small></span><input name="comprobante_referencia" maxlength="120"></label>
+        <button class="comercial-primary" type="submit">Crear costo indirecto</button>
+      </div>
     </form>
-    {% if costos_fijos %}<details class="source-catalog"><summary><span>Ver costos fijos cargados</span><strong>{{ costos_fijos|length }}</strong></summary><div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Código</th><th>Concepto</th><th>Categoría</th><th>Tratamiento</th><th>Distribución</th><th>Importe mensual</th><th>Versión</th><th>Acciones</th></tr></thead><tbody>
+    {% if costos_fijos %}<details class="source-catalog"><summary><span>Ver costos indirectos cargados</span><strong>{{ costos_fijos|length }}</strong></summary><div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Código</th><th>Concepto</th><th>Categoría</th><th>Tratamiento</th><th>Distribución</th><th>Importe mensual</th><th>Versión</th><th>Acciones</th></tr></thead><tbody>
       {% for costo in costos_fijos %}
       {% set vigente = costo.versiones|selectattr('vigente')|first %}
       <tr><td><strong>{{ costo.codigo }}</strong></td><td>{{ costo.nombre }}</td><td>{{ costo.categoria }}{% if vigente %}<small class="table-subline">{{ vigente.naturaleza|capitalize }} · {{ vigente.periodicidad }}</small>{% endif %}</td><td><span class="status status-{{ 'active' if costo.integra_costo_produccion else 'draft' }}">{{ 'Productivo' if costo.integra_costo_produccion else 'Informativo' }}</span></td><td>{{ costo.criterio_distribucion|replace('_', ' ') }}</td><td>{% if vigente %}<strong>$ {{ formatear_centavos_ars(vigente.importe_mensual_centavos) }}</strong><small class="table-subline">equivalente mensual</small>{% else %}—{% endif %}</td><td>{{ 'v' ~ vigente.numero_version if vigente else '—' }}</td><td><details class="source-row-action"><summary>Gestionar</summary><div class="source-row-panel"><form class="source-table-update" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_importe_costo_fijo"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}"><input type="hidden" name="moneda" value="ARS"><label><span>Naturaleza</span><select name="naturaleza"><option value="fijo">Fijo recurrente</option><option value="variable">Variable</option><option value="provision">Provisión</option></select></label><label><span>Periodicidad</span><select name="periodicidad"><option value="mensual">Mensual</option><option value="bimestral">Bimestral</option><option value="trimestral">Trimestral</option><option value="cuatrimestral">Cuatrimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option><option value="eventual">Eventual</option></select></label><label><span>Importe del período</span><div class="money-input"><span>$</span><input name="importe_periodo" inputmode="decimal" required></div></label><label><span>Meses que cubre <small>solo eventual</small></span><input name="meses_cobertura" inputmode="decimal"></label><label><span>Comprobante</span><input name="comprobante_referencia"></label><label><span>Observación</span><input name="observacion"></label><button class="table-action" type="submit">Guardar versión</button></form><details class="source-table-history"><summary>Ver historial ({{ costo.versiones|length }})</summary><div class="mini-history">{% for version in costo.versiones|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.periodicidad }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }}</span><strong>$ {{ formatear_centavos_ars(version.importe_mensual_centavos) }}/mes</strong></div>{% endfor %}</div></details></div></details></td></tr>
       {% endfor %}
     </tbody></table></div></details>
     <details class="source-catalog fixed-cost-distributions">
-      <summary><span>Distribuir costos fijos entre unidades</span><strong>{{ costos_fijos|length }}</strong></summary>
+      <summary><span>Distribuir costos indirectos entre unidades</span><strong>{{ costos_fijos|length }}</strong></summary>
       <div class="fixed-cost-distribution-list">
         <p class="catalog-help">La participación reparte cada concepto entre las unidades y debe sumar 100%. Solo el porcentaje productivo integra el costo de fabricación.</p>
         {% for costo in costos_fijos %}
@@ -270,7 +276,7 @@
         {% endfor %}
       </div>
     </details>
-    {% else %}<p class="empty-card">Todavía no hay costos fijos cargados.</p>{% endif %}
+    {% else %}<p class="empty-card">Todavía no hay costos indirectos cargados.</p>{% endif %}
   </section>
 </main>
 {% endblock %}

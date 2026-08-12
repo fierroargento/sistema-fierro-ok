@@ -33,7 +33,7 @@ def test_distribucion_de_costos_fijos_permanece_modular():
     plantilla = (ROOT / "templates" / "admin_fuentes_costos.html").read_text(encoding="utf-8")
     assert "def registrar_distribucion_costo_fijo" in servicio
     assert "def registrar_distribucion_costo_fijo" not in app
-    assert "Distribuir costos fijos entre unidades" in plantilla
+    assert "Distribuir costos indirectos entre unidades" in plantilla
     assert "costo_porcentaje_productivo" in plantilla
 
 

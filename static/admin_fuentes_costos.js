@@ -17,6 +17,26 @@
     });
   }
 
+  function iniciarPeriodicidadCostos() {
+    document.querySelectorAll("[data-cost-periodicity]").forEach(function (control) {
+      const formulario = control.form;
+      const contenedor = formulario && formulario.querySelector("[data-eventual-months]");
+      if (!contenedor) return;
+      const meses = contenedor.querySelector('[name="meses_cobertura"]');
+
+      function sincronizar() {
+        const eventual = control.value === "eventual";
+        contenedor.hidden = !eventual;
+        meses.disabled = !eventual;
+        meses.required = eventual;
+        if (!eventual) meses.value = "";
+      }
+
+      control.addEventListener("change", sincronizar);
+      sincronizar();
+    });
+  }
+
   function abrirDialogosDeGestion() {
     document.querySelectorAll(".source-row-action").forEach(function (detalle) {
       const panel = detalle.querySelector(":scope > .source-row-panel");
@@ -88,6 +108,7 @@
 
   function iniciar() {
     iniciarCriteriosDistribucion();
+    iniciarPeriodicidadCostos();
     abrirDialogosDeGestion();
     iniciarEquiposEnBloque();
   }
