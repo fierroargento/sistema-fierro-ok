@@ -4,7 +4,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from services.recursos_productivos import calcular_componentes_recurso
+from services.recursos_productivos import (
+    calcular_componentes_recurso,
+    configurar_integrantes,
+)
 from services.fuentes_costo_productivo import calcular_tarifa_laboral
 
 
@@ -91,6 +94,19 @@ def test_recursos_permanecen_aislados_de_app_y_tienen_importacion_masiva():
     assert "Importar recursos" in panel
     assert "configurar_porcentaje_costo_laboral" in panel
     assert "Estimación general del costo laboral" in panel
+
+
+def test_gestion_de_equipo_es_masiva_y_recalcula_una_sola_vez():
+    panel = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    admin = Path("services/fuentes_costo_admin.py").read_text(encoding="utf-8")
+
+    assert 'value="configurar_integrantes_recurso"' in panel
+    assert 'name="integrante_seleccionado"' in panel
+    assert "Guardar equipo y recalcular" in panel
+    assert "configurar_integrantes(" in admin
+    assert "def configurar_integrantes" in Path(
+        "services/recursos_productivos.py"
+    ).read_text(encoding="utf-8")
 
 
 def test_configuracion_general_es_historica_por_unidad_y_no_engrosa_app():

@@ -20,6 +20,7 @@ from services.composicion_costo_producto import (
 )
 from services.costos_productos import crear_version_costo
 from services.recursos_productivos import (
+    configurar_integrantes,
     crear_recurso,
     recalcular_recursos_del_empleado,
     recalcular_tarifa_recurso,
@@ -151,6 +152,7 @@ def procesar_accion_fuente_costo(
         return f"Recurso productivo {recurso.nombre} creado."
 
     if accion in {
+        "configurar_integrantes_recurso",
         "vincular_empleado_recurso", "recalcular_recurso_productivo",
         "desvincular_empleado_recurso",
     }:
@@ -161,6 +163,47 @@ def procesar_accion_fuente_costo(
         )
         if recurso.tipo_registro != "recurso":
             raise ValueError("El registro seleccionado no es un recurso productivo.")
+        if accion == "configurar_integrantes_recurso":
+            empleados = []
+            for empleado_id in formulario.getlist("integrante_seleccionado"):
+                if not str(empleado_id).isdigit():
+                    raise ValueError("El empleado seleccionado no es válido.")
+                empleado = _registro_tenant(
+                    modelos["EmpleadoProductivo"], int(empleado_id),
+                    organizacion.id, "El empleado", unidad_activa.id,
+                )
+                empleados.append((
+                    empleado,
+                    formulario.get(f"integrante_dedicacion_{empleado_id}"),
+                ))
+            resultado = configurar_integrantes(
+                recurso, empleados,
+                porcentaje_indirecto=formulario.get(
+                    "porcentaje_indirecto", recurso.porcentaje_indirecto,
+                ),
+                RecursoEmpleadoProductivo=modelos["RecursoEmpleadoProductivo"],
+                db_session=db_session,
+            )
+            if resultado["integrantes"]:
+                version, _valores = recalcular_tarifa_recurso(
+                    recurso,
+                    EmpleadoCostoVersion=modelos["EmpleadoCostoVersion"],
+                    db_session=db_session, usuario_id=usuario_id,
+                )
+                tarifa = (
+                    f" Tarifa actualizada a "
+                    f"${version.costo_hora_productiva_centavos / 100:.2f}/h."
+                )
+            else:
+                for version in recurso.versiones_costo:
+                    if version.vigente:
+                        version.vigente = False
+                db_session.commit()
+                tarifa = " El recurso quedó sin tarifa vigente."
+            return (
+                f"Equipo de {recurso.nombre} guardado con "
+                f"{resultado['integrantes']} integrantes.{tarifa}"
+            )
         if accion == "vincular_empleado_recurso":
             empleado = _registro_tenant(
                 modelos["EmpleadoProductivo"],

@@ -72,9 +72,24 @@
     });
   }
 
+  function iniciarEquiposEnBloque() {
+    document.querySelectorAll("[data-team-member]").forEach(function (seleccion) {
+      const fila = seleccion.closest(".resource-team-row");
+      const dedicacion = fila && fila.querySelector("[data-team-dedication]");
+      if (!dedicacion) return;
+      function sincronizar() {
+        dedicacion.disabled = !seleccion.checked;
+        fila.classList.toggle("is-selected", seleccion.checked);
+      }
+      seleccion.addEventListener("change", sincronizar);
+      sincronizar();
+    });
+  }
+
   function iniciar() {
     iniciarCriteriosDistribucion();
     abrirDialogosDeGestion();
+    iniciarEquiposEnBloque();
   }
 
   if (document.readyState === "loading") {

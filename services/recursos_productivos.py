@@ -90,6 +90,87 @@ def vincular_empleado(
     return vinculo
 
 
+def configurar_integrantes(
+    recurso, asignaciones, *, porcentaje_indirecto=None,
+    RecursoEmpleadoProductivo, db_session,
+):
+    """Sincroniza en bloque el equipo completo de un recurso productivo."""
+    if recurso is None or recurso.tipo_registro != "recurso":
+        raise ValueError("El recurso productivo no es válido.")
+    if porcentaje_indirecto is not None:
+        recurso.porcentaje_indirecto = _decimal_porcentaje(
+            porcentaje_indirecto, "El porcentaje indirecto",
+        )
+
+    normalizadas = []
+    empleados_vistos = set()
+    for empleado, porcentaje_dedicacion in asignaciones:
+        if empleado is None or empleado.tipo_registro != "empleado":
+            raise ValueError("Solo se pueden incorporar empleados individuales.")
+        if empleado.id in empleados_vistos:
+            raise ValueError(f"{empleado.nombre} está repetido en el equipo.")
+        empleados_vistos.add(empleado.id)
+        if int(recurso.organizacion_id) != int(empleado.organizacion_id):
+            raise ValueError("El empleado no pertenece a la organización del recurso.")
+        if recurso.unidad_negocio_id != empleado.unidad_negocio_id:
+            raise ValueError("El empleado y el recurso deben pertenecer a la misma unidad.")
+        dedicacion = _decimal_porcentaje(
+            porcentaje_dedicacion, "La dedicación", permite_cero=False,
+        )
+        otras = RecursoEmpleadoProductivo.query.filter_by(
+            empleado_id=empleado.id,
+        ).all()
+        asignado_fuera = sum(
+            (
+                Decimal(str(vinculo.porcentaje_dedicacion))
+                for vinculo in otras
+                if vinculo.recurso_id != recurso.id
+            ),
+            Decimal("0"),
+        )
+        if asignado_fuera + dedicacion > Decimal("100"):
+            raise ValueError(
+                f"La dedicación total de {empleado.nombre} supera el 100%."
+            )
+        normalizadas.append((empleado, dedicacion))
+
+    existentes = {
+        vinculo.empleado_id: vinculo
+        for vinculo in RecursoEmpleadoProductivo.query.filter_by(
+            recurso_id=recurso.id,
+        ).all()
+    }
+    seleccionados = {empleado.id for empleado, _dedicacion in normalizadas}
+    eliminados = 0
+    for empleado_id, vinculo in existentes.items():
+        if empleado_id not in seleccionados:
+            db_session.delete(vinculo)
+            eliminados += 1
+
+    creados = 0
+    actualizados = 0
+    for empleado, dedicacion in normalizadas:
+        vinculo = existentes.get(empleado.id)
+        if vinculo is None:
+            vinculo = RecursoEmpleadoProductivo(
+                recurso_id=recurso.id,
+                empleado_id=empleado.id,
+            )
+            db_session.add(vinculo)
+            creados += 1
+        elif Decimal(str(vinculo.porcentaje_dedicacion)) != dedicacion:
+            actualizados += 1
+        vinculo.porcentaje_dedicacion = dedicacion
+
+    db_session.commit()
+    return {
+        "integrantes": len(normalizadas),
+        "creados": creados,
+        "actualizados": actualizados,
+        "eliminados": eliminados,
+    }
+
+
 def calcular_componentes_recurso(recurso):
     if recurso is None or recurso.tipo_registro != "recurso":
         raise ValueError("El recurso productivo no es válido.")
