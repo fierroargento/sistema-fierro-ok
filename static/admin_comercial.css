@@ -608,6 +608,12 @@
 }
 .indexed-cost-grid,.payable-cost-body{display:grid;gap:12px;padding:12px}.indexed-cost-help{display:flex;align-items:center;justify-content:space-between;gap:12px}.indexed-cost-card{display:grid;grid-template-columns:minmax(180px,1fr) 180px minmax(220px,1.5fr) auto;gap:10px;align-items:end;border:1px solid #dce5ed;border-radius:10px;padding:12px}.indexed-cost-card>div{display:grid}.indexed-cost-card small,.ipc-proposal small{color:#6b7b91}.indexed-window{grid-column:1/-1}.ipc-proposal{display:grid;grid-template-columns:minmax(220px,1fr) 100px minmax(260px,1fr) auto;align-items:center;gap:12px;background:#f5fafc;border:1px solid #cfe8f1;border-radius:10px;padding:12px}.ipc-proposal>div{display:grid}.payable-create{display:grid;grid-template-columns:1.2fr .7fr .8fr .8fr 1.2fr auto;gap:10px;align-items:end}.payment-alerts{display:flex;gap:12px;padding:10px 12px;border-radius:8px;background:#fff4e5;color:#8a5200}.payment-form{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:8px}.payment-form button{grid-column:1/-1}@media(max-width:900px){.indexed-cost-card,.ipc-proposal,.payable-create{grid-template-columns:1fr}.payment-form{grid-template-columns:1fr 1fr}}
 .adjustment-rule-summary { display: grid; gap: 3px; min-width: 280px; }
+.indexed-cost-card { grid-template-columns: minmax(180px, .8fr) minmax(300px, 1.5fr) auto; align-items: center; }
+.indexed-configure-button { width: auto; min-width: 150px; justify-self: end; }
+.manual-obligation { margin-bottom: 14px; }
+.manual-obligation > summary { color: var(--primary, #075b73); font-weight: 700; cursor: pointer; }
+.manual-obligation[open] > summary { margin-bottom: 12px; }
+.status-pending-adjustment { color: #9a6500; font-weight: 700; }
 .adjustment-rule-summary small { color: var(--muted, #66758a); }
 .adjustment-rule-dialog { width: min(880px, calc(100vw - 32px)); }
 .adjustment-rule-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }

@@ -18,6 +18,9 @@ class ObligacionCostoProductivo(db.Model):
     organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
     costo_fijo_id = db.Column(db.Integer, db.ForeignKey("costo_fijo_productivo.id"), nullable=False, index=True)
     version_costo_id = db.Column(db.Integer, db.ForeignKey("costo_fijo_version.id"), nullable=False)
+    regla_ajuste_id = db.Column(db.Integer, db.ForeignKey("regla_ajuste_ipc_productivo.id"), index=True)
+    propuesta_ajuste_id = db.Column(db.Integer, db.ForeignKey("propuesta_ajuste_ipc_productivo.id"), index=True)
+    ajuste_pendiente = db.Column(db.Boolean, default=False, nullable=False, index=True)
     periodo = db.Column(db.Date, nullable=False, index=True)
     fecha_vencimiento = db.Column(db.Date, nullable=False, index=True)
     importe_centavos = db.Column(db.BigInteger, nullable=False)
@@ -28,6 +31,8 @@ class ObligacionCostoProductivo(db.Model):
 
     costo_fijo = db.relationship("CostoFijoProductivo", backref="obligaciones")
     version_costo = db.relationship("CostoFijoVersion")
+    regla_ajuste = db.relationship("ReglaAjusteIPCProductivo")
+    propuesta_ajuste = db.relationship("PropuestaAjusteIPCProductivo")
 
 
 class PagoObligacionCostoProductivo(db.Model):

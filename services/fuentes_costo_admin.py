@@ -45,7 +45,8 @@ from services.ajustes_costos_ipc import (
     ventana_para_ajuste,
 )
 from services.cuentas_pagar_productivas import (
-    crear_obligacion, registrar_pago, resumen_vencimientos, saldo_obligacion,
+    asegurar_obligacion_ajuste, crear_obligacion, registrar_pago,
+    resumen_vencimientos, saldo_obligacion,
 )
 
 
@@ -113,10 +114,18 @@ def procesar_accion_fuente_costo(
             regla.proximo_ajuste, periodo_inicio=regla.periodo_ipc_inicio,
             periodo_final=regla.periodo_ipc_final, frecuencia_meses=regla.frecuencia_meses,
         )
+        obligacion, creada = asegurar_obligacion_ajuste(
+            regla,
+            ObligacionCostoProductivo=modelos["ObligacionCostoProductivo"],
+            CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session,
+            usuario_id=usuario_id,
+        )
         return (
             f"Regla de ajuste configurada cada {regla.frecuencia_meses} meses. "
             f"IPC {ventana['inicio']:%m/%Y}–{ventana['final']:%m/%Y}; "
-            f"vigencia {regla.proximo_ajuste:%d/%m/%Y}."
+            f"vigencia {regla.proximo_ajuste:%d/%m/%Y}. "
+            f"Obligación {obligacion.periodo:%m/%Y} "
+            f"{'generada pendiente de IPC' if creada else 'ya existente'}."
         )
 
     if accion == "actualizar_ipc":
@@ -132,6 +141,7 @@ def procesar_accion_fuente_costo(
         aprobar_propuesta(
             propuesta, usuario_id=usuario_id,
             CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session,
+            ObligacionCostoProductivo=modelos["ObligacionCostoProductivo"],
         )
         return "Ajuste aprobado; se aplicará en su fecha de vigencia."
 

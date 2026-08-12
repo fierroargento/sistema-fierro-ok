@@ -129,6 +129,33 @@ def asegurar_reglas_ajuste_configurables(*, db, inspect_fn, text_fn, logger_fn=p
     return {"columnas_creadas": creadas}
 
 
+def asegurar_obligaciones_ajustables(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Vincula obligaciones con reglas y propuestas sin alterar pagos existentes."""
+    inspector = inspect_fn(db.engine)
+    tabla = "obligacion_costo_productivo"
+    if tabla not in inspector.get_table_names():
+        return {"columnas_creadas": []}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    definiciones = {
+        "regla_ajuste_id": "INTEGER",
+        "propuesta_ajuste_id": "INTEGER",
+        "ajuste_pendiente": "BOOLEAN NOT NULL DEFAULT FALSE",
+    }
+    creadas = []
+    for nombre, definicion in definiciones.items():
+        if nombre not in columnas:
+            db.session.execute(text_fn(f"ALTER TABLE {tabla} ADD COLUMN {nombre} {definicion}"))
+            creadas.append(nombre)
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_obligacion_costo_ajuste_pendiente "
+        "ON obligacion_costo_productivo (ajuste_pendiente)"
+    ))
+    db.session.commit()
+    if creadas and logger_fn is not None:
+        logger_fn("[SAAS] Obligaciones pendientes de ajuste habilitadas.")
+    return {"columnas_creadas": creadas}
+
+
 def asegurar_unidad_importacion_costos(*, db, inspect_fn, text_fn, logger_fn=print):
     """Agrega alcance por unidad a lotes comerciales sin alterar lotes previos."""
     inspector = inspect_fn(db.engine)

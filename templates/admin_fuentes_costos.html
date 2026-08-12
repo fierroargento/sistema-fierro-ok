@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260812-4') }}">
-<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260812-4') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260812-5') }}">
+<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260812-5') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -291,7 +291,7 @@
           {% set ventana = ventana_para_ajuste(regla.proximo_ajuste, periodo_inicio=regla.periodo_ipc_inicio, periodo_final=regla.periodo_ipc_final, frecuencia_meses=regla.frecuencia_meses) %}
           <div class="adjustment-rule-summary"><strong>IPC · cada {{ regla.frecuencia_meses }} meses</strong><small>Período {{ ventana.inicio.strftime('%m/%Y') }}–{{ ventana.final.strftime('%m/%Y') }} · vigencia {{ regla.proximo_ajuste.strftime('%d/%m/%Y') }} · pago {{ regla.modalidad_pago }}</small></div>
           {% else %}<span class="status status-draft">Sin regla configurada</span>{% endif %}
-          <button class="table-action source-dialog-trigger" type="button" data-source-dialog>Configurar ajuste</button>
+          <button class="table-action source-dialog-trigger indexed-configure-button" type="button" data-source-dialog>Configurar ajuste</button>
           <dialog class="source-dialog adjustment-rule-dialog"><button class="source-dialog-close" type="button" aria-label="Cerrar">×</button><div class="source-row-panel">
             <form class="adjustment-rule-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
               <input type="hidden" name="accion" value="configurar_ajuste_ipc"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}">
@@ -324,7 +324,7 @@
       <summary><span>Pagos, saldos y vencimientos</span><strong>{{ obligaciones_costos|length }}</strong></summary>
       <div class="payable-cost-body">
         {% if avisos_vencimientos.vencidas or avisos_vencimientos.proximas %}<div class="payment-alerts"><strong>{{ avisos_vencimientos.vencidas|length }} vencidos</strong><span>{{ avisos_vencimientos.proximas|length }} próximos en 7 días</span></div>{% endif %}
-        <form class="payable-create" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+        <details class="manual-obligation"><summary>Crear obligación manual</summary><form class="payable-create" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
           <input type="hidden" name="accion" value="crear_obligacion_costo">
           <label><span>Concepto</span><select name="costo_fijo_id" required>{% for costo in costos_fijos %}<option value="{{ costo.id }}">{{ costo.nombre }}</option>{% endfor %}</select></label>
           <label><span>Período</span><input type="month" name="periodo" required></label>
@@ -332,9 +332,9 @@
           <label><span>Importe</span><div class="money-input"><span>$</span><input name="importe" inputmode="decimal" required></div></label>
           <label><span>Observación</span><input name="observacion"></label>
           <button class="comercial-primary">Crear obligación</button>
-        </form>
+        </form></details>
         {% if obligaciones_costos %}<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Período</th><th>Concepto</th><th>Vencimiento</th><th>Importe</th><th>Pagado</th><th>Saldo</th><th>Estado / pago</th></tr></thead><tbody>
-          {% for obligacion in obligaciones_costos %}{% set saldo = saldo_obligacion(obligacion) %}<tr><td>{{ obligacion.periodo.strftime('%m/%Y') }}</td><td>{{ obligacion.costo_fijo.nombre }}</td><td>{{ obligacion.fecha_vencimiento.strftime('%d/%m/%Y') }}</td><td>$ {{ formatear_centavos_ars(obligacion.importe_centavos) }}</td><td>$ {{ formatear_centavos_ars(obligacion.importe_centavos - saldo) }}</td><td><strong>$ {{ formatear_centavos_ars(saldo) }}</strong></td><td>{% if saldo %}<details class="source-row-action"><summary>{{ obligacion.estado|capitalize }}</summary><div class="source-row-panel"><form class="payment-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="registrar_pago_costo"><input type="hidden" name="obligacion_id" value="{{ obligacion.id }}"><label><span>Fecha</span><input type="date" name="fecha_pago" required></label><label><span>Importe</span><input name="importe" inputmode="decimal" required></label><label><span>Medio</span><input name="medio_pago"></label><label><span>Referencia</span><input name="referencia"></label><button class="table-action">Registrar pago</button></form><details><summary>Historial ({{ obligacion.pagos|length }})</summary>{% for pago in obligacion.pagos %}<p>{{ pago.fecha_pago.strftime('%d/%m/%Y') }} · $ {{ formatear_centavos_ars(pago.importe_centavos) }} · {{ pago.medio_pago or 'Sin medio' }}</p>{% endfor %}</details></div></details>{% else %}<span class="status status-active">Pagada</span>{% endif %}</td></tr>{% endfor %}
+          {% for obligacion in obligaciones_costos %}{% set saldo = saldo_obligacion(obligacion) %}<tr><td>{{ obligacion.periodo.strftime('%m/%Y') }}</td><td>{{ obligacion.costo_fijo.nombre }}{% if obligacion.ajuste_pendiente %}<small class="table-subline status-pending-adjustment">Pendiente de ajuste IPC</small>{% endif %}</td><td>{{ obligacion.fecha_vencimiento.strftime('%d/%m/%Y') }}</td><td>$ {{ formatear_centavos_ars(obligacion.importe_centavos) }}{% if obligacion.ajuste_pendiente %}<small class="table-subline">importe provisorio</small>{% endif %}</td><td>$ {{ formatear_centavos_ars(obligacion.importe_centavos - saldo) }}</td><td><strong>$ {{ formatear_centavos_ars(saldo) }}</strong></td><td>{% if saldo %}<details class="source-row-action"><summary>{{ 'Pendiente de IPC' if obligacion.ajuste_pendiente else obligacion.estado|capitalize }}</summary><div class="source-row-panel"><form class="payment-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="registrar_pago_costo"><input type="hidden" name="obligacion_id" value="{{ obligacion.id }}"><label><span>Fecha</span><input type="date" name="fecha_pago" required></label><label><span>Importe</span><input name="importe" inputmode="decimal" required></label><label><span>Medio</span><input name="medio_pago"></label><label><span>Referencia</span><input name="referencia"></label><button class="table-action">Registrar pago a cuenta</button></form><details><summary>Historial ({{ obligacion.pagos|length }})</summary>{% for pago in obligacion.pagos %}<p>{{ pago.fecha_pago.strftime('%d/%m/%Y') }} · $ {{ formatear_centavos_ars(pago.importe_centavos) }} · {{ pago.medio_pago or 'Sin medio' }}</p>{% endfor %}</details></div></details>{% else %}<span class="status status-active">Pagada</span>{% endif %}</td></tr>{% endfor %}
         </tbody></table></div>{% endif %}
       </div>
     </details>

@@ -18,6 +18,7 @@ def inicializar_base_datos_saas(
         asegurar_movimiento_inventario_tenant,
         asegurar_periodicidad_costos_fijos,
         asegurar_reglas_ajuste_configurables,
+        asegurar_obligaciones_ajustables,
         asegurar_recursos_mano_obra,
         asegurar_unidad_importacion_costos,
     )
@@ -58,6 +59,18 @@ def inicializar_base_datos_saas(
         asegurar_reglas_ajuste_configurables(
             db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
         )
+
+        asegurar_obligaciones_ajustables(
+            db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
+        )
+
+        from services.cuentas_pagar_productivas import asegurar_obligacion_ajuste
+        for regla in modelos["ReglaAjusteIPCProductivo"].query.filter_by(activa=True).all():
+            asegurar_obligacion_ajuste(
+                regla,
+                ObligacionCostoProductivo=modelos["ObligacionCostoProductivo"],
+                CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db.session,
+            )
 
         estructura_inicial = (
             asegurar_estructura_empresarial_inicial(

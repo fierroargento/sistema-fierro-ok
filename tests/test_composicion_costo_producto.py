@@ -64,7 +64,7 @@ def test_listados_productivos_quedan_plegados_y_los_insumos_en_tabla():
     assert 'class="table-wrap source-catalog-table"' in template
     assert "Gestionar" in template
     assert "source-table-update" in template
-    assert "v='20260812-4'" in template
+    assert "v='20260812-5'" in template
     assert ".source-catalog > summary" in estilos
     assert ".source-dialog::backdrop" in estilos
 
@@ -132,4 +132,4 @@ def test_gestion_empleado_precarga_la_version_vigente_completa():
     assert "actual.usa_porcentaje_general" in template
     assert "precargarCostoEmpleado(dialogo)" in javascript
     assert 'control && !control.value' in javascript
-    assert "v='20260812-4'" in template
+    assert "v='20260812-5'" in template

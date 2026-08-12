@@ -8,6 +8,7 @@ def ejecutar_job_ipc_costos(app, db):
             ReglaAjusteIPCProductivo,
         )
         from models.fuentes_costo_productivo import CostoFijoVersion
+        from models.cuentas_pagar_productivas import ObligacionCostoProductivo
         from services.ajustes_costos_ipc import ejecutar_ciclo_ipc
 
         ejecutar_ciclo_ipc(
@@ -16,6 +17,7 @@ def ejecutar_job_ipc_costos(app, db):
                 "ReglaAjusteIPCProductivo": ReglaAjusteIPCProductivo,
                 "PropuestaAjusteIPCProductivo": PropuestaAjusteIPCProductivo,
                 "CostoFijoVersion": CostoFijoVersion,
+                "ObligacionCostoProductivo": ObligacionCostoProductivo,
             },
             db_session=db.session,
         )

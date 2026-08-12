@@ -3,6 +3,11 @@
 from datetime import date, timedelta
 
 
+def ultimo_dia_mes(periodo):
+    siguiente = date(periodo.year + (periodo.month == 12), 1 if periodo.month == 12 else periodo.month + 1, 1)
+    return siguiente - timedelta(days=1)
+
+
 def saldo_obligacion(obligacion):
     pagado = sum(int(p.importe_centavos) for p in obligacion.pagos)
     return max(0, int(obligacion.importe_centavos) - pagado)
@@ -17,6 +22,65 @@ def actualizar_estado(obligacion):
     else:
         obligacion.estado = "pendiente"
     return obligacion.estado
+
+
+def asegurar_obligacion_ajuste(regla, *, ObligacionCostoProductivo,
+                               CostoFijoVersion, db_session, usuario_id=None):
+    """Crea la obligación provisional sin inventar el IPC aún no publicado."""
+    periodo = date(regla.proximo_ajuste.year, regla.proximo_ajuste.month, 1)
+    existente = ObligacionCostoProductivo.query.filter_by(
+        costo_fijo_id=regla.costo_fijo_id, periodo=periodo,
+    ).first()
+    if existente is not None:
+        if getattr(existente, "regla_ajuste_id", None) is None:
+            existente.regla_ajuste_id = regla.id
+        return existente, False
+    version = CostoFijoVersion.query.filter_by(
+        costo_fijo_id=regla.costo_fijo_id, vigente=True,
+    ).first()
+    if version is None:
+        raise ValueError("El costo no tiene una versión vigente.")
+    vencimiento = periodo if regla.modalidad_pago == "adelantado" else ultimo_dia_mes(periodo)
+    obligacion = ObligacionCostoProductivo(
+        organizacion_id=regla.organizacion_id, costo_fijo_id=regla.costo_fijo_id,
+        version_costo_id=version.id, regla_ajuste_id=regla.id,
+        periodo=periodo, fecha_vencimiento=vencimiento,
+        importe_centavos=version.importe_mensual_centavos,
+        ajuste_pendiente=True, estado="pendiente",
+        observacion="Importe provisorio hasta aprobar el ajuste correspondiente.",
+        creado_por_usuario_id=usuario_id,
+    )
+    db_session.add(obligacion)
+    db_session.commit()
+    return obligacion, True
+
+
+def actualizar_obligacion_con_propuesta(propuesta, *, ObligacionCostoProductivo,
+                                         CostoFijoVersion, db_session):
+    """Reemplaza solo el importe esperado; conserva intactos los pagos realizados."""
+    periodo = date(propuesta.vigente_desde.year, propuesta.vigente_desde.month, 1)
+    obligacion = ObligacionCostoProductivo.query.filter_by(
+        costo_fijo_id=propuesta.regla.costo_fijo_id, periodo=periodo,
+    ).first()
+    if obligacion is None:
+        obligacion, _ = asegurar_obligacion_ajuste(
+            propuesta.regla, ObligacionCostoProductivo=ObligacionCostoProductivo,
+            CostoFijoVersion=CostoFijoVersion, db_session=db_session,
+        )
+    version = CostoFijoVersion.query.filter_by(
+        costo_fijo_id=propuesta.regla.costo_fijo_id, vigente=True,
+    ).first()
+    obligacion.importe_centavos = propuesta.importe_propuesto_centavos
+    obligacion.version_costo_id = version.id if version else obligacion.version_costo_id
+    obligacion.propuesta_ajuste_id = propuesta.id
+    obligacion.ajuste_pendiente = False
+    obligacion.observacion = (
+        f"Importe definitivo por IPC {propuesta.periodo_base:%m/%Y}–"
+        f"{propuesta.periodo_final:%m/%Y}."
+    )
+    actualizar_estado(obligacion)
+    db_session.commit()
+    return obligacion
 
 
 def crear_obligacion(costo, *, periodo, fecha_vencimiento, importe_centavos,

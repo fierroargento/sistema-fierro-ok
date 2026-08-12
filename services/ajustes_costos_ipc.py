@@ -179,7 +179,8 @@ def generar_propuestas(*, ReglaAjusteIPCProductivo, PropuestaAjusteIPCProductivo
     return creadas
 
 
-def aplicar_propuesta(propuesta, *, CostoFijoVersion, db_session, usuario_id=None, hoy=None):
+def aplicar_propuesta(propuesta, *, CostoFijoVersion, db_session, usuario_id=None, hoy=None,
+                      ObligacionCostoProductivo=None):
     hoy = hoy or date.today()
     if propuesta.estado != "aprobada" or propuesta.vigente_desde > hoy:
         return False
@@ -205,19 +206,33 @@ def aplicar_propuesta(propuesta, *, CostoFijoVersion, db_session, usuario_id=Non
     if propuesta.regla.periodo_ipc_final:
         propuesta.regla.periodo_ipc_final = desplazar_meses(propuesta.regla.periodo_ipc_final, frecuencia)
     db_session.commit()
+    if ObligacionCostoProductivo is not None:
+        from services.cuentas_pagar_productivas import actualizar_obligacion_con_propuesta
+        actualizar_obligacion_con_propuesta(
+            propuesta, ObligacionCostoProductivo=ObligacionCostoProductivo,
+            CostoFijoVersion=CostoFijoVersion, db_session=db_session,
+        )
     return True
 
 
-def aprobar_propuesta(propuesta, *, usuario_id, CostoFijoVersion, db_session, hoy=None):
+def aprobar_propuesta(propuesta, *, usuario_id, CostoFijoVersion, db_session, hoy=None,
+                      ObligacionCostoProductivo=None):
     if propuesta.estado != "pendiente":
         raise ValueError("La propuesta ya fue procesada.")
     propuesta.estado = "aprobada"
     propuesta.aprobado_por_usuario_id = usuario_id
     propuesta.fecha_aprobacion = ahora_utc_naive()
     db_session.commit()
+    if ObligacionCostoProductivo is not None:
+        from services.cuentas_pagar_productivas import actualizar_obligacion_con_propuesta
+        actualizar_obligacion_con_propuesta(
+            propuesta, ObligacionCostoProductivo=ObligacionCostoProductivo,
+            CostoFijoVersion=CostoFijoVersion, db_session=db_session,
+        )
     aplicar_propuesta(
         propuesta, CostoFijoVersion=CostoFijoVersion,
         db_session=db_session, usuario_id=usuario_id, hoy=hoy,
+        ObligacionCostoProductivo=ObligacionCostoProductivo,
     )
     return propuesta
 
@@ -225,6 +240,13 @@ def aprobar_propuesta(propuesta, *, usuario_id, CostoFijoVersion, db_session, ho
 def ejecutar_ciclo_ipc(*, modelos, db_session, urlopen_fn=urlopen, hoy=None):
     hoy = hoy or date.today()
     reglas = modelos["ReglaAjusteIPCProductivo"].query.filter_by(activa=True).all()
+    if modelos.get("ObligacionCostoProductivo"):
+        from services.cuentas_pagar_productivas import asegurar_obligacion_ajuste
+        for regla in reglas:
+            asegurar_obligacion_ajuste(
+                regla, ObligacionCostoProductivo=modelos["ObligacionCostoProductivo"],
+                CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session,
+            )
     if reglas:
         ventanas = [ventana_para_ajuste(
             r.proximo_ajuste, periodo_inicio=r.periodo_ipc_inicio,
@@ -246,6 +268,9 @@ def ejecutar_ciclo_ipc(*, modelos, db_session, urlopen_fn=urlopen, hoy=None):
     )
     aprobadas = modelos["PropuestaAjusteIPCProductivo"].query.filter_by(estado="aprobada").all()
     return sum(
-        aplicar_propuesta(p, CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session, hoy=hoy)
+        aplicar_propuesta(
+            p, CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session, hoy=hoy,
+            ObligacionCostoProductivo=modelos.get("ObligacionCostoProductivo"),
+        )
         for p in aprobadas
     )
