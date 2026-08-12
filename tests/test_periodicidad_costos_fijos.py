@@ -56,3 +56,5 @@ def test_presentacion_separa_bloques_y_muestra_cobertura_solo_en_eventuales():
     assert 'control.value === "eventual"' in javascript
     assert "meses.required = eventual" in javascript
     assert ".fixed-cost-valuation" in estilos
+    assert ".fixed-cost-complement:has([data-eventual-months][hidden])" in estilos
+    assert "justify-self: end" in estilos
