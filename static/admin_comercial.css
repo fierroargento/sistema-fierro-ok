@@ -578,3 +578,21 @@
   .resource-team-row > span, .resource-team-row .percent-input { grid-column:2; }
   .resource-team-footer .comercial-primary { width:100%; }
 }
+.fixed-cost-distribution-list { display: grid; gap: 12px; padding: 12px; }
+.fixed-cost-distribution-card { border: 1px solid #d8e0e8; border-radius: 10px; padding: 12px; background: #fff; }
+.fixed-cost-distribution-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.fixed-cost-distribution-title div { display: grid; gap: 2px; }
+.fixed-cost-distribution-title small { color: #64748b; }
+.fixed-cost-distribution-title > span { color: #086487; background: #e9f7fb; border-radius: 999px; padding: 5px 9px; font-size: 12px; font-weight: 700; }
+.fixed-cost-distribution-head,
+.fixed-cost-distribution-row { display: grid; grid-template-columns: minmax(150px, 1fr) 140px minmax(180px, 1.25fr) 150px; gap: 10px; align-items: center; }
+.fixed-cost-distribution-head { color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 0 6px 6px; }
+.fixed-cost-distribution-row { border-top: 1px solid #e5eaf0; padding: 9px 6px; }
+.fixed-cost-distribution-actions { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; margin-top: 8px; }
+.fixed-cost-distribution-actions label { display: grid; gap: 5px; }
+
+@media (max-width: 850px) {
+  .fixed-cost-distribution-head { display: none; }
+  .fixed-cost-distribution-row { grid-template-columns: 1fr 1fr; }
+  .fixed-cost-distribution-actions { grid-template-columns: 1fr; }
+}

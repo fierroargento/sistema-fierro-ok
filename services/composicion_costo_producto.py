@@ -81,6 +81,30 @@ def _vigente(versiones):
     return next((item for item in versiones if item.vigente and item.moneda == "ARS"), None)
 
 
+def _factor_productivo_unidad(costo_fijo, unidad_negocio_id):
+    distribuciones = [
+        item for item in getattr(costo_fijo, "distribuciones_versionadas", [])
+        if item.vigente
+    ]
+    if not distribuciones:
+        return Decimal("1")
+    asignacion = next(
+        (
+            item for item in distribuciones
+            if int(item.unidad_negocio_id) == int(unidad_negocio_id)
+        ),
+        None,
+    )
+    if asignacion is None:
+        raise ValueError(
+            f"{costo_fijo.nombre} no está distribuido en la unidad del producto."
+        )
+    return (
+        Decimal(asignacion.porcentaje_asignacion) / Decimal("100")
+        * Decimal(asignacion.porcentaje_productivo) / Decimal("100")
+    )
+
+
 def construir_detalles(perfil):
     if perfil.tipo != "produccion":
         raise ValueError("Solo los productos de producción usan ficha técnica.")
@@ -113,6 +137,10 @@ def construir_detalles(perfil):
             raise ValueError(f"{linea.costo_fijo.nombre} no tiene importe vigente.")
         unitario = (
             Decimal(version.importe_mensual_centavos)
+            * _factor_productivo_unidad(
+                linea.costo_fijo,
+                getattr(perfil, "unidad_negocio_id", None),
+            )
             * linea.porcentaje_asignacion / Decimal("100")
             / linea.unidades_mensuales
         ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)

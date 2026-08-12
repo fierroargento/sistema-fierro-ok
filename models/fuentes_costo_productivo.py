@@ -451,3 +451,58 @@ class CostoFijoVersion(db.Model):
     )
 
     costo_fijo = db.relationship("CostoFijoProductivo", backref="versiones")
+
+
+class CostoFijoDistribucionVersion(db.Model):
+    """Distribución histórica de un costo fijo entre unidades y ubicaciones."""
+
+    __tablename__ = "costo_fijo_distribucion_version"
+    __table_args__ = (
+        CheckConstraint(
+            "porcentaje_asignacion > 0 AND porcentaje_asignacion <= 100",
+            name="ck_costo_fijo_distribucion_asignacion",
+        ),
+        CheckConstraint(
+            "porcentaje_productivo >= 0 AND porcentaje_productivo <= 100",
+            name="ck_costo_fijo_distribucion_productivo",
+        ),
+        UniqueConstraint(
+            "costo_fijo_id", "numero_revision", "unidad_negocio_id",
+            name="uq_costo_fijo_distribucion_revision_unidad",
+        ),
+        Index(
+            "ix_costo_fijo_distribucion_vigente",
+            "costo_fijo_id", "vigente",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True,
+    )
+    costo_fijo_id = db.Column(
+        db.Integer, db.ForeignKey("costo_fijo_productivo.id"),
+        nullable=False, index=True,
+    )
+    unidad_negocio_id = db.Column(
+        db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=False, index=True,
+    )
+    numero_revision = db.Column(db.Integer, nullable=False)
+    ubicacion_costo = db.Column(db.String(120), nullable=False)
+    porcentaje_asignacion = db.Column(db.Numeric(9, 4), nullable=False)
+    porcentaje_productivo = db.Column(db.Numeric(9, 4), nullable=False)
+    vigente = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    vigente_desde = db.Column(db.DateTime, nullable=False, index=True)
+    vigente_hasta = db.Column(db.DateTime)
+    observacion = db.Column(db.String(500))
+    creado_por_usuario_id = db.Column(
+        db.Integer, db.ForeignKey("usuario_sistema.id"), nullable=True,
+    )
+    fecha_creacion = db.Column(
+        db.DateTime, default=ahora_utc_naive, nullable=False,
+    )
+
+    costo_fijo = db.relationship(
+        "CostoFijoProductivo", backref="distribuciones_versionadas",
+    )
+    unidad_negocio = db.relationship("UnidadNegocio")

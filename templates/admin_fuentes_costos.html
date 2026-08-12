@@ -238,7 +238,36 @@
       {% set vigente = costo.versiones|selectattr('vigente')|first %}
       <tr><td><strong>{{ costo.codigo }}</strong></td><td>{{ costo.nombre }}</td><td>{{ costo.categoria }}</td><td><span class="status status-{{ 'active' if costo.integra_costo_produccion else 'draft' }}">{{ 'Productivo' if costo.integra_costo_produccion else 'Informativo' }}</span></td><td>{{ costo.criterio_distribucion|replace('_', ' ') }}</td><td>{% if vigente %}<strong>$ {{ formatear_centavos_ars(vigente.importe_mensual_centavos) }}</strong>{% else %}—{% endif %}</td><td>{{ 'v' ~ vigente.numero_version if vigente else '—' }}</td><td><details class="source-row-action"><summary>Gestionar</summary><div class="source-row-panel"><form class="source-table-update" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_importe_costo_fijo"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}"><input type="hidden" name="moneda" value="ARS"><label><span>Importe mensual</span><div class="money-input"><span>$</span><input name="importe_mensual" inputmode="decimal" required></div></label><label><span>Comprobante</span><input name="comprobante_referencia"></label><label><span>Observación</span><input name="observacion"></label><button class="table-action" type="submit">Guardar versión</button></form><details class="source-table-history"><summary>Ver historial ({{ costo.versiones|length }})</summary><div class="mini-history">{% for version in costo.versiones|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }}</span><strong>$ {{ formatear_centavos_ars(version.importe_mensual_centavos) }}</strong></div>{% endfor %}</div></details></div></details></td></tr>
       {% endfor %}
-    </tbody></table></div></details>{% else %}<p class="empty-card">Todavía no hay costos fijos cargados.</p>{% endif %}
+    </tbody></table></div></details>
+    <details class="source-catalog fixed-cost-distributions">
+      <summary><span>Distribuir costos fijos entre unidades</span><strong>{{ costos_fijos|length }}</strong></summary>
+      <div class="fixed-cost-distribution-list">
+        <p class="catalog-help">La participación reparte cada concepto entre las unidades y debe sumar 100%. Solo el porcentaje productivo integra el costo de fabricación.</p>
+        {% for costo in costos_fijos %}
+        {% set asignaciones = distribuciones_costos_fijos.get(costo.id, {}) %}
+        <form class="fixed-cost-distribution-card" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+          <input type="hidden" name="accion" value="configurar_distribucion_costo_fijo">
+          <input type="hidden" name="costo_fijo_id" value="{{ costo.id }}">
+          <div class="fixed-cost-distribution-title"><div><strong>{{ costo.nombre }}</strong><small>{{ costo.codigo }} · {{ costo.categoria }}</small></div><span>Total requerido: 100%</span></div>
+          <div class="fixed-cost-distribution-head"><span>Unidad</span><span>Participación</span><span>Ubicación de origen</span><span>Parte productiva</span></div>
+          {% for unidad in unidades %}
+          {% if costo.unidad_negocio_id is none or costo.unidad_negocio_id == unidad.id %}
+          {% set asignacion = asignaciones.get(unidad.id) %}
+          <div class="fixed-cost-distribution-row">
+            <input type="hidden" name="costo_unidad_id" value="{{ unidad.id }}">
+            <strong>{{ unidad.nombre }}</strong>
+            <div class="percent-input"><input name="costo_porcentaje_asignacion" inputmode="decimal" value="{% if asignacion %}{{ numero_decimal_limpio(asignacion.porcentaje_asignacion) }}{% elif not asignaciones and unidad.id == unidad_activa.id %}100{% else %}0{% endif %}" required><span>%</span></div>
+            <input name="costo_ubicacion" maxlength="120" value="{{ asignacion.ubicacion_costo if asignacion else '' }}" placeholder="Ej. Taller o salón">
+            <div class="percent-input"><input name="costo_porcentaje_productivo" inputmode="decimal" value="{% if asignacion %}{{ numero_decimal_limpio(asignacion.porcentaje_productivo) }}{% elif costo.integra_costo_produccion %}100{% else %}0{% endif %}" required><span>%</span></div>
+          </div>
+          {% endif %}
+          {% endfor %}
+          <div class="fixed-cost-distribution-actions"><label><span>Observación <small>opcional</small></span><input name="observacion_distribucion_costo" placeholder="Ej. distribución vigente desde agosto"></label><button class="table-action" type="submit">Guardar distribución</button></div>
+        </form>
+        {% endfor %}
+      </div>
+    </details>
+    {% else %}<p class="empty-card">Todavía no hay costos fijos cargados.</p>{% endif %}
   </section>
 </main>
 {% endblock %}

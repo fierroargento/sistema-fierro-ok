@@ -78,6 +78,7 @@ def registrar_modulos_web(
                         "ConfiguracionCostoLaboralVersion",
                         "RecursoEmpleadoProductivo",
                         "CostoFijoProductivo", "CostoFijoVersion",
+                        "CostoFijoDistribucionVersion",
                         "PerfilCosteoProducto", "ComboProductoComponente",
                         "ProductoInsumoCosteo", "ProductoOperacionCosteo",
                         "ProductoCostoFijoCosteo",

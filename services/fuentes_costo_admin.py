@@ -36,6 +36,10 @@ from services.distribucion_laboral import (
     distribuciones_vigentes,
     registrar_distribucion,
 )
+from services.distribucion_costos_fijos import (
+    distribuciones_costos_fijos_vigentes,
+    registrar_distribucion_costo_fijo,
+)
 
 
 def _id(formulario, campo, opcional=False):
@@ -113,6 +117,43 @@ def procesar_accion_fuente_costo(
             observacion=formulario.get("observacion_distribucion"),
         )
         return f"Distribución de {empleado.nombre} guardada en revisión {revision}."
+
+    if accion == "configurar_distribucion_costo_fijo":
+        costo = _registro_tenant(
+            modelos["CostoFijoProductivo"],
+            _id(formulario, "costo_fijo_id"), organizacion.id,
+            "El costo fijo", unidad_activa.id,
+        )
+        filas = [
+            {
+                "unidad_negocio_id": unidad_id,
+                "porcentaje_asignacion": porcentaje,
+                "ubicacion_costo": ubicacion,
+                "porcentaje_productivo": productivo,
+            }
+            for unidad_id, porcentaje, ubicacion, productivo in zip(
+                formulario.getlist("costo_unidad_id"),
+                formulario.getlist("costo_porcentaje_asignacion"),
+                formulario.getlist("costo_ubicacion"),
+                formulario.getlist("costo_porcentaje_productivo"),
+            )
+        ]
+        unidades = modelos["UnidadNegocio"].query.filter_by(
+            organizacion_id=organizacion.id,
+        ).all()
+        if costo.unidad_negocio_id is not None:
+            unidades = [
+                unidad for unidad in unidades
+                if unidad.id == costo.unidad_negocio_id
+            ]
+        revision, _creadas = registrar_distribucion_costo_fijo(
+            costo, filas, organizacion_id=organizacion.id,
+            unidades_validas=unidades,
+            Modelo=modelos["CostoFijoDistribucionVersion"],
+            db_session=db_session, usuario_id=usuario_id,
+            observacion=formulario.get("observacion_distribucion_costo"),
+        )
+        return f"Distribución de {costo.nombre} guardada en revisión {revision}."
 
     if accion == "configurar_porcentaje_costo_laboral":
         version = registrar_configuracion(
@@ -597,6 +638,11 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
         (modelos["EmpleadoProductivo"].unidad_negocio_id.is_(None))
         | (modelos["EmpleadoProductivo"].unidad_negocio_id == unidad_negocio_id),
     ).order_by(modelos["EmpleadoProductivo"].nombre).all()
+    costos_fijos = modelos["CostoFijoProductivo"].query.filter(
+        modelos["CostoFijoProductivo"].organizacion_id == organizacion_id,
+        (modelos["CostoFijoProductivo"].unidad_negocio_id.is_(None))
+        | (modelos["CostoFijoProductivo"].unidad_negocio_id == unidad_negocio_id),
+    ).order_by(modelos["CostoFijoProductivo"].nombre).all()
     return {
         "configuracion_costo_laboral": configuracion_vigente(
             organizacion_id, unidad_negocio_id,
@@ -624,9 +670,8 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
             (modelos["EmpleadoProductivo"].unidad_negocio_id.is_(None))
             | (modelos["EmpleadoProductivo"].unidad_negocio_id == unidad_negocio_id),
         ).order_by(modelos["EmpleadoProductivo"].nombre).all(),
-        "costos_fijos": modelos["CostoFijoProductivo"].query.filter(
-            modelos["CostoFijoProductivo"].organizacion_id == organizacion_id,
-            (modelos["CostoFijoProductivo"].unidad_negocio_id.is_(None))
-            | (modelos["CostoFijoProductivo"].unidad_negocio_id == unidad_negocio_id),
-        ).order_by(modelos["CostoFijoProductivo"].nombre).all(),
+        "costos_fijos": costos_fijos,
+        "distribuciones_costos_fijos": distribuciones_costos_fijos_vigentes(
+            costos_fijos, Modelo=modelos["CostoFijoDistribucionVersion"],
+        ),
     }
