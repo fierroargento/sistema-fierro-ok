@@ -433,13 +433,9 @@
 .source-update .money-input { height: 36px; }
 .source-update .money-input input { height: 34px; border: 0; }
 .employee-update-form { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
-.labor-resources { margin:14px 0; border:1px solid #d9e4e9; border-radius:10px; background:#f8fbfc; }
-.labor-resources > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; color:#176b89; font-size:12px; font-weight:800; cursor:pointer; list-style:none; }
-.labor-resources > summary::-webkit-details-marker { display:none; }
-.labor-resources > summary::before { content:"▸"; margin-right:7px; }
-.labor-resources[open] > summary::before { content:"▾"; }
-.labor-resources > summary strong { margin-left:auto; padding:3px 9px; border-radius:999px; background:#dff3f8; }
-.labor-resources-content { display:grid; gap:12px; padding:0 14px 14px; }
+.labor-resources { margin:16px 0 0; }
+.labor-resources > summary { gap:0; }
+.labor-resources-content { display:grid; gap:12px; padding:12px 0 0; }
 .form-labor-resource { grid-template-columns:1fr 1.5fr 1fr .8fr auto; }
 .labor-resource-card { padding:14px; border:1px solid #dfe6eb; border-radius:10px; background:#fff; }
 .resource-rate { align-items:flex-end !important; flex:0 0 auto; }
@@ -531,6 +527,9 @@
 .resource-team-row:hover, .resource-team-row.is-selected { background:#f3fbfe; }
 .resource-team-row > input[type="checkbox"] { width:18px; height:18px; padding:0; }
 .resource-team-row > span { color:#667085; font-size:12px; }
+.resource-team-row > strong { display:flex; flex-direction:column; gap:3px; }
+.team-member-state { color:#778294; font-size:10px; font-weight:600; }
+.resource-team-row.is-selected .team-member-state { color:#176b89; }
 .resource-team-row .percent-input { display:grid; grid-template-columns:1fr 28px; }
 .resource-team-row .percent-input input { width:100%; border-radius:7px 0 0 7px; }
 .resource-team-row .percent-input span { display:flex; align-items:center; justify-content:center; height:36px; border:1px solid #cbd2dc; border-left:0; border-radius:0 7px 7px 0; color:#667085; font-weight:800; }

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260810-10') }}">
-<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260810-3') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260812-2') }}">
+<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260812-2') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -143,7 +143,7 @@
       <label><span>Horas productivas</span><input name="horas_productivas" inputmode="decimal" placeholder="160" required></label>
       <button class="comercial-primary" type="submit">Crear empleado</button>
     </form>
-    <details class="labor-resources">
+    <details class="labor-resources source-catalog">
       <summary><span>Configurar equipos o recursos productivos</span><strong>{{ recursos_productivos|length }}</strong></summary>
       <div class="labor-resources-content">
         <form class="comercial-form form-labor-resource" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
@@ -161,7 +161,7 @@
             <div class="resource-team-heading"><div><strong>Equipo de {{ recurso.nombre }}</strong><span>Seleccioná todos los integrantes y ajustá sus dedicaciones antes de guardar.</span></div><label><span>Tiempos indirectos %</span><input name="porcentaje_indirecto" inputmode="decimal" value="{{ numero_decimal_limpio(recurso.porcentaje_indirecto) }}" required></label></div>
             <div class="resource-team-head"><span>Asignar</span><span>Empleado</span><span>Puesto / sector</span><span>Dedicación</span></div>
             <div class="resource-team-list">{% for e in empleados %}{% set ns = namespace(vinculo=none) %}{% for asignacion in recurso.miembros_recurso %}{% if asignacion.empleado_id == e.id %}{% set ns.vinculo = asignacion %}{% endif %}{% endfor %}
-              <label class="resource-team-row"><input type="checkbox" name="integrante_seleccionado" value="{{ e.id }}" data-team-member {% if ns.vinculo %}checked{% endif %}><strong>{{ e.nombre }}</strong><span>{{ e.puesto or 'Sin puesto' }} · {{ e.sector }}</span><div class="percent-input"><input name="integrante_dedicacion_{{ e.id }}" inputmode="decimal" value="{{ numero_decimal_limpio(ns.vinculo.porcentaje_dedicacion) if ns.vinculo else 100 }}" data-team-dedication><span>%</span></div></label>
+              <label class="resource-team-row"><input type="checkbox" name="integrante_seleccionado" value="{{ e.id }}" data-team-member {% if ns.vinculo %}checked{% endif %}><strong>{{ e.nombre }}<small class="team-member-state">{{ 'Integrante actual' if ns.vinculo else 'Disponible · no asignado' }}</small></strong><span>{{ e.puesto or 'Sin puesto' }} · {{ e.sector }}</span><div class="percent-input"><input name="integrante_dedicacion_{{ e.id }}" inputmode="decimal" value="{{ numero_decimal_limpio(ns.vinculo.porcentaje_dedicacion) if ns.vinculo else 100 }}" data-team-dedication><span>%</span></div></label>
             {% else %}<p class="empty-card">Primero cargá empleados en esta unidad.</p>{% endfor %}</div>
             <div class="resource-team-footer"><span>Los cambios, las bajas y el recálculo se aplican juntos.</span><button class="comercial-primary" type="submit" {% if not empleados %}disabled{% endif %}>Guardar equipo y recalcular</button></div>
           </form>

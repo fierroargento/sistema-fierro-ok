@@ -104,6 +104,8 @@ def test_gestion_de_equipo_es_masiva_y_recalcula_una_sola_vez():
     assert 'name="integrante_seleccionado"' in panel
     assert "Guardar equipo y recalcular" in panel
     assert "configurar_integrantes(" in admin
+    assert 'class="labor-resources source-catalog"' in panel
+    assert "Disponible · no asignado" in panel
     assert "def configurar_integrantes" in Path(
         "services/recursos_productivos.py"
     ).read_text(encoding="utf-8")
