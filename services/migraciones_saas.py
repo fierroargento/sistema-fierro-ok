@@ -104,6 +104,31 @@ def asegurar_periodicidad_costos_fijos(*, db, inspect_fn, text_fn, logger_fn=pri
     return {"columnas_creadas": creadas}
 
 
+def asegurar_reglas_ajuste_configurables(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Amplía las reglas IPC existentes sin activar ni modificar configuraciones."""
+    inspector = inspect_fn(db.engine)
+    tabla = "regla_ajuste_ipc_productivo"
+    if tabla not in inspector.get_table_names():
+        return {"columnas_creadas": []}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    definiciones = {
+        "tipo_ajuste": "VARCHAR(30) NOT NULL DEFAULT 'ipc'",
+        "periodo_ipc_inicio": "DATE",
+        "periodo_ipc_final": "DATE",
+        "modalidad_pago": "VARCHAR(20) NOT NULL DEFAULT 'adelantado'",
+        "requiere_aprobacion": "BOOLEAN NOT NULL DEFAULT TRUE",
+    }
+    creadas = []
+    for nombre, definicion in definiciones.items():
+        if nombre not in columnas:
+            db.session.execute(text_fn(f"ALTER TABLE {tabla} ADD COLUMN {nombre} {definicion}"))
+            creadas.append(nombre)
+    db.session.commit()
+    if creadas and logger_fn is not None:
+        logger_fn("[SAAS] Reglas configurables de ajuste habilitadas.")
+    return {"columnas_creadas": creadas}
+
+
 def asegurar_unidad_importacion_costos(*, db, inspect_fn, text_fn, logger_fn=print):
     """Agrega alcance por unidad a lotes comerciales sin alterar lotes previos."""
     inspector = inspect_fn(db.engine)

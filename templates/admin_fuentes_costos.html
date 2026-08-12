@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260812-3') }}">
-<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260812-3') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260812-4') }}">
+<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260812-4') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -285,14 +285,30 @@
         </div>
         {% for costo in costos_fijos %}
         {% set regla = reglas_ipc_por_costo.get(costo.id) %}
-        <form class="indexed-cost-card" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
-          <input type="hidden" name="accion" value="configurar_ajuste_ipc"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}">
+        <article class="indexed-cost-card">
           <div><strong>{{ costo.nombre }}</strong><small>{{ costo.codigo }}</small></div>
-          <label><span>Próximo ajuste</span><input type="date" name="proximo_ajuste" value="{{ regla.proximo_ajuste.isoformat() if regla else '' }}" required></label>
-          <label><span>Observación</span><input name="observacion" value="{{ regla.observacion or '' if regla else '' }}" placeholder="Ej. alquiler pagado por adelantado"></label>
-          <button class="table-action">{{ 'Actualizar regla' if regla else 'Activar IPC semestral' }}</button>
-          {% if regla %}{% set ventana = ventana_para_ajuste(regla.proximo_ajuste) %}<small class="indexed-window">IPC {{ ventana.base.strftime('%m/%Y') }} → {{ ventana.final.strftime('%m/%Y') }} · vigencia {{ regla.proximo_ajuste.strftime('%d/%m/%Y') }}</small>{% endif %}
-        </form>
+          {% if regla %}
+          {% set ventana = ventana_para_ajuste(regla.proximo_ajuste, periodo_inicio=regla.periodo_ipc_inicio, periodo_final=regla.periodo_ipc_final, frecuencia_meses=regla.frecuencia_meses) %}
+          <div class="adjustment-rule-summary"><strong>IPC · cada {{ regla.frecuencia_meses }} meses</strong><small>Período {{ ventana.inicio.strftime('%m/%Y') }}–{{ ventana.final.strftime('%m/%Y') }} · vigencia {{ regla.proximo_ajuste.strftime('%d/%m/%Y') }} · pago {{ regla.modalidad_pago }}</small></div>
+          {% else %}<span class="status status-draft">Sin regla configurada</span>{% endif %}
+          <button class="table-action source-dialog-trigger" type="button" data-source-dialog>Configurar ajuste</button>
+          <dialog class="source-dialog adjustment-rule-dialog"><button class="source-dialog-close" type="button" aria-label="Cerrar">×</button><div class="source-row-panel">
+            <form class="adjustment-rule-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+              <input type="hidden" name="accion" value="configurar_ajuste_ipc"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}">
+              <div class="dialog-heading"><strong>Regla de ajuste · {{ costo.nombre }}</strong><small>La configuración queda versionada y nunca modifica importes sin la aprobación indicada.</small></div>
+              <label><span>Tipo de ajuste</span><select name="tipo_ajuste"><option value="ipc" selected>IPC nacional</option></select></label>
+              <label><span>Frecuencia</span><select name="frecuencia_meses" required>{% for meses, nombre in [(1,'Mensual'),(2,'Bimestral'),(3,'Trimestral'),(4,'Cuatrimestral'),(6,'Semestral'),(12,'Anual')] %}<option value="{{ meses }}" {% if regla and regla.frecuencia_meses == meses %}selected{% elif not regla and meses == 6 %}selected{% endif %}>{{ nombre }}</option>{% endfor %}<option value="18" {% if regla and regla.frecuencia_meses == 18 %}selected{% endif %}>Cada 18 meses</option><option value="24" {% if regla and regla.frecuencia_meses == 24 %}selected{% endif %}>Cada 24 meses</option></select></label>
+              <label><span>Inicio del período IPC</span><input type="month" name="periodo_ipc_inicio" value="{{ regla.periodo_ipc_inicio.strftime('%Y-%m') if regla and regla.periodo_ipc_inicio else '2026-03' }}" required></label>
+              <label><span>Fin del período IPC</span><input type="month" name="periodo_ipc_final" value="{{ regla.periodo_ipc_final.strftime('%Y-%m') if regla and regla.periodo_ipc_final else '2026-08' }}" required></label>
+              <label><span>Vigencia del nuevo valor</span><input type="date" name="proximo_ajuste" value="{{ regla.proximo_ajuste.isoformat() if regla else '2026-09-01' }}" required></label>
+              <label><span>Modalidad de pago</span><select name="modalidad_pago"><option value="adelantado" {% if not regla or regla.modalidad_pago == 'adelantado' %}selected{% endif %}>Mes adelantado</option><option value="vencido" {% if regla and regla.modalidad_pago == 'vencido' %}selected{% endif %}>Mes vencido</option></select></label>
+              <label class="approval-choice"><input type="checkbox" name="requiere_aprobacion" value="1" {% if not regla or regla.requiere_aprobacion %}checked{% endif %}><span>Requerir aprobación administrativa antes de aplicar</span></label>
+              <label class="adjustment-note"><span>Observación</span><input name="observacion" value="{{ regla.observacion or '' if regla else '' }}" placeholder="Ej. alquiler pagado por adelantado"></label>
+              <button class="comercial-primary" type="submit">Guardar configuración</button>
+              {% if regla and regla.historial_configuracion %}<details class="source-table-history"><summary>Historial de configuraciones ({{ regla.historial_configuracion|length }})</summary><div class="mini-history">{% for version in regla.historial_configuracion|sort(attribute='numero_revision', reverse=true) %}<div><span>r{{ version.numero_revision }} · cada {{ version.frecuencia_meses }} meses · {{ version.periodo_ipc_inicio.strftime('%m/%Y') if version.periodo_ipc_inicio else '—' }}–{{ version.periodo_ipc_final.strftime('%m/%Y') if version.periodo_ipc_final else '—' }}</span><strong>Vigencia {{ version.proximo_ajuste.strftime('%d/%m/%Y') }}</strong></div>{% endfor %}</div></details>{% endif %}
+            </form>
+          </div></dialog>
+        </article>
         {% endfor %}
         {% for propuesta in propuestas_ipc %}
         <article class="ipc-proposal">

@@ -99,13 +99,24 @@ def procesar_accion_fuente_costo(
             costo, proximo_ajuste=formulario.get("proximo_ajuste"),
             organizacion_id=organizacion.id, usuario_id=usuario_id,
             observacion=formulario.get("observacion"),
+            tipo_ajuste=formulario.get("tipo_ajuste") or "ipc",
+            frecuencia_meses=formulario.get("frecuencia_meses") or 6,
+            periodo_ipc_inicio=formulario.get("periodo_ipc_inicio"),
+            periodo_ipc_final=formulario.get("periodo_ipc_final"),
+            modalidad_pago=formulario.get("modalidad_pago") or "adelantado",
+            requiere_aprobacion=formulario.get("requiere_aprobacion") == "1",
             ReglaAjusteIPCProductivo=modelos["ReglaAjusteIPCProductivo"],
+            ReglaAjusteCostoHistorial=modelos.get("ReglaAjusteCostoHistorial"),
             db_session=db_session,
         )
-        ventana = ventana_para_ajuste(regla.proximo_ajuste)
+        ventana = ventana_para_ajuste(
+            regla.proximo_ajuste, periodo_inicio=regla.periodo_ipc_inicio,
+            periodo_final=regla.periodo_ipc_final, frecuencia_meses=regla.frecuencia_meses,
+        )
         return (
-            f"Ajuste IPC configurado. Ventana {ventana['inicio']:%m/%Y}–"
-            f"{ventana['final']:%m/%Y}; vigencia {regla.proximo_ajuste:%d/%m/%Y}."
+            f"Regla de ajuste configurada cada {regla.frecuencia_meses} meses. "
+            f"IPC {ventana['inicio']:%m/%Y}–{ventana['final']:%m/%Y}; "
+            f"vigencia {regla.proximo_ajuste:%d/%m/%Y}."
         )
 
     if accion == "actualizar_ipc":

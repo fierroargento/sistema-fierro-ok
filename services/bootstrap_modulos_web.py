@@ -80,6 +80,7 @@ def registrar_modulos_web(
                         "CostoFijoProductivo", "CostoFijoVersion",
                         "CostoFijoDistribucionVersion",
                         "IndiceIPCOficial", "ReglaAjusteIPCProductivo",
+                        "ReglaAjusteCostoHistorial",
                         "PropuestaAjusteIPCProductivo",
                         "ObligacionCostoProductivo",
                         "PagoObligacionCostoProductivo",

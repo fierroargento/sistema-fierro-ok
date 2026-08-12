@@ -32,7 +32,12 @@ class ReglaAjusteIPCProductivo(db.Model):
     organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
     costo_fijo_id = db.Column(db.Integer, db.ForeignKey("costo_fijo_productivo.id"), nullable=False, index=True)
     serie = db.Column(db.String(100), nullable=False)
+    tipo_ajuste = db.Column(db.String(30), default="ipc", nullable=False)
     frecuencia_meses = db.Column(db.Integer, default=6, nullable=False)
+    periodo_ipc_inicio = db.Column(db.Date)
+    periodo_ipc_final = db.Column(db.Date)
+    modalidad_pago = db.Column(db.String(20), default="adelantado", nullable=False)
+    requiere_aprobacion = db.Column(db.Boolean, default=True, nullable=False)
     proximo_ajuste = db.Column(db.Date, nullable=False, index=True)
     activa = db.Column(db.Boolean, default=True, nullable=False, index=True)
     observacion = db.Column(db.String(500))
@@ -40,6 +45,30 @@ class ReglaAjusteIPCProductivo(db.Model):
     fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
 
     costo_fijo = db.relationship("CostoFijoProductivo", backref="regla_ajuste_ipc", uselist=False)
+
+
+class ReglaAjusteCostoHistorial(db.Model):
+    __tablename__ = "regla_ajuste_costo_historial"
+    __table_args__ = (
+        CheckConstraint("frecuencia_meses > 0", name="ck_historial_ajuste_frecuencia"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    regla_id = db.Column(db.Integer, db.ForeignKey("regla_ajuste_ipc_productivo.id"), nullable=False, index=True)
+    numero_revision = db.Column(db.Integer, nullable=False)
+    tipo_ajuste = db.Column(db.String(30), nullable=False)
+    serie = db.Column(db.String(100))
+    frecuencia_meses = db.Column(db.Integer, nullable=False)
+    periodo_ipc_inicio = db.Column(db.Date)
+    periodo_ipc_final = db.Column(db.Date)
+    proximo_ajuste = db.Column(db.Date, nullable=False)
+    modalidad_pago = db.Column(db.String(20), nullable=False)
+    requiere_aprobacion = db.Column(db.Boolean, nullable=False)
+    observacion = db.Column(db.String(500))
+    creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
+    fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+
+    regla = db.relationship("ReglaAjusteIPCProductivo", backref="historial_configuracion")
 
 
 class PropuestaAjusteIPCProductivo(db.Model):

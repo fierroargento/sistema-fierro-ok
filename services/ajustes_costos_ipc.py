@@ -24,11 +24,24 @@ def desplazar_meses(valor, cantidad):
     return date(indice // 12, indice % 12 + 1, 1)
 
 
-def ventana_para_ajuste(vigente_desde):
-    """Octubre => base febrero y variación marzo-agosto; abril => sep-feb."""
+def _fecha_mes(valor):
+    texto = str(valor or "").strip()
+    if len(texto) == 7:
+        texto += "-01"
+    return date.fromisoformat(texto)
+
+
+def ventana_para_ajuste(vigente_desde, *, periodo_inicio=None, periodo_final=None, frecuencia_meses=6):
+    """Devuelve la ventana explícita o la infiere hasta el mes previo a la vigencia."""
+    if periodo_inicio and periodo_final:
+        inicio = primer_dia_mes(periodo_inicio)
+        final = primer_dia_mes(periodo_final)
+        if inicio > final:
+            raise ValueError("El inicio del período IPC no puede superar el final.")
+        return {"inicio": inicio, "final": final, "base": desplazar_meses(inicio, -1)}
     ajuste = primer_dia_mes(vigente_desde)
-    final = desplazar_meses(ajuste, -2)
-    inicio = desplazar_meses(final, -5)
+    final = desplazar_meses(ajuste, -1)
+    inicio = desplazar_meses(final, -(int(frecuencia_meses) - 1))
     return {
         "inicio": inicio,
         "final": final,
@@ -78,7 +91,10 @@ def actualizar_indices_oficiales(*, desde, hasta, IndiceIPCOficial, db_session, 
 
 
 def configurar_regla(costo, *, proximo_ajuste, organizacion_id, usuario_id, observacion,
-                     ReglaAjusteIPCProductivo, db_session, serie=SERIE_IPC_NACIONAL):
+                     ReglaAjusteIPCProductivo, db_session, serie=SERIE_IPC_NACIONAL,
+                     tipo_ajuste="ipc", frecuencia_meses=6, periodo_ipc_inicio=None,
+                     periodo_ipc_final=None, modalidad_pago="adelantado",
+                     requiere_aprobacion=True, ReglaAjusteCostoHistorial=None):
     fecha = date.fromisoformat(str(proximo_ajuste))
     if fecha.day != 1:
         raise ValueError("La vigencia del ajuste debe comenzar el primer día del mes.")
@@ -86,12 +102,38 @@ def configurar_regla(costo, *, proximo_ajuste, organizacion_id, usuario_id, obse
     if regla is None:
         regla = ReglaAjusteIPCProductivo(costo_fijo_id=costo.id, organizacion_id=organizacion_id)
         db_session.add(regla)
+    frecuencia = int(frecuencia_meses)
+    if frecuencia < 1 or frecuencia > 120:
+        raise ValueError("La frecuencia debe estar entre 1 y 120 meses.")
+    inicio = _fecha_mes(periodo_ipc_inicio) if periodo_ipc_inicio else None
+    final = _fecha_mes(periodo_ipc_final) if periodo_ipc_final else None
+    if tipo_ajuste == "ipc":
+        if not inicio or not final:
+            raise ValueError("Indicá el período inicial y final del IPC.")
+        ventana_para_ajuste(fecha, periodo_inicio=inicio, periodo_final=final, frecuencia_meses=frecuencia)
     regla.serie = serie
-    regla.frecuencia_meses = 6
+    regla.tipo_ajuste = tipo_ajuste
+    regla.frecuencia_meses = frecuencia
+    regla.periodo_ipc_inicio = inicio
+    regla.periodo_ipc_final = final
+    regla.modalidad_pago = modalidad_pago
+    regla.requiere_aprobacion = bool(requiere_aprobacion)
     regla.proximo_ajuste = fecha
     regla.activa = True
     regla.observacion = str(observacion or "").strip() or None
     regla.creado_por_usuario_id = usuario_id
+    if ReglaAjusteCostoHistorial is not None:
+        db_session.flush()
+        ultima = ReglaAjusteCostoHistorial.query.filter_by(regla_id=regla.id).order_by(
+            ReglaAjusteCostoHistorial.numero_revision.desc()
+        ).first()
+        db_session.add(ReglaAjusteCostoHistorial(
+            regla=regla, numero_revision=(ultima.numero_revision if ultima else 0) + 1,
+            tipo_ajuste=tipo_ajuste, serie=serie, frecuencia_meses=frecuencia,
+            periodo_ipc_inicio=inicio, periodo_ipc_final=final, proximo_ajuste=fecha,
+            modalidad_pago=modalidad_pago, requiere_aprobacion=bool(requiere_aprobacion),
+            observacion=regla.observacion, creado_por_usuario_id=usuario_id,
+        ))
     db_session.commit()
     return regla
 
@@ -102,7 +144,10 @@ def generar_propuestas(*, ReglaAjusteIPCProductivo, PropuestaAjusteIPCProductivo
     creadas = []
     reglas = ReglaAjusteIPCProductivo.query.filter_by(activa=True).all()
     for regla in reglas:
-        ventana = ventana_para_ajuste(regla.proximo_ajuste)
+        ventana = ventana_para_ajuste(
+            regla.proximo_ajuste, periodo_inicio=regla.periodo_ipc_inicio,
+            periodo_final=regla.periodo_ipc_final, frecuencia_meses=regla.frecuencia_meses,
+        )
         base = IndiceIPCOficial.query.filter_by(serie=regla.serie, periodo=ventana["base"]).first()
         final = IndiceIPCOficial.query.filter_by(serie=regla.serie, periodo=ventana["final"]).first()
         if base is None or final is None:
@@ -125,7 +170,8 @@ def generar_propuestas(*, ReglaAjusteIPCProductivo, PropuestaAjusteIPCProductivo
             variacion_porcentual=variacion,
             importe_actual_centavos=version.importe_mensual_centavos,
             importe_propuesto_centavos=propuesto,
-            vigente_desde=regla.proximo_ajuste, estado="pendiente",
+            vigente_desde=regla.proximo_ajuste,
+            estado="pendiente" if regla.requiere_aprobacion else "aprobada",
         )
         db_session.add(propuesta)
         creadas.append(propuesta)
@@ -152,7 +198,12 @@ def aplicar_propuesta(propuesta, *, CostoFijoVersion, db_session, usuario_id=Non
     )
     propuesta.estado = "aplicada"
     propuesta.fecha_aplicacion = ahora_utc_naive()
-    propuesta.regla.proximo_ajuste = desplazar_meses(propuesta.vigente_desde, 6)
+    frecuencia = propuesta.regla.frecuencia_meses
+    propuesta.regla.proximo_ajuste = desplazar_meses(propuesta.vigente_desde, frecuencia)
+    if propuesta.regla.periodo_ipc_inicio:
+        propuesta.regla.periodo_ipc_inicio = desplazar_meses(propuesta.regla.periodo_ipc_inicio, frecuencia)
+    if propuesta.regla.periodo_ipc_final:
+        propuesta.regla.periodo_ipc_final = desplazar_meses(propuesta.regla.periodo_ipc_final, frecuencia)
     db_session.commit()
     return True
 
@@ -175,8 +226,12 @@ def ejecutar_ciclo_ipc(*, modelos, db_session, urlopen_fn=urlopen, hoy=None):
     hoy = hoy or date.today()
     reglas = modelos["ReglaAjusteIPCProductivo"].query.filter_by(activa=True).all()
     if reglas:
-        bases = [ventana_para_ajuste(r.proximo_ajuste)["base"] for r in reglas]
-        finales = [ventana_para_ajuste(r.proximo_ajuste)["final"] for r in reglas]
+        ventanas = [ventana_para_ajuste(
+            r.proximo_ajuste, periodo_inicio=r.periodo_ipc_inicio,
+            periodo_final=r.periodo_ipc_final, frecuencia_meses=r.frecuencia_meses,
+        ) for r in reglas]
+        bases = [v["base"] for v in ventanas]
+        finales = [v["final"] for v in ventanas]
         actualizar_indices_oficiales(
             desde=min(bases), hasta=max(finales),
             IndiceIPCOficial=modelos["IndiceIPCOficial"],

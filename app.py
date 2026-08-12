@@ -270,6 +270,7 @@ from models.fuentes_costo_productivo import (
 from models.ajuste_ipc_productivo import (
     IndiceIPCOficial,
     PropuestaAjusteIPCProductivo,
+    ReglaAjusteCostoHistorial,
     ReglaAjusteIPCProductivo,
 )
 from models.cuentas_pagar_productivas import (
@@ -11729,6 +11730,7 @@ registrar_modulos_web(
             "CostoFijoVersion": CostoFijoVersion,
             "IndiceIPCOficial": IndiceIPCOficial,
             "ReglaAjusteIPCProductivo": ReglaAjusteIPCProductivo,
+            "ReglaAjusteCostoHistorial": ReglaAjusteCostoHistorial,
             "PropuestaAjusteIPCProductivo": PropuestaAjusteIPCProductivo,
             "ObligacionCostoProductivo": ObligacionCostoProductivo,
             "PagoObligacionCostoProductivo": PagoObligacionCostoProductivo,
