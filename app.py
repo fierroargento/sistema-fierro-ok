@@ -267,6 +267,15 @@ from models.fuentes_costo_productivo import (
     InsumoProductivo,
     RecursoEmpleadoProductivo,
 )
+from models.ajuste_ipc_productivo import (
+    IndiceIPCOficial,
+    PropuestaAjusteIPCProductivo,
+    ReglaAjusteIPCProductivo,
+)
+from models.cuentas_pagar_productivas import (
+    ObligacionCostoProductivo,
+    PagoObligacionCostoProductivo,
+)
 from models.perfil_costeo_producto import (
     ComboProductoComponente,
     PerfilCosteoProducto,
@@ -11718,6 +11727,11 @@ registrar_modulos_web(
             "CostoFijoProductivo": CostoFijoProductivo,
             "CostoFijoDistribucionVersion": CostoFijoDistribucionVersion,
             "CostoFijoVersion": CostoFijoVersion,
+            "IndiceIPCOficial": IndiceIPCOficial,
+            "ReglaAjusteIPCProductivo": ReglaAjusteIPCProductivo,
+            "PropuestaAjusteIPCProductivo": PropuestaAjusteIPCProductivo,
+            "ObligacionCostoProductivo": ObligacionCostoProductivo,
+            "PagoObligacionCostoProductivo": PagoObligacionCostoProductivo,
             "PerfilCosteoProducto": PerfilCosteoProducto,
             "ComboProductoComponente": ComboProductoComponente,
             "ImportacionMasivaCosto": ImportacionMasivaCosto,
@@ -11850,9 +11864,14 @@ try:
                 db
             )
 
+        def _job_ipc_costos():
+            from modules.automation.jobs.ipc_costs import ejecutar_job_ipc_costos
+            ejecutar_job_ipc_costos(app, db)
+
         iniciar_scheduler(
             _job_ml_mensajes,
-            _job_wa_timers
+            _job_wa_timers,
+            _job_ipc_costos,
         )
     else:
         print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")

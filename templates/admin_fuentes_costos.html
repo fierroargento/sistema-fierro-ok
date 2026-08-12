@@ -276,6 +276,52 @@
         {% endfor %}
       </div>
     </details>
+    <details class="source-catalog indexed-costs">
+      <summary><span>Ajustes automáticos por IPC</span><strong>{{ propuestas_ipc|length }}</strong></summary>
+      <div class="indexed-cost-grid">
+        <div class="catalog-help indexed-cost-help">
+          <p>El sistema consulta el IPC nacional oficial y prepara la propuesta. Ningún importe cambia sin aprobación administrativa.</p>
+          <form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_ipc"><button class="table-action">Consultar IPC ahora</button></form>
+        </div>
+        {% for costo in costos_fijos %}
+        {% set regla = reglas_ipc_por_costo.get(costo.id) %}
+        <form class="indexed-cost-card" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+          <input type="hidden" name="accion" value="configurar_ajuste_ipc"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}">
+          <div><strong>{{ costo.nombre }}</strong><small>{{ costo.codigo }}</small></div>
+          <label><span>Próximo ajuste</span><input type="date" name="proximo_ajuste" value="{{ regla.proximo_ajuste.isoformat() if regla else '' }}" required></label>
+          <label><span>Observación</span><input name="observacion" value="{{ regla.observacion or '' if regla else '' }}" placeholder="Ej. alquiler pagado por adelantado"></label>
+          <button class="table-action">{{ 'Actualizar regla' if regla else 'Activar IPC semestral' }}</button>
+          {% if regla %}{% set ventana = ventana_para_ajuste(regla.proximo_ajuste) %}<small class="indexed-window">IPC {{ ventana.base.strftime('%m/%Y') }} → {{ ventana.final.strftime('%m/%Y') }} · vigencia {{ regla.proximo_ajuste.strftime('%d/%m/%Y') }}</small>{% endif %}
+        </form>
+        {% endfor %}
+        {% for propuesta in propuestas_ipc %}
+        <article class="ipc-proposal">
+          <div><strong>Propuesta · {{ propuesta.regla.costo_fijo.nombre }}</strong><small>Vigencia {{ propuesta.vigente_desde.strftime('%d/%m/%Y') }}</small></div>
+          <span>{{ propuesta.variacion_porcentual }}%</span>
+          <span>$ {{ formatear_centavos_ars(propuesta.importe_actual_centavos) }} → <strong>$ {{ formatear_centavos_ars(propuesta.importe_propuesto_centavos) }}</strong></span>
+          {% if propuesta.estado == 'pendiente' %}<form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}" onsubmit="return confirm('Se aprobará este ajuste IPC. ¿Continuar?')"><input type="hidden" name="accion" value="aprobar_ajuste_ipc"><input type="hidden" name="propuesta_id" value="{{ propuesta.id }}"><button class="comercial-primary">Aprobar propuesta</button></form>{% else %}<span class="status status-draft">Aprobada · pendiente de vigencia</span>{% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </details>
+    <details class="source-catalog payable-costs">
+      <summary><span>Pagos, saldos y vencimientos</span><strong>{{ obligaciones_costos|length }}</strong></summary>
+      <div class="payable-cost-body">
+        {% if avisos_vencimientos.vencidas or avisos_vencimientos.proximas %}<div class="payment-alerts"><strong>{{ avisos_vencimientos.vencidas|length }} vencidos</strong><span>{{ avisos_vencimientos.proximas|length }} próximos en 7 días</span></div>{% endif %}
+        <form class="payable-create" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+          <input type="hidden" name="accion" value="crear_obligacion_costo">
+          <label><span>Concepto</span><select name="costo_fijo_id" required>{% for costo in costos_fijos %}<option value="{{ costo.id }}">{{ costo.nombre }}</option>{% endfor %}</select></label>
+          <label><span>Período</span><input type="month" name="periodo" required></label>
+          <label><span>Vencimiento</span><input type="date" name="fecha_vencimiento" required></label>
+          <label><span>Importe</span><div class="money-input"><span>$</span><input name="importe" inputmode="decimal" required></div></label>
+          <label><span>Observación</span><input name="observacion"></label>
+          <button class="comercial-primary">Crear obligación</button>
+        </form>
+        {% if obligaciones_costos %}<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Período</th><th>Concepto</th><th>Vencimiento</th><th>Importe</th><th>Pagado</th><th>Saldo</th><th>Estado / pago</th></tr></thead><tbody>
+          {% for obligacion in obligaciones_costos %}{% set saldo = saldo_obligacion(obligacion) %}<tr><td>{{ obligacion.periodo.strftime('%m/%Y') }}</td><td>{{ obligacion.costo_fijo.nombre }}</td><td>{{ obligacion.fecha_vencimiento.strftime('%d/%m/%Y') }}</td><td>$ {{ formatear_centavos_ars(obligacion.importe_centavos) }}</td><td>$ {{ formatear_centavos_ars(obligacion.importe_centavos - saldo) }}</td><td><strong>$ {{ formatear_centavos_ars(saldo) }}</strong></td><td>{% if saldo %}<details class="source-row-action"><summary>{{ obligacion.estado|capitalize }}</summary><div class="source-row-panel"><form class="payment-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="registrar_pago_costo"><input type="hidden" name="obligacion_id" value="{{ obligacion.id }}"><label><span>Fecha</span><input type="date" name="fecha_pago" required></label><label><span>Importe</span><input name="importe" inputmode="decimal" required></label><label><span>Medio</span><input name="medio_pago"></label><label><span>Referencia</span><input name="referencia"></label><button class="table-action">Registrar pago</button></form><details><summary>Historial ({{ obligacion.pagos|length }})</summary>{% for pago in obligacion.pagos %}<p>{{ pago.fecha_pago.strftime('%d/%m/%Y') }} · $ {{ formatear_centavos_ars(pago.importe_centavos) }} · {{ pago.medio_pago or 'Sin medio' }}</p>{% endfor %}</details></div></details>{% else %}<span class="status status-active">Pagada</span>{% endif %}</td></tr>{% endfor %}
+        </tbody></table></div>{% endif %}
+      </div>
+    </details>
     {% else %}<p class="empty-card">Todavía no hay costos indirectos cargados.</p>{% endif %}
   </section>
 </main>

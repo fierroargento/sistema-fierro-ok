@@ -7,6 +7,7 @@ _scheduler = None
 def iniciar_scheduler(
     job_ml_mensajes,
     job_wa_timers,
+    job_ipc_costos=None,
 ):
     """
     Inicializa scheduler APB central.
@@ -41,6 +42,13 @@ def iniciar_scheduler(
         replace_existing=True,
     )
 
+    if job_ipc_costos is not None:
+        scheduler.add_job(
+            job_ipc_costos, "cron", hour=9, minute=15,
+            id="ipc_costos_productivos", max_instances=1,
+            coalesce=True, replace_existing=True,
+        )
+
     scheduler.add_job(
         job_wa_timers,
         "interval",
@@ -56,7 +64,7 @@ def iniciar_scheduler(
     print(
         "[AUTOMATION MANAGER] "
         "Scheduler iniciado: "
-        "ml_mensajes + wa_timers"
+        "ml_mensajes + wa_timers + ipc_costos_productivos"
     )
 
     _scheduler = scheduler

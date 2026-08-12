@@ -40,6 +40,13 @@ from services.distribucion_costos_fijos import (
     distribuciones_costos_fijos_vigentes,
     registrar_distribucion_costo_fijo,
 )
+from services.ajustes_costos_ipc import (
+    aprobar_propuesta, configurar_regla, ejecutar_ciclo_ipc,
+    ventana_para_ajuste,
+)
+from services.cuentas_pagar_productivas import (
+    crear_obligacion, registrar_pago, resumen_vencimientos, saldo_obligacion,
+)
 
 
 def _id(formulario, campo, opcional=False):
@@ -82,6 +89,73 @@ def procesar_accion_fuente_costo(
     if unidad_solicitada not in {None, unidad_activa.id}:
         raise ValueError("La fuente no pertenece a la unidad activa.")
     comunes["unidad_negocio_id"] = unidad_solicitada
+
+    if accion == "configurar_ajuste_ipc":
+        costo = _registro_tenant(
+            modelos["CostoFijoProductivo"], _id(formulario, "costo_fijo_id"),
+            organizacion.id, "El costo indirecto", unidad_activa.id,
+        )
+        regla = configurar_regla(
+            costo, proximo_ajuste=formulario.get("proximo_ajuste"),
+            organizacion_id=organizacion.id, usuario_id=usuario_id,
+            observacion=formulario.get("observacion"),
+            ReglaAjusteIPCProductivo=modelos["ReglaAjusteIPCProductivo"],
+            db_session=db_session,
+        )
+        ventana = ventana_para_ajuste(regla.proximo_ajuste)
+        return (
+            f"Ajuste IPC configurado. Ventana {ventana['inicio']:%m/%Y}–"
+            f"{ventana['final']:%m/%Y}; vigencia {regla.proximo_ajuste:%d/%m/%Y}."
+        )
+
+    if accion == "actualizar_ipc":
+        ejecutar_ciclo_ipc(modelos=modelos, db_session=db_session)
+        return "IPC oficial consultado y propuestas actualizadas."
+
+    if accion == "aprobar_ajuste_ipc":
+        propuesta = modelos["PropuestaAjusteIPCProductivo"].query.filter_by(
+            id=_id(formulario, "propuesta_id"),
+        ).first()
+        if propuesta is None or propuesta.regla.organizacion_id != organizacion.id:
+            raise ValueError("La propuesta no pertenece a la organización.")
+        aprobar_propuesta(
+            propuesta, usuario_id=usuario_id,
+            CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session,
+        )
+        return "Ajuste aprobado; se aplicará en su fecha de vigencia."
+
+    if accion == "crear_obligacion_costo":
+        costo = _registro_tenant(
+            modelos["CostoFijoProductivo"], _id(formulario, "costo_fijo_id"),
+            organizacion.id, "El costo indirecto", unidad_activa.id,
+        )
+        obligacion = crear_obligacion(
+            costo, periodo=formulario.get("periodo"),
+            fecha_vencimiento=formulario.get("fecha_vencimiento"),
+            importe_centavos=importe_a_centavos(formulario.get("importe")),
+            organizacion_id=organizacion.id, usuario_id=usuario_id,
+            observacion=formulario.get("observacion"),
+            ObligacionCostoProductivo=modelos["ObligacionCostoProductivo"],
+            CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session,
+        )
+        return f"Obligación de {costo.nombre} creada para {obligacion.periodo:%m/%Y}."
+
+    if accion == "registrar_pago_costo":
+        obligacion = modelos["ObligacionCostoProductivo"].query.filter_by(
+            id=_id(formulario, "obligacion_id"), organizacion_id=organizacion.id,
+        ).first()
+        if obligacion is None:
+            raise ValueError("La obligación no pertenece a la organización.")
+        registrar_pago(
+            obligacion, fecha_pago=formulario.get("fecha_pago"),
+            importe_centavos=importe_a_centavos(formulario.get("importe")),
+            medio_pago=formulario.get("medio_pago"),
+            referencia=formulario.get("referencia"),
+            observacion=formulario.get("observacion"), usuario_id=usuario_id,
+            PagoObligacionCostoProductivo=modelos["PagoObligacionCostoProductivo"],
+            db_session=db_session,
+        )
+        return "Pago registrado y saldo actualizado."
 
     if accion == "configurar_distribucion_laboral":
         empleado = _registro_tenant(
@@ -649,6 +723,27 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
         (modelos["CostoFijoProductivo"].unidad_negocio_id.is_(None))
         | (modelos["CostoFijoProductivo"].unidad_negocio_id == unidad_negocio_id),
     ).order_by(modelos["CostoFijoProductivo"].nombre).all()
+    ids_costos_visibles = [costo.id for costo in costos_fijos]
+    reglas_ipc = modelos["ReglaAjusteIPCProductivo"].query.filter_by(
+        organizacion_id=organizacion_id, activa=True,
+    ).filter(
+        modelos["ReglaAjusteIPCProductivo"].costo_fijo_id.in_(ids_costos_visibles)
+    ).all() if ids_costos_visibles else []
+    reglas_por_costo = {regla.costo_fijo_id: regla for regla in reglas_ipc}
+    propuestas = modelos["PropuestaAjusteIPCProductivo"].query.join(
+        modelos["ReglaAjusteIPCProductivo"],
+    ).filter(
+        modelos["ReglaAjusteIPCProductivo"].organizacion_id == organizacion_id,
+        modelos["PropuestaAjusteIPCProductivo"].estado.in_(("pendiente", "aprobada")),
+        modelos["ReglaAjusteIPCProductivo"].costo_fijo_id.in_(ids_costos_visibles),
+    ).all() if ids_costos_visibles else []
+    obligaciones = modelos["ObligacionCostoProductivo"].query.filter_by(
+        organizacion_id=organizacion_id,
+    ).filter(
+        modelos["ObligacionCostoProductivo"].costo_fijo_id.in_(ids_costos_visibles),
+    ).order_by(
+        modelos["ObligacionCostoProductivo"].fecha_vencimiento.desc(),
+    ).all() if ids_costos_visibles else []
     return {
         "configuracion_costo_laboral": configuracion_vigente(
             organizacion_id, unidad_negocio_id,
@@ -680,4 +775,10 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
         "distribuciones_costos_fijos": distribuciones_costos_fijos_vigentes(
             costos_fijos, Modelo=modelos["CostoFijoDistribucionVersion"],
         ),
+        "reglas_ipc_por_costo": reglas_por_costo,
+        "propuestas_ipc": propuestas,
+        "obligaciones_costos": obligaciones,
+        "avisos_vencimientos": resumen_vencimientos(obligaciones),
+        "saldo_obligacion": saldo_obligacion,
+        "ventana_para_ajuste": ventana_para_ajuste,
     }
