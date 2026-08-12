@@ -573,9 +573,12 @@ def procesar_accion_fuente_costo(
         registrar_importe_costo_fijo(
             costo,
             moneda=formulario.get("moneda", "ARS"),
-            importe_mensual_centavos=importe_a_centavos(
-                formulario.get("importe_mensual")
+            importe_periodo_centavos=importe_a_centavos(
+                formulario.get("importe_periodo", formulario.get("importe_mensual"))
             ),
+            naturaleza=formulario.get("naturaleza", "fijo"),
+            periodicidad=formulario.get("periodicidad", "mensual"),
+            meses_cobertura=formulario.get("meses_cobertura"),
             comprobante_referencia=formulario.get("comprobante_referencia"),
             creado_por_usuario_id=usuario_id,
             CostoFijoVersion=modelos["CostoFijoVersion"],
@@ -608,9 +611,12 @@ def procesar_accion_fuente_costo(
         version = registrar_importe_costo_fijo(
             costo,
             moneda=formulario.get("moneda", "ARS"),
-            importe_mensual_centavos=importe_a_centavos(
-                formulario.get("importe_mensual")
+            importe_periodo_centavos=importe_a_centavos(
+                formulario.get("importe_periodo", formulario.get("importe_mensual"))
             ),
+            naturaleza=formulario.get("naturaleza", "fijo"),
+            periodicidad=formulario.get("periodicidad", "mensual"),
+            meses_cobertura=formulario.get("meses_cobertura"),
             comprobante_referencia=formulario.get("comprobante_referencia"),
             observacion=formulario.get("observacion"),
             creado_por_usuario_id=usuario_id,

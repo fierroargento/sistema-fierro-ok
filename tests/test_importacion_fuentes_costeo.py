@@ -15,7 +15,8 @@ def test_cada_conjunto_tiene_campos_y_plantilla_propia():
     assert "horas_productivas" in DEFINICIONES["empleados"]["campos"]
     assert "porcentaje_cargas" in DEFINICIONES["empleados"]["campos"]
     assert "porcentaje_dedicacion" in DEFINICIONES["recursos"]["campos"]
-    assert "importe_mensual" in DEFINICIONES["costos-fijos"]["campos"]
+    assert "importe_periodo" in DEFINICIONES["costos-fijos"]["campos"]
+    assert "periodicidad" in DEFINICIONES["costos-fijos"]["campos"]
     assert "tipo_linea" in DEFINICIONES["fichas"]["campos"]
 
 

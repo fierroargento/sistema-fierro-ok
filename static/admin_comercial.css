@@ -579,6 +579,7 @@
   .resource-team-footer .comercial-primary { width:100%; }
 }
 .fixed-cost-distribution-list { display: grid; gap: 12px; padding: 12px; }
+.table-subline { display: block; margin-top: 3px; color: #64748b; font-weight: 500; }
 .fixed-cost-distribution-card { border: 1px solid #d8e0e8; border-radius: 10px; padding: 12px; background: #fff; }
 .fixed-cost-distribution-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .fixed-cost-distribution-title div { display: grid; gap: 2px; }

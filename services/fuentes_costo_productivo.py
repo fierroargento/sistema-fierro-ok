@@ -30,6 +30,44 @@ TIPOS_FUNCION_LABORAL = {
     "directa", "indirecta_productiva", "comercial_administrativa", "mixta",
 }
 
+NATURALEZAS_COSTO = {"fijo", "variable", "provision"}
+MESES_PERIODICIDAD = {
+    "mensual": Decimal("1"), "bimestral": Decimal("2"),
+    "trimestral": Decimal("3"), "cuatrimestral": Decimal("4"),
+    "semestral": Decimal("6"), "anual": Decimal("12"),
+}
+
+
+def calcular_equivalente_mensual(
+    importe_periodo_centavos, *, naturaleza="fijo", periodicidad="mensual",
+    meses_cobertura=None,
+):
+    importe = _entero_no_negativo(importe_periodo_centavos, "El importe")
+    naturaleza_normalizada = str(naturaleza or "fijo").strip().lower()
+    if naturaleza_normalizada not in NATURALEZAS_COSTO:
+        raise ValueError("La naturaleza del costo no es válida.")
+    periodo = str(periodicidad or "mensual").strip().lower()
+    if periodo == "eventual":
+        meses = _decimal_positivo(
+            meses_cobertura, "Los meses de cobertura",
+        )
+    elif periodo in MESES_PERIODICIDAD:
+        meses = MESES_PERIODICIDAD[periodo]
+    else:
+        raise ValueError("La periodicidad del costo no es válida.")
+    mensual = int(
+        (Decimal(importe) / meses).quantize(
+            Decimal("1"), rounding=ROUND_HALF_UP,
+        )
+    )
+    return {
+        "importe_periodo_centavos": importe,
+        "importe_mensual_centavos": mensual,
+        "naturaleza": naturaleza_normalizada,
+        "periodicidad": periodo,
+        "meses_cobertura": meses,
+    }
+
 
 def _texto_requerido(valor, campo, limite):
     texto = str(valor or "").strip()
@@ -364,10 +402,21 @@ def registrar_costo_empleado(
 
 
 def registrar_importe_costo_fijo(
-    costo_fijo, *, moneda, importe_mensual_centavos, vigente_desde=None,
+    costo_fijo, *, moneda, importe_mensual_centavos=None,
+    importe_periodo_centavos=None, naturaleza="fijo", periodicidad="mensual",
+    meses_cobertura=None, vigente_desde=None,
     comprobante_referencia=None, observacion=None, creado_por_usuario_id=None,
     CostoFijoVersion, db_session,
 ):
+    importe_declarado = (
+        importe_periodo_centavos
+        if importe_periodo_centavos is not None
+        else importe_mensual_centavos
+    )
+    valores_periodicos = calcular_equivalente_mensual(
+        importe_declarado, naturaleza=naturaleza,
+        periodicidad=periodicidad, meses_cobertura=meses_cobertura,
+    )
     return _crear_version_vigente(
         maestro=costo_fijo,
         moneda=moneda,
@@ -376,9 +425,7 @@ def registrar_importe_costo_fijo(
         vigente_desde=vigente_desde,
         db_session=db_session,
         valores={
-            "importe_mensual_centavos": _entero_no_negativo(
-                importe_mensual_centavos, "El importe mensual",
-            ),
+            **valores_periodicos,
             "comprobante_referencia": str(comprobante_referencia or "").strip() or None,
             "observacion": str(observacion or "").strip() or None,
             "creado_por_usuario_id": creado_por_usuario_id,

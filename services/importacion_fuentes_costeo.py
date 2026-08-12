@@ -57,10 +57,13 @@ DEFINICIONES = {
         "campos": {
             "codigo": ("Código", True), "nombre": ("Nombre", True),
             "categoria": ("Categoría", True), "integra_produccion": ("Integra producción", True),
-            "criterio": ("Criterio de distribución", True), "importe_mensual": ("Importe mensual", True),
+            "criterio": ("Criterio de distribución", True),
+            "naturaleza": ("Naturaleza", False), "periodicidad": ("Periodicidad", False),
+            "importe_periodo": ("Importe del período", True),
+            "meses_cobertura": ("Meses que cubre", False),
             "comprobante": ("Comprobante", False),
         },
-        "ejemplo": ["alquiler", "Alquiler del galpón", "Infraestructura", "si", "unidades_producidas", "500000", "Factura"],
+        "ejemplo": ["seguro-auto", "Seguro automotor", "Vehículo productivo", "si", "porcentaje", "fijo", "mensual", "120000", "", "Póliza"],
     },
     "fichas": {
         "titulo": "Componentes de fichas técnicas",
@@ -94,7 +97,7 @@ ETIQUETAS_VALORES = {
 
 CAMPOS_MONEDA = {
     "precio_unitario", "sueldo_base", "adicionales",
-    "otros_costos", "importe_mensual",
+    "otros_costos", "importe_mensual", "importe_periodo", "meses_cobertura",
 }
 
 CAMPOS_PORCENTAJE = {
@@ -353,7 +356,15 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                 if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
                     raise ValueError("El código ya pertenece a otra unidad")
                 if existente: ids = {"costo_fijo_id": existente.id}
-                datos["importe_mensual"] = _numero(datos.get("importe_mensual"), "Importe mensual")
+                datos["naturaleza"] = _clave_valor(datos.get("naturaleza") or "fijo")
+                if datos["naturaleza"] not in {"fijo", "variable", "provision"}:
+                    raise ValueError("Naturaleza de costo inválida")
+                datos["periodicidad"] = _clave_valor(datos.get("periodicidad") or "mensual")
+                if datos["periodicidad"] not in {"mensual", "bimestral", "trimestral", "cuatrimestral", "semestral", "anual", "eventual"}:
+                    raise ValueError("Periodicidad de costo inválida")
+                datos["importe_periodo"] = _numero(datos.get("importe_periodo"), "Importe del período")
+                if datos["periodicidad"] == "eventual":
+                    datos["meses_cobertura"] = _numero_positivo(datos.get("meses_cobertura"), "Meses que cubre")
             elif tipo == "fichas":
                 sku = str(datos.get("sku") or "").strip().upper()
                 perfil = modelos["PerfilCosteoProducto"].query.join(modelos["Producto"]).filter(

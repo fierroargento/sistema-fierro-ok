@@ -74,6 +74,36 @@ def asegurar_recursos_mano_obra(*, db, inspect_fn, text_fn, logger_fn=print):
     return {"columnas_creadas": creadas}
 
 
+def asegurar_periodicidad_costos_fijos(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Agrega metadatos aditivos y conserva importes mensuales históricos."""
+    inspector = inspect_fn(db.engine)
+    if "costo_fijo_version" not in inspector.get_table_names():
+        return {"columnas_creadas": []}
+    columnas = {columna["name"] for columna in inspector.get_columns("costo_fijo_version")}
+    definiciones = {
+        "importe_periodo_centavos": "BIGINT NOT NULL DEFAULT 0",
+        "naturaleza": "VARCHAR(20) NOT NULL DEFAULT 'fijo'",
+        "periodicidad": "VARCHAR(20) NOT NULL DEFAULT 'mensual'",
+        "meses_cobertura": "NUMERIC(9, 2) NOT NULL DEFAULT 1",
+    }
+    creadas = []
+    for nombre, definicion in definiciones.items():
+        if nombre not in columnas:
+            db.session.execute(text_fn(
+                f"ALTER TABLE costo_fijo_version ADD COLUMN {nombre} {definicion}"
+            ))
+            creadas.append(nombre)
+    if "importe_periodo_centavos" in creadas:
+        db.session.execute(text_fn(
+            "UPDATE costo_fijo_version SET importe_periodo_centavos = "
+            "importe_mensual_centavos WHERE importe_periodo_centavos = 0"
+        ))
+    db.session.commit()
+    if creadas and logger_fn is not None:
+        logger_fn("[SAAS] Periodicidad de costos fijos habilitada.")
+    return {"columnas_creadas": creadas}
+
+
 def asegurar_unidad_importacion_costos(*, db, inspect_fn, text_fn, logger_fn=print):
     """Agrega alcance por unidad a lotes comerciales sin alterar lotes previos."""
     inspector = inspect_fn(db.engine)
