@@ -11829,6 +11829,15 @@ inicializar_base_datos_saas(
             "ModuloOrganizacion": (
                 ModuloOrganizacion
             ),
+            "ReglaAjusteIPCProductivo": (
+                ReglaAjusteIPCProductivo
+            ),
+            "ObligacionCostoProductivo": (
+                ObligacionCostoProductivo
+            ),
+            "CostoFijoVersion": (
+                CostoFijoVersion
+            ),
             "UsuarioSistema": UsuarioSistema,
             "UsuarioOrganizacion": (
                 UsuarioOrganizacion

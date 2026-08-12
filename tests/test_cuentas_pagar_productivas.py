@@ -49,3 +49,15 @@ def test_interfaz_identifica_importe_provisorio_y_pago_a_cuenta():
     assert "importe provisorio" in plantilla
     assert "Registrar pago a cuenta" in plantilla
     assert "Crear obligación manual" in plantilla
+
+
+def test_bootstrap_recibe_modelos_para_generar_obligaciones_automaticas():
+    app = open("app.py", encoding="utf-8").read()
+    bootstrap = open("services/bootstrap_base_datos.py", encoding="utf-8").read()
+    for nombre in (
+        "ReglaAjusteIPCProductivo",
+        "ObligacionCostoProductivo",
+        "CostoFijoVersion",
+    ):
+        assert f'"{nombre}":' in app
+        assert f'modelos["{nombre}"]' in bootstrap
