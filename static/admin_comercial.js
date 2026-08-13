@@ -152,14 +152,59 @@
       });
     });
     document.querySelectorAll(".catalog-product-dialog").forEach(function (dialogo) {
-      dialogo.querySelectorAll("[data-catalog-jump]").forEach(function (boton) {
+      const formulario = dialogo.querySelector(".catalog-product-form");
+      const botones = Array.from(dialogo.querySelectorAll("[data-catalog-jump]"));
+      const paneles = Array.from(dialogo.querySelectorAll("[data-catalog-panel]"));
+
+      function activarPestana(codigo) {
+        botones.forEach(function (boton) {
+          const activa = boton.dataset.catalogJump === codigo;
+          boton.classList.toggle("is-active", activa);
+          boton.setAttribute("aria-current", activa ? "true" : "false");
+        });
+      }
+
+      function compensacionFija() {
+        const cabecera = dialogo.querySelector(".catalog-dialog-head");
+        const navegacion = dialogo.querySelector(".catalog-dialog-nav");
+        return (cabecera ? cabecera.offsetHeight : 0) +
+          (navegacion ? navegacion.offsetHeight : 0) + 8;
+      }
+
+      botones.forEach(function (boton) {
         boton.addEventListener("click", function () {
           const panel = dialogo.querySelector(
             '[data-catalog-panel="' + boton.dataset.catalogJump + '"]'
           );
-          if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+          if (!panel || !formulario) return;
+          activarPestana(boton.dataset.catalogJump);
+          formulario.scrollTo({
+            top: Math.max(0, panel.offsetTop - compensacionFija()),
+            behavior: "smooth"
+          });
         });
       });
+      if (formulario) {
+        let pendiente = false;
+        formulario.addEventListener("scroll", function () {
+          if (pendiente) return;
+          pendiente = true;
+          window.requestAnimationFrame(function () {
+            const limite = formulario.getBoundingClientRect().top + compensacionFija() + 16;
+            let visible = paneles[0];
+            paneles.forEach(function (panel) {
+              if (panel.getBoundingClientRect().top <= limite) visible = panel;
+            });
+            if (visible) activarPestana(visible.dataset.catalogPanel);
+            pendiente = false;
+          });
+        }, { passive: true });
+      }
+      dialogo.addEventListener("close", function () {
+        if (formulario) formulario.scrollTop = 0;
+        activarPestana("identidad");
+      });
+      activarPestana("identidad");
       dialogo.addEventListener("click", function (evento) {
         if (evento.target === dialogo) dialogo.close();
       });

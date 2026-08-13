@@ -67,7 +67,7 @@ def test_fichas_existentes_calculan_completitud_y_navegan_por_bloques():
     assert "data-catalog-jump" in plantilla
     assert "data-catalog-panel" in plantilla
     assert "Falta completar:" in plantilla
-    assert "scrollIntoView" in javascript
+    assert "formulario.scrollTo" in javascript
 
 
 def test_tabla_catalogo_cabe_en_escritorio_sin_perder_datos():
@@ -80,3 +80,18 @@ def test_tabla_catalogo_cabe_en_escritorio_sin_perder_datos():
     assert ".catalog-products-table { width:100%;table-layout:fixed; }" in estilos
     assert ".source-catalog-table { overflow-x:visible; }" in estilos
     assert "min-width:780px" in estilos
+
+
+def test_navegacion_de_ficha_permanece_visible_y_sin_mover_el_fondo():
+    plantilla = Path("templates/admin_comercial.html").read_text(encoding="utf-8")
+    estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
+    javascript = Path("static/admin_comercial.js").read_text(encoding="utf-8")
+    assert 'class="catalog-dialog-head"' in plantilla
+    assert 'class="catalog-dialog-nav"' in plantilla
+    assert "overflow:hidden" in estilos
+    assert "max-height:calc(100vh - 30px)" in estilos
+    assert "overscroll-behavior:contain" in estilos
+    assert ".catalog-dialog-nav button.is-active" in estilos
+    assert "panel.offsetTop - compensacionFija()" in javascript
+    assert 'formulario.addEventListener("scroll"' in javascript
+    assert 'activarPestana("identidad")' in javascript
