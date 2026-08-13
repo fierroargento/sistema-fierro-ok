@@ -232,6 +232,12 @@ textarea {
     font-weight: 600;
 }
 
+.btn-corregir-etiqueta,
+a.btn-corregir-etiqueta,
+a.btn-corregir-etiqueta:visited {
+    color: #ffffff !important;
+}
+
 .btn-confirmar {
     background-color: #124E64;
     color: #ffffff;
