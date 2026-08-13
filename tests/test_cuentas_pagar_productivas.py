@@ -146,3 +146,9 @@ def test_comprobante_productivo_valida_formato_antes_de_subir():
         assert "PDF, PNG, JPG o WEBP" in str(error)
     else:
         raise AssertionError("Debió rechazar una extensión no permitida")
+
+
+def test_acceso_a_pagos_en_cabecera_es_secundario():
+    panel = open("templates/admin_comercial.html", encoding="utf-8").read()
+    assert 'class="secondary-link header-payables-link"' in panel
+    assert 'class="comercial-primary header-payables-link"' not in panel
