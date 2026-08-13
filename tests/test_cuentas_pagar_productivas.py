@@ -114,3 +114,35 @@ def test_migracion_agrega_auditoria_sin_borrar_pagos():
     bootstrap = open("services/bootstrap_base_datos.py", encoding="utf-8").read()
     assert "def asegurar_auditoria_pagos_productivos" in migraciones
     assert "asegurar_auditoria_pagos_productivos(" in bootstrap
+
+
+def test_cuentas_a_pagar_tiene_pantalla_directa_y_adjunta_archivos():
+    rutas = open("modules/admin/comercial/routes.py", encoding="utf-8").read()
+    panel = open("templates/admin_comercial.html", encoding="utf-8").read()
+    fuentes = open("templates/admin_fuentes_costos.html", encoding="utf-8").read()
+    pagos = open("templates/admin_cuentas_pagar.html", encoding="utf-8").read()
+    assert '@blueprint.route("/admin/comercial/cuentas-pagar")' in rutas
+    assert "admin_comercial.cuentas_pagar" in panel
+    assert "Abrir cuentas a pagar" in fuentes
+    assert 'enctype="multipart/form-data"' in pagos
+    assert 'name="comprobante_archivo"' in pagos
+    assert "PDF o imagen · máximo 10 MB" in pagos
+    assert "Historial de movimientos" in pagos
+
+
+def test_comprobante_productivo_valida_formato_antes_de_subir():
+    from io import BytesIO
+    from types import SimpleNamespace
+    from services.comprobantes_pagos_productivos import guardar_comprobante_pago
+
+    archivo = SimpleNamespace(
+        filename="comprobante.exe",
+        read=lambda _limite: b"contenido",
+        stream=BytesIO(b"contenido"),
+    )
+    try:
+        guardar_comprobante_pago(archivo)
+    except ValueError as error:
+        assert "PDF, PNG, JPG o WEBP" in str(error)
+    else:
+        raise AssertionError("Debió rechazar una extensión no permitida")

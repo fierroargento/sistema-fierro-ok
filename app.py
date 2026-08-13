@@ -2243,7 +2243,7 @@ def alertas_operativas():
                 ).all()
                 alertas.extend(construir_alertas_cuentas_pagar(
                     obligaciones,
-                    url=url_for("admin_comercial.panel") + "#cuentas-pagar",
+                    url=url_for("admin_comercial.cuentas_pagar"),
                 ))
             except Exception as error:
                 db.session.rollback()

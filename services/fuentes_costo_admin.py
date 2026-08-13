@@ -84,6 +84,7 @@ def _comunes(organizacion, modelos, db_session):
 
 def procesar_accion_fuente_costo(
     accion, formulario, *, organizacion, unidad_activa, modelos, db_session, usuario,
+    archivos=None,
 ):
     usuario_id = getattr(usuario, "id", None)
     comunes = _comunes(organizacion, modelos, db_session)
@@ -191,12 +192,17 @@ def procesar_accion_fuente_costo(
         ).first()
         if obligacion is None:
             raise ValueError("La obligación no pertenece a la organización.")
+        comprobante = (formulario.get("comprobante") or "").strip()
+        archivo = archivos.get("comprobante_archivo") if archivos is not None else None
+        if archivo is not None and getattr(archivo, "filename", ""):
+            from services.comprobantes_pagos_productivos import guardar_comprobante_pago
+            comprobante = guardar_comprobante_pago(archivo)
         registrar_pago(
             obligacion, fecha_pago=formulario.get("fecha_pago"),
             importe_centavos=importe_a_centavos(formulario.get("importe")),
             medio_pago=formulario.get("medio_pago"),
             referencia=formulario.get("referencia"),
-            comprobante=formulario.get("comprobante"),
+            comprobante=comprobante,
             observacion=formulario.get("observacion"), usuario_id=usuario_id,
             PagoObligacionCostoProductivo=modelos["PagoObligacionCostoProductivo"],
             db_session=db_session,

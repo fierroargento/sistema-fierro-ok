@@ -92,7 +92,7 @@ def crear_blueprint_comercial(*, dependencias):
         except (TypeError, ValueError, UnidadNegocioError) as error:
             return redirect(url_for("admin_comercial.panel", error=str(error)))
         destino = request.form.get("destino") or "admin_comercial.panel"
-        if destino not in {"admin_comercial.panel", "admin_comercial.fuentes_costos"}:
+        if destino not in {"admin_comercial.panel", "admin_comercial.fuentes_costos", "admin_comercial.cuentas_pagar"}:
             destino = "admin_comercial.panel"
         return redirect(url_for(destino))
 
@@ -156,6 +156,25 @@ def crear_blueprint_comercial(*, dependencias):
             error=(request.args.get("error") or "").strip(),
         )
 
+    @blueprint.route("/admin/comercial/cuentas-pagar")
+    @dependencias["login_required"]
+    def cuentas_pagar():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        return render_template(
+            "admin_cuentas_pagar.html",
+            organizacion=organizacion,
+            unidad_activa=unidad_activa, unidades=unidades,
+            formatear_centavos_ars=formatear_centavos_ars,
+            **obtener_fuentes_costo(
+                organizacion.id, unidad_activa.id, modelos=modelos,
+            ),
+            ok_feedback=(request.args.get("ok") or "").strip(),
+            error=(request.args.get("error") or "").strip(),
+        )
+
     @blueprint.route(
         "/admin/comercial/fuentes-costos/guardar",
         methods=["POST"],
@@ -176,6 +195,7 @@ def crear_blueprint_comercial(*, dependencias):
                 modelos=modelos,
                 db_session=db.session,
                 usuario=usuario,
+                archivos=request.files,
             )
             dependencias["registrar_auditoria"](
                 "Configuro fuentes de costo productivo",
@@ -183,16 +203,14 @@ def crear_blueprint_comercial(*, dependencias):
                 entidad_id=organizacion.id,
                 detalle=f"Accion: {accion}. {mensaje}",
             )
-            return redirect(url_for(
-                "admin_comercial.fuentes_costos",
-                ok=mensaje,
-            ))
+            destino = (request.form.get("destino") or "fuentes").strip()
+            endpoint = "admin_comercial.cuentas_pagar" if destino == "cuentas_pagar" else "admin_comercial.fuentes_costos"
+            return redirect(url_for(endpoint, ok=mensaje))
         except Exception as error:
             db.session.rollback()
-            return redirect(url_for(
-                "admin_comercial.fuentes_costos",
-                error=str(error),
-            ))
+            destino = (request.form.get("destino") or "fuentes").strip()
+            endpoint = "admin_comercial.cuentas_pagar" if destino == "cuentas_pagar" else "admin_comercial.fuentes_costos"
+            return redirect(url_for(endpoint, error=str(error)))
 
     @blueprint.route(
         "/admin/comercial/importaciones/productos",
