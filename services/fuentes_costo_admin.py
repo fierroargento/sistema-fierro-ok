@@ -45,7 +45,8 @@ from services.ajustes_costos_ipc import (
     ventana_para_ajuste,
 )
 from services.cuentas_pagar_productivas import (
-    asegurar_obligacion_ajuste, crear_obligacion, registrar_pago,
+    asegurar_obligacion_ajuste, configurar_regla_obligacion,
+    crear_obligacion, generar_obligaciones_recurrentes, registrar_pago,
     resumen_vencimientos, saldo_obligacion,
 )
 
@@ -160,6 +161,29 @@ def procesar_accion_fuente_costo(
             CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session,
         )
         return f"Obligación de {costo.nombre} creada para {obligacion.periodo:%m/%Y}."
+
+    if accion == "configurar_obligaciones_recurrentes":
+        costo = _registro_tenant(
+            modelos["CostoFijoProductivo"], _id(formulario, "costo_fijo_id"),
+            organizacion.id, "El costo indirecto", unidad_activa.id,
+        )
+        regla = configurar_regla_obligacion(
+            costo, organizacion_id=organizacion.id,
+            frecuencia_meses=formulario.get("frecuencia_meses") or 1,
+            periodo_inicio=formulario.get("periodo_inicio"),
+            dia_vencimiento=formulario.get("dia_vencimiento") or 1,
+            meses_anticipacion=formulario.get("meses_anticipacion") or 2,
+            activa=formulario.get("activa") == "1",
+            observacion=formulario.get("observacion"), usuario_id=usuario_id,
+            ReglaObligacionCostoProductivo=modelos["ReglaObligacionCostoProductivo"],
+            db_session=db_session,
+        )
+        creadas = generar_obligaciones_recurrentes(
+            regla, ObligacionCostoProductivo=modelos["ObligacionCostoProductivo"],
+            CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session,
+            usuario_id=usuario_id,
+        )
+        return f"Calendario de {costo.nombre} guardado; {len(creadas)} obligaciones generadas."
 
     if accion == "registrar_pago_costo":
         obligacion = modelos["ObligacionCostoProductivo"].query.filter_by(
@@ -765,6 +789,11 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
     ).order_by(
         modelos["ObligacionCostoProductivo"].fecha_vencimiento.desc(),
     ).all() if ids_costos_visibles else []
+    reglas_obligaciones = modelos["ReglaObligacionCostoProductivo"].query.filter_by(
+        organizacion_id=organizacion_id,
+    ).filter(
+        modelos["ReglaObligacionCostoProductivo"].costo_fijo_id.in_(ids_costos_visibles),
+    ).all() if ids_costos_visibles else []
     return {
         "configuracion_costo_laboral": configuracion_vigente(
             organizacion_id, unidad_negocio_id,
@@ -799,6 +828,9 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
         "reglas_ipc_por_costo": reglas_por_costo,
         "propuestas_ipc": propuestas,
         "obligaciones_costos": obligaciones,
+        "reglas_obligaciones_por_costo": {
+            regla.costo_fijo_id: regla for regla in reglas_obligaciones
+        },
         "avisos_vencimientos": resumen_vencimientos(obligaciones),
         "saldo_obligacion": saldo_obligacion,
         "ventana_para_ajuste": ventana_para_ajuste,

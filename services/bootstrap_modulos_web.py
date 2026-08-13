@@ -84,6 +84,7 @@ def registrar_modulos_web(
                         "PropuestaAjusteIPCProductivo",
                         "ObligacionCostoProductivo",
                         "PagoObligacionCostoProductivo",
+                        "ReglaObligacionCostoProductivo",
                         "PerfilCosteoProducto", "ComboProductoComponente",
                         "ProductoInsumoCosteo", "ProductoOperacionCosteo",
                         "ProductoCostoFijoCosteo",

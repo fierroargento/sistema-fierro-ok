@@ -64,13 +64,27 @@ def inicializar_base_datos_saas(
             db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
         )
 
-        from services.cuentas_pagar_productivas import asegurar_obligacion_ajuste
+        from services.cuentas_pagar_productivas import (
+            asegurar_obligacion_ajuste,
+            asegurar_regla_desde_ajuste,
+            ejecutar_generacion_recurrente,
+        )
         for regla in modelos["ReglaAjusteIPCProductivo"].query.filter_by(activa=True).all():
+            asegurar_regla_desde_ajuste(
+                regla,
+                ReglaObligacionCostoProductivo=modelos["ReglaObligacionCostoProductivo"],
+                db_session=db.session,
+            )
             asegurar_obligacion_ajuste(
                 regla,
                 ObligacionCostoProductivo=modelos["ObligacionCostoProductivo"],
                 CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db.session,
             )
+        ejecutar_generacion_recurrente(
+            ReglaObligacionCostoProductivo=modelos["ReglaObligacionCostoProductivo"],
+            ObligacionCostoProductivo=modelos["ObligacionCostoProductivo"],
+            CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db.session,
+        )
 
         estructura_inicial = (
             asegurar_estructura_empresarial_inicial(

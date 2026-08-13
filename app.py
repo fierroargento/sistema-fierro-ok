@@ -276,6 +276,7 @@ from models.ajuste_ipc_productivo import (
 from models.cuentas_pagar_productivas import (
     ObligacionCostoProductivo,
     PagoObligacionCostoProductivo,
+    ReglaObligacionCostoProductivo,
 )
 from models.perfil_costeo_producto import (
     ComboProductoComponente,
@@ -11734,6 +11735,7 @@ registrar_modulos_web(
             "PropuestaAjusteIPCProductivo": PropuestaAjusteIPCProductivo,
             "ObligacionCostoProductivo": ObligacionCostoProductivo,
             "PagoObligacionCostoProductivo": PagoObligacionCostoProductivo,
+            "ReglaObligacionCostoProductivo": ReglaObligacionCostoProductivo,
             "PerfilCosteoProducto": PerfilCosteoProducto,
             "ComboProductoComponente": ComboProductoComponente,
             "ImportacionMasivaCosto": ImportacionMasivaCosto,
@@ -11834,6 +11836,9 @@ inicializar_base_datos_saas(
             ),
             "ObligacionCostoProductivo": (
                 ObligacionCostoProductivo
+            ),
+            "ReglaObligacionCostoProductivo": (
+                ReglaObligacionCostoProductivo
             ),
             "CostoFijoVersion": (
                 CostoFijoVersion

@@ -35,6 +35,33 @@ class ObligacionCostoProductivo(db.Model):
     propuesta_ajuste = db.relationship("PropuestaAjusteIPCProductivo")
 
 
+class ReglaObligacionCostoProductivo(db.Model):
+    """Calendario versionable de generación de obligaciones por concepto."""
+
+    __tablename__ = "regla_obligacion_costo_productivo"
+    __table_args__ = (
+        UniqueConstraint("costo_fijo_id", name="uq_regla_obligacion_costo"),
+        CheckConstraint("frecuencia_meses BETWEEN 1 AND 120", name="ck_regla_obligacion_frecuencia"),
+        CheckConstraint("dia_vencimiento BETWEEN 1 AND 31", name="ck_regla_obligacion_dia"),
+        CheckConstraint("meses_anticipacion BETWEEN 0 AND 24", name="ck_regla_obligacion_anticipacion"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
+    costo_fijo_id = db.Column(db.Integer, db.ForeignKey("costo_fijo_productivo.id"), nullable=False, index=True)
+    frecuencia_meses = db.Column(db.Integer, default=1, nullable=False)
+    periodo_inicio = db.Column(db.Date, nullable=False, index=True)
+    dia_vencimiento = db.Column(db.Integer, default=1, nullable=False)
+    meses_anticipacion = db.Column(db.Integer, default=2, nullable=False)
+    activa = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    observacion = db.Column(db.String(500))
+    creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
+    fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+    fecha_actualizacion = db.Column(db.DateTime, default=ahora_utc_naive, onupdate=ahora_utc_naive, nullable=False)
+
+    costo_fijo = db.relationship("CostoFijoProductivo", backref="regla_obligacion")
+
+
 class PagoObligacionCostoProductivo(db.Model):
     __tablename__ = "pago_obligacion_costo_productivo"
     __table_args__ = (

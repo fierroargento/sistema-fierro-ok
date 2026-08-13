@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from services.cuentas_pagar_productivas import (
     actualizar_estado, resumen_vencimientos, saldo_obligacion,
-    ultimo_dia_mes,
+    fecha_vencimiento_periodo, ultimo_dia_mes,
 )
 
 
@@ -33,6 +33,7 @@ def test_alertas_separan_vencidas_y_proximas():
 def test_vencimiento_mes_vencido_respeta_fin_de_mes_y_bisiesto():
     assert ultimo_dia_mes(date(2026, 9, 1)) == date(2026, 9, 30)
     assert ultimo_dia_mes(date(2028, 2, 1)) == date(2028, 2, 29)
+    assert fecha_vencimiento_periodo(date(2026, 2, 1), 31) == date(2026, 2, 28)
 
 
 def test_obligacion_ajustable_conserva_pagos_y_actualiza_saldo():
@@ -61,3 +62,20 @@ def test_bootstrap_recibe_modelos_para_generar_obligaciones_automaticas():
     ):
         assert f'"{nombre}":' in app
         assert f'modelos["{nombre}"]' in bootstrap
+
+
+def test_motor_recurrente_es_idempotente_y_configurable():
+    servicio = open("services/cuentas_pagar_productivas.py", encoding="utf-8").read()
+    modelo = open("models/cuentas_pagar_productivas.py", encoding="utf-8").read()
+    plantilla = open("templates/admin_fuentes_costos.html", encoding="utf-8").read()
+    assert "class ReglaObligacionCostoProductivo" in modelo
+    assert "def generar_obligaciones_recurrentes" in servicio
+    assert "if existente is None:" in servicio
+    assert "Automatizar vencimientos recurrentes" in plantilla
+    assert "Generación automática activa" in plantilla
+
+
+def test_job_diario_mantiene_horizonte_de_obligaciones():
+    job = open("modules/automation/jobs/ipc_costs.py", encoding="utf-8").read()
+    assert "ejecutar_generacion_recurrente" in job
+    assert "ReglaObligacionCostoProductivo" in job
