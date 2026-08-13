@@ -130,7 +130,10 @@ def ejecutar_generacion_recurrente(*, ReglaObligacionCostoProductivo,
 
 
 def saldo_obligacion(obligacion):
-    pagado = sum(int(p.importe_centavos) for p in obligacion.pagos)
+    pagado = sum(
+        int(p.importe_centavos) for p in obligacion.pagos
+        if not getattr(p, "anulado", False)
+    )
     return max(0, int(obligacion.importe_centavos) - pagado)
 
 
@@ -243,7 +246,7 @@ def crear_obligacion(costo, *, periodo, fecha_vencimiento, importe_centavos,
 
 
 def registrar_pago(obligacion, *, fecha_pago, importe_centavos, medio_pago,
-                   referencia, observacion, usuario_id,
+                   referencia, comprobante, observacion, usuario_id,
                    PagoObligacionCostoProductivo, db_session):
     if obligacion.estado == "anulada":
         raise ValueError("No se puede pagar una obligación anulada.")
@@ -255,12 +258,32 @@ def registrar_pago(obligacion, *, fecha_pago, importe_centavos, medio_pago,
         obligacion_id=obligacion.id, fecha_pago=date.fromisoformat(str(fecha_pago)),
         importe_centavos=importe, medio_pago=str(medio_pago or "").strip() or None,
         referencia=str(referencia or "").strip() or None,
+        comprobante=str(comprobante or "").strip() or None,
         observacion=str(observacion or "").strip() or None,
         creado_por_usuario_id=usuario_id,
     )
     db_session.add(pago)
     db_session.flush()
     actualizar_estado(obligacion)
+    db_session.commit()
+    return pago
+
+
+def anular_pago(pago, *, motivo, usuario_id, db_session, ahora_fn=None):
+    """Revierte un movimiento conservando su trazabilidad completa."""
+    if pago.anulado:
+        raise ValueError("El pago ya se encuentra anulado.")
+    motivo_limpio = str(motivo or "").strip()
+    if not motivo_limpio:
+        raise ValueError("Indicá el motivo de la anulación.")
+    if ahora_fn is None:
+        from services.fechas import ahora_utc_naive
+        ahora_fn = ahora_utc_naive
+    pago.anulado = True
+    pago.motivo_anulacion = motivo_limpio
+    pago.fecha_anulacion = ahora_fn()
+    pago.anulado_por_usuario_id = usuario_id
+    actualizar_estado(pago.obligacion)
     db_session.commit()
     return pago
 

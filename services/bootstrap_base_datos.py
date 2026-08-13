@@ -19,6 +19,7 @@ def inicializar_base_datos_saas(
         asegurar_periodicidad_costos_fijos,
         asegurar_reglas_ajuste_configurables,
         asegurar_obligaciones_ajustables,
+        asegurar_auditoria_pagos_productivos,
         asegurar_recursos_mano_obra,
         asegurar_unidad_importacion_costos,
     )
@@ -61,6 +62,10 @@ def inicializar_base_datos_saas(
         )
 
         asegurar_obligaciones_ajustables(
+            db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
+        )
+
+        asegurar_auditoria_pagos_productivos(
             db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
         )
 

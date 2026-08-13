@@ -156,6 +156,35 @@ def asegurar_obligaciones_ajustables(*, db, inspect_fn, text_fn, logger_fn=print
     return {"columnas_creadas": creadas}
 
 
+def asegurar_auditoria_pagos_productivos(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Amplía pagos existentes sin borrar ni reinterpretar movimientos previos."""
+    inspector = inspect_fn(db.engine)
+    tabla = "pago_obligacion_costo_productivo"
+    if tabla not in inspector.get_table_names():
+        return {"columnas_creadas": []}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    definiciones = {
+        "comprobante": "VARCHAR(500)",
+        "anulado": "BOOLEAN NOT NULL DEFAULT FALSE",
+        "motivo_anulacion": "VARCHAR(500)",
+        "fecha_anulacion": "TIMESTAMP",
+        "anulado_por_usuario_id": "INTEGER",
+    }
+    creadas = []
+    for nombre, definicion in definiciones.items():
+        if nombre not in columnas:
+            db.session.execute(text_fn(f"ALTER TABLE {tabla} ADD COLUMN {nombre} {definicion}"))
+            creadas.append(nombre)
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_pago_obligacion_anulado "
+        "ON pago_obligacion_costo_productivo (anulado)"
+    ))
+    db.session.commit()
+    if creadas and logger_fn is not None:
+        logger_fn("[SAAS] Auditoría de pagos productivos habilitada.")
+    return {"columnas_creadas": creadas}
+
+
 def asegurar_unidad_importacion_costos(*, db, inspect_fn, text_fn, logger_fn=print):
     """Agrega alcance por unidad a lotes comerciales sin alterar lotes previos."""
     inspector = inspect_fn(db.engine)

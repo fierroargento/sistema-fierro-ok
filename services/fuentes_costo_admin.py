@@ -45,7 +45,7 @@ from services.ajustes_costos_ipc import (
     ventana_para_ajuste,
 )
 from services.cuentas_pagar_productivas import (
-    asegurar_obligacion_ajuste, configurar_regla_obligacion,
+    anular_pago, asegurar_obligacion_ajuste, configurar_regla_obligacion,
     crear_obligacion, generar_obligaciones_recurrentes, registrar_pago,
     resumen_vencimientos, saldo_obligacion,
 )
@@ -196,11 +196,24 @@ def procesar_accion_fuente_costo(
             importe_centavos=importe_a_centavos(formulario.get("importe")),
             medio_pago=formulario.get("medio_pago"),
             referencia=formulario.get("referencia"),
+            comprobante=formulario.get("comprobante"),
             observacion=formulario.get("observacion"), usuario_id=usuario_id,
             PagoObligacionCostoProductivo=modelos["PagoObligacionCostoProductivo"],
             db_session=db_session,
         )
         return "Pago registrado y saldo actualizado."
+
+    if accion == "anular_pago_costo":
+        pago = modelos["PagoObligacionCostoProductivo"].query.filter_by(
+            id=_id(formulario, "pago_id"),
+        ).first()
+        if pago is None or pago.obligacion.organizacion_id != organizacion.id:
+            raise ValueError("El pago no pertenece a la organización.")
+        anular_pago(
+            pago, motivo=formulario.get("motivo_anulacion"),
+            usuario_id=usuario_id, db_session=db_session,
+        )
+        return "Pago anulado; el saldo fue recalculado y el movimiento quedó en el historial."
 
     if accion == "configurar_distribucion_laboral":
         empleado = _registro_tenant(

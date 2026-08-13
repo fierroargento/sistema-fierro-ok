@@ -74,7 +74,12 @@ class PagoObligacionCostoProductivo(db.Model):
     importe_centavos = db.Column(db.BigInteger, nullable=False)
     medio_pago = db.Column(db.String(80))
     referencia = db.Column(db.String(160))
+    comprobante = db.Column(db.String(500))
     observacion = db.Column(db.String(500))
+    anulado = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    motivo_anulacion = db.Column(db.String(500))
+    fecha_anulacion = db.Column(db.DateTime)
+    anulado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
     creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
     fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
 

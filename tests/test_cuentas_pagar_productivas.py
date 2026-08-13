@@ -2,7 +2,7 @@ from datetime import date
 from types import SimpleNamespace
 
 from services.cuentas_pagar_productivas import (
-    actualizar_estado, resumen_vencimientos, saldo_obligacion,
+    actualizar_estado, anular_pago, resumen_vencimientos, saldo_obligacion,
     fecha_vencimiento_periodo, ultimo_dia_mes,
 )
 
@@ -10,7 +10,7 @@ from services.cuentas_pagar_productivas import (
 def obligacion(importe, pagos, vencimiento, estado="pendiente"):
     return SimpleNamespace(
         importe_centavos=importe,
-        pagos=[SimpleNamespace(importe_centavos=p) for p in pagos],
+        pagos=[SimpleNamespace(importe_centavos=p, anulado=False) for p in pagos],
         fecha_vencimiento=vencimiento, estado=estado,
     )
 
@@ -82,3 +82,35 @@ def test_job_diario_mantiene_horizonte_de_obligaciones():
     job = open("modules/automation/jobs/ipc_costs.py", encoding="utf-8").read()
     assert "ejecutar_generacion_recurrente" in job
     assert "ReglaObligacionCostoProductivo" in job
+
+
+def test_pago_anulado_no_reduce_saldo_y_conserva_motivo():
+    item = obligacion(10000, [3000], date(2026, 8, 20), estado="parcial")
+    pago = item.pagos[0]
+    pago.obligacion = item
+    sesion = SimpleNamespace(commit=lambda: None)
+    anular_pago(
+        pago, motivo="Carga duplicada", usuario_id=7, db_session=sesion,
+        ahora_fn=lambda: "instante",
+    )
+    assert saldo_obligacion(item) == 10000
+    assert item.estado == "pendiente"
+    assert pago.anulado is True
+    assert pago.motivo_anulacion == "Carga duplicada"
+
+
+def test_interfaz_gestiona_comprobante_historial_y_anulacion():
+    plantilla = open("templates/admin_fuentes_costos.html", encoding="utf-8").read()
+    modelo = open("models/cuentas_pagar_productivas.py", encoding="utf-8").read()
+    assert "Comprobante o enlace" in plantilla
+    assert "Historial de movimientos" in plantilla
+    assert 'value="anular_pago_costo"' in plantilla
+    assert "comprobante = db.Column" in modelo
+    assert "motivo_anulacion = db.Column" in modelo
+
+
+def test_migracion_agrega_auditoria_sin_borrar_pagos():
+    migraciones = open("services/migraciones_saas.py", encoding="utf-8").read()
+    bootstrap = open("services/bootstrap_base_datos.py", encoding="utf-8").read()
+    assert "def asegurar_auditoria_pagos_productivos" in migraciones
+    assert "asegurar_auditoria_pagos_productivos(" in bootstrap
