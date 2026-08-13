@@ -52,6 +52,21 @@ class CatalogoProducto(db.Model):
         db.String(20), default="no_disponible", nullable=False, index=True,
     )
     motivo_disponibilidad = db.Column(db.String(300))
+    material = db.Column(db.String(120))
+    color = db.Column(db.String(120))
+    terminacion = db.Column(db.String(120))
+    contenido_paquete = db.Column(db.Text)
+    peso_producto_gr = db.Column(db.Numeric(12, 3))
+    largo_producto_cm = db.Column(db.Numeric(12, 3))
+    ancho_producto_cm = db.Column(db.Numeric(12, 3))
+    alto_producto_cm = db.Column(db.Numeric(12, 3))
+    atributos_json = db.Column(db.Text, default="{}", nullable=False)
+    variantes_json = db.Column(db.Text, default="[]", nullable=False)
+    imagenes_json = db.Column(db.Text, default="[]", nullable=False)
+    canales_json = db.Column(db.Text, default="{}", nullable=False)
+    relaciones_json = db.Column(db.Text, default="[]", nullable=False)
+    completitud_pct = db.Column(db.Integer, default=0, nullable=False)
+    faltantes_ficha = db.Column(db.Text)
     precio_centavos = db.Column(
         db.Integer,
         nullable=False,

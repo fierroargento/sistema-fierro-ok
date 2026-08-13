@@ -126,6 +126,7 @@ def crear_blueprint_comercial(*, dependencias):
                 accion, request.form, organizacion=organizacion,
                 unidad_activa=unidad_activa,
                 modelos=modelos, db_session=db.session, usuario=usuario,
+                archivos=request.files,
             )
             dependencias["registrar_auditoria"](
                 "Configuro administracion comercial",

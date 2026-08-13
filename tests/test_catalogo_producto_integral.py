@@ -63,7 +63,9 @@ def test_interfaz_prioriza_tabla_filtros_y_modal_gestionable():
     assert "Productos del catálogo" in plantilla
     assert 'class="catalog-product-dialog"' in plantilla
     assert "Estado comercial" in plantilla
-    assert "Datos físicos y reglas de envío" in plantilla
+    assert "Producto y embalaje" in plantilla
+    assert "Peso del producto" in plantilla
+    assert "Peso del paquete" in plantilla
     assert "data-open-catalog-dialog" in javascript
     assert "filtrarCatalogo" in javascript
     assert ".catalog-product-dialog" in estilos

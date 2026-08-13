@@ -81,7 +81,7 @@
     </div>
     <details class="source-catalog catalog-products" open>
       <summary><span>Productos del catálogo</span><strong>{{ inclusiones|length }}</strong></summary>
-      <div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>SKU</th><th>Producto comercial</th><th>Catálogo</th><th>Estado</th><th>Disponibilidad</th><th>Logística</th><th>Acciones</th></tr></thead><tbody id="catalog-products-body">
+      <div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>SKU</th><th>Producto comercial</th><th>Catálogo</th><th>Estado</th><th>Disponibilidad</th><th>Ficha</th><th>Logística</th><th>Acciones</th></tr></thead><tbody id="catalog-products-body">
       {% for i in inclusiones %}
         {% set estado = i.estado_comercial or ('activo' if i.activo else 'borrador') %}
         {% set disponibilidad = i.estado_disponibilidad or ('disponible' if i.disponible else 'no_disponible') %}
@@ -91,17 +91,22 @@
           <td>{{ i.catalogo.nombre }}<small>{{ i.catalogo.unidad_negocio.nombre if i.catalogo.unidad_negocio else 'Compartido' }}</small></td>
           <td><span class="status status-{{ 'active' if estado == 'activo' else 'draft' }}">{{ estado|replace('_', ' ') }}</span></td>
           <td><span class="status status-{{ 'active' if disponibilidad == 'disponible' else 'test' if disponibilidad in ['sin_stock', 'pausado'] else 'draft' }}">{{ disponibilidad|replace('_', ' ') }}</span>{% if i.motivo_disponibilidad %}<small>{{ i.motivo_disponibilidad }}</small>{% endif %}</td>
-          <td>{{ (i.producto.peso_gr|string ~ ' g') if i.producto.peso_gr is not none else 'Peso pendiente' }}<small>{{ ([i.producto.largo_cm, i.producto.ancho_cm, i.producto.alto_cm]|select|list|length == 3) and (i.producto.largo_cm|string ~ ' × ' ~ i.producto.ancho_cm|string ~ ' × ' ~ i.producto.alto_cm|string ~ ' cm') or 'Medidas pendientes' }}</small></td>
+          <td><span class="completion completion-{{ 'ready' if i.completitud_pct == 100 else 'partial' }}">{{ i.completitud_pct or 0 }}%</span><small>{{ i.faltantes_ficha or 'Lista para revisar' }}</small></td>
+          <td>{{ (catalogo_numero(i.producto.peso_gr) ~ ' g') if i.producto.peso_gr is not none else 'Peso pendiente' }}<small>{{ ([i.producto.largo_cm, i.producto.ancho_cm, i.producto.alto_cm]|select|list|length == 3) and (catalogo_numero(i.producto.largo_cm) ~ ' × ' ~ catalogo_numero(i.producto.ancho_cm) ~ ' × ' ~ catalogo_numero(i.producto.alto_cm) ~ ' cm') or 'Medidas pendientes' }}</small></td>
           <td><button class="table-action" type="button" data-open-catalog-dialog="catalog-product-{{ i.id }}">Gestionar</button></td>
         </tr>
-      {% else %}<tr><td class="empty-state" colspan="7">Todavía no hay productos incluidos en los catálogos.</td></tr>{% endfor %}
+      {% else %}<tr><td class="empty-state" colspan="8">Todavía no hay productos incluidos en los catálogos.</td></tr>{% endfor %}
       </tbody></table></div>
     </details>
     {% for i in inclusiones %}
     {% set estado = i.estado_comercial or ('activo' if i.activo else 'borrador') %}
     {% set disponibilidad = i.estado_disponibilidad or ('disponible' if i.disponible else 'no_disponible') %}
     <dialog class="catalog-product-dialog" id="catalog-product-{{ i.id }}">
-      <form class="catalog-product-form" method="post" action="{{ url_for('admin_comercial.guardar') }}">
+      {% set imagenes = catalogo_json(i.imagenes_json, []) %}
+      {% set canales = catalogo_json(i.canales_json, {}) %}
+      {% set relaciones = catalogo_json(i.relaciones_json, []) %}
+      {% set relaciones_ids = relaciones|map(attribute='catalogo_producto_id')|list %}
+      <form class="catalog-product-form" method="post" enctype="multipart/form-data" action="{{ url_for('admin_comercial.guardar') }}">
         <input type="hidden" name="accion" value="gestionar_producto_catalogo"><input type="hidden" name="catalogo_producto_id" value="{{ i.id }}">
         <div class="catalog-dialog-head"><div><strong>{{ i.nombre_comercial }}</strong><span>{{ i.catalogo.nombre }} · maestro {{ i.producto.sku }}</span></div><button type="button" class="dialog-close" data-close-catalog-dialog aria-label="Cerrar">×</button></div>
         <fieldset><legend>Identidad comercial</legend><div class="catalog-dialog-grid">
@@ -109,24 +114,48 @@
           <label class="field-wide"><span>Nombre comercial</span><input name="nombre_comercial" value="{{ i.nombre_comercial }}" maxlength="255" required></label>
           <label><span>Marca</span><input name="marca" value="{{ i.marca or '' }}" maxlength="120"></label>
           <label><span>Categoría</span><input name="categoria" value="{{ i.categoria or '' }}" maxlength="120"></label>
+          <label><span>Material</span><input name="material" value="{{ i.material or '' }}" maxlength="120"></label>
+          <label><span>Color</span><input name="color" value="{{ i.color or '' }}" maxlength="120"></label>
+          <label><span>Terminación</span><input name="terminacion" value="{{ i.terminacion or '' }}" maxlength="120"></label>
           <label class="field-wide"><span>Descripción corta</span><input name="descripcion_corta" value="{{ i.descripcion_corta or '' }}" maxlength="300"></label>
           <label class="field-full"><span>Descripción pública</span><textarea name="descripcion_publica" rows="3" maxlength="5000">{{ i.descripcion_publica or '' }}</textarea></label>
+          <label class="field-full"><span>Contenido del paquete</span><textarea name="contenido_paquete" rows="2" maxlength="3000" placeholder="Detallá todo lo que recibe el comprador">{{ i.contenido_paquete or '' }}</textarea></label>
         </div></fieldset>
         <fieldset><legend>Estado y disponibilidad</legend><div class="catalog-dialog-grid">
           <label><span>Estado comercial</span><select name="estado_comercial"><option value="borrador" {% if estado == 'borrador' %}selected{% endif %}>Borrador</option><option value="activo" {% if estado == 'activo' %}selected{% endif %}>Activo</option><option value="discontinuado" {% if estado == 'discontinuado' %}selected{% endif %}>Discontinuado</option></select></label>
           <label><span>Disponibilidad</span><select name="estado_disponibilidad"><option value="no_disponible" {% if disponibilidad == 'no_disponible' %}selected{% endif %}>No disponible</option><option value="disponible" {% if disponibilidad == 'disponible' %}selected{% endif %}>Disponible</option><option value="sin_stock" {% if disponibilidad == 'sin_stock' %}selected{% endif %}>Sin stock</option><option value="pausado" {% if disponibilidad == 'pausado' %}selected{% endif %}>Pausado</option></select></label>
           <label class="field-wide"><span>Motivo de indisponibilidad</span><input name="motivo_disponibilidad" value="{{ i.motivo_disponibilidad or '' }}" maxlength="300" placeholder="Ej. falta de insumo o revisión temporal"></label>
         </div></fieldset>
-        <fieldset><legend>Datos físicos y reglas de envío</legend><div class="catalog-dialog-grid logistics-grid">
-          <label><span>Peso</span><div class="suffix-input"><input name="peso_gr" value="{{ i.producto.peso_gr if i.producto.peso_gr is not none else '' }}" inputmode="decimal"><span>g</span></div></label>
-          <label><span>Largo</span><div class="suffix-input"><input name="largo_cm" value="{{ i.producto.largo_cm if i.producto.largo_cm is not none else '' }}" inputmode="decimal"><span>cm</span></div></label>
-          <label><span>Ancho</span><div class="suffix-input"><input name="ancho_cm" value="{{ i.producto.ancho_cm if i.producto.ancho_cm is not none else '' }}" inputmode="decimal"><span>cm</span></div></label>
-          <label><span>Alto</span><div class="suffix-input"><input name="alto_cm" value="{{ i.producto.alto_cm if i.producto.alto_cm is not none else '' }}" inputmode="decimal"><span>cm</span></div></label>
+        <fieldset><legend>Producto y embalaje</legend><div class="catalog-dialog-grid logistics-grid">
+          <p class="field-full field-help"><strong>Producto:</strong> medidas físicas sin embalaje. <strong>Paquete:</strong> datos que usan los transportes para cotizar y admitir el envío.</p>
+          <label><span>Peso del producto</span><div class="suffix-input"><input name="peso_producto_gr" value="{{ catalogo_numero(i.peso_producto_gr) }}" inputmode="decimal"><span>g</span></div></label>
+          <label><span>Largo del producto</span><div class="suffix-input"><input name="largo_producto_cm" value="{{ catalogo_numero(i.largo_producto_cm) }}" inputmode="decimal"><span>cm</span></div></label>
+          <label><span>Ancho del producto</span><div class="suffix-input"><input name="ancho_producto_cm" value="{{ catalogo_numero(i.ancho_producto_cm) }}" inputmode="decimal"><span>cm</span></div></label>
+          <label><span>Alto del producto</span><div class="suffix-input"><input name="alto_producto_cm" value="{{ catalogo_numero(i.alto_producto_cm) }}" inputmode="decimal"><span>cm</span></div></label>
+          <label><span>Peso del paquete</span><div class="suffix-input"><input name="peso_gr" value="{{ catalogo_numero(i.producto.peso_gr) }}" inputmode="decimal"><span>g</span></div></label>
+          <label><span>Largo del paquete</span><div class="suffix-input"><input name="largo_cm" value="{{ catalogo_numero(i.producto.largo_cm) }}" inputmode="decimal"><span>cm</span></div></label>
+          <label><span>Ancho del paquete</span><div class="suffix-input"><input name="ancho_cm" value="{{ catalogo_numero(i.producto.ancho_cm) }}" inputmode="decimal"><span>cm</span></div></label>
+          <label><span>Alto del paquete</span><div class="suffix-input"><input name="alto_cm" value="{{ catalogo_numero(i.producto.alto_cm) }}" inputmode="decimal"><span>cm</span></div></label>
           <label class="check-field"><input type="checkbox" name="permite_correo" value="1" {% if i.producto.permite_correo %}checked{% endif %}><span>Permite Correo Argentino</span></label>
           <label class="check-field"><input type="checkbox" name="permite_via_cargo" value="1" {% if i.producto.permite_via_cargo %}checked{% endif %}><span>Permite Vía Cargo</span></label>
           <label class="check-field"><input type="checkbox" name="requiere_revision_logistica" value="1" {% if i.producto.requiere_revision_logistica %}checked{% endif %}><span>Requiere revisión logística</span></label>
           <label class="field-full"><span>Observación logística</span><input name="observacion_logistica" value="{{ i.producto.observacion_logistica or '' }}" maxlength="300"></label>
         </div></fieldset>
+        <fieldset><legend>Atributos y variantes</legend><div class="catalog-dialog-grid">
+          <label class="field-wide"><span>Atributos</span><textarea name="atributos" rows="5" placeholder="Tamaño=60 × 40 cm&#10;Material=Hierro">{{ presentar_atributos(i.atributos_json) }}</textarea><small>Un atributo por línea: Nombre=Valor.</small></label>
+          <label class="field-wide"><span>Variantes</span><textarea name="variantes" rows="5" placeholder="PP6040H-NEGRA | Color=Negro&#10;PP6040H-GRIS | Color=Gris">{{ presentar_variantes(i.variantes_json) }}</textarea><small>Una variante por línea: SKU | Atributo=Valor.</small></label>
+        </div></fieldset>
+        <fieldset><legend>Imágenes</legend><div class="catalog-images">
+          {% for imagen in imagenes %}<label class="catalog-image"><img src="{{ imagen.url }}" alt="Imagen de {{ i.nombre_comercial }}"><span><input type="checkbox" name="conservar_imagen" value="{{ imagen.url }}" checked> Conservar</span><span><input type="radio" name="imagen_principal" value="{{ imagen.url }}" {% if imagen.principal %}checked{% endif %}> Principal</span></label>{% endfor %}
+          <label class="catalog-image-upload"><span>Agregar imágenes JPG, PNG o WEBP</span><input type="file" name="imagenes" accept="image/jpeg,image/png,image/webp" multiple><small>Máximo 8 MB por imagen.</small></label>
+        </div></fieldset>
+        <fieldset><legend>Canales de publicación</legend><div class="catalog-channel-grid">
+          {% for codigo, prefijo, titulo in [('mercadolibre', 'ml', 'Mercado Libre'), ('tiendanube', 'tn', 'Tienda Nube')] %}{% set canal = canales.get(codigo, {}) %}<section><h4>{{ titulo }}</h4><label class="check-field"><input type="checkbox" name="{{ prefijo }}_habilitado" value="1" {% if canal.get('habilitado') %}checked{% endif %}><span>Preparar para este canal</span></label><label><span>ID externo <small>opcional</small></span><input name="{{ prefijo }}_id" value="{{ canal.get('id_externo', '') }}"></label><label><span>Título específico</span><input name="{{ prefijo }}_titulo" value="{{ canal.get('titulo', '') }}" maxlength="255"></label><label><span>Descripción específica</span><textarea name="{{ prefijo }}_descripcion" rows="3" maxlength="5000">{{ canal.get('descripcion', '') }}</textarea></label></section>{% endfor %}
+        </div><p class="field-help">Esta configuración no publica ni sincroniza: deja la ficha preparada para futuras integraciones.</p></fieldset>
+        <fieldset><legend>Cross-sell y relaciones</legend><div class="catalog-relations">
+          {% for relacionado in productos_relacionables if relacionado.id != i.id %}<div><strong>{{ relacionado.sku_comercial }} · {{ relacionado.nombre_comercial }}</strong>{% for tipo, etiqueta in [('complementario','Complementario'),('accesorio','Accesorio'),('sustituto','Sustituto'),('repuesto','Repuesto')] %}<label><input type="checkbox" name="relaciones" value="{{ tipo }}:{{ relacionado.id }}" {% if {'tipo': tipo, 'catalogo_producto_id': relacionado.id} in relaciones %}checked{% endif %}> {{ etiqueta }}</label>{% endfor %}</div>{% else %}<p>No hay otros productos disponibles para relacionar.</p>{% endfor %}
+        </div></fieldset>
+        <div class="catalog-completeness"><strong>Completitud actual: {{ i.completitud_pct or 0 }}%</strong><span>{{ i.faltantes_ficha or 'La ficha tiene todos los datos mínimos.' }}</span></div>
         <div class="catalog-dialog-actions"><span>Los cambios quedan registrados en la auditoría administrativa.</span><button class="comercial-primary" type="submit">Guardar ficha</button></div>
       </form>
     </dialog>

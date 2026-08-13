@@ -20,6 +20,7 @@ def _id(formulario, campo, opcional=False):
 
 def procesar_accion_comercial(
     accion, formulario, *, organizacion, unidad_activa, modelos, db_session, usuario,
+    archivos=None,
 ):
     if accion in {
         "crear_catalogo", "estado_catalogo", "agregar_producto_catalogo",
@@ -29,6 +30,7 @@ def procesar_accion_comercial(
         return procesar_accion_catalogo_comercial(
             accion, formulario, organizacion=organizacion,
             unidad_activa=unidad_activa, modelos=modelos, db_session=db_session,
+            archivos=archivos,
         )
     if accion == "crear_costo_manual":
         inclusion = modelos["CatalogoProducto"].query.get(

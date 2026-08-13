@@ -1,5 +1,12 @@
 """Consultas del panel comercial tenant."""
 
+from services.catalogo_ficha_integral import (
+    cargar_json,
+    numero_visual,
+    presentar_atributos,
+    presentar_variantes,
+)
+
 
 def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos):
     Unidad = modelos["UnidadNegocio"]
@@ -24,6 +31,11 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
             organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id
         ).order_by(Catalogo.nombre.asc()).all(),
         "inclusiones": inclusiones,
+        "productos_relacionables": inclusiones,
+        "catalogo_json": cargar_json,
+        "catalogo_numero": numero_visual,
+        "presentar_atributos": presentar_atributos,
+        "presentar_variantes": presentar_variantes,
         "inclusiones_activas": [
             inclusion for inclusion in inclusiones if inclusion.activo
         ],

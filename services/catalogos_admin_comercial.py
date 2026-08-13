@@ -1,6 +1,16 @@
 """Administración tenant de catálogos para el módulo comercial interno."""
 
 from services.catalogos_comerciales import cambiar_estado_catalogo
+from services.catalogo_ficha_integral import (
+    calcular_completitud,
+    cargar_json,
+    parsear_atributos,
+    parsear_canales,
+    parsear_variantes,
+    subir_imagenes,
+    validar_relaciones,
+    volcar_json,
+)
 
 
 ESTADOS_COMERCIALES = {"borrador", "activo", "discontinuado"}
@@ -59,6 +69,7 @@ def procesar_accion_catalogo_comercial(
     unidad_activa,
     modelos,
     db_session,
+    archivos=None,
 ):
     """Muta únicamente Catalogo y CatalogoProducto del tenant activo."""
     Catalogo = modelos["Catalogo"]
@@ -178,6 +189,55 @@ def procesar_accion_catalogo_comercial(
         inclusion.descripcion_publica = (
             _texto(formulario, "descripcion_publica", 5000) or None
         )
+        inclusion.material = _texto(formulario, "material", 120) or None
+        inclusion.color = _texto(formulario, "color", 120) or None
+        inclusion.terminacion = _texto(formulario, "terminacion", 120) or None
+        inclusion.contenido_paquete = (
+            _texto(formulario, "contenido_paquete", 3000) or None
+        )
+        inclusion.peso_producto_gr = _decimal_opcional(
+            formulario, "peso_producto_gr"
+        )
+        inclusion.largo_producto_cm = _decimal_opcional(
+            formulario, "largo_producto_cm"
+        )
+        inclusion.ancho_producto_cm = _decimal_opcional(
+            formulario, "ancho_producto_cm"
+        )
+        inclusion.alto_producto_cm = _decimal_opcional(
+            formulario, "alto_producto_cm"
+        )
+        inclusion.atributos_json = volcar_json(
+            parsear_atributos(formulario.get("atributos"))
+        )
+        inclusion.variantes_json = volcar_json(
+            parsear_variantes(formulario.get("variantes"))
+        )
+        inclusion.canales_json = volcar_json(parsear_canales(formulario))
+        inclusion.relaciones_json = volcar_json(validar_relaciones(
+            formulario.getlist("relaciones")
+            if hasattr(formulario, "getlist") else formulario.get("relaciones", []),
+            inclusion=inclusion,
+            CatalogoProducto=CatalogoProducto,
+        ))
+        imagenes = cargar_json(inclusion.imagenes_json, [])
+        conservar = set(
+            formulario.getlist("conservar_imagen")
+            if hasattr(formulario, "getlist") else []
+        )
+        imagenes = [imagen for imagen in imagenes if imagen.get("url") in conservar]
+        nuevas = subir_imagenes(
+            archivos.getlist("imagenes") if archivos is not None else [],
+            organizacion_id=organizacion.id,
+            inclusion_id=inclusion.id,
+        )
+        imagenes.extend(nuevas)
+        principal = str(formulario.get("imagen_principal") or "").strip()
+        if imagenes and not any(imagen.get("url") == principal for imagen in imagenes):
+            principal = imagenes[0].get("url")
+        for imagen in imagenes:
+            imagen["principal"] = imagen.get("url") == principal
+        inclusion.imagenes_json = volcar_json(imagenes)
         inclusion.estado_comercial = estado
         inclusion.estado_disponibilidad = disponibilidad
         inclusion.motivo_disponibilidad = motivo or None
@@ -196,6 +256,15 @@ def procesar_accion_catalogo_comercial(
         producto.observacion_logistica = (
             _texto(formulario, "observacion_logistica", 300) or None
         )
+        porcentaje, faltantes = calcular_completitud(inclusion, producto)
+        inclusion.completitud_pct = porcentaje
+        inclusion.faltantes_ficha = ", ".join(faltantes) or None
+        if estado == "activo" and disponibilidad == "disponible" and faltantes:
+            raise ValueError(
+                "La ficha no puede quedar disponible; faltan: "
+                + ", ".join(faltantes)
+                + "."
+            )
         _guardar(db_session)
         return (
             f"Ficha {sku} actualizada: {estado}, "

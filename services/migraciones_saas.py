@@ -20,6 +20,21 @@ def asegurar_ficha_catalogo_integral(*, db, inspect_fn, text_fn, logger_fn=print
         "estado_comercial": "VARCHAR(20) NOT NULL DEFAULT 'borrador'",
         "estado_disponibilidad": "VARCHAR(20) NOT NULL DEFAULT 'no_disponible'",
         "motivo_disponibilidad": "VARCHAR(300)",
+        "material": "VARCHAR(120)",
+        "color": "VARCHAR(120)",
+        "terminacion": "VARCHAR(120)",
+        "contenido_paquete": "TEXT",
+        "peso_producto_gr": "NUMERIC(12, 3)",
+        "largo_producto_cm": "NUMERIC(12, 3)",
+        "ancho_producto_cm": "NUMERIC(12, 3)",
+        "alto_producto_cm": "NUMERIC(12, 3)",
+        "atributos_json": "TEXT NOT NULL DEFAULT '{}'",
+        "variantes_json": "TEXT NOT NULL DEFAULT '[]'",
+        "imagenes_json": "TEXT NOT NULL DEFAULT '[]'",
+        "canales_json": "TEXT NOT NULL DEFAULT '{}'",
+        "relaciones_json": "TEXT NOT NULL DEFAULT '[]'",
+        "completitud_pct": "INTEGER NOT NULL DEFAULT 0",
+        "faltantes_ficha": "TEXT",
     }
     creadas = []
     for nombre, definicion in definiciones.items():
