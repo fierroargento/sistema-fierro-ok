@@ -1,6 +1,7 @@
 """Consultas del panel comercial tenant."""
 
 from services.catalogo_ficha_integral import (
+    calcular_completitud,
     cargar_json,
     numero_visual,
     presentar_atributos,
@@ -23,6 +24,12 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         Catalogo.organizacion_id == organizacion_id
         , Catalogo.unidad_negocio_id == unidad_negocio_id
     ).order_by(CatalogoProducto.nombre_comercial).all()
+    for inclusion in inclusiones:
+        porcentaje, faltantes = calcular_completitud(
+            inclusion, inclusion.producto
+        )
+        inclusion.completitud_visual = porcentaje
+        inclusion.faltantes_visual = ", ".join(faltantes) or None
     return {
         "productos_maestro": Producto.query.order_by(
             Producto.sku.asc()

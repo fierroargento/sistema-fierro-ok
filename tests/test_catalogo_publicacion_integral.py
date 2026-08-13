@@ -56,3 +56,15 @@ def test_ficha_cubre_publicacion_logistica_variantes_y_cross_sell():
     ):
         assert texto in plantilla
     assert "no publica ni sincroniza" in plantilla.lower()
+
+
+def test_fichas_existentes_calculan_completitud_y_navegan_por_bloques():
+    consultas = Path("services/comercial_consultas.py").read_text(encoding="utf-8")
+    plantilla = Path("templates/admin_comercial.html").read_text(encoding="utf-8")
+    javascript = Path("static/admin_comercial.js").read_text(encoding="utf-8")
+    assert "inclusion.completitud_visual = porcentaje" in consultas
+    assert "inclusion.faltantes_visual" in consultas
+    assert "data-catalog-jump" in plantilla
+    assert "data-catalog-panel" in plantilla
+    assert "Falta completar:" in plantilla
+    assert "scrollIntoView" in javascript

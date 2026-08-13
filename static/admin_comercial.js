@@ -152,6 +152,14 @@
       });
     });
     document.querySelectorAll(".catalog-product-dialog").forEach(function (dialogo) {
+      dialogo.querySelectorAll("[data-catalog-jump]").forEach(function (boton) {
+        boton.addEventListener("click", function () {
+          const panel = dialogo.querySelector(
+            '[data-catalog-panel="' + boton.dataset.catalogJump + '"]'
+          );
+          if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
       dialogo.addEventListener("click", function (evento) {
         if (evento.target === dialogo) dialogo.close();
       });
