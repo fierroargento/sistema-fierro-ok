@@ -300,6 +300,13 @@ from models.oportunidad_crm import OportunidadCRM
 from models.actividad_crm import ActividadCRM
 from models.existencia_sucursal import ExistenciaSucursal
 from models.movimiento_inventario import MovimientoInventario
+from models.inventario_saas import (
+    ConteoInventario,
+    ConteoInventarioItem,
+    ItemInventario,
+    ReservaInventario,
+    TransferenciaInventario,
+)
 from models.politica_disponibilidad_catalogo import PoliticaDisponibilidadCatalogo
 from models.configuracion_fiscal import ConfiguracionFiscal
 from models.punto_venta_fiscal import PuntoVentaFiscal
@@ -11784,6 +11791,11 @@ registrar_modulos_web(
             "MovimientoInventario": (
                 MovimientoInventario
             ),
+            "ItemInventario": ItemInventario,
+            "ReservaInventario": ReservaInventario,
+            "TransferenciaInventario": TransferenciaInventario,
+            "ConteoInventario": ConteoInventario,
+            "ConteoInventarioItem": ConteoInventarioItem,
             "PoliticaDisponibilidadCatalogo": (
                 PoliticaDisponibilidadCatalogo
             ),
@@ -11842,6 +11854,10 @@ inicializar_base_datos_saas(
             "MovimientoInventario": (
                 MovimientoInventario
             ),
+            "ItemInventario": ItemInventario,
+            "ReservaInventario": ReservaInventario,
+            "TransferenciaInventario": TransferenciaInventario,
+            "ConteoInventario": ConteoInventario,
             "ClienteIdentidadCanal": (
                 ClienteIdentidadCanal
             ),

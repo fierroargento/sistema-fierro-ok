@@ -404,6 +404,41 @@ def organizacion_movimiento_legacy(
     return int(organizacion_id_predeterminada)
 
 
+def asegurar_inventario_saas(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Agrega columnas v2 sin mover ni recalcular existencias."""
+    inspector = inspect_fn(db.engine)
+    cambios = []
+    tablas = set(inspector.get_table_names())
+    if "existencia_sucursal" in tablas:
+        columnas = {c["name"] for c in inspector.get_columns("existencia_sucursal")}
+        for nombre, definicion in (
+            ("item_inventario_id", "INTEGER"),
+            ("stock_bloqueado", "INTEGER NOT NULL DEFAULT 0"),
+            ("stock_transito", "INTEGER NOT NULL DEFAULT 0"),
+        ):
+            if nombre not in columnas:
+                db.session.execute(text_fn(
+                    f"ALTER TABLE existencia_sucursal ADD COLUMN {nombre} {definicion}"
+                ))
+                cambios.append(f"existencia_sucursal.{nombre}")
+    if "movimiento_inventario" in tablas:
+        columnas = {c["name"] for c in inspector.get_columns("movimiento_inventario")}
+        for nombre, definicion in (
+            ("origen", "VARCHAR(30) NOT NULL DEFAULT 'manual'"),
+            ("clave_idempotencia", "VARCHAR(180)"),
+        ):
+            if nombre not in columnas:
+                db.session.execute(text_fn(
+                    f"ALTER TABLE movimiento_inventario ADD COLUMN {nombre} {definicion}"
+                ))
+                cambios.append(f"movimiento_inventario.{nombre}")
+    if cambios:
+        db.session.commit()
+        if logger_fn is not None:
+            logger_fn("[SAAS] Inventario extensible preparado sin modificar stock.")
+    return cambios
+
+
 def asegurar_movimiento_inventario_tenant(
     *,
     db,

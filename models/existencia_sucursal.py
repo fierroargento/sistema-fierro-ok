@@ -38,6 +38,12 @@ class ExistenciaSucursal(db.Model):
         nullable=False,
         index=True,
     )
+    item_inventario_id = db.Column(
+        db.Integer,
+        db.ForeignKey("item_inventario.id"),
+        nullable=True,
+        index=True,
+    )
     stock_actual = db.Column(
         db.Integer,
         default=0,
@@ -48,6 +54,8 @@ class ExistenciaSucursal(db.Model):
         default=0,
         nullable=False,
     )
+    stock_bloqueado = db.Column(db.Integer, default=0, nullable=False)
+    stock_transito = db.Column(db.Integer, default=0, nullable=False)
     stock_minimo = db.Column(
         db.Integer,
         default=0,
@@ -83,5 +91,9 @@ class ExistenciaSucursal(db.Model):
     )
     producto = db.relationship(
         "Producto",
+        backref="existencias_sucursales",
+    )
+    item_inventario = db.relationship(
+        "ItemInventario",
         backref="existencias_sucursales",
     )

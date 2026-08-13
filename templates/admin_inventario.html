@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-    <h1>Inventario multisucursal</h1>
+    <h1>Inventario multidepósito</h1>
 
     <p>
-        Configuración interna y manual. Este inventario todavía no
-        descuenta pedidos ni publica cantidades en canales externos.
+        Existencias, reservas, transferencias, ajustes y conteos por ubicación.
+        Este inventario no descuenta pedidos ni publica cantidades en canales
+        externos. La sincronización con canales permanece bloqueada hasta su
+        validación funcional.
     </p>
 
     <div class="alerta {% if modulo_inventario and modulo_inventario.estado == 'activo' %}alerta-ok{% else %}alerta-error{% endif %}">
@@ -23,6 +25,18 @@
     {% if error %}
     <div class="alerta alerta-error">{{ error }}</div>
     {% endif %}
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Control operativo</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+            <div><strong>{{ sucursales|length }}</strong><br>Ubicaciones</div>
+            <div><strong>{{ existencias|length }}</strong><br>Existencias</div>
+            <div><strong>{{ reservas|selectattr('estado', 'equalto', 'activa')|list|length }}</strong><br>Reservas activas</div>
+            <div><strong>{{ transferencias|length }}</strong><br>Transferencias</div>
+            <div><strong>{{ conteos|length }}</strong><br>Inventarios físicos</div>
+        </div>
+        <p>Los productos principales y variantes se identifican con un SKU inventariable estable.</p>
+    </div>
 
     <div class="card" style="margin-top:16px;">
         <h2>Existencias por sucursal</h2>
@@ -82,6 +96,8 @@
                         <th>Producto</th>
                         <th>Actual</th>
                         <th>Reservado</th>
+                        <th>Bloqueado</th>
+                        <th>En tránsito</th>
                         <th>Disponible</th>
                         <th>Mín./Máx.</th>
                         <th>Control</th>
@@ -98,8 +114,10 @@
                         </td>
                         <td>{{ existencia.stock_actual }}</td>
                         <td>{{ existencia.stock_reservado }}</td>
+                        <td>{{ existencia.stock_bloqueado or 0 }}</td>
+                        <td>{{ existencia.stock_transito or 0 }}</td>
                         <td>
-                            {{ existencia.stock_actual - existencia.stock_reservado }}
+                            {{ existencia.stock_actual - existencia.stock_reservado - (existencia.stock_bloqueado or 0) }}
                         </td>
                         <td>
                             {{ existencia.stock_minimo }} /
@@ -125,7 +143,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8">
+                        <td colspan="10">
                             No hay existencias configuradas.
                         </td>
                     </tr>
@@ -229,6 +247,30 @@
         </div>
     </div>
     {% endif %}
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Reservas por canal</h2>
+        <p>Con referencia externa, vencimiento y clave idempotente para impedir descuentos duplicados.</p>
+        <div style="overflow-x:auto;"><table style="width:100%;"><thead><tr><th>Canal</th><th>Referencia</th><th>Ubicación / SKU</th><th>Cantidad</th><th>Estado</th><th>Vence</th></tr></thead><tbody>
+        {% for reserva in reservas %}<tr><td>{{ reserva.canal }}</td><td>{{ reserva.referencia_externa or '-' }}</td><td>{{ reserva.existencia.sucursal.nombre }} / {{ reserva.existencia.producto.sku }}</td><td>{{ reserva.cantidad }}</td><td>{{ reserva.estado }}</td><td>{{ reserva.vence_en.strftime('%d/%m/%Y %H:%M') if reserva.vence_en else '-' }}</td></tr>{% else %}<tr><td colspan="6">Todavía no hay reservas detalladas.</td></tr>{% endfor %}
+        </tbody></table></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Transferencias entre depósitos</h2>
+        <p>El egreso ocurre al despachar y el ingreso al recibir; admite recepción parcial.</p>
+        <div style="overflow-x:auto;"><table style="width:100%;"><thead><tr><th>Código</th><th>Origen</th><th>Destino</th><th>Solicitado</th><th>Despachado</th><th>Recibido</th><th>Estado</th></tr></thead><tbody>
+        {% for transferencia in transferencias %}<tr><td>{{ transferencia.codigo }}</td><td>{{ transferencia.origen.sucursal.nombre }}</td><td>{{ transferencia.destino.sucursal.nombre }}</td><td>{{ transferencia.cantidad_solicitada }}</td><td>{{ transferencia.cantidad_despachada }}</td><td>{{ transferencia.cantidad_recibida }}</td><td>{{ transferencia.estado }}</td></tr>{% else %}<tr><td colspan="7">Todavía no hay transferencias.</td></tr>{% endfor %}
+        </tbody></table></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <h2>Conteos e inventarios físicos</h2>
+        <p>El conteo conserva la fotografía esperada. Solo la conciliación genera ajustes auditados.</p>
+        <div style="overflow-x:auto;"><table style="width:100%;"><thead><tr><th>Código</th><th>Ubicación</th><th>Estado</th><th>Inicio</th><th>Conciliación</th></tr></thead><tbody>
+        {% for conteo in conteos %}<tr><td>{{ conteo.codigo }}</td><td>{{ conteo.sucursal.nombre }}</td><td>{{ conteo.estado }}</td><td>{{ conteo.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ conteo.fecha_conciliacion.strftime('%d/%m/%Y %H:%M') if conteo.fecha_conciliacion else '-' }}</td></tr>{% else %}<tr><td colspan="5">Todavía no hay inventarios físicos.</td></tr>{% endfor %}
+        </tbody></table></div>
+    </div>
 
     <div class="card" style="margin-top:16px;">
         <h2>Políticas de disponibilidad comercial</h2>

@@ -189,6 +189,11 @@ def registrar_modulos_web(
                         "CatalogoProducto",
                         "ExistenciaSucursal",
                         "MovimientoInventario",
+                        "ItemInventario",
+                        "ReservaInventario",
+                        "TransferenciaInventario",
+                        "ConteoInventario",
+                        "ConteoInventarioItem",
                         "PoliticaDisponibilidadCatalogo",
                     )
                 },

@@ -17,6 +17,7 @@ def inicializar_base_datos_saas(
         asegurar_ficha_catalogo_integral,
         asegurar_identidad_canal_crm_tenant,
         asegurar_movimiento_inventario_tenant,
+        asegurar_inventario_saas,
         asegurar_periodicidad_costos_fijos,
         asegurar_reglas_ajuste_configurables,
         asegurar_obligaciones_ajustables,
@@ -45,6 +46,10 @@ def inicializar_base_datos_saas(
 
     with app.app_context():
         db.create_all()
+
+        asegurar_inventario_saas(
+            db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
+        )
 
         asegurar_ficha_catalogo_integral(
             db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,

@@ -57,7 +57,12 @@ def stock_disponible(existencia):
         "El stock reservado",
     )
 
-    return actual - reservado
+    bloqueado = _entero(
+        getattr(existencia, "stock_bloqueado", 0),
+        "El stock bloqueado",
+    )
+
+    return actual - reservado - bloqueado
 
 
 def validar_existencia(existencia):
@@ -82,6 +87,10 @@ def validar_existencia(existencia):
         ),
         "El stock reservado",
     )
+    bloqueado = _entero(
+        getattr(existencia, "stock_bloqueado", 0),
+        "El stock bloqueado",
+    )
 
     if actual < 0:
         raise ValueError(
@@ -93,10 +102,12 @@ def validar_existencia(existencia):
             "El stock reservado no puede ser negativo."
         )
 
-    if reservado > actual:
+    if bloqueado < 0:
+        raise ValueError("El stock bloqueado no puede ser negativo.")
+
+    if reservado + bloqueado > actual:
         raise ValueError(
-            "El stock reservado no puede superar "
-            "el stock actual."
+            "El stock reservado y bloqueado no puede superar el stock actual."
         )
 
     return True

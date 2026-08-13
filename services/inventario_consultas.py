@@ -33,6 +33,10 @@ def obtener_datos_panel_inventario(
     MovimientoInventario = modelos[
         "MovimientoInventario"
     ]
+    ItemInventario = modelos["ItemInventario"]
+    ReservaInventario = modelos["ReservaInventario"]
+    TransferenciaInventario = modelos["TransferenciaInventario"]
+    ConteoInventario = modelos["ConteoInventario"]
     PoliticaDisponibilidadCatalogo = modelos[
         "PoliticaDisponibilidadCatalogo"
     ]
@@ -140,6 +144,19 @@ def obtener_datos_panel_inventario(
         .all()
     )
 
+    items_inventario = ItemInventario.query.filter_by(
+        organizacion_id=organizacion_id
+    ).order_by(ItemInventario.sku.asc()).all()
+    reservas = ReservaInventario.query.filter_by(
+        organizacion_id=organizacion_id
+    ).order_by(ReservaInventario.id.desc()).limit(100).all()
+    transferencias = TransferenciaInventario.query.filter_by(
+        organizacion_id=organizacion_id
+    ).order_by(TransferenciaInventario.id.desc()).limit(100).all()
+    conteos = ConteoInventario.query.filter_by(
+        organizacion_id=organizacion_id
+    ).order_by(ConteoInventario.id.desc()).limit(100).all()
+
     return {
         "modulo_inventario": modulo_inventario,
         "sucursales": sucursales,
@@ -150,4 +167,8 @@ def obtener_datos_panel_inventario(
         "productos_catalogo": (
             productos_catalogo
         ),
+        "items_inventario": items_inventario,
+        "reservas": reservas,
+        "transferencias": transferencias,
+        "conteos": conteos,
     }

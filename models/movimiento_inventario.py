@@ -61,6 +61,8 @@ class MovimientoInventario(db.Model):
         nullable=False,
     )
     referencia = db.Column(db.String(150))
+    origen = db.Column(db.String(30), default="manual", nullable=False, index=True)
+    clave_idempotencia = db.Column(db.String(180), index=True)
     usuario = db.Column(db.String(100))
     fecha = db.Column(
         db.DateTime,
