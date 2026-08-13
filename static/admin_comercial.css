@@ -380,6 +380,33 @@
 .catalog-card p { margin: 9px 0 12px; }
 .catalog-card form { display: flex; gap: 8px; }
 .catalog-card select { flex: 1; min-width: 0; height: 34px; margin: 0; border: 1px solid #cbd2dc; border-radius: 7px; background: #fff; }
+.catalog-settings { margin-top: 12px; }
+.catalog-settings-body { padding: 0 12px 12px; }
+.catalog-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) 180px 190px; gap: 10px; margin: 16px 0 10px; }
+.catalog-toolbar label { display: flex; flex-direction: column; gap: 5px; color: #526074; font-size: 11px; font-weight: 700; }
+.catalog-toolbar input, .catalog-toolbar select { height: 36px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; padding: 0 10px; }
+.catalog-products td small { display: block; margin-top: 3px; color: #748096; font-size: 10px; font-weight: 400; }
+.catalog-product-dialog { width: min(920px, calc(100vw - 28px)); max-height: calc(100vh - 30px); padding: 0; border: 0; border-radius: 14px; box-shadow: 0 22px 70px rgba(15, 35, 52, .28); }
+.catalog-product-dialog::backdrop { background: rgba(28, 48, 62, .54); backdrop-filter: blur(2px); }
+.catalog-product-form { padding: 20px; overflow: auto; }
+.catalog-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.catalog-dialog-head > div { display: flex; flex-direction: column; gap: 3px; }
+.catalog-dialog-head > div > strong { font-size: 18px; color: #172b3d; }
+.catalog-dialog-head > div > span { color: #738094; font-size: 12px; }
+.dialog-close { width: 32px; height: 32px; border: 1px solid #cbd8e1; border-radius: 50%; background: #fff; color: #31536a; font-size: 22px; line-height: 1; cursor: pointer; }
+.catalog-product-form fieldset { margin: 0 0 13px; padding: 13px; border: 1px solid #dce5ec; border-radius: 10px; }
+.catalog-product-form legend { padding: 0 7px; color: #174f68; font-size: 12px; font-weight: 800; }
+.catalog-dialog-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.catalog-dialog-grid label { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.catalog-dialog-grid label > span { color: #43556a; font-size: 11px; font-weight: 700; }
+.catalog-dialog-grid input, .catalog-dialog-grid select, .catalog-dialog-grid textarea { width: 100%; min-width: 0; border: 1px solid #cbd5df; border-radius: 8px; background: #fff; padding: 9px 10px; color: #213547; }
+.catalog-dialog-grid textarea { resize: vertical; }
+.catalog-dialog-grid .field-wide { grid-column: span 2; }
+.catalog-dialog-grid .field-full { grid-column: 1 / -1; }
+.catalog-dialog-grid .check-field { flex-direction: row; align-items: center; align-self: end; min-height: 36px; }
+.catalog-dialog-grid .check-field input { width: 16px; height: 16px; }
+.catalog-dialog-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.catalog-dialog-actions > span { color: #738094; font-size: 11px; }
 .row-actions { display: flex; gap: 6px; }
 .boolean-state { font-size: 12px; font-weight: 800; }
 .boolean-state.yes { color: #176345; }
@@ -563,6 +590,9 @@
   .form-costos, .form-listas, .form-politicas, .form-precios { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .list-summary { grid-template-columns: 1fr; }
   .catalog-grid { grid-template-columns: 1fr; }
+  .catalog-toolbar, .catalog-dialog-grid { grid-template-columns: 1fr; }
+  .catalog-dialog-grid .field-wide, .catalog-dialog-grid .field-full { grid-column: auto; }
+  .catalog-dialog-actions { align-items: stretch; flex-direction: column; }
   .source-grid, .source-grid-wide { grid-template-columns: 1fr; }
   .labor-distribution-head { display:none; }
   .labor-distribution-row { grid-template-columns:1fr 120px; }

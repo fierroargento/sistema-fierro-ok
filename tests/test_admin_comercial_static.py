@@ -43,10 +43,11 @@ def test_panel_administra_catalogos_sin_app_py():
         "crear_catalogo",
         "estado_catalogo",
         "agregar_producto_catalogo",
-        "activar_producto_catalogo",
-        "disponibilidad_producto_catalogo",
+        "gestionar_producto_catalogo",
     ):
         assert accion in template
+    assert "activar_producto_catalogo" not in template
+    assert "disponibilidad_producto_catalogo" not in template
     assert "procesar_accion_catalogo_comercial" in servicio
     assert "/admin/comercial" not in app
 

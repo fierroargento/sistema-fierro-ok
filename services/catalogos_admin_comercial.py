@@ -3,6 +3,12 @@
 from services.catalogos_comerciales import cambiar_estado_catalogo
 
 
+ESTADOS_COMERCIALES = {"borrador", "activo", "discontinuado"}
+ESTADOS_DISPONIBILIDAD = {
+    "no_disponible", "disponible", "sin_stock", "pausado",
+}
+
+
 def _texto(formulario, campo, limite):
     return str(formulario.get(campo) or "").strip()[:limite]
 
@@ -12,6 +18,19 @@ def _id(formulario, campo):
     if not valor.isdigit() or int(valor) <= 0:
         raise ValueError(f"{campo} no es válido.")
     return int(valor)
+
+
+def _decimal_opcional(formulario, campo):
+    valor = str(formulario.get(campo) or "").strip().replace(",", ".")
+    if not valor:
+        return None
+    try:
+        numero = float(valor)
+    except ValueError as error:
+        raise ValueError(f"{campo} no es válido.") from error
+    if numero < 0:
+        raise ValueError(f"{campo} no puede ser negativo.")
+    return numero
 
 
 def _guardar(db_session):
@@ -115,10 +134,73 @@ def procesar_accion_catalogo_comercial(
             precio_lista_centavos=None,
             disponible=False,
             activo=False,
+            estado_comercial="borrador",
+            estado_disponibilidad="no_disponible",
         )
         db_session.add(inclusion)
         _guardar(db_session)
         return f"{sku} incorporado como inactivo y no disponible."
+
+    if accion == "gestionar_producto_catalogo":
+        inclusion = CatalogoProducto.query.get(
+            _id(formulario, "catalogo_producto_id")
+        )
+        if (
+            inclusion is None
+            or inclusion.catalogo.organizacion_id != organizacion.id
+            or inclusion.catalogo.unidad_negocio_id != unidad_activa.id
+        ):
+            raise ValueError("El producto no pertenece a la organización.")
+        estado = _texto(formulario, "estado_comercial", 20).lower()
+        disponibilidad = _texto(
+            formulario, "estado_disponibilidad", 20
+        ).lower()
+        if estado not in ESTADOS_COMERCIALES:
+            raise ValueError("El estado comercial no es válido.")
+        if disponibilidad not in ESTADOS_DISPONIBILIDAD:
+            raise ValueError("La disponibilidad no es válida.")
+        if estado != "activo":
+            disponibilidad = "no_disponible"
+        motivo = _texto(formulario, "motivo_disponibilidad", 300)
+        if disponibilidad in {"sin_stock", "pausado"} and not motivo:
+            raise ValueError("Indicá el motivo de la indisponibilidad.")
+        sku = _texto(formulario, "sku_comercial", 100)
+        nombre = _texto(formulario, "nombre_comercial", 255)
+        if not sku or not nombre:
+            raise ValueError("Completá SKU y nombre comercial.")
+        inclusion.sku_comercial = sku
+        inclusion.nombre_comercial = nombre
+        inclusion.marca = _texto(formulario, "marca", 120) or None
+        inclusion.categoria = _texto(formulario, "categoria", 120) or None
+        inclusion.descripcion_corta = (
+            _texto(formulario, "descripcion_corta", 300) or None
+        )
+        inclusion.descripcion_publica = (
+            _texto(formulario, "descripcion_publica", 5000) or None
+        )
+        inclusion.estado_comercial = estado
+        inclusion.estado_disponibilidad = disponibilidad
+        inclusion.motivo_disponibilidad = motivo or None
+        inclusion.activo = estado == "activo"
+        inclusion.disponible = disponibilidad == "disponible"
+        producto = inclusion.producto
+        producto.peso_gr = _decimal_opcional(formulario, "peso_gr")
+        producto.alto_cm = _decimal_opcional(formulario, "alto_cm")
+        producto.ancho_cm = _decimal_opcional(formulario, "ancho_cm")
+        producto.largo_cm = _decimal_opcional(formulario, "largo_cm")
+        producto.permite_correo = formulario.get("permite_correo") == "1"
+        producto.permite_via_cargo = formulario.get("permite_via_cargo") == "1"
+        producto.requiere_revision_logistica = (
+            formulario.get("requiere_revision_logistica") == "1"
+        )
+        producto.observacion_logistica = (
+            _texto(formulario, "observacion_logistica", 300) or None
+        )
+        _guardar(db_session)
+        return (
+            f"Ficha {sku} actualizada: {estado}, "
+            f"{disponibilidad.replace('_', ' ')}."
+        )
 
     if accion in {"activar_producto_catalogo", "disponibilidad_producto_catalogo"}:
         inclusion = CatalogoProducto.query.get(
@@ -132,9 +214,22 @@ def procesar_accion_catalogo_comercial(
             raise ValueError("El producto no pertenece a la organización.")
         if accion == "activar_producto_catalogo":
             inclusion.activo = not bool(inclusion.activo)
+            inclusion.estado_comercial = (
+                "activo" if inclusion.activo else "borrador"
+            )
+            if not inclusion.activo:
+                inclusion.disponible = False
+                inclusion.estado_disponibilidad = "no_disponible"
             resultado = "activo" if inclusion.activo else "inactivo"
         else:
+            if not inclusion.activo:
+                raise ValueError(
+                    "Activá el producto antes de marcarlo disponible."
+                )
             inclusion.disponible = not bool(inclusion.disponible)
+            inclusion.estado_disponibilidad = (
+                "disponible" if inclusion.disponible else "sin_stock"
+            )
             resultado = "disponible" if inclusion.disponible else "no disponible"
         _guardar(db_session)
         return f"{inclusion.sku_comercial} quedó {resultado}."

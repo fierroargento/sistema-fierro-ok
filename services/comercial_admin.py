@@ -24,6 +24,7 @@ def procesar_accion_comercial(
     if accion in {
         "crear_catalogo", "estado_catalogo", "agregar_producto_catalogo",
         "activar_producto_catalogo", "disponibilidad_producto_catalogo",
+        "gestionar_producto_catalogo",
     }:
         return procesar_accion_catalogo_comercial(
             accion, formulario, organizacion=organizacion,

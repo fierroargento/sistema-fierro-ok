@@ -41,6 +41,17 @@ class CatalogoProducto(db.Model):
         db.String(255),
         nullable=False,
     )
+    marca = db.Column(db.String(120))
+    categoria = db.Column(db.String(120))
+    descripcion_corta = db.Column(db.String(300))
+    descripcion_publica = db.Column(db.Text)
+    estado_comercial = db.Column(
+        db.String(20), default="borrador", nullable=False, index=True,
+    )
+    estado_disponibilidad = db.Column(
+        db.String(20), default="no_disponible", nullable=False, index=True,
+    )
+    motivo_disponibilidad = db.Column(db.String(300))
     precio_centavos = db.Column(
         db.Integer,
         nullable=False,

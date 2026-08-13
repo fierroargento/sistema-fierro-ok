@@ -30,6 +30,9 @@
   <section class="comercial-section" id="catalogos">
     <div class="section-heading"><div><span class="section-number">1</span><h2>Catálogos y productos</h2></div><p>Definí qué productos comercializa cada unidad de negocio.</p></div>
 
+    <details class="source-catalog catalog-settings">
+      <summary><span>Configurar catálogos e incorporar productos</span><strong>{{ catalogos|length }}</strong></summary>
+      <div class="catalog-settings-body">
     <h3 class="subsection-title">Crear catálogo</h3>
     <form class="comercial-form form-catalogos" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_catalogo">
@@ -68,9 +71,66 @@
     {% elif not catalogos %}<div class="prerequisite-warning">Creá al menos un catálogo para poder incorporar productos.</div>
     {% else %}<div class="prerequisite-warning">No hay productos en el maestro global. Cargalos desde Administración → Productos.</div>{% endif %}
 
-    <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Catálogo</th><th>Unidad</th><th>Producto</th><th>SKU comercial</th><th>Activo</th><th>Disponible</th><th>Acciones</th></tr></thead><tbody>
-      {% for i in inclusiones %}<tr><td><strong>{{ i.catalogo.nombre }}</strong></td><td>{{ i.catalogo.unidad_negocio.nombre if i.catalogo.unidad_negocio else 'Compartido' }}</td><td>{{ i.nombre_comercial }}</td><td>{{ i.sku_comercial }}</td><td><span class="boolean-state {{ 'yes' if i.activo else 'no' }}">{{ 'Sí' if i.activo else 'No' }}</span></td><td><span class="boolean-state {{ 'yes' if i.disponible else 'no' }}">{{ 'Sí' if i.disponible else 'No' }}</span></td><td><div class="row-actions"><form method="post" action="{{ url_for('admin_comercial.guardar') }}"><input type="hidden" name="accion" value="activar_producto_catalogo"><input type="hidden" name="catalogo_producto_id" value="{{ i.id }}"><button class="table-action">{{ 'Desactivar' if i.activo else 'Activar' }}</button></form><form method="post" action="{{ url_for('admin_comercial.guardar') }}"><input type="hidden" name="accion" value="disponibilidad_producto_catalogo"><input type="hidden" name="catalogo_producto_id" value="{{ i.id }}"><button class="table-action">{{ 'Marcar sin stock' if i.disponible else 'Marcar disponible' }}</button></form></div></td></tr>{% else %}<tr><td class="empty-state" colspan="7">Todavía no hay productos incluidos en los catálogos.</td></tr>{% endfor %}
-    </tbody></table></div>
+      </div>
+    </details>
+
+    <div class="catalog-toolbar">
+      <label><span>Buscar productos</span><input id="catalog-product-search" type="search" placeholder="SKU, nombre, marca o categoría"></label>
+      <label><span>Estado</span><select id="catalog-state-filter"><option value="">Todos</option><option value="borrador">Borrador</option><option value="activo">Activo</option><option value="discontinuado">Discontinuado</option></select></label>
+      <label><span>Disponibilidad</span><select id="catalog-availability-filter"><option value="">Todas</option><option value="disponible">Disponible</option><option value="sin_stock">Sin stock</option><option value="pausado">Pausado</option><option value="no_disponible">No disponible</option></select></label>
+    </div>
+    <details class="source-catalog catalog-products" open>
+      <summary><span>Productos del catálogo</span><strong>{{ inclusiones|length }}</strong></summary>
+      <div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>SKU</th><th>Producto comercial</th><th>Catálogo</th><th>Estado</th><th>Disponibilidad</th><th>Logística</th><th>Acciones</th></tr></thead><tbody id="catalog-products-body">
+      {% for i in inclusiones %}
+        {% set estado = i.estado_comercial or ('activo' if i.activo else 'borrador') %}
+        {% set disponibilidad = i.estado_disponibilidad or ('disponible' if i.disponible else 'no_disponible') %}
+        <tr data-catalog-row data-search="{{ (i.sku_comercial ~ ' ' ~ i.nombre_comercial ~ ' ' ~ (i.marca or '') ~ ' ' ~ (i.categoria or ''))|lower }}" data-state="{{ estado }}" data-availability="{{ disponibilidad }}">
+          <td><strong>{{ i.sku_comercial }}</strong><small>{{ i.producto.sku }} maestro</small></td>
+          <td><strong>{{ i.nombre_comercial }}</strong><small>{{ [i.marca, i.categoria]|select|join(' · ') or 'Sin marca ni categoría' }}</small></td>
+          <td>{{ i.catalogo.nombre }}<small>{{ i.catalogo.unidad_negocio.nombre if i.catalogo.unidad_negocio else 'Compartido' }}</small></td>
+          <td><span class="status status-{{ 'active' if estado == 'activo' else 'draft' }}">{{ estado|replace('_', ' ') }}</span></td>
+          <td><span class="status status-{{ 'active' if disponibilidad == 'disponible' else 'test' if disponibilidad in ['sin_stock', 'pausado'] else 'draft' }}">{{ disponibilidad|replace('_', ' ') }}</span>{% if i.motivo_disponibilidad %}<small>{{ i.motivo_disponibilidad }}</small>{% endif %}</td>
+          <td>{{ (i.producto.peso_gr|string ~ ' g') if i.producto.peso_gr is not none else 'Peso pendiente' }}<small>{{ ([i.producto.largo_cm, i.producto.ancho_cm, i.producto.alto_cm]|select|list|length == 3) and (i.producto.largo_cm|string ~ ' × ' ~ i.producto.ancho_cm|string ~ ' × ' ~ i.producto.alto_cm|string ~ ' cm') or 'Medidas pendientes' }}</small></td>
+          <td><button class="table-action" type="button" data-open-catalog-dialog="catalog-product-{{ i.id }}">Gestionar</button></td>
+        </tr>
+      {% else %}<tr><td class="empty-state" colspan="7">Todavía no hay productos incluidos en los catálogos.</td></tr>{% endfor %}
+      </tbody></table></div>
+    </details>
+    {% for i in inclusiones %}
+    {% set estado = i.estado_comercial or ('activo' if i.activo else 'borrador') %}
+    {% set disponibilidad = i.estado_disponibilidad or ('disponible' if i.disponible else 'no_disponible') %}
+    <dialog class="catalog-product-dialog" id="catalog-product-{{ i.id }}">
+      <form class="catalog-product-form" method="post" action="{{ url_for('admin_comercial.guardar') }}">
+        <input type="hidden" name="accion" value="gestionar_producto_catalogo"><input type="hidden" name="catalogo_producto_id" value="{{ i.id }}">
+        <div class="catalog-dialog-head"><div><strong>{{ i.nombre_comercial }}</strong><span>{{ i.catalogo.nombre }} · maestro {{ i.producto.sku }}</span></div><button type="button" class="dialog-close" data-close-catalog-dialog aria-label="Cerrar">×</button></div>
+        <fieldset><legend>Identidad comercial</legend><div class="catalog-dialog-grid">
+          <label><span>SKU comercial</span><input name="sku_comercial" value="{{ i.sku_comercial }}" maxlength="100" required></label>
+          <label class="field-wide"><span>Nombre comercial</span><input name="nombre_comercial" value="{{ i.nombre_comercial }}" maxlength="255" required></label>
+          <label><span>Marca</span><input name="marca" value="{{ i.marca or '' }}" maxlength="120"></label>
+          <label><span>Categoría</span><input name="categoria" value="{{ i.categoria or '' }}" maxlength="120"></label>
+          <label class="field-wide"><span>Descripción corta</span><input name="descripcion_corta" value="{{ i.descripcion_corta or '' }}" maxlength="300"></label>
+          <label class="field-full"><span>Descripción pública</span><textarea name="descripcion_publica" rows="3" maxlength="5000">{{ i.descripcion_publica or '' }}</textarea></label>
+        </div></fieldset>
+        <fieldset><legend>Estado y disponibilidad</legend><div class="catalog-dialog-grid">
+          <label><span>Estado comercial</span><select name="estado_comercial"><option value="borrador" {% if estado == 'borrador' %}selected{% endif %}>Borrador</option><option value="activo" {% if estado == 'activo' %}selected{% endif %}>Activo</option><option value="discontinuado" {% if estado == 'discontinuado' %}selected{% endif %}>Discontinuado</option></select></label>
+          <label><span>Disponibilidad</span><select name="estado_disponibilidad"><option value="no_disponible" {% if disponibilidad == 'no_disponible' %}selected{% endif %}>No disponible</option><option value="disponible" {% if disponibilidad == 'disponible' %}selected{% endif %}>Disponible</option><option value="sin_stock" {% if disponibilidad == 'sin_stock' %}selected{% endif %}>Sin stock</option><option value="pausado" {% if disponibilidad == 'pausado' %}selected{% endif %}>Pausado</option></select></label>
+          <label class="field-wide"><span>Motivo de indisponibilidad</span><input name="motivo_disponibilidad" value="{{ i.motivo_disponibilidad or '' }}" maxlength="300" placeholder="Ej. falta de insumo o revisión temporal"></label>
+        </div></fieldset>
+        <fieldset><legend>Datos físicos y reglas de envío</legend><div class="catalog-dialog-grid logistics-grid">
+          <label><span>Peso</span><div class="suffix-input"><input name="peso_gr" value="{{ i.producto.peso_gr if i.producto.peso_gr is not none else '' }}" inputmode="decimal"><span>g</span></div></label>
+          <label><span>Largo</span><div class="suffix-input"><input name="largo_cm" value="{{ i.producto.largo_cm if i.producto.largo_cm is not none else '' }}" inputmode="decimal"><span>cm</span></div></label>
+          <label><span>Ancho</span><div class="suffix-input"><input name="ancho_cm" value="{{ i.producto.ancho_cm if i.producto.ancho_cm is not none else '' }}" inputmode="decimal"><span>cm</span></div></label>
+          <label><span>Alto</span><div class="suffix-input"><input name="alto_cm" value="{{ i.producto.alto_cm if i.producto.alto_cm is not none else '' }}" inputmode="decimal"><span>cm</span></div></label>
+          <label class="check-field"><input type="checkbox" name="permite_correo" value="1" {% if i.producto.permite_correo %}checked{% endif %}><span>Permite Correo Argentino</span></label>
+          <label class="check-field"><input type="checkbox" name="permite_via_cargo" value="1" {% if i.producto.permite_via_cargo %}checked{% endif %}><span>Permite Vía Cargo</span></label>
+          <label class="check-field"><input type="checkbox" name="requiere_revision_logistica" value="1" {% if i.producto.requiere_revision_logistica %}checked{% endif %}><span>Requiere revisión logística</span></label>
+          <label class="field-full"><span>Observación logística</span><input name="observacion_logistica" value="{{ i.producto.observacion_logistica or '' }}" maxlength="300"></label>
+        </div></fieldset>
+        <div class="catalog-dialog-actions"><span>Los cambios quedan registrados en la auditoría administrativa.</span><button class="comercial-primary" type="submit">Guardar ficha</button></div>
+      </form>
+    </dialog>
+    {% endfor %}
   </section>
 
   <section class="comercial-section" id="costos">

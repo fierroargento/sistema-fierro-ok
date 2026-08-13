@@ -117,9 +117,55 @@
     });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", iniciarBuscadorProductoMaestro);
-  } else {
+  function iniciarGestionCatalogo() {
+    const buscador = document.getElementById("catalog-product-search");
+    const estado = document.getElementById("catalog-state-filter");
+    const disponibilidad = document.getElementById("catalog-availability-filter");
+    const filas = Array.from(document.querySelectorAll("[data-catalog-row]"));
+
+    function filtrarCatalogo() {
+      const termino = normalizar(buscador && buscador.value);
+      const estadoElegido = estado ? estado.value : "";
+      const disponibilidadElegida = disponibilidad ? disponibilidad.value : "";
+      filas.forEach(function (fila) {
+        const coincideTexto = !termino || normalizar(fila.dataset.search).includes(termino);
+        const coincideEstado = !estadoElegido || fila.dataset.state === estadoElegido;
+        const coincideDisponibilidad = !disponibilidadElegida || fila.dataset.availability === disponibilidadElegida;
+        fila.hidden = !(coincideTexto && coincideEstado && coincideDisponibilidad);
+      });
+    }
+
+    [buscador, estado, disponibilidad].forEach(function (control) {
+      if (control) control.addEventListener("input", filtrarCatalogo);
+    });
+
+    document.querySelectorAll("[data-open-catalog-dialog]").forEach(function (boton) {
+      boton.addEventListener("click", function () {
+        const dialogo = document.getElementById(boton.dataset.openCatalogDialog);
+        if (dialogo && typeof dialogo.showModal === "function") dialogo.showModal();
+      });
+    });
+    document.querySelectorAll("[data-close-catalog-dialog]").forEach(function (boton) {
+      boton.addEventListener("click", function () {
+        const dialogo = boton.closest("dialog");
+        if (dialogo) dialogo.close();
+      });
+    });
+    document.querySelectorAll(".catalog-product-dialog").forEach(function (dialogo) {
+      dialogo.addEventListener("click", function (evento) {
+        if (evento.target === dialogo) dialogo.close();
+      });
+    });
+  }
+
+  function iniciar() {
     iniciarBuscadorProductoMaestro();
+    iniciarGestionCatalogo();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", iniciar);
+  } else {
+    iniciar();
   }
 })();

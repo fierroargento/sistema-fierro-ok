@@ -5,6 +5,53 @@ No elimina columnas ni modifica flujos operativos.
 """
 
 
+def asegurar_ficha_catalogo_integral(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Amplía CatalogoProducto conservando las inclusiones existentes."""
+    inspector = inspect_fn(db.engine)
+    tabla = "catalogo_producto"
+    if tabla not in inspector.get_table_names():
+        return {"columnas_creadas": []}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    definiciones = {
+        "marca": "VARCHAR(120)",
+        "categoria": "VARCHAR(120)",
+        "descripcion_corta": "VARCHAR(300)",
+        "descripcion_publica": "TEXT",
+        "estado_comercial": "VARCHAR(20) NOT NULL DEFAULT 'borrador'",
+        "estado_disponibilidad": "VARCHAR(20) NOT NULL DEFAULT 'no_disponible'",
+        "motivo_disponibilidad": "VARCHAR(300)",
+    }
+    creadas = []
+    for nombre, definicion in definiciones.items():
+        if nombre not in columnas:
+            db.session.execute(text_fn(
+                f"ALTER TABLE {tabla} ADD COLUMN {nombre} {definicion}"
+            ))
+            creadas.append(nombre)
+    if "estado_comercial" in creadas:
+        db.session.execute(text_fn(
+            "UPDATE catalogo_producto SET estado_comercial = "
+            "CASE WHEN activo = TRUE THEN 'activo' ELSE 'borrador' END"
+        ))
+    if "estado_disponibilidad" in creadas:
+        db.session.execute(text_fn(
+            "UPDATE catalogo_producto SET estado_disponibilidad = "
+            "CASE WHEN disponible = TRUE THEN 'disponible' ELSE 'no_disponible' END"
+        ))
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_catalogo_producto_estado_comercial "
+        "ON catalogo_producto (estado_comercial)"
+    ))
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_catalogo_producto_estado_disponibilidad "
+        "ON catalogo_producto (estado_disponibilidad)"
+    ))
+    db.session.commit()
+    if creadas and logger_fn is not None:
+        logger_fn("[SAAS] Ficha integral de productos de catálogo habilitada.")
+    return {"columnas_creadas": creadas}
+
+
 def asegurar_recursos_mano_obra(*, db, inspect_fn, text_fn, logger_fn=print):
     """Completa el maestro laboral legacy sin alterar empleados existentes."""
     inspector = inspect_fn(db.engine)
