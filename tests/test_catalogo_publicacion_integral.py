@@ -4,7 +4,9 @@ from services.catalogo_ficha_integral import (
     calcular_completitud,
     numero_visual,
     parsear_atributos,
+    parsear_atributos_estructurados,
     parsear_variantes,
+    parsear_variantes_estructuradas,
 )
 
 
@@ -95,3 +97,50 @@ def test_navegacion_de_ficha_permanece_visible_y_sin_mover_el_fondo():
     assert "panel.offsetTop - compensacionFija()" in javascript
     assert 'formulario.addEventListener("scroll"' in javascript
     assert 'activarPestana("identidad")' in javascript
+
+
+class FormularioListas(dict):
+    def getlist(self, nombre):
+        valor = self.get(nombre, [])
+        return valor if isinstance(valor, list) else [valor]
+
+
+def test_atributos_y_variantes_se_guardan_como_filas_estructuradas():
+    formulario = FormularioListas({
+        "atributo_nombre": ["Color", "Material"],
+        "atributo_valor": ["Negro", "Hierro"],
+        "variante_sku": ["PP6040H-N"],
+        "variante_opciones": ["Color=Negro"],
+        "variante_estado": ["activa"],
+        "variante_peso_gr": ["3200,5"],
+        "variante_largo_cm": ["42"],
+        "variante_ancho_cm": ["36"],
+        "variante_alto_cm": ["4,5"],
+        "variante_imagen_url": ["https://img/negra.webp"],
+    })
+    assert parsear_atributos_estructurados(formulario) == {
+        "Color": "Negro", "Material": "Hierro",
+    }
+    assert parsear_variantes_estructuradas(formulario) == [{
+        "sku": "PP6040H-N", "opciones": "Color=Negro", "estado": "activa",
+        "activa": True, "peso_gr": "3200.5", "largo_cm": "42",
+        "ancho_cm": "36", "alto_cm": "4.5",
+        "imagen_url": "https://img/negra.webp",
+    }]
+
+
+def test_editor_de_variantes_es_operable_sin_texto_libre():
+    plantilla = Path("templates/admin_comercial.html").read_text(encoding="utf-8")
+    javascript = Path("static/admin_comercial.js").read_text(encoding="utf-8")
+    estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
+    for contrato in (
+        "data-add-attribute", "data-add-variant", "variante_sku",
+        "variante_estado", "variante_imagen_url",
+        "Logística e imagen",
+    ):
+        assert contrato in plantilla
+    assert "plantilla.content.cloneNode(true)" in javascript
+    assert "[data-remove-row]" in javascript
+    assert ".catalog-variant-main" in estilos
+    assert 'name="variante_stock"' not in plantilla
+    assert "se administran desde Inventario" in plantilla

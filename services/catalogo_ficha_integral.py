@@ -66,6 +66,82 @@ def presentar_variantes(valor):
     )
 
 
+def _lista_formulario(formulario, nombre):
+    if hasattr(formulario, "getlist"):
+        return formulario.getlist(nombre)
+    valor = formulario.get(nombre, [])
+    return valor if isinstance(valor, list) else [valor]
+
+
+def parsear_atributos_estructurados(formulario):
+    nombres = _lista_formulario(formulario, "atributo_nombre")
+    valores = _lista_formulario(formulario, "atributo_valor")
+    if not nombres and not valores:
+        return parsear_atributos(formulario.get("atributos"))
+    lineas = []
+    for indice in range(max(len(nombres), len(valores))):
+        nombre = str(nombres[indice] if indice < len(nombres) else "").strip()
+        valor = str(valores[indice] if indice < len(valores) else "").strip()
+        if not nombre and not valor:
+            continue
+        if not nombre or not valor:
+            raise ValueError(f"Completá nombre y valor del atributo {indice + 1}.")
+        lineas.append(f"{nombre}={valor}")
+    return parsear_atributos("\n".join(lineas))
+
+
+def parsear_variantes_estructuradas(formulario):
+    skus = _lista_formulario(formulario, "variante_sku")
+    if not skus:
+        return parsear_variantes(formulario.get("variantes"))
+    campos = {
+        "opciones": _lista_formulario(formulario, "variante_opciones"),
+        "estado": _lista_formulario(formulario, "variante_estado"),
+        "peso_gr": _lista_formulario(formulario, "variante_peso_gr"),
+        "largo_cm": _lista_formulario(formulario, "variante_largo_cm"),
+        "ancho_cm": _lista_formulario(formulario, "variante_ancho_cm"),
+        "alto_cm": _lista_formulario(formulario, "variante_alto_cm"),
+        "imagen_url": _lista_formulario(formulario, "variante_imagen_url"),
+    }
+    variantes, vistos = [], set()
+    for indice, sku_bruto in enumerate(skus):
+        sku = str(sku_bruto or "").strip()[:100]
+        valores = {
+            clave: str(lista[indice] if indice < len(lista) else "").strip()
+            for clave, lista in campos.items()
+        }
+        if not sku and not any(valores.values()):
+            continue
+        if not sku or not valores["opciones"]:
+            raise ValueError(f"Completá SKU y opciones de la variante {indice + 1}.")
+        if sku.lower() in vistos:
+            raise ValueError(f"SKU de variante repetido: {sku}.")
+        vistos.add(sku.lower())
+        estado = valores["estado"] or "activa"
+        if estado not in {"activa", "pausada", "discontinuada"}:
+            raise ValueError(f"Estado inválido para la variante {sku}.")
+        variante = {
+            "sku": sku,
+            "opciones": valores["opciones"][:300],
+            "estado": estado,
+            "activa": estado == "activa",
+        }
+        for campo in ("peso_gr", "largo_cm", "ancho_cm", "alto_cm"):
+            texto = valores[campo].replace(",", ".")
+            if texto:
+                try:
+                    numero = Decimal(texto)
+                except Exception as exc:
+                    raise ValueError(f"Medida inválida para la variante {sku}.") from exc
+                if numero <= 0:
+                    raise ValueError(f"Las medidas de {sku} deben ser positivas.")
+                variante[campo] = str(numero.normalize())
+        if valores["imagen_url"]:
+            variante["imagen_url"] = valores["imagen_url"][:1000]
+        variantes.append(variante)
+    return variantes
+
+
 def parsear_canales(formulario):
     canales = {}
     for codigo, prefijo in (("mercadolibre", "ml"), ("tiendanube", "tn")):

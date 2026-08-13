@@ -5,8 +5,10 @@ from services.catalogo_ficha_integral import (
     calcular_completitud,
     cargar_json,
     parsear_atributos,
+    parsear_atributos_estructurados,
     parsear_canales,
     parsear_variantes,
+    parsear_variantes_estructuradas,
     subir_imagenes,
     validar_relaciones,
     volcar_json,
@@ -208,10 +210,10 @@ def procesar_accion_catalogo_comercial(
             formulario, "alto_producto_cm"
         )
         inclusion.atributos_json = volcar_json(
-            parsear_atributos(formulario.get("atributos"))
+            parsear_atributos_estructurados(formulario)
         )
         inclusion.variantes_json = volcar_json(
-            parsear_variantes(formulario.get("variantes"))
+            parsear_variantes_estructuradas(formulario)
         )
         inclusion.canales_json = volcar_json(parsear_canales(formulario))
         inclusion.relaciones_json = volcar_json(validar_relaciones(

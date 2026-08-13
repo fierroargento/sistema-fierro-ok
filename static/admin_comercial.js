@@ -156,6 +156,38 @@
       const botones = Array.from(dialogo.querySelectorAll("[data-catalog-jump]"));
       const paneles = Array.from(dialogo.querySelectorAll("[data-catalog-panel]"));
 
+      function prepararEditor(recipiente) {
+        recipiente.addEventListener("click", function (evento) {
+          const quitar = evento.target.closest("[data-remove-row]");
+          if (!quitar) return;
+          const fila = quitar.closest(".catalog-attribute-row, .catalog-variant-row");
+          if (fila) fila.remove();
+        });
+      }
+
+      const filasAtributos = dialogo.querySelector("[data-attribute-rows]");
+      const filasVariantes = dialogo.querySelector("[data-variant-rows]");
+      if (filasAtributos) prepararEditor(filasAtributos);
+      if (filasVariantes) prepararEditor(filasVariantes);
+      const agregarAtributo = dialogo.querySelector("[data-add-attribute]");
+      if (agregarAtributo) agregarAtributo.addEventListener("click", function () {
+        const plantilla = dialogo.querySelector("[data-attribute-template]");
+        if (plantilla && filasAtributos) {
+          filasAtributos.appendChild(plantilla.content.cloneNode(true));
+          filasAtributos.lastElementChild.querySelector("input").focus();
+        }
+      });
+      const agregarVariante = dialogo.querySelector("[data-add-variant]");
+      if (agregarVariante) agregarVariante.addEventListener("click", function () {
+        const plantilla = dialogo.querySelector("[data-variant-template]");
+        if (plantilla && filasVariantes) {
+          const vacio = filasVariantes.querySelector("[data-variant-empty]");
+          if (vacio) vacio.remove();
+          filasVariantes.appendChild(plantilla.content.cloneNode(true));
+          filasVariantes.lastElementChild.querySelector("input").focus();
+        }
+      });
+
       function activarPestana(codigo) {
         botones.forEach(function (boton) {
           const activa = boton.dataset.catalogJump === codigo;
