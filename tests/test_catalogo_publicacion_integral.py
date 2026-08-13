@@ -68,3 +68,15 @@ def test_fichas_existentes_calculan_completitud_y_navegan_por_bloques():
     assert "data-catalog-panel" in plantilla
     assert "Falta completar:" in plantilla
     assert "scrollIntoView" in javascript
+
+
+def test_tabla_catalogo_cabe_en_escritorio_sin_perder_datos():
+    plantilla = Path("templates/admin_comercial.html").read_text(encoding="utf-8")
+    estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
+    assert 'class="comercial-table catalog-products-table"' in plantilla
+    assert "<th>SKU</th>" not in plantilla
+    assert "maestro {{ i.producto.sku }}" in plantilla
+    assert "i.faltantes_visual.split(', ')[:3]" in plantilla
+    assert ".catalog-products-table { width:100%;table-layout:fixed; }" in estilos
+    assert ".source-catalog-table { overflow-x:visible; }" in estilos
+    assert "min-width:780px" in estilos

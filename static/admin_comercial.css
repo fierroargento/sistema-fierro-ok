@@ -386,6 +386,18 @@
 .catalog-toolbar label { display: flex; flex-direction: column; gap: 5px; color: #526074; font-size: 11px; font-weight: 700; }
 .catalog-toolbar input, .catalog-toolbar select { height: 36px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; padding: 0 10px; }
 .catalog-products td small { display: block; margin-top: 3px; color: #748096; font-size: 10px; font-weight: 400; }
+.source-catalog-table { overflow-x:visible; }
+.catalog-products-table { width:100%;table-layout:fixed; }
+.catalog-products-table th,.catalog-products-table td { min-width:0;padding-left:10px;padding-right:10px;overflow-wrap:anywhere;vertical-align:middle; }
+.catalog-products-table .catalog-col-product { width:25%; }
+.catalog-products-table .catalog-col-catalog { width:16%; }
+.catalog-products-table .catalog-col-state { width:8%; }
+.catalog-products-table .catalog-col-availability { width:11%; }
+.catalog-products-table .catalog-col-completion { width:20%; }
+.catalog-products-table .catalog-col-logistics { width:10%; }
+.catalog-products-table .catalog-col-actions { width:10%; }
+.catalog-products-table td:last-child { white-space:nowrap; }
+.catalog-completion-cell small { display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.25; }
 .catalog-product-dialog { width: min(920px, calc(100vw - 28px)); max-height: calc(100vh - 30px); padding: 0; border: 0; border-radius: 14px; box-shadow: 0 22px 70px rgba(15, 35, 52, .28); }
 .catalog-product-dialog::backdrop { background: rgba(28, 48, 62, .54); backdrop-filter: blur(2px); }
 .catalog-product-form { padding: 20px; overflow: auto; }
@@ -613,6 +625,8 @@
   .catalog-toolbar, .catalog-dialog-grid { grid-template-columns: 1fr; }
   .catalog-dialog-grid .field-wide, .catalog-dialog-grid .field-full { grid-column: auto; }
   .catalog-dialog-actions { align-items: stretch; flex-direction: column; }
+  .source-catalog-table { overflow-x:auto; }
+  .catalog-products-table { min-width:780px; }
   .catalog-images, .catalog-channel-grid { grid-template-columns:1fr 1fr; }
   .catalog-relations>div { grid-template-columns:1fr 1fr; }
   .source-grid, .source-grid-wide { grid-template-columns: 1fr; }

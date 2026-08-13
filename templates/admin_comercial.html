@@ -81,21 +81,20 @@
     </div>
     <details class="source-catalog catalog-products" open>
       <summary><span>Productos del catálogo</span><strong>{{ inclusiones|length }}</strong></summary>
-      <div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>SKU</th><th>Producto comercial</th><th>Catálogo</th><th>Estado</th><th>Disponibilidad</th><th>Ficha</th><th>Logística</th><th>Acciones</th></tr></thead><tbody id="catalog-products-body">
+      <div class="table-wrap source-catalog-table"><table class="comercial-table catalog-products-table"><colgroup><col class="catalog-col-product"><col class="catalog-col-catalog"><col class="catalog-col-state"><col class="catalog-col-availability"><col class="catalog-col-completion"><col class="catalog-col-logistics"><col class="catalog-col-actions"></colgroup><thead><tr><th>Producto comercial</th><th>Catálogo</th><th>Estado</th><th>Disponibilidad</th><th>Ficha</th><th>Logística</th><th>Acciones</th></tr></thead><tbody id="catalog-products-body">
       {% for i in inclusiones %}
         {% set estado = i.estado_comercial or ('activo' if i.activo else 'borrador') %}
         {% set disponibilidad = i.estado_disponibilidad or ('disponible' if i.disponible else 'no_disponible') %}
         <tr data-catalog-row data-search="{{ (i.sku_comercial ~ ' ' ~ i.nombre_comercial ~ ' ' ~ (i.marca or '') ~ ' ' ~ (i.categoria or ''))|lower }}" data-state="{{ estado }}" data-availability="{{ disponibilidad }}">
-          <td><strong>{{ i.sku_comercial }}</strong><small>{{ i.producto.sku }} maestro</small></td>
-          <td><strong>{{ i.nombre_comercial }}</strong><small>{{ [i.marca, i.categoria]|select|join(' · ') or 'Sin marca ni categoría' }}</small></td>
+          <td><strong>{{ i.nombre_comercial }}</strong><small><b>{{ i.sku_comercial }}</b>{% if i.producto.sku != i.sku_comercial %} · maestro {{ i.producto.sku }}{% endif %}</small><small>{{ [i.marca, i.categoria]|select|join(' · ') or 'Sin marca ni categoría' }}</small></td>
           <td>{{ i.catalogo.nombre }}<small>{{ i.catalogo.unidad_negocio.nombre if i.catalogo.unidad_negocio else 'Compartido' }}</small></td>
           <td><span class="status status-{{ 'active' if estado == 'activo' else 'draft' }}">{{ estado|replace('_', ' ') }}</span></td>
           <td><span class="status status-{{ 'active' if disponibilidad == 'disponible' else 'test' if disponibilidad in ['sin_stock', 'pausado'] else 'draft' }}">{{ disponibilidad|replace('_', ' ') }}</span>{% if i.motivo_disponibilidad %}<small>{{ i.motivo_disponibilidad }}</small>{% endif %}</td>
-          <td><span class="completion completion-{{ 'ready' if i.completitud_visual == 100 else 'partial' }}">{{ i.completitud_visual }}%</span><small>{{ i.faltantes_visual or 'Ficha mínima completa' }}</small></td>
+          <td class="catalog-completion-cell"><span class="completion completion-{{ 'ready' if i.completitud_visual == 100 else 'partial' }}">{{ i.completitud_visual }}%</span><small title="{{ i.faltantes_visual or 'Ficha mínima completa' }}">{{ (i.faltantes_visual.split(', ')[:3]|join(', ') ~ ('…' if i.faltantes_visual and i.faltantes_visual.split(', ')|length > 3 else '')) if i.faltantes_visual else 'Ficha mínima completa' }}</small></td>
           <td>{{ (catalogo_numero(i.producto.peso_gr) ~ ' g') if i.producto.peso_gr is not none else 'Peso pendiente' }}<small>{{ ([i.producto.largo_cm, i.producto.ancho_cm, i.producto.alto_cm]|select|list|length == 3) and (catalogo_numero(i.producto.largo_cm) ~ ' × ' ~ catalogo_numero(i.producto.ancho_cm) ~ ' × ' ~ catalogo_numero(i.producto.alto_cm) ~ ' cm') or 'Medidas pendientes' }}</small></td>
           <td><button class="table-action" type="button" data-open-catalog-dialog="catalog-product-{{ i.id }}">Gestionar</button></td>
         </tr>
-      {% else %}<tr><td class="empty-state" colspan="8">Todavía no hay productos incluidos en los catálogos.</td></tr>{% endfor %}
+      {% else %}<tr><td class="empty-state" colspan="7">Todavía no hay productos incluidos en los catálogos.</td></tr>{% endfor %}
       </tbody></table></div>
     </details>
     {% for i in inclusiones %}
