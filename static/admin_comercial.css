@@ -624,9 +624,14 @@
 @media (max-width: 760px) { .adjustment-rule-form { grid-template-columns: 1fr; } }
 .recurring-obligations { margin-bottom: 14px; }
 .recurring-obligations > summary { cursor:pointer;color:var(--primary,#075b73);font-weight:800;padding:10px 12px;border:1px solid #d7e3e8;border-radius:9px;background:#f6fafb; }
-.recurring-rules-grid { display:grid;gap:10px;margin-top:10px; }
-.recurring-rule-form { display:grid;grid-template-columns:minmax(170px,1.2fr) repeat(3,minmax(120px,.8fr)) minmax(180px,1fr) auto auto;gap:10px;align-items:end;padding:12px;border:1px solid #dfe8ec;border-radius:10px; }
+.recurring-rules-table { margin-top:10px; }
+.recurring-rule-dialog { width:min(800px,calc(100vw - 32px)); }
+.recurring-rule-form { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end; }
 .recurring-rule-form label { min-width:0; }
+.recurring-rule-form .dialog-heading,.recurring-rule-form .recurring-note,.recurring-rule-form .approval-choice { grid-column:1/-1; }
+.recurring-rule-form .dialog-heading { display:grid;gap:4px; }
+.recurring-rule-form .dialog-heading small { color:#667085; }
+.recurring-rule-form .approval-choice { display:flex;align-items:center;gap:8px; }
 .status-overdue { color:#b42318;font-weight:800; }
 .status-upcoming { color:#9a6700;font-weight:800; }
-@media (max-width:1100px) { .recurring-rule-form { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:760px) { .recurring-rule-form { grid-template-columns:1fr; } }

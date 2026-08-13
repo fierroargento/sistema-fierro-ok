@@ -73,6 +73,9 @@ def test_motor_recurrente_es_idempotente_y_configurable():
     assert "if existente is None:" in servicio
     assert "Automatizar vencimientos recurrentes" in plantilla
     assert "Generación automática activa" in plantilla
+    assert "recurring-rules-table" in plantilla
+    assert "recurring-rule-dialog" in plantilla
+    assert 'id="cuentas-pagar"' in plantilla
 
 
 def test_job_diario_mantiene_horizonte_de_obligaciones():

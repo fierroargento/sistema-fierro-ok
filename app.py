@@ -2232,6 +2232,23 @@ def alertas_operativas():
         if reclamos_sin_revision:
             alertas.append({"tipo": "roja", "texto": f"{reclamos_sin_revision} pedidos con reclamo sin revisar desde hace más de 24 hs"})
 
+    if rol == "admin":
+        membresia = membresia_actual()
+        if membresia is not None:
+            try:
+                from services.alertas_cuentas_pagar import construir_alertas_cuentas_pagar
+
+                obligaciones = ObligacionCostoProductivo.query.filter_by(
+                    organizacion_id=membresia.organizacion_id,
+                ).all()
+                alertas.extend(construir_alertas_cuentas_pagar(
+                    obligaciones,
+                    url=url_for("admin_comercial.panel") + "#cuentas-pagar",
+                ))
+            except Exception as error:
+                db.session.rollback()
+                print(f"[ALERTAS-CUENTAS-PAGAR] No disponibles: {error}")
+
     return alertas
 
 

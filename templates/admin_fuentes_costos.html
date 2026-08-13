@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260813-1') }}">
-<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260813-1') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260813-2') }}">
+<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260813-2') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -320,23 +320,24 @@
         {% endfor %}
       </div>
     </details>
-    <details class="source-catalog payable-costs">
+    <details class="source-catalog payable-costs" id="cuentas-pagar">
       <summary><span>Pagos, saldos y vencimientos</span><strong>{{ obligaciones_costos|length }}</strong></summary>
       <div class="payable-cost-body">
         {% if avisos_vencimientos.vencidas or avisos_vencimientos.proximas %}<div class="payment-alerts"><strong>{{ avisos_vencimientos.vencidas|length }} vencidos</strong><span>{{ avisos_vencimientos.proximas|length }} próximos en 7 días</span></div>{% endif %}
-        <details class="recurring-obligations"><summary>Automatizar vencimientos recurrentes</summary><div class="recurring-rules-grid">
-          {% for costo in costos_fijos %}{% set recurrencia = reglas_obligaciones_por_costo.get(costo.id) %}<form class="recurring-rule-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
-            <input type="hidden" name="accion" value="configurar_obligaciones_recurrentes"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}">
-            <strong>{{ costo.nombre }}</strong>
-            <label><span>Frecuencia</span><select name="frecuencia_meses"><option value="1" {% if not recurrencia or recurrencia.frecuencia_meses == 1 %}selected{% endif %}>Mensual</option><option value="2" {% if recurrencia and recurrencia.frecuencia_meses == 2 %}selected{% endif %}>Bimestral</option><option value="3" {% if recurrencia and recurrencia.frecuencia_meses == 3 %}selected{% endif %}>Trimestral</option><option value="6" {% if recurrencia and recurrencia.frecuencia_meses == 6 %}selected{% endif %}>Semestral</option><option value="12" {% if recurrencia and recurrencia.frecuencia_meses == 12 %}selected{% endif %}>Anual</option></select></label>
-            <label><span>Primer período</span><input type="month" name="periodo_inicio" value="{{ recurrencia.periodo_inicio.strftime('%Y-%m') if recurrencia else '2026-08' }}" required></label>
-            <label><span>Día de vencimiento</span><input name="dia_vencimiento" type="number" min="1" max="31" value="{{ recurrencia.dia_vencimiento if recurrencia else 1 }}" required></label>
-            <label><span>Generar con anticipación</span><select name="meses_anticipacion"><option value="0" {% if recurrencia and recurrencia.meses_anticipacion == 0 %}selected{% endif %}>Mes actual</option><option value="1" {% if recurrencia and recurrencia.meses_anticipacion == 1 %}selected{% endif %}>1 mes</option><option value="2" {% if not recurrencia or recurrencia.meses_anticipacion == 2 %}selected{% endif %}>2 meses</option><option value="3" {% if recurrencia and recurrencia.meses_anticipacion == 3 %}selected{% endif %}>3 meses</option><option value="6" {% if recurrencia and recurrencia.meses_anticipacion == 6 %}selected{% endif %}>6 meses</option></select></label>
-            <label><span>Observación</span><input name="observacion" value="{{ recurrencia.observacion or '' if recurrencia else '' }}"></label>
-            <label class="approval-choice"><input type="checkbox" name="activa" value="1" {% if not recurrencia or recurrencia.activa %}checked{% endif %}><span>Generación automática activa</span></label>
-            <button class="table-action">Guardar y generar</button>
-          </form>{% endfor %}
-        </div></details>
+        <details class="recurring-obligations"><summary>Automatizar vencimientos recurrentes</summary>
+          <div class="table-wrap recurring-rules-table"><table class="comercial-table"><thead><tr><th>Concepto</th><th>Frecuencia</th><th>Primer período</th><th>Vencimiento</th><th>Anticipación</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+          {% for costo in costos_fijos %}{% set recurrencia = reglas_obligaciones_por_costo.get(costo.id) %}<tr>
+            <td><strong>{{ costo.nombre }}</strong></td><td>{{ recurrencia.frecuencia_meses ~ ' mes(es)' if recurrencia else 'Sin configurar' }}</td><td>{{ recurrencia.periodo_inicio.strftime('%m/%Y') if recurrencia else '—' }}</td><td>{{ 'Día ' ~ recurrencia.dia_vencimiento if recurrencia else '—' }}</td><td>{{ recurrencia.meses_anticipacion ~ ' mes(es)' if recurrencia else '—' }}</td><td><span class="status {{ 'status-active' if recurrencia and recurrencia.activa else 'status-draft' }}">{{ 'Activa' if recurrencia and recurrencia.activa else 'Inactiva' }}</span></td><td>
+              <button class="table-action source-dialog-trigger" type="button" data-source-dialog>Gestionar</button>
+              <dialog class="source-dialog recurring-rule-dialog"><button class="source-dialog-close" type="button" aria-label="Cerrar">×</button><form class="recurring-rule-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+                <input type="hidden" name="accion" value="configurar_obligaciones_recurrentes"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}"><div class="dialog-heading"><strong>Calendario · {{ costo.nombre }}</strong><small>La generación es idempotente: nunca duplica un mismo concepto y período.</small></div>
+                <label><span>Frecuencia</span><select name="frecuencia_meses"><option value="1" {% if not recurrencia or recurrencia.frecuencia_meses == 1 %}selected{% endif %}>Mensual</option><option value="2" {% if recurrencia and recurrencia.frecuencia_meses == 2 %}selected{% endif %}>Bimestral</option><option value="3" {% if recurrencia and recurrencia.frecuencia_meses == 3 %}selected{% endif %}>Trimestral</option><option value="6" {% if recurrencia and recurrencia.frecuencia_meses == 6 %}selected{% endif %}>Semestral</option><option value="12" {% if recurrencia and recurrencia.frecuencia_meses == 12 %}selected{% endif %}>Anual</option></select></label>
+                <label><span>Primer período</span><input type="month" name="periodo_inicio" value="{{ recurrencia.periodo_inicio.strftime('%Y-%m') if recurrencia else '2026-08' }}" required></label><label><span>Día de vencimiento</span><input name="dia_vencimiento" type="number" min="1" max="31" value="{{ recurrencia.dia_vencimiento if recurrencia else 1 }}" required></label>
+                <label><span>Generar con anticipación</span><select name="meses_anticipacion"><option value="0" {% if recurrencia and recurrencia.meses_anticipacion == 0 %}selected{% endif %}>Mes actual</option><option value="1" {% if recurrencia and recurrencia.meses_anticipacion == 1 %}selected{% endif %}>1 mes</option><option value="2" {% if not recurrencia or recurrencia.meses_anticipacion == 2 %}selected{% endif %}>2 meses</option><option value="3" {% if recurrencia and recurrencia.meses_anticipacion == 3 %}selected{% endif %}>3 meses</option><option value="6" {% if recurrencia and recurrencia.meses_anticipacion == 6 %}selected{% endif %}>6 meses</option></select></label><label class="recurring-note"><span>Observación</span><input name="observacion" value="{{ recurrencia.observacion or '' if recurrencia else '' }}"></label><label class="approval-choice"><input type="checkbox" name="activa" value="1" {% if not recurrencia or recurrencia.activa %}checked{% endif %}><span>Generación automática activa</span></label><button class="comercial-primary">Guardar y generar</button>
+              </form></dialog>
+            </td></tr>{% endfor %}
+          </tbody></table></div>
+        </details>
         <details class="manual-obligation"><summary>Crear obligación manual</summary><form class="payable-create" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
           <input type="hidden" name="accion" value="crear_obligacion_costo">
           <label><span>Concepto</span><select name="costo_fijo_id" required>{% for costo in costos_fijos %}<option value="{{ costo.id }}">{{ costo.nombre }}</option>{% endfor %}</select></label>
