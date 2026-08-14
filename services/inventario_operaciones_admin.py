@@ -12,6 +12,7 @@ from services.inventario_saas import (
 
 ACCIONES = {
     "actualizar_modulo_inventario", "actualizar_ubicacion", "actualizar_item",
+    "actualizar_control_existencia",
     "crear_ubicacion", "preparar_items_catalogo", "crear_existencia_item",
     "crear_reserva", "cerrar_reserva", "crear_transferencia",
     "despachar_transferencia", "recibir_transferencia", "crear_conteo",
@@ -196,6 +197,50 @@ def procesar_operacion_inventario(
         ))
         _guardar(db_session)
         return "Existencia creada en cero y con control desactivado."
+
+    if accion == "actualizar_control_existencia":
+        existencia = _registro(
+            Existencia,
+            _entero(formulario, "existencia_id"),
+            "la existencia",
+        )
+        _tenant(organizacion, existencia, "La existencia")
+        minimo = _entero(formulario, "stock_minimo")
+        maximo = _entero(formulario, "stock_maximo", opcional=True)
+        if minimo < 0 or (maximo is not None and maximo < minimo):
+            raise ValueError("Revisá los límites mínimo y máximo.")
+        control_activo = _texto(formulario, "control_activo", 1) == "1"
+        modulo = Modulo.query.filter_by(
+            organizacion_id=organizacion.id,
+            codigo="inventario-sucursales",
+        ).first()
+        if control_activo and (modulo is None or modulo.estado != "activo"):
+            raise ValueError("Activá primero el módulo de inventario.")
+        if control_activo and not existencia.sucursal.activa:
+            raise ValueError("Activá primero la ubicación de esta existencia.")
+        if control_activo and existencia.item_inventario and not existencia.item_inventario.activo:
+            raise ValueError("Activá primero el SKU de esta existencia.")
+        if existencia.control_activo and not control_activo:
+            comprometido = any((
+                int(existencia.stock_reservado or 0),
+                int(existencia.stock_bloqueado or 0),
+                int(existencia.stock_transito or 0),
+            ))
+            reservas_activas = Reserva.query.filter_by(
+                organizacion_id=organizacion.id,
+                existencia_sucursal_id=existencia.id,
+                estado="activa",
+            ).first()
+            if comprometido or reservas_activas is not None:
+                raise ValueError(
+                    "La existencia tiene cantidades comprometidas o reservas activas."
+                )
+        existencia.stock_minimo = minimo
+        existencia.stock_maximo = maximo
+        existencia.control_activo = control_activo
+        _guardar(db_session)
+        estado = "activado" if control_activo else "desactivado"
+        return f"Control de {existencia.sucursal.nombre} actualizado: {estado}."
 
     if accion == "crear_reserva":
         existencia = _registro(Existencia, _entero(formulario, "existencia_id"), "la existencia")

@@ -103,3 +103,25 @@ def test_configuracion_de_ubicaciones_es_tabular_y_se_edita_en_dialogos():
     assert "showModal" in javascript
     assert ".inventory-config-toolbar" in estilos
     assert ".inventory-dialog-form" in estilos
+
+
+def test_existencias_permiten_gestionar_control_y_limites_sin_tocar_stock():
+    plantilla = leer("templates/admin_inventario.html")
+    servicio = leer("services/inventario_operaciones_admin.py")
+    rutas = leer("modules/admin/inventario/routes.py")
+    estilos = leer("static/admin_comercial.css")
+    assert "actualizar_control_existencia" in plantilla
+    assert "Guardar control" in plantilla
+    assert 'name="stock_minimo"' in plantilla
+    assert 'name="stock_maximo"' in plantilla
+    assert 'name="control_activo"' in plantilla
+    assert 'id="existencias-inventario"' in plantilla
+    assert '"actualizar_control_existencia"' in servicio
+    assert "cantidades comprometidas o reservas activas" in servicio
+    assert "existencia.stock_minimo = minimo" in servicio
+    assert "existencia.stock_maximo = maximo" in servicio
+    assert "existencia.stock_actual =" not in servicio.split(
+        'if accion == "actualizar_control_existencia":', 1
+    )[1].split('if accion == "crear_reserva":', 1)[0]
+    assert '"existencias-inventario"' in rutas
+    assert ".inventory-control-summary" in estilos

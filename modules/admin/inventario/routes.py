@@ -140,6 +140,7 @@ def crear_blueprint_inventario(
         if panel_destino not in {
             "configuracion-inventario",
             "operaciones-inventario",
+            "existencias-inventario",
         }:
             panel_destino = "operaciones-inventario"
         parametros_retorno = {}
