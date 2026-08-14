@@ -44,3 +44,14 @@ def test_movimientos_admiten_flush_para_transacciones_compuestas():
     nucleo = leer("services/inventario_nucleo.py")
     assert "confirmar=True" in nucleo
     assert "db_session.flush()" in nucleo
+
+
+def test_inventario_hereda_ancho_tarjetas_y_botones_del_panel():
+    plantilla = leer("templates/admin_inventario.html")
+    estilos = leer("static/admin_comercial.css")
+    assert "v='20260814-1'" in plantilla
+    assert ".main:has(.inventory-admin)" in estilos
+    assert "width:min(1380px,100%)" in estilos
+    assert ".inventory-admin .source-section" in estilos
+    assert ".inventory-admin button" in estilos
+    assert ".inventory-admin .table-shell" in estilos
