@@ -49,7 +49,7 @@ def test_movimientos_admiten_flush_para_transacciones_compuestas():
 def test_inventario_hereda_ancho_tarjetas_y_botones_del_panel():
     plantilla = leer("templates/admin_inventario.html")
     estilos = leer("static/admin_comercial.css")
-    assert "v='20260814-2'" in plantilla
+    assert "v='20260814-3'" in plantilla
     assert ".main:has(.inventory-admin)" in estilos
     assert "width:min(1380px,100%)" in estilos
     assert ".inventory-admin .source-section" in estilos
@@ -88,3 +88,18 @@ def test_guardado_de_ubicaciones_regresa_al_panel_y_explica_el_bloqueo():
     assert ".inventory-switch input" in estilos
     assert "width:18px!important" in estilos
     assert ".location-actions" in estilos
+
+
+def test_configuracion_de_ubicaciones_es_tabular_y_se_edita_en_dialogos():
+    plantilla = leer("templates/admin_inventario.html")
+    javascript = leer("static/admin_comercial.js")
+    estilos = leer("static/admin_comercial.css")
+    assert "inventory-locations-table" in plantilla
+    assert "data-open-inventory-dialog" in plantilla
+    assert 'id="new-inventory-location"' in plantilla
+    assert 'id="prepare-inventory-sku"' in plantilla
+    assert "Guardar cambios" in plantilla
+    assert "iniciarDialogosInventario" in javascript
+    assert "showModal" in javascript
+    assert ".inventory-config-toolbar" in estilos
+    assert ".inventory-dialog-form" in estilos

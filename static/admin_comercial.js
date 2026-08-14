@@ -243,9 +243,30 @@
     });
   }
 
+  function iniciarDialogosInventario() {
+    document.querySelectorAll("[data-open-inventory-dialog]").forEach(function (boton) {
+      boton.addEventListener("click", function () {
+        const dialogo = document.getElementById(boton.dataset.openInventoryDialog);
+        if (dialogo && typeof dialogo.showModal === "function") dialogo.showModal();
+      });
+    });
+    document.querySelectorAll("[data-close-inventory-dialog]").forEach(function (boton) {
+      boton.addEventListener("click", function () {
+        const dialogo = boton.closest("dialog");
+        if (dialogo) dialogo.close();
+      });
+    });
+    document.querySelectorAll("dialog.inventory-dialog").forEach(function (dialogo) {
+      dialogo.addEventListener("click", function (evento) {
+        if (evento.target === dialogo) dialogo.close();
+      });
+    });
+  }
+
   function iniciar() {
     iniciarBuscadorProductoMaestro();
     iniciarGestionCatalogo();
+    iniciarDialogosInventario();
   }
 
   if (document.readyState === "loading") {
