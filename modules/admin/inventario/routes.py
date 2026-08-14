@@ -102,6 +102,10 @@ def crear_blueprint_inventario(
         return render_template(
             "admin_inventario.html",
             **datos,
+            abrir_configuracion=(
+                request.args.get("panel")
+                == "configuracion"
+            ),
             ok_feedback=(
                 request.args.get("ok")
                 or ""
@@ -129,6 +133,18 @@ def crear_blueprint_inventario(
             request.form.get("accion")
             or ""
         ).strip()
+        panel_destino = (
+            request.form.get("panel_destino")
+            or "operaciones-inventario"
+        ).strip()
+        if panel_destino not in {
+            "configuracion-inventario",
+            "operaciones-inventario",
+        }:
+            panel_destino = "operaciones-inventario"
+        parametros_retorno = {}
+        if panel_destino == "configuracion-inventario":
+            parametros_retorno["panel"] = "configuracion"
 
         try:
             mensaje = (
@@ -161,6 +177,8 @@ def crear_blueprint_inventario(
             return redirect(url_for(
                 "admin_inventario.panel",
                 ok=mensaje,
+                _anchor=panel_destino,
+                **parametros_retorno,
             ))
 
         except Exception as error:
@@ -175,6 +193,8 @@ def crear_blueprint_inventario(
             return redirect(url_for(
                 "admin_inventario.panel",
                 error=str(error),
+                _anchor=panel_destino,
+                **parametros_retorno,
             ))
 
     return blueprint

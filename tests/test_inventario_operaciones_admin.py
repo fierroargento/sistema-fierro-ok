@@ -73,3 +73,18 @@ def test_badges_de_desplegables_no_se_estiran():
     estilos = leer("static/admin_comercial.css")
     assert ".source-catalog>summary>.source-count" in estilos
     assert "flex:0 0 auto" in estilos
+
+
+def test_guardado_de_ubicaciones_regresa_al_panel_y_explica_el_bloqueo():
+    plantilla = leer("templates/admin_inventario.html")
+    rutas = leer("modules/admin/inventario/routes.py")
+    estilos = leer("static/admin_comercial.css")
+    assert 'id="configuracion-inventario"' in plantilla
+    assert 'name="panel_destino" value="configuracion-inventario"' in plantilla
+    assert "Activá primero el módulo" in plantilla
+    assert "abrir_configuracion" in rutas
+    assert 'request.form.get("panel_destino")' in rutas
+    assert '"configuracion-inventario"' in rutas
+    assert ".inventory-switch input" in estilos
+    assert "width:18px!important" in estilos
+    assert ".location-actions" in estilos
