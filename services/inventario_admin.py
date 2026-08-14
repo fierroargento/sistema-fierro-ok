@@ -7,6 +7,15 @@ No recibe eventos de pedidos ni publica stock en canales.
 from services.inventario_nucleo import (
     registrar_movimiento,
 )
+from services.inventario_saas import (
+    cerrar_reserva,
+    conciliar_conteo,
+    crear_reserva,
+    despachar_transferencia,
+    preparar_items_catalogo,
+    recibir_transferencia,
+)
+from services.inventario_operaciones_admin import procesar_operacion_inventario
 
 
 def _texto(formulario, nombre, limite=500):
@@ -121,6 +130,18 @@ def procesar_accion_inventario_admin(
     CatalogoProducto = modelos[
         "CatalogoProducto"
     ]
+    ItemInventario = modelos["ItemInventario"]
+    ReservaInventario = modelos["ReservaInventario"]
+    TransferenciaInventario = modelos["TransferenciaInventario"]
+    ConteoInventario = modelos["ConteoInventario"]
+    ConteoInventarioItem = modelos["ConteoInventarioItem"]
+
+    resultado_v2 = procesar_operacion_inventario(
+        accion, formulario, organizacion=organizacion, modelos=modelos,
+        db_session=db_session, usuario=usuario,
+    )
+    if resultado_v2 is not None:
+        return resultado_v2
 
     if accion == "crear_existencia":
         sucursal = _obtener(

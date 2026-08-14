@@ -4,6 +4,8 @@ No importa pedidos ni sincroniza canales. Los integradores futuros deben usar
 claves idempotentes para que un mismo evento nunca descuente dos veces.
 """
 
+import json
+
 from services.fechas import ahora_utc_naive
 from services.inventario_nucleo import registrar_movimiento, stock_disponible
 
@@ -12,6 +14,66 @@ ESTADOS_RESERVA = frozenset({"activa", "liberada", "consumida", "vencida"})
 ESTADOS_TRANSFERENCIA = frozenset(
     {"borrador", "despachada", "parcial", "recibida", "cancelada"}
 )
+
+
+def preparar_items_catalogo(
+    organizacion_id, inclusiones, *, ItemInventario, db_session,
+):
+    """Proyecta SKU principal y variantes; nunca activa stock ni canales."""
+    creados = 0
+    for inclusion in inclusiones:
+        catalogo = getattr(inclusion, "catalogo", None)
+        if int(getattr(catalogo, "organizacion_id", 0) or 0) != int(organizacion_id):
+            continue
+        filas = [{
+            "sku": inclusion.sku_comercial,
+            "nombre": inclusion.nombre_comercial,
+            "tipo": "producto",
+            "atributos": {},
+        }]
+        try:
+            variantes = json.loads(inclusion.variantes_json or "[]")
+        except (TypeError, ValueError):
+            variantes = []
+        for variante in variantes if isinstance(variantes, list) else []:
+            if not isinstance(variante, dict) or not str(variante.get("sku") or "").strip():
+                continue
+            filas.append({
+                "sku": variante["sku"],
+                "nombre": f"{inclusion.nombre_comercial} · {variante.get('opciones') or 'Variante'}",
+                "tipo": "variante",
+                "atributos": variante,
+            })
+        for fila in filas:
+            sku = str(fila["sku"] or "").strip()[:100]
+            if not sku:
+                continue
+            item = ItemInventario.query.filter_by(
+                organizacion_id=organizacion_id, sku=sku,
+            ).first()
+            if item is None:
+                item = ItemInventario(
+                    organizacion_id=organizacion_id,
+                    producto_id=inclusion.producto_id,
+                    catalogo_producto_id=inclusion.id,
+                    sku=sku,
+                    nombre=str(fila["nombre"] or sku)[:220],
+                    tipo=fila["tipo"],
+                    atributos_json=json.dumps(
+                        fila["atributos"], ensure_ascii=False, separators=(",", ":"),
+                    ),
+                    activo=False,
+                )
+                db_session.add(item)
+                creados += 1
+            else:
+                item.nombre = str(fila["nombre"] or sku)[:220]
+                item.catalogo_producto_id = inclusion.id
+                item.atributos_json = json.dumps(
+                    fila["atributos"], ensure_ascii=False, separators=(",", ":"),
+                )
+    db_session.commit()
+    return creados
 
 
 def validar_mismo_tenant(organizacion_id, *registros):
@@ -50,7 +112,9 @@ def crear_reserva(
         existencia, tipo="reserva", cantidad=cantidad, motivo=motivo,
         referencia=referencia_externa, usuario=usuario,
         MovimientoInventario=MovimientoInventario, db_session=db_session,
+        confirmar=False,
     )
+    db_session.commit()
     return reserva
 
 
@@ -66,14 +130,14 @@ def cerrar_reserva(
         existencia, tipo="liberacion", cantidad=reserva.cantidad,
         motivo=f"Reserva {estado}", referencia=reserva.referencia_externa,
         usuario=usuario, MovimientoInventario=MovimientoInventario,
-        db_session=db_session,
+        db_session=db_session, confirmar=False,
     )
     if estado == "consumida":
         registrar_movimiento(
             existencia, tipo="egreso", cantidad=reserva.cantidad,
             motivo="Venta confirmada", referencia=reserva.referencia_externa,
             usuario=usuario, MovimientoInventario=MovimientoInventario,
-            db_session=db_session,
+            db_session=db_session, confirmar=False,
         )
     reserva.estado = estado
     reserva.fecha_cierre = ahora_utc_naive()
@@ -106,6 +170,10 @@ def despachar_transferencia(
         motivo=f"Transferencia {transferencia.codigo}",
         referencia=transferencia.codigo, usuario=usuario,
         MovimientoInventario=MovimientoInventario, db_session=db_session,
+        confirmar=False,
+    )
+    transferencia.destino.stock_transito = (
+        int(transferencia.destino.stock_transito or 0) + cantidad
     )
     transferencia.cantidad_despachada = cantidad
     transferencia.estado = "despachada"
@@ -128,7 +196,11 @@ def recibir_transferencia(
         transferencia.destino, tipo="ingreso", cantidad=cantidad,
         motivo=f"Recepción {transferencia.codigo}", referencia=transferencia.codigo,
         usuario=usuario, MovimientoInventario=MovimientoInventario,
-        db_session=db_session,
+        db_session=db_session, confirmar=False,
+    )
+    transferencia.destino.stock_transito = max(
+        0,
+        int(transferencia.destino.stock_transito or 0) - cantidad,
     )
     transferencia.cantidad_recibida += cantidad
     transferencia.estado = (
@@ -148,3 +220,31 @@ def diferencia_conteo(cantidad_esperada, cantidad_contada):
     if contada < 0:
         raise ValueError("La cantidad contada no puede ser negativa.")
     return contada - esperada
+
+
+def conciliar_conteo(
+    conteo, *, MovimientoInventario, db_session, usuario="admin",
+):
+    if conteo.estado == "conciliado":
+        return conteo
+    if conteo.estado not in {"abierto", "contado"}:
+        raise ValueError("El inventario no está disponible para conciliación.")
+    if not conteo.items:
+        raise ValueError("El inventario no contiene existencias.")
+    for item in conteo.items:
+        if item.cantidad_contada is None:
+            raise ValueError("Faltan cantidades por contar.")
+        diferencia = diferencia_conteo(item.cantidad_esperada, item.cantidad_contada)
+        item.diferencia = diferencia
+        if diferencia:
+            registrar_movimiento(
+                item.existencia, tipo="ajuste", cantidad=diferencia,
+                motivo=f"Conciliación {conteo.codigo}", referencia=conteo.codigo,
+                usuario=usuario, MovimientoInventario=MovimientoInventario,
+                db_session=db_session, confirmar=False,
+            )
+    conteo.estado = "conciliado"
+    conteo.usuario_concilia = usuario
+    conteo.fecha_conciliacion = ahora_utc_naive()
+    db_session.commit()
+    return conteo

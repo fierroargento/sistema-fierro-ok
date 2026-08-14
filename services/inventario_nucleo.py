@@ -213,6 +213,7 @@ def registrar_movimiento(
     db_session,
     referencia="",
     usuario="sistema",
+    confirmar=True,
 ):
     if not str(
         motivo or ""
@@ -244,11 +245,14 @@ def registrar_movimiento(
 
     db_session.add(movimiento)
 
-    try:
-        db_session.commit()
-    except Exception:
-        db_session.rollback()
-        raise
+    if confirmar:
+        try:
+            db_session.commit()
+        except Exception:
+            db_session.rollback()
+            raise
+    else:
+        db_session.flush()
 
     return movimiento
 
