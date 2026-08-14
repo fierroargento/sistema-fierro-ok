@@ -49,9 +49,27 @@ def test_movimientos_admiten_flush_para_transacciones_compuestas():
 def test_inventario_hereda_ancho_tarjetas_y_botones_del_panel():
     plantilla = leer("templates/admin_inventario.html")
     estilos = leer("static/admin_comercial.css")
-    assert "v='20260814-1'" in plantilla
+    assert "v='20260814-2'" in plantilla
     assert ".main:has(.inventory-admin)" in estilos
     assert "width:min(1380px,100%)" in estilos
     assert ".inventory-admin .source-section" in estilos
     assert ".inventory-admin button" in estilos
     assert ".inventory-admin .table-shell" in estilos
+
+
+def test_ciclo_de_vida_del_inventario_es_explicito_y_seguro():
+    plantilla = leer("templates/admin_inventario.html")
+    servicio = leer("services/inventario_operaciones_admin.py")
+    assert "actualizar_modulo_inventario" in plantilla
+    assert "Escribí ACTIVAR" in plantilla
+    assert "actualizar_ubicacion" in plantilla
+    assert "actualizar_item" in plantilla
+    assert '!= "ACTIVAR"' in servicio
+    assert "tiene stock o controles activos" in servicio
+    assert "Activá primero el módulo" in servicio
+
+
+def test_badges_de_desplegables_no_se_estiran():
+    estilos = leer("static/admin_comercial.css")
+    assert ".source-catalog>summary>.source-count" in estilos
+    assert "flex:0 0 auto" in estilos

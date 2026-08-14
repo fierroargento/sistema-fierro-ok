@@ -11,6 +11,7 @@ from services.inventario_saas import (
 
 
 ACCIONES = {
+    "actualizar_modulo_inventario", "actualizar_ubicacion", "actualizar_item",
     "crear_ubicacion", "preparar_items_catalogo", "crear_existencia_item",
     "crear_reserva", "cerrar_reserva", "crear_transferencia",
     "despachar_transferencia", "recibir_transferencia", "crear_conteo",
@@ -67,6 +68,85 @@ def procesar_operacion_inventario(
     Transferencia = modelos["TransferenciaInventario"]
     Conteo = modelos["ConteoInventario"]
     ConteoItem = modelos["ConteoInventarioItem"]
+    Modulo = modelos["ModuloOrganizacion"]
+
+    if accion == "actualizar_modulo_inventario":
+        modulo = Modulo.query.filter_by(
+            organizacion_id=organizacion.id, codigo="inventario-sucursales",
+        ).first()
+        if modulo is None:
+            raise ValueError("No se encontró la configuración del módulo.")
+        estado = _texto(formulario, "estado", 20)
+        if estado not in {"activo", "desactivado"}:
+            raise ValueError("El estado del módulo no es válido.")
+        if estado == "activo" and _texto(formulario, "confirmacion", 20) != "ACTIVAR":
+            raise ValueError("Escribí ACTIVAR para habilitar el módulo.")
+        modulo.estado = estado
+        _guardar(db_session)
+        return f"Módulo de inventario {estado}. La sincronización sigue bloqueada."
+
+    if accion == "actualizar_ubicacion":
+        sucursal = _registro(Sucursal, _entero(formulario, "sucursal_operativa_id"), "la ubicación")
+        _tenant(organizacion, sucursal, "La ubicación")
+        activa = _texto(formulario, "activa", 1) == "1"
+        principal = _texto(formulario, "es_principal", 1) == "1"
+        modulo = Modulo.query.filter_by(
+            organizacion_id=organizacion.id, codigo="inventario-sucursales",
+        ).first()
+        if activa and (modulo is None or modulo.estado != "activo"):
+            raise ValueError("Activá primero el módulo de inventario.")
+        if sucursal.activa and not activa:
+            existencias = Existencia.query.filter_by(
+                organizacion_id=organizacion.id,
+                sucursal_operativa_id=sucursal.id,
+            ).all()
+            if any(
+                e.control_activo or int(e.stock_actual or 0) or
+                int(e.stock_reservado or 0) or int(e.stock_bloqueado or 0) or
+                int(e.stock_transito or 0)
+                for e in existencias
+            ):
+                raise ValueError("La ubicación tiene stock o controles activos y no puede desactivarse.")
+        nombre = _texto(formulario, "nombre", 150)
+        if not nombre:
+            raise ValueError("La ubicación necesita un nombre.")
+        sucursal.nombre = nombre
+        sucursal.direccion = _texto(formulario, "direccion", 250) or None
+        sucursal.localidad = _texto(formulario, "localidad", 120) or None
+        sucursal.provincia = _texto(formulario, "provincia", 120) or None
+        sucursal.codigo_postal = _texto(formulario, "codigo_postal", 20) or None
+        sucursal.activa = activa
+        if principal:
+            for otra in Sucursal.query.filter_by(organizacion_id=organizacion.id).all():
+                otra.es_principal = otra.id == sucursal.id
+        else:
+            sucursal.es_principal = False
+        _guardar(db_session)
+        return f"Ubicación {sucursal.nombre} actualizada."
+
+    if accion == "actualizar_item":
+        item = _registro(Item, _entero(formulario, "item_inventario_id"), "el SKU")
+        _tenant(organizacion, item, "El SKU")
+        activo = _texto(formulario, "activo", 1) == "1"
+        modulo = Modulo.query.filter_by(
+            organizacion_id=organizacion.id, codigo="inventario-sucursales",
+        ).first()
+        if activo and (modulo is None or modulo.estado != "activo"):
+            raise ValueError("Activá primero el módulo de inventario.")
+        if item.activo and not activo:
+            existencias = Existencia.query.filter_by(
+                organizacion_id=organizacion.id, item_inventario_id=item.id,
+            ).all()
+            if any(
+                e.control_activo or int(e.stock_actual or 0) or
+                int(e.stock_reservado or 0) or int(e.stock_bloqueado or 0) or
+                int(e.stock_transito or 0)
+                for e in existencias
+            ):
+                raise ValueError("El SKU tiene stock o controles activos y no puede desactivarse.")
+        item.activo = activo
+        _guardar(db_session)
+        return f"SKU {item.sku} {'activado' if activo else 'desactivado'}."
 
     if accion == "crear_ubicacion":
         codigo, nombre = _texto(formulario, "codigo", 80).lower(), _texto(formulario, "nombre", 150)
