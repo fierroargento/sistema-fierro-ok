@@ -10,6 +10,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
@@ -19,6 +20,11 @@ from services.inventario_admin import (
 )
 from services.inventario_consultas import (
     obtener_datos_panel_inventario,
+)
+from services.inventario_conteos_excel import (
+    crear_plantilla_conteo,
+    importar_conteo_excel,
+    obtener_conteo_tenant,
 )
 from services.tenant_context import (
     TenantError,
@@ -141,6 +147,7 @@ def crear_blueprint_inventario(
             "configuracion-inventario",
             "operaciones-inventario",
             "existencias-inventario",
+            "conteos-inventario",
         }:
             panel_destino = "operaciones-inventario"
         parametros_retorno = {}
@@ -196,6 +203,66 @@ def crear_blueprint_inventario(
                 error=str(error),
                 _anchor=panel_destino,
                 **parametros_retorno,
+            ))
+
+    @blueprint.route("/admin/inventario/conteos/<int:conteo_id>/plantilla")
+    @login_required
+    def descargar_plantilla_conteo(conteo_id):
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        conteo = obtener_conteo_tenant(
+            conteo_id, organizacion.id, modelos=modelos,
+        )
+        if conteo is None:
+            return redirect(url_for(
+                "admin_inventario.panel",
+                error="No se encontró el inventario solicitado.",
+                _anchor="conteos-inventario",
+            ))
+        return send_file(
+            crear_plantilla_conteo(conteo),
+            as_attachment=True,
+            download_name=f"conteo-inventario-{conteo.id}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    @blueprint.route(
+        "/admin/inventario/conteos/<int:conteo_id>/importar",
+        methods=["POST"],
+    )
+    @login_required
+    def importar_plantilla_conteo(conteo_id):
+        usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        conteo = obtener_conteo_tenant(
+            conteo_id, organizacion.id, modelos=modelos,
+        )
+        try:
+            if conteo is None:
+                raise ValueError("No se encontró el inventario solicitado.")
+            archivo = request.files.get("archivo_conteo")
+            if archivo is None or not archivo.filename:
+                raise ValueError("Seleccioná la plantilla XLSX completa.")
+            filas = importar_conteo_excel(conteo, archivo, db_session=db.session)
+            registrar_auditoria(
+                "Importó conteo físico",
+                entidad="conteo_inventario",
+                entidad_id=conteo.id,
+                detalle=f"Inventario {conteo.codigo}; filas: {filas}; usuario: {getattr(usuario, 'username', 'admin')}",
+            )
+            return redirect(url_for(
+                "admin_inventario.panel",
+                ok=f"Conteo {conteo.codigo} importado: {filas} SKU listos para revisar.",
+                _anchor="conteos-inventario",
+            ))
+        except Exception as error:
+            db.session.rollback()
+            return redirect(url_for(
+                "admin_inventario.panel",
+                error=str(error),
+                _anchor="conteos-inventario",
             ))
 
     return blueprint

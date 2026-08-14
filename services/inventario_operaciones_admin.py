@@ -176,10 +176,21 @@ def procesar_operacion_inventario(
         return f"SKU preparados: {creados} nuevos; todos desactivados."
 
     if accion == "crear_existencia_item":
-        sucursal = _registro(Sucursal, _entero(formulario, "sucursal_operativa_id"), "la ubicación")
-        item = _registro(Item, _entero(formulario, "item_inventario_id"), "el SKU")
+        combinacion = _texto(formulario, "combinacion", 80)
+        if combinacion:
+            try:
+                sucursal_id, item_id = (int(valor) for valor in combinacion.split(":", 1))
+            except (TypeError, ValueError) as error:
+                raise ValueError("La combinación de ubicación y SKU no es válida.") from error
+        else:
+            sucursal_id = _entero(formulario, "sucursal_operativa_id")
+            item_id = _entero(formulario, "item_inventario_id")
+        sucursal = _registro(Sucursal, sucursal_id, "la ubicación")
+        item = _registro(Item, item_id, "el SKU")
         _tenant(organizacion, sucursal, "La ubicación")
         _tenant(organizacion, item, "El SKU")
+        if not sucursal.activa or not item.activo:
+            raise ValueError("La ubicación y el SKU deben estar activos.")
         if Existencia.query.filter_by(
             sucursal_operativa_id=sucursal.id, item_inventario_id=item.id
         ).first():
@@ -306,11 +317,20 @@ def procesar_operacion_inventario(
         sucursal = _registro(Sucursal, _entero(formulario, "sucursal_operativa_id"), "la ubicación")
         _tenant(organizacion, sucursal, "La ubicación")
         codigo = _texto(formulario, "codigo", 100)
+        conteo_pendiente = Conteo.query.filter_by(
+            organizacion_id=organizacion.id,
+            sucursal_operativa_id=sucursal.id,
+        ).filter(Conteo.estado.in_(["abierto", "contado"])).first()
+        if conteo_pendiente is not None:
+            raise ValueError(
+                f"La ubicación ya tiene el inventario {conteo_pendiente.codigo} pendiente."
+            )
         existencias = Existencia.query.filter_by(
             organizacion_id=organizacion.id, sucursal_operativa_id=sucursal.id,
+            control_activo=True,
         ).all()
         if not codigo or not existencias:
-            raise ValueError("Indicá un código y una ubicación con existencias.")
+            raise ValueError("Indicá un código y una ubicación con controles activos.")
         conteo = Conteo(
             organizacion_id=organizacion.id, sucursal_operativa_id=sucursal.id,
             codigo=codigo, estado="abierto",

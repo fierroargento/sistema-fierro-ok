@@ -157,6 +157,38 @@ def obtener_datos_panel_inventario(
         organizacion_id=organizacion_id
     ).order_by(ConteoInventario.id.desc()).limit(100).all()
 
+    pares_existentes = {
+        (
+            int(existencia.sucursal_operativa_id),
+            int(existencia.item_inventario_id),
+        )
+        for existencia in existencias
+        if existencia.item_inventario_id is not None
+    }
+    combinaciones_faltantes = [
+        {
+            "sucursal_id": int(sucursal.id),
+            "sucursal_nombre": sucursal.nombre,
+            "item_id": int(item.id),
+            "sku": item.sku,
+            "item_nombre": item.nombre,
+        }
+        for sucursal in sucursales
+        if sucursal.activa
+        for item in items_inventario
+        if item.activo and (int(sucursal.id), int(item.id)) not in pares_existentes
+    ]
+    sucursales_con_control_ids = {
+        int(existencia.sucursal_operativa_id)
+        for existencia in existencias
+        if existencia.control_activo
+    }
+    sucursales_con_control = [
+        sucursal
+        for sucursal in sucursales
+        if int(sucursal.id) in sucursales_con_control_ids
+    ]
+
     return {
         "modulo_inventario": modulo_inventario,
         "sucursales": sucursales,
@@ -171,4 +203,6 @@ def obtener_datos_panel_inventario(
         "reservas": reservas,
         "transferencias": transferencias,
         "conteos": conteos,
+        "combinaciones_faltantes": combinaciones_faltantes,
+        "sucursales_con_control": sucursales_con_control,
     }

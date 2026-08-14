@@ -125,3 +125,22 @@ def test_existencias_permiten_gestionar_control_y_limites_sin_tocar_stock():
     )[1].split('if accion == "crear_reserva":', 1)[0]
     assert '"existencias-inventario"' in rutas
     assert ".inventory-control-summary" in estilos
+
+
+def test_panel_oculta_altas_redundantes_y_previsualiza_conteos():
+    consultas = leer("services/inventario_consultas.py")
+    plantilla = leer("templates/admin_inventario.html")
+    servicio = leer("services/inventario_operaciones_admin.py")
+    rutas = leer("modules/admin/inventario/routes.py")
+    assert "combinaciones_faltantes" in consultas
+    assert "sucursales_con_control" in consultas
+    assert "Todas las existencias están configuradas" in plantilla
+    assert 'name="combinacion"' in plantilla
+    assert "Guardar y revisar diferencias" in plantilla
+    assert "Conciliar y ajustar stock" in plantilla
+    assert "Descargar Excel" in plantilla
+    assert "Importar Excel" in plantilla
+    assert "conteo_pendiente" in servicio
+    assert "control_activo=True" in servicio
+    assert "descargar_plantilla_conteo" in rutas
+    assert "importar_plantilla_conteo" in rutas
