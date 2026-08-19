@@ -174,8 +174,8 @@ def inicializar_base_datos_saas(
         for nombre in (
             "asegurar_columnas_extra",
             "asegurar_columnas_integracion_ml",
-            "backfill_ml_identidad_cuenta_pedidos",
             "asegurar_columnas_integracion_tn",
+            "backfill_ml_identidad_cuenta_pedidos",
         ):
             dependencias[nombre]()
 
