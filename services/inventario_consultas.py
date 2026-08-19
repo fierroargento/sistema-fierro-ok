@@ -5,6 +5,10 @@ No modifica stock, no importa pedidos y no sincroniza
 datos con canales comerciales.
 """
 
+from services.inventario_eventos_canal import (
+    diagnosticar_eventos_persistidos,
+)
+
 
 def obtener_datos_panel_inventario(
     organizacion,
@@ -40,6 +44,7 @@ def obtener_datos_panel_inventario(
     ConfiguracionInventarioPedidos = modelos["ConfiguracionInventarioPedidos"]
     Evento = modelos["EventoInventarioPedido"]
     EventoCanal = modelos["EventoCanalInventario"]
+    VinculoCanalComercial = modelos["VinculoCanalComercial"]
     PoliticaDisponibilidadCatalogo = modelos[
         "PoliticaDisponibilidadCatalogo"
     ]
@@ -61,6 +66,9 @@ def obtener_datos_panel_inventario(
     eventos_canal = EventoCanal.query.filter_by(
         organizacion_id=organizacion_id,
     ).order_by(EventoCanal.id.desc()).limit(100).all()
+    vinculos_canal = VinculoCanalComercial.query.filter_by(
+        organizacion_id=organizacion_id,
+    ).all()
 
     sucursales = (
         SucursalOperativa.query
@@ -168,6 +176,16 @@ def obtener_datos_panel_inventario(
     conteos = ConteoInventario.query.filter_by(
         organizacion_id=organizacion_id
     ).order_by(ConteoInventario.id.desc()).limit(100).all()
+    diagnosticos_canal, resumen_diagnosticos_canal = (
+        diagnosticar_eventos_persistidos(
+            eventos_canal,
+            configuracion=automatizacion_pedidos,
+            vinculos=vinculos_canal,
+            items_inventario=items_inventario,
+            existencias=existencias,
+            reservas=reservas,
+        )
+    )
 
     pares_existentes = {
         (
@@ -220,4 +238,6 @@ def obtener_datos_panel_inventario(
         "automatizacion_pedidos": automatizacion_pedidos,
         "eventos_inventario_pedidos": eventos_pedidos,
         "eventos_canal_inventario": eventos_canal,
+        "diagnosticos_eventos_canal": diagnosticos_canal,
+        "resumen_diagnosticos_canal": resumen_diagnosticos_canal,
     }

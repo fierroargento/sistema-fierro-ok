@@ -349,3 +349,82 @@ def validar_sobre_evento(
         "puede_ejecutar": False,
         "modo": "prevalidacion",
     }
+
+
+def cargar_sobre_persistido(evento):
+    """Reconstruye y verifica un sobre guardado sin modificar su estado."""
+    try:
+        contenido = json.loads(str(getattr(evento, "contrato_json", "") or ""))
+    except (TypeError, ValueError, json.JSONDecodeError) as error:
+        raise ValueError("El contrato guardado no contiene JSON valido.") from error
+    if not isinstance(contenido, dict) or not isinstance(
+        contenido.get("contrato"), dict
+    ):
+        raise ValueError("El contrato guardado esta incompleto.")
+    serializado = json.dumps(
+        contenido, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    )
+    huella = hashlib.sha256(serializado.encode("utf-8")).hexdigest()
+    if huella != str(getattr(evento, "payload_hash", "") or ""):
+        raise ValueError("La huella del contrato guardado no coincide.")
+    return {
+        **contenido,
+        "clave_idempotencia": str(
+            getattr(evento, "clave_idempotencia", "") or ""
+        ),
+        "payload_hash": huella,
+        "estado": str(getattr(evento, "estado", "") or ""),
+        "contrato_json": serializado,
+    }
+
+
+def diagnosticar_eventos_persistidos(
+    eventos,
+    *,
+    configuracion,
+    vinculos,
+    items_inventario,
+    existencias,
+    reservas=(),
+):
+    """Prevalida la bandeja completa; nunca persiste estados ni mueve stock."""
+    diagnosticos = {}
+    resumen = {
+        "total": 0,
+        "listos": 0,
+        "bloqueados": 0,
+        "revision_manual": 0,
+        "invalidos": 0,
+    }
+    for evento in eventos:
+        evento_id = int(getattr(evento, "id", 0) or 0)
+        resumen["total"] += 1
+        try:
+            sobre = cargar_sobre_persistido(evento)
+            diagnostico = validar_sobre_evento(
+                sobre,
+                configuracion=configuracion,
+                vinculos=vinculos,
+                items_inventario=items_inventario,
+                existencias=existencias,
+                reservas=reservas,
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            diagnostico = {
+                "estado": "invalido",
+                "bloqueos": [str(error)],
+                "lineas": [],
+                "puede_ejecutar": False,
+                "modo": "prevalidacion",
+            }
+        estado = diagnostico["estado"]
+        if estado == "listo_sin_ejecutar":
+            resumen["listos"] += 1
+        elif estado == "revision_manual":
+            resumen["revision_manual"] += 1
+        elif estado == "invalido":
+            resumen["invalidos"] += 1
+        else:
+            resumen["bloqueados"] += 1
+        diagnosticos[evento_id] = diagnostico
+    return diagnosticos, resumen
