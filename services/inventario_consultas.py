@@ -37,6 +37,7 @@ def obtener_datos_panel_inventario(
     ReservaInventario = modelos["ReservaInventario"]
     TransferenciaInventario = modelos["TransferenciaInventario"]
     ConteoInventario = modelos["ConteoInventario"]
+    ConfiguracionInventarioPedidos = modelos["ConfiguracionInventarioPedidos"]
     PoliticaDisponibilidadCatalogo = modelos[
         "PoliticaDisponibilidadCatalogo"
     ]
@@ -49,6 +50,9 @@ def obtener_datos_panel_inventario(
         )
         .first()
     )
+    automatizacion_pedidos = ConfiguracionInventarioPedidos.query.filter_by(
+        organizacion_id=organizacion_id,
+    ).first()
 
     sucursales = (
         SucursalOperativa.query
@@ -205,4 +209,5 @@ def obtener_datos_panel_inventario(
         "conteos": conteos,
         "combinaciones_faltantes": combinaciones_faltantes,
         "sucursales_con_control": sucursales_con_control,
+        "automatizacion_pedidos": automatizacion_pedidos,
     }

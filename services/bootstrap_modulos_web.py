@@ -194,6 +194,8 @@ def registrar_modulos_web(
                         "TransferenciaInventario",
                         "ConteoInventario",
                         "ConteoInventarioItem",
+                        "ConfiguracionInventarioPedidos",
+                        "EventoInventarioPedido",
                         "PoliticaDisponibilidadCatalogo",
                     )
                 },

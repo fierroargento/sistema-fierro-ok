@@ -8,6 +8,7 @@ from services.inventario_saas import (
     preparar_items_catalogo,
     recibir_transferencia,
 )
+from services.inventario_pedidos import guardar_configuracion_automatizacion
 
 
 ACCIONES = {
@@ -17,6 +18,7 @@ ACCIONES = {
     "crear_reserva", "cerrar_reserva", "crear_transferencia",
     "despachar_transferencia", "recibir_transferencia", "crear_conteo",
     "guardar_conteo", "conciliar_conteo",
+    "configurar_automatizacion_pedidos",
 }
 
 
@@ -70,6 +72,17 @@ def procesar_operacion_inventario(
     Conteo = modelos["ConteoInventario"]
     ConteoItem = modelos["ConteoInventarioItem"]
     Modulo = modelos["ModuloOrganizacion"]
+
+    if accion == "configurar_automatizacion_pedidos":
+        _configuracion, errores = guardar_configuracion_automatizacion(
+            organizacion,
+            formulario,
+            modelos=modelos,
+            db_session=db_session,
+        )
+        if errores:
+            return "Automatización guardada sin activar. Pendiente: " + " ".join(errores)
+        return "Automatización de pedidos configurada y validada."
 
     if accion == "actualizar_modulo_inventario":
         modulo = Modulo.query.filter_by(

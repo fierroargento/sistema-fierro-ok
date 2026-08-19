@@ -307,6 +307,10 @@ from models.inventario_saas import (
     ReservaInventario,
     TransferenciaInventario,
 )
+from models.inventario_pedidos import (
+    ConfiguracionInventarioPedidos,
+    EventoInventarioPedido,
+)
 from models.politica_disponibilidad_catalogo import PoliticaDisponibilidadCatalogo
 from models.configuracion_fiscal import ConfiguracionFiscal
 from models.punto_venta_fiscal import PuntoVentaFiscal
@@ -11796,6 +11800,8 @@ registrar_modulos_web(
             "TransferenciaInventario": TransferenciaInventario,
             "ConteoInventario": ConteoInventario,
             "ConteoInventarioItem": ConteoInventarioItem,
+            "ConfiguracionInventarioPedidos": ConfiguracionInventarioPedidos,
+            "EventoInventarioPedido": EventoInventarioPedido,
             "PoliticaDisponibilidadCatalogo": (
                 PoliticaDisponibilidadCatalogo
             ),

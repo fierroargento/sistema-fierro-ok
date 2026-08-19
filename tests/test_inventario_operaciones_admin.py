@@ -57,6 +57,16 @@ def test_inventario_hereda_ancho_tarjetas_y_botones_del_panel():
     assert ".inventory-admin .table-shell" in estilos
 
 
+def test_automatizacion_de_pedidos_queda_preparada_pero_bloqueada():
+    plantilla = Path("templates/admin_inventario.html").read_text(encoding="utf-8")
+    servicio = Path("services/inventario_pedidos.py").read_text(encoding="utf-8")
+    assert "Automatización de pedidos" in plantilla
+    assert "Preparada, sin conexión productiva" in plantilla
+    assert "Escribí AUTOMATIZAR" in plantilla
+    assert "inventario físico inicial" in servicio
+    assert "automatizacion_puede_mutar" in servicio
+
+
 def test_ciclo_de_vida_del_inventario_es_explicito_y_seguro():
     plantilla = leer("templates/admin_inventario.html")
     servicio = leer("services/inventario_operaciones_admin.py")
