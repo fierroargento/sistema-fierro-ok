@@ -1,6 +1,7 @@
 """Núcleo preparado del ciclo pedido-inventario; no se conecta aún a canales."""
 
 from collections import defaultdict
+import json
 
 from services.fechas import ahora_utc_naive
 
@@ -119,3 +120,179 @@ def guardar_configuracion_automatizacion(
 def automatizacion_puede_mutar(configuracion):
     """Única puerta para reservas/consumos futuros."""
     return str(getattr(configuracion, "estado", "")) == "activo"
+
+
+def resolver_vinculo_pedido(pedido, vinculos):
+    """Resuelve el tenant sin inferencias ambiguas entre cuentas comerciales."""
+    canal = str(getattr(pedido, "canal", "") or "").strip().lower()
+    if "mercado" in canal or getattr(pedido, "ml_cuenta_id", None):
+        cuenta_id = int(getattr(pedido, "ml_cuenta_id", 0) or 0)
+        if not cuenta_id:
+            return None, "El pedido ML no conserva una cuenta de origen."
+        candidatos = [
+            vinculo for vinculo in vinculos
+            if int(getattr(vinculo, "mercado_libre_cuenta_id", 0) or 0) == cuenta_id
+        ]
+    elif "tienda" in canal or getattr(pedido, "tn_order_id", None):
+        return None, "El pedido de Tienda Nube todavía no conserva la cuenta de origen; no se puede aislar el tenant."
+    else:
+        return None, "El pedido no tiene un canal empresarial resoluble."
+    if len(candidatos) != 1:
+        return None, "No existe un vínculo empresarial único para la cuenta del pedido."
+    vinculo = candidatos[0]
+    if str(getattr(vinculo, "estado", "")) != "activo":
+        return None, "El vínculo empresarial del canal está desactivado."
+    return vinculo, None
+
+
+def construir_vista_previa_evento(
+    pedido,
+    tipo_evento,
+    *,
+    configuracion,
+    vinculos,
+    items_inventario,
+    existencias,
+):
+    """Calcula efectos y bloqueos sin escribir cantidades ni reservas."""
+    if tipo_evento not in {EVENTO_RESERVAR, EVENTO_LIBERAR, EVENTO_CONSUMIR}:
+        raise ValueError("El evento de inventario no es válido.")
+    bloqueos = []
+    vinculo, error_vinculo = resolver_vinculo_pedido(pedido, vinculos)
+    if error_vinculo:
+        return {
+            "pedido_id": 0,
+            "organizacion_id": 0,
+            "sucursal_operativa_id": 0,
+            "canal": "no_resuelto",
+            "tipo_evento": tipo_evento,
+            "lineas": [],
+            "bloqueos": [error_vinculo],
+            "resultado": "bloqueado",
+            "modo": "simulacion",
+        }
+    organizacion_id = int(getattr(vinculo, "organizacion_id", 0) or 0)
+    sucursal_id = int(
+        getattr(configuracion, "sucursal_operativa_id", 0)
+        or getattr(vinculo, "sucursal_operativa_id", 0)
+        or 0
+    )
+    if not sucursal_id:
+        bloqueos.append("No hay una ubicación predeterminada para el pedido.")
+    if str(getattr(configuracion, "estado", "desactivado")) != "activo":
+        bloqueos.append("La automatización productiva está desactivada.")
+    cantidades = agrupar_items_pedido(getattr(pedido, "items", ()))
+    if not cantidades:
+        bloqueos.append("El pedido no contiene SKU inventariables con cantidad válida.")
+    items_por_sku = {
+        str(getattr(item, "sku", "") or "").strip().upper(): item
+        for item in items_inventario
+        if int(getattr(item, "organizacion_id", 0) or 0) == organizacion_id
+    }
+    existencias_por_item = {
+        int(getattr(existencia, "item_inventario_id", 0) or 0): existencia
+        for existencia in existencias
+        if int(getattr(existencia, "organizacion_id", 0) or 0) == organizacion_id
+        and int(getattr(existencia, "sucursal_operativa_id", 0) or 0) == sucursal_id
+    }
+    lineas = []
+    for sku, cantidad in cantidades.items():
+        errores = []
+        item = items_por_sku.get(sku)
+        if item is None:
+            errores.append("SKU no preparado")
+            existencia = None
+        else:
+            if not bool(getattr(item, "activo", False)):
+                errores.append("SKU desactivado")
+            existencia = existencias_por_item.get(int(getattr(item, "id", 0) or 0))
+            if existencia is None:
+                errores.append("Sin existencia en la ubicación")
+            elif not bool(getattr(existencia, "control_activo", False)):
+                errores.append("Control de existencia desactivado")
+        disponible = None
+        reservado = None
+        if existencia is not None:
+            reservado = int(getattr(existencia, "stock_reservado", 0) or 0)
+            disponible = (
+                int(getattr(existencia, "stock_actual", 0) or 0)
+                - reservado
+                - int(getattr(existencia, "stock_bloqueado", 0) or 0)
+            )
+            if tipo_evento == EVENTO_RESERVAR and disponible < cantidad:
+                errores.append("Stock disponible insuficiente")
+            if tipo_evento in {EVENTO_LIBERAR, EVENTO_CONSUMIR} and reservado < cantidad:
+                errores.append("Reserva insuficiente")
+        lineas.append({
+            "sku": sku,
+            "cantidad": cantidad,
+            "disponible": disponible,
+            "reservado": reservado,
+            "resultado": "bloqueado" if errores else "listo",
+            "errores": errores,
+        })
+        bloqueos.extend(f"{sku}: {error}." for error in errores)
+    return {
+        "pedido_id": int(getattr(pedido, "id", 0) or 0),
+        "organizacion_id": organizacion_id,
+        "sucursal_operativa_id": sucursal_id,
+        "canal": str(getattr(pedido, "canal", "") or ""),
+        "tipo_evento": tipo_evento,
+        "lineas": lineas,
+        "bloqueos": list(dict.fromkeys(bloqueos)),
+        "resultado": "bloqueado" if bloqueos else "listo",
+        "modo": "simulacion",
+    }
+
+
+def simular_evento_pedido(
+    organizacion,
+    pedido_id,
+    tipo_evento,
+    *,
+    modelos,
+    db_session,
+    usuario,
+):
+    """Registra una simulación idempotente; jamás invoca mutaciones de stock."""
+    Pedido = modelos["Pedido"]
+    Vinculo = modelos["VinculoCanalComercial"]
+    Item = modelos["ItemInventario"]
+    Existencia = modelos["ExistenciaSucursal"]
+    Configuracion = modelos["ConfiguracionInventarioPedidos"]
+    Evento = modelos["EventoInventarioPedido"]
+    pedido = Pedido.query.get(int(pedido_id))
+    if pedido is None:
+        raise ValueError("No se encontró el pedido solicitado.")
+    organizacion_id = int(organizacion.id)
+    vinculos = Vinculo.query.filter_by(organizacion_id=organizacion_id).all()
+    configuracion = Configuracion.query.filter_by(organizacion_id=organizacion_id).first()
+    vista = construir_vista_previa_evento(
+        pedido,
+        tipo_evento,
+        configuracion=configuracion,
+        vinculos=vinculos,
+        items_inventario=Item.query.filter_by(organizacion_id=organizacion_id).all(),
+        existencias=Existencia.query.filter_by(organizacion_id=organizacion_id).all(),
+    )
+    if vista["organizacion_id"] != organizacion_id:
+        raise ValueError("No se pudo validar el pedido dentro de la organización activa.")
+    clave = "sim:" + clave_evento_pedido(organizacion_id, pedido.id, tipo_evento)
+    evento = Evento.query.filter_by(
+        organizacion_id=organizacion_id,
+        clave_idempotencia=clave,
+    ).first()
+    if evento is None:
+        evento = Evento(
+            organizacion_id=organizacion_id,
+            pedido_id=pedido.id,
+            tipo_evento=tipo_evento,
+            clave_idempotencia=clave,
+        )
+        db_session.add(evento)
+    vista["usuario"] = str(usuario or "admin")
+    evento.estado = "simulado_" + vista["resultado"]
+    evento.detalle = json.dumps(vista, ensure_ascii=False, sort_keys=True)
+    evento.fecha_procesamiento = ahora_utc_naive()
+    db_session.commit()
+    return vista, evento

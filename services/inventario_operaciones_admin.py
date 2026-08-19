@@ -8,7 +8,10 @@ from services.inventario_saas import (
     preparar_items_catalogo,
     recibir_transferencia,
 )
-from services.inventario_pedidos import guardar_configuracion_automatizacion
+from services.inventario_pedidos import (
+    guardar_configuracion_automatizacion,
+    simular_evento_pedido,
+)
 
 
 ACCIONES = {
@@ -19,6 +22,7 @@ ACCIONES = {
     "despachar_transferencia", "recibir_transferencia", "crear_conteo",
     "guardar_conteo", "conciliar_conteo",
     "configurar_automatizacion_pedidos",
+    "simular_evento_pedido",
 }
 
 
@@ -83,6 +87,19 @@ def procesar_operacion_inventario(
         if errores:
             return "Automatización guardada sin activar. Pendiente: " + " ".join(errores)
         return "Automatización de pedidos configurada y validada."
+
+    if accion == "simular_evento_pedido":
+        vista, _evento = simular_evento_pedido(
+            organizacion,
+            _entero(formulario, "pedido_id"),
+            _texto(formulario, "tipo_evento", 30),
+            modelos=modelos,
+            db_session=db_session,
+            usuario=usuario,
+        )
+        if vista["resultado"] == "bloqueado":
+            return "Simulación registrada con bloqueos: " + " ".join(vista["bloqueos"])
+        return "Simulación lista; no se modificó ninguna existencia."
 
     if accion == "actualizar_modulo_inventario":
         modulo = Modulo.query.filter_by(

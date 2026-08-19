@@ -38,6 +38,7 @@ def obtener_datos_panel_inventario(
     TransferenciaInventario = modelos["TransferenciaInventario"]
     ConteoInventario = modelos["ConteoInventario"]
     ConfiguracionInventarioPedidos = modelos["ConfiguracionInventarioPedidos"]
+    Evento = modelos["EventoInventarioPedido"]
     PoliticaDisponibilidadCatalogo = modelos[
         "PoliticaDisponibilidadCatalogo"
     ]
@@ -53,6 +54,9 @@ def obtener_datos_panel_inventario(
     automatizacion_pedidos = ConfiguracionInventarioPedidos.query.filter_by(
         organizacion_id=organizacion_id,
     ).first()
+    eventos_pedidos = Evento.query.filter_by(
+        organizacion_id=organizacion_id,
+    ).order_by(Evento.id.desc()).limit(100).all()
 
     sucursales = (
         SucursalOperativa.query
@@ -210,4 +214,5 @@ def obtener_datos_panel_inventario(
         "combinaciones_faltantes": combinaciones_faltantes,
         "sucursales_con_control": sucursales_con_control,
         "automatizacion_pedidos": automatizacion_pedidos,
+        "eventos_inventario_pedidos": eventos_pedidos,
     }

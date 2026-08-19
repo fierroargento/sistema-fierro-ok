@@ -65,6 +65,10 @@ def test_automatizacion_de_pedidos_queda_preparada_pero_bloqueada():
     assert "Escribí AUTOMATIZAR" in plantilla
     assert "inventario físico inicial" in servicio
     assert "automatizacion_puede_mutar" in servicio
+    assert "Simulador de pedidos" in plantilla
+    assert "Simular sin modificar" in plantilla
+    assert "Historial de simulaciones" in plantilla
+    assert '"sim:" + clave_evento_pedido' in servicio
 
 
 def test_ciclo_de_vida_del_inventario_es_explicito_y_seguro():

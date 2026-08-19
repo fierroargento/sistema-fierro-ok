@@ -11739,6 +11739,7 @@ registrar_modulos_web(
         "Auditoria": Auditoria,
         "modelos": {
             "Pedido": Pedido,
+            "PedidoItem": PedidoItem,
             "Organizacion": Organizacion,
             "UnidadNegocio": UnidadNegocio,
             "SucursalOperativa": SucursalOperativa,
