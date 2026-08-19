@@ -8,6 +8,9 @@ datos con canales comerciales.
 from services.inventario_eventos_canal import (
     diagnosticar_eventos_persistidos,
 )
+from services.inventario_disponibilidad_comercial import (
+    construir_vista_previa_disponibilidad,
+)
 
 
 def obtener_datos_panel_inventario(
@@ -186,6 +189,12 @@ def obtener_datos_panel_inventario(
             reservas=reservas,
         )
     )
+    vista_previa_disponibilidad = construir_vista_previa_disponibilidad(
+        politicas,
+        items_inventario=items_inventario,
+        existencias=existencias,
+        vinculos=vinculos_canal,
+    )
 
     pares_existentes = {
         (
@@ -240,4 +249,5 @@ def obtener_datos_panel_inventario(
         "eventos_canal_inventario": eventos_canal,
         "diagnosticos_eventos_canal": diagnosticos_canal,
         "resumen_diagnosticos_canal": resumen_diagnosticos_canal,
+        "vista_previa_disponibilidad": vista_previa_disponibilidad,
     }
