@@ -61,3 +61,39 @@ class EventoInventarioPedido(db.Model):
     detalle = db.Column(db.Text)
     fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
     fecha_procesamiento = db.Column(db.DateTime)
+
+
+class EventoCanalInventario(db.Model):
+    """Bandeja idempotente de contratos externos todavía desconectados."""
+
+    __tablename__ = "evento_canal_inventario"
+    __table_args__ = (
+        UniqueConstraint(
+            "organizacion_id", "clave_idempotencia",
+            name="uq_evento_canal_inventario_organizacion_clave",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True,
+    )
+    pedido_id = db.Column(db.Integer, db.ForeignKey("pedido.id"), index=True)
+    canal = db.Column(db.String(40), nullable=False, index=True)
+    cuenta_tipo = db.Column(db.String(30), nullable=False)
+    cuenta_id = db.Column(db.Integer, nullable=False, index=True)
+    referencia_externa = db.Column(db.String(120), nullable=False, index=True)
+    evento_externo_id = db.Column(db.String(160), nullable=False)
+    tipo_evento = db.Column(db.String(30), nullable=False, index=True)
+    clave_idempotencia = db.Column(db.String(200), nullable=False)
+    estado = db.Column(
+        db.String(30), default="preparado_sin_conexion", nullable=False, index=True,
+    )
+    parcial = db.Column(db.Boolean, default=False, nullable=False)
+    requiere_revision = db.Column(db.Boolean, default=False, nullable=False)
+    contrato_json = db.Column(db.Text, nullable=False)
+    payload_hash = db.Column(db.String(64), nullable=False)
+    fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+    fecha_actualizacion = db.Column(
+        db.DateTime, default=ahora_utc_naive, onupdate=ahora_utc_naive,
+    )

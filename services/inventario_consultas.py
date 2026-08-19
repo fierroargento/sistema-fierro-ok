@@ -39,6 +39,7 @@ def obtener_datos_panel_inventario(
     ConteoInventario = modelos["ConteoInventario"]
     ConfiguracionInventarioPedidos = modelos["ConfiguracionInventarioPedidos"]
     Evento = modelos["EventoInventarioPedido"]
+    EventoCanal = modelos["EventoCanalInventario"]
     PoliticaDisponibilidadCatalogo = modelos[
         "PoliticaDisponibilidadCatalogo"
     ]
@@ -57,6 +58,9 @@ def obtener_datos_panel_inventario(
     eventos_pedidos = Evento.query.filter_by(
         organizacion_id=organizacion_id,
     ).order_by(Evento.id.desc()).limit(100).all()
+    eventos_canal = EventoCanal.query.filter_by(
+        organizacion_id=organizacion_id,
+    ).order_by(EventoCanal.id.desc()).limit(100).all()
 
     sucursales = (
         SucursalOperativa.query
@@ -215,4 +219,5 @@ def obtener_datos_panel_inventario(
         "sucursales_con_control": sucursales_con_control,
         "automatizacion_pedidos": automatizacion_pedidos,
         "eventos_inventario_pedidos": eventos_pedidos,
+        "eventos_canal_inventario": eventos_canal,
     }

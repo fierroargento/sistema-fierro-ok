@@ -309,6 +309,7 @@ from models.inventario_saas import (
 )
 from models.inventario_pedidos import (
     ConfiguracionInventarioPedidos,
+    EventoCanalInventario,
     EventoInventarioPedido,
 )
 from models.politica_disponibilidad_catalogo import PoliticaDisponibilidadCatalogo
@@ -11813,6 +11814,7 @@ registrar_modulos_web(
             "ConteoInventario": ConteoInventario,
             "ConteoInventarioItem": ConteoInventarioItem,
             "ConfiguracionInventarioPedidos": ConfiguracionInventarioPedidos,
+            "EventoCanalInventario": EventoCanalInventario,
             "EventoInventarioPedido": EventoInventarioPedido,
             "PoliticaDisponibilidadCatalogo": (
                 PoliticaDisponibilidadCatalogo
