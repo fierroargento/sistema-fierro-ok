@@ -134,7 +134,13 @@ def resolver_vinculo_pedido(pedido, vinculos):
             if int(getattr(vinculo, "mercado_libre_cuenta_id", 0) or 0) == cuenta_id
         ]
     elif "tienda" in canal or getattr(pedido, "tn_order_id", None):
-        return None, "El pedido de Tienda Nube todavía no conserva la cuenta de origen; no se puede aislar el tenant."
+        cuenta_id = int(getattr(pedido, "tn_cuenta_id", 0) or 0)
+        if not cuenta_id:
+            return None, "El pedido de Tienda Nube todavía no conserva la cuenta de origen; no se puede aislar el tenant."
+        candidatos = [
+            vinculo for vinculo in vinculos
+            if int(getattr(vinculo, "tienda_nube_cuenta_id", 0) or 0) == cuenta_id
+        ]
     else:
         return None, "El pedido no tiene un canal empresarial resoluble."
     if len(candidatos) != 1:

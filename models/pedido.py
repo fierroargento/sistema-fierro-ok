@@ -21,6 +21,12 @@ class Pedido(db.Model):
     # =====================
     # TIENDA NUBE
     # =====================
+    tn_cuenta_id = db.Column(
+        db.Integer,
+        db.ForeignKey("tienda_nube_cuenta.id"),
+        nullable=True,
+        index=True,
+    )
     tn_order_id = db.Column(db.String(50), index=True)
     tn_order_number = db.Column(db.String(50))
     tn_order_status = db.Column(db.String(50))

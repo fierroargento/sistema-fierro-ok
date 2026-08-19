@@ -12,6 +12,7 @@ def _pedido(**cambios):
         "canal": "Mercado Libre",
         "ml_cuenta_id": 7,
         "tn_order_id": None,
+        "tn_cuenta_id": None,
         "items": [SimpleNamespace(sku="PP6040H", cantidad=2)],
     }
     base.update(cambios)
@@ -23,6 +24,7 @@ def _vinculo(**cambios):
         "organizacion_id": 3,
         "mercado_libre_cuenta_id": 7,
         "sucursal_operativa_id": 5,
+        "tienda_nube_cuenta_id": None,
         "estado": "activo",
     }
     base.update(cambios)
@@ -42,6 +44,18 @@ def test_tienda_nube_se_bloquea_hasta_persistir_cuenta_origen():
     )
     assert vinculo is None
     assert "cuenta de origen" in error
+
+
+def test_resuelve_tienda_nube_por_cuenta_empresarial_exacta():
+    pedido = _pedido(
+        canal="Tienda Nube", ml_cuenta_id=None, tn_order_id="99", tn_cuenta_id=12,
+    )
+    vinculo = _vinculo(
+        mercado_libre_cuenta_id=None, tienda_nube_cuenta_id=12,
+    )
+    resuelto, error = resolver_vinculo_pedido(pedido, [vinculo])
+    assert error is None
+    assert resuelto.organizacion_id == 3
 
 
 def test_pedido_no_resuelto_no_expone_sku_ni_lineas():

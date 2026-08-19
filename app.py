@@ -579,6 +579,12 @@ def backfill_ml_identidad_cuenta_pedidos():
 
 
 def asegurar_columnas_integracion_tn():
+    asegurar_columna_si_no_existe("tn_cuenta_id", "INTEGER")
+    db.session.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_pedido_tn_cuenta_id "
+        "ON pedido (tn_cuenta_id)"
+    ))
+    db.session.commit()
     asegurar_columna_si_no_existe("tn_order_id", "VARCHAR(50)")
     asegurar_columna_si_no_existe("tn_order_number", "VARCHAR(50)")
     asegurar_columna_si_no_existe("tn_order_status", "VARCHAR(50)")
@@ -3035,9 +3041,12 @@ def tn_config_faltante():
 
 
 def cuenta_tn_actual():
-    cuenta = TiendaNubeCuenta.query.order_by(TiendaNubeCuenta.id.asc()).first()
-    if not cuenta and tn_store_id():
-        cuenta = TiendaNubeCuenta(store_id=tn_store_id(), estado_conexion="configurada")
+    store_id = tn_store_id()
+    if not store_id:
+        return None
+    cuenta = TiendaNubeCuenta.query.filter_by(store_id=store_id).first()
+    if not cuenta:
+        cuenta = TiendaNubeCuenta(store_id=store_id, estado_conexion="configurada")
         db.session.add(cuenta)
         db.session.commit()
     return cuenta
@@ -3577,6 +3586,7 @@ def tn_intentar_iniciar_wa_via_cargo_sucursal(pedido):
 
 
 def tn_importar_o_actualizar_pedido(order):
+    cuenta_origen = cuenta_tn_actual()
     tn_id = str(order.get("id") or "").strip()
     if not tn_id:
         return None, "omitido_sin_id"
@@ -3633,6 +3643,7 @@ def tn_importar_o_actualizar_pedido(order):
 
     pedido.origen = "tiendanube"
     pedido.canal = "Tienda Nube"
+    pedido.tn_cuenta_id = getattr(cuenta_origen, "id", None)
     pedido.id_venta = tn_id
     pedido.tn_order_id = tn_id
     pedido.tn_order_number = str(order.get("number") or order.get("order_number") or "")[:50]
