@@ -98,3 +98,17 @@ def test_modelo_y_panel_declaran_bandeja_auditable():
     assert 'uq_evento_canal_inventario_organizacion_clave' in modelo
     assert 'Bandeja multicanal desconectada' in panel
     assert 'No recibe webhooks ni ejecuta stock' in panel
+
+
+def test_bootstrap_entrega_modelo_de_eventos_al_panel():
+    bootstrap = Path("services/bootstrap_modulos_web.py").read_text(
+        encoding="utf-8"
+    )
+    app = Path("app.py").read_text(encoding="utf-8")
+    consultas = Path("services/inventario_consultas.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert '"EventoCanalInventario": EventoCanalInventario' in app
+    assert '"EventoCanalInventario",' in bootstrap
+    assert 'modelos["EventoCanalInventario"]' in consultas

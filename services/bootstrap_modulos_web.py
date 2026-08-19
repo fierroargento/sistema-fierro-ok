@@ -196,6 +196,7 @@ def registrar_modulos_web(
                         "ConteoInventarioItem",
                         "ConfiguracionInventarioPedidos",
                         "EventoInventarioPedido",
+                        "EventoCanalInventario",
                         "Pedido",
                         "PedidoItem",
                         "VinculoCanalComercial",
