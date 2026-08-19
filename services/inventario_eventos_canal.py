@@ -190,3 +190,162 @@ def registrar_sobre_desconectado(sobre, *, EventoCanal, db_session):
     db_session.add(evento)
     db_session.commit()
     return evento, True
+
+
+def _normalizar_canal(valor):
+    return str(valor or "").strip().lower().replace(" ", "_")
+
+
+def resolver_vinculo_sobre(sobre, vinculos):
+    """Resuelve un único vínculo activo dentro del tenant del sobre."""
+    organizacion_id = int(sobre["organizacion_id"])
+    cuenta_tipo = str(sobre["cuenta_tipo"])
+    cuenta_id = int(sobre["cuenta_id"])
+    atributo = {
+        "mercado_libre": "mercado_libre_cuenta_id",
+        "tienda_nube": "tienda_nube_cuenta_id",
+    }.get(cuenta_tipo)
+    if atributo is None:
+        return None, "El tipo de cuenta del evento no es compatible."
+    candidatos = [
+        vinculo for vinculo in vinculos
+        if int(getattr(vinculo, "organizacion_id", 0) or 0) == organizacion_id
+        and int(getattr(vinculo, atributo, 0) or 0) == cuenta_id
+    ]
+    if len(candidatos) != 1:
+        return None, "La cuenta no posee un vínculo empresarial único en el tenant."
+    vinculo = candidatos[0]
+    if str(getattr(vinculo, "estado", "")) != "activo":
+        return None, "El vínculo empresarial de la cuenta está desactivado."
+    return vinculo, None
+
+
+def validar_sobre_evento(
+    sobre,
+    *,
+    configuracion,
+    vinculos,
+    items_inventario,
+    existencias,
+    reservas=(),
+):
+    """Calcula bloqueos y deltas previstos; jamás modifica modelos ni sesión."""
+    contrato = sobre["contrato"]
+    organizacion_id = int(sobre["organizacion_id"])
+    bloqueos = []
+    vinculo, error_vinculo = resolver_vinculo_sobre(sobre, vinculos)
+    if error_vinculo:
+        bloqueos.append(error_vinculo)
+    sucursal_id = int(
+        getattr(configuracion, "sucursal_operativa_id", 0)
+        or getattr(vinculo, "sucursal_operativa_id", 0)
+        or 0
+    )
+    if not sucursal_id:
+        bloqueos.append("El evento no tiene una ubicación operativa resoluble.")
+    if str(getattr(configuracion, "estado", "desactivado")) != "activo":
+        bloqueos.append("La automatización productiva está desactivada.")
+
+    items_por_sku = {
+        str(getattr(item, "sku", "") or "").strip().upper(): item
+        for item in items_inventario
+        if int(getattr(item, "organizacion_id", 0) or 0) == organizacion_id
+    }
+    existencias_por_item = {
+        int(getattr(existencia, "item_inventario_id", 0) or 0): existencia
+        for existencia in existencias
+        if int(getattr(existencia, "organizacion_id", 0) or 0) == organizacion_id
+        and int(getattr(existencia, "sucursal_operativa_id", 0) or 0)
+        == sucursal_id
+    }
+    canal_evento = _normalizar_canal(contrato["canal"])
+    referencia = str(contrato["referencia"])
+    lineas = []
+    for sku, cantidad in contrato["cantidades"].items():
+        errores = []
+        item = items_por_sku.get(sku)
+        existencia = None
+        if item is None:
+            errores.append("SKU no preparado")
+        else:
+            if not bool(getattr(item, "activo", False)):
+                errores.append("SKU desactivado")
+            existencia = existencias_por_item.get(
+                int(getattr(item, "id", 0) or 0)
+            )
+            if existencia is None:
+                errores.append("Sin existencia en la ubicación")
+            elif not bool(getattr(existencia, "control_activo", False)):
+                errores.append("Control de existencia desactivado")
+
+        actual = reservado_total = bloqueado = disponible = None
+        reserva_evento = 0
+        delta_actual = delta_reservado = 0
+        if existencia is not None:
+            actual = int(getattr(existencia, "stock_actual", 0) or 0)
+            reservado_total = int(
+                getattr(existencia, "stock_reservado", 0) or 0
+            )
+            bloqueado = int(getattr(existencia, "stock_bloqueado", 0) or 0)
+            disponible = actual - reservado_total - bloqueado
+            reserva_evento = sum(
+                int(getattr(reserva, "cantidad", 0) or 0)
+                for reserva in reservas
+                if int(getattr(reserva, "organizacion_id", 0) or 0)
+                == organizacion_id
+                and int(getattr(reserva, "existencia_sucursal_id", 0) or 0)
+                == int(getattr(existencia, "id", 0) or 0)
+                and str(getattr(reserva, "estado", "")) == "activa"
+                and _normalizar_canal(getattr(reserva, "canal", ""))
+                == canal_evento
+                and str(getattr(reserva, "referencia_externa", "") or "")
+                == referencia
+            )
+            if contrato["tipo_evento"] == "reservar":
+                if disponible < cantidad:
+                    errores.append("Stock disponible insuficiente")
+                delta_reservado = cantidad
+            elif contrato["tipo_evento"] in {"liberar", "consumir"}:
+                if reserva_evento < cantidad:
+                    errores.append("Reserva identificada insuficiente")
+                delta_reservado = -cantidad
+                if contrato["tipo_evento"] == "consumir":
+                    delta_actual = -cantidad
+
+        if contrato["requiere_revision"]:
+            delta_actual = delta_reservado = 0
+        lineas.append({
+            "sku": sku,
+            "cantidad": cantidad,
+            "actual": actual,
+            "reservado_total": reservado_total,
+            "reserva_evento": reserva_evento,
+            "bloqueado": bloqueado,
+            "disponible": disponible,
+            "delta_actual": delta_actual,
+            "delta_reservado": delta_reservado,
+            "resultado": "bloqueado" if errores else "listo",
+            "errores": errores,
+        })
+        bloqueos.extend(f"{sku}: {error}." for error in errores)
+
+    if bloqueos:
+        estado = "bloqueado"
+    elif contrato["requiere_revision"]:
+        estado = "revision_manual"
+    else:
+        estado = "listo_sin_ejecutar"
+    return {
+        "organizacion_id": organizacion_id,
+        "pedido_id": int(sobre["pedido_id"]),
+        "cuenta_tipo": sobre["cuenta_tipo"],
+        "cuenta_id": int(sobre["cuenta_id"]),
+        "sucursal_operativa_id": sucursal_id,
+        "tipo_evento": contrato["tipo_evento"],
+        "parcial": bool(contrato["parcial"]),
+        "estado": estado,
+        "lineas": lineas,
+        "bloqueos": list(dict.fromkeys(bloqueos)),
+        "puede_ejecutar": False,
+        "modo": "prevalidacion",
+    }
