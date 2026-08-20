@@ -282,6 +282,7 @@
 .product-combobox-options button:last-child { border-bottom: 0; }
 .product-combobox-options button:hover,
 .product-combobox-options button.active { background: #e8f5fa; color: #125e7a; }
+.inventory-policy-form .product-master-field { padding-bottom: 18px; }
 .comercial-form input, .comercial-form select {
   width: 100%;
   min-width: 0;

@@ -15,6 +15,24 @@ def test_panel_permite_administrar_politicas_desconectadas():
     assert "Escribí PREVISUALIZAR" in panel
     assert 'name="vinculo_canal_comercial_id"' in panel
     assert "Cuenta empresarial exacta" in panel
+    assert 'id="buscar-producto-politica"' in panel
+    assert 'role="combobox"' in panel
+    assert 'id="producto-politica"' in panel
+
+
+def test_producto_politica_se_busca_y_conserva_id_validado():
+    javascript = _leer("static/admin_comercial.js")
+    estilos = _leer("static/admin_comercial.css")
+    panel = _leer("templates/admin_inventario.html")
+
+    assert "iniciarBuscadorProductoPolitica()" in javascript
+    assert 'getElementById("buscar-producto-politica")' in javascript
+    assert 'getElementById("producto-politica")' in javascript
+    assert "productos.filter" in javascript
+    assert "selector.value = producto.value" in javascript
+    assert 'setCustomValidity("Elegí un producto de la lista.")' in javascript
+    assert ".inventory-policy-form .product-master-field" in estilos
+    assert "20260820-1" in panel
 
 
 def test_servicio_mantiene_sobreventa_y_publicacion_bloqueadas():
