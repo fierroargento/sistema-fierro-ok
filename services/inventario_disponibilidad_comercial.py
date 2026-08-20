@@ -80,8 +80,16 @@ def construir_vista_previa_disponibilidad(
             _entero(getattr(politica, "sucursal_operativa_id", 0)),
             _entero(getattr(item, "id", 0)),
         ))
+        vinculo_exacto_id = getattr(
+            politica,
+            "vinculo_canal_comercial_id",
+            None,
+        )
         candidatos = [
             vinculo for vinculo in vinculos
+            if vinculo_exacto_id is not None
+            and _entero(getattr(vinculo, "id", 0))
+            == _entero(vinculo_exacto_id)
             if _entero(getattr(vinculo, "organizacion_id", 0))
             == _entero(getattr(politica, "organizacion_id", 0))
             and _entero(getattr(vinculo, "catalogo_id", 0))

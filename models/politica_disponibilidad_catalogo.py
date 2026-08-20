@@ -38,6 +38,12 @@ class PoliticaDisponibilidadCatalogo(db.Model):
         nullable=False,
         index=True,
     )
+    vinculo_canal_comercial_id = db.Column(
+        db.Integer,
+        db.ForeignKey("vinculo_canal_comercial.id"),
+        nullable=True,
+        index=True,
+    )
     activa = db.Column(
         db.Boolean,
         default=False,
@@ -83,5 +89,9 @@ class PoliticaDisponibilidadCatalogo(db.Model):
     )
     sucursal = db.relationship(
         "SucursalOperativa",
+        backref="politicas_disponibilidad",
+    )
+    vinculo_canal = db.relationship(
+        "VinculoCanalComercial",
         backref="politicas_disponibilidad",
     )

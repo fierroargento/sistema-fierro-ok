@@ -408,6 +408,7 @@ def asegurar_inventario_saas(*, db, inspect_fn, text_fn, logger_fn=print):
     """Agrega columnas v2 sin mover ni recalcular existencias."""
     inspector = inspect_fn(db.engine)
     cambios = []
+    indice_politica_verificado = False
     tablas = set(inspector.get_table_names())
     if "existencia_sucursal" in tablas:
         columnas = {c["name"] for c in inspector.get_columns("existencia_sucursal")}
@@ -432,8 +433,32 @@ def asegurar_inventario_saas(*, db, inspect_fn, text_fn, logger_fn=print):
                     f"ALTER TABLE movimiento_inventario ADD COLUMN {nombre} {definicion}"
                 ))
                 cambios.append(f"movimiento_inventario.{nombre}")
-    if cambios:
+    if "politica_disponibilidad_catalogo" in tablas:
+        indice_politica_verificado = True
+        columnas = {
+            c["name"]
+            for c in inspector.get_columns(
+                "politica_disponibilidad_catalogo"
+            )
+        }
+        if "vinculo_canal_comercial_id" not in columnas:
+            db.session.execute(text_fn(
+                "ALTER TABLE politica_disponibilidad_catalogo "
+                "ADD COLUMN vinculo_canal_comercial_id INTEGER"
+            ))
+            cambios.append(
+                "politica_disponibilidad_catalogo."
+                "vinculo_canal_comercial_id"
+            )
+        db.session.execute(text_fn(
+            "CREATE INDEX IF NOT EXISTS "
+            "ix_politica_disponibilidad_vinculo_canal "
+            "ON politica_disponibilidad_catalogo "
+            "(vinculo_canal_comercial_id)"
+        ))
+    if cambios or indice_politica_verificado:
         db.session.commit()
+    if cambios:
         if logger_fn is not None:
             logger_fn("[SAAS] Inventario extensible preparado sin modificar stock.")
     return cambios

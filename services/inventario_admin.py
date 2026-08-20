@@ -123,6 +123,9 @@ def procesar_accion_inventario_admin(
     PoliticaDisponibilidadCatalogo = modelos[
         "PoliticaDisponibilidadCatalogo"
     ]
+    VinculoCanalComercial = modelos[
+        "VinculoCanalComercial"
+    ]
     SucursalOperativa = modelos[
         "SucursalOperativa"
     ]
@@ -341,11 +344,39 @@ def procesar_accion_inventario_admin(
             "La sucursal",
         )
 
+        vinculo = _obtener(
+            VinculoCanalComercial,
+            _id(
+                formulario,
+                "vinculo_canal_comercial_id",
+            ),
+            "la cuenta empresarial",
+        )
+        _misma_organizacion(
+            organizacion,
+            vinculo,
+            "La cuenta empresarial",
+        )
+        if int(vinculo.catalogo_id or 0) != int(catalogo.id):
+            raise ValueError(
+                "La cuenta empresarial no pertenece "
+                "al catálogo seleccionado."
+            )
+        if (
+            vinculo.sucursal_operativa_id is not None
+            and int(vinculo.sucursal_operativa_id) != int(sucursal.id)
+        ):
+            raise ValueError(
+                "La cuenta empresarial está vinculada "
+                "a otra ubicación."
+            )
+
         existente = (
             PoliticaDisponibilidadCatalogo.query
             .filter_by(
                 catalogo_producto_id=inclusion.id,
                 sucursal_operativa_id=sucursal.id,
+                vinculo_canal_comercial_id=vinculo.id,
             )
             .first()
         )
@@ -389,6 +420,7 @@ def procesar_accion_inventario_admin(
             organizacion_id=organizacion.id,
             catalogo_producto_id=inclusion.id,
             sucursal_operativa_id=sucursal.id,
+            vinculo_canal_comercial_id=vinculo.id,
             activa=False,
             permite_sin_stock=False,
             umbral_publicacion=umbral,

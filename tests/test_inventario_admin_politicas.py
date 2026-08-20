@@ -13,6 +13,8 @@ def test_panel_permite_administrar_politicas_desconectadas():
     assert 'value="politicas-disponibilidad"' in panel
     assert '"politicas-disponibilidad"' in rutas
     assert "Escribí PREVISUALIZAR" in panel
+    assert 'name="vinculo_canal_comercial_id"' in panel
+    assert "Cuenta empresarial exacta" in panel
 
 
 def test_servicio_mantiene_sobreventa_y_publicacion_bloqueadas():
@@ -22,6 +24,7 @@ def test_servicio_mantiene_sobreventa_y_publicacion_bloqueadas():
     assert "politica.permite_sin_stock = False" in servicio
     assert '!= "PREVISUALIZAR"' in servicio
     assert "La venta sin stock permanece bloqueada" in servicio
+    assert "vinculo_canal_comercial_id=vinculo.id" in servicio
     assert '"puede_publicar": False' in calculo
     assert "requests" not in calculo
 

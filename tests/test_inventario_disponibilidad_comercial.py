@@ -17,6 +17,7 @@ def _politica(**cambios):
         "organizacion_id": 3,
         "catalogo_producto_id": 30,
         "sucursal_operativa_id": 5,
+        "vinculo_canal_comercial_id": 50,
         "catalogo_producto": inclusion,
         "activa": True,
         "permite_sin_stock": False,
@@ -54,6 +55,7 @@ def _existencia(**cambios):
 def _vinculo(**cambios):
     datos = {
         "organizacion_id": 3,
+        "id": 50,
         "catalogo_id": 20,
         "canal": "mercado_libre",
         "nombre": "Fierro ML",
@@ -106,13 +108,23 @@ def test_expande_por_cuenta_y_mantiene_aislamiento():
         existencias=[_existencia()],
         vinculos=[
             _vinculo(),
-            _vinculo(canal="tienda_nube", nombre="Fierro TN"),
+            _vinculo(id=51, canal="tienda_nube", nombre="Fierro TN"),
         ],
     )
-    assert [fila["canal"] for fila in filas] == [
-        "mercado_libre", "tienda_nube"
-    ]
+    assert [fila["canal"] for fila in filas] == ["mercado_libre"]
     assert all(fila["puede_publicar"] is False for fila in filas)
+
+
+def test_politica_sin_cuenta_exacta_queda_bloqueada():
+    filas = construir_vista_previa_disponibilidad(
+        [_politica(vinculo_canal_comercial_id=None)],
+        items_inventario=[_item()],
+        existencias=[_existencia()],
+        vinculos=[_vinculo()],
+    )
+    assert len(filas) == 1
+    assert filas[0]["cantidad_propuesta"] == 0
+    assert "Sin canal empresarial vinculado" in filas[0]["motivos"]
 
 
 def test_interfaz_corrige_campos_y_declara_vista_previa():

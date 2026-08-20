@@ -238,6 +238,7 @@ def obtener_datos_panel_inventario(
         "productos_catalogo": (
             productos_catalogo
         ),
+        "vinculos_canal": vinculos_canal,
         "items_inventario": items_inventario,
         "reservas": reservas,
         "transferencias": transferencias,
