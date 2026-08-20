@@ -149,6 +149,7 @@ def crear_blueprint_inventario(
             "existencias-inventario",
             "conteos-inventario",
             "automatizacion-pedidos",
+            "politicas-disponibilidad",
         }:
             panel_destino = "operaciones-inventario"
         parametros_retorno = {}

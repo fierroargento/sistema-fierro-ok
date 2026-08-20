@@ -403,6 +403,72 @@ def procesar_accion_inventario_admin(
             "y sin venta sin stock."
         )
 
+    if accion == "actualizar_politica_disponibilidad":
+        politica = _obtener(
+            PoliticaDisponibilidadCatalogo,
+            _id(formulario, "politica_id"),
+            "la política",
+        )
+        _misma_organizacion(
+            organizacion,
+            politica,
+            "La política",
+        )
+
+        umbral = _entero(
+            formulario,
+            "umbral_publicacion",
+        )
+        maximo = _entero(
+            formulario,
+            "maximo_publicable",
+            opcional=True,
+        )
+        dias = _entero(
+            formulario,
+            "dias_preparacion",
+        )
+
+        if umbral < 0:
+            raise ValueError(
+                "El umbral no puede ser negativo."
+            )
+        if maximo is not None and maximo < 0:
+            raise ValueError(
+                "El máximo publicable no puede ser negativo."
+            )
+        if dias < 0:
+            raise ValueError(
+                "Los días de preparación no pueden ser negativos."
+            )
+
+        activar = _texto(
+            formulario,
+            "activa",
+            5,
+        ) == "1"
+        if activar and _texto(
+            formulario,
+            "confirmacion",
+            30,
+        ).upper() != "PREVISUALIZAR":
+            raise ValueError(
+                "Para activar la vista previa escribí PREVISUALIZAR."
+            )
+
+        politica.umbral_publicacion = umbral
+        politica.maximo_publicable = maximo
+        politica.dias_preparacion = dias
+        politica.activa = activar
+        # La sobreventa permanece bloqueada durante esta etapa.
+        politica.permite_sin_stock = False
+        _guardar(db_session)
+
+        return (
+            "Política guardada para vista previa. "
+            "La publicación externa continúa bloqueada."
+        )
+
     if accion == "toggle_politica":
         politica = _obtener(
             PoliticaDisponibilidadCatalogo,
@@ -426,24 +492,26 @@ def procesar_accion_inventario_admin(
 
 
         if campo == "activa":
-            politica.activa = not bool(
-                politica.activa
-            )
+            activar = not bool(politica.activa)
+            if activar and _texto(
+                formulario,
+                "confirmacion",
+                30,
+            ).upper() != "PREVISUALIZAR":
+                raise ValueError(
+                    "Para activar la vista previa escribí PREVISUALIZAR."
+                )
+            politica.activa = activar
             mensaje = (
                 "Política activada."
                 if politica.activa
                 else "Política desactivada."
             )
         elif campo == "permite_sin_stock":
-            politica.permite_sin_stock = (
-                not bool(
-                    politica.permite_sin_stock
-                )
-            )
-            mensaje = (
-                "Venta sin stock permitida."
-                if politica.permite_sin_stock
-                else "Venta sin stock bloqueada."
+            politica.permite_sin_stock = False
+            raise ValueError(
+                "La venta sin stock permanece bloqueada "
+                "durante esta etapa."
             )
         else:
             raise ValueError(
