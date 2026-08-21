@@ -12,6 +12,7 @@ from services.inventario_disponibilidad_comercial import (
     construir_vista_previa_disponibilidad,
 )
 from services.inventario_cola_publicacion import diagnosticar_cola
+from services.inventario_mapeos_publicacion import diagnosticar_mapeos
 
 
 def obtener_datos_panel_inventario(
@@ -181,6 +182,12 @@ def obtener_datos_panel_inventario(
         .order_by(MapeoPublicacionCanal.id.asc())
         .all()
     )
+    diagnosticos_mapeos, resumen_mapeos = diagnosticar_mapeos(
+        mapeos_publicaciones,
+        organizacion_id=organizacion_id,
+        productos=productos_catalogo,
+        vinculos=vinculos_canal,
+    )
 
     items_inventario = ItemInventario.query.filter_by(
         organizacion_id=organizacion_id
@@ -251,6 +258,8 @@ def obtener_datos_panel_inventario(
         "movimientos": movimientos,
         "politicas": politicas,
         "mapeos_publicaciones": mapeos_publicaciones,
+        "diagnosticos_mapeos_publicaciones": diagnosticos_mapeos,
+        "resumen_mapeos_publicaciones": resumen_mapeos,
         "productos_catalogo": (
             productos_catalogo
         ),
