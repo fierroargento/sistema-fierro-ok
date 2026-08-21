@@ -311,6 +311,7 @@ from models.inventario_pedidos import (
     ConfiguracionInventarioPedidos,
     EventoCanalInventario,
     EventoInventarioPedido,
+    PropuestaPublicacionInventario,
 )
 from models.politica_disponibilidad_catalogo import PoliticaDisponibilidadCatalogo
 from models.configuracion_fiscal import ConfiguracionFiscal
@@ -11815,6 +11816,7 @@ registrar_modulos_web(
             "ConteoInventarioItem": ConteoInventarioItem,
             "ConfiguracionInventarioPedidos": ConfiguracionInventarioPedidos,
             "EventoCanalInventario": EventoCanalInventario,
+            "PropuestaPublicacionInventario": PropuestaPublicacionInventario,
             "EventoInventarioPedido": EventoInventarioPedido,
             "PoliticaDisponibilidadCatalogo": (
                 PoliticaDisponibilidadCatalogo

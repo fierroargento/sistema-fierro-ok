@@ -47,6 +47,7 @@ def obtener_datos_panel_inventario(
     ConfiguracionInventarioPedidos = modelos["ConfiguracionInventarioPedidos"]
     Evento = modelos["EventoInventarioPedido"]
     EventoCanal = modelos["EventoCanalInventario"]
+    PropuestaPublicacion = modelos["PropuestaPublicacionInventario"]
     VinculoCanalComercial = modelos["VinculoCanalComercial"]
     PoliticaDisponibilidadCatalogo = modelos[
         "PoliticaDisponibilidadCatalogo"
@@ -69,6 +70,9 @@ def obtener_datos_panel_inventario(
     eventos_canal = EventoCanal.query.filter_by(
         organizacion_id=organizacion_id,
     ).order_by(EventoCanal.id.desc()).limit(100).all()
+    propuestas_publicacion = PropuestaPublicacion.query.filter_by(
+        organizacion_id=organizacion_id,
+    ).order_by(PropuestaPublicacion.id.desc()).limit(100).all()
     vinculos_canal = VinculoCanalComercial.query.filter_by(
         organizacion_id=organizacion_id,
     ).all()
@@ -251,4 +255,5 @@ def obtener_datos_panel_inventario(
         "diagnosticos_eventos_canal": diagnosticos_canal,
         "resumen_diagnosticos_canal": resumen_diagnosticos_canal,
         "vista_previa_disponibilidad": vista_previa_disponibilidad,
+        "propuestas_publicacion_inventario": propuestas_publicacion,
     }

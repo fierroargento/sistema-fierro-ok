@@ -97,3 +97,55 @@ class EventoCanalInventario(db.Model):
     fecha_actualizacion = db.Column(
         db.DateTime, default=ahora_utc_naive, onupdate=ahora_utc_naive,
     )
+
+
+class PropuestaPublicacionInventario(db.Model):
+    """Salida auditable de stock comercial, sin adaptador de ejecución."""
+
+    __tablename__ = "propuesta_publicacion_inventario"
+    __table_args__ = (
+        UniqueConstraint(
+            "organizacion_id", "clave_idempotencia",
+            name="uq_propuesta_publicacion_inventario_organizacion_clave",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True,
+    )
+    politica_id = db.Column(
+        db.Integer, db.ForeignKey("politica_disponibilidad_catalogo.id"),
+        nullable=False, index=True,
+    )
+    vinculo_canal_comercial_id = db.Column(
+        db.Integer, db.ForeignKey("vinculo_canal_comercial.id"),
+        nullable=False, index=True,
+    )
+    catalogo_producto_id = db.Column(
+        db.Integer, db.ForeignKey("catalogo_producto.id"), nullable=False,
+        index=True,
+    )
+    sucursal_operativa_id = db.Column(
+        db.Integer, db.ForeignKey("sucursal_operativa.id"), nullable=False,
+        index=True,
+    )
+    cantidad_propuesta = db.Column(db.Integer, nullable=False)
+    clave_idempotencia = db.Column(db.String(200), nullable=False)
+    huella_calculo = db.Column(db.String(64), nullable=False, index=True)
+    estado = db.Column(
+        db.String(40), default="preparada_sin_ejecucion",
+        nullable=False, index=True,
+    )
+    diagnostico = db.Column(db.Text)
+    snapshot_json = db.Column(db.Text, nullable=False)
+    puede_ejecutar = db.Column(db.Boolean, default=False, nullable=False)
+    fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+    fecha_actualizacion = db.Column(
+        db.DateTime, default=ahora_utc_naive, onupdate=ahora_utc_naive,
+    )
+
+    politica = db.relationship("PoliticaDisponibilidadCatalogo")
+    vinculo_canal = db.relationship("VinculoCanalComercial")
+    catalogo_producto = db.relationship("CatalogoProducto")
+    sucursal = db.relationship("SucursalOperativa")
