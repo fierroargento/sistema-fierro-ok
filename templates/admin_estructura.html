@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260821-2') }}">{% endblock %}
 {% block content %}
-<div class="card">
+<div class="card estructura-admin">
     <h1>Estructura empresarial</h1>
     <p>
         Configuración interna de Grupo Fierro. Los registros nuevos
@@ -221,7 +222,7 @@
         </div>
     </div>
 
-    <div class="card" style="margin-top:16px;">
+    <div class="card structure-channel-section" style="margin-top:16px;">
         <h2>Vínculos de canales comerciales</h2>
         <p>
             Estas asignaciones son preparatorias. Aunque un vínculo
@@ -231,7 +232,7 @@
 
         <form method="post"
               action="{{ url_for('admin_estructura.guardar') }}"
-              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+              class="channel-create-form">
             <input type="hidden"
                    name="accion"
                    value="crear_vinculo_canal">
@@ -310,8 +311,8 @@
             </button>
         </form>
 
-        <div style="overflow-x:auto;margin-top:12px;">
-            <table style="width:100%;">
+        <div class="channel-table-shell">
+            <table class="channel-table">
                 <thead>
                     <tr>
                         <th>Nombre</th>
@@ -346,10 +347,11 @@
                         <td>
                             {{ vinculo.entidad_fiscal.razon_social if vinculo.entidad_fiscal else "-" }}
                         </td>
-                        <td><strong>{{ vinculo.estado }}</strong></td>
-                        <td>
+                        <td><span class="channel-status">{{ vinculo.estado }}</span></td>
+                        <td class="channel-actions-cell">
                             <form method="post"
-                                  action="{{ url_for('admin_estructura.guardar') }}">
+                                  action="{{ url_for('admin_estructura.guardar') }}"
+                                  class="channel-assignment-form">
                                 <input type="hidden"
                                        name="accion"
                                        value="asignar_vinculo_canal">
@@ -377,7 +379,8 @@
                                 <button type="submit">Asignar operación</button>
                             </form>
                             <form method="post"
-                                  action="{{ url_for('admin_estructura.guardar') }}">
+                                  action="{{ url_for('admin_estructura.guardar') }}"
+                                  class="channel-state-form">
                                 <input type="hidden"
                                        name="accion"
                                        value="estado_vinculo_canal">

@@ -159,3 +159,24 @@ def test_vinculo_existente_permite_asignar_catalogo_y_sucursal():
     assert "vinculo.sucursal_operativa_id = sucursal.id" in bloque
     assert "Pedido" not in bloque
     assert "requests" not in bloque
+
+
+def test_vinculos_canales_usan_estilo_del_panel():
+    template = Path("templates/admin_estructura.html").read_text(
+        encoding="utf-8"
+    )
+    estilos = Path("static/admin_comercial.css").read_text(
+        encoding="utf-8"
+    )
+
+    assert "20260821-2" in template
+    for clase in (
+        "structure-channel-section",
+        "channel-create-form",
+        "channel-table-shell",
+        "channel-assignment-form",
+        "channel-state-form",
+        "channel-status",
+    ):
+        assert clase in template
+        assert f".{clase}" in estilos
