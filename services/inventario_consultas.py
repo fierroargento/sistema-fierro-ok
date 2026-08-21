@@ -11,6 +11,7 @@ from services.inventario_eventos_canal import (
 from services.inventario_disponibilidad_comercial import (
     construir_vista_previa_disponibilidad,
 )
+from services.inventario_cola_publicacion import diagnosticar_cola
 
 
 def obtener_datos_panel_inventario(
@@ -73,6 +74,9 @@ def obtener_datos_panel_inventario(
     propuestas_publicacion = PropuestaPublicacion.query.filter_by(
         organizacion_id=organizacion_id,
     ).order_by(PropuestaPublicacion.id.desc()).limit(100).all()
+    diagnosticos_propuestas, resumen_propuestas = diagnosticar_cola(
+        propuestas_publicacion
+    )
     vinculos_canal = VinculoCanalComercial.query.filter_by(
         organizacion_id=organizacion_id,
     ).all()
@@ -256,4 +260,6 @@ def obtener_datos_panel_inventario(
         "resumen_diagnosticos_canal": resumen_diagnosticos_canal,
         "vista_previa_disponibilidad": vista_previa_disponibilidad,
         "propuestas_publicacion_inventario": propuestas_publicacion,
+        "diagnosticos_propuestas_publicacion": diagnosticos_propuestas,
+        "resumen_propuestas_publicacion": resumen_propuestas,
     }
