@@ -39,6 +39,22 @@ def test_producto_politica_se_busca_y_conserva_id_validado():
     assert "20260820-2" in panel
 
 
+def test_cuenta_y_ubicacion_dependen_del_producto_elegido():
+    panel = _leer("templates/admin_inventario.html")
+    javascript = _leer("static/admin_comercial.js")
+
+    assert 'data-catalogo-id="{{ p.catalogo_id }}"' in panel
+    assert 'id="cuenta-politica"' in panel
+    assert 'data-catalogo-id="{{ v.catalogo_id or \'\' }}"' in panel
+    assert 'data-sucursal-id="{{ v.sucursal_operativa_id or \'\' }}"' in panel
+    assert 'id="ubicacion-politica"' in panel
+    assert "iniciarDependenciasPolitica()" in javascript
+    assert "opcion.dataset.catalogoId === catalogoId" in javascript
+    assert "opcion.value === sucursalId" in javascript
+    assert 'selector.dispatchEvent(new Event("change"' in javascript
+    assert "20260821-1" in panel
+
+
 def test_servicio_mantiene_sobreventa_y_publicacion_bloqueadas():
     servicio = _leer("services/inventario_admin.py")
     calculo = _leer("services/inventario_disponibilidad_comercial.py")

@@ -38,6 +38,7 @@
 
     function elegir(producto) {
       selector.value = producto.value;
+      selector.dispatchEvent(new Event("change", { bubbles: true }));
       buscador.value = producto.text;
       buscador.setCustomValidity("");
       resultado.textContent = "Producto seleccionado.";
@@ -74,6 +75,7 @@
 
     function filtrar() {
       selector.value = "";
+      selector.dispatchEvent(new Event("change", { bubbles: true }));
       buscador.setCustomValidity("");
       const termino = normalizar(buscador.value);
       if (termino.length < 2) {
@@ -115,6 +117,81 @@
       buscador.setCustomValidity("Elegí un producto de la lista.");
       buscador.reportValidity();
     });
+  }
+
+  function iniciarDependenciasPolitica() {
+    const producto = document.getElementById("producto-politica");
+    const cuenta = document.getElementById("cuenta-politica");
+    const ubicacion = document.getElementById("ubicacion-politica");
+    if (!producto || !cuenta || !ubicacion) return;
+
+    const cuentas = Array.from(cuenta.options).slice(1);
+    const ubicaciones = Array.from(ubicacion.options).slice(1);
+
+    function reiniciarUbicacion() {
+      ubicacion.value = "";
+      ubicacion.disabled = true;
+      ubicacion.options[0].textContent = "Elegí una cuenta primero";
+      ubicaciones.forEach(function (opcion) {
+        opcion.hidden = false;
+        opcion.disabled = false;
+      });
+    }
+
+    function filtrarUbicaciones() {
+      const opcionCuenta = cuenta.selectedOptions[0];
+      if (!cuenta.value || !opcionCuenta) {
+        reiniciarUbicacion();
+        return;
+      }
+      const sucursalId = opcionCuenta.dataset.sucursalId || "";
+      let visibles = 0;
+      let unica = "";
+      ubicaciones.forEach(function (opcion) {
+        const visible = !sucursalId || opcion.value === sucursalId;
+        opcion.hidden = !visible;
+        opcion.disabled = !visible;
+        if (visible) {
+          visibles += 1;
+          unica = opcion.value;
+        }
+      });
+      if (ubicacion.value && ubicacion.selectedOptions[0].disabled) {
+        ubicacion.value = "";
+      }
+      ubicacion.disabled = visibles === 0;
+      ubicacion.options[0].textContent = visibles
+        ? "Seleccionar ubicación"
+        : "Sin ubicación compatible";
+      if (visibles === 1) ubicacion.value = unica;
+    }
+
+    function filtrarCuentas() {
+      const opcionProducto = producto.selectedOptions[0];
+      const catalogoId = producto.value && opcionProducto
+        ? opcionProducto.dataset.catalogoId || ""
+        : "";
+      let visibles = 0;
+      cuentas.forEach(function (opcion) {
+        const visible = Boolean(catalogoId) &&
+          opcion.dataset.catalogoId === catalogoId;
+        opcion.hidden = !visible;
+        opcion.disabled = !visible;
+        if (visible) visibles += 1;
+      });
+      if (cuenta.value && cuenta.selectedOptions[0].disabled) {
+        cuenta.value = "";
+      }
+      cuenta.disabled = !catalogoId || visibles === 0;
+      cuenta.options[0].textContent = !catalogoId
+        ? "Elegí un producto primero"
+        : (visibles ? "Seleccionar cuenta" : "Sin cuenta compatible");
+      reiniciarUbicacion();
+    }
+
+    producto.addEventListener("change", filtrarCuentas);
+    cuenta.addEventListener("change", filtrarUbicaciones);
+    filtrarCuentas();
   }
 
   function iniciarGestionCatalogo() {
@@ -272,6 +349,7 @@
 
     function elegir(producto) {
       selector.value = producto.value;
+      selector.dispatchEvent(new Event("change", { bubbles: true }));
       buscador.value = producto.text;
       buscador.setCustomValidity("");
       resultado.textContent = "Producto seleccionado.";
@@ -308,6 +386,7 @@
 
     function filtrar() {
       selector.value = "";
+      selector.dispatchEvent(new Event("change", { bubbles: true }));
       buscador.setCustomValidity("");
       const termino = normalizar(buscador.value);
       if (termino.length < 2) {
@@ -374,6 +453,7 @@
   function iniciar() {
     iniciarBuscadorProductoMaestro();
     iniciarBuscadorProductoPolitica();
+    iniciarDependenciasPolitica();
     iniciarGestionCatalogo();
     iniciarDialogosInventario();
   }
