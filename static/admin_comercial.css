@@ -282,7 +282,44 @@
 .product-combobox-options button:last-child { border-bottom: 0; }
 .product-combobox-options button:hover,
 .product-combobox-options button.active { background: #e8f5fa; color: #125e7a; }
-.inventory-policy-form .product-master-field { padding-bottom: 18px; }
+.inventory-policy-form .product-master-field > small {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.inventory-policy-form .product-combobox-options {
+  width: 380px;
+  max-width: min(440px, calc(100vw - 48px));
+  overflow-x: hidden;
+  padding: 4px;
+}
+.inventory-admin .inventory-policy-form .product-combobox-options button {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  height: auto;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid #edf0f4;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: none;
+  color: #253143;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.inventory-admin .inventory-policy-form .product-combobox-options button:hover,
+.inventory-admin .inventory-policy-form .product-combobox-options button.active {
+  background: #edf7fa;
+  color: #125e7a;
+}
 .comercial-form input, .comercial-form select {
   width: 100%;
   min-width: 0;

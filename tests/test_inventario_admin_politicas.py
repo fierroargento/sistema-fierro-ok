@@ -31,8 +31,12 @@ def test_producto_politica_se_busca_y_conserva_id_validado():
     assert "productos.filter" in javascript
     assert "selector.value = producto.value" in javascript
     assert 'setCustomValidity("Elegí un producto de la lista.")' in javascript
-    assert ".inventory-policy-form .product-master-field" in estilos
-    assert "20260820-1" in panel
+    assert ".inventory-policy-form .product-master-field > small" in estilos
+    assert ".inventory-policy-form .product-combobox-options button" in estilos
+    assert "background: #fff" in estilos
+    assert "white-space: normal" in estilos
+    assert "overflow-x: hidden" in estilos
+    assert "20260820-2" in panel
 
 
 def test_servicio_mantiene_sobreventa_y_publicacion_bloqueadas():
