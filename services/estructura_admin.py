@@ -875,6 +875,44 @@ def procesar_accion_estructura_admin(
             "en estado desactivado."
         )
 
+    if accion == "asignar_vinculo_canal":
+        vinculo = _obtener_por_id(
+            VinculoCanalComercial,
+            _id_entero(formulario, "vinculo_id"),
+            "el vínculo comercial",
+        )
+        _exigir_pertenencia_tenant(
+            organizacion, vinculo, "El vinculo comercial"
+        )
+        catalogo = _obtener_por_id(
+            Catalogo,
+            _id_entero(formulario, "catalogo_id"),
+            "el catálogo",
+        )
+        sucursal = _obtener_por_id(
+            SucursalOperativa,
+            _id_entero(formulario, "sucursal_operativa_id"),
+            "la sucursal",
+        )
+        _exigir_pertenencia_tenant(
+            organizacion, catalogo, "El catálogo"
+        )
+        _exigir_pertenencia_tenant(
+            organizacion, sucursal, "La sucursal"
+        )
+        if (
+            catalogo.unidad_negocio_id is not None
+            and catalogo.unidad_negocio_id
+            != vinculo.unidad_negocio_id
+        ):
+            raise ValueError(
+                "El catálogo pertenece a otra unidad de negocio."
+            )
+        vinculo.catalogo_id = catalogo.id
+        vinculo.sucursal_operativa_id = sucursal.id
+        _guardar(db_session)
+        return "Catálogo y sucursal asignados a la cuenta."
+
     if accion == "estado_vinculo_canal":
         from services.vinculos_canales import (
             cambiar_estado_vinculo,

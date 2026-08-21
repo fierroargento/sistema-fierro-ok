@@ -76,7 +76,7 @@ def test_mutaciones_sensibles_exigen_tenant():
 
     assert bloque.count(
         "_exigir_pertenencia_tenant("
-    ) == 8
+    ) == 11
 
     acciones = (
         "toggle_sucursal",
@@ -86,6 +86,7 @@ def test_mutaciones_sensibles_exigen_tenant():
         "agregar_producto_catalogo",
         "toggle_producto_catalogo",
         "estado_modulo",
+        "asignar_vinculo_canal",
         "estado_vinculo_canal",
     )
 

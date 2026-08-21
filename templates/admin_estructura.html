@@ -352,6 +352,34 @@
                                   action="{{ url_for('admin_estructura.guardar') }}">
                                 <input type="hidden"
                                        name="accion"
+                                       value="asignar_vinculo_canal">
+                                <input type="hidden"
+                                       name="vinculo_id"
+                                       value="{{ vinculo.id }}">
+                                <select name="catalogo_id" required>
+                                    <option value="">Elegir catálogo</option>
+                                    {% for catalogo in catalogos if catalogo.unidad_negocio_id in (none, vinculo.unidad_negocio_id) %}
+                                    <option value="{{ catalogo.id }}"
+                                        {% if vinculo.catalogo_id == catalogo.id %}selected{% endif %}>
+                                        {{ catalogo.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <select name="sucursal_operativa_id" required>
+                                    <option value="">Elegir sucursal</option>
+                                    {% for sucursal in sucursales %}
+                                    <option value="{{ sucursal.id }}"
+                                        {% if vinculo.sucursal_operativa_id == sucursal.id %}selected{% endif %}>
+                                        {{ sucursal.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit">Asignar operación</button>
+                            </form>
+                            <form method="post"
+                                  action="{{ url_for('admin_estructura.guardar') }}">
+                                <input type="hidden"
+                                       name="accion"
                                        value="estado_vinculo_canal">
                                 <input type="hidden"
                                        name="vinculo_id"

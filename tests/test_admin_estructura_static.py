@@ -135,6 +135,27 @@ def test_template_conserva_acciones():
         "crear_catalogo",
         "agregar_producto_catalogo",
         "crear_vinculo_canal",
+        "asignar_vinculo_canal",
         "estado_vinculo_canal",
     ):
         assert accion in template
+
+
+def test_vinculo_existente_permite_asignar_catalogo_y_sucursal():
+    template = Path("templates/admin_estructura.html").read_text(
+        encoding="utf-8"
+    )
+    servicio = Path("services/estructura_admin.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'value="asignar_vinculo_canal"' in template
+    assert "Asignar operación" in template
+    bloque = servicio.split(
+        'if accion == "asignar_vinculo_canal":', 1
+    )[1].split('if accion == "estado_vinculo_canal":', 1)[0]
+    assert bloque.count("_exigir_pertenencia_tenant(") == 3
+    assert "vinculo.catalogo_id = catalogo.id" in bloque
+    assert "vinculo.sucursal_operativa_id = sucursal.id" in bloque
+    assert "Pedido" not in bloque
+    assert "requests" not in bloque
