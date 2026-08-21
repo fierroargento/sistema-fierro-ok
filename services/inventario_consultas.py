@@ -53,6 +53,7 @@ def obtener_datos_panel_inventario(
     PoliticaDisponibilidadCatalogo = modelos[
         "PoliticaDisponibilidadCatalogo"
     ]
+    MapeoPublicacionCanal = modelos["MapeoPublicacionCanal"]
 
     modulo_inventario = (
         ModuloOrganizacion.query
@@ -174,6 +175,12 @@ def obtener_datos_panel_inventario(
         )
         .all()
     )
+    mapeos_publicaciones = (
+        MapeoPublicacionCanal.query
+        .filter_by(organizacion_id=organizacion_id)
+        .order_by(MapeoPublicacionCanal.id.asc())
+        .all()
+    )
 
     items_inventario = ItemInventario.query.filter_by(
         organizacion_id=organizacion_id
@@ -243,6 +250,7 @@ def obtener_datos_panel_inventario(
         "existencias": existencias,
         "movimientos": movimientos,
         "politicas": politicas,
+        "mapeos_publicaciones": mapeos_publicaciones,
         "productos_catalogo": (
             productos_catalogo
         ),

@@ -314,6 +314,7 @@ from models.inventario_pedidos import (
     PropuestaPublicacionInventario,
 )
 from models.politica_disponibilidad_catalogo import PoliticaDisponibilidadCatalogo
+from models.mapeo_publicacion_canal import MapeoPublicacionCanal
 from models.configuracion_fiscal import ConfiguracionFiscal
 from models.punto_venta_fiscal import PuntoVentaFiscal
 from models.tipo_comprobante_fiscal import TipoComprobanteFiscal
@@ -11821,6 +11822,7 @@ registrar_modulos_web(
             "PoliticaDisponibilidadCatalogo": (
                 PoliticaDisponibilidadCatalogo
             ),
+            "MapeoPublicacionCanal": MapeoPublicacionCanal,
             "ConfiguracionFiscal": (
                 ConfiguracionFiscal
             ),

@@ -202,6 +202,7 @@ def registrar_modulos_web(
                         "PedidoItem",
                         "VinculoCanalComercial",
                         "PoliticaDisponibilidadCatalogo",
+                        "MapeoPublicacionCanal",
                     )
                 },
             },
