@@ -2,6 +2,7 @@ from io import BytesIO
 from pathlib import Path
 
 from services.importacion_productos_costeo import (
+    aplicar_modo_productos,
     leer_archivo,
     sugerir_mapeo,
     validar_mapeo,
@@ -67,3 +68,36 @@ def test_motor_permanece_aislado_de_canales():
     )
     for prohibido in ("MercadoLibre", "TiendaNube", "Pedido", "Webhook"):
         assert prohibido not in contenido
+
+
+def test_modos_no_mutan_la_vista_original():
+    original = [
+        {"accion": "crear", "errores": []},
+        {"accion": "actualizar", "errores": []},
+    ]
+
+    solo_crear = aplicar_modo_productos(original, "crear")
+
+    assert original[1]["accion"] == "actualizar"
+    assert solo_crear[0]["accion"] == "crear"
+    assert solo_crear[1]["accion"] == "rechazado"
+    assert "solo permite crear" in solo_crear[1]["errores"][0]
+
+
+def test_confirmacion_revalida_limita_lote_y_audita():
+    rutas = Path("modules/admin/comercial/routes.py").read_text(encoding="utf-8")
+
+    assert 'tipo_datos="productos_clasificacion"' in rutas
+    assert "vista_actual = previsualizar(" in rutas
+    assert "Los datos cambiaron desde la validacion" in rutas
+    assert "Confirmó importación de clasificación de productos" in rutas
+
+
+def test_interfaz_aclara_que_clasificacion_esta_desconectada():
+    template = Path("templates/admin_importacion_productos_costeo.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Clasificación interna desconectada" in template
+    assert "no modifica precios" in template
+    assert "no consulta canales externos" in template

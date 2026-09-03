@@ -28,7 +28,7 @@
   </nav>
 
   <section class="comercial-section" id="catalogos">
-    <div class="section-heading"><div><span class="section-number">1</span><h2>Catálogos y productos</h2></div><p>Definí qué productos comercializa cada unidad de negocio.</p></div>
+    <div class="section-heading"><div><span class="section-number">1</span><h2>Catálogos y productos</h2></div><div class="section-heading-actions"><p>Definí qué productos comercializa cada unidad de negocio.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_inclusiones_catalogo') }}">Importar productos por catálogo</a><a class="section-link" href="{{ url_for('admin_comercial.importar_logistica_catalogo') }}">Importar ficha física</a></div></div>
 
     <details class="source-catalog catalog-settings">
       <summary><span>Configurar catálogos e incorporar productos</span><strong>{{ catalogos|length }}</strong></summary>

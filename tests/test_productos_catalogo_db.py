@@ -13,19 +13,24 @@ class ProductoFalso:
 
 
 class QueryFalsa:
-    def __init__(self):
+    def __init__(self, productos=None):
         self.delete_called = False
+        self.productos = list(productos or [])
 
     def delete(self):
         self.delete_called = True
 
+    def all(self):
+        return list(self.productos)
+
 
 class SessionFalsa:
-    def __init__(self):
-        self.query_obj = QueryFalsa()
+    def __init__(self, productos=None):
+        self.query_obj = QueryFalsa(productos)
         self.added = []
         self.executed = []
         self.commit_count = 0
+        self.rollback_count = 0
 
     def query(self, modelo):
         return self.query_obj
@@ -39,11 +44,14 @@ class SessionFalsa:
     def commit(self):
         self.commit_count += 1
 
+    def rollback(self):
+        self.rollback_count += 1
+
 
 class DbFalsa:
-    def __init__(self):
+    def __init__(self, productos=None):
         self.engine = object()
-        self.session = SessionFalsa()
+        self.session = SessionFalsa(productos)
 
 
 def test_aplicar_datos_producto_modelo_setea_campos_logisticos():
@@ -87,8 +95,11 @@ def test_crear_producto_desde_catalogo_crea_modelo_con_datos():
     assert producto.peso_gr == 900
 
 
-def test_sincronizar_productos_desde_catalogo_reemplaza_catalogo():
-    db = DbFalsa()
+def test_sincronizar_productos_desde_catalogo_actualiza_sin_borrar_ausentes():
+    existente = ProductoFalso("PP6040H", "Descripcion anterior")
+    ausente = ProductoFalso("OTRO", "No viene en el archivo")
+    ProductoFalso.query = QueryFalsa([existente, ausente])
+    db = DbFalsa([existente, ausente])
 
     cantidad = sincronizar_productos_desde_catalogo([
         {
@@ -104,11 +115,32 @@ def test_sincronizar_productos_desde_catalogo_reemplaza_catalogo():
     ], ProductoFalso, db)
 
     assert cantidad == 2
-    assert db.session.query_obj.delete_called is True
+    assert db.session.query_obj.delete_called is False
     assert len(db.session.added) == 2
     assert db.session.added[0].sku == "PP6040H"
+    assert db.session.added[0] is existente
+    assert db.session.added[0].descripcion == "Parrilla plegable"
     assert db.session.added[1].sku == "KIT001"
+    assert ausente.descripcion == "No viene en el archivo"
     assert db.session.commit_count == 1
+
+
+def test_sincronizar_productos_rechaza_sku_duplicado_antes_de_escribir():
+    ProductoFalso.query = QueryFalsa([])
+    db = DbFalsa()
+
+    try:
+        sincronizar_productos_desde_catalogo([
+            {"sku": "ABC", "descripcion": "Uno"},
+            {"sku": "abc", "descripcion": "Dos"},
+        ], ProductoFalso, db)
+    except ValueError as error:
+        assert "SKU duplicado ABC" in str(error)
+    else:
+        raise AssertionError("Se acepto un SKU duplicado.")
+
+    assert db.session.added == []
+    assert db.session.commit_count == 0
 
 
 def test_asegurar_columnas_producto_logistica_agrega_solo_faltantes():

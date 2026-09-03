@@ -141,18 +141,42 @@ def previsualizar(filas, mapeo, *, organizacion_id, unidad_negocio_id=None, mode
             inclusion.catalogo.unidad_negocio_id if inclusion else None,
         ))
         accion = "rechazado" if errores else "actualizar" if actual else "crear"
-        if actual and actual.tipo == tipo:
+        observacion = str(datos.get("observacion") or "").strip()[:500]
+        if (
+            actual
+            and actual.tipo == tipo
+            and str(actual.observacion or "").strip() == observacion
+        ):
             accion = "sin_cambios"
         resultado.append({
             "numero": fila["numero"], "sku": sku, "tipo": tipo or "",
-            "unidad": datos.get("unidad", ""), "observacion": datos.get("observacion", ""),
+            "unidad": datos.get("unidad", ""), "observacion": observacion,
             "accion": accion, "errores": errores,
             "inclusion_id": inclusion.id if inclusion else None,
         })
     return resultado
 
 
-def aplicar_vista_previa(vista, *, organizacion_id, modelos, db_session):
+def aplicar_modo_productos(vista, modo):
+    modos = {"crear", "actualizar", "crear_actualizar", "validar"}
+    if modo not in modos:
+        raise ValueError("El modo de importacion no es valido.")
+    resultado = []
+    for original in vista:
+        fila = {**original, "errores": list(original.get("errores") or [])}
+        if modo == "crear" and fila["accion"] == "actualizar":
+            fila["accion"] = "rechazado"
+            fila["errores"].append("El modo solo permite crear")
+        elif modo == "actualizar" and fila["accion"] == "crear":
+            fila["accion"] = "rechazado"
+            fila["errores"].append("El modo solo permite actualizar")
+        resultado.append(fila)
+    return resultado
+
+
+def aplicar_vista_previa(
+    vista, *, organizacion_id, unidad_negocio_id, modelos, db_session,
+):
     conteos = {"creados": 0, "actualizados": 0, "sin_cambios": 0, "rechazados": 0}
     for fila in vista:
         if fila["accion"] == "rechazado":
@@ -161,10 +185,20 @@ def aplicar_vista_previa(vista, *, organizacion_id, modelos, db_session):
         if fila["accion"] == "sin_cambios":
             conteos["sin_cambios"] += 1
             continue
-        inclusion = db_session.get(modelos["CatalogoProducto"], fila["inclusion_id"])
+        inclusion = modelos["CatalogoProducto"].query.join(
+            modelos["Catalogo"]
+        ).filter(
+            modelos["CatalogoProducto"].id == fila["inclusion_id"],
+            modelos["Catalogo"].organizacion_id == organizacion_id,
+            modelos["Catalogo"].unidad_negocio_id == unidad_negocio_id,
+        ).first()
+        if inclusion is None:
+            raise ValueError(
+                "La inclusion cambio o ya no pertenece a la unidad activa."
+            )
         crear_o_actualizar_perfil(
             organizacion_id=organizacion_id,
-            unidad_negocio_id=inclusion.catalogo.unidad_negocio_id,
+            unidad_negocio_id=unidad_negocio_id,
             producto_id=inclusion.producto_id,
             tipo=fila["tipo"], observacion=fila["observacion"],
             PerfilCosteoProducto=modelos["PerfilCosteoProducto"],
