@@ -3,6 +3,7 @@
 from services.catalogos_comerciales import importe_a_centavos
 from services.catalogos_admin_comercial import procesar_accion_catalogo_comercial
 from services.costos_productos import crear_version_costo, activar_version_costo
+from services.aprobacion_costos import validar_version_preparatoria
 from services.listas_precios import (
     activar_item_lista, activar_politica_lista, crear_item_lista,
     crear_lista_precio, crear_politica_lista,
@@ -66,6 +67,16 @@ def procesar_accion_comercial(
             id=_id(formulario, "costo_id"), organizacion_id=organizacion.id,
             unidad_negocio_id=unidad_activa.id,
         ).first()
+        perfil = modelos["PerfilCosteoProducto"].query.filter_by(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+            producto_id=costo.producto_id if costo else None,
+            activo=True,
+        ).first()
+        validar_version_preparatoria(
+            perfil, costo,
+            CostoProductoVersion=modelos["CostoProductoVersion"],
+        )
         activar_version_costo(
             costo, CostoProductoVersion=modelos["CostoProductoVersion"],
             db_session=db_session,

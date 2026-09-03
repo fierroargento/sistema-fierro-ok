@@ -106,6 +106,26 @@
   background: #fff;
 }
 
+.cost-approval-panel {
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid #e2c67a;
+  border-radius: 10px;
+  background: #fffdf5;
+}
+
+.cost-decision-actions { display: grid; gap: 6px; min-width: 210px; }
+.cost-decision-actions form { display: flex; gap: 6px; }
+.cost-decision-actions input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid #cbd7dd;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.cost-up { color: #a3152a; }
+.cost-down { color: #17734b; }
+
 .cost-engine-heading {
   display: flex;
   align-items: center;

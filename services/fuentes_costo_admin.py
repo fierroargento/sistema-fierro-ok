@@ -22,8 +22,12 @@ from services.composicion_costo_producto import (
 from services.maquinas_productivas_db import (
     crear_maquina, registrar_costo_maquina,
 )
-from services.costos_productos import crear_version_costo
+from services.costos_productos import crear_version_costo, activar_version_costo
 from services.motor_costeo_productos import diagnosticar_perfiles
+from services.aprobacion_costos import (
+    archivar_version, preparar_revisiones, rechazar_version,
+    validar_version_preparatoria,
+)
 from services.recursos_productivos import (
     configurar_integrantes,
     crear_recurso,
@@ -97,6 +101,65 @@ def procesar_accion_fuente_costo(
     if unidad_solicitada not in {None, unidad_activa.id}:
         raise ValueError("La fuente no pertenece a la unidad activa.")
     comunes["unidad_negocio_id"] = unidad_solicitada
+
+    if accion in {
+        "aprobar_costo", "aprobar_costos_masivo", "rechazar_costo",
+        "archivar_costo",
+    }:
+        if accion == "aprobar_costos_masivo":
+            valores = (
+                formulario.getlist("costo_ids")
+                if hasattr(formulario, "getlist")
+                else formulario.get("costo_ids", [])
+            )
+            if isinstance(valores, str):
+                valores = [valores]
+        else:
+            valores = [formulario.get("costo_id")]
+        ids = {int(valor) for valor in valores if str(valor).isdigit()}
+        if not ids:
+            raise ValueError("Seleccioná al menos una versión.")
+        versiones = modelos["CostoProductoVersion"].query.filter(
+            modelos["CostoProductoVersion"].id.in_(ids),
+            modelos["CostoProductoVersion"].organizacion_id == organizacion.id,
+            modelos["CostoProductoVersion"].unidad_negocio_id == unidad_activa.id,
+        ).all()
+        if len(versiones) != len(ids):
+            raise ValueError("Una versión no pertenece a la unidad activa.")
+        productos = [version.producto_id for version in versiones]
+        if accion in {"aprobar_costo", "aprobar_costos_masivo"} and len(productos) != len(set(productos)):
+            raise ValueError("No se pueden aprobar dos versiones del mismo producto juntas.")
+        perfiles = modelos["PerfilCosteoProducto"].query.filter(
+            modelos["PerfilCosteoProducto"].organizacion_id == organizacion.id,
+            modelos["PerfilCosteoProducto"].unidad_negocio_id == unidad_activa.id,
+            modelos["PerfilCosteoProducto"].producto_id.in_(productos),
+        ).all()
+        perfiles_por_producto = {perfil.producto_id: perfil for perfil in perfiles}
+        if accion in {"aprobar_costo", "aprobar_costos_masivo"}:
+            for version in versiones:
+                validar_version_preparatoria(
+                    perfiles_por_producto.get(version.producto_id), version,
+                    CostoProductoVersion=modelos["CostoProductoVersion"],
+                )
+            confirmar_cada_aprobacion = False
+            for version in versiones:
+                activar_version_costo(
+                    version,
+                    CostoProductoVersion=modelos["CostoProductoVersion"],
+                    db_session=db_session, commit=confirmar_cada_aprobacion,
+                )
+            db_session.commit()
+            return f"Se aprobaron {len(versiones)} costos internos."
+        version = versiones[0]
+        if accion == "rechazar_costo":
+            rechazar_version(
+                version, formulario.get("motivo"), db_session=db_session,
+            )
+            return f"La versión v{version.numero_version} quedó rechazada."
+        archivar_version(
+            version, formulario.get("motivo"), db_session=db_session,
+        )
+        return f"La versión v{version.numero_version} quedó archivada."
 
     if accion == "recalcular_fichas_masivo":
         valores = (
@@ -921,6 +984,7 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
         perfiles, versiones_producto,
         CostoProductoVersion=modelos["CostoProductoVersion"],
     )
+    revisiones_costeo = preparar_revisiones(perfiles, versiones_producto)
     Catalogo = modelos["Catalogo"]
     inclusiones = modelos["CatalogoProducto"].query.join(Catalogo).filter(
         Catalogo.organizacion_id == organizacion_id,
@@ -973,6 +1037,7 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
         "perfiles_costeo": perfiles,
         "diagnosticos_costeo": diagnosticos_costeo,
         "resumen_costeo": resumen_costeo,
+        "revisiones_costeo": revisiones_costeo,
         "perfiles_combo": [perfil for perfil in perfiles if perfil.tipo == "combo"],
         "perfiles_componentes": [
             perfil for perfil in perfiles if perfil.tipo in {"simple", "produccion"}
