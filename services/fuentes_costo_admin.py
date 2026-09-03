@@ -23,6 +23,7 @@ from services.maquinas_productivas_db import (
     crear_maquina, registrar_costo_maquina,
 )
 from services.costos_productos import crear_version_costo
+from services.motor_costeo_productos import diagnosticar_perfiles
 from services.recursos_productivos import (
     configurar_integrantes,
     crear_recurso,
@@ -96,6 +97,70 @@ def procesar_accion_fuente_costo(
     if unidad_solicitada not in {None, unidad_activa.id}:
         raise ValueError("La fuente no pertenece a la unidad activa.")
     comunes["unidad_negocio_id"] = unidad_solicitada
+
+    if accion == "recalcular_fichas_masivo":
+        valores = (
+            formulario.getlist("perfil_costeo_ids")
+            if hasattr(formulario, "getlist")
+            else formulario.get("perfil_costeo_ids", [])
+        )
+        if isinstance(valores, str):
+            valores = [valores]
+        ids = {int(valor) for valor in valores if str(valor).isdigit()}
+        if not ids:
+            raise ValueError("Seleccioná al menos una ficha recalculable.")
+        perfiles = modelos["PerfilCosteoProducto"].query.filter(
+            modelos["PerfilCosteoProducto"].organizacion_id == organizacion.id,
+            modelos["PerfilCosteoProducto"].unidad_negocio_id == unidad_activa.id,
+            modelos["PerfilCosteoProducto"].id.in_(ids),
+        ).all()
+        if len(perfiles) != len(ids):
+            raise ValueError("Una ficha seleccionada no pertenece a la unidad activa.")
+        versiones = modelos["CostoProductoVersion"].query.filter_by(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+            moneda="ARS",
+        ).all()
+        diagnosticos, _resumen = diagnosticar_perfiles(
+            perfiles, versiones,
+            CostoProductoVersion=modelos["CostoProductoVersion"],
+        )
+        creadas = 0
+        omitidas = 0
+        confirmar_cada_version = False
+        for perfil in perfiles:
+            diagnostico = diagnosticos[perfil.id]
+            if not diagnostico["puede_recalcular"]:
+                omitidas += 1
+                continue
+            detalles = (
+                construir_detalles_combo(
+                    perfil,
+                    CostoProductoVersion=modelos["CostoProductoVersion"],
+                )
+                if perfil.tipo == "combo" else construir_detalles(perfil)
+            )
+            crear_version_costo(
+                organizacion_id=organizacion.id,
+                unidad_negocio_id=unidad_activa.id,
+                producto_id=perfil.producto_id, moneda="ARS",
+                tipo="calculado", detalles=detalles,
+                creado_por_usuario_id=usuario_id,
+                creado_por_username=getattr(usuario, "username", None),
+                observacion="Recálculo masivo interno; pendiente de activación.",
+                Organizacion=modelos["Organizacion"],
+                UnidadNegocio=modelos["UnidadNegocio"],
+                Producto=modelos["Producto"],
+                CostoProductoVersion=modelos["CostoProductoVersion"],
+                CostoProductoDetalle=modelos["CostoProductoDetalle"],
+                db_session=db_session, commit=confirmar_cada_version,
+            )
+            creadas += 1
+        db_session.commit()
+        return (
+            f"Se crearon {creadas} versiones preparatorias; "
+            f"{omitidas} fichas quedaron sin cambios."
+        )
 
     if accion == "configurar_ajuste_ipc":
         costo = _registro_tenant(
@@ -847,6 +912,15 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
     perfiles = modelos["PerfilCosteoProducto"].query.filter_by(
         organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id
     ).order_by(modelos["PerfilCosteoProducto"].fecha_creacion).all()
+    versiones_producto = modelos["CostoProductoVersion"].query.filter_by(
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+        moneda="ARS",
+    ).all()
+    diagnosticos_costeo, resumen_costeo = diagnosticar_perfiles(
+        perfiles, versiones_producto,
+        CostoProductoVersion=modelos["CostoProductoVersion"],
+    )
     Catalogo = modelos["Catalogo"]
     inclusiones = modelos["CatalogoProducto"].query.join(Catalogo).filter(
         Catalogo.organizacion_id == organizacion_id,
@@ -897,6 +971,8 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
         ),
         "inclusiones_costeo": inclusiones,
         "perfiles_costeo": perfiles,
+        "diagnosticos_costeo": diagnosticos_costeo,
+        "resumen_costeo": resumen_costeo,
         "perfiles_combo": [perfil for perfil in perfiles if perfil.tipo == "combo"],
         "perfiles_componentes": [
             perfil for perfil in perfiles if perfil.tipo in {"simple", "produccion"}

@@ -71,6 +71,21 @@
 
   <section class="comercial-section" id="fichas-tecnicas">
     <div class="section-heading"><div><span class="section-number">6</span><h2>Composición del costo productivo</h2></div><div class="section-heading-actions"><p>Insumos, tiempos laborales, máquinas y costos fijos por unidad producida.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='fichas') }}">Importar fichas</a></div></div>
+    {% if perfiles_costeo %}
+    <div class="cost-engine-summary">
+      <div><strong>{{ resumen_costeo.actualizados }}</strong><span>Actualizados</span></div>
+      <div><strong>{{ resumen_costeo.pendientes }}</strong><span>Para recalcular</span></div>
+      <div><strong>{{ resumen_costeo.incompletos }}</strong><span>Incompletos</span></div>
+      <div><strong>{{ resumen_costeo.manuales }}</strong><span>Costos manuales</span></div>
+    </div>
+    <form class="cost-engine-control" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+      <input type="hidden" name="accion" value="recalcular_fichas_masivo">
+      <div class="cost-engine-heading"><div><strong>Control integral de costos</strong><span>Compara cada ficha con su último snapshot. Las nuevas versiones quedan preparatorias hasta aprobación.</span></div><button class="comercial-primary" {% if not resumen_costeo.pendientes %}disabled{% endif %}>Recalcular seleccionadas</button></div>
+      <div class="table-wrap"><table class="comercial-table"><thead><tr><th></th><th>SKU</th><th>Tipo</th><th>Diagnóstico</th><th>Costo según fuentes</th><th>Última versión</th></tr></thead><tbody>
+      {% for perfil in perfiles_costeo %}{% set diagnostico = diagnosticos_costeo.get(perfil.id) %}<tr><td>{% if diagnostico.puede_recalcular %}<input type="checkbox" name="perfil_costeo_ids" value="{{ perfil.id }}" aria-label="Seleccionar {{ perfil.producto.sku }}">{% else %}—{% endif %}</td><td><strong>{{ perfil.producto.sku }}</strong><small class="table-subline">{{ perfil.producto.descripcion }}</small></td><td>{{ perfil.tipo }}</td><td><span class="cost-engine-status cost-engine-{{ diagnostico.estado }}">{{ diagnostico.estado|replace('_', ' ') }}</span><small class="table-subline">{{ diagnostico.detalle }}</small></td><td>{% if diagnostico.costo_estimado_centavos is not none %}<strong>$ {{ formatear_centavos_ars(diagnostico.costo_estimado_centavos) }}</strong>{% else %}—{% endif %}</td><td>{% if diagnostico.ultima_version %}v{{ diagnostico.ultima_version.numero_version }} · {{ diagnostico.ultima_version.estado }}<small class="table-subline">$ {{ formatear_centavos_ars(diagnostico.ultima_version.costo_total_centavos) }}</small>{% else %}—{% endif %}</td></tr>{% endfor %}
+      </tbody></table></div>
+    </form>
+    {% endif %}
     {% if perfiles_produccion %}
     {% set costos_fijos_productivos = costos_fijos|selectattr('integra_costo_produccion')|list %}
     {% set hay_recursos_laborales = recursos_productivos or empleados %}

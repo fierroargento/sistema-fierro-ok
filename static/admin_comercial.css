@@ -79,6 +79,50 @@
   gap: 12px;
 }
 
+.cost-engine-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.cost-engine-summary > div {
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  border: 1px solid #d9e4ea;
+  border-radius: 9px;
+  background: #f8fbfc;
+}
+
+.cost-engine-summary strong { font-size: 20px; color: #173248; }
+.cost-engine-summary span { font-size: 12px; color: #607887; }
+
+.cost-engine-control {
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid #cbdce4;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.cost-engine-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.cost-engine-heading > div { display: grid; gap: 3px; }
+.cost-engine-heading span { color: #607887; font-size: 12px; }
+.cost-engine-status { font-weight: 800; text-transform: capitalize; }
+.cost-engine-actualizado { color: #17734b; }
+.cost-engine-desactualizado,
+.cost-engine-sin_calcular { color: #a05b00; }
+.cost-engine-incompleto,
+.cost-engine-manual_pendiente { color: #a3152a; }
+
 .cost-sheet-forms .comercial-form {
   grid-template-columns: 1.4fr 1.4fr 1fr 0.7fr auto;
 }
