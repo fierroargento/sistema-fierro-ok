@@ -52,6 +52,26 @@ DEFINICIONES = {
         },
         "ejemplo": ["HERRERIA", "Equipo Herrería", "Herrería", "10", "EMP-1", "100"],
     },
+    "maquinas": {
+        "titulo": "Máquinas y costos de uso",
+        "campos": {
+            "codigo": ("Código", True), "nombre": ("Nombre", True),
+            "categoria": ("Categoría", True),
+            "valor_adquisicion": ("Valor de adquisición", True),
+            "valor_residual": ("Valor residual", False),
+            "vida_util_horas": ("Vida útil en horas", True),
+            "potencia_kw": ("Potencia kW", False),
+            "factor_carga_pct": ("Factor de carga %", False),
+            "costo_kwh": ("Costo por kWh", False),
+            "mantenimiento_mensual": ("Mantenimiento mensual", False),
+            "otros_costos_mensuales": ("Otros costos mensuales", False),
+            "horas_productivas_mensuales": ("Horas productivas mensuales", True),
+        },
+        "ejemplo": [
+            "maq-01", "Equipo productivo", "Corte", "1000000", "100000",
+            "10000", "2.5", "80", "150", "20000", "5000", "120",
+        ],
+    },
     "costos-fijos": {
         "titulo": "Costos fijos",
         "campos": {
@@ -74,7 +94,7 @@ DEFINICIONES = {
             "minutos": ("Minutos", False), "porcentaje": ("Asignación %", False),
             "unidades_mensuales": ("Unidades mensuales", False),
         },
-        "ejemplo": ["PP6040H", "insumo", "hierro-6mm", "2.5", "5", "", "", "", ""],
+        "ejemplo": ["SKU-001", "insumo", "insumo-01", "2.5", "5", "", "", "", ""],
     },
 }
 
@@ -86,6 +106,7 @@ ETIQUETAS_VALORES = {
     "embalaje_productivo": "Embalaje productivo",
     "insumo": "Insumo",
     "operacion": "Operación",
+    "maquina": "Máquina",
     "costo_fijo": "Costo fijo",
     "fijo": "Costo fijo",
     "unidades_producidas": "Unidades producidas",
@@ -97,12 +118,15 @@ ETIQUETAS_VALORES = {
 
 CAMPOS_MONEDA = {
     "precio_unitario", "sueldo_base", "adicionales",
-    "otros_costos", "importe_mensual", "importe_periodo", "meses_cobertura",
+    "otros_costos", "importe_mensual", "importe_periodo",
+    "valor_adquisicion", "valor_residual", "costo_kwh",
+    "mantenimiento_mensual", "otros_costos_mensuales",
 }
 
 CAMPOS_PORCENTAJE = {
     "merma", "porcentaje", "porcentaje_indirecto", "porcentaje_dedicacion",
     "porcentaje_cargas", "porcentaje_productivo",
+    "factor_carga_pct",
 }
 
 TIPOS_INSUMO_VALIDOS = {
@@ -341,6 +365,46 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                     if vinculo:
                         ids["vinculo_id"] = vinculo.id
                 existente = vinculo
+            elif tipo == "maquinas":
+                codigo = str(datos.get("codigo") or "").strip().lower()
+                existente = modelos["MaquinaProductiva"].query.filter_by(
+                    organizacion_id=organizacion_id, codigo=codigo,
+                ).first()
+                if existente and existente.unidad_negocio_id != unidad_negocio_id:
+                    raise ValueError("La máquina pertenece a otra unidad")
+                if existente:
+                    ids = {"maquina_id": existente.id}
+                if not str(datos.get("factor_carga_pct") or "").strip():
+                    datos["factor_carga_pct"] = "100"
+                for campo in (
+                    "valor_adquisicion", "valor_residual", "vida_util_horas",
+                    "potencia_kw", "factor_carga_pct", "costo_kwh",
+                    "mantenimiento_mensual", "otros_costos_mensuales",
+                    "horas_productivas_mensuales",
+                ):
+                    obligatorio = campo in {
+                        "valor_adquisicion", "vida_util_horas",
+                        "horas_productivas_mensuales",
+                    }
+                    datos[campo] = _numero(
+                        datos.get(campo), config["campos"][campo][0], obligatorio,
+                    )
+                datos["vida_util_horas"] = _numero_positivo(
+                    datos["vida_util_horas"], "Vida útil en horas",
+                )
+                datos["horas_productivas_mensuales"] = _numero_positivo(
+                    datos["horas_productivas_mensuales"],
+                    "Horas productivas mensuales",
+                )
+                factor = datos.get("factor_carga_pct") or "0"
+                if Decimal(factor) > Decimal("100"):
+                    raise ValueError("Factor de carga está fuera de rango")
+                if Decimal(datos["valor_residual"]) > Decimal(
+                    datos["valor_adquisicion"]
+                ):
+                    raise ValueError(
+                        "El valor residual no puede superar la adquisición"
+                    )
             elif tipo == "costos-fijos":
                 integra = _clave_valor(datos.get("integra_produccion"))
                 equivalencias = {"si": "si", "1": "si", "true": "si", "no": "no", "0": "no", "false": "no"}
@@ -377,7 +441,7 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                 linea = normalizar(datos.get("tipo_linea")).replace("_", " ")
                 datos["tipo_linea"] = "costo_fijo" if linea in {"costo fijo", "fijo"} else linea
                 codigo = str(datos.get("codigo_recurso") or "").strip().lower()
-                mapa = {"insumo": ("InsumoProductivo", "insumo_id"), "operacion": ("EmpleadoProductivo", "empleado_id"), "costo fijo": ("CostoFijoProductivo", "costo_fijo_id"), "fijo": ("CostoFijoProductivo", "costo_fijo_id")}
+                mapa = {"insumo": ("InsumoProductivo", "insumo_id"), "operacion": ("EmpleadoProductivo", "empleado_id"), "maquina": ("MaquinaProductiva", "maquina_id"), "costo fijo": ("CostoFijoProductivo", "costo_fijo_id"), "fijo": ("CostoFijoProductivo", "costo_fijo_id")}
                 if linea not in mapa: raise ValueError("Tipo de línea inválido")
                 nombre_modelo, campo_id = mapa[linea]
                 recurso = modelos[nombre_modelo].query.filter_by(organizacion_id=organizacion_id, codigo=codigo).first()
@@ -395,6 +459,18 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                     datos["porcentaje"] = _numero_positivo(datos.get("porcentaje"), "Asignación %", 100)
                     datos["unidades_mensuales"] = _numero_positivo(datos.get("unidades_mensuales"), "Unidades mensuales")
                     existente = next((x for x in perfil.costos_fijos_costeo if x.costo_fijo_id == recurso.id), None)
+                elif linea == "maquina":
+                    _texto_requerido(datos, "operacion", "Operación")
+                    datos["minutos"] = _numero_positivo(
+                        datos.get("minutos"), "Minutos",
+                    )
+                    existente = next((
+                        x for x in getattr(perfil, "maquinas_costeo", [])
+                        if x.maquina_id == recurso.id
+                        and normalizar(x.nombre) == normalizar(datos["operacion"])
+                    ), None)
+                    if existente:
+                        ids["maquina_linea_id"] = existente.id
                 else:
                     _texto_requerido(datos, "operacion", "Operación")
                     datos["minutos"] = _numero_positivo(datos.get("minutos"), "Minutos")
@@ -477,12 +553,18 @@ def aplicar_fuentes(tipo, vista, *, organizacion, unidad_activa, modelos, db_ses
             )
             conteos["creados" if fila["accion"] == "crear" else "actualizados"] += 1
             continue
+        elif tipo == "maquinas":
+            accion = (
+                "crear_maquina" if fila["accion"] == "crear"
+                else "actualizar_costo_maquina"
+            )
+            datos["maquina_id"] = datos.get("maquina_id")
         elif tipo == "costos-fijos":
             accion = "crear_costo_fijo" if fila["accion"] == "crear" else "actualizar_importe_costo_fijo"
             datos.update({"costo_fijo_id": datos.get("costo_fijo_id"), "integra_costo_produccion": "1" if normalizar(datos.get("integra_produccion")) in {"si", "sí", "1", "true"} else "0", "criterio_distribucion": datos.get("criterio"), "comprobante_referencia": datos.get("comprobante")})
         else:
             linea = normalizar(datos.get("tipo_linea"))
-            accion = "ficha_insumo" if linea == "insumo" else "ficha_operacion" if linea == "operacion" else "ficha_costo_fijo"
+            accion = "ficha_insumo" if linea == "insumo" else "ficha_operacion" if linea == "operacion" else "ficha_maquina" if linea == "maquina" else "ficha_costo_fijo"
             datos.update({"merma": datos.get("merma", 0), "nombre_operacion": datos.get("operacion"), "porcentaje": datos.get("porcentaje")})
         procesar_accion_fuente_costo(
             accion, datos, organizacion=organizacion, unidad_activa=unidad_activa,

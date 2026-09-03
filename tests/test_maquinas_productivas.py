@@ -106,9 +106,31 @@ def test_contrato_no_contiene_datos_particulares_de_un_cliente():
         "models/fuentes_costo_productivo.py",
         "models/composicion_costo_producto.py",
         "services/maquinas_productivas.py",
+        "services/maquinas_productivas_db.py",
+        "services/importacion_fuentes_costeo.py",
     )
     contenido = "\n".join(
         Path(ruta).read_text(encoding="utf-8") for ruta in archivos
     )
     for dato_cliente in ("Fierro", "Nautica", "PP6040", "Leetro", "Megalaser"):
         assert dato_cliente not in contenido
+
+
+def test_maquinas_tienen_carga_manual_masiva_e_historial_desconectado():
+    admin = Path("services/fuentes_costo_admin.py").read_text(encoding="utf-8")
+    importador = Path("services/importacion_fuentes_costeo.py").read_text(
+        encoding="utf-8"
+    )
+    interfaz = Path("templates/admin_fuentes_costos.html").read_text(
+        encoding="utf-8"
+    )
+    assert '"crear_maquina", "actualizar_costo_maquina"' in admin
+    assert "registrar_costo_maquina(" in admin
+    assert '"maquinas": {' in importador
+    assert "Importar máquinas" in interfaz
+    assert 'value="ficha_maquina"' in interfaz
+    for prohibido in ("requests", "OAuth", "Webhook", "MercadoLibre"):
+        assert prohibido not in importador
+        assert prohibido not in Path(
+            "services/maquinas_productivas_db.py"
+        ).read_text(encoding="utf-8")

@@ -981,6 +981,24 @@ def crear_blueprint_comercial(*, dependencias):
                         recurso.porcentaje_indirecto,
                         vinculo.empleado.codigo, vinculo.porcentaje_dedicacion,
                     ])
+        elif tipo == "maquinas":
+            registros = obtener_fuentes_costo(
+                organizacion.id, unidad.id, modelos=modelos,
+            )["maquinas"]
+            for r in registros:
+                v = next((x for x in r.versiones_costo if x.vigente), None)
+                filas.append([
+                    r.codigo, r.nombre, r.categoria,
+                    v.valor_adquisicion_centavos / 100 if v else "",
+                    v.valor_residual_centavos / 100 if v else "",
+                    v.vida_util_horas if v else "",
+                    v.potencia_kw if v else "",
+                    v.factor_carga_pct if v else "",
+                    v.costo_kwh_centavos / 100 if v else "",
+                    v.mantenimiento_mensual_centavos / 100 if v else "",
+                    v.otros_costos_mensuales_centavos / 100 if v else "",
+                    v.horas_productivas_mensuales if v else "",
+                ])
         elif tipo == "costos-fijos":
             registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["costos_fijos"]
             for r in registros:
@@ -997,6 +1015,7 @@ def crear_blueprint_comercial(*, dependencias):
             for p in registros:
                 filas += [[p.producto.sku, "insumo", x.insumo.codigo, x.cantidad, x.porcentaje_merma, "", "", "", ""] for x in p.insumos_costeo]
                 filas += [[p.producto.sku, "operacion", x.empleado.codigo, "", "", x.nombre, x.minutos, "", ""] for x in p.operaciones_costeo]
+                filas += [[p.producto.sku, "maquina", x.maquina.codigo, "", "", x.nombre, x.minutos, "", ""] for x in getattr(p, "maquinas_costeo", [])]
                 filas += [[p.producto.sku, "costo_fijo", x.costo_fijo.codigo, "", "", "", "", x.porcentaje_asignacion, x.unidades_mensuales] for x in p.costos_fijos_costeo]
         salida = exportar_excel_tabla(config["titulo"], encabezados, filas) if formato == "xlsx" else exportar_pdf_tabla(config["titulo"], unidad.nombre, encabezados, filas) if formato == "pdf" else None
         if salida is None: raise ValueError("Formato no válido.")

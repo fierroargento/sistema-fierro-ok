@@ -10,11 +10,16 @@ from services.importacion_fuentes_costeo import (
 
 
 def test_cada_conjunto_tiene_campos_y_plantilla_propia():
-    assert set(DEFINICIONES) == {"insumos", "empleados", "recursos", "costos-fijos", "fichas"}
+    assert set(DEFINICIONES) == {
+        "insumos", "empleados", "recursos", "maquinas", "costos-fijos",
+        "fichas",
+    }
     assert "precio_unitario" in DEFINICIONES["insumos"]["campos"]
     assert "horas_productivas" in DEFINICIONES["empleados"]["campos"]
     assert "porcentaje_cargas" in DEFINICIONES["empleados"]["campos"]
     assert "porcentaje_dedicacion" in DEFINICIONES["recursos"]["campos"]
+    assert "vida_util_horas" in DEFINICIONES["maquinas"]["campos"]
+    assert "horas_productivas_mensuales" in DEFINICIONES["maquinas"]["campos"]
     assert "importe_periodo" in DEFINICIONES["costos-fijos"]["campos"]
     assert "periodicidad" in DEFINICIONES["costos-fijos"]["campos"]
     assert "tipo_linea" in DEFINICIONES["fichas"]["campos"]
@@ -33,8 +38,9 @@ def test_interfaz_expone_mapeo_exportaciones_y_orden_correcto():
     assert "Seleccionar todo" in template
     assert "Exportar Excel" in template and "Exportar PDF" in template
     assert "Importar insumos" in fuentes and "Importar fichas" in fuentes
-    assert "#fichas-tecnicas { order: 8; }" in estilos
-    assert 'grid-template-columns: repeat(5' in estilos
+    assert "Importar máquinas" in fuentes
+    assert "#fichas-tecnicas { order: 9; }" in estilos
+    assert 'grid-template-columns: repeat(6' in estilos
     assert "exportar_fuente_costeo" in rutas
 
 
@@ -44,7 +50,7 @@ def test_importador_productivo_no_conecta_canales():
         assert prohibido not in contenido
 
 
-def test_las_cinco_plantillas_tienen_contratos_completos():
+def test_las_seis_plantillas_tienen_contratos_completos():
     for tipo, config in DEFINICIONES.items():
         assert config["titulo"]
         assert len(config["ejemplo"]) == len(config["campos"])

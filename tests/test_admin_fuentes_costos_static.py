@@ -29,7 +29,7 @@ def test_altas_iniciales_incluyen_version_vigente():
     assert "registrar_costo_empleado(" in servicio
     assert 'accion == "crear_costo_fijo"' in servicio
     assert "registrar_importe_costo_fijo(" in servicio
-    assert servicio.count("commit=False") == 3
+    assert servicio.count("commit=False") == 4
 
 
 def test_actualizaciones_crean_versiones_sin_editar_anteriores():

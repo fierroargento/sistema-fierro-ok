@@ -17,6 +17,10 @@ from services.composicion_costo_producto import (
     construir_detalles, construir_detalles_combo, eliminar_linea,
     guardar_costo_fijo as guardar_fijo_ficha,
     guardar_insumo as guardar_insumo_ficha, guardar_operacion,
+    guardar_maquina as guardar_maquina_ficha,
+)
+from services.maquinas_productivas_db import (
+    crear_maquina, registrar_costo_maquina,
 )
 from services.costos_productos import crear_version_costo
 from services.recursos_productivos import (
@@ -484,7 +488,7 @@ def procesar_accion_fuente_costo(
             f"{item.combo.producto.sku}."
         )
 
-    if accion in {"ficha_insumo", "ficha_operacion", "ficha_costo_fijo", "calcular_ficha", "calcular_combo", "eliminar_linea_ficha"}:
+    if accion in {"ficha_insumo", "ficha_operacion", "ficha_maquina", "ficha_costo_fijo", "calcular_ficha", "calcular_combo", "eliminar_linea_ficha"}:
         perfil = _registro_tenant(
             modelos["PerfilCosteoProducto"], _id(formulario, "perfil_costeo_id"),
             organizacion.id, "El producto",
@@ -508,12 +512,28 @@ def procesar_accion_fuente_costo(
             )
             guardar_operacion(perfil, recurso, nombre=formulario.get("nombre_operacion"), minutos=formulario.get("minutos"), observacion=formulario.get("observacion"), Modelo=modelos["ProductoOperacionCosteo"], db_session=db_session, registro_id=formulario.get("operacion_id"))
             return "Operación incorporada a la ficha técnica."
+        if accion == "ficha_maquina":
+            maquina = _registro_tenant(
+                modelos["MaquinaProductiva"],
+                _id(formulario, "maquina_id"),
+                organizacion.id, "La maquina", unidad_activa.id,
+            )
+            guardar_maquina_ficha(
+                perfil, maquina,
+                nombre=formulario.get("nombre_operacion"),
+                minutos=formulario.get("minutos"),
+                observacion=formulario.get("observacion"),
+                Modelo=modelos["ProductoMaquinaCosteo"],
+                db_session=db_session,
+                registro_id=formulario.get("maquina_linea_id"),
+            )
+            return "Máquina incorporada a la ficha técnica."
         if accion == "ficha_costo_fijo":
             recurso = _registro_tenant(modelos["CostoFijoProductivo"], _id(formulario, "costo_fijo_id"), organizacion.id, "El costo fijo", unidad_activa.id)
             guardar_fijo_ficha(perfil, recurso, porcentaje=formulario.get("porcentaje"), unidades_mensuales=formulario.get("unidades_mensuales"), observacion=formulario.get("observacion"), Modelo=modelos["ProductoCostoFijoCosteo"], db_session=db_session)
             return "Costo fijo incorporado a la ficha técnica."
         if accion == "eliminar_linea_ficha":
-            tipos = {"insumo": modelos["ProductoInsumoCosteo"], "operacion": modelos["ProductoOperacionCosteo"], "fijo": modelos["ProductoCostoFijoCosteo"]}
+            tipos = {"insumo": modelos["ProductoInsumoCosteo"], "operacion": modelos["ProductoOperacionCosteo"], "maquina": modelos["ProductoMaquinaCosteo"], "fijo": modelos["ProductoCostoFijoCosteo"]}
             modelo = tipos.get(str(formulario.get("tipo_linea") or ""))
             if modelo is None:
                 raise ValueError("El tipo de línea no es válido.")
@@ -695,6 +715,63 @@ def procesar_accion_fuente_costo(
         )
         return f"Costo laboral de {empleado.nombre} actualizado a version {version.numero_version}."
 
+    if accion in {"crear_maquina", "actualizar_costo_maquina"}:
+        if accion == "crear_maquina":
+            maquina = crear_maquina(
+                **comunes,
+                codigo=formulario.get("codigo"),
+                nombre=formulario.get("nombre"),
+                categoria=formulario.get("categoria"),
+                observacion=formulario.get("observacion"),
+                MaquinaProductiva=modelos["MaquinaProductiva"],
+                commit=False,
+            )
+        else:
+            maquina = _registro_tenant(
+                modelos["MaquinaProductiva"],
+                _id(formulario, "maquina_id"), organizacion.id,
+                "La maquina", unidad_activa.id,
+            )
+            if formulario.get("nombre") is not None:
+                maquina.nombre = str(formulario.get("nombre") or "").strip()
+            if formulario.get("categoria") is not None:
+                maquina.categoria = str(
+                    formulario.get("categoria") or ""
+                ).strip()
+        version = registrar_costo_maquina(
+            maquina,
+            moneda=formulario.get("moneda", "ARS"),
+            valor_adquisicion_centavos=importe_a_centavos(
+                formulario.get("valor_adquisicion")
+            ),
+            valor_residual_centavos=importe_a_centavos(
+                formulario.get("valor_residual", 0)
+            ),
+            vida_util_horas=formulario.get("vida_util_horas"),
+            potencia_kw=formulario.get("potencia_kw", 0),
+            factor_carga_pct=formulario.get("factor_carga_pct", 100),
+            costo_kwh_centavos=importe_a_centavos(
+                formulario.get("costo_kwh", 0)
+            ),
+            mantenimiento_mensual_centavos=importe_a_centavos(
+                formulario.get("mantenimiento_mensual", 0)
+            ),
+            otros_costos_mensuales_centavos=importe_a_centavos(
+                formulario.get("otros_costos_mensuales", 0)
+            ),
+            horas_productivas_mensuales=formulario.get(
+                "horas_productivas_mensuales"
+            ),
+            observacion=formulario.get("observacion"),
+            creado_por_usuario_id=usuario_id,
+            MaquinaCostoVersion=modelos["MaquinaCostoVersion"],
+            db_session=db_session,
+        )
+        return (
+            f"Tarifa de {maquina.nombre} guardada como version "
+            f"{version.numero_version}."
+        )
+
     if accion == "crear_costo_fijo":
         integra = formulario.get("integra_costo_produccion") == "1"
         costo = crear_costo_fijo(
@@ -840,6 +917,11 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
             (modelos["EmpleadoProductivo"].unidad_negocio_id.is_(None))
             | (modelos["EmpleadoProductivo"].unidad_negocio_id == unidad_negocio_id),
         ).order_by(modelos["EmpleadoProductivo"].nombre).all(),
+        "maquinas": modelos["MaquinaProductiva"].query.filter(
+            modelos["MaquinaProductiva"].organizacion_id == organizacion_id,
+            (modelos["MaquinaProductiva"].unidad_negocio_id.is_(None))
+            | (modelos["MaquinaProductiva"].unidad_negocio_id == unidad_negocio_id),
+        ).order_by(modelos["MaquinaProductiva"].nombre).all(),
         "costos_fijos": costos_fijos,
         "distribuciones_costos_fijos": distribuciones_costos_fijos_vigentes(
             costos_fijos, Modelo=modelos["CostoFijoDistribucionVersion"],

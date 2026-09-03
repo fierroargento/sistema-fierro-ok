@@ -70,6 +70,35 @@ def guardar_costo_fijo(perfil, costo_fijo, *, porcentaje, unidades_mensuales, ob
     db_session.commit(); return registro
 
 
+def guardar_maquina(
+    perfil, maquina, *, nombre, minutos, observacion, Modelo, db_session,
+    registro_id=None,
+):
+    _alcance(perfil, maquina)
+    descripcion = str(nombre or "").strip()
+    if not descripcion:
+        raise ValueError("La operacion de maquina requiere un nombre.")
+    registro = None
+    if registro_id is not None:
+        registro = Modelo.query.filter_by(
+            id=int(registro_id), perfil_costeo_id=perfil.id,
+        ).first()
+        if registro is None:
+            raise ValueError("El uso de maquina no pertenece a la ficha activa.")
+    if registro is None:
+        registro = Modelo(
+            perfil_costeo_id=perfil.id,
+            orden=len(getattr(perfil, "maquinas_costeo", [])),
+        )
+        db_session.add(registro)
+    registro.maquina_id = maquina.id
+    registro.nombre = descripcion[:160]
+    registro.minutos = _positivo(minutos, "Los minutos")
+    registro.observacion = str(observacion or "").strip() or None
+    db_session.commit()
+    return registro
+
+
 def eliminar_linea(modelo, registro_id, perfil, *, db_session):
     registro = modelo.query.filter_by(id=registro_id, perfil_costeo_id=perfil.id).first()
     if registro is None:
