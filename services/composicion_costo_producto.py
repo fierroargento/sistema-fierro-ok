@@ -131,6 +131,20 @@ def construir_detalles(perfil):
             "unidad_medida": "minuto", "costo_unitario_centavos": version.costo_minuto_productivo_centavos,
             "porcentaje_merma": 0, "orden": orden, "observacion": linea.observacion,
         }); orden += 1
+    for linea in sorted(
+        getattr(perfil, "maquinas_costeo", []), key=lambda item: item.orden,
+    ):
+        version = _vigente(linea.maquina.versiones_costo)
+        if version is None:
+            raise ValueError(f"{linea.maquina.nombre} no tiene costo vigente.")
+        detalles.append({
+            "tipo": "elaboracion", "codigo": linea.maquina.codigo,
+            "concepto": linea.nombre, "cantidad": linea.minutos,
+            "unidad_medida": "minuto",
+            "costo_unitario_centavos": version.costo_minuto_centavos,
+            "porcentaje_merma": 0, "orden": orden,
+            "observacion": linea.observacion,
+        }); orden += 1
     for linea in perfil.costos_fijos_costeo:
         version = _vigente(linea.costo_fijo.versiones)
         if version is None:

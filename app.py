@@ -265,6 +265,8 @@ from models.fuentes_costo_productivo import (
     EmpleadoProductivo,
     InsumoPrecioVersion,
     InsumoProductivo,
+    MaquinaCostoVersion,
+    MaquinaProductiva,
     RecursoEmpleadoProductivo,
 )
 from models.ajuste_ipc_productivo import (
@@ -287,6 +289,7 @@ from models.composicion_costo_producto import (
     ProductoCostoFijoCosteo,
     ProductoInsumoCosteo,
     ProductoOperacionCosteo,
+    ProductoMaquinaCosteo,
 )
 from models.lista_precio import ListaPrecio
 from models.politica_comercial_lista import PoliticaComercialLista
@@ -11764,6 +11767,8 @@ registrar_modulos_web(
             "CostoProductoDetalle": CostoProductoDetalle,
             "InsumoProductivo": InsumoProductivo,
             "InsumoPrecioVersion": InsumoPrecioVersion,
+            "MaquinaProductiva": MaquinaProductiva,
+            "MaquinaCostoVersion": MaquinaCostoVersion,
             "EmpleadoProductivo": EmpleadoProductivo,
             "EmpleadoCostoVersion": EmpleadoCostoVersion,
             "EmpleadoDistribucionVersion": EmpleadoDistribucionVersion,
@@ -11784,6 +11789,7 @@ registrar_modulos_web(
             "ImportacionMasivaCosto": ImportacionMasivaCosto,
             "ProductoInsumoCosteo": ProductoInsumoCosteo,
             "ProductoOperacionCosteo": ProductoOperacionCosteo,
+            "ProductoMaquinaCosteo": ProductoMaquinaCosteo,
             "ProductoCostoFijoCosteo": ProductoCostoFijoCosteo,
             "ListaPrecio": ListaPrecio,
             "PoliticaComercialLista": PoliticaComercialLista,

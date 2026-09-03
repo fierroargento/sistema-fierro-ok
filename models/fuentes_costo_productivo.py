@@ -510,3 +510,108 @@ class CostoFijoDistribucionVersion(db.Model):
         "CostoFijoProductivo", backref="distribuciones_versionadas",
     )
     unidad_negocio = db.relationship("UnidadNegocio")
+
+
+class MaquinaProductiva(db.Model):
+    """Maquina o equipo cuyo uso puede integrar el costo productivo."""
+
+    __tablename__ = "maquina_productiva"
+    __table_args__ = (
+        UniqueConstraint(
+            "organizacion_id", "codigo",
+            name="uq_maquina_productiva_organizacion_codigo",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True,
+    )
+    unidad_negocio_id = db.Column(
+        db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=True, index=True,
+    )
+    codigo = db.Column(db.String(80), nullable=False, index=True)
+    nombre = db.Column(db.String(200), nullable=False, index=True)
+    categoria = db.Column(db.String(100), nullable=False, index=True)
+    activo = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    observacion = db.Column(db.String(500))
+    fecha_creacion = db.Column(
+        db.DateTime, default=ahora_utc_naive, nullable=False,
+    )
+
+    unidad_negocio = db.relationship("UnidadNegocio")
+
+
+class MaquinaCostoVersion(db.Model):
+    """Snapshot historico de la tarifa productiva de una maquina."""
+
+    __tablename__ = "maquina_costo_version"
+    __table_args__ = (
+        CheckConstraint(
+            "valor_adquisicion_centavos >= 0 AND valor_residual_centavos >= 0 "
+            "AND valor_residual_centavos <= valor_adquisicion_centavos",
+            name="ck_maquina_valores_amortizacion",
+        ),
+        CheckConstraint(
+            "vida_util_horas > 0 AND horas_productivas_mensuales > 0",
+            name="ck_maquina_horas_positivas",
+        ),
+        CheckConstraint(
+            "potencia_kw >= 0 AND factor_carga_pct >= 0 "
+            "AND factor_carga_pct <= 100 AND costo_kwh_centavos >= 0",
+            name="ck_maquina_energia_valida",
+        ),
+        CheckConstraint(
+            "mantenimiento_mensual_centavos >= 0 "
+            "AND otros_costos_mensuales_centavos >= 0 "
+            "AND costo_hora_centavos >= 0 AND costo_minuto_centavos >= 0",
+            name="ck_maquina_costos_no_negativos",
+        ),
+        CheckConstraint(
+            "numero_version > 0", name="ck_maquina_costo_version_positiva",
+        ),
+        Index(
+            "uq_maquina_costo_numero", "maquina_id", "moneda",
+            "numero_version", unique=True,
+        ),
+        Index(
+            "uq_maquina_costo_vigente", "maquina_id", "moneda", unique=True,
+            postgresql_where=text("vigente IS TRUE"),
+            sqlite_where=text("vigente IS TRUE"),
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    maquina_id = db.Column(
+        db.Integer, db.ForeignKey("maquina_productiva.id"),
+        nullable=False, index=True,
+    )
+    moneda = db.Column(db.String(3), default="ARS", nullable=False, index=True)
+    numero_version = db.Column(db.Integer, nullable=False)
+    valor_adquisicion_centavos = db.Column(db.BigInteger, nullable=False)
+    valor_residual_centavos = db.Column(db.BigInteger, default=0, nullable=False)
+    vida_util_horas = db.Column(db.Numeric(18, 4), nullable=False)
+    potencia_kw = db.Column(db.Numeric(18, 6), default=0, nullable=False)
+    factor_carga_pct = db.Column(db.Numeric(9, 4), default=100, nullable=False)
+    costo_kwh_centavos = db.Column(db.BigInteger, default=0, nullable=False)
+    mantenimiento_mensual_centavos = db.Column(
+        db.BigInteger, default=0, nullable=False,
+    )
+    otros_costos_mensuales_centavos = db.Column(
+        db.BigInteger, default=0, nullable=False,
+    )
+    horas_productivas_mensuales = db.Column(db.Numeric(12, 4), nullable=False)
+    costo_hora_centavos = db.Column(db.BigInteger, nullable=False)
+    costo_minuto_centavos = db.Column(db.BigInteger, nullable=False)
+    vigente = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    vigente_desde = db.Column(db.DateTime, nullable=False, index=True)
+    vigente_hasta = db.Column(db.DateTime)
+    observacion = db.Column(db.String(500))
+    creado_por_usuario_id = db.Column(
+        db.Integer, db.ForeignKey("usuario_sistema.id"), nullable=True,
+    )
+    fecha_creacion = db.Column(
+        db.DateTime, default=ahora_utc_naive, nullable=False,
+    )
+
+    maquina = db.relationship("MaquinaProductiva", backref="versiones_costo")

@@ -58,3 +58,35 @@ class ProductoCostoFijoCosteo(db.Model):
     fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
     perfil = db.relationship("PerfilCosteoProducto", backref="costos_fijos_costeo")
     costo_fijo = db.relationship("CostoFijoProductivo")
+
+
+class ProductoMaquinaCosteo(db.Model):
+    """Tiempo de uso de una maquina dentro de una ficha productiva."""
+
+    __tablename__ = "producto_maquina_costeo"
+    __table_args__ = (
+        UniqueConstraint(
+            "perfil_costeo_id", "maquina_id", "nombre",
+            name="uq_producto_maquina_operacion",
+        ),
+        CheckConstraint("minutos > 0", name="ck_producto_maquina_minutos"),
+        CheckConstraint("orden >= 0", name="ck_producto_maquina_orden"),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    perfil_costeo_id = db.Column(
+        db.Integer, db.ForeignKey("perfil_costeo_producto.id"),
+        nullable=False, index=True,
+    )
+    maquina_id = db.Column(
+        db.Integer, db.ForeignKey("maquina_productiva.id"),
+        nullable=False, index=True,
+    )
+    nombre = db.Column(db.String(160), nullable=False)
+    minutos = db.Column(db.Numeric(12, 4), nullable=False)
+    orden = db.Column(db.Integer, default=0, nullable=False)
+    observacion = db.Column(db.String(500))
+    fecha_creacion = db.Column(
+        db.DateTime, default=ahora_utc_naive, nullable=False,
+    )
+    perfil = db.relationship("PerfilCosteoProducto", backref="maquinas_costeo")
+    maquina = db.relationship("MaquinaProductiva")
