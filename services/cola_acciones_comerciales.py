@@ -84,12 +84,24 @@ def crear_propuestas(filas, *, organizacion_id, unidad_negocio_id, usuario,
     return {"creadas": creadas, "omitidas": omitidas}
 
 
-def decidir_propuesta(propuesta, accion, motivo, *, usuario, db_session):
+def propuesta_esta_vigente(propuesta, fila_actual):
+    if propuesta is None or fila_actual is None: return False
+    return any(
+        item["tipo_accion"] == propuesta.tipo_accion
+        and item["huella_calculo"] == propuesta.huella_calculo
+        for item in planificar_fila(fila_actual)
+    )
+
+
+def decidir_propuesta(propuesta, accion, motivo, *, usuario, db_session,
+                      fila_actual=None):
     if propuesta is None or propuesta.puede_ejecutar:
         raise ValueError("La propuesta no cumple el contrato interno.")
     accion = str(accion or "").strip().lower(); razon = str(motivo or "").strip()
     destinos = {"aprobar": "aprobada", "rechazar": "rechazada", "archivar": "archivada", "completar_manual": "completada_manual"}
     if accion not in destinos: raise ValueError("La decisión no es válida.")
+    if accion in {"aprobar", "completar_manual"} and not propuesta_esta_vigente(propuesta, fila_actual):
+        raise ValueError("La propuesta quedo obsoleta porque cambiaron sus datos de origen.")
     if accion in {"aprobar", "rechazar", "archivar"} and propuesta.estado != "preparada":
         raise ValueError("La propuesta ya fue decidida.")
     if accion == "completar_manual":

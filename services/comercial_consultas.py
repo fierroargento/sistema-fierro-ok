@@ -10,6 +10,7 @@ from services.catalogo_ficha_integral import (
 from services.reglas_economicas import calcular_pisos_regla, resolver_regla_vigente
 from services.motor_comercial_canal import calcular_precio_minimo_canal
 from services.control_comercial_masivo import construir_bandeja
+from services.validacion_integral_canal import construir_tablero
 
 
 def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos):
@@ -26,6 +27,7 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
     Promocion = modelos["PromocionCanalObservacion"]
     Propuesta = modelos["PropuestaAccionComercial"]
     ObservacionCanal = modelos["ObservacionComercialCanal"]
+    ReglaValidacion = modelos["ReglaValidacionCanalVersion"]
     inclusiones = CatalogoProducto.query.join(
         Catalogo
     ).filter(
@@ -96,6 +98,14 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
     control_comercial, resumen_control_comercial = construir_bandeja(
         simulaciones_canal, items, promociones, observaciones_canal,
     )
+    reglas_validacion = ReglaValidacion.query.join(Lista).filter(
+        Lista.organizacion_id == organizacion_id,
+        Lista.unidad_negocio_id == unidad_negocio_id,
+    ).order_by(ReglaValidacion.fecha_creacion.desc()).all()
+    tablero_preparacion, resumen_preparacion, propuestas_obsoletas = construir_tablero(
+        control_comercial, reglas_validacion, observaciones_canal,
+        promociones, propuestas_comerciales,
+    )
     return {
         "productos_maestro": Producto.query.order_by(
             Producto.sku.asc()
@@ -130,4 +140,8 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         "promociones_canal": promociones,
         "propuestas_comerciales": propuestas_comerciales,
         "observaciones_comerciales_canal": observaciones_canal,
+        "reglas_validacion_canal": reglas_validacion,
+        "tablero_preparacion": tablero_preparacion,
+        "resumen_preparacion": resumen_preparacion,
+        "propuestas_obsoletas": propuestas_obsoletas,
     }

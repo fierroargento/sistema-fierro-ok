@@ -7,6 +7,7 @@ from services.aprobacion_costos import validar_version_preparatoria
 from services.reglas_economicas import activar_regla, crear_regla
 from services.reglas_canal import activar_regla_canal, agregar_tramo, crear_regla_canal
 from services.promociones_canal import registrar_observacion
+from services.validacion_integral_canal import activar_regla_validacion, crear_regla_validacion
 from services.listas_precios import (
     activar_item_lista, activar_politica_lista, crear_item_lista,
     crear_lista_precio, crear_politica_lista,
@@ -193,6 +194,40 @@ def procesar_accion_comercial(
             db_session=db_session,
         )
         return f"Promoción observada registrada como {registro.estado_observado}."
+    if accion in {"crear_regla_validacion_canal", "activar_regla_validacion_canal"}:
+        lista = modelos["ListaPrecio"].query.filter_by(
+            id=_id(formulario, "lista_precio_id"), organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+        ).first()
+        if lista is None: raise ValueError("La lista no pertenece a la unidad activa.")
+        if accion == "crear_regla_validacion_canal":
+            regla = crear_regla_validacion(
+                lista, nombre=formulario.get("nombre"),
+                vigencias={
+                    "precio": formulario.get("vigencia_precio_horas"),
+                    "cargos": formulario.get("vigencia_cargos_horas"),
+                    "envio": formulario.get("vigencia_envio_horas"),
+                    "promocion": formulario.get("vigencia_promocion_horas"),
+                },
+                exigencias={
+                    "precio": formulario.get("exigir_precio") == "1",
+                    "cargos": formulario.get("exigir_cargos") == "1",
+                    "envio": formulario.get("exigir_envio") == "1",
+                    "promocion": formulario.get("exigir_promocion") == "1",
+                    "identidad": formulario.get("exigir_identidad") == "1",
+                }, usuario=usuario,
+                ReglaValidacionCanalVersion=modelos["ReglaValidacionCanalVersion"],
+                db_session=db_session,
+            )
+            return f"Regla de validación {regla.nombre} creada como preparatoria."
+        regla = modelos["ReglaValidacionCanalVersion"].query.filter_by(
+            id=_id(formulario, "regla_validacion_id"), lista_precio_id=lista.id,
+        ).first()
+        activar_regla_validacion(
+            regla, ReglaValidacionCanalVersion=modelos["ReglaValidacionCanalVersion"],
+            db_session=db_session,
+        )
+        return "Regla de validación activada."
     if accion == "crear_lista":
         lista = crear_lista_precio(
             organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,

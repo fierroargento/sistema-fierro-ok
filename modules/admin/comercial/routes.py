@@ -238,9 +238,11 @@ def crear_blueprint_comercial(*, dependencias):
                 id=int(request.form.get("propuesta_id")), organizacion_id=organizacion.id,
                 unidad_negocio_id=unidad_activa.id,
             ).first()
+            datos = obtener_datos_panel_comercial(organizacion.id, unidad_activa.id, modelos=modelos)
+            fila_actual = next((fila for fila in datos["control_comercial"] if propuesta is not None and fila["regla_canal"].lista_precio_id == propuesta.lista_precio_id and fila.get("inclusion") is not None and fila["inclusion"].id == propuesta.catalogo_producto_id), None)
             propuesta = decidir_propuesta(
                 propuesta, request.form.get("decision"), request.form.get("motivo"),
-                usuario=usuario, db_session=db.session,
+                usuario=usuario, db_session=db.session, fila_actual=fila_actual,
             )
             mensaje = f"Propuesta {propuesta.id} actualizada a {propuesta.estado}."
             dependencias["registrar_auditoria"]("Decidio accion comercial interna", entidad="propuesta_accion_comercial", entidad_id=propuesta.id, detalle=mensaje)
