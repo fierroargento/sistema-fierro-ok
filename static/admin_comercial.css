@@ -127,6 +127,8 @@
 .cost-down { color: #17734b; }
 
 .form-reglas-economicas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.form-promociones { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.promotion-observations { margin-bottom: 16px; }
 .economic-priority {
   margin: 10px 0 14px;
   padding: 10px 12px;

@@ -6,6 +6,7 @@ from services.costos_productos import crear_version_costo, activar_version_costo
 from services.aprobacion_costos import validar_version_preparatoria
 from services.reglas_economicas import activar_regla, crear_regla
 from services.reglas_canal import activar_regla_canal, agregar_tramo, crear_regla_canal
+from services.promociones_canal import registrar_observacion
 from services.listas_precios import (
     activar_item_lista, activar_politica_lista, crear_item_lista,
     crear_lista_precio, crear_politica_lista,
@@ -165,6 +166,33 @@ def procesar_accion_comercial(
             return "Tramo de cargo fijo agregado."
         activar_regla_canal(regla, ReglaCanalVersion=modelos["ReglaCanalVersion"], db_session=db_session)
         return "Política de canal activada."
+    if accion == "registrar_promocion_canal":
+        lista = modelos["ListaPrecio"].query.filter_by(
+            id=_id(formulario, "lista_precio_id"), organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+        ).first()
+        inclusion = modelos["CatalogoProducto"].query.get(
+            _id(formulario, "catalogo_producto_id")
+        )
+        if lista is None: raise ValueError("La lista no pertenece a la unidad activa.")
+        if (
+            inclusion is None
+            or inclusion.catalogo.organizacion_id != organizacion.id
+            or inclusion.catalogo.unidad_negocio_id != unidad_activa.id
+        ): raise ValueError("El producto no pertenece a la unidad activa.")
+        registro = registrar_observacion(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+            lista_precio_id=lista.id, catalogo_producto_id=inclusion.id,
+            referencia_externa=formulario.get("referencia_externa"),
+            nombre=formulario.get("nombre_promocion"),
+            precio_base_centavos=importe_a_centavos(formulario.get("precio_base")),
+            precio_promocional_centavos=importe_a_centavos(formulario.get("precio_promocional")),
+            estado_observado=formulario.get("estado_observado"), origen="manual",
+            observacion=formulario.get("observacion"), usuario=usuario,
+            PromocionCanalObservacion=modelos["PromocionCanalObservacion"],
+            db_session=db_session,
+        )
+        return f"Promoción observada registrada como {registro.estado_observado}."
     if accion == "crear_lista":
         lista = crear_lista_precio(
             organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,

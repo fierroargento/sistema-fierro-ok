@@ -296,6 +296,7 @@ from models.politica_comercial_lista import PoliticaComercialLista
 from models.lista_precio_item import ListaPrecioItem
 from models.regla_economica import ReglaEconomicaVersion
 from models.regla_canal import ReglaCanalCargoTramo, ReglaCanalVersion
+from models.promocion_canal import PromocionCanalObservacion
 from models.modulo_organizacion import ModuloOrganizacion
 from models.vinculo_canal_comercial import VinculoCanalComercial
 from models.cliente_crm import ClienteCRM
@@ -11799,6 +11800,7 @@ registrar_modulos_web(
             "ReglaEconomicaVersion": ReglaEconomicaVersion,
             "ReglaCanalVersion": ReglaCanalVersion,
             "ReglaCanalCargoTramo": ReglaCanalCargoTramo,
+            "PromocionCanalObservacion": PromocionCanalObservacion,
             "ModuloOrganizacion": ModuloOrganizacion,
             "Producto": Producto,
             "VinculoCanalComercial": (
