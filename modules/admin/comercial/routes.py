@@ -4,6 +4,7 @@ from flask import Blueprint, redirect, render_template, request, send_file, sess
 
 from services.comercial_admin import procesar_accion_comercial
 from services.comercial_consultas import obtener_datos_panel_comercial
+from services.control_comercial_masivo import exportar_bandeja_excel
 from services.fuentes_costo_admin import (
     obtener_fuentes_costo,
     procesar_accion_fuente_costo,
@@ -171,6 +172,28 @@ def crear_blueprint_comercial(*, dependencias):
             ),
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(),
+        )
+
+    @blueprint.route("/admin/comercial/control-comercial/exportar", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def exportar_control_comercial():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        datos = obtener_datos_panel_comercial(
+            organizacion.id, unidad_activa.id, modelos=modelos,
+        )
+        filas = datos["control_comercial"]
+        seleccion = set(request.form.getlist("claves")) if request.method == "POST" else set()
+        if seleccion:
+            filas = [fila for fila in filas if fila["clave"] in seleccion]
+        if not filas:
+            raise ValueError("No hay filas de control para exportar.")
+        return send_file(
+            exportar_bandeja_excel(filas), as_attachment=True,
+            download_name="control_comercial.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
     @blueprint.route("/admin/comercial/cuentas-pagar")

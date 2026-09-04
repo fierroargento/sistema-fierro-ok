@@ -456,6 +456,15 @@
     iniciarDependenciasPolitica();
     iniciarGestionCatalogo();
     iniciarDialogosInventario();
+    const selectorControl = document.querySelector("[data-select-control]");
+    if (selectorControl) {
+      selectorControl.addEventListener("click", function () {
+        const casillas = document.querySelectorAll('[data-control-checkbox]');
+        const seleccionar = Array.from(casillas).some(function (casilla) { return !casilla.checked; });
+        casillas.forEach(function (casilla) { casilla.checked = seleccionar; });
+        selectorControl.textContent = seleccionar ? "Quitar selección" : "Seleccionar todo";
+      });
+    }
   }
 
   if (document.readyState === "loading") {

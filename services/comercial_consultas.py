@@ -9,6 +9,7 @@ from services.catalogo_ficha_integral import (
 )
 from services.reglas_economicas import calcular_pisos_regla, resolver_regla_vigente
 from services.motor_comercial_canal import calcular_precio_minimo_canal
+from services.control_comercial_masivo import construir_bandeja
 
 
 def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos):
@@ -74,6 +75,13 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
                     fila["pisos"]["objetivo"]["piso_liquidacion_centavos"], regla_canal,
                 ),
             })
+    items = Item.query.join(Lista).filter(
+        Lista.organizacion_id == organizacion_id,
+        Lista.unidad_negocio_id == unidad_negocio_id,
+    ).order_by(Item.fecha_creacion.desc()).all()
+    control_comercial, resumen_control_comercial = construir_bandeja(
+        simulaciones_canal, items,
+    )
     return {
         "productos_maestro": Producto.query.order_by(
             Producto.sku.asc()
@@ -98,12 +106,11 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
             Lista.organizacion_id == organizacion_id
             , Lista.unidad_negocio_id == unidad_negocio_id
         ).order_by(Politica.fecha_creacion.desc()).all(),
-        "items": Item.query.join(Lista).filter(
-            Lista.organizacion_id == organizacion_id
-            , Lista.unidad_negocio_id == unidad_negocio_id
-        ).order_by(Item.fecha_creacion.desc()).all(),
+        "items": items,
         "reglas_economicas": reglas_economicas,
         "pisos_economicos": pisos_economicos,
         "reglas_canal": reglas_canal,
         "simulaciones_canal": simulaciones_canal,
+        "control_comercial": control_comercial,
+        "resumen_control_comercial": resumen_control_comercial,
     }

@@ -25,7 +25,8 @@
     <a href="#listas"><span>3</span>Listas</a>
     <a href="#reglas-economicas"><span>4</span>Reglas económicas</a>
     <a href="#politicas"><span>5</span>Políticas</a>
-    <a href="#precios"><span>6</span>Precios</a>
+    <a href="#control-comercial"><span>6</span>Control</a>
+    <a href="#precios"><span>7</span>Precios</a>
   </nav>
 
   <section class="comercial-section" id="catalogos">
@@ -265,8 +266,14 @@
     </tbody></table></div>
   </section>
 
+  <section class="comercial-section" id="control-comercial">
+    <div class="section-heading"><div><span class="section-number">6</span><h2>Control comercial masivo</h2></div><p>Compara el precio vigente con el piso económico y propone un precio seguro. Solo diagnostica.</p></div>
+    <div class="control-summary"><div><strong>{{ resumen_control_comercial.rentable }}</strong><span>Rentables</span></div><div><strong>{{ resumen_control_comercial.al_limite }}</strong><span>Al límite</span></div><div><strong>{{ resumen_control_comercial.debajo_del_piso }}</strong><span>Debajo del piso</span></div><div><strong>{{ resumen_control_comercial.sin_precio }}</strong><span>Sin precio</span></div></div>
+    {% if control_comercial %}<form method="post" action="{{ url_for('admin_comercial.exportar_control_comercial') }}"><div class="control-actions"><span>Seleccioná productos para exportarlos. No se crea ninguna acción de publicación.</span><div><button class="table-action" type="button" data-select-control>Seleccionar todo</button><button class="comercial-primary">Exportar seleccionados</button><a class="secondary-link" href="{{ url_for('admin_comercial.exportar_control_comercial') }}">Exportar todo</a></div></div><div class="table-wrap"><table class="comercial-table control-table"><thead><tr><th></th><th>Producto / canal</th><th>Estado</th><th>Precio actual</th><th>Mínimo</th><th>Propuesto</th><th>Diferencia</th><th>Liquidación / piso</th><th>Cambios de tramo</th></tr></thead><tbody>{% for fila in control_comercial %}<tr><td><input type="checkbox" name="claves" value="{{ fila.clave }}" data-control-checkbox></td><td><strong>{{ fila.costo.producto.sku }}</strong><small class="table-subline">{{ fila.regla_canal.lista_precio.nombre }}</small></td><td><span class="control-status control-{{ fila.estado_control }}">{{ fila.estado_control|replace('_', ' ') }}</span><small class="table-subline">{{ fila.fuente_precio|replace('_', ' ') }}</small></td><td>{% if fila.actual %}${{ '%.2f'|format(fila.actual.precio_final_centavos / 100) }}{% else %}—{% endif %}</td><td>${{ '%.2f'|format(fila.minimo.precio_final_centavos / 100) }}</td><td><strong>${{ '%.2f'|format(fila.propuesto.precio_final_centavos / 100) }}</strong></td><td>{% if fila.diferencia_precio_centavos is not none %}{{ '+' if fila.diferencia_precio_centavos > 0 else '' }}${{ '%.2f'|format(fila.diferencia_precio_centavos / 100) }}<small class="table-subline">{{ '+' if fila.diferencia_pct > 0 else '' }}{{ fila.diferencia_pct }}%</small>{% else %}Precio inicial{% endif %}</td><td>{% if fila.actual %}${{ '%.2f'|format(fila.actual.liquidacion_centavos / 100) }}{% else %}—{% endif %}<small class="table-subline">Piso ${{ '%.2f'|format(fila.minimo.piso_liquidacion_centavos / 100) }}</small></td><td>{% if fila.cambia_cargo %}<span class="control-warning">Cambia cargo fijo</span>{% endif %}{% if fila.cambia_envio %}<span class="control-warning">Cambia envío</span>{% endif %}{% if not fila.cambia_cargo and not fila.cambia_envio %}Sin cambio{% endif %}</td></tr>{% endfor %}</tbody></table></div></form>{% else %}<div class="prerequisite-warning">Para generar el control necesitás costos, reglas económicas y políticas de canal vigentes.</div>{% endif %}
+  </section>
+
   <section class="comercial-section" id="precios">
-    <div class="section-heading"><div><span class="section-number">6</span><h2>Cálculo de precios</h2></div><p>Calculá el precio sugerido usando un costo y una política vigentes.</p></div>
+    <div class="section-heading"><div><span class="section-number">7</span><h2>Cálculo de precios</h2></div><p>Calculá el precio sugerido usando un costo y una política vigentes.</p></div>
     {% set hay_costos_vigentes = costos|selectattr('vigente')|list %}
     {% set hay_politicas_vigentes = politicas|selectattr('vigente')|list %}
     {% if inclusiones_activas and listas and hay_costos_vigentes and hay_politicas_vigentes %}
