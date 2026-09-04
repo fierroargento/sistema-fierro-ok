@@ -129,6 +129,14 @@
 .form-reglas-economicas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .form-promociones { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .promotion-observations { margin-bottom: 16px; }
+.commercial-action-queue { margin-top: 24px; padding-top: 18px; border-top: 1px solid #d9dee7; }
+.queue-decision { display: flex; flex-wrap: wrap; gap: 6px; min-width: 280px; }
+.queue-decision input { flex: 1 1 180px; min-width: 0; border: 1px solid #cbd7dd; border-radius: 6px; padding: 6px 8px; }
+.queue-preparada { color: #a05b00; }
+.queue-aprobada { color: #176b89; }
+.queue-completada_manual { color: #17734b; }
+.queue-rechazada,
+.queue-archivada { color: #65737e; }
 .economic-priority {
   margin: 10px 0 14px;
   padding: 10px 12px;

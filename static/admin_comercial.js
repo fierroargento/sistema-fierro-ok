@@ -464,6 +464,13 @@
         casillas.forEach(function (casilla) { casilla.checked = seleccionar; });
         selectorControl.textContent = seleccionar ? "Quitar selección" : "Seleccionar todo";
       });
+      const acciones = selectorControl.closest(".control-actions").querySelector("div");
+      const preparar = document.createElement("button");
+      preparar.type = "submit";
+      preparar.className = "table-action";
+      preparar.textContent = "Preparar acciones";
+      preparar.formAction = "/admin/comercial/control-comercial/proponer";
+      acciones.appendChild(preparar);
     }
   }
 

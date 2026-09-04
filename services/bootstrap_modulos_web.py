@@ -95,6 +95,7 @@ def registrar_modulos_web(
                         "ListaPrecioItem", "ReglaEconomicaVersion",
                         "ReglaCanalVersion", "ReglaCanalCargoTramo",
                         "PromocionCanalObservacion",
+                        "PropuestaAccionComercial",
                     )
                 },
             },

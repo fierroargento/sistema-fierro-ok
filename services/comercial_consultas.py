@@ -24,6 +24,7 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
     ReglaEconomica = modelos["ReglaEconomicaVersion"]
     ReglaCanal = modelos["ReglaCanalVersion"]
     Promocion = modelos["PromocionCanalObservacion"]
+    Propuesta = modelos["PropuestaAccionComercial"]
     inclusiones = CatalogoProducto.query.join(
         Catalogo
     ).filter(
@@ -84,6 +85,9 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         Lista.organizacion_id == organizacion_id,
         Lista.unidad_negocio_id == unidad_negocio_id,
     ).order_by(Promocion.fecha_observacion.desc()).all()
+    propuestas_comerciales = Propuesta.query.filter_by(
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
+    ).order_by(Propuesta.fecha_creacion.desc()).all()
     control_comercial, resumen_control_comercial = construir_bandeja(
         simulaciones_canal, items, promociones,
     )
@@ -119,4 +123,5 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         "control_comercial": control_comercial,
         "resumen_control_comercial": resumen_control_comercial,
         "promociones_canal": promociones,
+        "propuestas_comerciales": propuestas_comerciales,
     }

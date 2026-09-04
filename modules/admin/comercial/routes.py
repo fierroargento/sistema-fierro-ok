@@ -5,6 +5,7 @@ from flask import Blueprint, redirect, render_template, request, send_file, sess
 from services.comercial_admin import procesar_accion_comercial
 from services.comercial_consultas import obtener_datos_panel_comercial
 from services.control_comercial_masivo import exportar_bandeja_excel
+from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
     obtener_fuentes_costo,
     procesar_accion_fuente_costo,
@@ -195,6 +196,51 @@ def crear_blueprint_comercial(*, dependencias):
             download_name="control_comercial.xlsx",
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
+
+    @blueprint.route("/admin/comercial/control-comercial/proponer", methods=["POST"])
+    @dependencias["login_required"]
+    def proponer_acciones_comerciales():
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        try:
+            unidad_activa, _unidades = contexto_comercial(organizacion)
+            seleccion = set(request.form.getlist("claves"))
+            if not seleccion: raise ValueError("Seleccioná al menos un producto.")
+            datos = obtener_datos_panel_comercial(organizacion.id, unidad_activa.id, modelos=modelos)
+            filas = [fila for fila in datos["control_comercial"] if fila["clave"] in seleccion]
+            resultado = crear_propuestas(
+                filas, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                usuario=usuario, PropuestaAccionComercial=modelos["PropuestaAccionComercial"],
+                db_session=db.session,
+            )
+            mensaje = f'{len(resultado["creadas"])} propuestas creadas; {resultado["omitidas"]} duplicadas omitidas.'
+            dependencias["registrar_auditoria"]("Preparo acciones comerciales internas", entidad="comercial", entidad_id=organizacion.id, detalle=mensaje)
+            return redirect(url_for("admin_comercial.panel", ok=mensaje) + "#cola-comercial")
+        except Exception as error:
+            db.session.rollback()
+            return redirect(url_for("admin_comercial.panel", error=str(error)) + "#control-comercial")
+
+    @blueprint.route("/admin/comercial/control-comercial/decidir", methods=["POST"])
+    @dependencias["login_required"]
+    def decidir_accion_comercial():
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        try:
+            unidad_activa, _unidades = contexto_comercial(organizacion)
+            propuesta = modelos["PropuestaAccionComercial"].query.filter_by(
+                id=int(request.form.get("propuesta_id")), organizacion_id=organizacion.id,
+                unidad_negocio_id=unidad_activa.id,
+            ).first()
+            propuesta = decidir_propuesta(
+                propuesta, request.form.get("decision"), request.form.get("motivo"),
+                usuario=usuario, db_session=db.session,
+            )
+            mensaje = f"Propuesta {propuesta.id} actualizada a {propuesta.estado}."
+            dependencias["registrar_auditoria"]("Decidio accion comercial interna", entidad="propuesta_accion_comercial", entidad_id=propuesta.id, detalle=mensaje)
+            return redirect(url_for("admin_comercial.panel", ok=mensaje) + "#cola-comercial")
+        except Exception as error:
+            db.session.rollback()
+            return redirect(url_for("admin_comercial.panel", error=str(error)) + "#cola-comercial")
 
     @blueprint.route("/admin/comercial/cuentas-pagar")
     @dependencias["login_required"]

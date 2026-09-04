@@ -42,6 +42,7 @@ def evaluar_control(simulacion, precio_actual_centavos=None, fuente_precio=None,
     requiere_correccion = actual is None or precio_propuesto > actual["precio_final_centavos"]
     promocion_activa = promocion is not None and promocion.estado_observado == "activa"
     accion_recomendada = (
+        "completar_catalogo" if simulacion.get("inclusion") is None else
         "cancelar_promocion_antes_de_actualizar" if promocion_activa and requiere_correccion
         else "mantener_promocion" if promocion_activa else
         "actualizar_precio" if requiere_correccion else "sin_accion"
