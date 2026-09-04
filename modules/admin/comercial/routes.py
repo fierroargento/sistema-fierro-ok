@@ -5,6 +5,10 @@ from flask import Blueprint, redirect, render_template, request, send_file, sess
 from services.comercial_admin import procesar_accion_comercial
 from services.comercial_consultas import obtener_datos_panel_comercial
 from services.control_comercial_masivo import exportar_bandeja_excel
+from services.catalogos_comerciales import importe_a_centavos
+from services.conciliacion_liquidaciones_canal import (
+    construir_conciliaciones, registrar_movimiento, registrar_venta,
+)
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
     obtener_fuentes_costo,
@@ -180,6 +184,67 @@ def crear_blueprint_comercial(*, dependencias):
             ),
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(),
+        )
+
+    @blueprint.route("/admin/comercial/conciliacion", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def conciliacion_canal():
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        Venta = modelos["VentaCanalItem"]; Movimiento = modelos["MovimientoLiquidacionCanal"]
+        Lista = modelos["ListaPrecio"]; Inclusion = modelos["CatalogoProducto"]
+        try:
+            if request.method == "POST":
+                accion = (request.form.get("accion") or "").strip()
+                if accion == "registrar_venta":
+                    lista = Lista.query.filter_by(id=int(request.form.get("lista_precio_id")), organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).first()
+                    inclusion = Inclusion.query.get(int(request.form.get("catalogo_producto_id")))
+                    if lista is None or inclusion is None or inclusion.catalogo.organizacion_id != organizacion.id or inclusion.catalogo.unidad_negocio_id != unidad_activa.id: raise ValueError("La lista o el producto no pertenecen a la unidad activa.")
+                    regla = modelos["ReglaCanalVersion"].query.filter_by(lista_precio_id=lista.id, vigente=True).first()
+                    if regla is None: raise ValueError("La lista no tiene una politica de canal vigente.")
+                    datos_panel = obtener_datos_panel_comercial(organizacion.id, unidad_activa.id, modelos=modelos)
+                    control = next((fila for fila in datos_panel["control_comercial"] if fila.get("inclusion") is not None and fila["inclusion"].id == inclusion.id and fila["regla_canal"].lista_precio_id == lista.id), None)
+                    registrar_venta(
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                        lista_precio_id=lista.id, catalogo_producto_id=inclusion.id,
+                        cuenta_codigo=request.form.get("cuenta_codigo"), referencia_venta=request.form.get("referencia_venta"),
+                        referencia_item=request.form.get("referencia_item"), referencia_pago=request.form.get("referencia_pago"),
+                        cantidad=int(request.form.get("cantidad")), precio_unitario_centavos=importe_a_centavos(request.form.get("precio_unitario")),
+                        estado=request.form.get("estado"), fecha_venta=ahora_utc_naive(), regla_canal=regla,
+                        costo_unitario_centavos=getattr(control.get("costo"), "costo_total_centavos", None) if control else None,
+                        piso_unitario_centavos=control["minimo"]["piso_liquidacion_centavos"] if control else None,
+                        usuario=usuario, VentaCanalItem=Venta, db_session=db.session,
+                    )
+                    mensaje = "Venta observada registrada."
+                elif accion == "registrar_movimiento":
+                    registrar_movimiento(
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                        cuenta_codigo=request.form.get("cuenta_codigo"), referencia_venta=request.form.get("referencia_venta"),
+                        referencia_pago=request.form.get("referencia_pago"), referencia_movimiento=request.form.get("referencia_movimiento"),
+                        tipo=request.form.get("tipo"), direccion=request.form.get("direccion"),
+                        importe_centavos=importe_a_centavos(request.form.get("importe")), fecha_movimiento=ahora_utc_naive(),
+                        impacta_saldo=request.form.get("impacta_saldo") == "1", detalle=request.form.get("detalle"),
+                        usuario=usuario, MovimientoLiquidacionCanal=Movimiento, db_session=db.session,
+                    )
+                    mensaje = "Movimiento de liquidacion registrado."
+                else: raise ValueError("La accion de conciliacion no es valida.")
+                dependencias["registrar_auditoria"]("Registro conciliacion comercial", entidad="conciliacion_canal", entidad_id=organizacion.id, detalle=mensaje)
+                return redirect(url_for("admin_comercial.conciliacion_canal", ok=mensaje))
+        except Exception as error:
+            db.session.rollback()
+            return redirect(url_for("admin_comercial.conciliacion_canal", error=str(error)))
+        ventas = Venta.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Venta.fecha_venta.desc()).all()
+        movimientos = Movimiento.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Movimiento.fecha_movimiento.desc()).all()
+        conciliaciones, resumen = construir_conciliaciones(ventas, movimientos)
+        return render_template(
+            "admin_conciliacion_canal.html", organizacion=organizacion,
+            unidad_activa=unidad_activa, unidades=unidades, ventas=ventas,
+            movimientos=movimientos, conciliaciones=conciliaciones,
+            resumen_conciliacion=resumen,
+            listas=Lista.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Lista.nombre).all(),
+            inclusiones=Inclusion.query.join(modelos["Catalogo"]).filter(modelos["Catalogo"].organizacion_id == organizacion.id, modelos["Catalogo"].unidad_negocio_id == unidad_activa.id).order_by(Inclusion.nombre_comercial).all(),
+            ok_feedback=(request.args.get("ok") or "").strip(), error=(request.args.get("error") or "").strip(),
         )
 
     @blueprint.route("/admin/comercial/control-comercial/exportar", methods=["GET", "POST"])

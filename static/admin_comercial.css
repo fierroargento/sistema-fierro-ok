@@ -142,6 +142,23 @@
 .readiness-lista { color: #17734b; }
 .readiness-advertencia { color: #a05b00; }
 .readiness-bloqueada { color: #a3152a; }
+.commercial-module-link { display: flex; justify-content: flex-end; margin: -8px 0 18px; }
+.reconciliation-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+.reconciliation-summary > div { display: grid; gap: 3px; padding: 14px; border: 1px solid #d9dee7; border-radius: 10px; background: #fff; }
+.reconciliation-summary strong { font-size: 24px; color: #263648; }
+.reconciliation-summary span { color: #607887; font-size: 12px; }
+.reconciliation-form { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.reconciliation-conciliada { color: #17734b; }
+.reconciliation-pendiente,
+.reconciliation-pago_parcial { color: #a05b00; }
+.reconciliation-diferencia_a_favor { color: #176b89; }
+.reconciliation-anulada,
+.reconciliation-devuelta,
+.reconciliation-devolucion_parcial { color: #65737e; }
+.economic-cumple { color: #17734b; }
+.economic-bajo_piso { color: #a3152a; }
+.economic-sin_piso { color: #a05b00; }
+.economic-no_aplica { color: #65737e; }
 .commercial-action-queue { margin-top: 24px; padding-top: 18px; border-top: 1px solid #d9dee7; }
 .queue-decision { display: flex; flex-wrap: wrap; gap: 6px; min-width: 280px; }
 .queue-decision input { flex: 1 1 180px; min-width: 0; border: 1px solid #cbd7dd; border-radius: 6px; padding: 6px 8px; }
