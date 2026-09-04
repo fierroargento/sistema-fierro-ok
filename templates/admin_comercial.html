@@ -23,8 +23,9 @@
     <a href="#catalogos"><span>1</span>Catálogos</a>
     <a href="#costos"><span>2</span>Costos</a>
     <a href="#listas"><span>3</span>Listas</a>
-    <a href="#politicas"><span>4</span>Políticas</a>
-    <a href="#precios"><span>5</span>Precios</a>
+    <a href="#reglas-economicas"><span>4</span>Reglas económicas</a>
+    <a href="#politicas"><span>5</span>Políticas</a>
+    <a href="#precios"><span>6</span>Precios</a>
   </nav>
 
   <section class="comercial-section" id="catalogos">
@@ -218,8 +219,32 @@
     </div>
   </section>
 
+  <section class="comercial-section" id="reglas-economicas">
+    <div class="section-heading"><div><span class="section-number">4</span><h2>Reglas económicas internas</h2></div><p>Definen cuánto debe quedar como mínimo luego de costos comerciales. La excepción más específica reemplaza a la general.</p></div>
+    <form class="comercial-form form-reglas-economicas" method="post" action="{{ url_for('admin_comercial.guardar') }}">
+      <input type="hidden" name="accion" value="crear_regla_economica">
+      <label><span>Nombre</span><input name="nombre" placeholder="Ej. Regla general" required></label>
+      <label><span>Alcance</span><select name="alcance" required><option value="organizacion">Toda la organización</option><option value="unidad">Unidad activa</option><option value="catalogo">Catálogo</option><option value="producto">Producto</option></select></label>
+      <label><span>Catálogo, si corresponde</span><select name="catalogo_id"><option value="">Seleccionar</option>{% for catalogo in catalogos %}<option value="{{ catalogo.id }}">{{ catalogo.nombre }}</option>{% endfor %}</select></label>
+      <label><span>Producto, si corresponde</span><select name="catalogo_producto_id"><option value="">Seleccionar</option>{% for producto in inclusiones_activas %}<option value="{{ producto.id }}">{{ producto.sku_comercial }} · {{ producto.nombre_comercial }}</option>{% endfor %}</select></label>
+      <label><span>Impuestos</span><div class="suffix-input"><input name="impuesto_pct" value="0" inputmode="decimal"><span>%</span></div></label>
+      <label><span>Base del impuesto</span><select name="metodo_impuesto"><option value="sobre_liquidacion">Sobre liquidación</option><option value="sobre_costo">Sobre costo</option></select></label>
+      <label><span>Utilidad mínima</span><div class="suffix-input"><input name="utilidad_minima_pct" value="0" inputmode="decimal"><span>%</span></div></label>
+      <label><span>Utilidad objetivo</span><div class="suffix-input"><input name="utilidad_objetivo_pct" value="0" inputmode="decimal"><span>%</span></div></label>
+      <label><span>Base de utilidad</span><select name="metodo_utilidad"><option value="sobre_costo">Sobre costo</option><option value="sobre_liquidacion">Sobre liquidación</option></select></label>
+      <label><span>Redondeo</span><div class="money-input"><span>$</span><input name="redondeo" value="1" inputmode="decimal"></div></label>
+      <label><span>Observación</span><input name="observacion" maxlength="500"></label>
+      <button class="comercial-primary">Crear versión preparatoria</button>
+    </form>
+    <div class="economic-priority">Prioridad: producto → catálogo → unidad → organización.</div>
+    {% if pisos_economicos %}<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Producto</th><th>Costo vigente</th><th>Regla efectiva</th><th>Liquidación mínima</th><th>Liquidación objetivo</th></tr></thead><tbody>{% for fila in pisos_economicos %}<tr><td><strong>{{ fila.costo.producto.sku }}</strong></td><td>${{ '%.2f'|format(fila.costo.costo_total_centavos / 100) }}</td><td>{{ fila.regla.nombre if fila.regla else 'Sin regla aplicable' }}</td><td>{% if fila.pisos %}<strong>${{ '%.2f'|format(fila.pisos.minimo.piso_liquidacion_centavos / 100) }}</strong>{% else %}—{% endif %}</td><td>{% if fila.pisos %}${{ '%.2f'|format(fila.pisos.objetivo.piso_liquidacion_centavos / 100) }}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+    <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Regla</th><th>Alcance</th><th>Impuesto</th><th>Utilidad mínima</th><th>Objetivo</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
+      {% for regla in reglas_economicas %}<tr><td><strong>{{ regla.nombre }}</strong><small class="table-subline">v{{ regla.numero_version }} · {{ regla.clave_alcance }}</small></td><td>{{ regla.alcance }}</td><td>{{ regla.impuesto_pct }}% · {{ regla.metodo_impuesto|replace('_', ' ') }}</td><td>{{ regla.utilidad_minima_pct }}% · {{ regla.metodo_utilidad|replace('_', ' ') }}</td><td>{{ regla.utilidad_objetivo_pct }}%</td><td><span class="status status-{{ 'active' if regla.vigente else 'draft' }}">{{ regla.estado }}</span></td><td>{% if not regla.vigente %}<form method="post" action="{{ url_for('admin_comercial.guardar') }}" onsubmit="return confirm('La regla reemplazará a la vigente para este alcance. ¿Continuar?')"><input type="hidden" name="accion" value="activar_regla_economica"><input type="hidden" name="regla_id" value="{{ regla.id }}"><button class="table-action">Activar</button></form>{% else %}<span class="current-label">Vigente</span>{% endif %}</td></tr>{% else %}<tr><td colspan="7" class="empty-state">Todavía no hay reglas económicas.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
   <section class="comercial-section" id="politicas">
-    <div class="section-heading"><div><span class="section-number">4</span><h2>Políticas comerciales</h2></div><p>Definí comisión, margen, cargos, flete y redondeo para cada lista.</p></div>
+    <div class="section-heading"><div><span class="section-number">5</span><h2>Políticas comerciales</h2></div><p>Definí exclusivamente comisión, cargos y flete propios de cada lista o canal.</p></div>
     {% if listas %}
     <form class="comercial-form form-politicas" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_politica">
@@ -238,7 +263,7 @@
   </section>
 
   <section class="comercial-section" id="precios">
-    <div class="section-heading"><div><span class="section-number">5</span><h2>Cálculo de precios</h2></div><p>Calculá el precio sugerido usando un costo y una política vigentes.</p></div>
+    <div class="section-heading"><div><span class="section-number">6</span><h2>Cálculo de precios</h2></div><p>Calculá el precio sugerido usando un costo y una política vigentes.</p></div>
     {% set hay_costos_vigentes = costos|selectattr('vigente')|list %}
     {% set hay_politicas_vigentes = politicas|selectattr('vigente')|list %}
     {% if inclusiones_activas and listas and hay_costos_vigentes and hay_politicas_vigentes %}

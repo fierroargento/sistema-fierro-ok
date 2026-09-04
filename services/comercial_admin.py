@@ -4,6 +4,7 @@ from services.catalogos_comerciales import importe_a_centavos
 from services.catalogos_admin_comercial import procesar_accion_catalogo_comercial
 from services.costos_productos import crear_version_costo, activar_version_costo
 from services.aprobacion_costos import validar_version_preparatoria
+from services.reglas_economicas import activar_regla, crear_regla
 from services.listas_precios import (
     activar_item_lista, activar_politica_lista, crear_item_lista,
     crear_lista_precio, crear_politica_lista,
@@ -82,6 +83,59 @@ def procesar_accion_comercial(
             db_session=db_session,
         )
         return "Costo activado."
+    if accion == "crear_regla_economica":
+        alcance = str(formulario.get("alcance") or "").strip().lower()
+        unidad_id = unidad_activa.id if alcance in {"unidad", "catalogo", "producto"} else None
+        catalogo_id = None
+        producto_id = None
+        if alcance == "catalogo":
+            catalogo = modelos["Catalogo"].query.filter_by(
+                id=_id(formulario, "catalogo_id"),
+                organizacion_id=organizacion.id,
+                unidad_negocio_id=unidad_activa.id,
+            ).first()
+            if catalogo is None:
+                raise ValueError("El catálogo no pertenece a la unidad activa.")
+            catalogo_id = catalogo.id
+        if alcance == "producto":
+            inclusion = modelos["CatalogoProducto"].query.get(
+                _id(formulario, "catalogo_producto_id")
+            )
+            if (
+                inclusion is None
+                or inclusion.catalogo.organizacion_id != organizacion.id
+                or inclusion.catalogo.unidad_negocio_id != unidad_activa.id
+            ):
+                raise ValueError("El producto no pertenece a la unidad activa.")
+            producto_id = inclusion.producto_id
+        regla = crear_regla(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad_id,
+            catalogo_id=catalogo_id, producto_id=producto_id,
+            alcance=alcance, nombre=formulario.get("nombre"),
+            impuesto_pct=formulario.get("impuesto_pct", 0),
+            metodo_impuesto=formulario.get("metodo_impuesto"),
+            utilidad_minima_pct=formulario.get("utilidad_minima_pct", 0),
+            utilidad_objetivo_pct=formulario.get("utilidad_objetivo_pct", 0),
+            metodo_utilidad=formulario.get("metodo_utilidad"),
+            incremento_redondeo_centavos=importe_a_centavos(
+                formulario.get("redondeo", "0.01")
+            ),
+            observacion=formulario.get("observacion"), usuario=usuario,
+            ReglaEconomicaVersion=modelos["ReglaEconomicaVersion"],
+            db_session=db_session,
+        )
+        return f"Regla económica {regla.nombre} creada como preparatoria."
+    if accion == "activar_regla_economica":
+        regla = modelos["ReglaEconomicaVersion"].query.filter_by(
+            id=_id(formulario, "regla_id"), organizacion_id=organizacion.id,
+        ).first()
+        if regla is None or regla.unidad_negocio_id not in {None, unidad_activa.id}:
+            raise ValueError("La regla no pertenece a la unidad activa.")
+        activar_regla(
+            regla, ReglaEconomicaVersion=modelos["ReglaEconomicaVersion"],
+            db_session=db_session,
+        )
+        return "Regla económica activada."
     if accion == "crear_lista":
         lista = crear_lista_precio(
             organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,

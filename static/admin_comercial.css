@@ -126,6 +126,17 @@
 .cost-up { color: #a3152a; }
 .cost-down { color: #17734b; }
 
+.form-reglas-economicas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.economic-priority {
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border-left: 4px solid #176b89;
+  background: #eef7fa;
+  color: #31566a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .cost-engine-heading {
   display: flex;
   align-items: center;
@@ -209,7 +220,7 @@
 
 .comercial-steps {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 10px;
   margin-bottom: 18px;
 }

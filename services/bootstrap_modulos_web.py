@@ -92,7 +92,7 @@ def registrar_modulos_web(
                         "ProductoCostoFijoCosteo",
                         "ImportacionMasivaCosto",
                         "ListaPrecio", "PoliticaComercialLista",
-                        "ListaPrecioItem",
+                        "ListaPrecioItem", "ReglaEconomicaVersion",
                     )
                 },
             },
