@@ -31,6 +31,7 @@ from services.preparacion_integracion_canal import (
     procesar_evento_simulado, registrar_evento,
 )
 from services.adaptadores_offline_canales import ADAPTADORES, adaptar_documento
+from services.orquestador_offline_eventos import orquestar_eventos
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
     obtener_fuentes_costo,
@@ -289,6 +290,24 @@ def crear_blueprint_comercial(*, dependencias):
         filas, _resumen = construir_conciliaciones(ventas, movimientos)
         incorporar_gestiones(filas, gestiones)
         return send_file(exportar_conciliaciones(filas), as_attachment=True, download_name="conciliacion_liquidaciones.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    @blueprint.route("/admin/comercial/orquestador-offline", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def orquestador_offline_comercial():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        Evento = modelos["EventoIntegracionStaging"]
+        eventos = Evento.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Evento.fecha_recepcion.desc()).limit(500).all()
+        resultado = None; error = ""
+        try:
+            if request.method == "POST":
+                seleccion = {int(valor) for valor in request.form.getlist("eventos")}
+                elegidos = [evento for evento in eventos if not seleccion or evento.id in seleccion]
+                if not elegidos: raise ValueError("No hay eventos para reproducir.")
+                resultado = orquestar_eventos(elegidos)
+        except Exception as excepcion: error = str(excepcion)
+        return render_template("admin_orquestador_offline.html", organizacion=organizacion, unidad_activa=unidad_activa, unidades=unidades, eventos=eventos, resultado=resultado, error=error)
 
     @blueprint.route("/admin/comercial/adaptadores-offline", methods=["GET", "POST"])
     @dependencias["login_required"]
