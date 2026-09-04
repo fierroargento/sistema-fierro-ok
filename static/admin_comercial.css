@@ -179,6 +179,16 @@
 .simulator-steps .step-cumple { border-color: #2c9b68; }
 .simulator-steps .step-no_cumple { border-color: #cf5141; }
 @media (max-width: 900px) { .simulator-form, .simulator-results { grid-template-columns: 1fr 1fr; } }
+.certification-upload { grid-template-columns: 2fr auto auto; align-items: end; }
+.certification-verdict { display: flex; justify-content: space-between; padding: 15px; border-radius: 10px; }
+.certification-ok { background: #e9f7ef; color: #17613f; }
+.certification-risk { background: #fff0ed; color: #9b3527; }
+.certification-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.mapping-preview { display: flex; flex-wrap: wrap; gap: 8px; }
+.mapping-preview span { padding: 7px 10px; border: 1px solid #d9dee7; border-radius: 8px; background: #f7f9fb; }
+.certification-apto { color: #17734b; }
+.certification-no_apto, .certification-error { color: #a13a2e; }
+@media (max-width: 900px) { .certification-upload, .certification-summary { grid-template-columns: 1fr; } }
 .economic-cumple { color: #17734b; }
 .economic-bajo_piso { color: #a3152a; }
 .economic-sin_piso { color: #a05b00; }

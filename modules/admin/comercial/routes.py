@@ -19,6 +19,11 @@ from services.importacion_conciliacion_canal import (
     sugerir_mapeo as sugerir_mapeo_conciliacion,
 )
 from services.simulador_integral_comercial import ESCENARIOS, escenario_predefinido, simular_escenario
+from services.certificacion_masiva_comercial import (
+    campos_certificacion, certificar_filas, exportar_resultados,
+    plantilla_certificacion, resumir_certificacion,
+    sugerir_mapeo as sugerir_mapeo_certificacion,
+)
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
     obtener_fuentes_costo,
@@ -277,6 +282,40 @@ def crear_blueprint_comercial(*, dependencias):
         filas, _resumen = construir_conciliaciones(ventas, movimientos)
         incorporar_gestiones(filas, gestiones)
         return send_file(exportar_conciliaciones(filas), as_attachment=True, download_name="conciliacion_liquidaciones.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    @blueprint.route("/admin/comercial/certificacion-masiva", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def certificacion_masiva_comercial():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        vista = []; resumen = None; encabezados = []; mapeo = {}; error = ""
+        try:
+            if request.method == "POST":
+                archivo = request.files.get("archivo")
+                if archivo is None or not archivo.filename: raise ValueError("Selecciona un archivo de escenarios.")
+                lectura = leer_archivo(archivo)
+                encabezados = lectura["encabezados"]
+                mapeo = sugerir_mapeo_certificacion(encabezados)
+                vista = certificar_filas(lectura["filas"], mapeo)
+                resumen = resumir_certificacion(vista)
+                if request.form.get("accion") == "exportar":
+                    return send_file(exportar_resultados(vista), as_attachment=True, download_name="certificacion_comercial.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        except Exception as excepcion:
+            error = str(excepcion)
+        return render_template(
+            "admin_certificacion_masiva_comercial.html", organizacion=organizacion,
+            unidad_activa=unidad_activa, unidades=unidades,
+            campos=campos_certificacion(), encabezados=encabezados,
+            mapeo=mapeo, vista=vista, resumen=resumen, error=error,
+        )
+
+    @blueprint.route("/admin/comercial/certificacion-masiva/plantilla")
+    @dependencias["login_required"]
+    def plantilla_certificacion_masiva():
+        _usuario, _organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        return send_file(plantilla_certificacion(), as_attachment=True, download_name="plantilla_certificacion_comercial.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     @blueprint.route("/admin/comercial/simulador-integral", methods=["GET", "POST"])
     @dependencias["login_required"]
