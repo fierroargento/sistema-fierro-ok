@@ -8,6 +8,7 @@ from services.catalogo_ficha_integral import (
     presentar_variantes,
 )
 from services.reglas_economicas import calcular_pisos_regla, resolver_regla_vigente
+from services.motor_comercial_canal import calcular_precio_minimo_canal
 
 
 def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos):
@@ -20,6 +21,7 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
     Politica = modelos["PoliticaComercialLista"]
     Item = modelos["ListaPrecioItem"]
     ReglaEconomica = modelos["ReglaEconomicaVersion"]
+    ReglaCanal = modelos["ReglaCanalVersion"]
     inclusiones = CatalogoProducto.query.join(
         Catalogo
     ).filter(
@@ -56,6 +58,22 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
             "pisos": calcular_pisos_regla(costo.costo_total_centavos, regla)
             if regla else None,
         })
+    reglas_canal = ReglaCanal.query.join(Lista).filter(
+        Lista.organizacion_id == organizacion_id,
+        Lista.unidad_negocio_id == unidad_negocio_id,
+    ).order_by(ReglaCanal.fecha_creacion.desc()).all()
+    simulaciones_canal = []
+    for fila in (item for item in pisos_economicos if item["pisos"]):
+        for regla_canal in (item for item in reglas_canal if item.vigente):
+            simulaciones_canal.append({
+                **fila, "regla_canal": regla_canal,
+                "minimo": calcular_precio_minimo_canal(
+                    fila["pisos"]["minimo"]["piso_liquidacion_centavos"], regla_canal,
+                ),
+                "objetivo": calcular_precio_minimo_canal(
+                    fila["pisos"]["objetivo"]["piso_liquidacion_centavos"], regla_canal,
+                ),
+            })
     return {
         "productos_maestro": Producto.query.order_by(
             Producto.sku.asc()
@@ -86,4 +104,6 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         ).order_by(Item.fecha_creacion.desc()).all(),
         "reglas_economicas": reglas_economicas,
         "pisos_economicos": pisos_economicos,
+        "reglas_canal": reglas_canal,
+        "simulaciones_canal": simulaciones_canal,
     }

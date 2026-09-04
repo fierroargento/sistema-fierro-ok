@@ -5,6 +5,7 @@ from services.catalogos_admin_comercial import procesar_accion_catalogo_comercia
 from services.costos_productos import crear_version_costo, activar_version_costo
 from services.aprobacion_costos import validar_version_preparatoria
 from services.reglas_economicas import activar_regla, crear_regla
+from services.reglas_canal import activar_regla_canal, agregar_tramo, crear_regla_canal
 from services.listas_precios import (
     activar_item_lista, activar_politica_lista, crear_item_lista,
     crear_lista_precio, crear_politica_lista,
@@ -136,6 +137,34 @@ def procesar_accion_comercial(
             db_session=db_session,
         )
         return "Regla económica activada."
+    if accion in {"crear_regla_canal", "agregar_tramo_canal", "activar_regla_canal"}:
+        lista = modelos["ListaPrecio"].query.filter_by(
+            id=_id(formulario, "lista_precio_id"), organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+        ).first()
+        if lista is None: raise ValueError("La lista no pertenece a la unidad activa.")
+        if accion == "crear_regla_canal":
+            regla = crear_regla_canal(
+                lista, nombre=formulario.get("nombre"), comision_pct=formulario.get("comision_pct", 0),
+                umbral_envio_centavos=importe_a_centavos(formulario.get("umbral_envio", 0)),
+                costo_envio_default_centavos=importe_a_centavos(formulario.get("costo_envio", 0)),
+                incremento_redondeo_centavos=importe_a_centavos(formulario.get("redondeo", "0.01")),
+                observacion=formulario.get("observacion"), usuario=usuario,
+                ReglaCanalVersion=modelos["ReglaCanalVersion"], db_session=db_session,
+            )
+            return f"Política de canal {regla.nombre} creada como preparatoria."
+        regla = modelos["ReglaCanalVersion"].query.filter_by(id=_id(formulario, "regla_canal_id"), lista_precio_id=lista.id).first()
+        if regla is None: raise ValueError("La política no pertenece a la lista.")
+        if accion == "agregar_tramo_canal":
+            agregar_tramo(
+                regla, precio_desde_centavos=importe_a_centavos(formulario.get("precio_desde", 0)),
+                precio_hasta_centavos=importe_a_centavos(formulario.get("precio_hasta")) if str(formulario.get("precio_hasta") or "").strip() else None,
+                cargo_fijo_centavos=importe_a_centavos(formulario.get("cargo_fijo", 0)),
+                ReglaCanalCargoTramo=modelos["ReglaCanalCargoTramo"], db_session=db_session,
+            )
+            return "Tramo de cargo fijo agregado."
+        activar_regla_canal(regla, ReglaCanalVersion=modelos["ReglaCanalVersion"], db_session=db_session)
+        return "Política de canal activada."
     if accion == "crear_lista":
         lista = crear_lista_precio(
             organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,

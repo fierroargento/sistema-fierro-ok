@@ -93,6 +93,7 @@ def registrar_modulos_web(
                         "ImportacionMasivaCosto",
                         "ListaPrecio", "PoliticaComercialLista",
                         "ListaPrecioItem", "ReglaEconomicaVersion",
+                        "ReglaCanalVersion", "ReglaCanalCargoTramo",
                     )
                 },
             },
