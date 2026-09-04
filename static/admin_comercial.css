@@ -129,6 +129,9 @@
 .form-reglas-economicas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .form-promociones { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .promotion-observations { margin-bottom: 16px; }
+.channel-import-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+.channel-import-links strong { margin-right: 4px; color: #31566a; }
+.channel-import-links a { padding: 7px 10px; border: 1px solid #b9d7e4; border-radius: 7px; color: #176b89; font-size: 12px; font-weight: 800; text-decoration: none; }
 .commercial-action-queue { margin-top: 24px; padding-top: 18px; border-top: 1px solid #d9dee7; }
 .queue-decision { display: flex; flex-wrap: wrap; gap: 6px; min-width: 280px; }
 .queue-decision input { flex: 1 1 180px; min-width: 0; border: 1px solid #cbd7dd; border-radius: 6px; padding: 6px 8px; }

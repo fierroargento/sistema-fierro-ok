@@ -1,6 +1,7 @@
 """Bandeja diagnostica de rentabilidad por producto y canal, sin ejecucion."""
 
 from io import BytesIO
+from decimal import Decimal
 
 from openpyxl import Workbook
 
@@ -62,9 +63,15 @@ def evaluar_control(simulacion, precio_actual_centavos=None, fuente_precio=None,
     }
 
 
-def construir_bandeja(simulaciones, items, promociones=()):
+def construir_bandeja(simulaciones, items, promociones=(), observaciones=()):
     from services.promociones_canal import observaciones_actuales
     promociones_por_clave = observaciones_actuales(promociones)
+    observaciones_por_clave = {}
+    for observacion in observaciones:
+        clave_observacion = (observacion.lista_precio_id, observacion.catalogo_producto_id, observacion.tipo)
+        anterior = observaciones_por_clave.get(clave_observacion)
+        if anterior is None or observacion.fecha_observacion >= anterior.fecha_observacion:
+            observaciones_por_clave[clave_observacion] = observacion
     filas = []
     for simulacion in simulaciones:
         inclusion = simulacion.get("inclusion")
@@ -79,11 +86,23 @@ def construir_bandeja(simulaciones, items, promociones=()):
         promocion = promociones_por_clave.get((simulacion["regla_canal"].lista_precio_id, inclusion.id if inclusion else None))
         activa = promocion if promocion is not None and promocion.estado_observado == "activa" else None
         precio_base = item.precio_final_centavos if item else None
-        filas.append(evaluar_control(
-            simulacion, activa.precio_promocional_centavos if activa else precio_base,
-            "promocion_observada" if activa else "lista_interna" if item else None,
+        clave_base = (simulacion["regla_canal"].lista_precio_id, inclusion.id if inclusion else None)
+        precio_observado = observaciones_por_clave.get((*clave_base, "precio"))
+        precio_efectivo = activa.precio_promocional_centavos if activa else precio_observado.precio_publicado_centavos if precio_observado else precio_base
+        fila = evaluar_control(
+            simulacion, precio_efectivo,
+            "promocion_observada" if activa else "precio_importado" if precio_observado else "lista_interna" if item else None,
             promocion=activa, precio_base_centavos=precio_base,
-        ))
+        )
+        cargo_observado = observaciones_por_clave.get((*clave_base, "cargo"))
+        envio_observado = observaciones_por_clave.get((*clave_base, "envio"))
+        desvios = []
+        if cargo_observado and Decimal(str(cargo_observado.comision_pct)) != Decimal(str(simulacion["regla_canal"].comision_pct)): desvios.append("comision_observada_distinta")
+        if cargo_observado and fila["actual"] and cargo_observado.cargo_fijo_centavos != fila["actual"]["cargo_fijo_centavos"]: desvios.append("cargo_fijo_observado_distinto")
+        if envio_observado and fila["actual"] and envio_observado.costo_envio_centavos != fila["actual"]["envio_centavos"]: desvios.append("envio_observado_distinto")
+        fila["observacion_precio"] = precio_observado; fila["observacion_cargo"] = cargo_observado
+        fila["observacion_envio"] = envio_observado; fila["desvios_observados"] = desvios
+        filas.append(fila)
     resumen = {"total": len(filas), "rentable": 0, "al_limite": 0, "debajo_del_piso": 0, "sin_precio": 0}
     for fila in filas: resumen[fila["estado_control"]] += 1
     return filas, resumen
@@ -91,7 +110,7 @@ def construir_bandeja(simulaciones, items, promociones=()):
 
 def exportar_bandeja_excel(filas):
     libro = Workbook(); hoja = libro.active; hoja.title = "Control comercial"
-    hoja.append(["SKU", "LISTA_CANAL", "ESTADO", "FUENTE_PRECIO", "PRECIO_BASE", "PRECIO_EFECTIVO", "PRECIO_MINIMO", "PRECIO_PROPUESTO", "LIQUIDACION_ACTUAL", "PISO_MINIMO", "DIFERENCIA", "DIFERENCIA_PCT", "PROMOCION_ACTIVA", "ACCION_RECOMENDADA", "CAMBIA_CARGO", "CAMBIA_ENVIO"])
+    hoja.append(["SKU", "LISTA_CANAL", "ESTADO", "FUENTE_PRECIO", "PRECIO_BASE", "PRECIO_EFECTIVO", "PRECIO_MINIMO", "PRECIO_PROPUESTO", "LIQUIDACION_ACTUAL", "PISO_MINIMO", "DIFERENCIA", "DIFERENCIA_PCT", "PROMOCION_ACTIVA", "ACCION_RECOMENDADA", "CAMBIA_CARGO", "CAMBIA_ENVIO", "DESVIOS_OBSERVADOS"])
     for fila in filas:
         actual = fila["actual"]
         hoja.append([
@@ -107,6 +126,7 @@ def exportar_bandeja_excel(filas):
             fila["diferencia_pct"], "SI" if fila["promocion_activa"] else "NO",
             fila["accion_recomendada"], "SI" if fila["cambia_cargo"] else "NO",
             "SI" if fila["cambia_envio"] else "NO",
+            ", ".join(fila.get("desvios_observados", [])),
         ])
     hoja.freeze_panes = "A2"
     salida = BytesIO(); libro.save(salida); salida.seek(0); return salida

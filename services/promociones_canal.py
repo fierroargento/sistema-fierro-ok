@@ -19,7 +19,8 @@ def registrar_observacion(*, organizacion_id, unidad_negocio_id, lista_precio_id
                           catalogo_producto_id, referencia_externa, nombre,
                           precio_base_centavos, precio_promocional_centavos,
                           estado_observado, origen, observacion, usuario,
-                          PromocionCanalObservacion, db_session):
+                          PromocionCanalObservacion, db_session, commit=True,
+                          cuenta_codigo=None):
     estado = str(estado_observado or "").strip().lower()
     fuente = str(origen or "manual").strip().lower()
     if estado not in {"activa", "inactiva"}: raise ValueError("El estado observado no es válido.")
@@ -37,10 +38,13 @@ def registrar_observacion(*, organizacion_id, unidad_negocio_id, lista_precio_id
         descuento_pct=calcular_descuento_pct(base, promocional),
         estado_observado=estado, origen=fuente,
         observacion=str(observacion or "").strip() or None,
+        cuenta_codigo=str(cuenta_codigo or "").strip() or None,
         creado_por_usuario_id=getattr(usuario, "id", None),
         creado_por_username=getattr(usuario, "username", None),
     )
-    db_session.add(registro); db_session.commit(); return registro
+    db_session.add(registro)
+    if commit: db_session.commit()
+    return registro
 
 
 def observaciones_actuales(observaciones):

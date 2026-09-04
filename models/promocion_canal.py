@@ -38,6 +38,7 @@ class PromocionCanalObservacion(db.Model):
     lista_precio_id = db.Column(db.Integer, db.ForeignKey("lista_precio.id"), nullable=False, index=True)
     catalogo_producto_id = db.Column(db.Integer, db.ForeignKey("catalogo_producto.id"), nullable=False, index=True)
     referencia_externa = db.Column(db.String(160), index=True)
+    cuenta_codigo = db.Column(db.String(100), index=True)
     nombre = db.Column(db.String(160))
     precio_base_centavos = db.Column(db.BigInteger, nullable=False)
     precio_promocional_centavos = db.Column(db.BigInteger, nullable=False)

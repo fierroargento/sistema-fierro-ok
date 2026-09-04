@@ -96,6 +96,7 @@ def registrar_modulos_web(
                         "ReglaCanalVersion", "ReglaCanalCargoTramo",
                         "PromocionCanalObservacion",
                         "PropuestaAccionComercial",
+                        "ObservacionComercialCanal",
                     )
                 },
             },

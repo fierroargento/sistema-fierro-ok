@@ -35,6 +35,13 @@ from services.importacion_logistica_catalogo import (
     previsualizar_logistica,
     sugerir_mapeo_logistica,
 )
+from services.importacion_datos_comerciales_canal import (
+    aplicar as aplicar_datos_canal,
+    campos_para as campos_datos_canal,
+    plantilla as plantilla_datos_canal,
+    previsualizar as previsualizar_datos_canal,
+    sugerir_mapeo as sugerir_mapeo_datos_canal,
+)
 from services.importacion_combos_costeo import (
     CAMPOS_COMBOS,
     aplicar_combos,
@@ -826,6 +833,100 @@ def crear_blueprint_comercial(*, dependencias):
                 "application/vnd.openxmlformats-officedocument."
                 "spreadsheetml.sheet"
             ),
+        )
+
+    @blueprint.route("/admin/comercial/importaciones/datos-canal/<tipo>", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def importar_datos_comerciales_canal(tipo):
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        campos = campos_datos_canal(tipo)
+        Lote = modelos["ImportacionMasivaCosto"]
+        tipo_lote = f"canal_{tipo}"
+        try:
+            if request.method == "POST":
+                accion = (request.form.get("accion") or "").strip()
+                if accion == "subir":
+                    archivo = request.files.get("archivo")
+                    if archivo is None or not archivo.filename: raise ValueError("Seleccioná un archivo.")
+                    lectura = leer_archivo(archivo, request.form.get("hoja"))
+                    lote = Lote(
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                        usuario_id=getattr(usuario, "id", None), tipo_datos=tipo_lote,
+                        nombre_archivo=archivo.filename, nombre_hoja=lectura["hoja"],
+                        estado="cargado", modo="crear_observaciones",
+                        encabezados_json=serializar(lectura["encabezados"]),
+                        filas_json=serializar(lectura["filas"]),
+                        mapeo_json=serializar(sugerir_mapeo_datos_canal(lectura["encabezados"], tipo)),
+                        total_filas=len(lectura["filas"]),
+                    )
+                    db.session.add(lote); db.session.commit()
+                    return redirect(url_for("admin_comercial.importar_datos_comerciales_canal", tipo=tipo, lote=lote.id))
+                lote = Lote.query.filter_by(
+                    id=int(request.form.get("lote_id")), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote,
+                ).first()
+                if lote is None: raise ValueError("El lote no existe en la unidad activa.")
+                if accion == "mapear":
+                    encabezados = deserializar(lote.encabezados_json, [])
+                    mapeo = {str(i): ((request.form.get(f"col_{i}") or "").strip() if request.form.get(f"usar_{i}") == "1" else "") for i in range(len(encabezados))}
+                    vista = previsualizar_datos_canal(
+                        deserializar(lote.filas_json, []), mapeo, tipo,
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, modelos=modelos,
+                    )
+                    lote.mapeo_json = serializar(mapeo); lote.vista_previa_json = serializar(vista)
+                    lote.estado = "mapeado"; db.session.commit()
+                elif accion == "confirmar":
+                    if lote.estado != "mapeado": raise ValueError("Primero validá el mapeo.")
+                    vista_guardada = deserializar(lote.vista_previa_json, [])
+                    vista_actual = previsualizar_datos_canal(
+                        deserializar(lote.filas_json, []), deserializar(lote.mapeo_json, {}), tipo,
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, modelos=modelos,
+                    )
+                    if serializar(vista_actual) != serializar(vista_guardada):
+                        lote.vista_previa_json = serializar(vista_actual); db.session.commit()
+                        return redirect(url_for("admin_comercial.importar_datos_comerciales_canal", tipo=tipo, lote=lote.id, error="Los datos internos cambiaron. Revisá la vista y confirmá nuevamente."))
+                    if not any(fila["accion"] == "crear_observacion" for fila in vista_actual): raise ValueError("El lote no contiene filas aplicables.")
+                    conteos = aplicar_datos_canal(
+                        vista_actual, tipo, organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad_activa.id, lote_id=lote.id, usuario=usuario,
+                        modelos=modelos, db_session=db.session,
+                    )
+                    lote = db.session.get(Lote, lote.id)
+                    for campo, valor in conteos.items(): setattr(lote, campo, valor)
+                    lote.estado = "confirmado"; lote.fecha_confirmacion = ahora_utc_naive(); db.session.commit()
+                    dependencias["registrar_auditoria"](
+                        "Importó observaciones comerciales de canal", entidad="importacion_masiva_costo",
+                        entidad_id=lote.id, detalle=f"Sección {tipo}; {conteos['creados']} creadas; {conteos['rechazados']} rechazadas.",
+                    )
+                return redirect(url_for("admin_comercial.importar_datos_comerciales_canal", tipo=tipo, lote=lote.id))
+        except Exception as error:
+            db.session.rollback()
+            return redirect(url_for("admin_comercial.importar_datos_comerciales_canal", tipo=tipo, error=str(error)))
+        lote_id = request.args.get("lote", type=int)
+        lote = Lote.query.filter_by(id=lote_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).first() if lote_id else None
+        return render_template(
+            "admin_importacion_datos_canal.html", organizacion=organizacion,
+            unidad_activa=unidad_activa, tipo=tipo, campos=campos, lote=lote,
+            encabezados=deserializar(lote.encabezados_json, []) if lote else [],
+            filas=deserializar(lote.filas_json, []) if lote else [],
+            mapeo=deserializar(lote.mapeo_json, {}) if lote else {},
+            vista=deserializar(lote.vista_previa_json, []) if lote else [],
+            historial=Lote.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).order_by(Lote.fecha_creacion.desc()).limit(20).all(),
+            error=(request.args.get("error") or "").strip(),
+        )
+
+    @blueprint.route("/admin/comercial/importaciones/datos-canal/<tipo>/plantilla")
+    @dependencias["login_required"]
+    def plantilla_importacion_datos_comerciales_canal(tipo):
+        _usuario, _organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        campos_datos_canal(tipo)
+        return send_file(
+            plantilla_datos_canal(tipo), as_attachment=True,
+            download_name=f"plantilla_canal_{tipo}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
     @blueprint.route("/admin/comercial/importaciones/combos", methods=["GET", "POST"])
