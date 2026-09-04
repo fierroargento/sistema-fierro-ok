@@ -189,6 +189,15 @@
 .certification-apto { color: #17734b; }
 .certification-no_apto, .certification-error { color: #a13a2e; }
 @media (max-width: 900px) { .certification-upload, .certification-summary { grid-template-columns: 1fr; } }
+.integration-control-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.readiness-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
+.readiness-grid > div { display: grid; gap: 3px; padding: 10px; border-radius: 8px; }
+.readiness-grid .ready { background: #e9f7ef; color: #17613f; }
+.readiness-grid .missing { background: #fff0ed; color: #9b3527; }
+.staging-event-form { grid-template-columns: 1fr 1fr 1fr 2fr auto; align-items: end; }
+.staging-json textarea { min-height: 70px; }
+.inline-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+@media (max-width: 900px) { .integration-control-form, .readiness-grid, .staging-event-form { grid-template-columns: 1fr; } }
 .economic-cumple { color: #17734b; }
 .economic-bajo_piso { color: #a3152a; }
 .economic-sin_piso { color: #a05b00; }

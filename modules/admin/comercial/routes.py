@@ -1,5 +1,7 @@
 """Blueprint del panel comercial tenant."""
 
+import json
+
 from flask import Blueprint, redirect, render_template, request, send_file, session, url_for
 
 from services.comercial_admin import procesar_accion_comercial
@@ -23,6 +25,10 @@ from services.certificacion_masiva_comercial import (
     campos_certificacion, certificar_filas, exportar_resultados,
     plantilla_certificacion, resumir_certificacion,
     sugerir_mapeo as sugerir_mapeo_certificacion,
+)
+from services.preparacion_integracion_canal import (
+    CANALES, TIPOS_EVENTO, guardar_control, matriz_preparacion,
+    procesar_evento_simulado, registrar_evento,
 )
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -282,6 +288,61 @@ def crear_blueprint_comercial(*, dependencias):
         filas, _resumen = construir_conciliaciones(ventas, movimientos)
         incorporar_gestiones(filas, gestiones)
         return send_file(exportar_conciliaciones(filas), as_attachment=True, download_name="conciliacion_liquidaciones.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def preparacion_integraciones_comerciales():
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        Control = modelos["ControlIntegracionCanal"]; Evento = modelos["EventoIntegracionStaging"]
+        try:
+            if request.method == "POST":
+                accion = (request.form.get("accion") or "").strip()
+                if accion == "guardar_control":
+                    guardar_control(
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                        canal=request.form.get("canal"), cuenta_codigo=request.form.get("cuenta_codigo"),
+                        modo=request.form.get("modo"), certificacion_aprobada=request.form.get("certificacion_aprobada") == "1",
+                        certificacion_observacion=request.form.get("certificacion_observacion"), usuario=usuario,
+                        ControlIntegracionCanal=Control, db_session=db.session,
+                    ); mensaje = "Control interno guardado con conexiones bloqueadas."
+                elif accion == "registrar_evento":
+                    control = Control.query.filter_by(id=int(request.form.get("control_id")), organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).first()
+                    datos = json.loads(request.form.get("datos_json") or "{}")
+                    _evento, creado = registrar_evento(
+                        control=control, tipo_evento=request.form.get("tipo_evento"), referencia_evento=request.form.get("referencia_evento"),
+                        datos=datos, origen=request.form.get("origen"), usuario=usuario,
+                        EventoIntegracionStaging=Evento, db_session=db.session,
+                    ); mensaje = "Evento de staging registrado." if creado else "El evento ya existia y no se duplico."
+                elif accion == "procesar_evento":
+                    evento = Evento.query.filter_by(id=int(request.form.get("evento_id")), organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).first()
+                    procesar_evento_simulado(evento, request.form.get("accion_evento"), db_session=db.session); mensaje = "Estado interno del evento actualizado."
+                else: raise ValueError("La accion de preparacion no es valida.")
+                dependencias["registrar_auditoria"]("Preparacion interna de integracion", entidad="control_integracion_canal", entidad_id=organizacion.id, detalle=mensaje)
+                return redirect(url_for("admin_comercial.preparacion_integraciones_comerciales", ok=mensaje))
+        except Exception as error:
+            db.session.rollback(); return redirect(url_for("admin_comercial.preparacion_integraciones_comerciales", error=str(error)))
+        controles = Control.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Control.canal, Control.cuenta_codigo).all()
+        eventos = Evento.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Evento.fecha_recepcion.desc()).limit(100).all()
+        matrices = {}
+        Lista = modelos["ListaPrecio"]
+        for control in controles:
+            matrices[control.id] = matriz_preparacion(
+                control,
+                costos=modelos["CostoProductoVersion"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, vigente=True).count(),
+                reglas_economicas=modelos["ReglaEconomicaVersion"].query.filter_by(organizacion_id=organizacion.id, vigente=True).count(),
+                reglas_canal=modelos["ReglaCanalVersion"].query.join(Lista).filter(Lista.organizacion_id == organizacion.id, Lista.unidad_negocio_id == unidad_activa.id, modelos["ReglaCanalVersion"].vigente.is_(True)).count(),
+                identidades=modelos["MapeoPublicacionCanal"].query.filter_by(organizacion_id=organizacion.id).count(),
+                validaciones=modelos["ReglaValidacionCanalVersion"].query.join(Lista).filter(Lista.organizacion_id == organizacion.id, Lista.unidad_negocio_id == unidad_activa.id, modelos["ReglaValidacionCanalVersion"].vigente.is_(True)).count(),
+            )
+        return render_template(
+            "admin_preparacion_integraciones.html", organizacion=organizacion,
+            unidad_activa=unidad_activa, unidades=unidades, controles=controles,
+            eventos=eventos, matrices=matrices, canales=sorted(CANALES),
+            tipos_evento=sorted(TIPOS_EVENTO), ok_feedback=(request.args.get("ok") or "").strip(),
+            error=(request.args.get("error") or "").strip(),
+        )
 
     @blueprint.route("/admin/comercial/certificacion-masiva", methods=["GET", "POST"])
     @dependencias["login_required"]

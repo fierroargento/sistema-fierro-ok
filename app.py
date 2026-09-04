@@ -301,6 +301,7 @@ from models.propuesta_accion_comercial import PropuestaAccionComercial
 from models.observacion_comercial_canal import ObservacionComercialCanal
 from models.regla_validacion_canal import ReglaValidacionCanalVersion
 from models.conciliacion_ventas_canal import GestionConciliacionCanal, MovimientoLiquidacionCanal, VentaCanalItem
+from models.preparacion_integracion_canal import ControlIntegracionCanal, EventoIntegracionStaging
 from models.modulo_organizacion import ModuloOrganizacion
 from models.vinculo_canal_comercial import VinculoCanalComercial
 from models.cliente_crm import ClienteCRM
@@ -11811,6 +11812,8 @@ registrar_modulos_web(
             "VentaCanalItem": VentaCanalItem,
             "MovimientoLiquidacionCanal": MovimientoLiquidacionCanal,
             "GestionConciliacionCanal": GestionConciliacionCanal,
+            "ControlIntegracionCanal": ControlIntegracionCanal,
+            "EventoIntegracionStaging": EventoIntegracionStaging,
             "ModuloOrganizacion": ModuloOrganizacion,
             "Producto": Producto,
             "VinculoCanalComercial": (

@@ -100,6 +100,8 @@ def registrar_modulos_web(
                         "ReglaValidacionCanalVersion",
                         "VentaCanalItem", "MovimientoLiquidacionCanal",
                         "GestionConciliacionCanal",
+                        "ControlIntegracionCanal", "EventoIntegracionStaging",
+                        "MapeoPublicacionCanal",
                     )
                 },
             },
