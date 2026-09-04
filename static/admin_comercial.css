@@ -164,6 +164,21 @@
 .management-resuelta { color: #17734b; }
 .management-descartada { color: #65737e; }
 @media (max-width: 900px) { .reconciliation-actions { grid-template-columns: 1fr; } }
+.simulator-scenarios { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.simulator-scenarios a { padding: 8px 12px; border-radius: 999px; border: 1px solid #d9dee7; background: #fff; color: #405566; text-decoration: none; }
+.simulator-scenarios a.active { background: #263648; border-color: #263648; color: #fff; }
+.simulator-form { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.simulator-verdict { display: flex; justify-content: space-between; gap: 12px; padding: 14px; border-radius: 10px; margin-bottom: 14px; }
+.simulator-ok { background: #e9f7ef; color: #17613f; }
+.simulator-risk { background: #fff0ed; color: #9b3527; }
+.simulator-results { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.simulator-results > div { display: grid; gap: 4px; padding: 12px; border: 1px solid #d9dee7; border-radius: 9px; }
+.simulator-results span { color: #607887; font-size: 12px; }
+.simulator-steps { display: grid; gap: 8px; padding: 0; margin: 16px 0 0; list-style: none; }
+.simulator-steps li { display: flex; justify-content: space-between; padding: 10px 12px; border-left: 4px solid #8899a6; background: #f6f8fa; }
+.simulator-steps .step-cumple { border-color: #2c9b68; }
+.simulator-steps .step-no_cumple { border-color: #cf5141; }
+@media (max-width: 900px) { .simulator-form, .simulator-results { grid-template-columns: 1fr 1fr; } }
 .economic-cumple { color: #17734b; }
 .economic-bajo_piso { color: #a3152a; }
 .economic-sin_piso { color: #a05b00; }

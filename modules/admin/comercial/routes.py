@@ -18,6 +18,7 @@ from services.importacion_conciliacion_canal import (
     previsualizar_ventas,
     sugerir_mapeo as sugerir_mapeo_conciliacion,
 )
+from services.simulador_integral_comercial import ESCENARIOS, escenario_predefinido, simular_escenario
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
     obtener_fuentes_costo,
@@ -276,6 +277,43 @@ def crear_blueprint_comercial(*, dependencias):
         filas, _resumen = construir_conciliaciones(ventas, movimientos)
         incorporar_gestiones(filas, gestiones)
         return send_file(exportar_conciliaciones(filas), as_attachment=True, download_name="conciliacion_liquidaciones.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    @blueprint.route("/admin/comercial/simulador-integral", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def simulador_integral_comercial():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        clave = (request.values.get("escenario") or "promocion").strip()
+        try:
+            datos = escenario_predefinido(clave)
+            if request.method == "POST" and request.form.get("modo") == "personalizado":
+                datos = {
+                    "nombre": "Escenario personalizado",
+                    "costo_centavos": importe_a_centavos(request.form.get("costo")),
+                    "impuesto_pct": request.form.get("impuesto_pct"),
+                    "utilidad_pct": request.form.get("utilidad_pct"),
+                    "precio_final_centavos": importe_a_centavos(request.form.get("precio_final")),
+                    "comision_pct": request.form.get("comision_pct"),
+                    "cargo_fijo_centavos": importe_a_centavos(request.form.get("cargo_fijo")),
+                    "umbral_envio_centavos": importe_a_centavos(request.form.get("umbral_envio")),
+                    "envio_centavos": importe_a_centavos(request.form.get("envio")),
+                    "promocion_activa": request.form.get("promocion_activa") == "1",
+                    "descuento_pct": request.form.get("descuento_pct"),
+                    "liquidacion_real_centavos": importe_a_centavos(request.form.get("liquidacion_real")),
+                    "estado_venta": request.form.get("estado_venta"),
+                    "redondeo_centavos": 100,
+                }
+            resultado = simular_escenario(datos)
+            error = ""
+        except Exception as excepcion:
+            resultado = None; error = str(excepcion)
+            datos = locals().get("datos", escenario_predefinido("promocion"))
+        return render_template(
+            "admin_simulador_integral_comercial.html", organizacion=organizacion,
+            unidad_activa=unidad_activa, unidades=unidades, escenarios=ESCENARIOS,
+            escenario_activo=clave, datos=datos, resultado=resultado, error=error,
+        )
 
     @blueprint.route("/admin/comercial/conciliacion", methods=["GET", "POST"])
     @dependencias["login_required"]
