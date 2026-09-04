@@ -155,6 +155,15 @@
 .reconciliation-anulada,
 .reconciliation-devuelta,
 .reconciliation-devolucion_parcial { color: #65737e; }
+.reconciliation-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.reconciliation-filters a { padding: 7px 11px; border: 1px solid #d9dee7; border-radius: 999px; color: #405566; text-decoration: none; background: #fff; }
+.reconciliation-filters a.active { color: #fff; background: #263648; border-color: #263648; }
+.reconciliation-actions { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 12px; align-items: end; margin-top: 14px; }
+.reconciliation-actions label { display: grid; gap: 5px; }
+.management-abierta, .management-en_revision { color: #a05b00; }
+.management-resuelta { color: #17734b; }
+.management-descartada { color: #65737e; }
+@media (max-width: 900px) { .reconciliation-actions { grid-template-columns: 1fr; } }
 .economic-cumple { color: #17734b; }
 .economic-bajo_piso { color: #a3152a; }
 .economic-sin_piso { color: #a05b00; }

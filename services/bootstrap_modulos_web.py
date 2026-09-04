@@ -99,6 +99,7 @@ def registrar_modulos_web(
                         "ObservacionComercialCanal",
                         "ReglaValidacionCanalVersion",
                         "VentaCanalItem", "MovimientoLiquidacionCanal",
+                        "GestionConciliacionCanal",
                     )
                 },
             },

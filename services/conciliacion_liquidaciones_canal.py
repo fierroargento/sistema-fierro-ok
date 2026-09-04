@@ -7,6 +7,14 @@ from openpyxl import Workbook
 from services.motor_comercial_canal import liquidar_precio
 
 
+CLASIFICACIONES_GESTION = {
+    "pago_pendiente", "pago_incompleto", "cobro_mayor", "bajo_piso",
+    "devolucion", "anulacion", "dato_inconsistente", "ajuste_aceptado",
+    "sin_diferencia",
+}
+ESTADOS_GESTION = {"en_revision", "resuelta", "descartada"}
+
+
 def calcular_expectativa(precio_unitario_centavos, cantidad, regla_canal):
     cantidad = int(cantidad); precio = int(precio_unitario_centavos)
     if cantidad <= 0 or precio < 0: raise ValueError("La cantidad y el precio no son validos.")
@@ -112,13 +120,67 @@ def construir_conciliaciones(ventas, movimientos, *, tolerancia_centavos=1):
     return filas, resumen
 
 
+def clasificar_caso(fila):
+    if fila["estado_economico"] == "bajo_piso": return "bajo_piso"
+    return {
+        "pendiente": "pago_pendiente",
+        "pago_parcial": "pago_incompleto",
+        "diferencia_a_favor": "cobro_mayor",
+        "devuelta": "devolucion",
+        "devolucion_parcial": "devolucion",
+        "anulada": "anulacion",
+        "conciliada": "sin_diferencia",
+    }.get(fila["estado_conciliacion"], "dato_inconsistente")
+
+
+def incorporar_gestiones(filas, gestiones):
+    """Agrega la ultima decision sin modificar el calculo financiero original."""
+    ultimas = {}
+    for gestion in sorted(gestiones, key=lambda g: (getattr(g, "fecha_registro", None), getattr(g, "id", 0))):
+        ultimas[(gestion.cuenta_codigo, gestion.referencia_venta)] = gestion
+    for fila in filas:
+        gestion = ultimas.get((fila["cuenta_codigo"], fila["referencia_venta"]))
+        fila["clasificacion_sugerida"] = clasificar_caso(fila)
+        fila["gestion_actual"] = gestion
+        fila["estado_gestion"] = getattr(gestion, "estado", "abierta")
+        fila["requiere_revision"] = fila["estado_conciliacion"] not in {"conciliada", "anulada"} or fila["estado_economico"] == "bajo_piso"
+    return filas
+
+
+def registrar_gestion(fila, *, clasificacion, estado, observacion, organizacion_id,
+                      unidad_negocio_id, usuario, GestionConciliacionCanal,
+                      db_session, commit=True):
+    clasificacion = str(clasificacion or "").strip().lower()
+    estado = str(estado or "").strip().lower()
+    observacion = str(observacion or "").strip()
+    if clasificacion not in CLASIFICACIONES_GESTION: raise ValueError("La clasificacion del caso no es valida.")
+    if estado not in ESTADOS_GESTION: raise ValueError("El estado de gestion no es valido.")
+    if estado in {"resuelta", "descartada"} and not observacion: raise ValueError("La observacion es obligatoria para cerrar el caso.")
+    registro = GestionConciliacionCanal(
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
+        cuenta_codigo=fila["cuenta_codigo"], referencia_venta=fila["referencia_venta"],
+        clasificacion=clasificacion, estado=estado, observacion=observacion or None,
+        liquidacion_esperada_snapshot_centavos=fila["liquidacion_esperada_centavos"],
+        liquidacion_real_snapshot_centavos=fila["liquidacion_real_centavos"],
+        diferencia_snapshot_centavos=fila["diferencia_centavos"],
+        creado_por_usuario_id=getattr(usuario, "id", None),
+        creado_por_username=getattr(usuario, "username", None),
+    )
+    db_session.add(registro)
+    if commit: db_session.commit()
+    return registro
+
+
 def exportar_conciliaciones(filas):
     libro = Workbook(); hoja = libro.active; hoja.title = "Conciliacion"
-    hoja.append(["CUENTA", "VENTA", "ESTADO", "CONTROL_ECONOMICO", "BRUTO", "ESPERADO", "PISO", "REAL", "DIFERENCIA", "ITEMS", "MOVIMIENTOS"])
+    hoja.append(["CUENTA", "VENTA", "ESTADO", "CONTROL_ECONOMICO", "CLASIFICACION", "ESTADO_GESTION", "OBSERVACION", "BRUTO", "ESPERADO", "PISO", "REAL", "DIFERENCIA", "ITEMS", "MOVIMIENTOS"])
     for fila in filas:
         hoja.append([
             fila["cuenta_codigo"], fila["referencia_venta"], fila["estado_conciliacion"],
-            fila["estado_economico"], fila["importe_bruto_centavos"] / 100,
+            fila["estado_economico"], fila.get("clasificacion_sugerida"),
+            fila.get("estado_gestion", "abierta"),
+            getattr(fila.get("gestion_actual"), "observacion", None),
+            fila["importe_bruto_centavos"] / 100,
             fila["liquidacion_esperada_centavos"] / 100,
             fila["piso_economico_centavos"] / 100 if fila["piso_economico_centavos"] is not None else None,
             fila["liquidacion_real_centavos"] / 100, fila["diferencia_centavos"] / 100,

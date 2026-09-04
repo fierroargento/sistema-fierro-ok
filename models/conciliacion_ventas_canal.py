@@ -68,3 +68,34 @@ class MovimientoLiquidacionCanal(db.Model):
     creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"), index=True)
     creado_por_username = db.Column(db.String(80))
     fecha_registro = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+
+
+class GestionConciliacionCanal(db.Model):
+    """Decision interna e inmutable tomada sobre una conciliacion observada."""
+
+    __tablename__ = "gestion_conciliacion_canal"
+    __table_args__ = (
+        CheckConstraint(
+            "estado IN ('en_revision', 'resuelta', 'descartada')",
+            name="ck_gestion_conciliacion_estado",
+        ),
+        Index(
+            "ix_gestion_conciliacion_venta",
+            "organizacion_id", "unidad_negocio_id", "cuenta_codigo",
+            "referencia_venta", "fecha_registro",
+        ),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
+    unidad_negocio_id = db.Column(db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=False, index=True)
+    cuenta_codigo = db.Column(db.String(100), nullable=False)
+    referencia_venta = db.Column(db.String(160), nullable=False)
+    clasificacion = db.Column(db.String(40), nullable=False, index=True)
+    estado = db.Column(db.String(20), nullable=False, index=True)
+    observacion = db.Column(db.String(1000))
+    liquidacion_esperada_snapshot_centavos = db.Column(db.BigInteger, nullable=False)
+    liquidacion_real_snapshot_centavos = db.Column(db.BigInteger, nullable=False)
+    diferencia_snapshot_centavos = db.Column(db.BigInteger, nullable=False)
+    creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"), index=True)
+    creado_por_username = db.Column(db.String(80))
+    fecha_registro = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False, index=True)

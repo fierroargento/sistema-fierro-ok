@@ -7,8 +7,8 @@ from services.comercial_consultas import obtener_datos_panel_comercial
 from services.control_comercial_masivo import exportar_bandeja_excel
 from services.catalogos_comerciales import importe_a_centavos
 from services.conciliacion_liquidaciones_canal import (
-    construir_conciliaciones, exportar_conciliaciones,
-    registrar_movimiento, registrar_venta,
+    construir_conciliaciones, exportar_conciliaciones, incorporar_gestiones,
+    registrar_gestion, registrar_movimiento, registrar_venta,
 )
 from services.importacion_conciliacion_canal import (
     aplicar as aplicar_importacion_conciliacion,
@@ -272,7 +272,9 @@ def crear_blueprint_comercial(*, dependencias):
         unidad_activa, _unidades = contexto_comercial(organizacion)
         ventas = modelos["VentaCanalItem"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
         movimientos = modelos["MovimientoLiquidacionCanal"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
+        gestiones = modelos["GestionConciliacionCanal"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
         filas, _resumen = construir_conciliaciones(ventas, movimientos)
+        incorporar_gestiones(filas, gestiones)
         return send_file(exportar_conciliaciones(filas), as_attachment=True, download_name="conciliacion_liquidaciones.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     @blueprint.route("/admin/comercial/conciliacion", methods=["GET", "POST"])
@@ -282,6 +284,7 @@ def crear_blueprint_comercial(*, dependencias):
         if respuesta is not None: return respuesta
         unidad_activa, unidades = contexto_comercial(organizacion)
         Venta = modelos["VentaCanalItem"]; Movimiento = modelos["MovimientoLiquidacionCanal"]
+        Gestion = modelos["GestionConciliacionCanal"]
         Lista = modelos["ListaPrecio"]; Inclusion = modelos["CatalogoProducto"]
         try:
             if request.method == "POST":
@@ -317,6 +320,25 @@ def crear_blueprint_comercial(*, dependencias):
                         usuario=usuario, MovimientoLiquidacionCanal=Movimiento, db_session=db.session,
                     )
                     mensaje = "Movimiento de liquidacion registrado."
+                elif accion == "gestionar_casos":
+                    ventas_actuales = Venta.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
+                    movimientos_actuales = Movimiento.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
+                    filas_actuales, _ = construir_conciliaciones(ventas_actuales, movimientos_actuales)
+                    por_clave = {f'{fila["cuenta_codigo"]}|||{fila["referencia_venta"]}': fila for fila in filas_actuales}
+                    seleccion = request.form.getlist("casos")
+                    if not seleccion: raise ValueError("Selecciona al menos un caso de conciliacion.")
+                    for clave in seleccion:
+                        fila = por_clave.get(clave)
+                        if fila is None: raise ValueError("Una conciliacion seleccionada ya no existe.")
+                        registrar_gestion(
+                            fila, clasificacion=request.form.get("clasificacion"),
+                            estado=request.form.get("estado_gestion"), observacion=request.form.get("observacion"),
+                            organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                            usuario=usuario, GestionConciliacionCanal=Gestion,
+                            db_session=db.session, commit=False,
+                        )
+                    db.session.commit()
+                    mensaje = f"Se registraron {len(seleccion)} decisiones de conciliacion."
                 else: raise ValueError("La accion de conciliacion no es valida.")
                 dependencias["registrar_auditoria"]("Registro conciliacion comercial", entidad="conciliacion_canal", entidad_id=organizacion.id, detalle=mensaje)
                 return redirect(url_for("admin_comercial.conciliacion_canal", ok=mensaje))
@@ -325,12 +347,18 @@ def crear_blueprint_comercial(*, dependencias):
             return redirect(url_for("admin_comercial.conciliacion_canal", error=str(error)))
         ventas = Venta.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Venta.fecha_venta.desc()).all()
         movimientos = Movimiento.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Movimiento.fecha_movimiento.desc()).all()
+        gestiones = Gestion.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Gestion.fecha_registro.desc()).all()
         conciliaciones, resumen = construir_conciliaciones(ventas, movimientos)
+        incorporar_gestiones(conciliaciones, gestiones)
+        filtro = (request.args.get("filtro") or "todos").strip().lower()
+        if filtro == "requieren_revision": conciliaciones = [fila for fila in conciliaciones if fila["requiere_revision"] and fila["estado_gestion"] not in {"resuelta", "descartada"}]
+        elif filtro == "abiertas": conciliaciones = [fila for fila in conciliaciones if fila["estado_gestion"] in {"abierta", "en_revision"}]
+        elif filtro == "cerradas": conciliaciones = [fila for fila in conciliaciones if fila["estado_gestion"] in {"resuelta", "descartada"}]
         return render_template(
             "admin_conciliacion_canal.html", organizacion=organizacion,
             unidad_activa=unidad_activa, unidades=unidades, ventas=ventas,
             movimientos=movimientos, conciliaciones=conciliaciones,
-            resumen_conciliacion=resumen,
+            resumen_conciliacion=resumen, gestiones=gestiones, filtro=filtro,
             listas=Lista.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Lista.nombre).all(),
             inclusiones=Inclusion.query.join(modelos["Catalogo"]).filter(modelos["Catalogo"].organizacion_id == organizacion.id, modelos["Catalogo"].unidad_negocio_id == unidad_activa.id).order_by(Inclusion.nombre_comercial).all(),
             ok_feedback=(request.args.get("ok") or "").strip(), error=(request.args.get("error") or "").strip(),
