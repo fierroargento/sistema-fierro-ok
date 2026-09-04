@@ -30,6 +30,7 @@ from services.preparacion_integracion_canal import (
     CANALES, TIPOS_EVENTO, guardar_control, matriz_preparacion,
     procesar_evento_simulado, registrar_evento,
 )
+from services.adaptadores_offline_canales import ADAPTADORES, adaptar_documento
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
     obtener_fuentes_costo,
@@ -288,6 +289,45 @@ def crear_blueprint_comercial(*, dependencias):
         filas, _resumen = construir_conciliaciones(ventas, movimientos)
         incorporar_gestiones(filas, gestiones)
         return send_file(exportar_conciliaciones(filas), as_attachment=True, download_name="conciliacion_liquidaciones.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    @blueprint.route("/admin/comercial/adaptadores-offline", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def adaptadores_offline_comerciales():
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        Control = modelos["ControlIntegracionCanal"]; Evento = modelos["EventoIntegracionStaging"]
+        controles = Control.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Control.canal, Control.cuenta_codigo).all()
+        resultado = None; error = ""
+        try:
+            if request.method == "POST":
+                control = Control.query.filter_by(id=int(request.form.get("control_id")), organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).first()
+                if control is None: raise ValueError("El control de cuenta no existe.")
+                archivo = request.files.get("archivo")
+                if archivo is None or not archivo.filename: raise ValueError("Selecciona un archivo JSON.")
+                contenido = archivo.read()
+                if len(contenido) > 5 * 1024 * 1024: raise ValueError("El archivo supera el maximo de 5 MB.")
+                resultado = adaptar_documento(control.canal, request.form.get("tipo"), contenido, cuenta_codigo=control.cuenta_codigo)
+                if request.form.get("accion") == "enviar_staging":
+                    creados = 0; repetidos = 0
+                    for normalizado in resultado["eventos"]:
+                        _evento, creado = registrar_evento(
+                            control=control, tipo_evento=normalizado["tipo"], referencia_evento=normalizado["referencia"],
+                            datos=normalizado["datos"], origen="manual", usuario=usuario,
+                            EventoIntegracionStaging=Evento, db_session=db.session,
+                        )
+                        creados += int(creado); repetidos += int(not creado)
+                    mensaje = f"Staging actualizado: {creados} creados y {repetidos} repetidos."
+                    dependencias["registrar_auditoria"]("Adaptacion offline de fixtures", entidad="control_integracion_canal", entidad_id=control.id, detalle=mensaje)
+                    return redirect(url_for("admin_comercial.adaptadores_offline_comerciales", ok=mensaje))
+        except Exception as excepcion:
+            db.session.rollback(); error = str(excepcion)
+        return render_template(
+            "admin_adaptadores_offline.html", organizacion=organizacion,
+            unidad_activa=unidad_activa, unidades=unidades, controles=controles,
+            adaptadores=ADAPTADORES, resultado=resultado, error=error,
+            ok_feedback=(request.args.get("ok") or "").strip(),
+        )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])
     @dependencias["login_required"]

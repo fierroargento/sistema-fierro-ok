@@ -198,6 +198,10 @@
 .staging-json textarea { min-height: 70px; }
 .inline-actions { display: flex; flex-wrap: wrap; gap: 5px; }
 @media (max-width: 900px) { .integration-control-form, .readiness-grid, .staging-event-form { grid-template-columns: 1fr; } }
+.offline-adapter-form { grid-template-columns: 1.4fr 1fr 1.5fr auto auto; align-items: end; }
+.normalized-json { max-width: 560px; max-height: 260px; overflow: auto; white-space: pre-wrap; font-size: 11px; }
+.adapter-errors { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: #fff0ed; color: #9b3527; }
+@media (max-width: 900px) { .offline-adapter-form { grid-template-columns: 1fr; } }
 .economic-cumple { color: #17734b; }
 .economic-bajo_piso { color: #a3152a; }
 .economic-sin_piso { color: #a05b00; }
