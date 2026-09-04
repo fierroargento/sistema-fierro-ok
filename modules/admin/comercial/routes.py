@@ -7,7 +7,16 @@ from services.comercial_consultas import obtener_datos_panel_comercial
 from services.control_comercial_masivo import exportar_bandeja_excel
 from services.catalogos_comerciales import importe_a_centavos
 from services.conciliacion_liquidaciones_canal import (
-    construir_conciliaciones, registrar_movimiento, registrar_venta,
+    construir_conciliaciones, exportar_conciliaciones,
+    registrar_movimiento, registrar_venta,
+)
+from services.importacion_conciliacion_canal import (
+    aplicar as aplicar_importacion_conciliacion,
+    campos_para as campos_importacion_conciliacion,
+    plantilla as plantilla_importacion_conciliacion,
+    previsualizar_movimientos,
+    previsualizar_ventas,
+    sugerir_mapeo as sugerir_mapeo_conciliacion,
 )
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -185,6 +194,86 @@ def crear_blueprint_comercial(*, dependencias):
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(),
         )
+
+    @blueprint.route("/admin/comercial/conciliacion/importar/<tipo>", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def importar_conciliacion_canal(tipo):
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        campos = campos_importacion_conciliacion(tipo); Lote = modelos["ImportacionMasivaCosto"]
+        tipo_lote = f"conciliacion_{tipo}"
+        def generar_vista(lote):
+            funcion = previsualizar_ventas if tipo == "ventas" else previsualizar_movimientos
+            return funcion(deserializar(lote.filas_json, []), deserializar(lote.mapeo_json, {}), organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, modelos=modelos)
+        try:
+            if request.method == "POST":
+                accion = (request.form.get("accion") or "").strip()
+                if accion == "subir":
+                    archivo = request.files.get("archivo")
+                    if archivo is None or not archivo.filename: raise ValueError("Seleccioná un archivo.")
+                    lectura = leer_archivo(archivo, request.form.get("hoja"))
+                    lote = Lote(
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                        usuario_id=getattr(usuario, "id", None), tipo_datos=tipo_lote,
+                        nombre_archivo=archivo.filename, nombre_hoja=lectura["hoja"], estado="cargado",
+                        modo="crear_observaciones", encabezados_json=serializar(lectura["encabezados"]),
+                        filas_json=serializar(lectura["filas"]),
+                        mapeo_json=serializar(sugerir_mapeo_conciliacion(lectura["encabezados"], tipo)),
+                        total_filas=len(lectura["filas"]),
+                    )
+                    db.session.add(lote); db.session.commit()
+                    return redirect(url_for("admin_comercial.importar_conciliacion_canal", tipo=tipo, lote=lote.id))
+                lote = Lote.query.filter_by(id=int(request.form.get("lote_id")), organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).first()
+                if lote is None: raise ValueError("El lote no existe en la unidad activa.")
+                if accion == "mapear":
+                    encabezados = deserializar(lote.encabezados_json, [])
+                    lote.mapeo_json = serializar({str(i): ((request.form.get(f"col_{i}") or "").strip() if request.form.get(f"usar_{i}") == "1" else "") for i in range(len(encabezados))})
+                    lote.vista_previa_json = serializar(generar_vista(lote)); lote.estado = "mapeado"; db.session.commit()
+                elif accion == "confirmar":
+                    if lote.estado != "mapeado": raise ValueError("Primero validá el mapeo.")
+                    vista_guardada = deserializar(lote.vista_previa_json, []); vista_actual = generar_vista(lote)
+                    if serializar(vista_actual) != serializar(vista_guardada):
+                        lote.vista_previa_json = serializar(vista_actual); db.session.commit()
+                        return redirect(url_for("admin_comercial.importar_conciliacion_canal", tipo=tipo, lote=lote.id, error="Los datos internos cambiaron. Revisá y confirmá nuevamente."))
+                    if not any(fila["accion"] == "crear" for fila in vista_actual): raise ValueError("El lote no contiene filas aplicables.")
+                    conteos = aplicar_importacion_conciliacion(vista_actual, tipo, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, usuario=usuario, modelos=modelos, db_session=db.session)
+                    lote = db.session.get(Lote, lote.id)
+                    for campo, valor in conteos.items(): setattr(lote, campo, valor)
+                    lote.estado = "confirmado"; lote.fecha_confirmacion = ahora_utc_naive(); db.session.commit()
+                    dependencias["registrar_auditoria"]("Importó datos internos de conciliación", entidad="importacion_masiva_costo", entidad_id=lote.id, detalle=f"Tipo {tipo}; {conteos['creados']} creados; {conteos['rechazados']} rechazados.")
+                return redirect(url_for("admin_comercial.importar_conciliacion_canal", tipo=tipo, lote=lote.id))
+        except Exception as error:
+            db.session.rollback(); return redirect(url_for("admin_comercial.importar_conciliacion_canal", tipo=tipo, error=str(error)))
+        lote_id = request.args.get("lote", type=int)
+        lote = Lote.query.filter_by(id=lote_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).first() if lote_id else None
+        return render_template(
+            "admin_importacion_conciliacion.html", organizacion=organizacion, unidad_activa=unidad_activa,
+            tipo=tipo, campos=campos, lote=lote,
+            encabezados=deserializar(lote.encabezados_json, []) if lote else [], filas=deserializar(lote.filas_json, []) if lote else [],
+            mapeo=deserializar(lote.mapeo_json, {}) if lote else {}, vista=deserializar(lote.vista_previa_json, []) if lote else [],
+            historial=Lote.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, tipo_datos=tipo_lote).order_by(Lote.fecha_creacion.desc()).limit(20).all(),
+            error=(request.args.get("error") or "").strip(),
+        )
+
+    @blueprint.route("/admin/comercial/conciliacion/importar/<tipo>/plantilla")
+    @dependencias["login_required"]
+    def plantilla_conciliacion_canal(tipo):
+        _usuario, _organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        campos_importacion_conciliacion(tipo)
+        return send_file(plantilla_importacion_conciliacion(tipo), as_attachment=True, download_name=f"plantilla_conciliacion_{tipo}.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    @blueprint.route("/admin/comercial/conciliacion/exportar")
+    @dependencias["login_required"]
+    def exportar_conciliacion_canal():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        ventas = modelos["VentaCanalItem"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
+        movimientos = modelos["MovimientoLiquidacionCanal"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
+        filas, _resumen = construir_conciliaciones(ventas, movimientos)
+        return send_file(exportar_conciliaciones(filas), as_attachment=True, download_name="conciliacion_liquidaciones.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     @blueprint.route("/admin/comercial/conciliacion", methods=["GET", "POST"])
     @dependencias["login_required"]

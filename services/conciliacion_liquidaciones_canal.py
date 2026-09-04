@@ -1,5 +1,9 @@
 """Calcula y concilia ventas con movimientos internos, sin proveedores externos."""
 
+from io import BytesIO
+
+from openpyxl import Workbook
+
 from services.motor_comercial_canal import liquidar_precio
 
 
@@ -106,3 +110,18 @@ def construir_conciliaciones(ventas, movimientos, *, tolerancia_centavos=1):
         resumen[fila["estado_conciliacion"]] += 1
         if fila["estado_economico"] == "bajo_piso": resumen["bajo_piso"] += 1
     return filas, resumen
+
+
+def exportar_conciliaciones(filas):
+    libro = Workbook(); hoja = libro.active; hoja.title = "Conciliacion"
+    hoja.append(["CUENTA", "VENTA", "ESTADO", "CONTROL_ECONOMICO", "BRUTO", "ESPERADO", "PISO", "REAL", "DIFERENCIA", "ITEMS", "MOVIMIENTOS"])
+    for fila in filas:
+        hoja.append([
+            fila["cuenta_codigo"], fila["referencia_venta"], fila["estado_conciliacion"],
+            fila["estado_economico"], fila["importe_bruto_centavos"] / 100,
+            fila["liquidacion_esperada_centavos"] / 100,
+            fila["piso_economico_centavos"] / 100 if fila["piso_economico_centavos"] is not None else None,
+            fila["liquidacion_real_centavos"] / 100, fila["diferencia_centavos"] / 100,
+            len(fila["items"]), len(fila["movimientos"]),
+        ])
+    hoja.freeze_panes = "A2"; salida = BytesIO(); libro.save(salida); salida.seek(0); return salida
