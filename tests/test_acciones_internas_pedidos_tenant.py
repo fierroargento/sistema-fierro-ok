@@ -62,11 +62,12 @@ def test_frontera_ocurre_antes_de_autorizacion_o_mutacion():
         assert not posiciones or frontera < min(posiciones), nombre
 
 
-def test_lote_no_migra_sincronizaciones_ni_mensajeria():
-    app = _app()
+def test_sincronizaciones_y_mensajeria_ya_exigen_tenant():
     for nombre in (
-        "resync_ml_pedido", "sync_mensajes_ml_pedido", "resync_tn_pedido",
-        "enviar_mensaje_ml", "whatsapp_enviar", "whatsapp_iniciar_operador",
+        "resync_ml_pedido", "sync_mensajes_ml_pedido_admin", "resync_tn_pedido",
+        "enviar_mensaje_ml_acordas", "whatsapp_enviar_operador",
+        "whatsapp_iniciar_chat_operador",
     ):
-        if f"def {nombre}(" in app:
-            assert "Pedido.query.get_or_404(id)" in _funcion(nombre), nombre
+        bloque = _funcion(nombre)
+        assert "pedido_tenant_actual_o_404(id)" in bloque, nombre
+        assert "Pedido.query.get_or_404(id)" not in bloque, nombre

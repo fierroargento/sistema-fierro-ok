@@ -42,14 +42,14 @@ def test_frontera_precede_permisos_y_cualquier_mutacion():
         assert not posiciones or frontera < min(posiciones), nombre
 
 
-def test_acciones_con_efectos_externos_quedan_fuera_del_lote():
+def test_acciones_con_efectos_externos_tambien_exigen_tenant():
     for nombre in (
         "confirmar_entrega", "confirmar_cierre_pedido", "avanzar_pedido",
         "devolver_pedido_a_ml",
     ):
         bloque = _funcion(nombre)
-        assert "Pedido.query.get_or_404(id)" in bloque, nombre
-        assert "pedido_tenant_actual_o_404(id)" not in bloque, nombre
+        assert "pedido_tenant_actual_o_404(id)" in bloque, nombre
+        assert "Pedido.query.get_or_404(id)" not in bloque, nombre
 
 
 def test_lote_no_agrega_transporte_a_las_transiciones_internas():

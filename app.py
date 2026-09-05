@@ -8952,7 +8952,7 @@ def marcar_contacto_iniciado_pedido(pedido):
 @app.route("/pedido/<int:id>/resync-ml", methods=["POST"])
 @login_required
 def resync_ml_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(
@@ -9067,7 +9067,7 @@ def resync_ml_pedido(id):
 @app.route("/pedido/<int:id>/sync-mensajes-ml", methods=["POST"])
 @login_required
 def sync_mensajes_ml_pedido_admin(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
     if pedido.canal != "Mercado Libre":
@@ -9087,7 +9087,7 @@ def sync_mensajes_ml_pedido_admin(id):
 @app.route("/pedido/<int:id>/resync-tn", methods=["POST"])
 @login_required
 def resync_tn_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
     if not puede_editar_pedido(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
     if pedido.canal != "Tienda Nube" or not pedido.tn_order_id:
@@ -9113,7 +9113,7 @@ def resync_tn_pedido(id):
 @app.route("/pedido/<int:id>/actualizar-tracking-externo", methods=["POST"])
 @login_required
 def actualizar_tracking_externo_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if rol_actual() not in ["admin", "carga"]:
         return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
@@ -9334,7 +9334,7 @@ def actualizar_tracking_externo_pedido(id):
 @app.route("/pedido/<int:id>/recalcular-correo", methods=["POST"])
 @login_required
 def recalcular_correo_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if rol_actual() not in ["admin", "carga"]:
         return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
@@ -9386,7 +9386,7 @@ def recalcular_correo_pedido(id):
 @app.route("/pedido/<int:id>/actualizar-andreani", methods=["POST"])
 @login_required
 def actualizar_andreani_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
     if rol_actual() not in ["admin", "carga"]:
         return redirect(url_for("detalle_pedido", id=pedido.id, error="No autorizado."))
     if not es_andreani_pedido(pedido):
@@ -9423,7 +9423,7 @@ def actualizar_andreani_pedido(id):
 @app.route("/pedido/<int:id>/eliminar", methods=["POST"])
 @login_required
 def eliminar_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_eliminar_pedido(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id, error="Solo Admin puede eliminar pedidos."))
@@ -9507,7 +9507,7 @@ def eliminar_nota_pedido(id, nota_id):
 @app.route("/pedido/<int:id>/marcar-contacto-ml", methods=["POST"])
 @login_required
 def marcar_contacto_ml(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_ver_pedido(pedido):
         return jsonify({"ok": False}), 403
@@ -9522,7 +9522,7 @@ def marcar_contacto_ml(id):
 @app.route("/pedido/<int:id>/desmarcar-contacto-ml", methods=["POST"])
 @login_required
 def desmarcar_contacto_ml(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(
@@ -9540,7 +9540,7 @@ def desmarcar_contacto_ml(id):
 @app.route("/pedido/<int:id>/enviar-mensaje-ml", methods=["POST"])
 @login_required
 def enviar_mensaje_ml_acordas(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
@@ -9575,7 +9575,7 @@ def enviar_mensaje_ml_acordas(id):
 @app.route("/pedido/<int:id>/ia-analizar-respuesta", methods=["POST"])
 @login_required
 def ia_analizar_respuesta_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(
@@ -9725,7 +9725,7 @@ def ia_analizar_respuesta_pedido(id):
 @app.route("/pedido/<int:id>/ia-enviar-respuesta-faltantes", methods=["POST"])
 @login_required
 def ia_enviar_respuesta_faltantes_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(
@@ -10291,7 +10291,7 @@ def _enviar_whatsapp_api_pedido(pedido, texto, autor="operador"):
 @app.route("/pedido/<int:id>/whatsapp/enviar", methods=["POST"])
 @login_required
 def whatsapp_enviar_operador(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(
@@ -10464,7 +10464,7 @@ def whatsapp_enviar_operador(id):
 @app.route("/pedido/<int:id>/whatsapp/iniciar-operador", methods=["POST"])
 @login_required
 def whatsapp_iniciar_chat_operador(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(
@@ -10549,7 +10549,7 @@ def whatsapp_iniciar_chat_operador(id):
 @app.route("/pedido/<int:id>/whatsapp/tomar", methods=["POST"])
 @login_required
 def whatsapp_tomar_conversacion(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(
@@ -10595,7 +10595,7 @@ def whatsapp_tomar_conversacion(id):
 @app.route("/pedido/<int:id>/whatsapp/reactivar", methods=["POST"])
 @login_required
 def whatsapp_reactivar_bot(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(
@@ -10647,7 +10647,7 @@ def whatsapp_reactivar_bot(id):
 @app.route("/pedido/<int:id>/whatsapp/enviar-propuesta-cross-sell", methods=["POST"])
 @login_required
 def whatsapp_enviar_propuesta_cross_sell(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(
@@ -10703,7 +10703,7 @@ def whatsapp_enviar_propuesta_cross_sell(id):
 @app.route("/pedido/<int:id>/whatsapp/omitir-cross-sell", methods=["POST"])
 @login_required
 def whatsapp_omitir_cross_sell(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_operar_whatsapp(pedido):
         return redirect(url_for(
@@ -10757,7 +10757,7 @@ def whatsapp_omitir_cross_sell(id):
 @app.route("/pedido/<int:id>/confirmar-entrega", methods=["POST"])
 @login_required
 def confirmar_entrega(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
@@ -10851,7 +10851,7 @@ def cerrar_pedido(id):
 @app.route("/pedido/<int:id>/cerrar/confirmar", methods=["POST"])
 @login_required
 def confirmar_cierre_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
@@ -10914,7 +10914,7 @@ def devolver_pedido_a_ml(id):
     La lógica vive en services/canal_manager.py.
     Esta ruta solo valida, llama al service, registra evento y guarda.
     """
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if rol_actual() != "admin":
         return redirect(url_for(
@@ -11324,7 +11324,7 @@ def confirmar_revision_agregado(id):
 @app.route("/pedido/<int:id>/avanzar", methods=["POST"])
 @login_required
 def avanzar_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
