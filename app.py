@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 
 
 
-from flask import Flask, request, redirect, render_template, url_for, jsonify, send_from_directory, session, flash
+from flask import Flask, abort, request, redirect, render_template, url_for, jsonify, send_from_directory, session, flash
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from sentry_sdk.integrations.flask import FlaskIntegration
@@ -64,6 +64,10 @@ from services.telefonos import normalizar_telefono_service
 from services.telefonos import es_telefono_whatsapp_argentina_valido_service
 from services.tiendanube_datos import extraer_telefono_tiendanube_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono_service
+from services.acceso_tenant_pedidos import (
+    consulta_pedidos_tenant,
+    obtener_pedido_tenant,
+)
 from services.horario_operativo import (
     ARG_TZ,
     IA_HORA_FIN_OPERATIVA,
@@ -2394,6 +2398,29 @@ def membresia_actual():
             UsuarioOrganizacion
         ),
     )
+
+
+def consulta_pedidos_tenant_actual():
+    """Frontera de lectura para las bandejas operativas migradas."""
+    membresia = membresia_actual()
+    if membresia is None:
+        abort(403)
+    return consulta_pedidos_tenant(
+        Pedido, membresia.organizacion_id,
+    )
+
+
+def pedido_tenant_actual_o_404(pedido_id):
+    """Impide acceder por ID a un pedido de otro tenant o todavía legacy."""
+    membresia = membresia_actual()
+    if membresia is None:
+        abort(403)
+    pedido = obtener_pedido_tenant(
+        pedido_id, membresia.organizacion_id, Pedido=Pedido,
+    )
+    if pedido is None:
+        abort(404)
+    return pedido
 
 
 def rol_actual():
@@ -6467,10 +6494,10 @@ def inicio():
     estados = estados_visibles_inicio()
 
     if estados is None:
-        pedidos = Pedido.query.all()
+        pedidos = consulta_pedidos_tenant_actual().all()
     else:
         pedidos = (
-            Pedido.query
+            consulta_pedidos_tenant_actual()
             .filter(Pedido.estado.in_(estados))
             .all()
             if estados
@@ -6482,7 +6509,7 @@ def inicio():
                 from services.cross_sell_preparacion import ESTADOS_PREPARACION_CROSS_SELL
 
                 pedidos_agregado = (
-                    Pedido.query
+                    consulta_pedidos_tenant_actual()
                     .filter(
                         Pedido.agregado_pendiente_revision.is_(True),
                         Pedido.estado.in_(list(ESTADOS_PREPARACION_CROSS_SELL)),
@@ -6539,7 +6566,7 @@ def pedidos_preparacion():
 
     estados = estados_visibles_preparacion()
     pedidos = (
-        Pedido.query
+        consulta_pedidos_tenant_actual()
         .filter(Pedido.estado.in_(estados))
         .all()
         if estados
@@ -6570,7 +6597,9 @@ def despacho_mobile():
     if rol_actual() != "despacho":
         return redirect(url_for("inicio"))
 
-    pedidos = Pedido.query.filter(Pedido.estado.in_(ESTADOS_DESPACHO_OPERATIVO)).all()
+    pedidos = consulta_pedidos_tenant_actual().filter(
+        Pedido.estado.in_(ESTADOS_DESPACHO_OPERATIVO)
+    ).all()
     pedidos.sort(key=orden_inicio_pedido)
 
     notas_importantes_por_pedido = {}
@@ -7937,7 +7966,12 @@ def historico():
     if not puede_ver_historico():
         return redirect(url_for("inicio"))
 
-    pedidos = Pedido.query.filter_by(estado="Finalizado").order_by(Pedido.id.desc()).all()
+    pedidos = (
+        consulta_pedidos_tenant_actual()
+        .filter_by(estado="Finalizado")
+        .order_by(Pedido.id.desc())
+        .all()
+    )
 
     return render_template(
         "historico.html",
@@ -8670,8 +8704,7 @@ def toggle_respuesta_rapida_wa_route(respuesta_id):
 @app.route("/pedido/<int:id>")
 @login_required
 def detalle_pedido(id):
-    
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     permitir_detalle_mobile = (
         request.args.get("mobile_detalle") == "1"
