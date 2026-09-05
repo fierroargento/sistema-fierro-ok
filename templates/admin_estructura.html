@@ -61,6 +61,21 @@
             Se realizaron {{ diagnostico_pedidos.escrituras_realizadas }} escrituras.
             Las integraciones externas continúan bloqueadas.
         </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:12px;">
+            <div><strong>{{ certificacion_pedidos.pedidos_tenant }}</strong><br>Pedidos del tenant</div>
+            <div><strong>{{ certificacion_pedidos.sin_organizacion }}</strong><br>Legacy sin tenant</div>
+            <div><strong>{{ certificacion_pedidos.sin_unidad }}</strong><br>Sin unidad</div>
+            <div><strong>{{ certificacion_pedidos.unidad_cruzada }}</strong><br>Unidad cruzada</div>
+        </div>
+        {% if certificacion_pedidos.aprobada %}
+        <div class="alerta alerta-ok" style="margin-top:12px;">
+            Identidad persistida de pedidos certificada para este tenant.
+        </div>
+        {% else %}
+        <div class="alerta alerta-error" style="margin-top:12px;">
+            {% for bloqueo in certificacion_pedidos.bloqueos %}<div>{{ bloqueo }}</div>{% endfor %}
+        </div>
+        {% endif %}
         {% for bloqueo in diagnostico_pedidos.bloqueos %}
         <div>{{ bloqueo }}</div>
         {% endfor %}

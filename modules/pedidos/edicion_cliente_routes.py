@@ -1,11 +1,13 @@
 """Ruta acotada para corregir datos de etiqueta sin exponer el pedido completo."""
 
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, abort, redirect, render_template, request, session, url_for
 
 from services.edicion_datos_cliente import (
     aplicar_edicion_datos_cliente_para_etiqueta,
     puede_editar_datos_cliente_para_etiqueta,
 )
+from services.acceso_tenant_pedidos import obtener_pedido_tenant
+from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
 def crear_blueprint_edicion_cliente(*, dependencias):
@@ -16,6 +18,7 @@ def crear_blueprint_edicion_cliente(*, dependencias):
     usuario_actual = dependencias["usuario_actual"]
     registrar_auditoria = dependencias["registrar_auditoria"]
     normalizar_telefono = dependencias["normalizar_telefono"]
+    UsuarioOrganizacion = dependencias["UsuarioOrganizacion"]
 
     @blueprint.route(
         "/pedido/<int:id>/corregir-datos-etiqueta",
@@ -23,8 +26,20 @@ def crear_blueprint_edicion_cliente(*, dependencias):
     )
     @login_required
     def editar(id):
-        pedido = Pedido.query.get_or_404(id)
         usuario = usuario_actual()
+        try:
+            membresia = resolver_tenant_usuario(
+                usuario,
+                UsuarioOrganizacion=UsuarioOrganizacion,
+                organizacion_id=session.get("organizacion_id"),
+            )
+        except TenantError:
+            return redirect(url_for("inicio"))
+        pedido = obtener_pedido_tenant(
+            id, membresia.organizacion_id, Pedido=Pedido,
+        )
+        if pedido is None:
+            abort(404)
         rol = str(getattr(usuario, "rol", "") or "").lower()
 
         if not puede_editar_datos_cliente_para_etiqueta(pedido, rol=rol):
