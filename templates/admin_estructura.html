@@ -76,6 +76,44 @@
             {% for bloqueo in certificacion_pedidos.bloqueos %}<div>{{ bloqueo }}</div>{% endfor %}
         </div>
         {% endif %}
+        <div class="card" style="margin-top:12px;">
+            <h3>Auditoría de consumidores de pedidos</h3>
+            <p>
+                Inventario estático de accesos pendientes. No importa módulos,
+                no ejecuta tareas y realizó
+                <strong>{{ auditoria_consumidores_pedidos.escrituras_realizadas }}</strong>
+                escrituras.
+            </p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;">
+                <div><strong>{{ auditoria_consumidores_pedidos.total }}</strong><br>Accesos pendientes</div>
+                <div><strong>{{ auditoria_consumidores_pedidos.permitidos_preparatorios }}</strong><br>Accesos controlados</div>
+                <div><strong>{{ auditoria_consumidores_pedidos.archivos }}</strong><br>Archivos involucrados</div>
+                <div><strong>{{ auditoria_consumidores_pedidos.por_grupo.get('automatizacion', 0) }}</strong><br>Automatizaciones</div>
+                <div><strong>{{ auditoria_consumidores_pedidos.por_grupo.get('importador', 0) }}</strong><br>Importadores</div>
+                <div><strong>{{ auditoria_consumidores_pedidos.por_grupo.get('servicio', 0) }}</strong><br>Servicios</div>
+            </div>
+            {% if auditoria_consumidores_pedidos.aprobada %}
+            <div class="alerta alerta-ok" style="margin-top:12px;">
+                No quedan consultas globales inventariadas.
+            </div>
+            {% else %}
+            <div class="alerta alerta-error" style="margin-top:12px;">
+                La migración todavía no está certificada. Los consumidores se
+                corregirán por grupo antes de habilitar integraciones.
+            </div>
+            {% endif %}
+            <details style="margin-top:12px;">
+                <summary>Ver archivos pendientes</summary>
+                <table style="width:100%;margin-top:8px;">
+                    <thead><tr><th>Archivo</th><th>Accesos</th></tr></thead>
+                    <tbody>
+                        {% for archivo, cantidad in auditoria_consumidores_pedidos.por_archivo.items() %}
+                        <tr><td>{{ archivo }}</td><td>{{ cantidad }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </details>
+        </div>
         {% for bloqueo in diagnostico_pedidos.bloqueos %}
         <div>{{ bloqueo }}</div>
         {% endfor %}

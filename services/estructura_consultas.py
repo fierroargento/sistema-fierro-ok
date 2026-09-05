@@ -16,6 +16,7 @@ from services.identidad_tenant_pedidos import (
     obtener_diagnostico_identidad_tenant_pedidos,
 )
 from services.certificacion_pedidos_tenant import certificar_pedidos_tenant
+from services.auditoria_consumidores_pedidos import auditar_consumidores_pedidos
 
 
 def obtener_datos_panel_estructura(
@@ -135,6 +136,7 @@ def obtener_datos_panel_estructura(
     certificacion_pedidos = certificar_pedidos_tenant(
         organizacion_id, Pedido=Pedido, UnidadNegocio=UnidadNegocio,
     )
+    auditoria_consumidores_pedidos = auditar_consumidores_pedidos()
     propuestas_tenant_pedidos = (
         Asignacion.query
         .filter_by(organizacion_id=organizacion_id)
@@ -219,6 +221,7 @@ def obtener_datos_panel_estructura(
         ),
         "diagnostico_pedidos": diagnostico_pedidos,
         "certificacion_pedidos": certificacion_pedidos,
+        "auditoria_consumidores_pedidos": auditoria_consumidores_pedidos,
         "propuestas_tenant_pedidos": propuestas_tenant_pedidos,
         "modulos": modulos,
         "vinculos_canales": vinculos_canales,
