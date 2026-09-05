@@ -11998,18 +11998,18 @@ try:
         def _job_ml_mensajes():
             from modules.automation.jobs.ml_messages import ejecutar_job_ml_mensajes
 
-            ejecutar_job_ml_mensajes(
-                app,
-                db
-            )
+            for organizacion in Organizacion.query.filter_by(activa=True).all():
+                ejecutar_job_ml_mensajes(
+                    app, db, organizacion_id=organizacion.id,
+                )
 
         def _job_wa_timers():
             from modules.automation.jobs.wa_timers import ejecutar_job_wa_timers
 
-            ejecutar_job_wa_timers(
-                app,
-                db
-            )
+            for organizacion in Organizacion.query.filter_by(activa=True).all():
+                ejecutar_job_wa_timers(
+                    app, db, organizacion_id=organizacion.id,
+                )
 
         def _job_ipc_costos():
             from modules.automation.jobs.ipc_costs import ejecutar_job_ipc_costos

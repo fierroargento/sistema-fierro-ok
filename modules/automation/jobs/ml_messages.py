@@ -13,9 +13,10 @@ from services.ml_api_context import ml_api_contexto
 from services.ml_mensajes import (
     ml_obtener_mensajes_pack_para_ia_service,
 )
+from services.acceso_tenant_pedidos import consulta_pedidos_job_tenant
 
 
-def ejecutar_job_ml_mensajes(app, db):
+def ejecutar_job_ml_mensajes(app, db, *, organizacion_id):
     """Procesa mensajes pendientes de ML Acordás cada 5 minutos."""
 
     try:
@@ -33,7 +34,7 @@ def ejecutar_job_ml_mensajes(app, db):
             # APB anti-acoso: si el bot ML habló y el comprador no respondió
             # durante 2 horas operativas, escala al operador. No insiste.
             pedidos_esperando = (
-                Pedido.query
+                consulta_pedidos_job_tenant(Pedido, organizacion_id)
                 .filter(Pedido.canal == "Mercado Libre")
                 .filter(Pedido.ia_esperando_respuesta == True)
                 # APB:
@@ -69,7 +70,7 @@ def ejecutar_job_ml_mensajes(app, db):
                 )
 
             pedidos = (
-                Pedido.query
+                consulta_pedidos_job_tenant(Pedido, organizacion_id)
                 .filter(Pedido.canal == "Mercado Libre")
                 .filter(Pedido.ml_tipo == "Acordás la Entrega")
                 .filter(Pedido.ml_mensajes_pendientes == True)

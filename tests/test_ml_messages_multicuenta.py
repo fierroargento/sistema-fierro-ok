@@ -29,6 +29,9 @@ class QueryFake:
     def filter(self, *args, **kwargs):
         return self
 
+    def filter_by(self, **kwargs):
+        return self
+
     def all(self):
         if self.resultados_por_all:
             return self.resultados_por_all.pop(0)
@@ -36,6 +39,7 @@ class QueryFake:
 
 
 class PedidoFake:
+    organizacion_id = CampoFake()
     canal = CampoFake()
     ia_esperando_respuesta = CampoFake()
     ml_mensajes_pendientes = CampoFake()
@@ -195,7 +199,7 @@ def test_job_ml_mensajes_usa_seller_id_por_pedido(monkeypatch):
     )
 
     db = DbFake()
-    ejecutar_job_ml_mensajes(FlaskAppFake(), db)
+    ejecutar_job_ml_mensajes(FlaskAppFake(), db, organizacion_id=10)
 
     assert llamadas_mensajes == [
         ("pack-1", "111", 1),
@@ -279,7 +283,7 @@ def test_job_ml_mensajes_saltea_pedido_sin_cuenta_valida(monkeypatch):
     )
 
     db = DbFake()
-    ejecutar_job_ml_mensajes(FlaskAppFake(), db)
+    ejecutar_job_ml_mensajes(FlaskAppFake(), db, organizacion_id=10)
 
     assert llamadas_mensajes == [
         ("pack-2", "222", 2),
@@ -327,6 +331,7 @@ def test_job_ml_usa_timeout_canonico(
     ejecutar_job_ml_mensajes(
         FlaskAppFake(),
         db,
+        organizacion_id=10,
     )
 
     assert llamados == [

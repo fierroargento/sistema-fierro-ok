@@ -12,6 +12,7 @@ from threading import Lock
 
 from extensions import db
 from models.pedido import Pedido
+from services.acceso_tenant_pedidos import consulta_pedidos_job_tenant
 
 from domain.estados import Estado, ESTADOS_POST_DESPACHO
 from services.logger import get_app_logger
@@ -56,7 +57,7 @@ from .config import (
 )
 
 
-def ejecutar_timers():
+def ejecutar_timers(*, organizacion_id):
     """Punto único de scheduler.
 
     Protegido contra ejecuciones simultáneas: el módulo puede dispararse desde
@@ -69,8 +70,8 @@ def ejecutar_timers():
 
     hubo_error = False
     try:
-        ejecutar_timers_whatsapp()
-        ejecutar_tracking_automatico()
+        ejecutar_timers_whatsapp(organizacion_id=organizacion_id)
+        ejecutar_tracking_automatico(organizacion_id=organizacion_id)
     except Exception as e:
         hubo_error = True
         logger.exception("[WA SCHEDULER] Error general ejecutar_timers")
@@ -79,7 +80,7 @@ def ejecutar_timers():
         _scheduler_lock.release()
 
 
-def ejecutar_timers_whatsapp():
+def ejecutar_timers_whatsapp(*, organizacion_id):
     """APB WhatsApp.
 
     Recordatorios por template:
@@ -104,7 +105,7 @@ def ejecutar_timers_whatsapp():
         ahora = ia_ahora_utc()
 
         pedidos = (
-            Pedido.query
+            consulta_pedidos_job_tenant(Pedido, organizacion_id)
             .filter(Pedido.ia_esperando_respuesta == True)
             .filter(Pedido.ia_ultimo_mensaje_bot.isnot(None))
             .filter(Pedido.estado.notin_([
@@ -166,7 +167,7 @@ def _es_transporte_tracking_auto_apb(pedido):
 
     return "correo" in transporte or "mercado envios" in transporte or "mercado envios" in ml_tipo
 
-def ejecutar_tracking_automatico():
+def ejecutar_tracking_automatico(*, organizacion_id):
     """Consulta tracking de Correo/Mercado Envíos y trae el estado al resumen.
 
     Modo APB:
@@ -187,7 +188,7 @@ def ejecutar_tracking_automatico():
         limite = ahora - timedelta(minutes=TRACKING_INTERVALO_MINUTOS)
 
         pedidos = (
-            Pedido.query
+            consulta_pedidos_job_tenant(Pedido, organizacion_id)
             .filter(Pedido.estado.in_(ESTADOS_POST_DESPACHO))
             .filter(Pedido.seguimiento.isnot(None))
             .filter(Pedido.seguimiento != "")

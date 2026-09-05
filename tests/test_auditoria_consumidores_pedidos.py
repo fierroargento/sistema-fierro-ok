@@ -54,7 +54,7 @@ def test_inventario_real_encuentra_consumidores_pendientes():
     assert resultado["permitidos_preparatorios"] > 0
     assert resultado["escrituras_realizadas"] == 0
     assert resultado["integraciones_habilitables"] is False
-    assert "automatizacion" in resultado["por_grupo"]
+    assert resultado["por_grupo"].get("automatizacion", 0) == 0
 
 
 def test_panel_muestra_bloqueo_y_conteos_separados():

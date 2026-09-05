@@ -22,6 +22,11 @@ def consulta_pedidos_tenant(Pedido, organizacion_id, unidad_negocio_id=None):
     return consulta
 
 
+def consulta_pedidos_job_tenant(Pedido, organizacion_id):
+    """Alias explícito para impedir jobs sin partición tenant."""
+    return consulta_pedidos_tenant(Pedido, organizacion_id)
+
+
 def obtener_pedido_tenant(
     pedido_id, organizacion_id, *, Pedido, unidad_negocio_id=None,
 ):
