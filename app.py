@@ -10826,7 +10826,7 @@ def checklist_cierre_pedido(pedido):
 @app.route("/pedido/<int:id>/cerrar")
 @login_required
 def cerrar_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
@@ -10998,7 +10998,7 @@ def devolver_pedido_a_ml(id):
 @app.route("/pedido/<int:id>/marcar-no-entregado", methods=["POST"])
 @login_required
 def marcar_no_entregado(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_editar_pedido(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id))
@@ -11018,7 +11018,7 @@ def marcar_no_entregado(id):
 @app.route("/pedido/<int:id>/gestionar-devolucion", methods=["GET", "POST"])
 @login_required
 def gestionar_devolucion(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_editar_pedido(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id))
@@ -11182,7 +11182,7 @@ def gestionar_devolucion(id):
 @app.route("/pedido/<int:id>/cerrar-reclamo-ml-devolucion", methods=["GET", "POST"])
 @login_required
 def cerrar_reclamo_ml_devolucion(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_editar_pedido(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id))
@@ -11253,7 +11253,7 @@ def cerrar_reclamo_ml_devolucion(id):
 @app.route("/pedido/<int:id>/revisar-reclamo", methods=["POST"])
 @login_required
 def revisar_reclamo(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_editar_pedido(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id))
@@ -11274,7 +11274,7 @@ def revisar_reclamo(id):
 @app.route("/pedido/<int:id>/confirmar-revision-agregado", methods=["POST"])
 @login_required
 def confirmar_revision_agregado(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_ver_pedido(pedido):
         return redirect(url_for("inicio"))
