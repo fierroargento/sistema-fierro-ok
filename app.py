@@ -8024,7 +8024,7 @@ def ver_archivo_pedido_sin_id_compat(nombre_archivo):
         return "Etiqueta no disponible", 404
 
     pedido = (
-        Pedido.query
+        consulta_pedidos_tenant_actual()
         .filter(Pedido.etiqueta_archivo.ilike(f"%{archivo}%"))
         .order_by(Pedido.id.desc())
         .first()
@@ -8043,7 +8043,7 @@ def ver_archivo_pedido_sin_id_compat(nombre_archivo):
 @login_required
 def ver_archivo_pedido_compat(pedido_id, nombre_archivo):
     # Compatibilidad con links antiguos tipo /pedido/106/ml_xxx.pdf
-    pedido = Pedido.query.get_or_404(pedido_id)
+    pedido = pedido_tenant_actual_o_404(pedido_id)
 
     if not pedido.etiqueta_archivo:
         return "Etiqueta no disponible", 404
@@ -8077,7 +8077,7 @@ def ver_archivo_pedido_compat(pedido_id, nombre_archivo):
 @app.route("/pedido/<int:id>/lanzar-impresion")
 @login_required
 def lanzar_impresion(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_imprimir_pedido(pedido):
         if rol_actual() == "despacho" and es_dispositivo_movil():
@@ -8104,7 +8104,7 @@ def lanzar_impresion(id):
 @app.route("/pedido/<int:id>/imprimir-etiqueta")
 @login_required
 def imprimir_etiqueta(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
     origen = (request.args.get("origen") or "").strip()
 
     if not puede_imprimir_pedido(pedido):
@@ -8931,7 +8931,7 @@ def revisar_agregado_mobile(id):
         flash("Acceso inválido.", "danger")
         return redirect(url_for("inicio"))
 
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not es_dispositivo_movil():
         return redirect(url_for("detalle_pedido", id=pedido.id))
@@ -9450,7 +9450,7 @@ def eliminar_pedido(id):
 @app.route("/pedido/<int:id>/nota/agregar", methods=["POST"])
 @login_required
 def agregar_nota_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
     rol = rol_actual()
     if rol not in ["admin", "carga"]:
         return redirect(url_for("detalle_pedido", id=id, error="Sin permiso para agregar notas."))
@@ -9477,7 +9477,10 @@ def editar_nota_pedido(id, nota_id):
     if rol_actual() != "admin":
         return redirect(url_for("detalle_pedido", id=id, error="Solo Admin puede editar notas."))
 
-    nota = NotaPedido.query.get_or_404(nota_id)
+    pedido = pedido_tenant_actual_o_404(id)
+    nota = NotaPedido.query.filter_by(
+        id=nota_id, pedido_id=pedido.id,
+    ).first_or_404()
     texto = (request.form.get("texto") or "").strip()
     if not texto:
         return redirect(url_for("detalle_pedido", id=id, error="La nota no puede estar vacía."))
@@ -9493,7 +9496,10 @@ def eliminar_nota_pedido(id, nota_id):
     if rol_actual() != "admin":
         return redirect(url_for("detalle_pedido", id=id, error="Solo Admin puede eliminar notas."))
 
-    nota = NotaPedido.query.get_or_404(nota_id)
+    pedido = pedido_tenant_actual_o_404(id)
+    nota = NotaPedido.query.filter_by(
+        id=nota_id, pedido_id=pedido.id,
+    ).first_or_404()
     db.session.delete(nota)
     db.session.commit()
     return redirect(url_for("detalle_pedido", id=id) + "#notas")
@@ -9963,7 +9969,7 @@ def _admin_campos_pedido_para_template(pedido):
 @app.route("/pedido/<int:id>/admin/editar-completo", methods=["GET", "POST"])
 @admin_required
 def admin_editar_pedido_completo(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if request.method == "POST":
         cambios = []
@@ -10014,7 +10020,7 @@ def admin_editar_pedido_completo(id):
 @app.route("/pedido/<int:id>/editar", methods=["GET", "POST"])
 @login_required
 def editar_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_editar_pedido(pedido):
         return redirect(url_for("detalle_pedido", id=pedido.id))
@@ -11578,7 +11584,7 @@ def extraer_items_comprobante_dux_desde_pdf(archivo_pdf):
 @app.route("/pedido/<int:id>/agregar-item", methods=["GET", "POST"])
 @login_required
 def agregar_item_pedido(id):
-    pedido = Pedido.query.get_or_404(id)
+    pedido = pedido_tenant_actual_o_404(id)
 
     if not puede_agregar_item(pedido):
         registrar_auditoria(
