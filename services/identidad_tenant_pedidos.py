@@ -8,10 +8,8 @@ def _entero(valor):
         return None
 
 
-def diagnosticar_identidad_tenant_pedidos(pedidos, vinculos):
-    """Clasifica sin escribir; una cuenta vinculada actúa solo como candidato."""
-    por_ml = {}
-    por_tn = {}
+def construir_indices_vinculos(vinculos):
+    por_ml, por_tn = {}, {}
     for vinculo in vinculos or []:
         identidad = (
             _entero(getattr(vinculo, "organizacion_id", None)),
@@ -23,6 +21,24 @@ def diagnosticar_identidad_tenant_pedidos(pedidos, vinculos):
             por_ml.setdefault(ml_id, set()).add(identidad)
         if tn_id is not None:
             por_tn.setdefault(tn_id, set()).add(identidad)
+    return por_ml, por_tn
+
+
+def candidatos_pedido(pedido, indices):
+    por_ml, por_tn = indices
+    candidatos = set()
+    ml_id = _entero(getattr(pedido, "ml_cuenta_id", None))
+    tn_id = _entero(getattr(pedido, "tn_cuenta_id", None))
+    if ml_id is not None:
+        candidatos.update(por_ml.get(ml_id, set()))
+    if tn_id is not None:
+        candidatos.update(por_tn.get(tn_id, set()))
+    return candidatos
+
+
+def diagnosticar_identidad_tenant_pedidos(pedidos, vinculos):
+    """Clasifica sin escribir; una cuenta vinculada actúa solo como candidato."""
+    indices = construir_indices_vinculos(vinculos)
 
     conteos = {
         "asignados": 0,
@@ -33,13 +49,7 @@ def diagnosticar_identidad_tenant_pedidos(pedidos, vinculos):
     }
     detalle = []
     for pedido in pedidos or []:
-        candidatos = set()
-        ml_id = _entero(getattr(pedido, "ml_cuenta_id", None))
-        tn_id = _entero(getattr(pedido, "tn_cuenta_id", None))
-        if ml_id is not None:
-            candidatos.update(por_ml.get(ml_id, set()))
-        if tn_id is not None:
-            candidatos.update(por_tn.get(tn_id, set()))
+        candidatos = candidatos_pedido(pedido, indices)
 
         explicita = (
             _entero(getattr(pedido, "organizacion_id", None)),

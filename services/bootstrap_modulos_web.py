@@ -159,6 +159,7 @@ def registrar_modulos_web(
                         "ModuloOrganizacion",
                         "Producto",
                         "Pedido",
+                        "AsignacionTenantPedido",
                         "VinculoCanalComercial",
                         "MercadoLibreCuenta",
                         "TiendaNubeCuenta",

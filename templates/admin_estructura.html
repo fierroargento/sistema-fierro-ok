@@ -64,6 +64,66 @@
         {% for bloqueo in diagnostico_pedidos.bloqueos %}
         <div>{{ bloqueo }}</div>
         {% endfor %}
+
+        <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+              style="margin-top:12px;">
+            <input type="hidden" name="accion" value="preparar_asignaciones_pedidos">
+            <button type="submit">Preparar candidatos del tenant</button>
+        </form>
+
+        <div style="overflow-x:auto;margin-top:12px;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>Pedido</th><th>Unidad candidata</th><th>Estado</th>
+                        <th>Cuentas observadas</th><th>Decisión interna</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for propuesta in propuestas_tenant_pedidos %}
+                    <tr>
+                        <td>#{{ propuesta.pedido_id }}</td>
+                        <td>{{ propuesta.unidad_negocio.nombre }}</td>
+                        <td>{{ propuesta.estado }}</td>
+                        <td>
+                            ML {{ propuesta.ml_cuenta_id_snapshot or "-" }} /
+                            TN {{ propuesta.tn_cuenta_id_snapshot or "-" }}
+                        </td>
+                        <td>
+                            {% if propuesta.estado == "preparada" %}
+                            <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+                                  style="display:inline;">
+                                <input type="hidden" name="accion" value="aprobar_asignacion_pedido">
+                                <input type="hidden" name="propuesta_id" value="{{ propuesta.id }}">
+                                <button type="submit">Aprobar</button>
+                            </form>
+                            {% endif %}
+                            {% if propuesta.estado in ("preparada", "aprobada") %}
+                            <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+                                  style="display:inline;">
+                                <input type="hidden" name="accion" value="rechazar_asignacion_pedido">
+                                <input type="hidden" name="propuesta_id" value="{{ propuesta.id }}">
+                                <input name="motivo" maxlength="500" placeholder="Motivo opcional">
+                                <button type="submit">Rechazar</button>
+                            </form>
+                            {% endif %}
+                            {% if propuesta.estado == "aprobada" %}
+                            <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+                                  style="display:inline;">
+                                <input type="hidden" name="accion" value="aplicar_asignacion_pedido">
+                                <input type="hidden" name="propuesta_id" value="{{ propuesta.id }}">
+                                <input name="confirmacion" required placeholder="Escribí ASIGNAR">
+                                <button type="submit">Aplicar al pedido</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">No hay propuestas preparadas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div class="card" style="margin-top:16px;">

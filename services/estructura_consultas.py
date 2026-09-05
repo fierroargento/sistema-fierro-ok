@@ -36,6 +36,9 @@ def obtener_datos_panel_estructura(
     ]
     Producto = modelos["Producto"]
     Pedido = modelos["Pedido"]
+    Asignacion = modelos[
+        "AsignacionTenantPedido"
+    ]
     VinculoCanalComercial = modelos[
         "VinculoCanalComercial"
     ]
@@ -128,6 +131,16 @@ def obtener_datos_panel_estructura(
         Pedido=Pedido,
         VinculoCanalComercial=VinculoCanalComercial,
     )
+    propuestas_tenant_pedidos = (
+        Asignacion.query
+        .filter_by(organizacion_id=organizacion_id)
+        .order_by(
+            Asignacion.fecha_creacion.desc(),
+            Asignacion.id.desc(),
+        )
+        .limit(200)
+        .all()
+    )
     vinculos_canales = (
         VinculoCanalComercial.query
         .filter_by(
@@ -201,6 +214,7 @@ def obtener_datos_panel_estructura(
             certificacion_productos
         ),
         "diagnostico_pedidos": diagnostico_pedidos,
+        "propuestas_tenant_pedidos": propuestas_tenant_pedidos,
         "modulos": modulos,
         "vinculos_canales": vinculos_canales,
         "cuentas_ml_estructura": (

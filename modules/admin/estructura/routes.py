@@ -33,6 +33,12 @@ from services.onboarding_saas import (
     crear_organizacion,
     crear_unidad,
 )
+from services.asignacion_tenant_pedidos import (
+    aplicar_propuesta_tenant,
+    aprobar_propuesta_tenant,
+    preparar_propuestas_tenant,
+    rechazar_propuesta_tenant,
+)
 
 
 def crear_blueprint_estructura(
@@ -223,6 +229,49 @@ def crear_blueprint_estructura(
                     db_session=db.session,
                 )
                 mensaje = f"Unidad {unidad.nombre} actualizada."
+            elif accion == "preparar_asignaciones_pedidos":
+                cantidad = preparar_propuestas_tenant(
+                    organizacion.id,
+                    Pedido=modelos["Pedido"],
+                    VinculoCanalComercial=modelos["VinculoCanalComercial"],
+                    AsignacionTenantPedido=modelos["AsignacionTenantPedido"],
+                    db_session=db.session,
+                    usuario=usuario,
+                )
+                mensaje = f"Propuestas preparadas: {cantidad}. Ningún pedido fue modificado."
+            elif accion == "aprobar_asignacion_pedido":
+                aprobar_propuesta_tenant(
+                    request.form.get("propuesta_id"),
+                    organizacion.id,
+                    Pedido=modelos["Pedido"],
+                    VinculoCanalComercial=modelos["VinculoCanalComercial"],
+                    AsignacionTenantPedido=modelos["AsignacionTenantPedido"],
+                    db_session=db.session,
+                    usuario=usuario,
+                )
+                mensaje = "Propuesta aprobada; el pedido todavía no fue modificado."
+            elif accion == "rechazar_asignacion_pedido":
+                rechazar_propuesta_tenant(
+                    request.form.get("propuesta_id"),
+                    organizacion.id,
+                    motivo=request.form.get("motivo"),
+                    AsignacionTenantPedido=modelos["AsignacionTenantPedido"],
+                    db_session=db.session,
+                    usuario=usuario,
+                )
+                mensaje = "Propuesta rechazada."
+            elif accion == "aplicar_asignacion_pedido":
+                aplicar_propuesta_tenant(
+                    request.form.get("propuesta_id"),
+                    organizacion.id,
+                    confirmacion=request.form.get("confirmacion"),
+                    Pedido=modelos["Pedido"],
+                    VinculoCanalComercial=modelos["VinculoCanalComercial"],
+                    AsignacionTenantPedido=modelos["AsignacionTenantPedido"],
+                    db_session=db.session,
+                    usuario=usuario,
+                )
+                mensaje = "Identidad tenant aplicada al pedido. No se ejecutaron acciones externas."
             else:
                 mensaje = procesar_accion_estructura_admin(
                     accion, request.form, organizacion=organizacion,
