@@ -58,6 +58,46 @@ def asegurar_producto_tenant(
     }
 
 
+def asegurar_identidad_tenant_pedido_preparatoria(
+    *, db, inspect_fn, text_fn, logger_fn=print,
+):
+    """Agrega identidad tenant nullable sin asignar ni alterar pedidos legacy."""
+    inspector = inspect_fn(db.engine)
+    tabla = "pedido"
+    if tabla not in inspector.get_table_names():
+        return {"columnas_creadas": []}
+    columnas = {
+        columna["name"]
+        for columna in inspector.get_columns(tabla)
+    }
+    definiciones = {
+        "organizacion_id": "INTEGER",
+        "unidad_negocio_id": "INTEGER",
+    }
+    creadas = []
+    for nombre, definicion in definiciones.items():
+        if nombre not in columnas:
+            db.session.execute(text_fn(
+                f"ALTER TABLE {tabla} ADD COLUMN {nombre} {definicion}"
+            ))
+            creadas.append(nombre)
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_pedido_organizacion_id "
+        "ON pedido (organizacion_id)"
+    ))
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_pedido_unidad_negocio_id "
+        "ON pedido (unidad_negocio_id)"
+    ))
+    db.session.commit()
+    if creadas and logger_fn is not None:
+        logger_fn(
+            "[SAAS] Identidad tenant preparatoria agregada a pedidos; "
+            "sin asignaciones automáticas."
+        )
+    return {"columnas_creadas": creadas}
+
+
 def asegurar_ficha_catalogo_integral(*, db, inspect_fn, text_fn, logger_fn=print):
     """Amplía CatalogoProducto conservando las inclusiones existentes."""
     inspector = inspect_fn(db.engine)

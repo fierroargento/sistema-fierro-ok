@@ -7,6 +7,21 @@ from services.fechas import ahora_utc_naive
 class Pedido(db.Model):
     __tablename__ = "pedido"
 
+    # Identidad SaaS preparatoria. Continúa nullable hasta que cada pedido
+    # legacy sea certificado; ningún flujo operativo la consume todavía.
+    organizacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizacion.id"),
+        nullable=True,
+        index=True,
+    )
+    unidad_negocio_id = db.Column(
+        db.Integer,
+        db.ForeignKey("unidad_negocio.id"),
+        nullable=True,
+        index=True,
+    )
+
     origen = db.Column(db.String(30))
     ml_cuenta_id = db.Column(db.Integer, db.ForeignKey("mercado_libre_cuenta.id"), nullable=True, index=True)
     ml_seller_id = db.Column(db.String(50), index=True)

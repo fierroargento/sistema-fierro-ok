@@ -12,6 +12,9 @@ from services.modulos_organizacion import (
 from services.certificacion_productos_tenant import (
     certificar_productos_tenant,
 )
+from services.identidad_tenant_pedidos import (
+    obtener_diagnostico_identidad_tenant_pedidos,
+)
 
 
 def obtener_datos_panel_estructura(
@@ -32,6 +35,7 @@ def obtener_datos_panel_estructura(
         "ModuloOrganizacion"
     ]
     Producto = modelos["Producto"]
+    Pedido = modelos["Pedido"]
     VinculoCanalComercial = modelos[
         "VinculoCanalComercial"
     ]
@@ -120,6 +124,10 @@ def obtener_datos_panel_estructura(
         Catalogo=Catalogo,
         CatalogoProducto=CatalogoProducto,
     )
+    diagnostico_pedidos = obtener_diagnostico_identidad_tenant_pedidos(
+        Pedido=Pedido,
+        VinculoCanalComercial=VinculoCanalComercial,
+    )
     vinculos_canales = (
         VinculoCanalComercial.query
         .filter_by(
@@ -192,6 +200,7 @@ def obtener_datos_panel_estructura(
         "certificacion_productos": (
             certificacion_productos
         ),
+        "diagnostico_pedidos": diagnostico_pedidos,
         "modulos": modulos,
         "vinculos_canales": vinculos_canales,
         "cuentas_ml_estructura": (

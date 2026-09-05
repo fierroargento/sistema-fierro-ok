@@ -45,6 +45,28 @@
     </div>
 
     <div class="card" style="margin-top:16px;">
+        <h2>Identidad tenant de pedidos</h2>
+        <p>
+            Ensayo de solo lectura sobre pedidos existentes. Una coincidencia de
+            cuenta genera un candidato, pero no asigna ni modifica el pedido.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;">
+            <div><strong>{{ diagnostico_pedidos.asignados }}</strong><br>Asignados</div>
+            <div><strong>{{ diagnostico_pedidos.inferibles }}</strong><br>Inferibles</div>
+            <div><strong>{{ diagnostico_pedidos.pendientes }}</strong><br>Pendientes</div>
+            <div><strong>{{ diagnostico_pedidos.ambiguos }}</strong><br>Ambiguos</div>
+            <div><strong>{{ diagnostico_pedidos.conflictos }}</strong><br>Conflictos</div>
+        </div>
+        <div class="alerta" style="margin-top:12px;">
+            Se realizaron {{ diagnostico_pedidos.escrituras_realizadas }} escrituras.
+            Las integraciones externas continúan bloqueadas.
+        </div>
+        {% for bloqueo in diagnostico_pedidos.bloqueos %}
+        <div>{{ bloqueo }}</div>
+        {% endfor %}
+    </div>
+
+    <div class="card" style="margin-top:16px;">
         <h2>Organizaciones disponibles</h2>
         <div style="display:grid;gap:8px;">
             {% for membresia_item in membresias_tenant %}

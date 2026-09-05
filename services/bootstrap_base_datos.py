@@ -16,6 +16,7 @@ def inicializar_base_datos_saas(
         asegurar_evento_fiscal_tenant,
         asegurar_ficha_catalogo_integral,
         asegurar_identidad_canal_crm_tenant,
+        asegurar_identidad_tenant_pedido_preparatoria,
         asegurar_movimiento_inventario_tenant,
         asegurar_inventario_saas,
         asegurar_periodicidad_costos_fijos,
@@ -125,6 +126,13 @@ def inicializar_base_datos_saas(
             text_fn=text_fn,
             Producto=modelos["Producto"],
             organizacion_id_predeterminada=organizacion_id,
+            logger_fn=logger_fn,
+        )
+
+        asegurar_identidad_tenant_pedido_preparatoria(
+            db=db,
+            inspect_fn=inspect_fn,
+            text_fn=text_fn,
             logger_fn=logger_fn,
         )
 

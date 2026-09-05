@@ -158,6 +158,7 @@ def registrar_modulos_web(
                         "CatalogoProducto",
                         "ModuloOrganizacion",
                         "Producto",
+                        "Pedido",
                         "VinculoCanalComercial",
                         "MercadoLibreCuenta",
                         "TiendaNubeCuenta",
