@@ -32,6 +32,7 @@ from services.preparacion_integracion_canal import (
 )
 from services.adaptadores_offline_canales import ADAPTADORES, adaptar_documento
 from services.orquestador_offline_eventos import orquestar_eventos
+from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
     obtener_fuentes_costo,
@@ -290,6 +291,29 @@ def crear_blueprint_comercial(*, dependencias):
         filas, _resumen = construir_conciliaciones(ventas, movimientos)
         incorporar_gestiones(filas, gestiones)
         return send_file(exportar_conciliaciones(filas), as_attachment=True, download_name="conciliacion_liquidaciones.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    @blueprint.route("/admin/comercial/auditoria-consolidacion")
+    @dependencias["login_required"]
+    def auditoria_consolidacion_comercial():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        Lista = modelos["ListaPrecio"]
+        controles = modelos["ControlIntegracionCanal"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
+        eventos = modelos["EventoIntegracionStaging"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
+        resultado = construir_auditoria(
+            controles=controles, eventos=eventos,
+            ventas=modelos["VentaCanalItem"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all(),
+            movimientos=modelos["MovimientoLiquidacionCanal"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all(),
+            gestiones=modelos["GestionConciliacionCanal"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all(),
+            costos_vigentes=modelos["CostoProductoVersion"].query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, vigente=True).count(),
+            reglas_economicas=modelos["ReglaEconomicaVersion"].query.filter_by(organizacion_id=organizacion.id, vigente=True).count(),
+            reglas_canal=modelos["ReglaCanalVersion"].query.join(Lista).filter(Lista.organizacion_id == organizacion.id, Lista.unidad_negocio_id == unidad_activa.id, modelos["ReglaCanalVersion"].vigente.is_(True)).count(),
+            validaciones=modelos["ReglaValidacionCanalVersion"].query.join(Lista).filter(Lista.organizacion_id == organizacion.id, Lista.unidad_negocio_id == unidad_activa.id, modelos["ReglaValidacionCanalVersion"].vigente.is_(True)).count(),
+            identidades=modelos["MapeoPublicacionCanal"].query.filter_by(organizacion_id=organizacion.id).count(),
+        )
+        if request.args.get("exportar") == "1": return send_file(exportar_auditoria(resultado), as_attachment=True, download_name="auditoria_consolidacion_comercial.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        return render_template("admin_auditoria_consolidacion.html", organizacion=organizacion, unidad_activa=unidad_activa, unidades=unidades, resultado=resultado)
 
     @blueprint.route("/admin/comercial/orquestador-offline", methods=["GET", "POST"])
     @dependencias["login_required"]

@@ -207,6 +207,13 @@
 .orchestrator-alert, .orchestrator-proposal { padding: 9px 11px; border-radius: 7px; }
 .orchestrator-alert { background: #fff0ed; color: #9b3527; }
 .orchestrator-proposal { background: #eef6fa; color: #176b89; }
+.consolidation-verdict { display: flex; justify-content: space-between; padding: 15px; border-radius: 9px; margin-bottom: 14px; }
+.audit-findings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.audit-findings article { display: grid; gap: 4px; padding: 11px; border-radius: 8px; }
+.audit-ok { background: #e9f7ef; color: #17613f; }
+.audit-critico { background: #fff0ed; color: #9b3527; }
+.audit-advertencia { background: #fff7df; color: #8b6400; }
+@media (max-width: 900px) { .audit-findings { grid-template-columns: 1fr; } }
 .economic-cumple { color: #17734b; }
 .economic-bajo_piso { color: #a3152a; }
 .economic-sin_piso { color: #a05b00; }
