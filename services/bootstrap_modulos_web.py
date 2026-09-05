@@ -150,6 +150,7 @@ def registrar_modulos_web(
                 "modelos": {
                     nombre: modelos[nombre]
                     for nombre in (
+                        "Organizacion",
                         "UnidadNegocio",
                         "SucursalOperativa",
                         "EntidadFiscal",

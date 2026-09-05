@@ -24,6 +24,15 @@ from services.tenant_context import (
     TenantError,
     resolver_tenant_usuario,
 )
+from services.modulos_organizacion import asegurar_modulos_iniciales
+from services.onboarding_saas import (
+    actualizar_organizacion,
+    actualizar_unidad,
+    cambiar_estado_organizacion,
+    cambiar_estado_unidad,
+    crear_organizacion,
+    crear_unidad,
+)
 
 
 def crear_blueprint_estructura(
@@ -49,6 +58,14 @@ def crear_blueprint_estructura(
         "UsuarioOrganizacion"
     ]
     modelos = dependencias["modelos"]
+
+    def membresias_usuario(usuario):
+        return (
+            UsuarioOrganizacion.query
+            .filter_by(usuario_id=usuario.id, activa=True)
+            .order_by(UsuarioOrganizacion.id.asc())
+            .all()
+        )
 
     def resolver_acceso():
         usuario = usuario_actual()
@@ -87,7 +104,7 @@ def crear_blueprint_estructura(
     @blueprint.route("/admin/estructura")
     @login_required
     def panel():
-        _usuario, organizacion, respuesta = (
+        usuario, organizacion, respuesta = (
             resolver_acceso()
         )
 
@@ -102,6 +119,8 @@ def crear_blueprint_estructura(
         return render_template(
             "admin_estructura.html",
             organizacion=organizacion,
+            membresias_tenant=membresias_usuario(usuario),
+            puede_crear_tenant=(usuario.rol == "admin"),
             **datos,
             ok_feedback=(
                 request.args.get("ok")
@@ -119,7 +138,7 @@ def crear_blueprint_estructura(
     )
     @login_required
     def guardar():
-        _usuario, organizacion, respuesta = (
+        usuario, organizacion, respuesta = (
             resolver_acceso()
         )
 
@@ -132,15 +151,83 @@ def crear_blueprint_estructura(
         ).strip()
 
         try:
-            mensaje = (
-                procesar_accion_estructura_admin(
-                    accion,
-                    request.form,
-                    organizacion=organizacion,
-                    modelos=modelos,
+            if accion == "seleccionar_organizacion":
+                membresia = resolver_tenant_usuario(
+                    usuario,
+                    UsuarioOrganizacion=UsuarioOrganizacion,
+                    organizacion_id=request.form.get("organizacion_id"),
+                )
+                session["organizacion_id"] = membresia.organizacion_id
+                return redirect(url_for("admin_estructura.panel"))
+            if accion == "crear_organizacion":
+                if usuario.rol != "admin":
+                    raise ValueError("No tenés permiso para crear organizaciones.")
+                nueva = crear_organizacion(
+                    nombre=request.form.get("nombre"),
+                    slug=request.form.get("slug"),
+                    unidad_nombre=request.form.get("unidad_nombre"),
+                    unidad_codigo=request.form.get("unidad_codigo"),
+                    usuario=usuario,
+                    Organizacion=modelos["Organizacion"],
+                    UnidadNegocio=modelos["UnidadNegocio"],
+                    UsuarioOrganizacion=UsuarioOrganizacion,
+                    ModuloOrganizacion=modelos["ModuloOrganizacion"],
+                    db_session=db.session,
+                    asegurar_modulos_fn=asegurar_modulos_iniciales,
+                )
+                mensaje = f"Organización {nueva.nombre} creada desactivada."
+            elif accion == "estado_organizacion":
+                if usuario.rol != "admin":
+                    raise ValueError("No tenés permiso para cambiar organizaciones.")
+                objetivo = cambiar_estado_organizacion(
+                    request.form.get("organizacion_id"),
+                    usuario_id=usuario.id,
+                    Organizacion=modelos["Organizacion"],
+                    UsuarioOrganizacion=UsuarioOrganizacion,
                     db_session=db.session,
                 )
-            )
+                mensaje = f"Organización {objetivo.nombre} actualizada."
+            elif accion == "editar_organizacion":
+                actualizar_organizacion(
+                    organizacion,
+                    nombre=request.form.get("nombre"),
+                    slug=request.form.get("slug"),
+                    Organizacion=modelos["Organizacion"],
+                    db_session=db.session,
+                )
+                mensaje = "Datos de la organización actualizados."
+            elif accion == "crear_unidad":
+                unidad = crear_unidad(
+                    organizacion,
+                    nombre=request.form.get("nombre"),
+                    codigo=request.form.get("codigo"),
+                    UnidadNegocio=modelos["UnidadNegocio"],
+                    db_session=db.session,
+                )
+                mensaje = f"Unidad {unidad.nombre} creada desactivada."
+            elif accion == "editar_unidad":
+                actualizar_unidad(
+                    organizacion,
+                    request.form.get("unidad_id"),
+                    nombre=request.form.get("nombre"),
+                    codigo=request.form.get("codigo"),
+                    UnidadNegocio=modelos["UnidadNegocio"],
+                    db_session=db.session,
+                )
+                mensaje = "Unidad actualizada."
+            elif accion == "toggle_unidad":
+                unidad = cambiar_estado_unidad(
+                    organizacion,
+                    request.form.get("unidad_id"),
+                    UnidadNegocio=modelos["UnidadNegocio"],
+                    db_session=db.session,
+                )
+                mensaje = f"Unidad {unidad.nombre} actualizada."
+            else:
+                mensaje = procesar_accion_estructura_admin(
+                    accion, request.form, organizacion=organizacion,
+                    modelos=modelos, db_session=db.session,
+                )
 
             registrar_auditoria(
                 "Configuro estructura empresarial",

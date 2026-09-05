@@ -4,7 +4,7 @@
 <div class="card estructura-admin">
     <h1>Estructura empresarial</h1>
     <p>
-        Configuración interna de Grupo Fierro. Los registros nuevos
+        Configuración interna de {{ organizacion.nombre }}. Los registros nuevos
         no se conectan automáticamente con pedidos, canales ni facturación.
     </p>
 
@@ -17,23 +17,76 @@
     {% endif %}
 
     <div class="card" style="margin-top:16px;">
-        <h2>Organización y unidades</h2>
-        <p>
-            <strong>{{ organizacion.nombre }}</strong>
-            — {{ organizacion.slug }}
-        </p>
-        <ul>
-            {% for unidad in unidades %}
-            <li>
-                {{ unidad.nombre }} — {{ unidad.codigo }}
-                {% if unidad.activa %}
-                <strong>(activa)</strong>
-                {% else %}
-                (desactivada)
+        <h2>Organizaciones disponibles</h2>
+        <div style="display:grid;gap:8px;">
+            {% for membresia_item in membresias_tenant %}
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <strong>{{ membresia_item.organizacion.nombre }}</strong>
+                <span>{{ membresia_item.organizacion.slug }}</span>
+                <span>{{ "activa" if membresia_item.organizacion.activa else "desactivada" }}</span>
+                {% if membresia_item.organizacion.activa and membresia_item.organizacion_id != organizacion.id %}
+                <form method="post" action="{{ url_for('admin_estructura.guardar') }}">
+                    <input type="hidden" name="accion" value="seleccionar_organizacion">
+                    <input type="hidden" name="organizacion_id" value="{{ membresia_item.organizacion_id }}">
+                    <button type="submit">Administrar</button>
+                </form>
                 {% endif %}
-            </li>
+                {% if puede_crear_tenant and membresia_item.organizacion_id != organizacion.id %}
+                <form method="post" action="{{ url_for('admin_estructura.guardar') }}">
+                    <input type="hidden" name="accion" value="estado_organizacion">
+                    <input type="hidden" name="organizacion_id" value="{{ membresia_item.organizacion_id }}">
+                    <button type="submit">{{ "Desactivar" if membresia_item.organizacion.activa else "Activar" }}</button>
+                </form>
+                {% endif %}
+            </div>
             {% endfor %}
-        </ul>
+        </div>
+
+        {% if puede_crear_tenant %}
+        <h3>Crear organización SaaS</h3>
+        <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <input type="hidden" name="accion" value="crear_organizacion">
+            <input name="nombre" required maxlength="150" placeholder="Organización">
+            <input name="slug" maxlength="80" placeholder="Identificador opcional">
+            <input name="unidad_nombre" required maxlength="150" placeholder="Primera unidad de negocio">
+            <input name="unidad_codigo" maxlength="80" placeholder="Código opcional">
+            <button type="submit">Crear desactivada</button>
+        </form>
+        {% endif %}
+
+        <h3>Tenant activo</h3>
+        <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+              style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="hidden" name="accion" value="editar_organizacion">
+            <input name="nombre" required maxlength="150" value="{{ organizacion.nombre }}">
+            <input name="slug" required maxlength="80" value="{{ organizacion.slug }}">
+            <button type="submit">Guardar organización</button>
+        </form>
+
+        <h3>Unidades de negocio</h3>
+        <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+              style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="hidden" name="accion" value="crear_unidad">
+            <input name="nombre" required maxlength="150" placeholder="Nueva unidad">
+            <input name="codigo" maxlength="80" placeholder="Código opcional">
+            <button type="submit">Crear desactivada</button>
+        </form>
+        <div style="display:grid;gap:8px;margin-top:12px;">
+            {% for unidad in unidades %}
+            <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+                  style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input type="hidden" name="unidad_id" value="{{ unidad.id }}">
+                <input name="nombre" required maxlength="150" value="{{ unidad.nombre }}">
+                <input name="codigo" required maxlength="80" value="{{ unidad.codigo }}">
+                <span>{{ "activa" if unidad.activa else "desactivada" }}</span>
+                <button type="submit" name="accion" value="editar_unidad">Guardar</button>
+                <button type="submit" name="accion" value="toggle_unidad">
+                    {{ "Desactivar" if unidad.activa else "Activar" }}
+                </button>
+            </form>
+            {% endfor %}
+        </div>
     </div>
 
     <div class="card" style="margin-top:16px;">
