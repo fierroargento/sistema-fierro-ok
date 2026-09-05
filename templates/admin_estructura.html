@@ -75,13 +75,19 @@
             <table style="width:100%;">
                 <thead>
                     <tr>
-                        <th>Pedido</th><th>Unidad candidata</th><th>Estado</th>
+                        <th>Elegir</th><th>Pedido</th><th>Unidad candidata</th><th>Estado</th>
                         <th>Cuentas observadas</th><th>Decisión interna</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for propuesta in propuestas_tenant_pedidos %}
                     <tr>
+                        <td>
+                            {% if propuesta.estado in ("preparada", "aprobada") %}
+                            <input type="checkbox" name="propuesta_id"
+                                   value="{{ propuesta.id }}" form="form-lote-asignaciones">
+                            {% endif %}
+                        </td>
                         <td>#{{ propuesta.pedido_id }}</td>
                         <td>{{ propuesta.unidad_negocio.nombre }}</td>
                         <td>{{ propuesta.estado }}</td>
@@ -119,11 +125,20 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5">No hay propuestas preparadas.</td></tr>
+                    <tr><td colspan="6">No hay propuestas preparadas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        <form id="form-lote-asignaciones" method="post"
+              action="{{ url_for('admin_estructura.previsualizar_asignaciones') }}"
+              style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;">
+            <select name="operacion" required>
+                <option value="aprobar">Previsualizar aprobación</option>
+                <option value="aplicar">Previsualizar aplicación</option>
+            </select>
+            <button type="submit">Previsualizar lote seleccionado</button>
+        </form>
     </div>
 
     <div class="card" style="margin-top:16px;">

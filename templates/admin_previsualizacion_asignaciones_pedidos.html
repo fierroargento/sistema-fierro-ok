@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h1>Previsualización del lote de pedidos</h1>
+    <p>
+        Organización: <strong>{{ organizacion.nombre }}</strong>.
+        Esta pantalla realizó <strong>{{ vista.escrituras_realizadas }}</strong> escrituras.
+    </p>
+    {% if vista.valido %}
+    <div class="alerta alerta-ok">
+        Las {{ vista.filas|length }} propuestas superaron la revalidación completa.
+    </div>
+    {% else %}
+    <div class="alerta alerta-error">
+        El lote está bloqueado. No se aplicará parcialmente.
+        {% for error in vista.errores %}<div>{{ error }}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="overflow-x:auto;margin-top:12px;">
+        <table style="width:100%;">
+            <thead><tr><th>Propuesta</th><th>Pedido</th><th>Resultado</th></tr></thead>
+            <tbody>
+                {% for fila in vista.filas %}
+                <tr>
+                    <td>#{{ fila.propuesta.id if fila.valida else fila.propuesta_id }}</td>
+                    <td>#{{ fila.pedido.id if fila.valida else "-" }}</td>
+                    <td>{{ "Válida" if fila.valida else fila.error }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if vista.valido %}
+    <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+          style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:16px;">
+        {% for propuesta_id in vista.ids %}
+        <input type="hidden" name="propuesta_id" value="{{ propuesta_id }}">
+        {% endfor %}
+        {% if operacion == "aprobar" %}
+        <input type="hidden" name="accion" value="aprobar_lote_asignaciones">
+        <button type="submit">Aprobar lote completo</button>
+        {% else %}
+        <input type="hidden" name="accion" value="aplicar_lote_asignaciones">
+        <input name="confirmacion" required autocomplete="off"
+               placeholder="Escribí ASIGNAR LOTE">
+        <button type="submit">Aplicar lote completo</button>
+        {% endif %}
+    </form>
+    {% endif %}
+    <p style="margin-top:16px;">
+        <a href="{{ url_for('admin_estructura.panel') }}">Volver sin ejecutar</a>
+    </p>
+</div>
+{% endblock %}

@@ -160,3 +160,109 @@ def aplicar_propuesta_tenant(
     _usuario(propuesta, "aplicado", usuario)
     _guardar(db_session, commit)
     return propuesta
+
+
+def _ids_unicos(propuesta_ids):
+    resultado = []
+    for valor in propuesta_ids or []:
+        try:
+            identificador = int(valor)
+        except (TypeError, ValueError) as error:
+            raise ValueError("El lote contiene una propuesta inválida.") from error
+        if identificador <= 0:
+            raise ValueError("El lote contiene una propuesta inválida.")
+        if identificador not in resultado:
+            resultado.append(identificador)
+    if not resultado:
+        raise ValueError("Seleccioná al menos una propuesta.")
+    return resultado
+
+
+def previsualizar_lote_tenant(
+    propuesta_ids, organizacion_id, *, estado_requerido,
+    Pedido, VinculoCanalComercial, AsignacionTenantPedido,
+):
+    """Revalida todo el lote en memoria y no modifica registros."""
+    ids = _ids_unicos(propuesta_ids)
+    filas, errores = [], []
+    for propuesta_id in ids:
+        try:
+            propuesta = _obtener_propuesta(
+                propuesta_id, organizacion_id,
+                AsignacionTenantPedido=AsignacionTenantPedido,
+            )
+            if propuesta.estado != estado_requerido:
+                raise ValueError(
+                    f"La propuesta debe estar {estado_requerido}."
+                )
+            pedido = _revalidar(
+                propuesta, Pedido=Pedido,
+                VinculoCanalComercial=VinculoCanalComercial,
+            )
+            filas.append({
+                "propuesta": propuesta,
+                "pedido": pedido,
+                "valida": True,
+                "error": None,
+            })
+        except Exception as error:
+            errores.append(f"Propuesta #{propuesta_id}: {error}")
+            filas.append({
+                "propuesta_id": propuesta_id,
+                "valida": False,
+                "error": str(error),
+            })
+    return {
+        "ids": ids,
+        "filas": filas,
+        "errores": errores,
+        "valido": not errores,
+        "escrituras_realizadas": 0,
+    }
+
+
+def aprobar_lote_tenant(
+    propuesta_ids, organizacion_id, *, Pedido, VinculoCanalComercial,
+    AsignacionTenantPedido, db_session, usuario, commit=True,
+):
+    vista = previsualizar_lote_tenant(
+        propuesta_ids, organizacion_id, estado_requerido="preparada",
+        Pedido=Pedido, VinculoCanalComercial=VinculoCanalComercial,
+        AsignacionTenantPedido=AsignacionTenantPedido,
+    )
+    if not vista["valido"]:
+        raise ValueError("El lote completo fue bloqueado. " + " ".join(vista["errores"]))
+    momento = ahora_utc_naive()
+    for fila in vista["filas"]:
+        propuesta = fila["propuesta"]
+        propuesta.estado = "aprobada"
+        propuesta.fecha_aprobacion = momento
+        _usuario(propuesta, "aprobado", usuario)
+    _guardar(db_session, commit)
+    return len(vista["filas"])
+
+
+def aplicar_lote_tenant(
+    propuesta_ids, organizacion_id, *, confirmacion, Pedido,
+    VinculoCanalComercial, AsignacionTenantPedido, db_session,
+    usuario, commit=True,
+):
+    if str(confirmacion or "").strip().upper() != "ASIGNAR LOTE":
+        raise ValueError("Escribí ASIGNAR LOTE para confirmar la aplicación masiva.")
+    vista = previsualizar_lote_tenant(
+        propuesta_ids, organizacion_id, estado_requerido="aprobada",
+        Pedido=Pedido, VinculoCanalComercial=VinculoCanalComercial,
+        AsignacionTenantPedido=AsignacionTenantPedido,
+    )
+    if not vista["valido"]:
+        raise ValueError("El lote completo fue bloqueado. " + " ".join(vista["errores"]))
+    momento = ahora_utc_naive()
+    for fila in vista["filas"]:
+        propuesta, pedido = fila["propuesta"], fila["pedido"]
+        pedido.organizacion_id = propuesta.organizacion_id
+        pedido.unidad_negocio_id = propuesta.unidad_negocio_id
+        propuesta.estado = "aplicada"
+        propuesta.fecha_aplicacion = momento
+        _usuario(propuesta, "aplicado", usuario)
+    _guardar(db_session, commit)
+    return len(vista["filas"])

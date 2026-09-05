@@ -34,9 +34,12 @@ from services.onboarding_saas import (
     crear_unidad,
 )
 from services.asignacion_tenant_pedidos import (
+    aplicar_lote_tenant,
     aplicar_propuesta_tenant,
+    aprobar_lote_tenant,
     aprobar_propuesta_tenant,
     preparar_propuestas_tenant,
+    previsualizar_lote_tenant,
     rechazar_propuesta_tenant,
 )
 
@@ -272,6 +275,25 @@ def crear_blueprint_estructura(
                     usuario=usuario,
                 )
                 mensaje = "Identidad tenant aplicada al pedido. No se ejecutaron acciones externas."
+            elif accion == "aprobar_lote_asignaciones":
+                cantidad = aprobar_lote_tenant(
+                    request.form.getlist("propuesta_id"), organizacion.id,
+                    Pedido=modelos["Pedido"],
+                    VinculoCanalComercial=modelos["VinculoCanalComercial"],
+                    AsignacionTenantPedido=modelos["AsignacionTenantPedido"],
+                    db_session=db.session, usuario=usuario,
+                )
+                mensaje = f"Lote aprobado: {cantidad} propuestas. Ningún pedido fue modificado."
+            elif accion == "aplicar_lote_asignaciones":
+                cantidad = aplicar_lote_tenant(
+                    request.form.getlist("propuesta_id"), organizacion.id,
+                    confirmacion=request.form.get("confirmacion"),
+                    Pedido=modelos["Pedido"],
+                    VinculoCanalComercial=modelos["VinculoCanalComercial"],
+                    AsignacionTenantPedido=modelos["AsignacionTenantPedido"],
+                    db_session=db.session, usuario=usuario,
+                )
+                mensaje = f"Lote aplicado: {cantidad} pedidos. Sin acciones externas."
             else:
                 mensaje = procesar_accion_estructura_admin(
                     accion, request.form, organizacion=organizacion,
@@ -304,6 +326,37 @@ def crear_blueprint_estructura(
             return redirect(url_for(
                 "admin_estructura.panel",
                 error=str(error),
+            ))
+
+    @blueprint.route(
+        "/admin/estructura/asignaciones/previsualizar",
+        methods=["POST"],
+    )
+    @login_required
+    def previsualizar_asignaciones():
+        _usuario_actual, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        operacion = (request.form.get("operacion") or "aprobar").strip().lower()
+        if operacion not in {"aprobar", "aplicar"}:
+            return redirect(url_for(
+                "admin_estructura.panel", error="La operación masiva no es válida."
+            ))
+        try:
+            vista = previsualizar_lote_tenant(
+                request.form.getlist("propuesta_id"), organizacion.id,
+                estado_requerido=("preparada" if operacion == "aprobar" else "aprobada"),
+                Pedido=modelos["Pedido"],
+                VinculoCanalComercial=modelos["VinculoCanalComercial"],
+                AsignacionTenantPedido=modelos["AsignacionTenantPedido"],
+            )
+            return render_template(
+                "admin_previsualizacion_asignaciones_pedidos.html",
+                organizacion=organizacion, operacion=operacion, vista=vista,
+            )
+        except Exception as error:
+            return redirect(url_for(
+                "admin_estructura.panel", error=str(error),
             ))
 
     return blueprint
