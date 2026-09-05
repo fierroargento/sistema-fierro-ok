@@ -9,6 +9,9 @@ from services.modulos_organizacion import (
     ESTADO_DESACTIVADO,
     ESTADO_PRUEBA,
 )
+from services.certificacion_productos_tenant import (
+    certificar_productos_tenant,
+)
 
 
 def obtener_datos_panel_estructura(
@@ -111,6 +114,12 @@ def obtener_datos_panel_estructura(
         )
         .all()
     )
+    certificacion_productos = certificar_productos_tenant(
+        organizacion_id,
+        Producto=Producto,
+        Catalogo=Catalogo,
+        CatalogoProducto=CatalogoProducto,
+    )
     vinculos_canales = (
         VinculoCanalComercial.query
         .filter_by(
@@ -179,6 +188,9 @@ def obtener_datos_panel_estructura(
         "productos": productos,
         "productos_catalogo": (
             productos_catalogo
+        ),
+        "certificacion_productos": (
+            certificacion_productos
         ),
         "modulos": modulos,
         "vinculos_canales": vinculos_canales,

@@ -271,6 +271,13 @@ def validar_alcance_costo(
             "El producto indicado no existe."
         )
 
+    if int(producto.organizacion_id) != int(
+        organizacion_id
+    ):
+        raise ValueError(
+            "El producto no pertenece a la organizacion."
+        )
+
     unidad = None
 
     if unidad_negocio_id is not None:

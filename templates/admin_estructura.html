@@ -17,6 +17,34 @@
     {% endif %}
 
     <div class="card" style="margin-top:16px;">
+        <h2>Certificación del maestro de productos</h2>
+        <p>
+            Diagnóstico interno de solo lectura para {{ organizacion.nombre }}.
+            No activa integraciones ni modifica datos.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+            <div><strong>{{ certificacion_productos.productos_tenant }}</strong><br>Productos del tenant</div>
+            <div><strong>{{ certificacion_productos.productos_sin_organizacion }}</strong><br>Sin organización</div>
+            <div><strong>{{ certificacion_productos.sku_duplicados }}</strong><br>SKU duplicados</div>
+            <div><strong>{{ certificacion_productos.relaciones_cruzadas }}</strong><br>Relaciones cruzadas</div>
+        </div>
+        {% if certificacion_productos.aprobada %}
+        <div class="alerta alerta-ok" style="margin-top:12px;">
+            Límite tenant del maestro de productos aprobado.
+        </div>
+        {% else %}
+        <div class="alerta alerta-error" style="margin-top:12px;">
+            {% for hallazgo in certificacion_productos.hallazgos %}
+            <div>{{ hallazgo }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="alerta" style="margin-top:12px;">
+            Integraciones externas bloqueadas: {{ certificacion_productos.motivo_integraciones }}
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
         <h2>Organizaciones disponibles</h2>
         <div style="display:grid;gap:8px;">
             {% for membresia_item in membresias_tenant %}

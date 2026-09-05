@@ -169,6 +169,11 @@ def procesar_accion_inventario_admin(
             ),
             "el producto",
         )
+        _misma_organizacion(
+            organizacion,
+            producto,
+            "El producto",
+        )
 
         existente = (
             ExistenciaSucursal.query
