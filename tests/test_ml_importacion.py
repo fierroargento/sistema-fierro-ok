@@ -362,6 +362,9 @@ class _PedidoFake:
 
 
 def _configurar_pedidos_fake(pedidos):
+    for pedido in pedidos:
+        if not hasattr(pedido, "organizacion_id"):
+            pedido.organizacion_id = 10
     _PedidoFake.query = _FakeQuery(pedidos)
 
 
@@ -378,6 +381,7 @@ def test_ml_pedido_existente_por_order_id_service_prioriza_canal_ml():
 
     resultado = _ml_pedido_existente_por_order_id_service(
         "ORDER1",
+        10,
         _PedidoFake,
     )
 
@@ -393,6 +397,7 @@ def test_ml_pedido_existente_por_order_id_service_hace_fallback_por_id_venta():
 
     resultado = _ml_pedido_existente_por_order_id_service(
         "ORDER1",
+        10,
         _PedidoFake,
     )
 
@@ -411,6 +416,7 @@ def test_ml_pedido_existente_operativo_service_mercado_envios_busca_por_pack():
     resultado = _ml_pedido_existente_operativo_service(
         {"id": "ORDER1", "pack_id": "PACK1", "shipping": {"id": "SHIP1"}},
         {},
+        10,
         _PedidoFake,
         ml_es_mercado_envios_order_fn=lambda order, shipment: True,
         ml_pedido_existente_por_order_id_fn=lambda order_id: None,
@@ -431,6 +437,7 @@ def test_ml_pedido_existente_operativo_service_mercado_envios_busca_por_shipping
     resultado = _ml_pedido_existente_operativo_service(
         {"id": "ORDER1", "shipping": {"id": "SHIP1"}},
         {},
+        10,
         _PedidoFake,
         ml_es_mercado_envios_order_fn=lambda order, shipment: True,
         ml_pedido_existente_por_order_id_fn=lambda order_id: None,
@@ -445,6 +452,7 @@ def test_ml_pedido_existente_operativo_service_acordas_usa_order_id():
     resultado = _ml_pedido_existente_operativo_service(
         {"id": "ORDER1", "shipping": {"id": "SHIP1"}},
         {},
+        10,
         _PedidoFake,
         ml_es_mercado_envios_order_fn=lambda order, shipment: False,
         ml_pedido_existente_por_order_id_fn=lambda order_id: f"pedido:{order_id}",

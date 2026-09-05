@@ -5202,20 +5202,24 @@ def ml_aplicar_datos_envio(pedido, order, shipment):
     )
 
 
-def ml_pedido_existente_por_order_id(order_id):
+def ml_pedido_existente_por_order_id(order_id, organizacion_id):
     return ml_pedido_existente_por_order_id_service(
         order_id,
+        organizacion_id,
         Pedido,
     )
 
 
-def ml_pedido_existente_operativo(order, shipment=None):
+def ml_pedido_existente_operativo(order, shipment=None, *, organizacion_id):
     return ml_pedido_existente_operativo_service(
         order,
         shipment,
+        organizacion_id,
         Pedido,
         ml_es_mercado_envios_order,
-        ml_pedido_existente_por_order_id,
+        lambda order_id: ml_pedido_existente_por_order_id(
+            order_id, organizacion_id,
+        ),
     )
 
 
@@ -5460,9 +5464,25 @@ def ml_borrar_pedido_importado_si_corresponde(
     )
 
 
+def ml_vinculo_activo_cuenta(cuenta_ml, organizacion_id=None):
+    filtros = {
+        "mercado_libre_cuenta_id": cuenta_ml.id,
+        "estado": "activo",
+    }
+    if organizacion_id is not None:
+        filtros["organizacion_id"] = int(organizacion_id)
+    vinculo = VinculoCanalComercial.query.filter_by(**filtros).first()
+    if vinculo is None:
+        raise ValueError(
+            "La cuenta Mercado Libre no tiene un vínculo tenant activo."
+        )
+    return vinculo
+
+
 def ml_upsert_pedido_desde_order(
     order,
     cuenta_ml=None,
+    organizacion_id=None,
 ):
     from services.ml_importacion_cuentas import (
         ml_asignar_cuenta_ml_a_pedido_service,
@@ -5484,6 +5504,12 @@ def ml_upsert_pedido_desde_order(
             "Mercado Libre de la order."
         )
 
+    vinculo_cuenta = ml_vinculo_activo_cuenta(
+        cuenta_resuelta,
+        organizacion_id=organizacion_id,
+    )
+    organizacion_id = int(vinculo_cuenta.organizacion_id)
+
     from services.ml_api_context import ml_api_contexto
 
     api_context = ml_api_contexto(
@@ -5504,7 +5530,13 @@ def ml_upsert_pedido_desde_order(
         shipment,
         ml_pedido_esta_ignorado,
         ml_order_esta_entregado,
-        ml_pedido_existente_operativo,
+        lambda order_actual, shipment_actual=None: (
+            ml_pedido_existente_operativo(
+                order_actual,
+                shipment_actual,
+                organizacion_id=organizacion_id,
+            )
+        ),
         ml_registrar_order_ignorado,
         ml_marcar_pedido_finalizado_por_entrega,
         ml_order_debe_omitirse,
@@ -5557,11 +5589,20 @@ def ml_upsert_pedido_desde_order(
         db,
         ml_nombre_cliente,
         ml_es_mercado_envios_order,
-        ml_pedido_existente_operativo,
+        lambda order_actual, shipment_actual=None: (
+            ml_pedido_existente_operativo(
+                order_actual,
+                shipment_actual,
+                organizacion_id=organizacion_id,
+            )
+        ),
         ml_aplicar_datos_envio,
         ml_aplicar_apb_en_pedido,
         billing_info=billing_info,
     )   
+
+    pedido.organizacion_id = organizacion_id
+    pedido.unidad_negocio_id = vinculo_cuenta.unidad_negocio_id
 
     cuenta_asignada = (
         ml_asignar_cuenta_ml_a_pedido_service(
@@ -5669,8 +5710,9 @@ def ml_obtener_shipment_de_pedido(
     )
 
 
-def ml_limpiar_pedidos_ml_no_operables_existentes():
+def ml_limpiar_pedidos_ml_no_operables_existentes(organizacion_id):
     return ml_limpiar_pedidos_ml_no_operables_existentes_service(
+        organizacion_id,
         Pedido,
         ml_obtener_order_de_pedido,
         ml_obtener_shipment_de_pedido,
@@ -5686,7 +5728,10 @@ def ml_sync_manual(
     limit=20,
     incluir_auxiliares=False,
     cuentas=None,
+    organizacion_id=None,
 ):
+    if organizacion_id is None:
+        raise ValueError("La sincronización ML requiere una organización explícita.")
     if cuentas is None:
         from services.ml_cuentas import (
             cuentas_activas,
@@ -5706,7 +5751,7 @@ def ml_sync_manual(
         )
 
     eliminados_existentes, detalles_eliminados = (
-        ml_limpiar_pedidos_ml_no_operables_existentes()
+        ml_limpiar_pedidos_ml_no_operables_existentes(organizacion_id)
     )
 
     resultado_total = {
@@ -5744,6 +5789,7 @@ def ml_sync_manual(
                         ml_upsert_pedido_desde_order(
                             order,
                             cuenta_ml=cuenta_actual,
+                            organizacion_id=organizacion_id,
                         )
                     ),
                 )
@@ -6676,6 +6722,8 @@ def ml_sync_pedido_por_order_id_webhook(
         api_context = ml_api_contexto_webhook(
             seller_id
         )
+        vinculo_cuenta = ml_vinculo_activo_cuenta(api_context.cuenta)
+        organizacion_id = int(vinculo_cuenta.organizacion_id)
         order = ml_obtener_order_api(
             order_id,
             api_context.get,
@@ -6687,6 +6735,7 @@ def ml_sync_pedido_por_order_id_webhook(
             ml_upsert_pedido_desde_order(
                 order,
                 cuenta_ml=api_context.cuenta,
+                organizacion_id=organizacion_id,
             )
         )
 
@@ -6696,7 +6745,9 @@ def ml_sync_pedido_por_order_id_webhook(
             estados_cancelados_ml = {"cancelled", "invalid", "closed"}
             order_status = str((order or {}).get("status") or "").lower().strip()
             if order_status in estados_cancelados_ml:
-                pedido_existente = ml_pedido_existente_por_order_id(order_id)
+                pedido_existente = ml_pedido_existente_por_order_id(
+                    order_id, organizacion_id,
+                )
                 if pedido_existente and pedido_existente.estado not in ["Cancelado", "Finalizado", "Entregado"]:
                     pedido_existente.estado = "Cancelado"
                     print(f"[WEBHOOK ML] Pedido #{pedido_existente.id} cancelado automáticamente — ML status={order_status}")
@@ -7863,6 +7914,7 @@ def sync_mercadolibre():
             limit=5,
             incluir_auxiliares=False,
             cuentas=cuentas,
+            organizacion_id=membresia.organizacion.id,
         )
         mensaje = (
             "Sync ML finalizada. "
@@ -8993,6 +9045,7 @@ def resync_ml_pedido(id):
                     ml_upsert_pedido_desde_order(
                         order,
                         cuenta_ml=api_context.cuenta,
+                        organizacion_id=pedido.organizacion_id,
                     )
                 )
                 if pedido_actualizado:
