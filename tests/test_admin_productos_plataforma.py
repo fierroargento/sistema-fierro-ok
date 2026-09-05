@@ -1,21 +1,4 @@
-from types import SimpleNamespace
 from pathlib import Path
-
-from modules.admin.productos.routes import (
-    _es_organizacion_plataforma,
-)
-
-
-def test_solo_organizacion_inicial_es_plataforma():
-    assert _es_organizacion_plataforma(
-        SimpleNamespace(slug="grupo-fierro")
-    )
-    assert not _es_organizacion_plataforma(
-        SimpleNamespace(slug="otro-tenant")
-    )
-    assert not _es_organizacion_plataforma(
-        SimpleNamespace()
-    )
 
 
 def test_ruta_monolitica_fue_eliminada():
@@ -60,7 +43,7 @@ def test_blueprint_conserva_url():
     )
 
 
-def test_maestro_global_no_se_presenta_como_tenant():
+def test_maestro_se_filtra_y_administra_por_tenant():
     rutas = Path(
         "modules/admin/productos/routes.py"
     ).read_text(encoding="utf-8")
@@ -69,11 +52,11 @@ def test_maestro_global_no_se_presenta_como_tenant():
     ).read_text(encoding="utf-8")
 
     assert (
-        "SLUG_ORGANIZACION_PLATAFORMA"
+        "organizacion_id=("
         in rutas
     )
     assert "CatalogoProducto" not in consultas
-    assert "organizacion_id" not in consultas
+    assert "organizacion_id" in consultas
 
 
 def test_template_usa_endpoint_blueprint():

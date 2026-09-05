@@ -122,7 +122,10 @@ def procesar_accion_catalogo_comercial(
         )
         if catalogo.unidad_negocio_id != unidad_activa.id:
             raise ValueError("El catálogo no pertenece a la unidad activa.")
-        producto = Producto.query.get(_id(formulario, "producto_id"))
+        producto = Producto.query.filter_by(
+            id=_id(formulario, "producto_id"),
+            organizacion_id=organizacion.id,
+        ).first()
         if producto is None:
             raise ValueError("No se encontró el producto maestro.")
         if CatalogoProducto.query.filter_by(

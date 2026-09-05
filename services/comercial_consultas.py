@@ -107,7 +107,9 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         promociones, propuestas_comerciales,
     )
     return {
-        "productos_maestro": Producto.query.order_by(
+        "productos_maestro": Producto.query.filter_by(
+            organizacion_id=organizacion_id
+        ).order_by(
             Producto.sku.asc()
         ).all(),
         "catalogos": Catalogo.query.filter_by(

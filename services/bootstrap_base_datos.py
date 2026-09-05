@@ -19,6 +19,7 @@ def inicializar_base_datos_saas(
         asegurar_movimiento_inventario_tenant,
         asegurar_inventario_saas,
         asegurar_periodicidad_costos_fijos,
+        asegurar_producto_tenant,
         asegurar_reglas_ajuste_configurables,
         asegurar_obligaciones_ajustables,
         asegurar_auditoria_pagos_productivos,
@@ -117,6 +118,15 @@ def inicializar_base_datos_saas(
         organizacion_id = estructura_inicial[
             "organizacion"
         ].id
+
+        asegurar_producto_tenant(
+            db=db,
+            inspect_fn=inspect_fn,
+            text_fn=text_fn,
+            Producto=modelos["Producto"],
+            organizacion_id_predeterminada=organizacion_id,
+            logger_fn=logger_fn,
+        )
 
         asegurar_evento_fiscal_tenant(
             db=db,

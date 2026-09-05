@@ -104,6 +104,7 @@ def cargar_contexto():
         slug="otra-runtime",
     )
     producto = Producto(
+        organizacion=organizacion,
         sku="RUNTIME-001",
         descripcion="Producto runtime",
     )

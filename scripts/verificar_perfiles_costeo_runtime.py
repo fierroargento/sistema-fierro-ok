@@ -28,9 +28,13 @@ def main():
         tablas = set(inspect(db.engine).get_table_names())
         assert {"perfil_costeo_producto", "combo_producto_componente"}.issubset(tablas)
         org = Organizacion(nombre="Grupo Fierro", slug="grupo-fierro-perfiles")
-        simple = Producto(sku="FUNDA", descripcion="Funda")
-        producido = Producto(sku="PP6040H", descripcion="Parrilla")
-        combo_producto = Producto(sku="COMBO-1", descripcion="Parrilla con funda")
+        simple = Producto(organizacion=org, sku="FUNDA", descripcion="Funda")
+        producido = Producto(
+            organizacion=org, sku="PP6040H", descripcion="Parrilla"
+        )
+        combo_producto = Producto(
+            organizacion=org, sku="COMBO-1", descripcion="Parrilla con funda"
+        )
         db.session.add_all([org, simple, producido, combo_producto])
         db.session.flush()
         unidad = UnidadNegocio(

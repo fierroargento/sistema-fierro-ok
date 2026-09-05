@@ -91,10 +91,10 @@ def _texto(datos, campo, limite):
 def _producto_tenant_por_sku(
     sku, *, organizacion_id, Producto, Catalogo, CatalogoProducto,
 ):
-    return Producto.query.join(CatalogoProducto).join(Catalogo).filter(
-        Catalogo.organizacion_id == organizacion_id,
+    return Producto.query.filter(
+        Producto.organizacion_id == organizacion_id,
         Producto.sku.ilike(sku),
-    ).distinct().all()
+    ).all()
 
 
 def previsualizar_inclusiones(
@@ -238,11 +238,20 @@ def aplicar_inclusiones(
             producto = (
                 db_session.get(Producto, producto_id) if producto_id else None
             )
+            if (
+                producto is not None
+                and producto.organizacion_id != organizacion_id
+            ):
+                raise ValueError(
+                    "El producto cambió de organización desde la validación."
+                )
             if producto is None:
                 producto = productos_creados_lote.get(fila["sku"])
             if producto is None:
                 producto = Producto(
-                    sku=fila["sku"], descripcion=fila["descripcion"],
+                    organizacion_id=organizacion_id,
+                    sku=fila["sku"],
+                    descripcion=fila["descripcion"],
                 )
                 db_session.add(producto)
                 db_session.flush()

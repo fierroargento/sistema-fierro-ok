@@ -55,7 +55,11 @@ def main():
         assert "uq_lista_item_vigente" in indices_item
 
         organizacion = Organizacion(nombre="Grupo", slug="grupo-runtime-lista")
-        producto = Producto(sku="LISTA-1", descripcion="Producto lista")
+        producto = Producto(
+            organizacion=organizacion,
+            sku="LISTA-1",
+            descripcion="Producto lista",
+        )
         db.session.add_all([organizacion, producto])
         db.session.flush()
         unidad = UnidadNegocio(

@@ -1,7 +1,5 @@
 """
-Operaciones sobre el maestro logístico global de productos.
-
-Este servicio no administra CatalogoProducto ni precios tenant.
+Operaciones sobre el maestro de productos de una organización.
 """
 
 
@@ -20,6 +18,8 @@ def _producto_por_id(
     Producto,
     producto_id,
     nombre,
+    *,
+    organizacion_id,
 ):
     try:
         producto_id = int(producto_id)
@@ -28,9 +28,10 @@ def _producto_por_id(
             f"{nombre} no es válido."
         ) from error
 
-    producto = Producto.query.get(
-        producto_id
-    )
+    producto = Producto.query.filter_by(
+        id=producto_id,
+        organizacion_id=organizacion_id,
+    ).first()
 
     if producto is None:
         raise ValueError(
@@ -44,6 +45,7 @@ def _validar_sku_disponible(
     Producto,
     sku,
     *,
+    organizacion_id,
     producto_actual=None,
 ):
     if not sku:
@@ -52,6 +54,8 @@ def _validar_sku_disponible(
     existente = (
         Producto.query
         .filter(
+            Producto.organizacion_id
+            == organizacion_id,
             Producto.sku.ilike(sku)
         )
         .first()
@@ -79,6 +83,7 @@ def procesar_accion_productos_plataforma(
     Producto,
     db,
     sincronizar_excel,
+    organizacion_id,
 ):
     if accion == "importar_excel":
         archivo = archivos.get(
@@ -94,7 +99,8 @@ def procesar_accion_productos_plataforma(
             )
 
         cantidad = sincronizar_excel(
-            archivo
+            archivo,
+            organizacion_id=organizacion_id,
         )
 
         return (
@@ -118,12 +124,14 @@ def procesar_accion_productos_plataforma(
         _validar_sku_disponible(
             Producto,
             datos.get("sku"),
+            organizacion_id=organizacion_id,
         )
 
         crear_y_guardar_producto_catalogo(
             Producto,
             datos,
             db=db,
+            organizacion_id=organizacion_id,
         )
 
         return (
@@ -136,6 +144,7 @@ def procesar_accion_productos_plataforma(
             Producto,
             formulario.get("producto_id"),
             "el producto a editar",
+            organizacion_id=organizacion_id,
         )
         datos = producto_desde_form_catalogo(
             formulario
@@ -152,6 +161,7 @@ def procesar_accion_productos_plataforma(
         _validar_sku_disponible(
             Producto,
             datos.get("sku"),
+            organizacion_id=organizacion_id,
             producto_actual=producto,
         )
 
@@ -171,6 +181,7 @@ def procesar_accion_productos_plataforma(
             Producto,
             formulario.get("producto_id"),
             "el producto a eliminar",
+            organizacion_id=organizacion_id,
         )
         sku = producto.sku or ""
 

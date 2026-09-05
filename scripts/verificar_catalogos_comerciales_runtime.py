@@ -32,7 +32,11 @@ def main():
         db.create_all()
         organizacion = Organizacion(nombre="Grupo runtime", slug="grupo-runtime-cat")
         otra = Organizacion(nombre="Otro runtime", slug="otro-runtime-cat")
-        producto = Producto(sku="CAT-1", descripcion="Producto catálogo")
+        producto = Producto(
+            organizacion=organizacion,
+            sku="CAT-1",
+            descripcion="Producto catálogo",
+        )
         db.session.add_all([organizacion, otra, producto])
         db.session.flush()
         unidad = UnidadNegocio(

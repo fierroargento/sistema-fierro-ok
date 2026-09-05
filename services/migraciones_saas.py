@@ -5,6 +5,59 @@ No elimina columnas ni modifica flujos operativos.
 """
 
 
+def asegurar_producto_tenant(
+    *,
+    db,
+    inspect_fn,
+    text_fn,
+    Producto,
+    organizacion_id_predeterminada,
+    logger_fn=print,
+):
+    """Asigna el maestro legacy al tenant inicial y crea unicidad por tenant."""
+    inspector = inspect_fn(db.engine)
+    tabla = "producto"
+    if tabla not in inspector.get_table_names():
+        return {"columna_creada": False, "productos_actualizados": 0}
+
+    columnas = {
+        columna["name"]
+        for columna in inspector.get_columns(tabla)
+    }
+    columna_creada = "organizacion_id" not in columnas
+    if columna_creada:
+        db.session.execute(text_fn(
+            "ALTER TABLE producto ADD COLUMN organizacion_id INTEGER"
+        ))
+        db.session.commit()
+
+    pendientes = Producto.query.filter(
+        Producto.organizacion_id.is_(None)
+    ).all()
+    for producto in pendientes:
+        producto.organizacion_id = organizacion_id_predeterminada
+        db.session.add(producto)
+    if pendientes:
+        db.session.commit()
+
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_producto_organizacion_id "
+        "ON producto (organizacion_id)"
+    ))
+    db.session.execute(text_fn(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_producto_organizacion_sku "
+        "ON producto (organizacion_id, sku)"
+    ))
+    db.session.commit()
+
+    if logger_fn is not None and (columna_creada or pendientes):
+        logger_fn("[SAAS] Maestro de productos aislado por organizacion.")
+    return {
+        "columna_creada": columna_creada,
+        "productos_actualizados": len(pendientes),
+    }
+
+
 def asegurar_ficha_catalogo_integral(*, db, inspect_fn, text_fn, logger_fn=print):
     """Amplía CatalogoProducto conservando las inclusiones existentes."""
     inspector = inspect_fn(db.engine)

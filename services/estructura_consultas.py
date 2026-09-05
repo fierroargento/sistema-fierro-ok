@@ -91,6 +91,9 @@ def obtener_datos_panel_estructura(
     )
     productos = (
         Producto.query
+        .filter_by(
+            organizacion_id=organizacion_id
+        )
         .order_by(
             Producto.sku.asc()
         )

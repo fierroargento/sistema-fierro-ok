@@ -1,11 +1,10 @@
-"""
-Consultas del maestro global de productos.
-"""
+"""Consultas tenant del maestro de productos."""
 
 
 def obtener_panel_productos_plataforma(
     Producto,
     *,
+    organizacion_id,
     filtro_sku="",
     limite=100,
 ):
@@ -14,7 +13,9 @@ def obtener_panel_productos_plataforma(
         or ""
     ).strip()
 
-    consulta = Producto.query
+    consulta = Producto.query.filter_by(
+        organizacion_id=organizacion_id
+    )
 
     if filtro_sku:
         consulta = consulta.filter(
@@ -35,7 +36,9 @@ def obtener_panel_productos_plataforma(
 
     return {
         "total_productos": (
-            Producto.query.count()
+            Producto.query.filter_by(
+                organizacion_id=organizacion_id
+            ).count()
         ),
         "ultimos": productos,
         "productos": productos,

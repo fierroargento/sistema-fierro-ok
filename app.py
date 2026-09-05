@@ -621,12 +621,19 @@ def productos_desde_excel(archivo_excel):
     return productos_desde_excel_catalogo(archivo_excel)
 
 
-def sincronizar_productos_desde_excel(archivo_excel):
+def sincronizar_productos_desde_excel(
+    archivo_excel, *, organizacion_id=None,
+):
     from services.productos_catalogo import productos_desde_excel_catalogo
     from services.productos_catalogo_db import sincronizar_productos_desde_catalogo
 
     productos = productos_desde_excel_catalogo(archivo_excel)
-    return sincronizar_productos_desde_catalogo(productos, Producto, db)
+    return sincronizar_productos_desde_catalogo(
+        productos,
+        Producto,
+        db,
+        organizacion_id=organizacion_id,
+    )
 
 
 def guardar_etiqueta_subida(archivo):

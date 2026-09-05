@@ -525,6 +525,10 @@ def procesar_accion_estructura_admin(
             ),
             "el producto",
         )
+        if producto.organizacion_id != organizacion.id:
+            raise ValueError(
+                "El producto no pertenece a la organización."
+            )
 
         existente = (
             CatalogoProducto.query

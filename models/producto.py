@@ -3,6 +3,7 @@ Modelo del catálogo operativo de productos.
 """
 
 from extensions import db
+from sqlalchemy import UniqueConstraint
 
 
 class Producto(db.Model):
@@ -10,7 +11,21 @@ class Producto(db.Model):
 
     __tablename__ = "producto"
 
+    __table_args__ = (
+        UniqueConstraint(
+            "organizacion_id",
+            "sku",
+            name="uq_producto_organizacion_sku",
+        ),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizacion.id"),
+        nullable=False,
+        index=True,
+    )
     sku = db.Column(
         db.String(80),
         nullable=False,
@@ -41,3 +56,8 @@ class Producto(db.Model):
         default=False,
     )
     observacion_logistica = db.Column(db.String(300))
+
+    organizacion = db.relationship(
+        "Organizacion",
+        backref="productos",
+    )

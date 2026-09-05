@@ -42,24 +42,30 @@ def aplicar_datos_producto_modelo(producto, datos):
     return producto
 
 
-def crear_producto_desde_catalogo(Producto, datos):
+def crear_producto_desde_catalogo(
+    Producto, datos, *, organizacion_id=None,
+):
     datos = datos or {}
 
     producto = Producto(
         sku=datos.get("sku") or "",
         descripcion=datos.get("descripcion") or "",
     )
+    if organizacion_id is not None:
+        producto.organizacion_id = organizacion_id
 
     return aplicar_datos_producto_modelo(producto, datos)
 
 
-def sincronizar_productos_desde_catalogo(productos, Producto, db):
+def sincronizar_productos_desde_catalogo(
+    productos, Producto, db, *, organizacion_id=None,
+):
     """Crea o actualiza el maestro sin borrar productos ausentes.
 
     Un producto que no aparece en el archivo puede conservar relaciones con
     catalogos, costos, inventario, pedidos o publicaciones. Por eso una
     importacion nunca implica una baja. El SKU identifica cada fila dentro
-    de este maestro global de plataforma.
+    de este maestro de la organización.
     """
     preparados = []
     sku_archivo = set()
@@ -77,7 +83,12 @@ def sincronizar_productos_desde_catalogo(productos, Producto, db):
         preparados.append(datos)
 
     existentes_por_sku = {}
-    for producto in Producto.query.all():
+    consulta = Producto.query
+    if organizacion_id is not None:
+        consulta = consulta.filter_by(
+            organizacion_id=organizacion_id
+        )
+    for producto in consulta.all():
         sku = str(getattr(producto, "sku", "") or "").strip().upper()
         if not sku:
             continue
@@ -90,7 +101,11 @@ def sincronizar_productos_desde_catalogo(productos, Producto, db):
     for datos in preparados:
         producto = existentes_por_sku.get(datos["sku"])
         if producto is None:
-            producto = crear_producto_desde_catalogo(Producto, datos)
+            producto = crear_producto_desde_catalogo(
+                Producto,
+                datos,
+                organizacion_id=organizacion_id,
+            )
         else:
             aplicar_datos_producto_modelo(producto, datos)
         db.session.add(producto)
@@ -151,13 +166,19 @@ def guardar_producto_catalogo(producto, datos, db=None):
     return producto
 
 
-def crear_y_guardar_producto_catalogo(Producto, datos, db=None):
+def crear_y_guardar_producto_catalogo(
+    Producto, datos, db=None, *, organizacion_id=None,
+):
     """
     Crea un producto desde datos normalizados del catálogo.
     Si se pasa db, guarda y commitea.
     """
 
-    producto = crear_producto_desde_catalogo(Producto, datos)
+    producto = crear_producto_desde_catalogo(
+        Producto,
+        datos,
+        organizacion_id=organizacion_id,
+    )
 
     if db is not None:
         db.session.add(producto)

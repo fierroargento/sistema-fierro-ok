@@ -1,9 +1,5 @@
 """
-Administración del maestro logístico de productos.
-
-Producto continúa siendo una identidad global de plataforma.
-Los catálogos comerciales pertenecientes a cada tenant se
-administran mediante Catalogo y CatalogoProducto.
+Administración tenant del maestro logístico de productos.
 """
 
 from flask import (
@@ -25,22 +21,6 @@ from services.tenant_context import (
     TenantError,
     resolver_tenant_usuario,
 )
-
-
-SLUG_ORGANIZACION_PLATAFORMA = "grupo-fierro"
-
-
-def _es_organizacion_plataforma(
-    organizacion,
-):
-    return (
-        getattr(
-            organizacion,
-            "slug",
-            None,
-        )
-        == SLUG_ORGANIZACION_PLATAFORMA
-    )
 
 
 def crear_blueprint_productos(
@@ -98,20 +78,6 @@ def crear_blueprint_productos(
                 url_for("inicio")
             )
 
-        if not _es_organizacion_plataforma(
-            organizacion
-        ):
-            return None, None, redirect(
-                url_for(
-                    "inicio",
-                    error=(
-                        "El catálogo maestro de "
-                        "productos es exclusivo "
-                        "de la plataforma."
-                    ),
-                )
-            )
-
         session["organizacion_id"] = (
             membresia.organizacion_id
         )
@@ -161,6 +127,9 @@ def crear_blueprint_productos(
                         sincronizar_excel=(
                             sincronizar_excel
                         ),
+                        organizacion_id=(
+                            organizacion.id
+                        ),
                     )
                 )
 
@@ -206,6 +175,7 @@ def crear_blueprint_productos(
         datos = (
             obtener_panel_productos_plataforma(
                 Producto,
+                organizacion_id=organizacion.id,
                 filtro_sku=filtro_sku,
             )
         )
@@ -214,6 +184,7 @@ def crear_blueprint_productos(
             "admin_productos.html",
             mensaje=mensaje,
             error=error,
+            organizacion=organizacion,
             **datos,
         )
 

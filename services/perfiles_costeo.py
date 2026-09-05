@@ -27,6 +27,8 @@ def crear_o_actualizar_perfil(
     producto = db_session.get(Producto, producto_id)
     if producto is None:
         raise ValueError("El producto no existe.")
+    if int(producto.organizacion_id) != int(organizacion_id):
+        raise ValueError("El producto no pertenece a la organización.")
     if unidad_negocio_id is not None:
         unidad = db_session.get(UnidadNegocio, unidad_negocio_id)
         if unidad is None or int(unidad.organizacion_id) != int(organizacion_id):
