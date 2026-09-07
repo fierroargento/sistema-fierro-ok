@@ -354,6 +354,7 @@ from models.tienda_nube_webhook_log import TiendaNubeWebhookLog
 from models.respuesta_rapida_wa import RespuestaRapidaWA
 from models.whatsapp_media import WhatsAppMediaRecibida
 from models.whatsapp_mensaje import WhatsAppMensaje
+from models.asignacion_tenant_whatsapp import AsignacionTenantWhatsApp
 
 
 
@@ -12036,6 +12037,7 @@ inicializar_base_datos_saas(
                 UsuarioOrganizacion
             ),
             "WhatsAppMensaje": WhatsAppMensaje,
+            "AsignacionTenantWhatsApp": AsignacionTenantWhatsApp,
         },
     },
 )
