@@ -261,16 +261,22 @@ def simular_evento_pedido(
     usuario,
 ):
     """Registra una simulación idempotente; jamás invoca mutaciones de stock."""
+    from services.acceso_tenant_pedidos import obtener_pedido_tenant
+
     Pedido = modelos["Pedido"]
     Vinculo = modelos["VinculoCanalComercial"]
     Item = modelos["ItemInventario"]
     Existencia = modelos["ExistenciaSucursal"]
     Configuracion = modelos["ConfiguracionInventarioPedidos"]
     Evento = modelos["EventoInventarioPedido"]
-    pedido = Pedido.query.get(int(pedido_id))
+    organizacion_id = int(organizacion.id)
+    pedido = obtener_pedido_tenant(
+        pedido_id,
+        organizacion_id,
+        Pedido=Pedido,
+    )
     if pedido is None:
         raise ValueError("No se encontró el pedido solicitado.")
-    organizacion_id = int(organizacion.id)
     vinculos = Vinculo.query.filter_by(organizacion_id=organizacion_id).all()
     configuracion = Configuracion.query.filter_by(organizacion_id=organizacion_id).first()
     vista = construir_vista_previa_evento(
