@@ -20,6 +20,9 @@ class QueryFake:
     def filter(self, *_args, **_kwargs):
         return self
 
+    def filter_by(self, **_kwargs):
+        return self
+
     def order_by(self, *_args, **_kwargs):
         return self
 
@@ -48,19 +51,19 @@ def test_wrapper_usa_modelo_pedido_canonico(monkeypatch):
     monkeypatch.setattr(
         busqueda_pedidos,
         "buscar_pedido_activo_por_telefono_service",
-        lambda telefono, modelo: llamadas.append(
-            (telefono, modelo)
+        lambda telefono, organizacion_id, modelo: llamadas.append(
+            (telefono, organizacion_id, modelo)
         ) or "pedido",
     )
 
     resultado = (
         busqueda_pedidos.buscar_pedido_activo_por_telefono(
-            "2920123456"
+            "2920123456", 10,
         )
     )
 
     assert resultado == "pedido"
-    assert llamadas == [("2920123456", PedidoFake)]
+    assert llamadas == [("2920123456", 10, PedidoFake)]
 
 
 def test_service_encuentra_pedido_por_ultimos_ocho_digitos():
@@ -77,6 +80,7 @@ def test_service_encuentra_pedido_por_ultimos_ocho_digitos():
         busqueda_pedidos
         .buscar_pedido_activo_por_telefono_service(
             "02920-123456",
+            10,
             PedidoFake,
         )
     )

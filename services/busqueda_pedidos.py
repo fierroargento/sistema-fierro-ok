@@ -5,6 +5,7 @@ from services.telefonos import normalizar_telefono_service
 
 def buscar_pedido_activo_por_telefono_service(
     telefono,
+    organizacion_id,
     Pedido,
 ):
     """Busca el pedido activo más reciente asociado a un teléfono normalizado."""
@@ -13,8 +14,10 @@ def buscar_pedido_activo_por_telefono_service(
     if not tel_norm:
         return None
 
+    from services.acceso_tenant_pedidos import consulta_pedidos_tenant
+
     ultimos = (
-        Pedido.query
+        consulta_pedidos_tenant(Pedido, organizacion_id)
         .filter(Pedido.estado.notin_([
             Estado.FINALIZADO,
             Estado.CANCELADO,
@@ -37,9 +40,12 @@ def buscar_pedido_activo_por_telefono_service(
     return None
 
 
-def buscar_pedido_activo_por_telefono(telefono):
+def buscar_pedido_activo_por_telefono(telefono, organizacion_id=None):
     """Busca un pedido activo usando el modelo canónico."""
+    if organizacion_id is None:
+        return None
     return buscar_pedido_activo_por_telefono_service(
         telefono,
+        organizacion_id,
         Pedido,
     )

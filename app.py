@@ -862,9 +862,13 @@ def hay_reclamo_generado(pedido):
 def normalizar_telefono(raw):
     return normalizar_telefono_service(raw)
 
-def buscar_pedido_activo_por_telefono(telefono):
+def buscar_pedido_activo_por_telefono(telefono, organizacion_id=None):
+    organizacion_id = organizacion_id or session.get("organizacion_id")
+    if organizacion_id is None:
+        return None
     return buscar_pedido_activo_por_telefono_service(
         telefono,
+        organizacion_id,
         Pedido,
     )
 

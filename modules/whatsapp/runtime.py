@@ -124,6 +124,7 @@ def registrar_whatsapp_mensaje_service(
     message_id_meta="",
     estado="",
     error="",
+    organizacion_id=None,
 ):
     """
     Guarda un mensaje WA
@@ -138,9 +139,10 @@ def registrar_whatsapp_mensaje_service(
             )
         )
 
-        if pedido is None and tel_norm:
+        if pedido is None and tel_norm and organizacion_id is not None:
             pedido = buscar_pedido_activo_por_telefono_service(
                 tel_norm,
+                organizacion_id,
                 Pedido,
             )
 
@@ -292,6 +294,7 @@ def registrar_whatsapp_mensaje(
     message_id_meta="",
     estado="",
     error="",
+    organizacion_id=None,
 ):
     """Registra historial WA usando dependencias canónicas."""
     return registrar_whatsapp_mensaje_service(
@@ -308,4 +311,5 @@ def registrar_whatsapp_mensaje(
         message_id_meta=message_id_meta,
         estado=estado,
         error=error,
+        organizacion_id=organizacion_id,
     )
