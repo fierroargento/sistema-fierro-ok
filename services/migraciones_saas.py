@@ -98,6 +98,39 @@ def asegurar_identidad_tenant_pedido_preparatoria(
     return {"columnas_creadas": creadas}
 
 
+def asegurar_identidad_tenant_whatsapp_preparatoria(
+    *, db, inspect_fn, text_fn, logger_fn=print,
+):
+    """Agrega identidad nullable al historial WA sin atribuir mensajes existentes."""
+    inspector = inspect_fn(db.engine)
+    tabla = "whatsapp_mensaje"
+    if tabla not in inspector.get_table_names():
+        return {"columnas_creadas": []}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    creadas = []
+    for nombre in ("organizacion_id", "unidad_negocio_id"):
+        if nombre not in columnas:
+            db.session.execute(text_fn(
+                f"ALTER TABLE {tabla} ADD COLUMN {nombre} INTEGER"
+            ))
+            creadas.append(nombre)
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_whatsapp_mensaje_organizacion_id "
+        "ON whatsapp_mensaje (organizacion_id)"
+    ))
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_whatsapp_mensaje_unidad_negocio_id "
+        "ON whatsapp_mensaje (unidad_negocio_id)"
+    ))
+    db.session.commit()
+    if creadas and logger_fn is not None:
+        logger_fn(
+            "[SAAS] Identidad tenant preparatoria agregada a WhatsApp; "
+            "sin backfill automático."
+        )
+    return {"columnas_creadas": creadas}
+
+
 def asegurar_ficha_catalogo_integral(*, db, inspect_fn, text_fn, logger_fn=print):
     """Amplía CatalogoProducto conservando las inclusiones existentes."""
     inspector = inspect_fn(db.engine)

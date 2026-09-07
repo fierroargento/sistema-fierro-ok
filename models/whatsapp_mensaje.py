@@ -12,6 +12,18 @@ class WhatsAppMensaje(db.Model):
     __tablename__ = "whatsapp_mensaje"
 
     id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizacion.id"),
+        nullable=True,
+        index=True,
+    )
+    unidad_negocio_id = db.Column(
+        db.Integer,
+        db.ForeignKey("unidad_negocio.id"),
+        nullable=True,
+        index=True,
+    )
     pedido_id = db.Column(
         db.Integer,
         db.ForeignKey("pedido.id"),

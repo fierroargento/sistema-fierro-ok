@@ -12035,6 +12035,7 @@ inicializar_base_datos_saas(
             "UsuarioOrganizacion": (
                 UsuarioOrganizacion
             ),
+            "WhatsAppMensaje": WhatsAppMensaje,
         },
     },
 )
