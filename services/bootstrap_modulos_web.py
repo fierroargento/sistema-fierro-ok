@@ -160,6 +160,7 @@ def registrar_modulos_web(
                         "Producto",
                         "Pedido",
                         "AsignacionTenantPedido",
+                        "WhatsAppMensaje",
                         "VinculoCanalComercial",
                         "MercadoLibreCuenta",
                         "TiendaNubeCuenta",

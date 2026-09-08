@@ -45,6 +45,34 @@
     </div>
 
     <div class="card" style="margin-top:16px;">
+        <h2>Identidad tenant de mensajes WhatsApp</h2>
+        <p>
+            Certificación de solo lectura. No envía mensajes, no procesa webhooks
+            y no habilita ninguna integración externa.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;">
+            <div><strong>{{ certificacion_whatsapp.mensajes_tenant }}</strong><br>Mensajes del tenant</div>
+            <div><strong>{{ certificacion_whatsapp.sin_organizacion }}</strong><br>Legacy sin tenant</div>
+            <div><strong>{{ certificacion_whatsapp.sin_unidad }}</strong><br>Sin unidad</div>
+            <div><strong>{{ certificacion_whatsapp.unidad_cruzada }}</strong><br>Unidad cruzada</div>
+            <div><strong>{{ certificacion_whatsapp.pedido_cruzado }}</strong><br>Pedido cruzado</div>
+        </div>
+        {% if certificacion_whatsapp.aprobada %}
+        <div class="alerta alerta-ok" style="margin-top:12px;">
+            Identidad persistida de WhatsApp certificada para este tenant.
+        </div>
+        {% else %}
+        <div class="alerta alerta-error" style="margin-top:12px;">
+            {% for bloqueo in certificacion_whatsapp.bloqueos %}<div>{{ bloqueo }}</div>{% endfor %}
+        </div>
+        {% endif %}
+        <div class="alerta" style="margin-top:12px;">
+            Se realizaron {{ certificacion_whatsapp.escrituras_realizadas }} escrituras.
+            WhatsApp y los demás canales continúan desconectados.
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
         <h2>Identidad tenant de pedidos</h2>
         <p>
             Ensayo de solo lectura sobre pedidos existentes. Una coincidencia de
