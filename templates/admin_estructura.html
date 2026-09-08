@@ -70,6 +70,26 @@
             Se realizaron {{ certificacion_whatsapp.escrituras_realizadas }} escrituras.
             WhatsApp y los demás canales continúan desconectados.
         </div>
+        <div class="card" style="margin-top:12px;">
+            <h3>Auditoría de consumidores WhatsApp</h3>
+            <p>
+                Inventario estático: no importa módulos ni ejecuta procesos externos.
+            </p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;">
+                <div><strong>{{ auditoria_consumidores_whatsapp.total }}</strong><br>Accesos pendientes</div>
+                <div><strong>{{ auditoria_consumidores_whatsapp.controlados }}</strong><br>Accesos controlados</div>
+                <div><strong>{{ auditoria_consumidores_whatsapp.archivos }}</strong><br>Archivos pendientes</div>
+                <div><strong>{{ auditoria_consumidores_whatsapp.por_grupo.get('webhook', 0) }}</strong><br>Webhooks pendientes</div>
+                <div><strong>{{ auditoria_consumidores_whatsapp.por_grupo.get('modulo', 0) }}</strong><br>Módulos pendientes</div>
+            </div>
+            {% if auditoria_consumidores_whatsapp.aprobada %}
+            <div class="alerta alerta-ok" style="margin-top:12px;">No quedan accesos globales inventariados.</div>
+            {% else %}
+            <div class="alerta" style="margin-top:12px;">
+                Los accesos pendientes quedan bloqueados para los próximos lotes; esta auditoría no los ejecuta.
+            </div>
+            {% endif %}
+        </div>
     </div>
 
     <div class="card" style="margin-top:16px;">

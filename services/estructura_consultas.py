@@ -18,6 +18,7 @@ from services.identidad_tenant_pedidos import (
 from services.certificacion_pedidos_tenant import certificar_pedidos_tenant
 from services.auditoria_consumidores_pedidos import auditar_consumidores_pedidos
 from services.certificacion_whatsapp_tenant import certificar_whatsapp_tenant
+from services.auditoria_consumidores_whatsapp import auditar_consumidores_whatsapp
 
 
 def obtener_datos_panel_estructura(
@@ -145,6 +146,7 @@ def obtener_datos_panel_estructura(
         UnidadNegocio=UnidadNegocio,
         Pedido=Pedido,
     )
+    auditoria_consumidores_whatsapp = auditar_consumidores_whatsapp()
     propuestas_tenant_pedidos = (
         Asignacion.query
         .filter_by(organizacion_id=organizacion_id)
@@ -231,6 +233,7 @@ def obtener_datos_panel_estructura(
         "certificacion_pedidos": certificacion_pedidos,
         "auditoria_consumidores_pedidos": auditoria_consumidores_pedidos,
         "certificacion_whatsapp": certificacion_whatsapp,
+        "auditoria_consumidores_whatsapp": auditoria_consumidores_whatsapp,
         "propuestas_tenant_pedidos": propuestas_tenant_pedidos,
         "modulos": modulos,
         "vinculos_canales": vinculos_canales,

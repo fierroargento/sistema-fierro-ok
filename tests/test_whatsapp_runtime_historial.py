@@ -92,6 +92,8 @@ def test_service_guarda_mensaje_y_actualiza_auditoria():
     db_fake = SimpleNamespace(session=session)
     pedido = SimpleNamespace(
         id=123,
+        organizacion_id=10,
+        unidad_negocio_id=100,
         telefono="2920123456",
         wa_ultimo_contacto=None,
     )
@@ -116,6 +118,8 @@ def test_service_guarda_mensaje_y_actualiza_auditoria():
 
     assert resultado is session.agregados[0]
     assert resultado.pedido_id == 123
+    assert resultado.organizacion_id == 10
+    assert resultado.unidad_negocio_id == 100
     assert resultado.direccion == "out"
     assert resultado.autor == "bot"
     assert resultado.texto == "Mensaje de prueba"

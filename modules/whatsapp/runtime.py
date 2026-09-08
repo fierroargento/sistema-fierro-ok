@@ -151,9 +151,27 @@ def registrar_whatsapp_mensaje_service(
                 Pedido,
             )
 
+        pedido_organizacion_id = getattr(pedido, "organizacion_id", None)
+        if (
+            organizacion_id is not None
+            and pedido_organizacion_id is not None
+            and int(organizacion_id) != int(pedido_organizacion_id)
+        ):
+            raise ValueError("El pedido no pertenece a la organización indicada.")
+        mensaje_organizacion_id = (
+            pedido_organizacion_id
+            if pedido_organizacion_id is not None
+            else organizacion_id
+        )
+        mensaje_unidad_negocio_id = getattr(
+            pedido, "unidad_negocio_id", None,
+        )
+
         ahora = datetime.now(UTC)
 
         msg = WhatsAppMensaje(
+            organizacion_id=mensaje_organizacion_id,
+            unidad_negocio_id=mensaje_unidad_negocio_id,
             pedido_id=getattr(pedido, "id", None),
             telefono=tel_norm or str(telefono or ""),
             direccion=(direccion or "")[:10],

@@ -863,7 +863,10 @@ def pedido_puede_reencauzarse_a_ml(
         try:
             tiene_wa_real = (
                 WhatsAppMensaje.query
-                .filter_by(pedido_id=pedido.id)
+                .filter_by(
+                    pedido_id=pedido.id,
+                    organizacion_id=pedido.organizacion_id,
+                )
                 .first()
                 is not None
             )
