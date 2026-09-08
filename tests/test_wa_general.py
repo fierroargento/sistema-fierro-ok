@@ -15,6 +15,12 @@ class QueryFake:
     def filter(self, *args, **kwargs):
         return self
 
+    def filter_by(self, **filtros):
+        return QueryFake([
+            item for item in self.datos
+            if all(getattr(item, clave, None) == valor for clave, valor in filtros.items())
+        ])
+
     def order_by(self, *args, **kwargs):
         return self
 
@@ -34,6 +40,7 @@ class CampoFake:
 
 
 class ModeloMensajesFake:
+    organizacion_id = CampoFake()
     telefono = CampoFake()
     fecha = CampoFake()
     query = QueryFake([])
@@ -52,6 +59,7 @@ def mensaje(telefono, texto, fecha=None, direccion="in", estado="recibido"):
         fecha=fecha or ahora_utc_naive(),
         direccion=direccion,
         estado=estado,
+        organizacion_id=10,
     )
 
 
@@ -61,6 +69,7 @@ def pedido(id, telefono, estado, cliente="Cliente"):
         telefono=telefono,
         estado=estado,
         cliente=cliente,
+        organizacion_id=10,
     )
 
 
@@ -79,6 +88,7 @@ def test_wa_general_muestra_contacto_sin_pedido():
     conversaciones = armar_conversaciones_wa_general(
         ModeloMensajesFake,
         ModeloPedidoFake,
+        organizacion_id=10,
     )
 
     assert len(conversaciones) == 1
@@ -98,6 +108,7 @@ def test_wa_general_no_muestra_telefono_con_pedido_activo():
     conversaciones = armar_conversaciones_wa_general(
         ModeloMensajesFake,
         ModeloPedidoFake,
+        organizacion_id=10,
     )
 
     assert conversaciones == []
@@ -114,6 +125,7 @@ def test_wa_general_muestra_telefono_con_pedido_finalizado():
     conversaciones = armar_conversaciones_wa_general(
         ModeloMensajesFake,
         ModeloPedidoFake,
+        organizacion_id=10,
     )
 
     assert len(conversaciones) == 1
@@ -135,6 +147,7 @@ def test_wa_general_ordena_por_ultima_actividad():
     conversaciones = armar_conversaciones_wa_general(
         ModeloMensajesFake,
         ModeloPedidoFake,
+        organizacion_id=10,
     )
 
     assert [c.telefono for c in conversaciones] == ["222", "111"]

@@ -8,11 +8,12 @@ Regla:
 - Esta pantalla muestra contactos nuevos o clientes cuyo pedido ya no esta activo.
 """
 
-from flask import jsonify, redirect, render_template, request, url_for
+from flask import jsonify, redirect, render_template, request, session, url_for
 
 from extensions import db
 from models.pedido import Pedido
 from models.whatsapp_mensaje import WhatsAppMensaje
+from services.acceso_tenant_whatsapp import consulta_whatsapp_tenant
 from services.wa_general import (
     armar_conversaciones_wa_general,
     contar_no_leidos_wa_general,
@@ -43,11 +44,16 @@ def registrar_wa_general_routes(app):
             if request.endpoint not in {"inicio", "pedidos_preparacion"}:
                 return {"wa_general_no_leidos": 0}
 
+            organizacion_id = session.get("organizacion_id")
+            if organizacion_id is None:
+                return {"wa_general_no_leidos": 0}
+
             return {
                 "wa_general_no_leidos": contar_no_leidos_wa_general(
                     WhatsAppMensaje,
                     Pedido,
                     limite=500,
+                    organizacion_id=organizacion_id,
                 )
             }
         except Exception:
@@ -61,6 +67,10 @@ def registrar_wa_general_routes(app):
         if rol_actual() not in ["admin", "carga"]:
             return redirect(url_for("inicio"))
 
+        organizacion_id = session.get("organizacion_id")
+        if organizacion_id is None:
+            return redirect(url_for("inicio"))
+
         telefono_seleccionado = normalizar_telefono_simple(
             request.args.get("telefono", "")
         )
@@ -69,6 +79,7 @@ def registrar_wa_general_routes(app):
             WhatsAppMensaje,
             Pedido,
             limite=80,
+            organizacion_id=organizacion_id,
         )
 
         conversacion_seleccionada = None
@@ -83,7 +94,9 @@ def registrar_wa_general_routes(app):
         mensajes = []
         if conversacion_seleccionada:
             mensajes_candidatos = (
-                WhatsAppMensaje.query
+                consulta_whatsapp_tenant(
+                    WhatsAppMensaje, organizacion_id,
+                )
                 .filter(WhatsAppMensaje.telefono.isnot(None))
                 .order_by(WhatsAppMensaje.fecha.desc())
                 .limit(1000)
@@ -98,7 +111,9 @@ def registrar_wa_general_routes(app):
                 if tel_mensaje != conversacion_seleccionada.telefono:
                     continue
 
-                if not mensaje_visible_en_chat_wa_general(mensaje, Pedido):
+                if not mensaje_visible_en_chat_wa_general(
+                    mensaje, Pedido, organizacion_id,
+                ):
                     continue
 
                 mensajes.append(mensaje)
@@ -121,6 +136,10 @@ def registrar_wa_general_routes(app):
         if rol_actual() not in ["admin", "carga"]:
             return jsonify({"ok": False, "error": "sin_permiso"}), 403
 
+        organizacion_id = session.get("organizacion_id")
+        if organizacion_id is None:
+            return jsonify({"ok": False, "error": "sin_tenant"}), 403
+
         payload = request.get_json(silent=True) or {}
         telefono = normalizar_telefono_simple(
             payload.get("telefono") or request.form.get("telefono") or ""
@@ -130,7 +149,9 @@ def registrar_wa_general_routes(app):
             return jsonify({"ok": False, "error": "telefono_requerido"}), 400
 
         mensajes_candidatos = (
-            WhatsAppMensaje.query
+            consulta_whatsapp_tenant(
+                WhatsAppMensaje, organizacion_id,
+            )
             .filter(WhatsAppMensaje.telefono.isnot(None))
             .order_by(WhatsAppMensaje.fecha.desc())
             .limit(1000)
@@ -147,7 +168,9 @@ def registrar_wa_general_routes(app):
             if tel_mensaje != telefono:
                 continue
 
-            if not mensaje_visible_en_chat_wa_general(mensaje, Pedido):
+            if not mensaje_visible_en_chat_wa_general(
+                mensaje, Pedido, organizacion_id,
+            ):
                 continue
 
             if not mensaje_esta_no_leido_wa_general(mensaje):
@@ -258,13 +281,19 @@ def registrar_wa_general_routes(app):
         if rol_actual() not in ["admin", "carga"]:
             return redirect(url_for("inicio"))
 
+        organizacion_id = session.get("organizacion_id")
+        if organizacion_id is None:
+            return redirect(url_for("inicio"))
+
         telefono = normalizar_telefono_simple(request.form.get("telefono", ""))
 
         if not telefono:
             return redirect(url_for("wa_general"))
 
         mensajes_candidatos = (
-            WhatsAppMensaje.query
+            consulta_whatsapp_tenant(
+                WhatsAppMensaje, organizacion_id,
+            )
             .filter(WhatsAppMensaje.telefono.isnot(None))
             .order_by(WhatsAppMensaje.fecha.desc())
             .limit(1000)
@@ -281,7 +310,9 @@ def registrar_wa_general_routes(app):
             if tel_mensaje != telefono:
                 continue
 
-            if not mensaje_visible_en_chat_wa_general(mensaje, Pedido):
+            if not mensaje_visible_en_chat_wa_general(
+                mensaje, Pedido, organizacion_id,
+            ):
                 continue
 
             if not mensaje_esta_no_leido_wa_general(mensaje):

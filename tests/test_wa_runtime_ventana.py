@@ -28,6 +28,7 @@ class FakeColumn:
 
 
 class FakeWhatsAppMensaje:
+    organizacion_id = FakeColumn()
     direccion = FakeColumn()
     pedido_id = FakeColumn()
     telefono = FakeColumn()
@@ -43,6 +44,7 @@ class MensajeFake:
 class PedidoFake:
     id = 123
     telefono = "2920123456"
+    organizacion_id = 10
 
 
 def test_wa_ventana_24h_abierta_service_acepta_fecha_aware_reciente():

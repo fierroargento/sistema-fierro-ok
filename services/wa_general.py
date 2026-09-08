@@ -76,11 +76,16 @@ def mensaje_es_entrante_cliente(mensaje):
     return direccion == "in"
 
 
-def obtener_pedido_por_id(Pedido, pedido_id):
+def obtener_pedido_por_id(Pedido, pedido_id, organizacion_id=None):
     if not pedido_id:
         return None
 
-    return Pedido.query.filter(Pedido.id == pedido_id).first()
+    consulta = Pedido.query
+    if organizacion_id is not None:
+        consulta = consulta.filter_by(
+            organizacion_id=int(organizacion_id),
+        )
+    return consulta.filter(Pedido.id == pedido_id).first()
 
 
 def mensaje_es_posterior_a_entrega(mensaje, pedido):
@@ -93,7 +98,9 @@ def mensaje_es_posterior_a_entrega(mensaje, pedido):
     return fecha_mensaje >= fecha_entregado
 
 
-def mensaje_es_general_para_wa_general(mensaje, Pedido):
+def mensaje_es_general_para_wa_general(
+    mensaje, Pedido, organizacion_id=None,
+):
     """
     Define si un mensaje puede abrir conversacion en WA General.
 
@@ -114,7 +121,11 @@ def mensaje_es_general_para_wa_general(mensaje, Pedido):
     if not mensaje_es_entrante_cliente(mensaje):
         return False
 
-    pedido = obtener_pedido_por_id(Pedido, getattr(mensaje, "pedido_id", None))
+    pedido = obtener_pedido_por_id(
+        Pedido,
+        getattr(mensaje, "pedido_id", None),
+        organizacion_id,
+    )
 
     if not pedido_esta_post_entrega_para_wa_general(pedido):
         return False
@@ -123,7 +134,9 @@ def mensaje_es_general_para_wa_general(mensaje, Pedido):
 
 
 
-def mensaje_visible_en_chat_wa_general(mensaje, Pedido):
+def mensaje_visible_en_chat_wa_general(
+    mensaje, Pedido, organizacion_id=None,
+):
     """
     Define si un mensaje debe mostrarse dentro del chat WA General.
 
@@ -140,7 +153,11 @@ def mensaje_visible_en_chat_wa_general(mensaje, Pedido):
     if not mensaje_tiene_pedido_id(mensaje):
         return True
 
-    pedido = obtener_pedido_por_id(Pedido, getattr(mensaje, "pedido_id", None))
+    pedido = obtener_pedido_por_id(
+        Pedido,
+        getattr(mensaje, "pedido_id", None),
+        organizacion_id,
+    )
 
     if not pedido_esta_post_entrega_para_wa_general(pedido):
         return False
@@ -159,13 +176,20 @@ def mensaje_esta_no_leido_wa_general(mensaje):
     return direccion == "in" and estado in {"recibido", "pendiente", ""}
 
 
-def obtener_pedidos_por_telefono(telefono, Pedido):
+def obtener_pedidos_por_telefono(
+    telefono, Pedido, organizacion_id=None,
+):
     tel = normalizar_telefono_simple(telefono)
     if not tel:
         return []
 
+    consulta = Pedido.query
+    if organizacion_id is not None:
+        consulta = consulta.filter_by(
+            organizacion_id=int(organizacion_id),
+        )
     pedidos = (
-        Pedido.query
+        consulta
         .filter(Pedido.telefono.isnot(None))
         .order_by(Pedido.id.desc())
         .limit(300)
@@ -181,7 +205,9 @@ def obtener_pedidos_por_telefono(telefono, Pedido):
     return encontrados
 
 
-def armar_conversaciones_wa_general(WhatsAppMensaje, Pedido, limite=50):
+def armar_conversaciones_wa_general(
+    WhatsAppMensaje, Pedido, limite=50, organizacion_id=None,
+):
     """
     Devuelve conversaciones generales agrupadas por telefono.
 
@@ -192,8 +218,13 @@ def armar_conversaciones_wa_general(WhatsAppMensaje, Pedido, limite=50):
     - Si el telefono tiene algun pedido activo, NO aparece en WA General.
     """
 
+    consulta = WhatsAppMensaje.query
+    if organizacion_id is not None:
+        consulta = consulta.filter_by(
+            organizacion_id=int(organizacion_id),
+        )
     mensajes = (
-        WhatsAppMensaje.query
+        consulta
         .filter(WhatsAppMensaje.telefono.isnot(None))
         .order_by(WhatsAppMensaje.fecha.desc())
         .limit(1000)
@@ -203,7 +234,9 @@ def armar_conversaciones_wa_general(WhatsAppMensaje, Pedido, limite=50):
     por_telefono = {}
 
     for mensaje in mensajes:
-        if not mensaje_es_general_para_wa_general(mensaje, Pedido):
+        if not mensaje_es_general_para_wa_general(
+            mensaje, Pedido, organizacion_id,
+        ):
             continue
 
         telefono = normalizar_telefono_simple(getattr(mensaje, "telefono", ""))
@@ -227,7 +260,9 @@ def armar_conversaciones_wa_general(WhatsAppMensaje, Pedido, limite=50):
     conversaciones = []
 
     for telefono, data in por_telefono.items():
-        pedidos = obtener_pedidos_por_telefono(telefono, Pedido)
+        pedidos = obtener_pedidos_por_telefono(
+            telefono, Pedido, organizacion_id,
+        )
 
         if any(pedido_esta_activo_para_wa_general(p) for p in pedidos):
             continue
@@ -257,7 +292,9 @@ def armar_conversaciones_wa_general(WhatsAppMensaje, Pedido, limite=50):
     return conversaciones[:limite]
 
 
-def contar_no_leidos_wa_general(WhatsAppMensaje, Pedido, limite=500):
+def contar_no_leidos_wa_general(
+    WhatsAppMensaje, Pedido, limite=500, organizacion_id=None,
+):
     """
     Cuenta mensajes no leidos de conversaciones visibles en WA General.
 
@@ -270,6 +307,7 @@ def contar_no_leidos_wa_general(WhatsAppMensaje, Pedido, limite=500):
         WhatsAppMensaje,
         Pedido,
         limite=limite,
+        organizacion_id=organizacion_id,
     )
 
     total = 0

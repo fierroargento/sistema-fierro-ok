@@ -8852,7 +8852,10 @@ def detalle_pedido(id):
     if rol_actual() in ["admin", "carga"]:
         whatsapp_mensajes = (
             WhatsAppMensaje.query
-            .filter_by(pedido_id=pedido.id)
+            .filter_by(
+                pedido_id=pedido.id,
+                organizacion_id=pedido.organizacion_id,
+            )
             .order_by(WhatsAppMensaje.fecha.asc())
             .limit(80)
             .all()

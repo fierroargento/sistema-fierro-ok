@@ -61,7 +61,12 @@ def wa_ventana_24h_abierta_service(
             )
         )
 
+        organizacion_id = getattr(pedido, "organizacion_id", None)
+        if organizacion_id is None:
+            return False
+
         query = WhatsAppMensaje.query.filter(
+            WhatsAppMensaje.organizacion_id == int(organizacion_id),
             WhatsAppMensaje.direccion == "in"
         )
 
