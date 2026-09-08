@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}">{% endblock %}
+{% block content %}
+<main class="comercial-page offline-adapters-page">
+  <header class="comercial-header"><div><p class="comercial-eyebrow">Administración · {{ unidad_activa.nombre }}</p><h1>Ensayo offline de WhatsApp</h1><p class="comercial-intro">Previsualiza eventos simulados con aislamiento tenant antes de conectar el webhook.</p></div><a class="secondary-link" href="{{ url_for('admin_comercial.preparacion_integraciones_comerciales') }}">Volver a preparación</a></header>
+  {% if error %}<div class="comercial-message comercial-message-error">{{ error }}</div>{% endif %}
+  <div class="comercial-safe"><strong>0 acciones externas · 0 escrituras</strong><span>Solo procesa el archivo seleccionado en memoria. No recibe webhooks, no usa credenciales, no guarda mensajes y no responde al cliente.</span></div>
+  <section class="comercial-section"><div class="section-heading"><div><h2>Cargar fixture Meta</h2></div><p>JSON UTF-8 de hasta 5 MB.</p></div>
+    <form class="comercial-form offline-adapter-form" method="post" enctype="multipart/form-data">
+      <label><span>Cuenta WhatsApp preparada</span><select name="vinculo_id" required>{% for vinculo in vinculos %}<option value="{{ vinculo.id }}">{{ vinculo.nombre }} · {{ vinculo.whatsapp_phone_number_id }} · {{ vinculo.estado }}</option>{% endfor %}</select></label>
+      <label><span>Fixture JSON</span><input type="file" name="archivo" accept=".json,application/json" required></label>
+      <label class="staging-json"><span>Referencias ya vistas, una por línea (opcional)</span><textarea name="referencias_vistas" placeholder="wamid.ejemplo:in"></textarea></label>
+      <button class="secondary-link" name="accion" value="previsualizar">Previsualizar</button><button class="comercial-primary" name="accion" value="exportar">Exportar diagnóstico JSON</button>
+    </form>
+    {% if not vinculos %}<p class="empty-state">Primero crea una cuenta WhatsApp preparatoria en Estructura.</p>{% endif %}
+  </section>
+  {% if resultado %}<section class="comercial-section"><div class="section-heading"><div><h2>Resultado normalizado</h2></div><p>{{ resultado.resumen.procesados }} procesados · {{ resultado.resumen.duplicados }} duplicados · {{ resultado.resumen.errores }} errores.</p></div>
+    <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Tenant</th><th>Tipo</th><th>Referencia</th><th>Cuenta</th><th>Datos</th></tr></thead><tbody>{% for sobre in resultado.sobres %}<tr><td>{{ sobre.organizacion_id }} / {{ sobre.unidad_negocio_id }}</td><td>{{ sobre.tipo }}</td><td>{{ sobre.referencia }}</td><td>{{ sobre.cuenta_codigo }}</td><td><details><summary>Ver JSON</summary><pre class="normalized-json">{{ sobre.datos|tojson(indent=2) }}</pre></details></td></tr>{% else %}<tr><td colspan="5" class="empty-state">No se generaron sobres válidos.</td></tr>{% endfor %}</tbody></table></div>
+    {% if resultado.duplicados %}<div class="adapter-errors"><p><strong>Duplicados:</strong> {{ resultado.duplicados|join(', ') }}</p></div>{% endif %}
+    {% for item in resultado.errores %}<div class="adapter-errors"><p><strong>{{ item.ubicacion }}:</strong> {{ item.error }}</p></div>{% endfor %}
+  </section>{% endif %}
+</main>
+{% endblock %}

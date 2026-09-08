@@ -1,6 +1,7 @@
 """Normaliza eventos WhatsApp simulados sin red, base ni efectos externos."""
 
 import hashlib
+from io import BytesIO
 import json
 
 from services.contexto_webhook_whatsapp import resolver_contexto_webhook_whatsapp
@@ -125,3 +126,12 @@ def procesar_documento_whatsapp_offline(contenido, vinculos, referencias_vistas=
     except (json.JSONDecodeError, UnicodeDecodeError) as error:
         raise ValueError("El fixture no contiene JSON UTF-8 valido.") from error
     return procesar_payload_whatsapp_offline(payload, vinculos, referencias_vistas)
+
+
+def exportar_diagnostico_whatsapp_offline(resultado):
+    documento = json.dumps(
+        resultado, ensure_ascii=False, sort_keys=True, indent=2,
+    ).encode("utf-8")
+    salida = BytesIO(documento)
+    salida.seek(0)
+    return salida

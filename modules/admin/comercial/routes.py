@@ -32,6 +32,10 @@ from services.preparacion_integracion_canal import (
 )
 from services.adaptadores_offline_canales import ADAPTADORES, adaptar_documento
 from services.orquestador_offline_eventos import orquestar_eventos
+from services.procesador_offline_whatsapp import (
+    exportar_diagnostico_whatsapp_offline,
+    procesar_documento_whatsapp_offline,
+)
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -370,6 +374,62 @@ def crear_blueprint_comercial(*, dependencias):
             unidad_activa=unidad_activa, unidades=unidades, controles=controles,
             adaptadores=ADAPTADORES, resultado=resultado, error=error,
             ok_feedback=(request.args.get("ok") or "").strip(),
+        )
+
+    @blueprint.route("/admin/comercial/whatsapp-offline", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def whatsapp_offline_comercial():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        Vinculo = modelos["VinculoCanalComercial"]
+        vinculos = Vinculo.query.filter_by(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+            canal="whatsapp",
+        ).order_by(Vinculo.nombre.asc()).all()
+        resultado = None
+        error = ""
+        try:
+            if request.method == "POST":
+                vinculo_id = int(request.form.get("vinculo_id"))
+                vinculo = next(
+                    (item for item in vinculos if item.id == vinculo_id), None,
+                )
+                if vinculo is None:
+                    raise ValueError("La cuenta WhatsApp no pertenece a la unidad activa.")
+                archivo = request.files.get("archivo")
+                if archivo is None or not archivo.filename:
+                    raise ValueError("Selecciona un fixture JSON.")
+                contenido = archivo.read()
+                if len(contenido) > 5 * 1024 * 1024:
+                    raise ValueError("El archivo supera el maximo de 5 MB.")
+                referencias = {
+                    valor.strip() for valor in
+                    (request.form.get("referencias_vistas") or "").splitlines()
+                    if valor.strip()
+                }
+                resultado = procesar_documento_whatsapp_offline(
+                    contenido, [vinculo], referencias,
+                )
+                if request.form.get("accion") == "exportar":
+                    return send_file(
+                        exportar_diagnostico_whatsapp_offline(resultado),
+                        as_attachment=True,
+                        download_name="diagnostico_whatsapp_offline.json",
+                        mimetype="application/json",
+                    )
+        except Exception as excepcion:
+            error = str(excepcion)
+        return render_template(
+            "admin_whatsapp_offline.html",
+            organizacion=organizacion,
+            unidad_activa=unidad_activa,
+            unidades=unidades,
+            vinculos=vinculos,
+            resultado=resultado,
+            error=error,
         )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])
