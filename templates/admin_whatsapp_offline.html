@@ -2,7 +2,7 @@
 {% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}">{% endblock %}
 {% block content %}
 <main class="comercial-page offline-adapters-page">
-  <header class="comercial-header"><div><p class="comercial-eyebrow">Administración · {{ unidad_activa.nombre }}</p><h1>Ensayo offline de WhatsApp</h1><p class="comercial-intro">Previsualiza eventos simulados con aislamiento tenant antes de conectar el webhook.</p></div><a class="secondary-link" href="{{ url_for('admin_comercial.preparacion_integraciones_comerciales') }}">Volver a preparación</a></header>
+  <header class="comercial-header"><div><p class="comercial-eyebrow">Administración · {{ unidad_activa.nombre }}</p><h1>Ensayo offline de WhatsApp</h1><p class="comercial-intro">Previsualiza eventos simulados con aislamiento tenant antes de conectar el webhook.</p></div><div class="export-actions"><a class="secondary-link" href="{{ url_for('admin_comercial.certificar_whatsapp_offline_comercial') }}">Certificar escenarios</a><a class="secondary-link" href="{{ url_for('admin_comercial.preparacion_integraciones_comerciales') }}">Volver a preparación</a></div></header>
   {% if error %}<div class="comercial-message comercial-message-error">{{ error }}</div>{% endif %}
   <div class="comercial-safe"><strong>0 acciones externas · 0 escrituras</strong><span>Solo procesa el archivo seleccionado en memoria. No recibe webhooks, no usa credenciales, no guarda mensajes y no responde al cliente.</span></div>
   <section class="comercial-section"><div class="section-heading"><div><h2>Cargar fixture Meta</h2></div><p>JSON UTF-8 de hasta 5 MB.</p></div>

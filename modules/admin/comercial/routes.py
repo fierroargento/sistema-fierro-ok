@@ -36,6 +36,10 @@ from services.procesador_offline_whatsapp import (
     exportar_diagnostico_whatsapp_offline,
     procesar_documento_whatsapp_offline,
 )
+from services.certificacion_offline_whatsapp import (
+    certificar_escenarios_whatsapp,
+    exportar_certificacion_whatsapp,
+)
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -430,6 +434,29 @@ def crear_blueprint_comercial(*, dependencias):
             vinculos=vinculos,
             resultado=resultado,
             error=error,
+        )
+
+    @blueprint.route("/admin/comercial/whatsapp-offline/certificar")
+    @dependencias["login_required"]
+    def certificar_whatsapp_offline_comercial():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        resultado = certificar_escenarios_whatsapp()
+        if request.args.get("exportar") == "1":
+            return send_file(
+                exportar_certificacion_whatsapp(resultado),
+                as_attachment=True,
+                download_name="certificacion_whatsapp_offline.json",
+                mimetype="application/json",
+            )
+        return render_template(
+            "admin_certificacion_whatsapp_offline.html",
+            organizacion=organizacion,
+            unidad_activa=unidad_activa,
+            unidades=unidades,
+            resultado=resultado,
         )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])
