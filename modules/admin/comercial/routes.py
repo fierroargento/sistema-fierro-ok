@@ -40,6 +40,11 @@ from services.certificacion_offline_whatsapp import (
     certificar_escenarios_whatsapp,
     exportar_certificacion_whatsapp,
 )
+from services.modo_sombra_whatsapp import (
+    evaluar_payload_en_sombra,
+    exportar_evidencia_sombra,
+    matriz_preparacion_sombra,
+)
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -457,6 +462,57 @@ def crear_blueprint_comercial(*, dependencias):
             unidad_activa=unidad_activa,
             unidades=unidades,
             resultado=resultado,
+        )
+
+    @blueprint.route("/admin/comercial/whatsapp-sombra", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def sombra_whatsapp_comercial():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        Vinculo = modelos["VinculoCanalComercial"]
+        vinculos = Vinculo.query.filter_by(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+            canal="whatsapp",
+        ).order_by(Vinculo.nombre.asc()).all()
+        certificacion = certificar_escenarios_whatsapp()
+        matriz = matriz_preparacion_sombra(vinculos, certificacion)
+        resultado = None
+        error = ""
+        try:
+            if request.method == "POST":
+                vinculo_id = int(request.form.get("vinculo_id"))
+                vinculo = next((item for item in vinculos if item.id == vinculo_id), None)
+                if vinculo is None:
+                    raise ValueError("La cuenta WhatsApp no pertenece a la unidad activa.")
+                archivo = request.files.get("archivo")
+                if archivo is None or not archivo.filename:
+                    raise ValueError("Selecciona un payload JSON.")
+                contenido = archivo.read()
+                if len(contenido) > 5 * 1024 * 1024:
+                    raise ValueError("El archivo supera el maximo de 5 MB.")
+                payload = json.loads(contenido.decode("utf-8-sig"))
+                legado = json.loads(request.form.get("legado_json") or "[]")
+                if not isinstance(legado, list):
+                    raise ValueError("La observacion legado debe ser una lista JSON.")
+                resultado = evaluar_payload_en_sombra(
+                    payload, [vinculo], legado_observado=legado,
+                )
+                if request.form.get("accion") == "exportar":
+                    return send_file(
+                        exportar_evidencia_sombra(resultado), as_attachment=True,
+                        download_name="evidencia_sombra_whatsapp.json",
+                        mimetype="application/json",
+                    )
+        except Exception as excepcion:
+            error = str(excepcion)
+        return render_template(
+            "admin_sombra_whatsapp.html", organizacion=organizacion,
+            unidad_activa=unidad_activa, unidades=unidades, vinculos=vinculos,
+            certificacion=certificacion, matriz=matriz, resultado=resultado,
+            error=error,
         )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])
