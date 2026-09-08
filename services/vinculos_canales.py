@@ -12,11 +12,13 @@ from services.modulos_organizacion import (
 
 CANAL_MERCADO_LIBRE = "mercadolibre"
 CANAL_TIENDA_NUBE = "tiendanube"
+CANAL_WHATSAPP = "whatsapp"
 
 CANALES_COMERCIALES = frozenset(
     {
         CANAL_MERCADO_LIBRE,
         CANAL_TIENDA_NUBE,
+        CANAL_WHATSAPP,
     }
 )
 
@@ -39,8 +41,10 @@ def validar_cuenta_exclusiva(
     *,
     mercado_libre_cuenta=None,
     tienda_nube_cuenta=None,
+    whatsapp_phone_number_id=None,
 ):
     canal = normalizar_canal(canal)
+    phone_id = str(whatsapp_phone_number_id or "").strip()
 
     if canal == CANAL_MERCADO_LIBRE:
         if mercado_libre_cuenta is None:
@@ -52,6 +56,8 @@ def validar_cuenta_exclusiva(
                 "Un vínculo ML no puede incluir "
                 "una cuenta Tienda Nube."
             )
+        if phone_id:
+            raise ValueError("Un vínculo ML no puede incluir una cuenta WhatsApp.")
 
     if canal == CANAL_TIENDA_NUBE:
         if tienda_nube_cuenta is None:
@@ -63,6 +69,14 @@ def validar_cuenta_exclusiva(
                 "Un vínculo Tienda Nube no puede "
                 "incluir una cuenta ML."
             )
+        if phone_id:
+            raise ValueError("Un vínculo Tienda Nube no puede incluir una cuenta WhatsApp.")
+
+    if canal == CANAL_WHATSAPP:
+        if not phone_id:
+            raise ValueError("Ingresá el phone_number_id de WhatsApp.")
+        if mercado_libre_cuenta is not None or tienda_nube_cuenta is not None:
+            raise ValueError("Un vínculo WhatsApp no puede incluir cuentas de otros canales.")
 
     return True
 

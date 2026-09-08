@@ -525,7 +525,12 @@
                 <option value="">Seleccionar canal</option>
                 <option value="mercadolibre">Mercado Libre</option>
                 <option value="tiendanube">Tienda Nube</option>
+                <option value="whatsapp">WhatsApp</option>
             </select>
+
+            <input name="whatsapp_phone_number_id"
+                   maxlength="120"
+                   placeholder="phone_number_id de WhatsApp">
 
             <select name="mercado_libre_cuenta_id">
                 <option value="">Cuenta ML si corresponde</option>
@@ -614,6 +619,8 @@
                             / {{ vinculo.mercado_libre_cuenta.nickname or vinculo.mercado_libre_cuenta.user_id_ml }}
                             {% elif vinculo.tienda_nube_cuenta %}
                             / {{ vinculo.tienda_nube_cuenta.store_id }}
+                            {% elif vinculo.whatsapp_phone_number_id %}
+                            / {{ vinculo.whatsapp_phone_number_id }}
                             {% endif %}
                         </td>
                         <td>{{ vinculo.unidad_negocio.nombre }}</td>

@@ -15,6 +15,12 @@ class VinculoCanalComercial(db.Model):
     """
 
     __tablename__ = "vinculo_canal_comercial"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "whatsapp_phone_number_id",
+            name="uq_vinculo_canal_whatsapp_phone_number_id",
+        ),
+    )
 
     id = db.Column(
         db.Integer,
@@ -69,6 +75,10 @@ class VinculoCanalComercial(db.Model):
         nullable=True,
         unique=True,
         index=True,
+    )
+    whatsapp_phone_number_id = db.Column(
+        db.String(120),
+        nullable=True,
     )
 
     nombre = db.Column(

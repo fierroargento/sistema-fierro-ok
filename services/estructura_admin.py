@@ -708,6 +708,7 @@ def procesar_accion_estructura_admin(
         from services.vinculos_canales import (
             CANAL_MERCADO_LIBRE,
             CANAL_TIENDA_NUBE,
+            CANAL_WHATSAPP,
             normalizar_canal,
             validar_cuenta_exclusiva,
             validar_pertenencia_organizacion,
@@ -767,6 +768,7 @@ def procesar_accion_estructura_admin(
 
         cuenta_ml = None
         cuenta_tn = None
+        whatsapp_phone_number_id = ""
 
         if canal == CANAL_MERCADO_LIBRE:
             cuenta_ml = _obtener_por_id(
@@ -804,6 +806,15 @@ def procesar_accion_estructura_admin(
                 )
                 .first()
             )
+        elif canal == CANAL_WHATSAPP:
+            whatsapp_phone_number_id = _texto(
+                formulario, "whatsapp_phone_number_id", 120,
+            )
+            duplicado = (
+                VinculoCanalComercial.query
+                .filter_by(whatsapp_phone_number_id=whatsapp_phone_number_id)
+                .first()
+            )
 
         if duplicado is not None:
             raise ValueError(
@@ -814,6 +825,7 @@ def procesar_accion_estructura_admin(
             canal,
             mercado_libre_cuenta=cuenta_ml,
             tienda_nube_cuenta=cuenta_tn,
+            whatsapp_phone_number_id=whatsapp_phone_number_id,
         )
         validar_pertenencia_organizacion(
             organizacion.id,
@@ -862,6 +874,9 @@ def procesar_accion_estructura_admin(
                 cuenta_tn.id
                 if cuenta_tn is not None
                 else None
+            ),
+            whatsapp_phone_number_id=(
+                whatsapp_phone_number_id or None
             ),
             nombre=nombre,
             estado="desactivado",

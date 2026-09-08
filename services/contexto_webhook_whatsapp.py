@@ -31,7 +31,11 @@ def resolver_contexto_webhook_whatsapp(payload, vinculos):
 
     candidatos = [
         vinculo for vinculo in (vinculos or [])
-        if str(valor(vinculo, "phone_number_id", "") or "").strip()
+        if str(
+            valor(vinculo, "whatsapp_phone_number_id", None)
+            or valor(vinculo, "phone_number_id", "")
+            or ""
+        ).strip()
         == phone_number_id
         and str(valor(vinculo, "estado", "") or "").lower() == "activo"
     ]

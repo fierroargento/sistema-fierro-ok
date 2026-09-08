@@ -131,6 +131,33 @@ def asegurar_identidad_tenant_whatsapp_preparatoria(
     return {"columnas_creadas": creadas}
 
 
+def asegurar_cuenta_whatsapp_vinculo_preparatoria(
+    *, db, inspect_fn, text_fn, logger_fn=print,
+):
+    """Agrega la identidad pública de Meta sin credenciales ni activación."""
+    inspector = inspect_fn(db.engine)
+    tabla = "vinculo_canal_comercial"
+    if tabla not in inspector.get_table_names():
+        return {"columnas_creadas": []}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    creadas = []
+    if "whatsapp_phone_number_id" not in columnas:
+        db.session.execute(text_fn(
+            "ALTER TABLE vinculo_canal_comercial "
+            "ADD COLUMN whatsapp_phone_number_id VARCHAR(120)"
+        ))
+        creadas.append("whatsapp_phone_number_id")
+    db.session.execute(text_fn(
+        "CREATE UNIQUE INDEX IF NOT EXISTS "
+        "ix_vinculo_canal_whatsapp_phone_number_id "
+        "ON vinculo_canal_comercial (whatsapp_phone_number_id)"
+    ))
+    db.session.commit()
+    if creadas and logger_fn is not None:
+        logger_fn("[SAAS] Cuenta WhatsApp preparatoria agregada; sin credenciales.")
+    return {"columnas_creadas": creadas}
+
+
 def asegurar_ficha_catalogo_integral(*, db, inspect_fn, text_fn, logger_fn=print):
     """Amplía CatalogoProducto conservando las inclusiones existentes."""
     inspector = inspect_fn(db.engine)
