@@ -88,6 +88,12 @@ def ya_existe_mensaje_operador_reciente(
     if not pedido_id:
         return False
 
+    organizacion_id = getattr(pedido, "organizacion_id", None)
+    if not organizacion_id:
+        raise ValueError(
+            "El pedido no tiene organización; no se permite buscar mensajes globalmente."
+        )
+
     ahora = datetime.utcnow()
     desde = ahora - timedelta(seconds=ventana_segundos)
 
@@ -95,6 +101,7 @@ def ya_existe_mensaje_operador_reciente(
         WhatsAppMensaje.query
         .filter(
             WhatsAppMensaje.pedido_id == pedido_id,
+            WhatsAppMensaje.organizacion_id == organizacion_id,
             WhatsAppMensaje.direccion == "out",
             WhatsAppMensaje.autor == "operador",
             WhatsAppMensaje.fecha >= desde,

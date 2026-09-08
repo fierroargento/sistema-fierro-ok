@@ -13,6 +13,7 @@ ARCHIVOS_CONTROLADOS = {
     "services/certificacion_whatsapp_tenant.py",
     "modules/whatsapp/runtime.py",
     "services/canal_manager.py",
+    "services/whatsapp_idempotencia.py",
 }
 
 
