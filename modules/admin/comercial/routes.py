@@ -47,11 +47,11 @@ from services.modo_sombra_whatsapp import (
 )
 from services.certificacion_offline_mercado_libre import (
     certificar_publicaciones_offline,
-    procesar_documento_publicaciones,
 )
-from services.consolidacion_offline_ml import (
-    consolidar_snapshot_ml,
-    exportar_consolidacion_json,
+from services.lotes_offline_ml import (
+    consolidar_lote_secciones,
+    exportar_lote_json,
+    plantillas_secciones_zip,
 )
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
@@ -523,6 +523,18 @@ def crear_blueprint_comercial(*, dependencias):
             error=error,
         )
 
+    @blueprint.route("/admin/comercial/mercado-libre-offline/plantillas")
+    @dependencias["login_required"]
+    def plantillas_mercado_libre_offline():
+        _usuario, _organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        return send_file(
+            plantillas_secciones_zip(), as_attachment=True,
+            download_name="plantillas_separadas_ml_offline.zip",
+            mimetype="application/zip",
+        )
+
     @blueprint.route("/admin/comercial/mercado-libre-offline", methods=["GET", "POST"])
     @dependencias["login_required"]
     def mercado_libre_offline_comercial():
@@ -552,29 +564,30 @@ def crear_blueprint_comercial(*, dependencias):
                 lista_id = int(request.form.get("lista_precio_id"))
                 if not any(item.id == lista_id for item in listas):
                     raise ValueError("La lista no pertenece a la unidad activa.")
-                archivo = request.files.get("archivo")
-                if archivo is None or not archivo.filename:
-                    raise ValueError("Selecciona un archivo JSON local.")
-                contenido = archivo.read()
-                if len(contenido) > 10 * 1024 * 1024:
-                    raise ValueError("El archivo supera el maximo de 10 MB.")
+                archivos = {}
+                total_bytes = 0
+                for seccion in ("precios", "cargos", "envios", "promociones"):
+                    archivo = request.files.get(f"archivo_{seccion}")
+                    contenido = archivo.read() if archivo is not None and archivo.filename else b""
+                    archivos[seccion] = contenido
+                    total_bytes += len(contenido)
+                if any(not archivos[seccion] for seccion in ("precios", "cargos", "envios")):
+                    raise ValueError("Precios, cargos y envios son archivos obligatorios.")
+                if total_bytes > 20 * 1024 * 1024:
+                    raise ValueError("El lote supera el maximo total de 20 MB.")
                 cuenta = str(
                     getattr(getattr(vinculo, "mercado_libre_cuenta", None), "nickname", None)
                     or getattr(vinculo, "nombre", None) or vinculo.id
                 )
-                snapshot = procesar_documento_publicaciones(
-                    contenido, cuenta_codigo=cuenta,
-                    organizacion_id=organizacion.id,
-                    unidad_negocio_id=unidad_activa.id,
-                )
-                resultado = consolidar_snapshot_ml(
-                    snapshot, datos_panel["control_comercial"],
-                    lista_precio_id=lista_id,
+                resultado = consolidar_lote_secciones(
+                    archivos, datos_panel["control_comercial"],
+                    cuenta_codigo=cuenta, organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad_activa.id, lista_precio_id=lista_id,
                 )
                 if request.form.get("accion") == "exportar":
                     return send_file(
-                        exportar_consolidacion_json(resultado), as_attachment=True,
-                        download_name="control_integral_ml_offline.json",
+                        exportar_lote_json(resultado), as_attachment=True,
+                        download_name="lote_integral_ml_offline.json",
                         mimetype="application/json",
                     )
         except Exception as excepcion:
