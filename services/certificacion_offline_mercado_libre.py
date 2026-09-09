@@ -66,7 +66,10 @@ def normalizar_publicacion(item, *, cuenta_codigo, organizacion_id, unidad_negoc
     comision = int((Decimal(precio) * porcentaje / Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
     cargo_fijo = _centavos(item.get("cargo_fijo", item.get("fixed_fee", 0)), "cargo_fijo", obligatorio=False)
     envio = _centavos(item.get("costo_envio", item.get("shipping_cost", 0)), "costo_envio", obligatorio=False)
-    piso = _centavos(item.get("piso_economico", item.get("economic_floor")), "piso_economico")
+    piso = _centavos(
+        item.get("piso_economico", item.get("economic_floor", 0)),
+        "piso_economico", obligatorio=False,
+    )
     precio_seguro = _centavos(
         item.get("precio_seguro", item.get("proposed_safe_price", item.get("precio", item.get("price")))),
         "precio_seguro",

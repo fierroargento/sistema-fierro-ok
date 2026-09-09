@@ -47,8 +47,11 @@ from services.modo_sombra_whatsapp import (
 )
 from services.certificacion_offline_mercado_libre import (
     certificar_publicaciones_offline,
-    exportar_json as exportar_mercado_libre_offline,
     procesar_documento_publicaciones,
+)
+from services.consolidacion_offline_ml import (
+    consolidar_snapshot_ml,
+    exportar_consolidacion_json,
 )
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
@@ -533,6 +536,10 @@ def crear_blueprint_comercial(*, dependencias):
             unidad_negocio_id=unidad_activa.id,
             canal="mercado_libre",
         ).order_by(Vinculo.nombre.asc()).all()
+        datos_panel = obtener_datos_panel_comercial(
+            organizacion.id, unidad_activa.id, modelos=modelos,
+        )
+        listas = datos_panel["listas"]
         certificacion = certificar_publicaciones_offline()
         resultado = None
         error = ""
@@ -542,6 +549,9 @@ def crear_blueprint_comercial(*, dependencias):
                 vinculo = next((item for item in vinculos if item.id == vinculo_id), None)
                 if vinculo is None:
                     raise ValueError("La cuenta Mercado Libre no pertenece a la unidad activa.")
+                lista_id = int(request.form.get("lista_precio_id"))
+                if not any(item.id == lista_id for item in listas):
+                    raise ValueError("La lista no pertenece a la unidad activa.")
                 archivo = request.files.get("archivo")
                 if archivo is None or not archivo.filename:
                     raise ValueError("Selecciona un archivo JSON local.")
@@ -552,15 +562,19 @@ def crear_blueprint_comercial(*, dependencias):
                     getattr(getattr(vinculo, "mercado_libre_cuenta", None), "nickname", None)
                     or getattr(vinculo, "nombre", None) or vinculo.id
                 )
-                resultado = procesar_documento_publicaciones(
+                snapshot = procesar_documento_publicaciones(
                     contenido, cuenta_codigo=cuenta,
                     organizacion_id=organizacion.id,
                     unidad_negocio_id=unidad_activa.id,
                 )
+                resultado = consolidar_snapshot_ml(
+                    snapshot, datos_panel["control_comercial"],
+                    lista_precio_id=lista_id,
+                )
                 if request.form.get("accion") == "exportar":
                     return send_file(
-                        exportar_mercado_libre_offline(resultado), as_attachment=True,
-                        download_name="certificacion_publicaciones_ml_offline.json",
+                        exportar_consolidacion_json(resultado), as_attachment=True,
+                        download_name="control_integral_ml_offline.json",
                         mimetype="application/json",
                     )
         except Exception as excepcion:
@@ -569,7 +583,8 @@ def crear_blueprint_comercial(*, dependencias):
             "admin_mercado_libre_offline.html",
             organizacion=organizacion, unidad_activa=unidad_activa,
             unidades=unidades, vinculos=vinculos,
-            certificacion=certificacion, resultado=resultado, error=error,
+            listas=listas, certificacion=certificacion,
+            resultado=resultado, error=error,
         )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])
