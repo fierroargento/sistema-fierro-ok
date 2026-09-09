@@ -7,6 +7,7 @@
     <a class="secondary-link" href="{{ url_for('admin_comercial.panel') }}">Volver a costos y precios</a>
   </header>
   <div class="comercial-safe"><strong>MERCADO LIBRE DESCONECTADO</strong><span>Sin API, OAuth, webhooks, persistencia, cancelaciones ni cambios de precio.</span></div>
+  {% if mensaje %}<div class="alert alert-success">{{ mensaje }}</div>{% endif %}
   <section class="comercial-section">
     <div class="section-heading"><div><span class="step-badge">1</span><h2>Certificación del motor</h2></div><p>{{ certificacion.aprobados }} de {{ certificacion.total }} escenarios aprobados.</p></div>
     <div class="control-summary-grid">{% for caso in certificacion.resultados %}<article><strong>{{ 'OK' if caso.cumple else 'ERROR' }}</strong><span>{{ caso.codigo|replace('_', ' ') }}</span></article>{% endfor %}</div>
@@ -25,6 +26,7 @@
       <label>Promociones, opcional<input type="file" name="archivo_promociones" accept=".csv,.json,application/json,text/csv"></label>
       <button type="submit" name="accion" value="previsualizar" {% if not vinculos %}disabled{% endif %}>Previsualizar sin guardar</button>
       <button type="submit" name="accion" value="exportar" {% if not vinculos %}disabled{% endif %}>Exportar evidencia</button>
+      <button type="submit" name="accion" value="guardar_lote" {% if not vinculos %}disabled{% endif %}>Guardar diagnóstico interno</button>
     </form>
     <p class="form-help">Cada sección se une por publicacion_id. El piso y el precio objetivo se toman del costo y las reglas vigentes del sistema; nunca del archivo.</p>
   </section>
@@ -38,5 +40,15 @@
     </tbody></table></div>
   </section>
   {% endif %}
+  <section class="comercial-section">
+    <div class="section-heading"><div><span class="step-badge">4</span><h2>Historial auditable</h2></div><p>Aprobar es una decisión interna y nunca habilita ejecución externa. Los cambios de costo o reglas vuelven obsoleto el diagnóstico.</p></div>
+    <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Lote</th><th>Cuenta</th><th>Estado</th><th>Vigencia</th><th>Creación</th><th>Decisión interna</th></tr></thead><tbody>
+      {% for lote in lotes_guardados %}<tr><td><code>{{ lote.lote_id[:12] }}</code><small class="table-subline">Lista #{{ lote.lista_precio_id }}</small></td><td>{{ lote.cuenta_codigo }}</td><td><strong>{{ lote.estado|upper }}</strong><small class="table-subline">Ejecución: NO</small></td><td>{{ 'VIGENTE' if lote.vigencia_visual.vigente else 'OBSOLETO' }}</td><td>{{ lote.fecha_creacion }}</td><td>
+        {% if lote.estado == 'preparado' and lote.vigencia_visual.vigente %}<form method="post"><input type="hidden" name="accion" value="enviar_revision"><input type="hidden" name="lote_id" value="{{ lote.id }}"><button class="table-action">Enviar a revisión</button></form>{% endif %}
+        {% if lote.estado == 'revision' and lote.vigencia_visual.vigente %}<form method="post"><input type="hidden" name="accion" value="aprobar"><input type="hidden" name="lote_id" value="{{ lote.id }}"><button class="table-action">Aprobar internamente</button></form><form method="post"><input type="hidden" name="accion" value="rechazar"><input type="hidden" name="lote_id" value="{{ lote.id }}"><input name="motivo" required placeholder="Motivo"><button class="table-action">Rechazar</button></form>{% endif %}
+        {% if lote.estado in ['preparado', 'aprobado', 'rechazado', 'obsoleto'] %}<form method="post"><input type="hidden" name="accion" value="archivar"><input type="hidden" name="lote_id" value="{{ lote.id }}"><input name="motivo" required placeholder="Motivo"><button class="table-action">Archivar</button></form>{% endif %}
+      </td></tr>{% else %}<tr><td colspan="6" class="empty-state">Todavía no hay diagnósticos guardados.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
 </main>
 {% endblock %}

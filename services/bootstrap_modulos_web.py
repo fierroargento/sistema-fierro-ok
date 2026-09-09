@@ -101,6 +101,7 @@ def registrar_modulos_web(
                         "VentaCanalItem", "MovimientoLiquidacionCanal",
                         "GestionConciliacionCanal",
                         "ControlIntegracionCanal", "EventoIntegracionStaging",
+                        "LoteDiagnosticoML", "EventoLoteDiagnosticoML",
                         "MapeoPublicacionCanal",
                     )
                 },

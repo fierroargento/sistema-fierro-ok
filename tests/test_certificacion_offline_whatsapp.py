@@ -43,7 +43,7 @@ def test_panel_y_ruta_son_solo_lectura():
     rutas = Path("modules/admin/comercial/routes.py").read_text(encoding="utf-8")
     plantilla = Path("templates/admin_certificacion_whatsapp_offline.html").read_text(encoding="utf-8")
     bloque = rutas.split("def certificar_whatsapp_offline_comercial", 1)[1].split(
-        '@blueprint.route("/admin/comercial/preparacion-integraciones"', 1
+        '@blueprint.route("/admin/comercial/whatsapp-sombra"', 1
     )[0]
     assert "db.session" not in bloque
     assert "CERTIFICACIÓN APROBADA" in plantilla

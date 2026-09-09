@@ -95,8 +95,11 @@ def preparar_lote_secciones(archivos, *, cuenta_codigo, organizacion_id, unidad_
             "publicacion_id": referencia,
             "seller_sku": sku,
             "price": precio.get("price", precio.get("precio")),
-            "original_price": promocion.get(
-                "original_price", promocion.get("precio_original", precio.get("original_price")),
+            "original_price": (
+                promocion.get("original_price")
+                or promocion.get("precio_original")
+                or precio.get("original_price")
+                or precio.get("price", precio.get("precio"))
             ),
             "status": precio.get("status", precio.get("estado")),
             "listing_type_id": precio.get("listing_type_id", precio.get("tipo_publicacion")),

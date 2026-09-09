@@ -30,7 +30,7 @@ def test_bandeja_existe_y_declara_bloqueos():
 def test_ruta_no_registra_staging_ni_modifica_webhook():
     rutas = Path("modules/admin/comercial/routes.py").read_text(encoding="utf-8")
     bloque = rutas.split("def whatsapp_offline_comercial", 1)[1].split(
-        '@blueprint.route("/admin/comercial/preparacion-integraciones"', 1
+        '@blueprint.route("/admin/comercial/whatsapp-offline/certificar"', 1
     )[0]
     assert "registrar_evento(" not in bloque
     assert "db.session" not in bloque

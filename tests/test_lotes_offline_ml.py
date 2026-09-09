@@ -64,12 +64,13 @@ def test_entrega_cuatro_plantillas_separadas_y_exporta_evidencia():
     assert json.loads(exportar_lote_json(resultado).getvalue().decode("utf-8"))["lote"]["completas"] == 1
 
 
-def test_panel_tenant_no_persiste_y_ofrece_plantillas():
+def test_panel_tenant_ofrece_plantillas_y_guardado_explicito():
     rutas = Path("modules/admin/comercial/routes.py").read_text(encoding="utf-8")
     assert "/admin/comercial/mercado-libre-offline/plantillas" in rutas
     bloque = rutas.split("def mercado_libre_offline_comercial():", 1)[1].split("@blueprint.route", 1)[0]
     assert "organizacion.id" in bloque and "unidad_activa.id" in bloque
-    assert "db.session" not in bloque and ".commit(" not in bloque
+    assert 'accion == "guardar_lote"' in bloque
+    assert "puede_ejecutar=True" not in bloque
 
 
 def test_servicio_sin_transporte_persistencia_ni_credenciales():

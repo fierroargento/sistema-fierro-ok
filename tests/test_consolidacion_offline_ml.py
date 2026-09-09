@@ -57,12 +57,13 @@ def test_evidencia_es_exportable_y_no_aplicable():
     assert not any(CONTRATO_EFECTOS.values())
 
 
-def test_ruta_cruza_solo_datos_del_tenant_y_sin_commit():
+def test_ruta_cruza_datos_del_tenant_y_no_habilita_ejecucion():
     rutas = Path("modules/admin/comercial/routes.py").read_text(encoding="utf-8")
     bloque = rutas.split("def mercado_libre_offline_comercial():", 1)[1].split("@blueprint.route", 1)[0]
     assert "obtener_datos_panel_comercial" in bloque
     assert "organizacion.id" in bloque and "unidad_activa.id" in bloque
-    assert "db.session" not in bloque and ".commit(" not in bloque
+    assert "registrar_lote" in bloque
+    assert "puede_ejecutar=True" not in bloque
 
 
 def test_servicio_careece_de_transporte_y_persistencia():

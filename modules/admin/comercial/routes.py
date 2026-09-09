@@ -53,6 +53,11 @@ from services.lotes_offline_ml import (
     exportar_lote_json,
     plantillas_secciones_zip,
 )
+from services.gestion_lotes_ml import (
+    decidir_lote,
+    diagnosticar_vigencia,
+    registrar_lote,
+)
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -552,11 +557,34 @@ def crear_blueprint_comercial(*, dependencias):
             organizacion.id, unidad_activa.id, modelos=modelos,
         )
         listas = datos_panel["listas"]
+        LoteML = modelos["LoteDiagnosticoML"]
+        EventoLoteML = modelos["EventoLoteDiagnosticoML"]
         certificacion = certificar_publicaciones_offline()
         resultado = None
         error = ""
+        mensaje = request.args.get("ok", "")
         try:
             if request.method == "POST":
+                accion = str(request.form.get("accion") or "").strip()
+                if accion in {"enviar_revision", "aprobar", "rechazar", "archivar"}:
+                    lote_guardado = LoteML.query.filter_by(
+                        id=int(request.form.get("lote_id")),
+                        organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad_activa.id,
+                    ).first()
+                    if lote_guardado is None:
+                        raise ValueError("El lote no pertenece a la unidad activa.")
+                    decision = decidir_lote(
+                        lote_guardado, accion, request.form.get("motivo"),
+                        usuario=_usuario,
+                        filas_control=datos_panel["control_comercial"],
+                        EventoLoteDiagnosticoML=EventoLoteML,
+                        db_session=db.session,
+                    )
+                    return redirect(url_for(
+                        "admin_comercial.mercado_libre_offline_comercial",
+                        ok=f"Lote actualizado a {decision['estado']}.",
+                    ))
                 vinculo_id = int(request.form.get("vinculo_id"))
                 vinculo = next((item for item in vinculos if item.id == vinculo_id), None)
                 if vinculo is None:
@@ -584,20 +612,41 @@ def crear_blueprint_comercial(*, dependencias):
                     cuenta_codigo=cuenta, organizacion_id=organizacion.id,
                     unidad_negocio_id=unidad_activa.id, lista_precio_id=lista_id,
                 )
-                if request.form.get("accion") == "exportar":
+                if accion == "exportar":
                     return send_file(
                         exportar_lote_json(resultado), as_attachment=True,
                         download_name="lote_integral_ml_offline.json",
                         mimetype="application/json",
                     )
+                if accion == "guardar_lote":
+                    _registro, creado = registrar_lote(
+                        resultado, vinculo_canal_id=vinculo.id, usuario=_usuario,
+                        LoteDiagnosticoML=LoteML,
+                        EventoLoteDiagnosticoML=EventoLoteML,
+                        db_session=db.session,
+                    )
+                    texto = "Lote guardado para revision." if creado else "El lote ya estaba registrado; no se duplico."
+                    return redirect(url_for(
+                        "admin_comercial.mercado_libre_offline_comercial", ok=texto,
+                    ))
         except Exception as excepcion:
+            db.session.rollback()
             error = str(excepcion)
+        lotes_guardados = LoteML.query.filter_by(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+        ).order_by(LoteML.fecha_creacion.desc()).all()
+        for lote_guardado in lotes_guardados:
+            lote_guardado.vigencia_visual = diagnosticar_vigencia(
+                lote_guardado, datos_panel["control_comercial"],
+            )
         return render_template(
             "admin_mercado_libre_offline.html",
             organizacion=organizacion, unidad_activa=unidad_activa,
             unidades=unidades, vinculos=vinculos,
             listas=listas, certificacion=certificacion,
-            resultado=resultado, error=error,
+            resultado=resultado, lotes_guardados=lotes_guardados,
+            mensaje=mensaje, error=error,
         )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])
