@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}">{% endblock %}
+{% block content %}
+<main class="comercial-page integration-readiness-page">
+  <header class="comercial-header">
+    <div><p class="comercial-eyebrow">Administración · {{ unidad_activa.nombre }}</p><h1>Certificación offline de publicaciones ML</h1><p class="comercial-intro">Comprueba precio, comisión, cargo fijo, envío, promociones y piso económico usando exclusivamente archivos locales.</p></div>
+    <a class="secondary-link" href="{{ url_for('admin_comercial.panel') }}">Volver a costos y precios</a>
+  </header>
+  <div class="comercial-safe"><strong>MERCADO LIBRE DESCONECTADO</strong><span>Sin API, OAuth, webhooks, persistencia, cancelaciones ni cambios de precio.</span></div>
+  <section class="comercial-section">
+    <div class="section-heading"><div><span class="step-badge">1</span><h2>Certificación del motor</h2></div><p>{{ certificacion.aprobados }} de {{ certificacion.total }} escenarios aprobados.</p></div>
+    <div class="control-summary-grid">{% for caso in certificacion.resultados %}<article><strong>{{ 'OK' if caso.cumple else 'ERROR' }}</strong><span>{{ caso.codigo|replace('_', ' ') }}</span></article>{% endfor %}</div>
+  </section>
+  <section class="comercial-section">
+    <div class="section-heading"><div><span class="step-badge">2</span><h2>Ensayar snapshot local</h2></div><p>La cuenta seleccionada fija organización y unidad; el archivo no puede cambiar ese contexto.</p></div>
+    {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+    {% if not vinculos %}<div class="alert alert-warning">No hay una cuenta Mercado Libre vinculada a esta unidad. No se conectará ninguna automáticamente.</div>{% endif %}
+    <form method="post" enctype="multipart/form-data" class="commercial-form-grid">
+      <label>Cuenta interna<select name="vinculo_id" required {% if not vinculos %}disabled{% endif %}><option value="">Seleccionar</option>{% for item in vinculos %}<option value="{{ item.id }}">{{ item.nombre }}</option>{% endfor %}</select></label>
+      <label>Snapshot JSON<input type="file" name="archivo" accept="application/json,.json" required></label>
+      <button type="submit" name="accion" value="previsualizar" {% if not vinculos %}disabled{% endif %}>Previsualizar sin guardar</button>
+      <button type="submit" name="accion" value="exportar" {% if not vinculos %}disabled{% endif %}>Exportar evidencia</button>
+    </form>
+    <p class="form-help">Campos por fila: id/publicacion_id, seller_sku, price/precio, commission_percentage/comision_pct, fixed_fee/cargo_fijo, shipping_cost/costo_envio, economic_floor/piso_economico y proposed_safe_price/precio_seguro. La promoción activa es opcional.</p>
+  </section>
+  {% if resultado %}
+  <section class="comercial-section">
+    <div class="section-heading"><div><span class="step-badge">3</span><h2>Resultado económico</h2></div><p>Firma: <code>{{ resultado.firma_evidencia }}</code></p></div>
+    <div class="control-summary-grid"><article><strong>{{ resultado.resumen.validas }}</strong><span>Válidas</span></article><article><strong>{{ resultado.resumen.rentables }}</strong><span>Rentables</span></article><article><strong>{{ resultado.resumen.debajo_piso }}</strong><span>Debajo del piso</span></article><article><strong>{{ resultado.resumen.promociones_riesgosas }}</strong><span>Promociones riesgosas</span></article></div>
+    <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Publicación / SKU</th><th>Precio</th><th>Comisión</th><th>Cargo fijo</th><th>Envío</th><th>Liquidación</th><th>Piso</th><th>Estado</th><th>Acciones manuales</th></tr></thead><tbody>
+      {% for item in resultado.resultados %}<tr><td>{{ item.publicacion_id }}<small class="table-subline">{{ item.sku }}</small></td><td>${{ '%.2f'|format(item.precio_centavos / 100) }}</td><td>${{ '%.2f'|format(item.comision_centavos / 100) }}</td><td>${{ '%.2f'|format(item.cargo_fijo_centavos / 100) }}</td><td>${{ '%.2f'|format(item.envio_centavos / 100) }}</td><td>${{ '%.2f'|format(item.liquidacion_centavos / 100) }}</td><td>${{ '%.2f'|format(item.piso_economico_centavos / 100) }}</td><td>{{ 'RENTABLE' if item.cumple_piso else 'BLOQUEADA' }}</td><td>{% for accion in item.acciones_proyectadas %}<small class="table-subline">{{ accion.orden }}. {{ accion.accion|replace('_', ' ') }} · NO ejecutada</small>{% else %}Sin acciones{% endfor %}</td></tr>{% endfor %}
+      {% for item in resultado.errores %}<tr><td>Fila {{ item.numero }}</td><td colspan="8">{{ item.error }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

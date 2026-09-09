@@ -45,6 +45,11 @@ from services.modo_sombra_whatsapp import (
     exportar_evidencia_sombra,
     matriz_preparacion_sombra,
 )
+from services.certificacion_offline_mercado_libre import (
+    certificar_publicaciones_offline,
+    exportar_json as exportar_mercado_libre_offline,
+    procesar_documento_publicaciones,
+)
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -513,6 +518,58 @@ def crear_blueprint_comercial(*, dependencias):
             unidad_activa=unidad_activa, unidades=unidades, vinculos=vinculos,
             certificacion=certificacion, matriz=matriz, resultado=resultado,
             error=error,
+        )
+
+    @blueprint.route("/admin/comercial/mercado-libre-offline", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def mercado_libre_offline_comercial():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        Vinculo = modelos["VinculoCanalComercial"]
+        vinculos = Vinculo.query.filter_by(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+            canal="mercado_libre",
+        ).order_by(Vinculo.nombre.asc()).all()
+        certificacion = certificar_publicaciones_offline()
+        resultado = None
+        error = ""
+        try:
+            if request.method == "POST":
+                vinculo_id = int(request.form.get("vinculo_id"))
+                vinculo = next((item for item in vinculos if item.id == vinculo_id), None)
+                if vinculo is None:
+                    raise ValueError("La cuenta Mercado Libre no pertenece a la unidad activa.")
+                archivo = request.files.get("archivo")
+                if archivo is None or not archivo.filename:
+                    raise ValueError("Selecciona un archivo JSON local.")
+                contenido = archivo.read()
+                if len(contenido) > 10 * 1024 * 1024:
+                    raise ValueError("El archivo supera el maximo de 10 MB.")
+                cuenta = str(
+                    getattr(getattr(vinculo, "mercado_libre_cuenta", None), "nickname", None)
+                    or getattr(vinculo, "nombre", None) or vinculo.id
+                )
+                resultado = procesar_documento_publicaciones(
+                    contenido, cuenta_codigo=cuenta,
+                    organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad_activa.id,
+                )
+                if request.form.get("accion") == "exportar":
+                    return send_file(
+                        exportar_mercado_libre_offline(resultado), as_attachment=True,
+                        download_name="certificacion_publicaciones_ml_offline.json",
+                        mimetype="application/json",
+                    )
+        except Exception as excepcion:
+            error = str(excepcion)
+        return render_template(
+            "admin_mercado_libre_offline.html",
+            organizacion=organizacion, unidad_activa=unidad_activa,
+            unidades=unidades, vinculos=vinculos,
+            certificacion=certificacion, resultado=resultado, error=error,
         )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])
