@@ -60,12 +60,13 @@ def preparar_tareas(lote, *, usuario, TareaManualML, db_session):
     return {"creadas": creadas, "omitidas": omitidas, "puede_ejecutar": False}
 
 
-def decidir_tarea(tarea, accion, comprobante, *, usuario, lote_vigente, db_session):
+def decidir_tarea(tarea, accion, comprobante, *, usuario, lote_vigente, db_session, commit=True):
     if tarea is None or tarea.puede_ejecutar:
         raise ValueError("La tarea no cumple el contrato interno.")
     accion = str(accion or "").strip().lower(); texto = str(comprobante or "").strip()
     if accion in {"aprobar", "completar_manual"} and not lote_vigente:
-        tarea.estado = "obsoleta"; tarea.puede_ejecutar = False; db_session.commit()
+        tarea.estado = "obsoleta"; tarea.puede_ejecutar = False
+        if commit: db_session.commit()
         return tarea
     if accion == "aprobar" and tarea.estado == "preparada": destino = "aprobada"
     elif accion == "rechazar" and tarea.estado == "preparada" and texto: destino = "rechazada"
@@ -78,7 +79,8 @@ def decidir_tarea(tarea, accion, comprobante, *, usuario, lote_vigente, db_sessi
     tarea.estado = destino; tarea.comprobante_manual = texto or None
     tarea.decidido_por_username = getattr(usuario, "username", None)
     tarea.fecha_decision = ahora_utc_naive(); tarea.puede_ejecutar = False
-    db_session.commit(); return tarea
+    if commit: db_session.commit()
+    return tarea
 
 
 def exportar_tareas(tareas):

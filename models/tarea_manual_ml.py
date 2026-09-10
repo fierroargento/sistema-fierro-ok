@@ -38,3 +38,20 @@ class TareaManualML(db.Model):
     fecha_decision = db.Column(db.DateTime)
     depende_de = db.relationship("TareaManualML", remote_side=[id])
     lote = db.relationship("LoteDiagnosticoML", backref="tareas_manuales")
+
+
+class EventoTareaManualML(db.Model):
+    __tablename__ = "evento_tarea_manual_ml"
+    __table_args__ = (
+        Index("ix_evento_tarea_manual_ml_historial", "tarea_manual_id", "fecha_evento"),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
+    unidad_negocio_id = db.Column(db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=False, index=True)
+    tarea_manual_id = db.Column(db.Integer, db.ForeignKey("tarea_manual_ml.id"), nullable=False, index=True)
+    estado_anterior = db.Column(db.String(24))
+    estado_nuevo = db.Column(db.String(24), nullable=False)
+    comprobante = db.Column(db.String(500))
+    username = db.Column(db.String(80))
+    fecha_evento = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+    tarea = db.relationship("TareaManualML", backref="eventos")

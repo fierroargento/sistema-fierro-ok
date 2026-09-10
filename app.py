@@ -307,7 +307,7 @@ from models.regla_validacion_canal import ReglaValidacionCanalVersion
 from models.conciliacion_ventas_canal import GestionConciliacionCanal, MovimientoLiquidacionCanal, VentaCanalItem
 from models.preparacion_integracion_canal import ControlIntegracionCanal, EventoIntegracionStaging
 from models.lote_diagnostico_ml import LoteDiagnosticoML, EventoLoteDiagnosticoML
-from models.tarea_manual_ml import TareaManualML
+from models.tarea_manual_ml import EventoTareaManualML, TareaManualML
 from models.asignacion_tenant_pedido import AsignacionTenantPedido
 from models.modulo_organizacion import ModuloOrganizacion
 from models.vinculo_canal_comercial import VinculoCanalComercial
@@ -11927,6 +11927,7 @@ registrar_modulos_web(
             "LoteDiagnosticoML": LoteDiagnosticoML,
             "EventoLoteDiagnosticoML": EventoLoteDiagnosticoML,
             "TareaManualML": TareaManualML,
+            "EventoTareaManualML": EventoTareaManualML,
             "AsignacionTenantPedido": AsignacionTenantPedido,
             "ModuloOrganizacion": ModuloOrganizacion,
             "Producto": Producto,
