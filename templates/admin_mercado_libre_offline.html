@@ -78,5 +78,12 @@
     </form>
     <form method="post"><input type="hidden" name="accion" value="exportar_evidencia_tareas"><button class="secondary-action">Descargar evidencia e historial</button></form>
   </section>
+  {% if certificacion_operativa is defined and certificacion_operativa %}<section class="comercial-section">
+    <div class="section-heading"><div><span class="step-badge">7</span><h2>Certificación operativa</h2></div><p>Control integral de solo lectura sobre lotes, tareas, dependencias, vigencia y comprobantes.</p></div>
+    <div class="control-summary-grid"><article><strong>{{ 'APROBADA' if certificacion_operativa.aprobada else 'BLOQUEADA' }}</strong><span>Certificación</span></article><article><strong>{{ certificacion_operativa.resumen.tareas }}</strong><span>Tareas</span></article><article><strong>{{ certificacion_operativa.resumen.eventos }}</strong><span>Eventos</span></article><article><strong>{{ certificacion_operativa.resumen.bloqueos }}</strong><span>Bloqueos</span></article><article><strong>0</strong><span>Acciones externas</span></article></div>
+    {% for bloqueo in certificacion_operativa.bloqueos %}<div class="alert alert-warning">{{ bloqueo }}</div>{% endfor %}
+    {% for aviso in certificacion_operativa.advertencias %}<div class="alert">{{ aviso }}</div>{% endfor %}
+    <form method="post"><input type="hidden" name="accion" value="exportar_certificacion_operativa"><button class="secondary-action">Descargar certificación JSON</button></form>
+  </section>{% endif %}
 </main>
 {% endblock %}

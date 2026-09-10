@@ -60,6 +60,7 @@ from services.gestion_lotes_ml import (
 )
 from services.tareas_manuales_ml import decidir_tarea, exportar_tareas, preparar_tareas
 from services.lotes_tareas_manuales_ml import aplicar_lote, exportar_evidencia, previsualizar_lote
+from services.certificacion_operativa_ml import certificar_operacion_ml, exportar_certificacion_ml
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -570,6 +571,27 @@ def crear_blueprint_comercial(*, dependencias):
         try:
             if request.method == "POST":
                 accion = str(request.form.get("accion") or "").strip()
+                if accion == "exportar_certificacion_operativa":
+                    lotes_certificados = LoteML.query.filter_by(
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                    ).all()
+                    tareas_certificadas = TareaML.query.filter_by(
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                    ).all()
+                    vigencias_exportadas = {
+                        lote_certificado.id: diagnosticar_vigencia(
+                            lote_certificado, datos_panel["control_comercial"],
+                        )["vigente"] for lote_certificado in lotes_certificados
+                    }
+                    reporte_certificado = certificar_operacion_ml(
+                        lotes_certificados, tareas_certificadas,
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                        vigencias=vigencias_exportadas,
+                    )
+                    return send_file(
+                        exportar_certificacion_ml(reporte_certificado), as_attachment=True,
+                        download_name="certificacion_operativa_ml.json", mimetype="application/json",
+                    )
                 if accion == "exportar_evidencia_tareas":
                     tareas_evidencia = TareaML.query.filter_by(
                         organizacion_id=organizacion.id,
@@ -682,10 +704,21 @@ def crear_blueprint_comercial(*, dependencias):
                         "aprobar_tarea": "aprobar", "rechazar_tarea": "rechazar",
                         "completar_tarea": "completar_manual", "archivar_tarea": "archivar",
                     }
+                    estado_anterior = tarea.estado
                     decidida = decidir_tarea(
                         tarea, mapa[accion], request.form.get("comprobante"),
                         usuario=_usuario, lote_vigente=vigente, db_session=db.session,
+                        commit=False,
                     )
+                    db.session.add(EventoTareaML(
+                        organizacion_id=tarea.organizacion_id,
+                        unidad_negocio_id=tarea.unidad_negocio_id,
+                        tarea_manual_id=tarea.id, estado_anterior=estado_anterior,
+                        estado_nuevo=decidida.estado,
+                        comprobante=str(request.form.get("comprobante") or "").strip() or None,
+                        username=getattr(_usuario, "username", None),
+                    ))
+                    db.session.commit()
                     return redirect(url_for(
                         "admin_comercial.mercado_libre_offline_comercial",
                         ok=f"Tarea actualizada a {decidida.estado}.",
@@ -768,6 +801,15 @@ def crear_blueprint_comercial(*, dependencias):
             organizacion_id=organizacion.id,
             unidad_negocio_id=unidad_activa.id,
         ).order_by(TareaML.fecha_creacion.desc(), TareaML.orden.asc()).all()
+        vigencias_certificacion = {
+            lote_guardado.id: bool(lote_guardado.vigencia_visual["vigente"])
+            for lote_guardado in lotes_guardados
+        }
+        certificacion_operativa = certificar_operacion_ml(
+            lotes_guardados, tareas_manuales,
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+            vigencias=vigencias_certificacion,
+        )
         return render_template(
             "admin_mercado_libre_offline.html",
             organizacion=organizacion, unidad_activa=unidad_activa,
@@ -776,6 +818,7 @@ def crear_blueprint_comercial(*, dependencias):
             resultado=resultado, lotes_guardados=lotes_guardados,
             tareas_manuales=tareas_manuales,
             vista_lote=None,
+            certificacion_operativa=certificacion_operativa,
             mensaje=mensaje, error=error,
         )
 
