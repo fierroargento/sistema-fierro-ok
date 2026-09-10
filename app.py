@@ -308,6 +308,7 @@ from models.conciliacion_ventas_canal import GestionConciliacionCanal, Movimient
 from models.preparacion_integracion_canal import ControlIntegracionCanal, EventoIntegracionStaging
 from models.lote_diagnostico_ml import LoteDiagnosticoML, EventoLoteDiagnosticoML
 from models.tarea_manual_ml import EventoTareaManualML, TareaManualML
+from models.cierre_conciliacion_mp import CierreConciliacionMP, EventoCierreConciliacionMP
 from models.asignacion_tenant_pedido import AsignacionTenantPedido
 from models.modulo_organizacion import ModuloOrganizacion
 from models.vinculo_canal_comercial import VinculoCanalComercial
@@ -11928,6 +11929,8 @@ registrar_modulos_web(
             "EventoLoteDiagnosticoML": EventoLoteDiagnosticoML,
             "TareaManualML": TareaManualML,
             "EventoTareaManualML": EventoTareaManualML,
+            "CierreConciliacionMP": CierreConciliacionMP,
+            "EventoCierreConciliacionMP": EventoCierreConciliacionMP,
             "AsignacionTenantPedido": AsignacionTenantPedido,
             "ModuloOrganizacion": ModuloOrganizacion,
             "Producto": Producto,

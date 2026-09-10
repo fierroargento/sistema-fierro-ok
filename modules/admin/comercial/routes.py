@@ -62,6 +62,7 @@ from services.tareas_manuales_ml import decidir_tarea, exportar_tareas, preparar
 from services.lotes_tareas_manuales_ml import aplicar_lote, exportar_evidencia, previsualizar_lote
 from services.certificacion_operativa_ml import certificar_operacion_ml, exportar_certificacion_ml
 from services.certificacion_offline_mercado_pago import certificar_conciliacion_mp, exportar_certificacion_mp
+from services.cierres_conciliacion_mp import decidir_cierre, exportar_cierre, huella_snapshot, registrar_cierre, snapshot_conciliacion
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -957,10 +958,23 @@ def crear_blueprint_comercial(*, dependencias):
         unidad_activa, unidades = contexto_comercial(organizacion)
         Venta = modelos["VentaCanalItem"]; Movimiento = modelos["MovimientoLiquidacionCanal"]
         Gestion = modelos["GestionConciliacionCanal"]
+        CierreMP = modelos["CierreConciliacionMP"]; EventoCierreMP = modelos["EventoCierreConciliacionMP"]
         Lista = modelos["ListaPrecio"]; Inclusion = modelos["CatalogoProducto"]
         try:
             if request.method == "POST":
                 accion = (request.form.get("accion") or "").strip()
+                if accion in {"guardar_cierre_mp","enviar_revision_cierre_mp","aprobar_cierre_mp","cerrar_cierre_mp","archivar_cierre_mp","exportar_cierre_mp"}:
+                    ventas_cierre=Venta.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all();movimientos_cierre=Movimiento.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all();gestiones_cierre=Gestion.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
+                    if accion=="guardar_cierre_mp":
+                        _cierre,creado=registrar_cierre(ventas_cierre,movimientos_cierre,gestiones_cierre,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id,usuario=usuario,CierreConciliacionMP=CierreMP,EventoCierreConciliacionMP=EventoCierreMP,db_session=db.session)
+                        mensaje="Cierre preparado." if creado else "El mismo cierre ya estaba registrado."
+                    else:
+                        cierre=CierreMP.query.filter_by(id=int(request.form.get("cierre_id")),organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).first()
+                        if cierre is None:raise ValueError("El cierre no pertenece a la unidad activa.")
+                        if accion=="exportar_cierre_mp":return send_file(exportar_cierre(cierre),as_attachment=True,download_name=f"cierre_mp_{cierre.id}.json",mimetype="application/json")
+                        mapa={"enviar_revision_cierre_mp":"enviar_revision","aprobar_cierre_mp":"aprobar","cerrar_cierre_mp":"cerrar","archivar_cierre_mp":"archivar"}
+                        resultado_cierre=decidir_cierre(cierre,mapa[accion],request.form.get("motivo"),usuario=usuario,snapshot_actual=snapshot_conciliacion(ventas_cierre,movimientos_cierre,gestiones_cierre),EventoCierreConciliacionMP=EventoCierreMP,db_session=db.session);mensaje=f"Cierre actualizado a {resultado_cierre['estado']}."
+                    return redirect(url_for("admin_comercial.conciliacion_canal",ok=mensaje))
                 if accion == "exportar_certificacion_mp":
                     ventas_mp = Venta.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
                     movimientos_mp = Movimiento.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
@@ -1032,6 +1046,9 @@ def crear_blueprint_comercial(*, dependencias):
             ventas, movimientos, gestiones,
             organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
         )
+        cierres_mp=CierreMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).order_by(CierreMP.fecha_creacion.desc()).all()
+        huella_actual_cierre=snapshot_conciliacion(ventas,movimientos,gestiones)
+        for cierre_mp in cierres_mp:cierre_mp.vigente_visual=(cierre_mp.huella_origen==huella_snapshot(huella_actual_cierre))
         filtro = (request.args.get("filtro") or "todos").strip().lower()
         if filtro == "requieren_revision": conciliaciones = [fila for fila in conciliaciones if fila["requiere_revision"] and fila["estado_gestion"] not in {"resuelta", "descartada"}]
         elif filtro == "abiertas": conciliaciones = [fila for fila in conciliaciones if fila["estado_gestion"] in {"abierta", "en_revision"}]
@@ -1041,6 +1058,7 @@ def crear_blueprint_comercial(*, dependencias):
             unidad_activa=unidad_activa, unidades=unidades, ventas=ventas,
             movimientos=movimientos, conciliaciones=conciliaciones,
             certificacion_mp=certificacion_mp,
+            cierres_mp=cierres_mp,
             resumen_conciliacion=resumen, gestiones=gestiones, filtro=filtro,
             listas=Lista.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Lista.nombre).all(),
             inclusiones=Inclusion.query.join(modelos["Catalogo"]).filter(modelos["Catalogo"].organizacion_id == organizacion.id, modelos["Catalogo"].unidad_negocio_id == unidad_activa.id).order_by(Inclusion.nombre_comercial).all(),

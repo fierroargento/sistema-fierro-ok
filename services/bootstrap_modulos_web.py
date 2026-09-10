@@ -103,6 +103,7 @@ def registrar_modulos_web(
                         "ControlIntegracionCanal", "EventoIntegracionStaging",
                         "LoteDiagnosticoML", "EventoLoteDiagnosticoML",
                         "TareaManualML", "EventoTareaManualML",
+                        "CierreConciliacionMP", "EventoCierreConciliacionMP",
                         "MapeoPublicacionCanal",
                     )
                 },
