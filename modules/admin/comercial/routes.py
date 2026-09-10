@@ -61,6 +61,7 @@ from services.gestion_lotes_ml import (
 from services.tareas_manuales_ml import decidir_tarea, exportar_tareas, preparar_tareas
 from services.lotes_tareas_manuales_ml import aplicar_lote, exportar_evidencia, previsualizar_lote
 from services.certificacion_operativa_ml import certificar_operacion_ml, exportar_certificacion_ml
+from services.certificacion_offline_mercado_pago import certificar_conciliacion_mp, exportar_certificacion_mp
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -960,6 +961,12 @@ def crear_blueprint_comercial(*, dependencias):
         try:
             if request.method == "POST":
                 accion = (request.form.get("accion") or "").strip()
+                if accion == "exportar_certificacion_mp":
+                    ventas_mp = Venta.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
+                    movimientos_mp = Movimiento.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
+                    gestiones_mp = Gestion.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).all()
+                    reporte_mp = certificar_conciliacion_mp(ventas_mp, movimientos_mp, gestiones_mp, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id)
+                    return send_file(exportar_certificacion_mp(reporte_mp), as_attachment=True, download_name="certificacion_mercado_pago_offline.json", mimetype="application/json")
                 if accion == "registrar_venta":
                     lista = Lista.query.filter_by(id=int(request.form.get("lista_precio_id")), organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).first()
                     inclusion = Inclusion.query.get(int(request.form.get("catalogo_producto_id")))
@@ -1021,6 +1028,10 @@ def crear_blueprint_comercial(*, dependencias):
         gestiones = Gestion.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Gestion.fecha_registro.desc()).all()
         conciliaciones, resumen = construir_conciliaciones(ventas, movimientos)
         incorporar_gestiones(conciliaciones, gestiones)
+        certificacion_mp = certificar_conciliacion_mp(
+            ventas, movimientos, gestiones,
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+        )
         filtro = (request.args.get("filtro") or "todos").strip().lower()
         if filtro == "requieren_revision": conciliaciones = [fila for fila in conciliaciones if fila["requiere_revision"] and fila["estado_gestion"] not in {"resuelta", "descartada"}]
         elif filtro == "abiertas": conciliaciones = [fila for fila in conciliaciones if fila["estado_gestion"] in {"abierta", "en_revision"}]
@@ -1029,6 +1040,7 @@ def crear_blueprint_comercial(*, dependencias):
             "admin_conciliacion_canal.html", organizacion=organizacion,
             unidad_activa=unidad_activa, unidades=unidades, ventas=ventas,
             movimientos=movimientos, conciliaciones=conciliaciones,
+            certificacion_mp=certificacion_mp,
             resumen_conciliacion=resumen, gestiones=gestiones, filtro=filtro,
             listas=Lista.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Lista.nombre).all(),
             inclusiones=Inclusion.query.join(modelos["Catalogo"]).filter(modelos["Catalogo"].organizacion_id == organizacion.id, modelos["Catalogo"].unidad_negocio_id == unidad_activa.id).order_by(Inclusion.nombre_comercial).all(),
