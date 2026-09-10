@@ -62,5 +62,21 @@
       </td></tr>{% else %}<tr><td colspan="6" class="empty-state">No hay tareas manuales preparadas.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
+  <section class="comercial-section">
+    <div class="section-heading"><div><span class="step-badge">6</span><h2>Decisión masiva auditable</h2></div><p>Primero previsualiza y luego revalida todo antes de una única confirmación interna.</p></div>
+    {% if vista_lote %}
+      {% for problema in vista_lote.errores %}<div class="alert alert-warning">{{ problema }}</div>{% endfor %}
+      <div class="control-summary-grid"><article><strong>{{ vista_lote.tareas|length }}</strong><span>Seleccionadas</span></article><article><strong>{{ vista_lote.destino|upper }}</strong><span>Estado propuesto</span></article><article><strong>NO</strong><span>Ejecución externa</span></article></div>
+      {% if vista_lote.puede_aplicar %}<form method="post"><input type="hidden" name="accion" value="aplicar_lote_tareas"><input type="hidden" name="decision_masiva" value="{{ vista_lote.accion }}">{% for tarea in vista_lote.tareas %}<input type="hidden" name="tarea_ids" value="{{ tarea.id }}">{% endfor %}<input name="comprobante_masivo" placeholder="Motivo o comprobante" {% if vista_lote.accion != 'aprobar' %}required{% endif %}><button class="primary-action">Confirmar lote interno</button></form>{% endif %}
+    {% endif %}
+    <form method="post">
+      <input type="hidden" name="accion" value="previsualizar_lote_tareas">
+      <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Elegir</th><th>Publicación</th><th>Orden</th><th>Acción</th><th>Estado</th></tr></thead><tbody>{% for tarea in tareas_manuales %}<tr><td><input type="checkbox" name="tarea_ids" value="{{ tarea.id }}"></td><td>{{ tarea.publicacion_id }}</td><td>{{ tarea.orden }}</td><td>{{ tarea.tipo_accion|replace('_', ' ') }}</td><td>{{ tarea.estado|upper }}</td></tr>{% else %}<tr><td colspan="5" class="empty-state">No hay tareas para seleccionar.</td></tr>{% endfor %}</tbody></table></div>
+      <select name="decision_masiva" required><option value="">Seleccionar decisión</option><option value="aprobar">Aprobar</option><option value="rechazar">Rechazar</option><option value="completar_manual">Completar manualmente</option><option value="archivar">Archivar</option></select>
+      <input name="comprobante_masivo" placeholder="Motivo o comprobante">
+      <button class="primary-action">Previsualizar lote</button>
+    </form>
+    <form method="post"><input type="hidden" name="accion" value="exportar_evidencia_tareas"><button class="secondary-action">Descargar evidencia e historial</button></form>
+  </section>
 </main>
 {% endblock %}

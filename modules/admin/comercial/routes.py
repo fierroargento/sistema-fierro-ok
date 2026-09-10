@@ -59,6 +59,7 @@ from services.gestion_lotes_ml import (
     registrar_lote,
 )
 from services.tareas_manuales_ml import decidir_tarea, exportar_tareas, preparar_tareas
+from services.lotes_tareas_manuales_ml import aplicar_lote, exportar_evidencia, previsualizar_lote
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -561,6 +562,7 @@ def crear_blueprint_comercial(*, dependencias):
         LoteML = modelos["LoteDiagnosticoML"]
         EventoLoteML = modelos["EventoLoteDiagnosticoML"]
         TareaML = modelos["TareaManualML"]
+        EventoTareaML = modelos["EventoTareaManualML"]
         certificacion = certificar_publicaciones_offline()
         resultado = None
         error = ""
@@ -568,6 +570,70 @@ def crear_blueprint_comercial(*, dependencias):
         try:
             if request.method == "POST":
                 accion = str(request.form.get("accion") or "").strip()
+                if accion == "exportar_evidencia_tareas":
+                    tareas_evidencia = TareaML.query.filter_by(
+                        organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad_activa.id,
+                    ).order_by(TareaML.fecha_creacion.desc(), TareaML.orden.asc()).all()
+                    return send_file(
+                        exportar_evidencia(tareas_evidencia), as_attachment=True,
+                        download_name="evidencia_tareas_manuales_ml.csv", mimetype="text/csv",
+                    )
+                if accion in {"previsualizar_lote_tareas", "aplicar_lote_tareas"}:
+                    ids = sorted({int(valor) for valor in request.form.getlist("tarea_ids") if str(valor).isdigit()})
+                    tareas_seleccionadas = TareaML.query.filter(
+                        TareaML.id.in_(ids),
+                        TareaML.organizacion_id == organizacion.id,
+                        TareaML.unidad_negocio_id == unidad_activa.id,
+                    ).all()
+                    if len(tareas_seleccionadas) != len(ids):
+                        raise ValueError("La seleccion contiene tareas ajenas o inexistentes.")
+                    vigencias = {}
+                    for tarea_seleccionada in tareas_seleccionadas:
+                        lote_seleccionado = LoteML.query.filter_by(
+                            id=tarea_seleccionada.lote_diagnostico_id,
+                            organizacion_id=organizacion.id,
+                            unidad_negocio_id=unidad_activa.id,
+                        ).first()
+                        vigencias[tarea_seleccionada.lote_diagnostico_id] = bool(lote_seleccionado) and diagnosticar_vigencia(
+                            lote_seleccionado, datos_panel["control_comercial"],
+                        )["vigente"]
+                    decision_masiva = str(request.form.get("decision_masiva") or "")
+                    comprobante_masivo = request.form.get("comprobante_masivo")
+                    vista_lote = previsualizar_lote(
+                        tareas_seleccionadas, decision_masiva, comprobante_masivo,
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                        vigencias=vigencias,
+                    )
+                    if accion == "aplicar_lote_tareas":
+                        resultado_lote = aplicar_lote(
+                            vista_lote, comprobante_masivo, usuario=_usuario,
+                            vigencias=vigencias, EventoTareaManualML=EventoTareaML,
+                            db_session=db.session,
+                        )
+                        return redirect(url_for(
+                            "admin_comercial.mercado_libre_offline_comercial",
+                            ok=f"Tareas actualizadas de forma atomica: {resultado_lote['actualizadas']}.",
+                        ))
+                    lotes_guardados = LoteML.query.filter_by(
+                        organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad_activa.id,
+                    ).order_by(LoteML.fecha_creacion.desc()).all()
+                    for lote_guardado in lotes_guardados:
+                        lote_guardado.vigencia_visual = diagnosticar_vigencia(
+                            lote_guardado, datos_panel["control_comercial"],
+                        )
+                    tareas_manuales = TareaML.query.filter_by(
+                        organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad_activa.id,
+                    ).order_by(TareaML.fecha_creacion.desc(), TareaML.orden.asc()).all()
+                    return render_template(
+                        "admin_mercado_libre_offline.html", organizacion=organizacion,
+                        unidad_activa=unidad_activa, unidades=unidades, vinculos=vinculos,
+                        listas=listas, certificacion=certificacion, resultado=None,
+                        lotes_guardados=lotes_guardados, tareas_manuales=tareas_manuales,
+                        vista_lote=vista_lote, mensaje=mensaje, error="",
+                    )
                 if accion == "exportar_tareas":
                     tareas_exportadas = TareaML.query.filter_by(
                         organizacion_id=organizacion.id,
@@ -709,6 +775,7 @@ def crear_blueprint_comercial(*, dependencias):
             listas=listas, certificacion=certificacion,
             resultado=resultado, lotes_guardados=lotes_guardados,
             tareas_manuales=tareas_manuales,
+            vista_lote=None,
             mensaje=mensaje, error=error,
         )
 
