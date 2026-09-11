@@ -80,6 +80,7 @@ from services.gestion_lotes_tienda_nube import (
     resumir_bandeja as resumir_bandeja_tienda_nube,
 )
 from services.preparacion_pedidos_tienda_nube import exportar_plan as exportar_plan_tienda_nube, preparar_plan as preparar_plan_tienda_nube
+from services.propuestas_pedidos_tienda_nube import crear_propuestas as crear_propuestas_tienda_nube, decidir_propuestas as decidir_propuestas_tienda_nube, resumir_propuestas as resumir_propuestas_tienda_nube
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -179,7 +180,7 @@ def crear_blueprint_comercial(*, dependencias):
     @blueprint.route("/admin/comercial/unidad", methods=["POST"])
     @dependencias["login_required"]
     def seleccionar_unidad():
-        _usuario, organizacion, respuesta = acceso()
+        usuario, organizacion, respuesta = acceso()
         if respuesta is not None:
             return respuesta
         try:
@@ -200,7 +201,7 @@ def crear_blueprint_comercial(*, dependencias):
     @blueprint.route("/admin/comercial")
     @dependencias["login_required"]
     def panel():
-        _usuario, organizacion, respuesta = acceso()
+        usuario, organizacion, respuesta = acceso()
         if respuesta is not None:
             return respuesta
         unidad_activa, unidades = contexto_comercial(organizacion)
@@ -945,7 +946,7 @@ def crear_blueprint_comercial(*, dependencias):
     @blueprint.route("/admin/comercial/tienda-nube-offline/lotes/<int:lote_id>/preparar-pedidos", methods=["GET", "POST"])
     @dependencias["login_required"]
     def preparar_pedidos_tienda_nube_comercial(lote_id):
-        _usuario, organizacion, respuesta = acceso()
+        usuario, organizacion, respuesta = acceso()
         if respuesta is not None:
             return respuesta
         unidad_activa, unidades = contexto_comercial(organizacion)
@@ -976,12 +977,79 @@ def crear_blueprint_comercial(*, dependencias):
                     download_name=f"plan_pedidos_tienda_nube_lote_{lote.id}.json",
                     mimetype="application/json",
                 )
+            if request.method == "POST" and request.form.get("accion") == "guardar_propuestas":
+                resultado = crear_propuestas_tienda_nube(
+                    plan, usuario=usuario,
+                    PropuestaPedidoTiendaNube=modelos["PropuestaPedidoTiendaNube"],
+                    EventoPropuestaPedidoTiendaNube=modelos["EventoPropuestaPedidoTiendaNube"],
+                    db_session=db.session,
+                )
+                dependencias["registrar_auditoria"](
+                    "Propuestas internas Tienda Nube preparadas",
+                    entidad="lote_diagnostico_tienda_nube", entidad_id=lote.id,
+                    detalle=f"Nuevas: {len(resultado['creadas'])}; repetidas: {len(resultado['repetidas'])}; pedidos creados: 0.",
+                )
+                return redirect(url_for(
+                    "admin_comercial.propuestas_pedidos_tienda_nube_comercial",
+                    ok=f"Se prepararon {len(resultado['creadas'])} propuestas; {len(resultado['repetidas'])} ya existían.",
+                ))
         except Exception as excepcion:
             return redirect(url_for("admin_comercial.tienda_nube_offline_comercial", error=str(excepcion)))
         return render_template(
             "admin_preparacion_pedidos_tienda_nube.html",
             organizacion=organizacion, unidad_activa=unidad_activa,
             unidades=unidades, lote=lote, plan=plan,
+        )
+
+    @blueprint.route("/admin/comercial/tienda-nube-offline/propuestas", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def propuestas_pedidos_tienda_nube_comercial():
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        Propuesta = modelos["PropuestaPedidoTiendaNube"]
+        Evento = modelos["EventoPropuestaPedidoTiendaNube"]
+        try:
+            if request.method == "POST":
+                ids = {int(valor) for valor in request.form.getlist("propuesta_id")}
+                propuestas = Propuesta.query.filter(
+                    Propuesta.organizacion_id == organizacion.id,
+                    Propuesta.unidad_negocio_id == unidad_activa.id,
+                    Propuesta.id.in_(ids),
+                ).all() if ids else []
+                resultado = decidir_propuestas_tienda_nube(
+                    propuestas, request.form.get("accion"), request.form.get("motivo"),
+                    organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                    usuario=usuario, EventoPropuestaPedidoTiendaNube=Evento,
+                    db_session=db.session,
+                )
+                dependencias["registrar_auditoria"](
+                    "Propuestas Tienda Nube revisadas", entidad="propuesta_pedido_tienda_nube",
+                    entidad_id=organizacion.id,
+                    detalle=f"Actualizadas: {resultado['actualizadas']}; estado: {resultado['estado']}; pedidos creados: 0.",
+                )
+                return redirect(url_for(
+                    "admin_comercial.propuestas_pedidos_tienda_nube_comercial",
+                    ok=f"{resultado['actualizadas']} propuestas quedaron en estado {resultado['estado']}.",
+                ))
+        except Exception as excepcion:
+            db.session.rollback()
+            return redirect(url_for(
+                "admin_comercial.propuestas_pedidos_tienda_nube_comercial", error=str(excepcion),
+            ))
+        propuestas = Propuesta.query.filter_by(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+        ).all()
+        bandeja = resumir_propuestas_tienda_nube(
+            propuestas, organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+        )
+        return render_template(
+            "admin_propuestas_pedidos_tienda_nube.html",
+            organizacion=organizacion, unidad_activa=unidad_activa, unidades=unidades,
+            bandeja=bandeja, ok_feedback=(request.args.get("ok") or "").strip(),
+            error=(request.args.get("error") or "").strip(),
         )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])

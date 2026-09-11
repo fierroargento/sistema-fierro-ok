@@ -70,12 +70,14 @@ def test_firma_y_exportacion_json_son_estables_utf8():
     assert exportado["firma_plan"]==primero["firma_plan"]
 
 
-def test_panel_y_ruta_son_de_solo_lectura():
+def test_panel_separa_plan_puro_de_propuestas_internas():
     ruta=Path("modules/admin/comercial/routes.py").read_text(encoding="utf-8")
     html=Path("templates/admin_preparacion_pedidos_tienda_nube.html").read_text(encoding="utf-8")
     bloque=ruta.split("def preparar_pedidos_tienda_nube_comercial",1)[1].split("\n    @blueprint.route",1)[0]
-    assert "db.session" not in bloque and "organizacion_id=organizacion.id" in bloque
+    assert "organizacion_id=organizacion.id" in bloque
     assert "Pedido.query.filter_by" in bloque and 'value="exportar_plan"' in html
+    assert "crear_propuestas_tienda_nube" in bloque and 'value="guardar_propuestas"' in html
+    assert "Pedido(" not in bloque and "PedidoItem" not in bloque
     assert "Aplicación bloqueada" in html
 
 

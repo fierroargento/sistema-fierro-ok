@@ -89,7 +89,11 @@ def preparar_plan(lote, pedidos_existentes, productos, *, organizacion_id, unida
     }
     base = {
         "tenant": {"organizacion_id": organizacion_id, "unidad_negocio_id": unidad_negocio_id},
-        "lote": {"id": lote.id, "store_id": lote.store_id_snapshot, "huella_documento": lote.huella_documento},
+        "lote": {
+            "id": lote.id, "store_id": lote.store_id_snapshot,
+            "cuenta_id": lote.tienda_nube_cuenta_id,
+            "huella_documento": lote.huella_documento,
+        },
         "filas": filas, "resumen": resumen,
     }
     firma = hashlib.sha256(json.dumps(base, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")).hexdigest()
