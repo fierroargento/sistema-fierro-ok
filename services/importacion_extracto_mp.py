@@ -1,6 +1,7 @@
 """Normaliza extractos CSV de Mercado Pago sin conectarse a su API."""
 
 import csv
+import hashlib
 import io
 import json
 from datetime import datetime
@@ -75,6 +76,7 @@ def previsualizar_extracto_mp(contenido, *, cuenta_codigo, ventas, movimientos_e
     if not cuenta:
         raise ValueError("La cuenta MP es obligatoria.")
     texto = _texto(contenido)
+    huella_documento = hashlib.sha256(contenido).hexdigest()
     dialecto = csv.Sniffer().sniff(texto[:4096], delimiters=",;\t")
     lector = csv.reader(io.StringIO(texto), dialecto)
     encabezados = next(lector, None)
@@ -123,7 +125,7 @@ def previsualizar_extracto_mp(contenido, *, cuenta_codigo, ventas, movimientos_e
             raise ValueError("El extracto supera el limite de 500 movimientos.")
     if not filas:
         raise ValueError("El extracto no contiene movimientos.")
-    return {"filas": filas, "resumen": {"total": len(filas), "validos": sum(f["accion"] == "crear" for f in filas), "rechazados": sum(f["accion"] == "rechazado" for f in filas), "acciones_externas": 0}}
+    return {"filas": filas, "huella_documento": huella_documento, "cuenta_codigo": cuenta, "resumen": {"total": len(filas), "validos": sum(f["accion"] == "crear" for f in filas), "rechazados": sum(f["accion"] == "rechazado" for f in filas), "acciones_externas": 0}}
 
 
 def serializar_vista(vista):
@@ -161,10 +163,15 @@ def validar_confirmacion(vista, *, ventas, movimientos_existentes, organizacion_
     return vista
 
 
-def aplicar_extracto_mp(vista, *, organizacion_id, unidad_negocio_id, usuario, MovimientoLiquidacionCanal, db_session):
+def aplicar_extracto_mp(vista, *, organizacion_id, unidad_negocio_id, usuario, nombre_archivo, MovimientoLiquidacionCanal, LoteImportacionMP, db_session):
     if any(fila.get("accion") == "rechazado" for fila in vista.get("filas", [])):
         raise ValueError("El lote contiene filas rechazadas; corregilo antes de confirmar.")
+    huella=str(vista.get("huella_documento") or "")
+    if len(huella)!=64: raise ValueError("Falta la huella integra del extracto.")
+    if LoteImportacionMP.query.filter_by(organizacion_id=organizacion_id,unidad_negocio_id=unidad_negocio_id,huella_documento=huella).first(): raise ValueError("Este extracto MP ya fue importado.")
     try:
+        lote=LoteImportacionMP(organizacion_id=organizacion_id,unidad_negocio_id=unidad_negocio_id,cuenta_codigo=vista.get("cuenta_codigo"),nombre_archivo=str(nombre_archivo or "extracto.csv")[:255],huella_documento=huella,estado="confirmado",total_filas=len(vista.get("filas",[])),movimientos_creados=len(vista.get("filas",[])),rechazados=0,evidencia_json=json.dumps(vista,ensure_ascii=False,sort_keys=True,separators=(",",":")),puede_ejecutar=False,creado_por_usuario_id=getattr(usuario,"id",None),creado_por_username=getattr(usuario,"username",None))
+        db_session.add(lote)
         for fila in vista.get("filas", []):
             datos = dict(fila["datos"])
             datos["fecha_movimiento"] = datetime.fromisoformat(datos["fecha_movimiento"])
@@ -172,4 +179,12 @@ def aplicar_extracto_mp(vista, *, organizacion_id, unidad_negocio_id, usuario, M
         db_session.commit()
     except Exception:
         db_session.rollback(); raise
-    return len(vista.get("filas", []))
+    return lote
+
+def resumir_lotes(lotes, *, organizacion_id, unidad_negocio_id):
+    propios=[l for l in (lotes or []) if l.organizacion_id==organizacion_id and l.unidad_negocio_id==unidad_negocio_id];propios.sort(key=lambda l:(l.fecha_creacion,l.id),reverse=True)
+    return {"lotes":propios,"total":len(propios),"movimientos":sum(l.movimientos_creados for l in propios),"acciones_externas":0}
+
+def exportar_evidencia_lote(lote):
+    documento={"id":lote.id,"organizacion_id":lote.organizacion_id,"unidad_negocio_id":lote.unidad_negocio_id,"cuenta_codigo":lote.cuenta_codigo,"nombre_archivo":lote.nombre_archivo,"huella_documento":lote.huella_documento,"estado":lote.estado,"total_filas":lote.total_filas,"movimientos_creados":lote.movimientos_creados,"puede_ejecutar":False,"creado_por":lote.creado_por_username,"fecha_creacion":lote.fecha_creacion,"vista":json.loads(lote.evidencia_json)}
+    return io.BytesIO(json.dumps(documento,ensure_ascii=False,sort_keys=True,indent=2,default=str).encode("utf-8"))

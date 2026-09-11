@@ -65,7 +65,7 @@ from services.certificacion_offline_mercado_pago import certificar_conciliacion_
 from services.cierres_conciliacion_mp import decidir_cierre, exportar_cierre, huella_snapshot, registrar_cierre, snapshot_conciliacion
 from services.control_periodico_mp import construir_control_periodico, exportar_control_periodico
 from services.legajo_rendicion_mp import construir_legajo_rendicion, exportar_legajo_zip
-from services.importacion_extracto_mp import aplicar_extracto_mp, deserializar_vista, previsualizar_extracto_mp, serializar_vista, validar_confirmacion
+from services.importacion_extracto_mp import aplicar_extracto_mp, deserializar_vista, exportar_evidencia_lote, previsualizar_extracto_mp, resumir_lotes, serializar_vista, validar_confirmacion
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -1089,6 +1089,7 @@ def crear_blueprint_comercial(*, dependencias):
         if respuesta is not None: return respuesta
         unidad_activa, unidades = contexto_comercial(organizacion)
         Venta = modelos["VentaCanalItem"]; Movimiento = modelos["MovimientoLiquidacionCanal"]
+        LoteMP = modelos["LoteImportacionMP"]
         vista = None; vista_json = ""; error = ""; ok = (request.args.get("ok") or "").strip(); cuenta_codigo = (request.form.get("cuenta_codigo") or "").strip()
         try:
             if request.method == "POST" and request.form.get("accion") == "previsualizar":
@@ -1097,18 +1098,24 @@ def crear_blueprint_comercial(*, dependencias):
                 ventas = Venta.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
                 existentes = Movimiento.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
                 vista = previsualizar_extracto_mp(archivo.read(),cuenta_codigo=cuenta_codigo,ventas=ventas,movimientos_existentes=existentes,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
+                vista["nombre_archivo"] = archivo.filename
                 vista_json = serializar_vista(vista)
             elif request.method == "POST" and request.form.get("accion") == "confirmar":
                 vista = deserializar_vista(request.form.get("vista_json"))
                 ventas = Venta.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
                 existentes = Movimiento.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
                 validar_confirmacion(vista,ventas=ventas,movimientos_existentes=existentes,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
-                cantidad = aplicar_extracto_mp(vista,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id,usuario=usuario,MovimientoLiquidacionCanal=Movimiento,db_session=db.session)
-                dependencias["registrar_auditoria"]("Importacion extracto MP offline",entidad="movimiento_liquidacion_canal",entidad_id=organizacion.id,detalle=f"{cantidad} movimientos normalizados")
-                return redirect(url_for("admin_comercial.importacion_extracto_mp",ok=f"Se importaron {cantidad} movimientos MP."))
+                lote = aplicar_extracto_mp(vista,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id,usuario=usuario,nombre_archivo=vista.get("nombre_archivo"),MovimientoLiquidacionCanal=Movimiento,LoteImportacionMP=LoteMP,db_session=db.session)
+                dependencias["registrar_auditoria"]("Importacion extracto MP offline",entidad="lote_importacion_mp",entidad_id=lote.id,detalle=f"{lote.movimientos_creados} movimientos normalizados")
+                return redirect(url_for("admin_comercial.importacion_extracto_mp",ok=f"Lote #{lote.id}: {lote.movimientos_creados} movimientos importados."))
+            elif request.method == "POST" and request.form.get("accion") == "exportar_lote":
+                lote=LoteMP.query.filter_by(id=int(request.form.get("lote_id")),organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).first()
+                if lote is None: raise ValueError("El lote no pertenece a la unidad activa.")
+                return send_file(exportar_evidencia_lote(lote),as_attachment=True,download_name=f"evidencia_lote_mp_{lote.id}.json",mimetype="application/json")
         except Exception as excepcion:
             db.session.rollback(); error = str(excepcion)
-        return render_template("admin_importacion_extracto_mp.html",organizacion=organizacion,unidad_activa=unidad_activa,unidades=unidades,vista=vista,vista_json=vista_json,error=error,ok=ok,cuenta_codigo=cuenta_codigo)
+        historial=resumir_lotes(LoteMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all(),organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
+        return render_template("admin_importacion_extracto_mp.html",organizacion=organizacion,unidad_activa=unidad_activa,unidades=unidades,vista=vista,vista_json=vista_json,error=error,ok=ok,cuenta_codigo=cuenta_codigo,historial=historial)
 
     @blueprint.route("/admin/comercial/control-comercial/exportar", methods=["GET", "POST"])
     @dependencias["login_required"]

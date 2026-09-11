@@ -26,13 +26,19 @@ class Sesion:
  def rollback(self):self.rollbacks+=1
 class Modelo:
  def __init__(self,**k):self.__dict__.update(k)
+class ConsultaLote:
+ def filter_by(self,**k):return self
+ def first(self):return None
+class Lote:
+ query=ConsultaLote()
+ def __init__(self,**k):self.__dict__.update(k);self.id=7
 def test_aplicacion_es_transaccional_y_offline():
  vista=previsualizar_extracto_mp(csv_mp(),cuenta_codigo="MP-1",ventas=[venta()],movimientos_existentes=[],organizacion_id=2,unidad_negocio_id=3);ses=Sesion()
- assert aplicar_extracto_mp(vista,organizacion_id=2,unidad_negocio_id=3,usuario=None,MovimientoLiquidacionCanal=Modelo,db_session=ses)==1
- assert ses.commits==1 and ses.items[0].origen=="extracto_mp"
+ lote=aplicar_extracto_mp(vista,organizacion_id=2,unidad_negocio_id=3,usuario=None,nombre_archivo="mp.csv",MovimientoLiquidacionCanal=Modelo,LoteImportacionMP=Lote,db_session=ses)
+ assert lote.movimientos_creados==1 and ses.commits==1 and ses.items[1].origen=="extracto_mp"
 def test_lote_con_rechazos_no_escribe():
  vista=previsualizar_extracto_mp(csv_mp(estado="cancelled"),cuenta_codigo="MP-1",ventas=[venta()],movimientos_existentes=[],organizacion_id=2,unidad_negocio_id=3);ses=Sesion()
- with pytest.raises(ValueError):aplicar_extracto_mp(vista,organizacion_id=2,unidad_negocio_id=3,usuario=None,MovimientoLiquidacionCanal=Modelo,db_session=ses)
+ with pytest.raises(ValueError):aplicar_extracto_mp(vista,organizacion_id=2,unidad_negocio_id=3,usuario=None,nombre_archivo="mp.csv",MovimientoLiquidacionCanal=Modelo,LoteImportacionMP=Lote,db_session=ses)
  assert ses.items==[] and ses.commits==0
 def test_confirmacion_revalida_tenant_duplicados_y_contrato():
  vista=previsualizar_extracto_mp(csv_mp(),cuenta_codigo="MP-1",ventas=[venta()],movimientos_existentes=[],organizacion_id=2,unidad_negocio_id=3)
