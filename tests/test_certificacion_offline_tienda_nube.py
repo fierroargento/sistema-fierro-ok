@@ -101,13 +101,15 @@ def test_exportacion_es_json_utf8():
     assert json.loads(contenido.decode("utf-8"))["detalle"] == "diagnóstico"
 
 
-def test_panel_filtra_por_tenant_y_no_persiste():
+def test_panel_filtra_por_tenant_y_no_toca_pedidos_productivos():
     ruta = Path("modules/admin/comercial/routes.py").read_text(encoding="utf-8")
     html = Path("templates/admin_tienda_nube_offline.html").read_text(encoding="utf-8")
     bloque = ruta.split("def tienda_nube_offline_comercial():", 1)[1].split("\n    @blueprint.route", 1)[0]
     assert "organizacion_id=organizacion.id" in bloque
     assert "unidad_negocio_id=unidad_activa.id" in bloque
-    assert "db.session" not in bloque
+    assert "tn_http_json" not in bloque and "Pedido.query" not in bloque
+    servicio = Path("services/certificacion_offline_tienda_nube.py").read_text(encoding="utf-8")
+    assert "db.session" not in servicio
     assert "No consulta la tienda" in html and "Acciones externas" in html
 
 

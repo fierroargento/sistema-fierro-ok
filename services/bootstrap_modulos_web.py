@@ -105,6 +105,8 @@ def registrar_modulos_web(
                         "TareaManualML", "EventoTareaManualML",
                         "CierreConciliacionMP", "EventoCierreConciliacionMP",
                         "LoteImportacionMP",
+                        "LoteDiagnosticoTiendaNube",
+                        "EventoLoteDiagnosticoTiendaNube",
                         "MapeoPublicacionCanal",
                     )
                 },

@@ -310,6 +310,10 @@ from models.lote_diagnostico_ml import LoteDiagnosticoML, EventoLoteDiagnosticoM
 from models.tarea_manual_ml import EventoTareaManualML, TareaManualML
 from models.cierre_conciliacion_mp import CierreConciliacionMP, EventoCierreConciliacionMP
 from models.lote_importacion_mp import LoteImportacionMP
+from models.lote_diagnostico_tienda_nube import (
+    EventoLoteDiagnosticoTiendaNube,
+    LoteDiagnosticoTiendaNube,
+)
 from models.asignacion_tenant_pedido import AsignacionTenantPedido
 from models.modulo_organizacion import ModuloOrganizacion
 from models.vinculo_canal_comercial import VinculoCanalComercial
@@ -11933,6 +11937,8 @@ registrar_modulos_web(
             "CierreConciliacionMP": CierreConciliacionMP,
             "EventoCierreConciliacionMP": EventoCierreConciliacionMP,
             "LoteImportacionMP": LoteImportacionMP,
+            "LoteDiagnosticoTiendaNube": LoteDiagnosticoTiendaNube,
+            "EventoLoteDiagnosticoTiendaNube": EventoLoteDiagnosticoTiendaNube,
             "AsignacionTenantPedido": AsignacionTenantPedido,
             "ModuloOrganizacion": ModuloOrganizacion,
             "Producto": Producto,
