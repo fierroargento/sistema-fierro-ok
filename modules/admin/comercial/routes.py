@@ -83,6 +83,7 @@ from services.preparacion_pedidos_tienda_nube import exportar_plan as exportar_p
 from services.propuestas_pedidos_tienda_nube import crear_propuestas as crear_propuestas_tienda_nube, decidir_propuestas as decidir_propuestas_tienda_nube, resumir_propuestas as resumir_propuestas_tienda_nube
 from services.lotes_incorporacion_tienda_nube import certificar as certificar_incorporacion_tienda_nube, exportar as exportar_incorporacion_tienda_nube, guardar as guardar_incorporacion_tienda_nube
 from services.incorporacion_pedidos_tienda_nube import incorporar as incorporar_pedidos_tienda_nube
+from services.control_post_incorporacion_tienda_nube import construir_control as construir_control_post_tn, exportar_control as exportar_control_post_tn
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -1129,10 +1130,55 @@ def crear_blueprint_comercial(*, dependencias):
                 "Expediente Tienda Nube incorporado", entidad="resultado_incorporacion_tienda_nube",
                 entidad_id=resultado.id, detalle=f"{texto} Acciones externas: 0.",
             )
-            return redirect(url_for("admin_comercial.propuestas_pedidos_tienda_nube_comercial", ok=texto))
+            return redirect(url_for(
+                "admin_comercial.control_post_incorporacion_tienda_nube_comercial",
+                resultado_id=resultado.id, ok=texto,
+            ))
         except Exception as excepcion:
             db.session.rollback()
             return redirect(url_for("admin_comercial.propuestas_pedidos_tienda_nube_comercial", error=str(excepcion)))
+
+    @blueprint.route("/admin/comercial/tienda-nube-offline/resultados/<int:resultado_id>/control", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def control_post_incorporacion_tienda_nube_comercial(resultado_id):
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        Resultado = modelos["ResultadoIncorporacionTiendaNube"]
+        resultado = Resultado.query.filter_by(
+            id=resultado_id, organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+        ).first()
+        if resultado is None:
+            return redirect(url_for("admin_comercial.propuestas_pedidos_tienda_nube_comercial", error="El resultado no pertenece a la unidad activa."))
+        try:
+            pedido_ids = [int(valor) for valor in json.loads(resultado.pedido_ids_json)]
+            Pedido = modelos["Pedido"]
+            PedidoItem = modelos["PedidoItem"]
+            pedidos = Pedido.query.filter(
+                Pedido.organizacion_id == organizacion.id,
+                Pedido.unidad_negocio_id == unidad_activa.id,
+                Pedido.id.in_(pedido_ids),
+            ).all()
+            items = PedidoItem.query.filter(PedidoItem.pedido_id.in_(pedido_ids)).all()
+            control = construir_control_post_tn(
+                resultado, pedidos, items, organizacion_id=organizacion.id,
+                unidad_negocio_id=unidad_activa.id,
+            )
+            if request.method == "POST" and request.form.get("accion") == "exportar":
+                return send_file(
+                    exportar_control_post_tn(control), as_attachment=True,
+                    download_name=f"control_tienda_nube_resultado_{resultado.id}.json",
+                    mimetype="application/json",
+                )
+        except Exception as excepcion:
+            return redirect(url_for("admin_comercial.propuestas_pedidos_tienda_nube_comercial", error=str(excepcion)))
+        return render_template(
+            "admin_control_post_incorporacion_tn.html", organizacion=organizacion,
+            unidad_activa=unidad_activa, unidades=unidades, control=control,
+            ok_feedback=(request.args.get("ok") or "").strip(),
+        )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])
     @dependencias["login_required"]
