@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}">{% endblock %}
 {% block content %}
+<a class="secondary-action" href="{{ url_for('admin_comercial.importacion_extracto_mp') }}">Importar extracto MP offline</a>
 <main class="comercial-page reconciliation-page">
   <header class="comercial-header"><div><p class="comercial-eyebrow">Administración · {{ unidad_activa.nombre }}</p><h1>Ventas y liquidaciones</h1><p class="comercial-intro">Conciliación interna entre ventas observadas y movimientos financieros.</p></div><a class="secondary-link" href="{{ url_for('admin_comercial.panel') }}">Volver a costos y precios</a></header>
   {% if ok_feedback %}<div class="comercial-message comercial-message-ok">{{ ok_feedback }}</div>{% endif %}{% if error %}<div class="comercial-message comercial-message-error">{{ error }}</div>{% endif %}
