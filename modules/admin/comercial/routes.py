@@ -67,6 +67,7 @@ from services.control_periodico_mp import construir_control_periodico, exportar_
 from services.legajo_rendicion_mp import construir_legajo_rendicion, exportar_legajo_zip
 from services.importacion_extracto_mp import aplicar_extracto_mp, deserializar_vista, exportar_evidencia_lote, previsualizar_extracto_mp, resumir_lotes, serializar_vista, validar_confirmacion
 from services.gestion_lotes_importacion_mp import anular_lote, construir_historial
+from services.certificacion_integral_mp import certificar_preparacion_mp, exportar_certificacion_integral
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -963,12 +964,17 @@ def crear_blueprint_comercial(*, dependencias):
         Venta = modelos["VentaCanalItem"]; Movimiento = modelos["MovimientoLiquidacionCanal"]
         Gestion = modelos["GestionConciliacionCanal"]
         CierreMP = modelos["CierreConciliacionMP"]; EventoCierreMP = modelos["EventoCierreConciliacionMP"]
+        LoteMP = modelos["LoteImportacionMP"]
         Lista = modelos["ListaPrecio"]; Inclusion = modelos["CatalogoProducto"]
         try:
             if request.method == "POST":
                 accion = (request.form.get("accion") or "").strip()
-                if accion in {"guardar_cierre_mp","enviar_revision_cierre_mp","aprobar_cierre_mp","cerrar_cierre_mp","archivar_cierre_mp","exportar_cierre_mp","exportar_control_periodico_mp_csv","exportar_control_periodico_mp_json","exportar_legajo_rendicion_mp"}:
+                if accion in {"guardar_cierre_mp","enviar_revision_cierre_mp","aprobar_cierre_mp","cerrar_cierre_mp","archivar_cierre_mp","exportar_cierre_mp","exportar_control_periodico_mp_csv","exportar_control_periodico_mp_json","exportar_legajo_rendicion_mp","exportar_certificacion_integral_mp"}:
                     ventas_cierre=Venta.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all();movimientos_cierre=Movimiento.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all();gestiones_cierre=Gestion.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
+                    if accion=="exportar_certificacion_integral_mp":
+                        cierres_integrales=CierreMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all();lotes_integrales=LoteMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
+                        reporte_integral=certificar_preparacion_mp(ventas_cierre,movimientos_cierre,gestiones_cierre,cierres_integrales,lotes_integrales,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
+                        return send_file(exportar_certificacion_integral(reporte_integral),as_attachment=True,download_name=f"certificacion_integral_mp_{organizacion.id}_{unidad_activa.id}.zip",mimetype="application/zip")
                     if accion=="exportar_legajo_rendicion_mp":
                         cierres_legajo=CierreMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
                         legajo=construir_legajo_rendicion(ventas_cierre,movimientos_cierre,gestiones_cierre,cierres_legajo,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
@@ -1063,6 +1069,8 @@ def crear_blueprint_comercial(*, dependencias):
         cierres_mp=CierreMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).order_by(CierreMP.fecha_creacion.desc()).all()
         control_periodico_mp=construir_control_periodico(cierres_mp,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
         legajo_rendicion_mp=construir_legajo_rendicion(ventas,movimientos,gestiones,cierres_mp,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
+        lotes_mp=LoteMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
+        certificacion_integral_mp=certificar_preparacion_mp(ventas,movimientos,gestiones,cierres_mp,lotes_mp,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
         huella_actual_cierre=snapshot_conciliacion(ventas,movimientos,gestiones)
         for cierre_mp in cierres_mp:cierre_mp.vigente_visual=(cierre_mp.huella_origen==huella_snapshot(huella_actual_cierre))
         filtro = (request.args.get("filtro") or "todos").strip().lower()
@@ -1077,6 +1085,7 @@ def crear_blueprint_comercial(*, dependencias):
             cierres_mp=cierres_mp,
             control_periodico_mp=control_periodico_mp,
             legajo_rendicion_mp=legajo_rendicion_mp,
+            certificacion_integral_mp=certificacion_integral_mp,
             resumen_conciliacion=resumen, gestiones=gestiones, filtro=filtro,
             listas=Lista.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Lista.nombre).all(),
             inclusiones=Inclusion.query.join(modelos["Catalogo"]).filter(modelos["Catalogo"].organizacion_id == organizacion.id, modelos["Catalogo"].unidad_negocio_id == unidad_activa.id).order_by(Inclusion.nombre_comercial).all(),
