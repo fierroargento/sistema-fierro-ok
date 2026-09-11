@@ -66,6 +66,7 @@ from services.cierres_conciliacion_mp import decidir_cierre, exportar_cierre, hu
 from services.control_periodico_mp import construir_control_periodico, exportar_control_periodico
 from services.legajo_rendicion_mp import construir_legajo_rendicion, exportar_legajo_zip
 from services.importacion_extracto_mp import aplicar_extracto_mp, deserializar_vista, exportar_evidencia_lote, previsualizar_extracto_mp, resumir_lotes, serializar_vista, validar_confirmacion
+from services.gestion_lotes_importacion_mp import anular_lote, construir_historial
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -1116,6 +1117,26 @@ def crear_blueprint_comercial(*, dependencias):
             db.session.rollback(); error = str(excepcion)
         historial=resumir_lotes(LoteMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all(),organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
         return render_template("admin_importacion_extracto_mp.html",organizacion=organizacion,unidad_activa=unidad_activa,unidades=unidades,vista=vista,vista_json=vista_json,error=error,ok=ok,cuenta_codigo=cuenta_codigo,historial=historial)
+
+    @blueprint.route("/admin/comercial/conciliacion/lotes-mp", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def historial_lotes_mp():
+        usuario,organizacion,respuesta=acceso()
+        if respuesta is not None:return respuesta
+        unidad_activa,unidades=contexto_comercial(organizacion);LoteMP=modelos["LoteImportacionMP"];Movimiento=modelos["MovimientoLiquidacionCanal"]
+        try:
+            if request.method=="POST":
+                lote=LoteMP.query.filter_by(id=int(request.form.get("lote_id")),organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).first()
+                if lote is None:raise ValueError("El lote no pertenece a la unidad activa.")
+                if request.form.get("accion")=="exportar":return send_file(exportar_evidencia_lote(lote),as_attachment=True,download_name=f"evidencia_lote_mp_{lote.id}.json",mimetype="application/json")
+                if request.form.get("accion")!="anular":raise ValueError("La accion del lote no es valida.")
+                movimientos=Movimiento.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all();resultado=anular_lote(lote,movimientos,request.form.get("motivo"),organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id,db_session=db.session)
+                dependencias["registrar_auditoria"]("Anulacion interna lote MP",entidad="lote_importacion_mp",entidad_id=lote.id,detalle=f"{resultado['movimientos_anulados']} movimientos; {resultado['motivo']}")
+                return redirect(url_for("admin_comercial.historial_lotes_mp",ok=f"Lote #{lote.id} anulado internamente."))
+        except Exception as excepcion:
+            db.session.rollback();return redirect(url_for("admin_comercial.historial_lotes_mp",error=str(excepcion)))
+        lotes=LoteMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all();movimientos=Movimiento.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all();historial=construir_historial(lotes,movimientos,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
+        return render_template("admin_lotes_importacion_mp.html",organizacion=organizacion,unidad_activa=unidad_activa,unidades=unidades,historial=historial,ok=(request.args.get("ok") or "").strip(),error=(request.args.get("error") or "").strip(),usuario=usuario)
 
     @blueprint.route("/admin/comercial/control-comercial/exportar", methods=["GET", "POST"])
     @dependencias["login_required"]
