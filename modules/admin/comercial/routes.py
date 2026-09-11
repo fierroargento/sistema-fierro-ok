@@ -68,6 +68,11 @@ from services.legajo_rendicion_mp import construir_legajo_rendicion, exportar_le
 from services.importacion_extracto_mp import aplicar_extracto_mp, deserializar_vista, exportar_evidencia_lote, previsualizar_extracto_mp, resumir_lotes, serializar_vista, validar_confirmacion
 from services.gestion_lotes_importacion_mp import anular_lote, construir_historial
 from services.certificacion_integral_mp import certificar_preparacion_mp, exportar_certificacion_integral
+from services.certificacion_offline_tienda_nube import (
+    certificar_escenarios_tienda_nube,
+    exportar_diagnostico_tienda_nube,
+    procesar_fixture_tienda_nube,
+)
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -827,6 +832,59 @@ def crear_blueprint_comercial(*, dependencias):
             vista_lote=None,
             certificacion_operativa=certificacion_operativa,
             mensaje=mensaje, error=error,
+        )
+
+    @blueprint.route("/admin/comercial/tienda-nube-offline", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def tienda_nube_offline_comercial():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        Vinculo = modelos["VinculoCanalComercial"]
+        vinculos = Vinculo.query.filter_by(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+            canal="tienda_nube",
+        ).order_by(Vinculo.nombre.asc()).all()
+        resultado = None
+        error = ""
+        certificacion = certificar_escenarios_tienda_nube()
+        try:
+            if request.method == "POST":
+                vinculo_id = int(request.form.get("vinculo_id"))
+                vinculo = next((item for item in vinculos if item.id == vinculo_id), None)
+                if vinculo is None:
+                    raise ValueError("La cuenta Tienda Nube no pertenece a la unidad activa.")
+                archivo = request.files.get("archivo")
+                if archivo is None or not archivo.filename:
+                    raise ValueError("Selecciona un fixture JSON de pedidos.")
+                contenido = archivo.read()
+                if len(contenido) > 5 * 1024 * 1024:
+                    raise ValueError("El archivo supera el maximo de 5 MB.")
+                resultado = procesar_fixture_tienda_nube(
+                    contenido, vinculo,
+                    organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad_activa.id,
+                )
+                if request.form.get("accion") == "exportar":
+                    return send_file(
+                        exportar_diagnostico_tienda_nube(resultado),
+                        as_attachment=True,
+                        download_name="diagnostico_tienda_nube_offline.json",
+                        mimetype="application/json",
+                    )
+        except Exception as excepcion:
+            error = str(excepcion)
+        return render_template(
+            "admin_tienda_nube_offline.html",
+            organizacion=organizacion,
+            unidad_activa=unidad_activa,
+            unidades=unidades,
+            vinculos=vinculos,
+            resultado=resultado,
+            certificacion=certificacion,
+            error=error,
         )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])
