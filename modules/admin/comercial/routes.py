@@ -79,6 +79,7 @@ from services.gestion_lotes_tienda_nube import (
     registrar_lote as registrar_lote_tienda_nube,
     resumir_bandeja as resumir_bandeja_tienda_nube,
 )
+from services.preparacion_pedidos_tienda_nube import exportar_plan as exportar_plan_tienda_nube, preparar_plan as preparar_plan_tienda_nube
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -939,6 +940,48 @@ def crear_blueprint_comercial(*, dependencias):
             bandeja=bandeja,
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=error,
+        )
+
+    @blueprint.route("/admin/comercial/tienda-nube-offline/lotes/<int:lote_id>/preparar-pedidos", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def preparar_pedidos_tienda_nube_comercial(lote_id):
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, unidades = contexto_comercial(organizacion)
+        LoteTN = modelos["LoteDiagnosticoTiendaNube"]
+        Pedido = modelos["Pedido"]
+        Producto = modelos["Producto"]
+        lote = LoteTN.query.filter_by(
+            id=lote_id, organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+        ).first()
+        if lote is None:
+            return redirect(url_for("admin_comercial.tienda_nube_offline_comercial", error="El lote no pertenece a la unidad activa."))
+        pedidos = Pedido.query.filter_by(
+            organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa.id,
+            tn_cuenta_id=lote.tienda_nube_cuenta_id,
+        ).all()
+        productos = Producto.query.filter_by(organizacion_id=organizacion.id).all()
+        try:
+            plan = preparar_plan_tienda_nube(
+                lote, pedidos, productos,
+                organizacion_id=organizacion.id,
+                unidad_negocio_id=unidad_activa.id,
+            )
+            if request.method == "POST" and request.form.get("accion") == "exportar_plan":
+                return send_file(
+                    exportar_plan_tienda_nube(plan), as_attachment=True,
+                    download_name=f"plan_pedidos_tienda_nube_lote_{lote.id}.json",
+                    mimetype="application/json",
+                )
+        except Exception as excepcion:
+            return redirect(url_for("admin_comercial.tienda_nube_offline_comercial", error=str(excepcion)))
+        return render_template(
+            "admin_preparacion_pedidos_tienda_nube.html",
+            organizacion=organizacion, unidad_activa=unidad_activa,
+            unidades=unidades, lote=lote, plan=plan,
         )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])

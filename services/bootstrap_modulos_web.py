@@ -69,7 +69,7 @@ def registrar_modulos_web(
                 "modelos": {
                     nombre: modelos[nombre]
                     for nombre in (
-                        "Organizacion", "UnidadNegocio", "Producto",
+                        "Organizacion", "UnidadNegocio", "Producto", "Pedido",
                         "Catalogo", "CatalogoProducto",
                         "CostoProductoVersion", "CostoProductoDetalle",
                         "InsumoProductivo", "InsumoPrecioVersion",
