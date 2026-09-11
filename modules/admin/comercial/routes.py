@@ -81,6 +81,7 @@ from services.gestion_lotes_tienda_nube import (
 )
 from services.preparacion_pedidos_tienda_nube import exportar_plan as exportar_plan_tienda_nube, preparar_plan as preparar_plan_tienda_nube
 from services.propuestas_pedidos_tienda_nube import crear_propuestas as crear_propuestas_tienda_nube, decidir_propuestas as decidir_propuestas_tienda_nube, resumir_propuestas as resumir_propuestas_tienda_nube
+from services.lotes_incorporacion_tienda_nube import certificar as certificar_incorporacion_tienda_nube, exportar as exportar_incorporacion_tienda_nube, guardar as guardar_incorporacion_tienda_nube
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -1010,6 +1011,7 @@ def crear_blueprint_comercial(*, dependencias):
         unidad_activa, unidades = contexto_comercial(organizacion)
         Propuesta = modelos["PropuestaPedidoTiendaNube"]
         Evento = modelos["EventoPropuestaPedidoTiendaNube"]
+        LoteIncorporacion = modelos["LoteIncorporacionTiendaNube"]
         try:
             if request.method == "POST":
                 ids = {int(valor) for valor in request.form.getlist("propuesta_id")}
@@ -1018,11 +1020,32 @@ def crear_blueprint_comercial(*, dependencias):
                     Propuesta.unidad_negocio_id == unidad_activa.id,
                     Propuesta.id.in_(ids),
                 ).all() if ids else []
+                accion = request.form.get("accion")
+                if accion == "certificar_lote":
+                    pedidos = modelos["Pedido"].query.filter_by(
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                    ).all()
+                    certificacion = certificar_incorporacion_tienda_nube(
+                        propuestas, pedidos, organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad_activa.id,
+                    )
+                    lote, creado = guardar_incorporacion_tienda_nube(
+                        certificacion, usuario=usuario,
+                        LoteIncorporacionTiendaNube=LoteIncorporacion,
+                        ItemLoteIncorporacionTiendaNube=modelos["ItemLoteIncorporacionTiendaNube"],
+                        EventoLoteIncorporacionTiendaNube=modelos["EventoLoteIncorporacionTiendaNube"],
+                        db_session=db.session,
+                    )
+                    texto = f"Expediente #{lote.id} certificado." if creado else f"El expediente #{lote.id} ya existía."
+                    dependencias["registrar_auditoria"](
+                        "Expediente Tienda Nube certificado", entidad="lote_incorporacion_tienda_nube",
+                        entidad_id=lote.id, detalle=f"{texto} Pedidos creados: 0.",
+                    )
+                    return redirect(url_for("admin_comercial.propuestas_pedidos_tienda_nube_comercial", ok=texto))
                 resultado = decidir_propuestas_tienda_nube(
-                    propuestas, request.form.get("accion"), request.form.get("motivo"),
-                    organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
-                    usuario=usuario, EventoPropuestaPedidoTiendaNube=Evento,
-                    db_session=db.session,
+                    propuestas, accion, request.form.get("motivo"), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad_activa.id, usuario=usuario,
+                    EventoPropuestaPedidoTiendaNube=Evento, db_session=db.session,
                 )
                 dependencias["registrar_auditoria"](
                     "Propuestas Tienda Nube revisadas", entidad="propuesta_pedido_tienda_nube",
@@ -1045,11 +1068,37 @@ def crear_blueprint_comercial(*, dependencias):
             propuestas, organizacion_id=organizacion.id,
             unidad_negocio_id=unidad_activa.id,
         )
+        expedientes = LoteIncorporacion.query.filter_by(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+        ).order_by(LoteIncorporacion.fecha_creacion.desc()).all()
         return render_template(
             "admin_propuestas_pedidos_tienda_nube.html",
             organizacion=organizacion, unidad_activa=unidad_activa, unidades=unidades,
-            bandeja=bandeja, ok_feedback=(request.args.get("ok") or "").strip(),
+            bandeja=bandeja, expedientes=expedientes,
+            ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(),
+        )
+
+    @blueprint.route("/admin/comercial/tienda-nube-offline/expedientes/<int:lote_id>/exportar")
+    @dependencias["login_required"]
+    def exportar_expediente_tienda_nube_comercial(lote_id):
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        Lote = modelos["LoteIncorporacionTiendaNube"]
+        lote = Lote.query.filter_by(
+            id=lote_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+        ).first()
+        try:
+            archivo = exportar_incorporacion_tienda_nube(
+                lote, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+            )
+        except Exception as excepcion:
+            return redirect(url_for("admin_comercial.propuestas_pedidos_tienda_nube_comercial", error=str(excepcion)))
+        return send_file(
+            archivo, as_attachment=True, download_name=f"expediente_tienda_nube_{lote.id}.json",
+            mimetype="application/json",
         )
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])

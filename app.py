@@ -318,6 +318,11 @@ from models.propuesta_pedido_tienda_nube import (
     EventoPropuestaPedidoTiendaNube,
     PropuestaPedidoTiendaNube,
 )
+from models.lote_incorporacion_tienda_nube import (
+    EventoLoteIncorporacionTiendaNube,
+    ItemLoteIncorporacionTiendaNube,
+    LoteIncorporacionTiendaNube,
+)
 from models.asignacion_tenant_pedido import AsignacionTenantPedido
 from models.modulo_organizacion import ModuloOrganizacion
 from models.vinculo_canal_comercial import VinculoCanalComercial
@@ -11945,6 +11950,9 @@ registrar_modulos_web(
             "EventoLoteDiagnosticoTiendaNube": EventoLoteDiagnosticoTiendaNube,
             "PropuestaPedidoTiendaNube": PropuestaPedidoTiendaNube,
             "EventoPropuestaPedidoTiendaNube": EventoPropuestaPedidoTiendaNube,
+            "LoteIncorporacionTiendaNube": LoteIncorporacionTiendaNube,
+            "ItemLoteIncorporacionTiendaNube": ItemLoteIncorporacionTiendaNube,
+            "EventoLoteIncorporacionTiendaNube": EventoLoteIncorporacionTiendaNube,
             "AsignacionTenantPedido": AsignacionTenantPedido,
             "ModuloOrganizacion": ModuloOrganizacion,
             "Producto": Producto,
