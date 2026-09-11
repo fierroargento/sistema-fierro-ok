@@ -112,6 +112,8 @@ def registrar_modulos_web(
                         "LoteIncorporacionTiendaNube",
                         "ItemLoteIncorporacionTiendaNube",
                         "EventoLoteIncorporacionTiendaNube",
+                        "ResultadoIncorporacionTiendaNube",
+                        "PedidoItem",
                         "MapeoPublicacionCanal",
                     )
                 },

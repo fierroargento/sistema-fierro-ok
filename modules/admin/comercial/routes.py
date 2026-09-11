@@ -82,6 +82,7 @@ from services.gestion_lotes_tienda_nube import (
 from services.preparacion_pedidos_tienda_nube import exportar_plan as exportar_plan_tienda_nube, preparar_plan as preparar_plan_tienda_nube
 from services.propuestas_pedidos_tienda_nube import crear_propuestas as crear_propuestas_tienda_nube, decidir_propuestas as decidir_propuestas_tienda_nube, resumir_propuestas as resumir_propuestas_tienda_nube
 from services.lotes_incorporacion_tienda_nube import certificar as certificar_incorporacion_tienda_nube, exportar as exportar_incorporacion_tienda_nube, guardar as guardar_incorporacion_tienda_nube
+from services.incorporacion_pedidos_tienda_nube import incorporar as incorporar_pedidos_tienda_nube
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -1100,6 +1101,38 @@ def crear_blueprint_comercial(*, dependencias):
             archivo, as_attachment=True, download_name=f"expediente_tienda_nube_{lote.id}.json",
             mimetype="application/json",
         )
+
+    @blueprint.post("/admin/comercial/tienda-nube-offline/expedientes/<int:lote_id>/incorporar")
+    @dependencias["login_required"]
+    def incorporar_expediente_tienda_nube_comercial(lote_id):
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        Lote = modelos["LoteIncorporacionTiendaNube"]
+        lote = Lote.query.filter_by(
+            id=lote_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+        ).first()
+        try:
+            resultado, creado = incorporar_pedidos_tienda_nube(
+                lote, confirmacion=request.form.get("confirmacion"),
+                organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id,
+                usuario=usuario, Pedido=modelos["Pedido"], PedidoItem=modelos["PedidoItem"],
+                ResultadoIncorporacionTiendaNube=modelos["ResultadoIncorporacionTiendaNube"],
+                db_session=db.session,
+            )
+            texto = (
+                f"Expediente #{lote.id}: {resultado.pedidos_creados} pedidos y {resultado.items_creados} ítems incorporados."
+                if creado else f"El expediente #{lote.id} ya había sido incorporado."
+            )
+            dependencias["registrar_auditoria"](
+                "Expediente Tienda Nube incorporado", entidad="resultado_incorporacion_tienda_nube",
+                entidad_id=resultado.id, detalle=f"{texto} Acciones externas: 0.",
+            )
+            return redirect(url_for("admin_comercial.propuestas_pedidos_tienda_nube_comercial", ok=texto))
+        except Exception as excepcion:
+            db.session.rollback()
+            return redirect(url_for("admin_comercial.propuestas_pedidos_tienda_nube_comercial", error=str(excepcion)))
 
     @blueprint.route("/admin/comercial/preparacion-integraciones", methods=["GET", "POST"])
     @dependencias["login_required"]

@@ -323,6 +323,7 @@ from models.lote_incorporacion_tienda_nube import (
     ItemLoteIncorporacionTiendaNube,
     LoteIncorporacionTiendaNube,
 )
+from models.resultado_incorporacion_tienda_nube import ResultadoIncorporacionTiendaNube
 from models.asignacion_tenant_pedido import AsignacionTenantPedido
 from models.modulo_organizacion import ModuloOrganizacion
 from models.vinculo_canal_comercial import VinculoCanalComercial
@@ -11953,6 +11954,7 @@ registrar_modulos_web(
             "LoteIncorporacionTiendaNube": LoteIncorporacionTiendaNube,
             "ItemLoteIncorporacionTiendaNube": ItemLoteIncorporacionTiendaNube,
             "EventoLoteIncorporacionTiendaNube": EventoLoteIncorporacionTiendaNube,
+            "ResultadoIncorporacionTiendaNube": ResultadoIncorporacionTiendaNube,
             "AsignacionTenantPedido": AsignacionTenantPedido,
             "ModuloOrganizacion": ModuloOrganizacion,
             "Producto": Producto,

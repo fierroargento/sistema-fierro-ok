@@ -160,4 +160,5 @@ def test_integracion_estatica_y_contrato_desconectado():
         assert prohibido not in servicio
     assert "puede_crear_pedido = false" in modelo
     assert "propuestas_pedidos_tienda_nube_comercial" in rutas
-    assert "Sin pedidos productivos" in plantilla
+    assert "Canales externos bloqueados" in plantilla
+    assert "No reserva inventario" in plantilla
