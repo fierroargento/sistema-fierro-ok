@@ -64,6 +64,7 @@ from services.certificacion_operativa_ml import certificar_operacion_ml, exporta
 from services.certificacion_offline_mercado_pago import certificar_conciliacion_mp, exportar_certificacion_mp
 from services.cierres_conciliacion_mp import decidir_cierre, exportar_cierre, huella_snapshot, registrar_cierre, snapshot_conciliacion
 from services.control_periodico_mp import construir_control_periodico, exportar_control_periodico
+from services.legajo_rendicion_mp import construir_legajo_rendicion, exportar_legajo_zip
 from services.auditoria_consolidacion_comercial import construir_auditoria, exportar_auditoria
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
@@ -964,8 +965,12 @@ def crear_blueprint_comercial(*, dependencias):
         try:
             if request.method == "POST":
                 accion = (request.form.get("accion") or "").strip()
-                if accion in {"guardar_cierre_mp","enviar_revision_cierre_mp","aprobar_cierre_mp","cerrar_cierre_mp","archivar_cierre_mp","exportar_cierre_mp","exportar_control_periodico_mp_csv","exportar_control_periodico_mp_json"}:
+                if accion in {"guardar_cierre_mp","enviar_revision_cierre_mp","aprobar_cierre_mp","cerrar_cierre_mp","archivar_cierre_mp","exportar_cierre_mp","exportar_control_periodico_mp_csv","exportar_control_periodico_mp_json","exportar_legajo_rendicion_mp"}:
                     ventas_cierre=Venta.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all();movimientos_cierre=Movimiento.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all();gestiones_cierre=Gestion.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
+                    if accion=="exportar_legajo_rendicion_mp":
+                        cierres_legajo=CierreMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
+                        legajo=construir_legajo_rendicion(ventas_cierre,movimientos_cierre,gestiones_cierre,cierres_legajo,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
+                        return send_file(exportar_legajo_zip(legajo),as_attachment=True,download_name=f"legajo_rendicion_mp_{organizacion.id}_{unidad_activa.id}.zip",mimetype="application/zip")
                     if accion.startswith("exportar_control_periodico_mp_"):
                         cierres_control=CierreMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).all()
                         reporte_control=construir_control_periodico(cierres_control,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
@@ -1054,6 +1059,7 @@ def crear_blueprint_comercial(*, dependencias):
         )
         cierres_mp=CierreMP.query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id).order_by(CierreMP.fecha_creacion.desc()).all()
         control_periodico_mp=construir_control_periodico(cierres_mp,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
+        legajo_rendicion_mp=construir_legajo_rendicion(ventas,movimientos,gestiones,cierres_mp,organizacion_id=organizacion.id,unidad_negocio_id=unidad_activa.id)
         huella_actual_cierre=snapshot_conciliacion(ventas,movimientos,gestiones)
         for cierre_mp in cierres_mp:cierre_mp.vigente_visual=(cierre_mp.huella_origen==huella_snapshot(huella_actual_cierre))
         filtro = (request.args.get("filtro") or "todos").strip().lower()
@@ -1067,6 +1073,7 @@ def crear_blueprint_comercial(*, dependencias):
             certificacion_mp=certificacion_mp,
             cierres_mp=cierres_mp,
             control_periodico_mp=control_periodico_mp,
+            legajo_rendicion_mp=legajo_rendicion_mp,
             resumen_conciliacion=resumen, gestiones=gestiones, filtro=filtro,
             listas=Lista.query.filter_by(organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id).order_by(Lista.nombre).all(),
             inclusiones=Inclusion.query.join(modelos["Catalogo"]).filter(modelos["Catalogo"].organizacion_id == organizacion.id, modelos["Catalogo"].unidad_negocio_id == unidad_activa.id).order_by(Inclusion.nombre_comercial).all(),
