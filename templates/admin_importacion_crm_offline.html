@@ -34,8 +34,8 @@
   {% endif %}
   <section class="card" style="margin-top:16px">
     <h2>Últimos lotes confirmados</h2>
-    <table style="width:100%"><thead><tr><th>Lote</th><th>Archivo</th><th>Clientes</th><th>Oportunidades</th><th>Actividades</th><th>Estado</th></tr></thead>
-    <tbody>{% for lote in lotes %}<tr><td>#{{ lote.id }}</td><td>{{ lote.nombre_archivo }}</td><td>{{ lote.clientes_creados }}</td><td>{{ lote.oportunidades_creadas }}</td><td>{{ lote.actividades_creadas }}</td><td>{{ lote.estado }}</td></tr>{% else %}<tr><td colspan="6">Todavía no hay lotes CRM confirmados.</td></tr>{% endfor %}</tbody></table>
+    <table style="width:100%"><thead><tr><th>Lote</th><th>Archivo</th><th>Clientes</th><th>Oportunidades</th><th>Actividades</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <tbody>{% for lote in lotes %}<tr><td>#{{ lote.id }}</td><td>{{ lote.nombre_archivo }}</td><td>{{ lote.clientes_creados }}</td><td>{{ lote.oportunidades_creadas }}</td><td>{{ lote.actividades_creadas }}</td><td>{{ lote.estado }}</td><td><a href="{{ url_for('admin_crm.evidencia_lote', lote_id=lote.id) }}">Evidencia</a>{% if lote.estado == 'confirmado' %}<form method="post" action="{{ url_for('admin_crm.anular_lote_importacion', lote_id=lote.id) }}" style="display:inline"><button type="submit">Anular sin borrar</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="7">Todavía no hay lotes CRM confirmados.</td></tr>{% endfor %}</tbody></table>
   </section>
   <p><a href="{{ url_for('admin_crm.panel') }}">Volver al CRM</a></p>
 </main>

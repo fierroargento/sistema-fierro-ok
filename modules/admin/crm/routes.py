@@ -24,6 +24,8 @@ from services.crm_consultas import (
 from services.certificacion_offline_crm import certificar_crm,exportar_certificacion
 from services.importacion_offline_crm import exportar_previsualizacion,previsualizar_importacion
 from services.confirmacion_importacion_crm import deserializar_plan,validar_confirmacion,confirmar_importacion
+from services.gestion_lotes_crm import anular_lote,exportar_evidencia,obtener_lote_tenant
+from services.control_integral_crm import controlar_crm,exportar_control
 from services.tenant_context import (
     TenantError,
     resolver_tenant_usuario,
@@ -268,5 +270,46 @@ def crear_blueprint_crm(
         except Exception as error:
             db.session.rollback()
             return redirect(url_for("admin_crm.importacion_offline", error=str(error)))
+
+    @blueprint.route("/admin/crm/lotes/<int:lote_id>/evidencia")
+    @login_required
+    def evidencia_lote(lote_id):
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        lote = obtener_lote_tenant(lote_id, organizacion_id=organizacion.id, LoteImportacionCRM=modelos["LoteImportacionCRM"])
+        return send_file(exportar_evidencia(lote), as_attachment=True, download_name=f"lote_crm_{lote.id}.json", mimetype="application/json")
+
+    @blueprint.route("/admin/crm/lotes/<int:lote_id>/anular", methods=["POST"])
+    @login_required
+    def anular_lote_importacion(lote_id):
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        try:
+            lote = obtener_lote_tenant(lote_id, organizacion_id=organizacion.id, LoteImportacionCRM=modelos["LoteImportacionCRM"])
+            anular_lote(lote, organizacion_id=organizacion.id, db_session=db.session)
+            registrar_auditoria("Anuló lote CRM", entidad="lote_importacion_crm", entidad_id=lote.id, detalle="Anulación interna; los registros y la evidencia se conservaron.")
+            return redirect(url_for("admin_crm.importacion_offline", ok=f"Lote CRM #{lote.id} anulado."))
+        except Exception as error:
+            db.session.rollback()
+            return redirect(url_for("admin_crm.importacion_offline", error=str(error)))
+
+    @blueprint.route("/admin/crm/control-integral", methods=["GET", "POST"])
+    @login_required
+    def control_integral():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        datos = obtener_datos_panel_crm(organizacion.id, modelos=modelos)
+        resultado = controlar_crm(
+            organizacion_id=organizacion.id,
+            modulo=datos["modulo_crm"], unidades=datos["unidades"], etapas=datos["etapas"],
+            clientes=datos["clientes"], identidades=datos["identidades"], oportunidades=datos["oportunidades"],
+            actividades=datos["actividades"], lotes=datos["lotes_importacion"],
+        )
+        if request.method == "POST":
+            return send_file(exportar_control(resultado), as_attachment=True, download_name="control_integral_crm.json", mimetype="application/json")
+        return render_template("admin_control_integral_crm.html", control=resultado)
 
     return blueprint

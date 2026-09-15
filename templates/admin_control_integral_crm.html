@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="card">
+  <h1>Control integral offline del CRM</h1>
+  <p>Diagnóstico final del tenant activo. Es de solo lectura: no crea pedidos, no envía mensajes y no ejecuta automatizaciones.</p>
+  <div class="alerta {{ 'alerta-ok' if control.aprobado else 'alerta-error' }}"><strong>{{ 'APROBADO' if control.aprobado else 'REVISAR' }}</strong> · Huella {{ control.huella_control }}</div>
+  <section class="card"><h2>Resumen</h2><p>Clientes: {{ control.resumen.clientes }} · Identidades: {{ control.resumen.identidades }} · Oportunidades: {{ control.resumen.oportunidades }} · Actividades: {{ control.resumen.actividades }}</p><p>Lotes: {{ control.resumen.lotes }} · Confirmados: {{ control.resumen.lotes_confirmados }} · Anulados: {{ control.resumen.lotes_anulados }}</p></section>
+  <section class="card"><h2>Fronteras verificadas</h2><p>Pedidos creados: 0 · Mensajes enviados: 0 · Acciones externas: 0 · Escrituras del control: 0 · Automatizaciones: bloqueadas</p></section>
+  <form method="post"><button type="submit">Descargar control firmado JSON</button></form>
+  <p><a href="{{ url_for('admin_crm.panel') }}">Volver al CRM</a></p>
+</main>
+{% endblock %}
