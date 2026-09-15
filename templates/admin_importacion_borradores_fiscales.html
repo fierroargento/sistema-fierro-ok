@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}<div class="card">
+<h1>Importación offline de borradores fiscales</h1>
+<p>Previsualiza CSV por referencia y entidad fiscal. No crea borradores, no emite comprobantes y no se conecta con ARCA.</p>
+<form method="post" enctype="multipart/form-data"><input required type="file" name="archivo" accept=".csv,text/csv"><button type="submit">Previsualizar archivo</button></form>
+{% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
+{% if vista %}<div class="card"><h2>Resultado</h2><p>{{ vista.resumen.comprobantes }} comprobantes · {{ vista.resumen.lineas }} líneas · {{ vista.resumen.preparados }} preparados · {{ vista.resumen.rechazados }} rechazados</p>
+<form method="post" action="{{ url_for('admin_facturacion.exportar_importacion_offline') }}"><input type="hidden" name="documento" value='{{ vista|tojson }}'><button type="submit">Descargar diagnóstico JSON</button></form>
+<table style="width:100%"><thead><tr><th>Referencia</th><th>Receptor</th><th>Líneas</th><th>Neto</th><th>IVA</th><th>Total</th><th>Estado</th></tr></thead><tbody>{% for c in vista.comprobantes %}<tr><td>{{ c.referencia }}</td><td>{{ c.receptor_nombre }}</td><td>{{ c.filas|length }}</td><td>{{ c.neto_centavos }}</td><td>{{ c.iva_centavos }}</td><td>{{ c.total_centavos }}</td><td>{{ c.estado }}{% if c.errores %}<ul>{% for e in c.errores %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+</div>{% endblock %}

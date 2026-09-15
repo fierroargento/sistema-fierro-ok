@@ -22,6 +22,8 @@ from services.facturacion_consultas import (
     obtener_datos_panel_facturacion,
 )
 from services.certificacion_offline_facturacion import certificar_facturacion, exportar_certificacion
+from services.importacion_borradores_fiscales import previsualizar_borradores, exportar_previsualizacion
+import json
 from services.tenant_context import (
     TenantError,
     resolver_tenant_usuario,
@@ -198,5 +200,39 @@ def crear_blueprint_facturacion(
                 download_name="certificacion_facturacion_offline.json", mimetype="application/json",
             )
         return render_template("admin_certificacion_facturacion_offline.html", certificacion=resultado)
+
+    @blueprint.route("/admin/facturacion/importacion-offline", methods=["GET", "POST"])
+    @login_required
+    def importacion_offline():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        vista = None; error = ""
+        if request.method == "POST":
+            try:
+                datos = obtener_datos_panel_facturacion(organizacion_id=organizacion.id, modelos=modelos)
+                archivo = request.files.get("archivo")
+                if archivo is None or not archivo.filename:
+                    raise ValueError("Seleccioná un archivo CSV.")
+                vista = previsualizar_borradores(
+                    archivo.read(), organizacion_id=organizacion.id,
+                    entidades=datos["entidades_fiscales"], puntos=datos["puntos_venta"],
+                    tipos=datos["tipos_comprobante"],
+                    referencias_existentes=[b.referencia_externa for b in datos["borradores"]],
+                )
+            except Exception as exc:
+                error = str(exc)
+        return render_template("admin_importacion_borradores_fiscales.html", vista=vista, error=error)
+
+    @blueprint.route("/admin/facturacion/importacion-offline/exportar", methods=["POST"])
+    @login_required
+    def exportar_importacion_offline():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        resultado = json.loads(request.form.get("documento") or "{}")
+        if resultado.get("organizacion_id") != organizacion.id or resultado.get("emision_real") is not False:
+            return redirect(url_for("admin_facturacion.importacion_offline", error="El diagnóstico no pertenece al tenant."))
+        return send_file(exportar_previsualizacion(resultado), as_attachment=True, download_name="previsualizacion_borradores_fiscales.json", mimetype="application/json")
 
     return blueprint
