@@ -26,6 +26,7 @@ from services.inventario_conteos_excel import (
     importar_conteo_excel,
     obtener_conteo_tenant,
 )
+from services.certificacion_integral_inventario import certificar_inventario,exportar_certificacion
 from services.tenant_context import (
     TenantError,
     resolver_tenant_usuario,
@@ -266,5 +267,17 @@ def crear_blueprint_inventario(
                 error=str(error),
                 _anchor="conteos-inventario",
             ))
+
+    @blueprint.route("/admin/inventario/certificacion-integral", methods=["GET", "POST"])
+    @login_required
+    def certificacion_integral():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        datos = obtener_datos_panel_inventario(organizacion, modelos=modelos)
+        resultado = certificar_inventario(organizacion_id=organizacion.id, datos=datos)
+        if request.method == "POST":
+            return send_file(exportar_certificacion(resultado), as_attachment=True, download_name="certificacion_integral_inventario.json", mimetype="application/json")
+        return render_template("admin_certificacion_inventario.html", certificacion=resultado)
 
     return blueprint

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="card">
+  <h1>Certificación integral offline del inventario</h1>
+  <p>Control de solo lectura del tenant activo. No reserva, mueve ni publica stock; tampoco consume pedidos o conecta canales.</p>
+  <div class="alerta {{ 'alerta-ok' if certificacion.aprobado else 'alerta-error' }}"><strong>{{ 'APROBADA' if certificacion.aprobado else 'REQUIERE REVISIÓN' }}</strong> · {{ certificacion.resumen.hallazgos }} hallazgos</div>
+  <section class="card"><h2>Cobertura</h2><p>Ítems: {{ certificacion.resumen.items_inventario }} · Existencias: {{ certificacion.resumen.existencias }} · Movimientos: {{ certificacion.resumen.movimientos }} · Reservas: {{ certificacion.resumen.reservas }} · Transferencias: {{ certificacion.resumen.transferencias }} · Conteos: {{ certificacion.resumen.conteos }}</p><p>Eventos de pedidos: {{ certificacion.resumen.eventos_inventario_pedidos }} · Eventos de canal: {{ certificacion.resumen.eventos_canal_inventario }} · Propuestas: {{ certificacion.resumen.propuestas_publicacion_inventario }}</p></section>
+  <section class="card"><h2>Fronteras</h2><p>Escrituras: 0 · Reservas creadas: 0 · Movimientos creados: 0 · Publicaciones: 0 · Acciones externas: 0 · Automatización de pedidos: bloqueada</p></section>
+  <section class="card"><h2>Hallazgos</h2><ul>{% for item in certificacion.hallazgos %}<li><strong>{{ item.codigo }}</strong> · {{ item.entidad }} #{{ item.id }}: {{ item.detalle }}</li>{% else %}<li>No se detectaron inconsistencias.</li>{% endfor %}</ul></section>
+  <p><code>{{ certificacion.huella_control }}</code></p>
+  <form method="post"><button type="submit">Descargar certificación JSON</button></form>
+  <p><a href="{{ url_for('admin_inventario.panel') }}">Volver al inventario</a></p>
+</main>
+{% endblock %}
