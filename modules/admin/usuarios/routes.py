@@ -10,9 +10,11 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
+from services.certificacion_accesos_saas import certificar_accesos,exportar_certificacion
 
 from services.tenant_context import (
     TenantError,
@@ -269,5 +271,25 @@ def crear_blueprint_usuarios(
         except Exception as error:
             db.session.rollback()
             return redireccion(error=str(error))
+
+    @blueprint.route("/admin/usuarios/certificacion-accesos", methods=["GET", "POST"])
+    @login_required
+    def certificacion_accesos():
+        usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        membresias = obtener_membresias_usuario(
+            organizacion_id=organizacion.id,
+            UsuarioSistema=UsuarioSistema,
+            UsuarioOrganizacion=UsuarioOrganizacion,
+        )
+        resultado = certificar_accesos(
+            organizacion_id=organizacion.id,
+            membresias=membresias,
+            usuario_actual=usuario,
+        )
+        if request.method == "POST":
+            return send_file(exportar_certificacion(resultado), as_attachment=True, download_name="certificacion_accesos_saas.json", mimetype="application/json")
+        return render_template("admin_certificacion_accesos.html", certificacion=resultado, organizacion=organizacion)
 
     return blueprint

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="card">
+  <h1>Certificación de accesos SaaS</h1>
+  <p>Diagnóstico de solo lectura para {{ organizacion.nombre }}. No cambia roles, contraseñas, sesiones ni membresías y no envía invitaciones.</p>
+  <div class="alerta {{ 'alerta-ok' if certificacion.aprobada else 'alerta-error' }}"><strong>{{ 'APROBADA' if certificacion.aprobada else 'REQUIERE REVISIÓN' }}</strong> · {{ certificacion.resumen.hallazgos }} hallazgos</div>
+  <section class="card"><h2>Accesos</h2><p>Membresías: {{ certificacion.resumen.membresias }} · Activas: {{ certificacion.resumen.activas }} · Inactivas: {{ certificacion.resumen.inactivas }}</p><p>Administradores: {{ certificacion.resumen.administradores_activos }} · Carga: {{ certificacion.resumen.carga_activos }} · Despacho: {{ certificacion.resumen.despacho_activos }}</p></section>
+  <section class="card"><h2>Fronteras</h2><p>Credenciales expuestas: 0 · Sesiones modificadas: 0 · Membresías modificadas: 0 · Invitaciones enviadas: 0 · Escrituras: 0</p></section>
+  <section class="card"><h2>Hallazgos</h2><ul>{% for item in certificacion.hallazgos %}<li><strong>{{ item.codigo }}</strong>: {{ item.detalle }}</li>{% else %}<li>No se detectaron inconsistencias de acceso.</li>{% endfor %}</ul></section>
+  <p><code>{{ certificacion.huella_control }}</code></p>
+  <form method="post"><button type="submit">Descargar certificación JSON</button></form>
+  <p><a href="{{ url_for('admin_usuarios.panel') }}">Volver a usuarios</a></p>
+</main>
+{% endblock %}
