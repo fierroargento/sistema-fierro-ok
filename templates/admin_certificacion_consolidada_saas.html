@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="card"><h1>Expediente consolidado SaaS</h1><p>Combina certificaciones JSON firmadas del mismo tenant completamente en memoria. No persiste documentos, modifica configuraciones ni activa módulos.</p>
+{% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
+<form method="post" enctype="multipart/form-data"><input type="file" name="certificaciones" accept=".json,application/json" multiple required><button name="accion" value="previsualizar" type="submit">Validar expediente</button><button name="accion" value="exportar" type="submit">Descargar consolidado</button></form>
+{% if resultado %}<div class="alerta {{ 'alerta-ok' if resultado.aprobada else 'alerta-error' }}"><strong>{{ 'APROBADO' if resultado.aprobada else 'INCOMPLETO' }}</strong> · {{ resultado.resumen.componentes_identificados }}/{{ resultado.resumen.componentes_requeridos }} componentes requeridos</div>
+<table style="width:100%"><thead><tr><th>Componente</th><th>Estado</th><th>Modo</th><th>Huella</th></tr></thead><tbody>{% for item in resultado.componentes %}<tr><td>{{ item.componente }}</td><td>{{ 'aprobado' if item.aprobado else 'revisar' }}</td><td>{{ item.modo }}</td><td><code>{{ item.huella }}</code></td></tr>{% endfor %}</tbody></table>
+<ul>{% for item in resultado.hallazgos %}<li><strong>{{ item.componente }}</strong>: {{ item.detalle }}</li>{% else %}<li>Expediente completo y coherente.</li>{% endfor %}</ul><p><code>{{ resultado.huella_expediente }}</code></p>{% endif %}
+<p><a href="{{ url_for('admin_estructura.control_integral') }}">Volver al control estructural</a></p></main>
+{% endblock %}

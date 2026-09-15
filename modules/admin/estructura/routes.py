@@ -15,6 +15,7 @@ from flask import (
     url_for,
 )
 from services.control_integral_estructura_saas import controlar_estructura,exportar_control
+from services.certificacion_consolidada_saas import consolidar_certificaciones,exportar_expediente
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -372,5 +373,22 @@ def crear_blueprint_estructura(
         if request.method == "POST":
             return send_file(exportar_control(resultado), as_attachment=True, download_name="control_integral_estructura_saas.json", mimetype="application/json")
         return render_template("admin_control_estructura_saas.html", control=resultado, organizacion=organizacion)
+
+    @blueprint.route("/admin/estructura/certificacion-consolidada", methods=["GET", "POST"])
+    @login_required
+    def certificacion_consolidada():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        resultado = None
+        error = ""
+        if request.method == "POST":
+            try:
+                resultado = consolidar_certificaciones(request.files.getlist("certificaciones"), organizacion_id=organizacion.id)
+                if request.form.get("accion") == "exportar":
+                    return send_file(exportar_expediente(resultado), as_attachment=True, download_name="expediente_consolidado_saas.json", mimetype="application/json")
+            except ValueError as excepcion:
+                error = str(excepcion)
+        return render_template("admin_certificacion_consolidada_saas.html", resultado=resultado, error=error, organizacion=organizacion)
 
     return blueprint
