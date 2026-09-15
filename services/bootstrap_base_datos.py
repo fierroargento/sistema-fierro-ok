@@ -13,6 +13,7 @@ def inicializar_base_datos_saas(
     )
     from services.migraciones_saas import (
         asegurar_codigos_unicos_por_tenant,
+        asegurar_identidad_tenant_auditoria_preparatoria,
         asegurar_evento_fiscal_tenant,
         asegurar_ficha_catalogo_integral,
         asegurar_identidad_canal_crm_tenant,
@@ -50,6 +51,10 @@ def inicializar_base_datos_saas(
 
     with app.app_context():
         db.create_all()
+
+        asegurar_identidad_tenant_auditoria_preparatoria(
+            db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
+        )
 
         asegurar_inventario_saas(
             db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,

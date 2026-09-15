@@ -12,6 +12,12 @@ class Auditoria(db.Model):
     __tablename__ = "auditoria"
 
     id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizacion.id"),
+        nullable=True,
+        index=True,
+    )
     usuario_id = db.Column(db.Integer)
     username = db.Column(db.String(80))
     nombre = db.Column(db.String(120))

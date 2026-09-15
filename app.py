@@ -96,6 +96,7 @@ from services.ml_etiquetas import (
 )
 
 from services.tracking_info import tracking_info_pedido_service
+from services.auditoria_tenant import obtener_auditorias_tenant,diagnosticar_auditorias_tenant
 
 from services.ml_ignorados import (
     ml_pedido_esta_ignorado_service,
@@ -2501,6 +2502,7 @@ def registrar_auditoria(accion, entidad=None, entidad_id=None, detalle=None, usu
     try:
         usuario = usuario or usuario_actual()
         aud = Auditoria(
+            organizacion_id=(getattr(membresia_actual(), "organizacion_id", None) if usuario else session.get("organizacion_id")),
             usuario_id=getattr(usuario, "id", None) if usuario else None,
             username=getattr(usuario, "username", None) if usuario else (session.get("username") or "sistema"),
             nombre=getattr(usuario, "nombre", None) if usuario else None,
@@ -7223,8 +7225,12 @@ def admin_auditoria():
     if rol_actual() != "admin":
         return redirect(url_for("inicio"))
 
-    auditorias = Auditoria.query.order_by(Auditoria.fecha.desc()).limit(300).all()
-    return render_template("admin_auditoria.html", auditorias=auditorias, ok_feedback="", error="")
+    membresia = membresia_actual()
+    if membresia is None:
+        return redirect(url_for("inicio"))
+    auditorias = obtener_auditorias_tenant(membresia.organizacion_id, Auditoria=Auditoria)
+    diagnostico = diagnosticar_auditorias_tenant(membresia.organizacion_id, auditorias)
+    return render_template("admin_auditoria.html", auditorias=auditorias, diagnostico=diagnostico, ok_feedback="", error="")
 
 
 from modules.admin.integraciones.routes import (

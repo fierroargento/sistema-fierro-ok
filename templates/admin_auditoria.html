@@ -5,8 +5,12 @@
     <div class="page-header">
         <div>
             <h1>Auditoría</h1>
-            <p>Últimas acciones registradas del sistema.</p>
+            <p>Últimas acciones registradas exclusivamente para la organización activa.</p>
         </div>
+    </div>
+    <div class="detalle-box detalle-box-full">
+        <strong>Control tenant:</strong> {{ diagnostico.resumen.registros }} registros · {{ diagnostico.resumen.hallazgos }} hallazgos · auditorías legacy sin tenant incluidas: 0.<br>
+        <small>Huella {{ diagnostico.huella }}</small>
     </div>
 
     <div class="detalle-box detalle-box-full">

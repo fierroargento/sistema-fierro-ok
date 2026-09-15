@@ -5,6 +5,23 @@ No elimina columnas ni modifica flujos operativos.
 """
 
 
+def asegurar_identidad_tenant_auditoria_preparatoria(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Agrega organización nullable sin atribuir automáticamente auditorías legacy."""
+    inspector = inspect_fn(db.engine)
+    tabla = "auditoria"
+    if tabla not in inspector.get_table_names():
+        return {"columna_creada": False}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    creada = "organizacion_id" not in columnas
+    if creada:
+        db.session.execute(text_fn("ALTER TABLE auditoria ADD COLUMN organizacion_id INTEGER"))
+    db.session.execute(text_fn("CREATE INDEX IF NOT EXISTS ix_auditoria_organizacion_id ON auditoria (organizacion_id)"))
+    db.session.commit()
+    if creada and logger_fn is not None:
+        logger_fn("[SAAS] Identidad tenant preparatoria agregada a auditoría; sin backfill automático.")
+    return {"columna_creada": creada}
+
+
 def asegurar_producto_tenant(
     *,
     db,
