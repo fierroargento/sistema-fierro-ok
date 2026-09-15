@@ -98,6 +98,7 @@ from services.ml_etiquetas import (
 from services.tracking_info import tracking_info_pedido_service
 from services.auditoria_tenant import obtener_auditorias_tenant,diagnosticar_auditorias_tenant,construir_evidencia_auditoria,exportar_evidencia
 from services.diagnostico_auditoria_legacy import obtener_contexto_legacy,clasificar_auditorias_legacy,exportar_diagnostico
+from services.asignacion_tenant_auditoria import obtener_propuestas_tenant,preparar_propuestas,obtener_propuesta,aprobar_propuesta,rechazar_propuesta,aplicar_propuesta
 
 from services.ml_ignorados import (
     ml_pedido_esta_ignorado_service,
@@ -251,6 +252,7 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 db.init_app(app)
 
 from models.auditoria import Auditoria
+from models.asignacion_tenant_auditoria import AsignacionTenantAuditoria
 from models.usuario_sistema import UsuarioSistema
 from models.usuario_organizacion import UsuarioOrganizacion
 from models.organizacion import Organizacion
@@ -7255,7 +7257,39 @@ def admin_auditoria_legacy():
     diagnostico = clasificar_auditorias_legacy(auditorias, membresias)
     if request.method == "POST":
         return send_file(exportar_diagnostico(diagnostico), as_attachment=True, download_name="diagnostico_auditoria_legacy.json", mimetype="application/json")
-    return render_template("admin_auditoria_legacy.html", diagnostico=diagnostico)
+    propuestas = obtener_propuestas_tenant(membresia.organizacion_id, AsignacionTenantAuditoria=AsignacionTenantAuditoria)
+    return render_template("admin_auditoria_legacy.html", diagnostico=diagnostico, propuestas=propuestas)
+
+
+@app.route("/admin/auditoria/legacy/propuestas", methods=["POST"])
+@login_required
+def admin_auditoria_legacy_propuestas():
+    usuario = usuario_actual(); membresia = membresia_actual()
+    if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
+    try:
+        auditorias, membresias = obtener_contexto_legacy(Auditoria=Auditoria, UsuarioSistema=UsuarioSistema, UsuarioOrganizacion=UsuarioOrganizacion)
+        diagnostico = clasificar_auditorias_legacy(auditorias, membresias)
+        cantidad = preparar_propuestas(diagnostico, organizacion_id=membresia.organizacion_id, AsignacionTenantAuditoria=AsignacionTenantAuditoria, Auditoria=Auditoria, db_session=db.session, usuario=usuario)
+        return redirect(url_for("admin_auditoria_legacy", ok=f"Propuestas preparadas: {cantidad}."))
+    except Exception as error:
+        db.session.rollback(); return redirect(url_for("admin_auditoria_legacy", error=str(error)))
+
+
+@app.route("/admin/auditoria/legacy/propuestas/<int:propuesta_id>/<accion>", methods=["POST"])
+@login_required
+def admin_auditoria_legacy_accion(propuesta_id, accion):
+    usuario = usuario_actual(); membresia = membresia_actual()
+    if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
+    try:
+        propuesta = obtener_propuesta(propuesta_id, AsignacionTenantAuditoria=AsignacionTenantAuditoria)
+        if propuesta.organizacion_propuesta_id != membresia.organizacion_id: raise ValueError("La propuesta pertenece a otro tenant.")
+        if accion == "aprobar": aprobar_propuesta(propuesta, usuario=usuario, db_session=db.session)
+        elif accion == "rechazar": rechazar_propuesta(propuesta, motivo=request.form.get("motivo"), usuario=usuario, db_session=db.session)
+        elif accion == "aplicar": aplicar_propuesta(propuesta, confirmacion=request.form.get("confirmacion"), usuario=usuario, db_session=db.session)
+        else: raise ValueError("La acción no es válida.")
+        return redirect(url_for("admin_auditoria_legacy", ok=f"Propuesta #{propuesta.id}: {propuesta.estado}."))
+    except Exception as error:
+        db.session.rollback(); return redirect(url_for("admin_auditoria_legacy", error=str(error)))
 
 
 from modules.admin.integraciones.routes import (
