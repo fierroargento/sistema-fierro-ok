@@ -10,6 +10,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
@@ -20,6 +21,7 @@ from services.facturacion_admin import (
 from services.facturacion_consultas import (
     obtener_datos_panel_facturacion,
 )
+from services.certificacion_offline_facturacion import certificar_facturacion, exportar_certificacion
 from services.tenant_context import (
     TenantError,
     resolver_tenant_usuario,
@@ -176,5 +178,25 @@ def crear_blueprint_facturacion(
                 "admin_facturacion.panel",
                 error=str(error),
             ))
+
+    @blueprint.route("/admin/facturacion/certificacion-offline", methods=["GET", "POST"])
+    @login_required
+    def certificacion_offline():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        datos = obtener_datos_panel_facturacion(organizacion_id=organizacion.id, modelos=modelos)
+        resultado = certificar_facturacion(
+            organizacion_id=organizacion.id, modulo=datos["modulo_facturacion"],
+            entidades=datos["entidades_fiscales"], configuraciones=datos["configuraciones"],
+            puntos=datos["puntos_venta"], tipos=datos["tipos_comprobante"],
+            borradores=datos["borradores"], eventos=datos["eventos"],
+        )
+        if request.method == "POST":
+            return send_file(
+                exportar_certificacion(resultado), as_attachment=True,
+                download_name="certificacion_facturacion_offline.json", mimetype="application/json",
+            )
+        return render_template("admin_certificacion_facturacion_offline.html", certificacion=resultado)
 
     return blueprint
