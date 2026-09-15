@@ -334,6 +334,7 @@ from models.cliente_identidad_canal import ClienteIdentidadCanal
 from models.etapa_crm import EtapaCRM
 from models.oportunidad_crm import OportunidadCRM
 from models.actividad_crm import ActividadCRM
+from models.lote_importacion_crm import LoteImportacionCRM
 from models.existencia_sucursal import ExistenciaSucursal
 from models.movimiento_inventario import MovimientoInventario
 from models.inventario_saas import (
@@ -11976,6 +11977,7 @@ registrar_modulos_web(
             "EtapaCRM": EtapaCRM,
             "OportunidadCRM": OportunidadCRM,
             "ActividadCRM": ActividadCRM,
+            "LoteImportacionCRM": LoteImportacionCRM,
             "ExistenciaSucursal": (
                 ExistenciaSucursal
             ),

@@ -197,6 +197,7 @@ def registrar_modulos_web(
                         "EtapaCRM",
                         "OportunidadCRM",
                         "ActividadCRM",
+                        "LoteImportacionCRM",
                     )
                 },
             },

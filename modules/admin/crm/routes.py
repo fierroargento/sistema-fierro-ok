@@ -23,6 +23,7 @@ from services.crm_consultas import (
 )
 from services.certificacion_offline_crm import certificar_crm,exportar_certificacion
 from services.importacion_offline_crm import exportar_previsualizacion,previsualizar_importacion
+from services.confirmacion_importacion_crm import deserializar_plan,validar_confirmacion,confirmar_importacion
 from services.tenant_context import (
     TenantError,
     resolver_tenant_usuario,
@@ -224,6 +225,48 @@ def crear_blueprint_crm(
             resultado=resultado,
             error=error,
             organizacion=organizacion,
+            lotes=datos["lotes_importacion"],
         )
+
+    @blueprint.route("/admin/crm/importacion-offline/confirmar", methods=["POST"])
+    @login_required
+    def confirmar_importacion_offline():
+        usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        archivo = request.files.get("plan")
+        try:
+            if archivo is None or not archivo.filename:
+                raise ValueError("Seleccioná la previsualización JSON exportada.")
+            datos = obtener_datos_panel_crm(organizacion.id, modelos=modelos)
+            plan = deserializar_plan(archivo.read())
+            validar_confirmacion(
+                plan,
+                organizacion_id=organizacion.id,
+                unidades=datos["unidades"],
+                etapas=datos["etapas"],
+                clientes=datos["clientes"],
+                identidades=datos["identidades"],
+                lotes=datos["lotes_importacion"],
+            )
+            lote = confirmar_importacion(
+                plan,
+                organizacion_id=organizacion.id,
+                usuario=usuario,
+                nombre_archivo=archivo.filename,
+                clientes_existentes=datos["clientes"],
+                modelos=modelos,
+                db_session=db.session,
+            )
+            registrar_auditoria(
+                "Confirmó lote CRM offline",
+                entidad="lote_importacion_crm",
+                entidad_id=lote.id,
+                detalle=f"Clientes: {lote.clientes_creados}; oportunidades: {lote.oportunidades_creadas}; actividades: {lote.actividades_creadas}.",
+            )
+            return redirect(url_for("admin_crm.importacion_offline", ok=f"Lote CRM #{lote.id} confirmado."))
+        except Exception as error:
+            db.session.rollback()
+            return redirect(url_for("admin_crm.importacion_offline", error=str(error)))
 
     return blueprint

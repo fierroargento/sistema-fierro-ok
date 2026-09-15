@@ -30,6 +30,7 @@ def obtener_datos_panel_crm(
         "OportunidadCRM"
     ]
     ActividadCRM = modelos["ActividadCRM"]
+    LoteImportacionCRM = modelos.get("LoteImportacionCRM")
 
     modulo_crm = (
         ModuloOrganizacion.query
@@ -107,6 +108,14 @@ def obtener_datos_panel_crm(
         .all()
     )
 
+    lotes_importacion = [] if LoteImportacionCRM is None else (
+        LoteImportacionCRM.query
+        .filter(LoteImportacionCRM.organizacion_id == organizacion_id)
+        .order_by(LoteImportacionCRM.id.desc())
+        .limit(50)
+        .all()
+    )
+
     return {
         "modulo_crm": modulo_crm,
         "unidades": unidades,
@@ -115,4 +124,5 @@ def obtener_datos_panel_crm(
         "identidades": identidades,
         "oportunidades": oportunidades,
         "actividades": actividades,
+        "lotes_importacion": lotes_importacion,
     }
