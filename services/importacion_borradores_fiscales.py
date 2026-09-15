@@ -158,3 +158,101 @@ def previsualizar_borradores(contenido, *, organizacion_id, entidades, puntos, t
 
 def exportar_previsualizacion(resultado):
     return io.BytesIO(json.dumps(resultado, ensure_ascii=False, sort_keys=True, indent=2).encode("utf-8"))
+
+
+def deserializar_previsualizacion(documento):
+    try:
+        resultado = json.loads(documento or "{}")
+    except json.JSONDecodeError as error:
+        raise ValueError("La previsualización fiscal no es válida.") from error
+    comprobantes = resultado.get("comprobantes")
+    if not isinstance(comprobantes, list) or not 1 <= len(comprobantes) <= 200:
+        raise ValueError("La previsualización fiscal no es válida.")
+    return resultado
+
+
+def _huella_plan(resultado):
+    base = {k: v for k, v in resultado.items() if k != "huella_plan"}
+    return hashlib.sha256(json.dumps(base, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def validar_confirmacion(resultado, *, organizacion_id, entidades, puntos, tipos, referencias_existentes=(), huellas_existentes=()):
+    """Revalida íntegramente el plan contra el estado actual del tenant."""
+    if resultado.get("organizacion_id") != organizacion_id or resultado.get("emision_real") is not False:
+        raise ValueError("La previsualización no pertenece al tenant activo.")
+    if resultado.get("huella_plan") != _huella_plan(resultado):
+        raise ValueError("La previsualización fue alterada.")
+    if resultado.get("huella_documento") in set(huellas_existentes):
+        raise ValueError("Este archivo fiscal ya fue confirmado.")
+    entidad_ids = {e.id for e in entidades if e.organizacion_id == organizacion_id}
+    punto_ids = {p.id for p in puntos if p.organizacion_id == organizacion_id and p.entidad_fiscal_id in entidad_ids}
+    tipo_ids = {t.id for t in tipos if t.punto_venta_fiscal_id in punto_ids}
+    existentes = {str(x) for x in referencias_existentes if x}
+    referencias = set()
+    for comprobante in resultado["comprobantes"]:
+        referencia = str(comprobante.get("referencia") or "")
+        if comprobante.get("estado") != "preparado" or comprobante.get("errores"):
+            raise ValueError("El lote contiene comprobantes rechazados.")
+        if not referencia or referencia in referencias or referencia in existentes:
+            raise ValueError("Una referencia fiscal ya existe o está duplicada.")
+        if comprobante.get("entidad_fiscal_id") not in entidad_ids or comprobante.get("punto_venta_fiscal_id") not in punto_ids or comprobante.get("tipo_comprobante_fiscal_id") not in tipo_ids:
+            raise ValueError("La cadena fiscal no pertenece al tenant.")
+        items = comprobante.get("filas")
+        if not isinstance(items, list) or not 1 <= len(items) <= 200:
+            raise ValueError("Un comprobante no contiene ítems válidos.")
+        neto = iva = total = 0
+        for item in items:
+            valores = tuple(item.get(k) for k in ("cantidad_milesimas", "precio_unitario_centavos", "alicuota_iva_basis_points"))
+            if not all(isinstance(x, int) for x in valores):
+                raise ValueError("Un ítem fiscal fue alterado.")
+            calculados = _calcular(*valores)
+            if calculados != tuple(item.get(k) for k in ("neto_centavos", "iva_centavos", "total_centavos")):
+                raise ValueError("Los importes de un ítem fueron alterados.")
+            neto += calculados[0]; iva += calculados[1]; total += calculados[2]
+        if (neto, iva, total) != tuple(comprobante.get(k) for k in ("neto_centavos", "iva_centavos", "total_centavos")):
+            raise ValueError("Los totales del comprobante fueron alterados.")
+        referencias.add(referencia)
+    return resultado
+
+
+def confirmar_importacion(resultado, *, organizacion_id, usuario, nombre_archivo, BorradorComprobanteFiscal, BorradorItemFiscal, EventoFiscal, LoteImportacionFiscal, db_session):
+    """Persiste el lote completo atómicamente; nunca autoriza ni emite."""
+    if resultado.get("resumen", {}).get("rechazados") or any(c.get("estado") != "preparado" for c in resultado.get("comprobantes", [])):
+        raise ValueError("El lote contiene comprobantes rechazados.")
+    try:
+        lote = LoteImportacionFiscal(
+            organizacion_id=organizacion_id, nombre_archivo=str(nombre_archivo or "borradores.csv")[:255],
+            huella_documento=resultado["huella_documento"], huella_plan=resultado["huella_plan"], estado="confirmado",
+            comprobantes_creados=len(resultado["comprobantes"]), items_creados=sum(len(c["filas"]) for c in resultado["comprobantes"]),
+            rechazados=0, evidencia_json=json.dumps(resultado, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            emision_real=False, creado_por_usuario_id=getattr(usuario, "id", None), creado_por_username=getattr(usuario, "username", None),
+        )
+        db_session.add(lote)
+        for comprobante in resultado["comprobantes"]:
+            borrador = BorradorComprobanteFiscal(
+                organizacion_id=organizacion_id, entidad_fiscal_id=comprobante["entidad_fiscal_id"],
+                punto_venta_fiscal_id=comprobante["punto_venta_fiscal_id"], tipo_comprobante_fiscal_id=comprobante["tipo_comprobante_fiscal_id"],
+                cliente_crm_id=None, receptor_nombre=comprobante["receptor_nombre"], receptor_documento=comprobante["receptor_documento"],
+                receptor_condicion_iva=comprobante["receptor_condicion_iva"], moneda="ARS", estado="borrador",
+                neto_centavos=comprobante["neto_centavos"], iva_centavos=comprobante["iva_centavos"], otros_tributos_centavos=0,
+                total_centavos=comprobante["total_centavos"], cae=None, numero_autorizado=None,
+                referencia_externa=comprobante["referencia"], creado_por=getattr(usuario, "username", "admin"),
+            )
+            db_session.add(borrador); db_session.flush()
+            for fila in comprobante["filas"]:
+                db_session.add(BorradorItemFiscal(borrador_comprobante_fiscal_id=borrador.id, descripcion=fila["descripcion"], sku=fila["sku"] or None, cantidad_milesimas=fila["cantidad_milesimas"], precio_unitario_centavos=fila["precio_unitario_centavos"], alicuota_iva_basis_points=fila["alicuota_iva_basis_points"], neto_centavos=fila["neto_centavos"], iva_centavos=fila["iva_centavos"], total_centavos=fila["total_centavos"]))
+            db_session.add(EventoFiscal(organizacion_id=organizacion_id, borrador_comprobante_fiscal_id=borrador.id, tipo="borrador_importado", detalle=f"Importado offline desde {lote.nombre_archivo}; lote sin emisión real.", referencia_externa=comprobante["referencia"], usuario=getattr(usuario, "username", "admin")))
+        db_session.commit()
+    except Exception:
+        db_session.rollback()
+        raise
+    return lote
+
+
+def huellas_lotes_tenant(LoteImportacionFiscal, organizacion_id):
+    return [
+        lote.huella_documento
+        for lote in LoteImportacionFiscal.query.filter_by(
+            organizacion_id=organizacion_id
+        ).all()
+    ]

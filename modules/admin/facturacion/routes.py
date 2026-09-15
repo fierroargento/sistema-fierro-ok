@@ -22,7 +22,7 @@ from services.facturacion_consultas import (
     obtener_datos_panel_facturacion,
 )
 from services.certificacion_offline_facturacion import certificar_facturacion, exportar_certificacion
-from services.importacion_borradores_fiscales import previsualizar_borradores, exportar_previsualizacion
+from services.importacion_borradores_fiscales import previsualizar_borradores, exportar_previsualizacion, deserializar_previsualizacion, validar_confirmacion, confirmar_importacion, huellas_lotes_tenant
 import json
 from services.tenant_context import (
     TenantError,
@@ -234,5 +234,32 @@ def crear_blueprint_facturacion(
         if resultado.get("organizacion_id") != organizacion.id or resultado.get("emision_real") is not False:
             return redirect(url_for("admin_facturacion.importacion_offline", error="El diagnóstico no pertenece al tenant."))
         return send_file(exportar_previsualizacion(resultado), as_attachment=True, download_name="previsualizacion_borradores_fiscales.json", mimetype="application/json")
+
+    @blueprint.route("/admin/facturacion/importacion-offline/confirmar", methods=["POST"])
+    @login_required
+    def confirmar_importacion_offline():
+        usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        try:
+            datos = obtener_datos_panel_facturacion(organizacion_id=organizacion.id, modelos=modelos)
+            resultado = deserializar_previsualizacion(request.form.get("documento"))
+            huellas = huellas_lotes_tenant(modelos["LoteImportacionFiscal"], organizacion.id)
+            validar_confirmacion(
+                resultado, organizacion_id=organizacion.id, entidades=datos["entidades_fiscales"],
+                puntos=datos["puntos_venta"], tipos=datos["tipos_comprobante"],
+                referencias_existentes=[b.referencia_externa for b in datos["borradores"]],
+                huellas_existentes=huellas,
+            )
+            lote = confirmar_importacion(
+                resultado, organizacion_id=organizacion.id, usuario=usuario,
+                nombre_archivo=request.form.get("nombre_archivo"),
+                BorradorComprobanteFiscal=modelos["BorradorComprobanteFiscal"], BorradorItemFiscal=modelos["BorradorItemFiscal"],
+                EventoFiscal=modelos["EventoFiscal"], LoteImportacionFiscal=modelos["LoteImportacionFiscal"], db_session=db.session,
+            )
+            return redirect(url_for("admin_facturacion.panel", ok=f"Lote fiscal #{lote.id} confirmado como borradores. Emisión real bloqueada."))
+        except Exception as exc:
+            db.session.rollback()
+            return redirect(url_for("admin_facturacion.importacion_offline", error=str(exc)))
 
     return blueprint

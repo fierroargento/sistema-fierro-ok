@@ -36,4 +36,5 @@ def test_limites_y_columnas_obligatorias():
 def test_panel_y_contrato_desconectado():
     ruta=Path("modules/admin/facturacion/routes.py").read_text(encoding="utf-8");html=Path("templates/admin_importacion_borradores_fiscales.html").read_text(encoding="utf-8");fuente=Path("services/importacion_borradores_fiscales.py").read_text(encoding="utf-8").lower()
     assert "importacion_offline" in ruta and "Previsualizar archivo" in html and "no crea borradores" in html.lower()
-    assert not any(x in fuente for x in ("requests","urlopen","db.session","commit(","http://","https://","access_token","client_secret"))
+    assert not any(x in fuente for x in ("requests","urlopen","http://","https://","access_token","client_secret"))
+    assert "db_session.commit()" in fuente and "db_session.rollback()" in fuente

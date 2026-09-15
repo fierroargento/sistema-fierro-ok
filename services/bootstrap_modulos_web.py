@@ -253,6 +253,7 @@ def registrar_modulos_web(
                         "BorradorComprobanteFiscal",
                         "BorradorItemFiscal",
                         "EventoFiscal",
+                        "LoteImportacionFiscal",
                     )
                 },
             },
