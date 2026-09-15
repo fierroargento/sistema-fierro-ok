@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}<div class="card">
+<h1>Historial de lotes fiscales</h1>
+<p>Gestión interna por tenant. La anulación cancela borradores no autorizados; no borra registros ni se comunica con ARCA.</p>
+{% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
+<table style="width:100%"><thead><tr><th>Lote</th><th>Archivo</th><th>Fecha</th><th>Borradores</th><th>Ítems</th><th>Estado</th><th>Evidencia</th><th>Acción</th></tr></thead><tbody>
+{% for lote in lotes %}<tr><td>#{{ lote.id }}</td><td>{{ lote.nombre_archivo }}</td><td>{{ lote.fecha_creacion }}</td><td>{{ lote.comprobantes_creados }}</td><td>{{ lote.items_creados }}</td><td>{{ lote.estado }}</td><td><a href="{{ url_for('admin_facturacion.exportar_lote_fiscal', lote_id=lote.id) }}">Descargar JSON</a></td><td>{% if lote.estado == 'confirmado' %}<form method="post" action="{{ url_for('admin_facturacion.anular_lote_fiscal', lote_id=lote.id) }}"><input required name="motivo" maxlength="1500" placeholder="Motivo de anulación"><button type="submit">Anular internamente</button></form>{% else %}Cerrado{% endif %}</td></tr>
+{% else %}<tr><td colspan="8">No hay lotes fiscales.</td></tr>{% endfor %}</tbody></table>
+</div>{% endblock %}

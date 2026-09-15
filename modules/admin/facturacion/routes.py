@@ -23,6 +23,7 @@ from services.facturacion_consultas import (
 )
 from services.certificacion_offline_facturacion import certificar_facturacion, exportar_certificacion
 from services.importacion_borradores_fiscales import previsualizar_borradores, exportar_previsualizacion, deserializar_previsualizacion, validar_confirmacion, confirmar_importacion, huellas_lotes_tenant
+from services.gestion_lotes_fiscales import listar_lotes, obtener_lote, exportar_lote, anular_lote
 import json
 from services.tenant_context import (
     TenantError,
@@ -261,5 +262,40 @@ def crear_blueprint_facturacion(
         except Exception as exc:
             db.session.rollback()
             return redirect(url_for("admin_facturacion.importacion_offline", error=str(exc)))
+
+    @blueprint.route("/admin/facturacion/lotes")
+    @login_required
+    def lotes_fiscales():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        lotes = listar_lotes(modelos["LoteImportacionFiscal"], organizacion_id=organizacion.id)
+        return render_template("admin_lotes_fiscales.html", lotes=lotes, error=(request.args.get("error") or "").strip())
+
+    @blueprint.route("/admin/facturacion/lotes/<int:lote_id>/exportar")
+    @login_required
+    def exportar_lote_fiscal(lote_id):
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        try:
+            lote = obtener_lote(modelos["LoteImportacionFiscal"], organizacion_id=organizacion.id, lote_id=lote_id)
+            return send_file(exportar_lote(lote), as_attachment=True, download_name=f"lote_fiscal_{lote.id}.json", mimetype="application/json")
+        except Exception as exc:
+            return redirect(url_for("admin_facturacion.lotes_fiscales", error=str(exc)))
+
+    @blueprint.route("/admin/facturacion/lotes/<int:lote_id>/anular", methods=["POST"])
+    @login_required
+    def anular_lote_fiscal(lote_id):
+        usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        try:
+            lote = obtener_lote(modelos["LoteImportacionFiscal"], organizacion_id=organizacion.id, lote_id=lote_id)
+            resultado = anular_lote(lote, motivo=request.form.get("motivo"), usuario=usuario, BorradorComprobanteFiscal=modelos["BorradorComprobanteFiscal"], EventoFiscal=modelos["EventoFiscal"], db_session=db.session)
+            return redirect(url_for("admin_facturacion.panel", ok=f"Lote fiscal #{resultado['lote_id']} anulado; {resultado['borradores_cancelados']} borradores cancelados."))
+        except Exception as exc:
+            db.session.rollback()
+            return redirect(url_for("admin_facturacion.lotes_fiscales", error=str(exc)))
 
     return blueprint
