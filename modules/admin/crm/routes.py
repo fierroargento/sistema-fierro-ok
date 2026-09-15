@@ -22,6 +22,7 @@ from services.crm_consultas import (
     obtener_datos_panel_crm,
 )
 from services.certificacion_offline_crm import certificar_crm,exportar_certificacion
+from services.importacion_offline_crm import exportar_previsualizacion,previsualizar_importacion
 from services.tenant_context import (
     TenantError,
     resolver_tenant_usuario,
@@ -186,5 +187,43 @@ def crear_blueprint_crm(
         resultado=certificar_crm(organizacion_id=organizacion.id,modulo=datos["modulo_crm"],unidades=datos["unidades"],etapas=datos["etapas"],clientes=datos["clientes"],identidades=datos["identidades"],oportunidades=datos["oportunidades"],actividades=datos["actividades"])
         if request.method=="POST":return send_file(exportar_certificacion(resultado),as_attachment=True,download_name="certificacion_crm_offline.json",mimetype="application/json")
         return render_template("admin_certificacion_crm_offline.html",certificacion=resultado)
+
+    @blueprint.route("/admin/crm/importacion-offline", methods=["GET", "POST"])
+    @login_required
+    def importacion_offline():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        datos = obtener_datos_panel_crm(organizacion.id, modelos=modelos)
+        resultado = None
+        error = ""
+        if request.method == "POST":
+            try:
+                archivo = request.files.get("archivo")
+                if archivo is None or not archivo.filename:
+                    raise ValueError("Seleccioná un archivo CSV.")
+                resultado = previsualizar_importacion(
+                    archivo.read(),
+                    organizacion_id=organizacion.id,
+                    unidades=datos["unidades"],
+                    etapas=datos["etapas"],
+                    clientes=datos["clientes"],
+                    identidades=datos["identidades"],
+                )
+                if request.form.get("accion") == "exportar":
+                    return send_file(
+                        exportar_previsualizacion(resultado),
+                        as_attachment=True,
+                        download_name="previsualizacion_crm_offline.json",
+                        mimetype="application/json",
+                    )
+            except ValueError as excepcion:
+                error = str(excepcion)
+        return render_template(
+            "admin_importacion_crm_offline.html",
+            resultado=resultado,
+            error=error,
+            organizacion=organizacion,
+        )
 
     return blueprint

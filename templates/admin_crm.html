@@ -13,7 +13,10 @@
         <strong>{{ modulo_crm.estado if modulo_crm else "desactivado" }}</strong>.
         Las automatizaciones permanecen bloqueadas en todos los estados.
     </div>
-    <p><a href="{{ url_for('admin_crm.certificacion_offline') }}">Abrir certificación integral offline del CRM</a></p>
+    <p>
+        <a href="{{ url_for('admin_crm.certificacion_offline') }}">Abrir certificación integral offline del CRM</a>
+        · <a href="{{ url_for('admin_crm.importacion_offline') }}">Previsualizar importación masiva offline</a>
+    </p>
 
     {% if ok_feedback %}
     <div class="alerta alerta-ok">{{ ok_feedback }}</div>
