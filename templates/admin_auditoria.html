@@ -12,6 +12,7 @@
         <strong>Control tenant:</strong> {{ diagnostico.resumen.registros }} registros · {{ diagnostico.resumen.hallazgos }} hallazgos · auditorías legacy sin tenant incluidas: 0.<br>
         <small>Huella {{ diagnostico.huella }}</small>
         <p><a href="{{ url_for('admin_auditoria_exportar') }}">Descargar evidencia tenant firmada</a></p>
+        <p><a href="{{ url_for('admin_auditoria_legacy') }}">Diagnosticar auditorías legacy sin asignarlas</a></p>
     </div>
 
     <div class="detalle-box detalle-box-full">

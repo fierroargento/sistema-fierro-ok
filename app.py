@@ -97,6 +97,7 @@ from services.ml_etiquetas import (
 
 from services.tracking_info import tracking_info_pedido_service
 from services.auditoria_tenant import obtener_auditorias_tenant,diagnosticar_auditorias_tenant,construir_evidencia_auditoria,exportar_evidencia
+from services.diagnostico_auditoria_legacy import obtener_contexto_legacy,clasificar_auditorias_legacy,exportar_diagnostico
 
 from services.ml_ignorados import (
     ml_pedido_esta_ignorado_service,
@@ -7242,6 +7243,19 @@ def admin_auditoria_exportar():
     auditorias = obtener_auditorias_tenant(membresia.organizacion_id, Auditoria=Auditoria, limite=1000)
     evidencia = construir_evidencia_auditoria(membresia.organizacion_id, auditorias)
     return send_file(exportar_evidencia(evidencia), as_attachment=True, download_name="auditoria_tenant_firmada.json", mimetype="application/json")
+
+
+@app.route("/admin/auditoria/legacy", methods=["GET", "POST"])
+@login_required
+def admin_auditoria_legacy():
+    membresia = membresia_actual()
+    if membresia is None or membresia.rol != "admin":
+        return redirect(url_for("inicio"))
+    auditorias, membresias = obtener_contexto_legacy(Auditoria=Auditoria, UsuarioSistema=UsuarioSistema, UsuarioOrganizacion=UsuarioOrganizacion)
+    diagnostico = clasificar_auditorias_legacy(auditorias, membresias)
+    if request.method == "POST":
+        return send_file(exportar_diagnostico(diagnostico), as_attachment=True, download_name="diagnostico_auditoria_legacy.json", mimetype="application/json")
+    return render_template("admin_auditoria_legacy.html", diagnostico=diagnostico)
 
 
 from modules.admin.integraciones.routes import (

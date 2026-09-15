@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="panel-card"><h1>Diagnóstico de auditoría legacy</h1><p>Clasifica registros históricos sin tenant usando membresías activas. No realiza backfill, no modifica auditorías y no toma decisiones ante ambigüedades.</p>
+<div class="detalle-box">Legacy: {{ diagnostico.resumen.legacy }} · Asignables: {{ diagnostico.resumen.asignables }} · Ambiguas: {{ diagnostico.resumen.ambiguas }} · Sin candidato: {{ diagnostico.resumen.sin_candidato }} · Aplicadas: 0</div>
+<form method="post"><button type="submit">Descargar diagnóstico firmado</button></form>
+<table class="tabla-items"><thead><tr><th>ID</th><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Estado</th><th>Candidatos</th></tr></thead><tbody>{% for item in diagnostico.auditorias %}<tr><td>{{ item.auditoria_id }}</td><td>{{ item.fecha or '-' }}</td><td>{{ item.username or '-' }}</td><td>{{ item.accion or '-' }}</td><td>{{ item.estado }}</td><td>{{ item.organizaciones_candidatas|join(', ') or '-' }}</td></tr>{% else %}<tr><td colspan="6">No hay auditorías legacy pendientes.</td></tr>{% endfor %}</tbody></table>
+<p><code>{{ diagnostico.huella_diagnostico }}</code></p><p><a href="{{ url_for('admin_auditoria') }}">Volver a auditoría</a></p></main>
+{% endblock %}
