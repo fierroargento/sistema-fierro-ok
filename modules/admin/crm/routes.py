@@ -10,6 +10,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
@@ -20,6 +21,7 @@ from services.crm_admin import (
 from services.crm_consultas import (
     obtener_datos_panel_crm,
 )
+from services.certificacion_offline_crm import certificar_crm,exportar_certificacion
 from services.tenant_context import (
     TenantError,
     resolver_tenant_usuario,
@@ -174,5 +176,15 @@ def crear_blueprint_crm(
                 "admin_crm.panel",
                 error=str(error),
             ))
+
+    @blueprint.route("/admin/crm/certificacion-offline",methods=["GET","POST"])
+    @login_required
+    def certificacion_offline():
+        _usuario,organizacion,respuesta=resolver_acceso()
+        if respuesta is not None:return respuesta
+        datos=obtener_datos_panel_crm(organizacion.id,modelos=modelos)
+        resultado=certificar_crm(organizacion_id=organizacion.id,modulo=datos["modulo_crm"],unidades=datos["unidades"],etapas=datos["etapas"],clientes=datos["clientes"],identidades=datos["identidades"],oportunidades=datos["oportunidades"],actividades=datos["actividades"])
+        if request.method=="POST":return send_file(exportar_certificacion(resultado),as_attachment=True,download_name="certificacion_crm_offline.json",mimetype="application/json")
+        return render_template("admin_certificacion_crm_offline.html",certificacion=resultado)
 
     return blueprint
