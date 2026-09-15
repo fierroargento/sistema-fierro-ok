@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 
 
 
-from flask import Flask, abort, request, redirect, render_template, url_for, jsonify, send_from_directory, session, flash
+from flask import Flask, abort, request, redirect, render_template, url_for, jsonify, send_file, send_from_directory, session, flash
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from sentry_sdk.integrations.flask import FlaskIntegration
@@ -96,7 +96,7 @@ from services.ml_etiquetas import (
 )
 
 from services.tracking_info import tracking_info_pedido_service
-from services.auditoria_tenant import obtener_auditorias_tenant,diagnosticar_auditorias_tenant
+from services.auditoria_tenant import obtener_auditorias_tenant,diagnosticar_auditorias_tenant,construir_evidencia_auditoria,exportar_evidencia
 
 from services.ml_ignorados import (
     ml_pedido_esta_ignorado_service,
@@ -7231,6 +7231,17 @@ def admin_auditoria():
     auditorias = obtener_auditorias_tenant(membresia.organizacion_id, Auditoria=Auditoria)
     diagnostico = diagnosticar_auditorias_tenant(membresia.organizacion_id, auditorias)
     return render_template("admin_auditoria.html", auditorias=auditorias, diagnostico=diagnostico, ok_feedback="", error="")
+
+
+@app.route("/admin/auditoria/exportar")
+@login_required
+def admin_auditoria_exportar():
+    membresia = membresia_actual()
+    if membresia is None or membresia.rol != "admin":
+        return redirect(url_for("inicio"))
+    auditorias = obtener_auditorias_tenant(membresia.organizacion_id, Auditoria=Auditoria, limite=1000)
+    evidencia = construir_evidencia_auditoria(membresia.organizacion_id, auditorias)
+    return send_file(exportar_evidencia(evidencia), as_attachment=True, download_name="auditoria_tenant_firmada.json", mimetype="application/json")
 
 
 from modules.admin.integraciones.routes import (
