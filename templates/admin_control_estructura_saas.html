@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="card"><h1>Control integral de estructura SaaS</h1><p>Diagnóstico de solo lectura para {{ organizacion.nombre }}. No activa módulos, conecta cuentas, modifica pedidos ni emite facturas.</p>
+<div class="alerta {{ 'alerta-ok' if control.aprobado else 'alerta-error' }}"><strong>{{ 'APROBADO' if control.aprobado else 'REQUIERE REVISIÓN' }}</strong> · {{ control.resumen.hallazgos }} hallazgos</div>
+<section class="card"><h2>Estructura</h2><p>Unidades: {{ control.resumen.unidades }} · Sucursales: {{ control.resumen.sucursales }} · Entidades fiscales: {{ control.resumen.entidades_fiscales }} · Catálogos: {{ control.resumen.catalogos }} · Módulos: {{ control.resumen.modulos }} · Vínculos: {{ control.resumen.vinculos_canales }}</p></section>
+<section class="card"><h2>Fronteras</h2><p>Módulos activados: 0 · Cuentas conectadas: 0 · Pedidos modificados: 0 · Facturas emitidas: 0 · Escrituras: 0</p></section>
+<section class="card"><h2>Hallazgos</h2><ul>{% for item in control.hallazgos %}<li><strong>{{ item.codigo }}</strong>: {{ item.detalle }}</li>{% else %}<li>No se detectaron inconsistencias estructurales.</li>{% endfor %}</ul></section>
+<p><code>{{ control.huella_control }}</code></p><form method="post"><button type="submit">Descargar control JSON</button></form><p><a href="{{ url_for('admin_estructura.panel') }}">Volver a estructura</a></p></main>
+{% endblock %}

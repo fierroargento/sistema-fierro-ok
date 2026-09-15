@@ -10,9 +10,11 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
+from services.control_integral_estructura_saas import controlar_estructura,exportar_control
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -358,5 +360,17 @@ def crear_blueprint_estructura(
             return redirect(url_for(
                 "admin_estructura.panel", error=str(error),
             ))
+
+    @blueprint.route("/admin/estructura/control-integral", methods=["GET", "POST"])
+    @login_required
+    def control_integral():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        datos = obtener_datos_panel_estructura(organizacion.id, modelos=modelos)
+        resultado = controlar_estructura(organizacion=organizacion, datos=datos)
+        if request.method == "POST":
+            return send_file(exportar_control(resultado), as_attachment=True, download_name="control_integral_estructura_saas.json", mimetype="application/json")
+        return render_template("admin_control_estructura_saas.html", control=resultado, organizacion=organizacion)
 
     return blueprint

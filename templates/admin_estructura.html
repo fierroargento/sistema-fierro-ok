@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260821-2') }}">{% endblock %}
 {% block content %}
+<p><a href="{{ url_for('admin_estructura.control_integral') }}">Abrir control integral de estructura SaaS</a></p>
 <div class="card estructura-admin">
     <h1>Estructura empresarial</h1>
     <p>
