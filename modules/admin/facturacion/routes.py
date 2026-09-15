@@ -25,6 +25,7 @@ from services.certificacion_offline_facturacion import certificar_facturacion, e
 from services.importacion_borradores_fiscales import previsualizar_borradores, exportar_previsualizacion, deserializar_previsualizacion, validar_confirmacion, confirmar_importacion, huellas_lotes_tenant
 from services.gestion_lotes_fiscales import listar_lotes, obtener_lote, exportar_lote, anular_lote
 from services.expedientes_autorizacion_fiscal import listar_candidatos, listar_expedientes, certificar, exportar
+from services.control_integral_facturacion import consultar_registros, controlar, exportar as exportar_control_integral
 import json
 from services.tenant_context import (
     TenantError,
@@ -324,5 +325,15 @@ def crear_blueprint_facturacion(
         expediente=next((x for x in listar_expedientes(modelos["ExpedienteAutorizacionFiscal"],organizacion_id=organizacion.id) if x.id==expediente_id),None)
         if expediente is None:return redirect(url_for("admin_facturacion.expedientes_fiscales",error="No se encontró el expediente dentro del tenant."))
         return send_file(exportar(expediente),as_attachment=True,download_name=f"expediente_fiscal_{expediente.id}.json",mimetype="application/json")
+
+    @blueprint.route("/admin/facturacion/control-integral",methods=["GET","POST"])
+    @login_required
+    def control_integral():
+        _usuario,organizacion,respuesta=resolver_acceso()
+        if respuesta is not None:return respuesta
+        datos=obtener_datos_panel_facturacion(organizacion_id=organizacion.id,modelos=modelos)
+        resultado=controlar(organizacion_id=organizacion.id,modulo=datos["modulo_facturacion"],entidades=datos["entidades_fiscales"],configuraciones=datos["configuraciones"],puntos=datos["puntos_venta"],tipos=datos["tipos_comprobante"],borradores=datos["borradores"],eventos=datos["eventos"],lotes=consultar_registros(modelos["LoteImportacionFiscal"],organizacion_id=organizacion.id),expedientes=consultar_registros(modelos["ExpedienteAutorizacionFiscal"],organizacion_id=organizacion.id))
+        if request.method=="POST":return send_file(exportar_control_integral(resultado),as_attachment=True,download_name="control_integral_facturacion.json",mimetype="application/json")
+        return render_template("admin_control_integral_facturacion.html",control=resultado)
 
     return blueprint
