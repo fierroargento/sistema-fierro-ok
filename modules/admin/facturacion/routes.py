@@ -24,6 +24,7 @@ from services.facturacion_consultas import (
 from services.certificacion_offline_facturacion import certificar_facturacion, exportar_certificacion
 from services.importacion_borradores_fiscales import previsualizar_borradores, exportar_previsualizacion, deserializar_previsualizacion, validar_confirmacion, confirmar_importacion, huellas_lotes_tenant
 from services.gestion_lotes_fiscales import listar_lotes, obtener_lote, exportar_lote, anular_lote
+from services.expedientes_autorizacion_fiscal import listar_candidatos, listar_expedientes, certificar, exportar
 import json
 from services.tenant_context import (
     TenantError,
@@ -297,5 +298,31 @@ def crear_blueprint_facturacion(
         except Exception as exc:
             db.session.rollback()
             return redirect(url_for("admin_facturacion.lotes_fiscales", error=str(exc)))
+
+    @blueprint.route("/admin/facturacion/expedientes",methods=["GET","POST"])
+    @login_required
+    def expedientes_fiscales():
+        usuario,organizacion,respuesta=resolver_acceso()
+        if respuesta is not None:return respuesta
+        Borrador=modelos["BorradorComprobanteFiscal"];Expediente=modelos["ExpedienteAutorizacionFiscal"]
+        if request.method=="POST":
+            try:
+                borrador_id=int(request.form.get("borrador_id") or 0)
+                borrador=next((x for x in listar_candidatos(Borrador,organizacion_id=organizacion.id) if x.id==borrador_id),None)
+                if borrador is None:raise ValueError("El borrador no está listo dentro del tenant.")
+                expediente=certificar(borrador,organizacion_id=organizacion.id,usuario=usuario,ExpedienteAutorizacionFiscal=Expediente,EventoFiscal=modelos["EventoFiscal"],db_session=db.session)
+                return redirect(url_for("admin_facturacion.expedientes_fiscales",ok=f"Expediente #{expediente.id} certificado sin emisión real."))
+            except Exception as exc:
+                db.session.rollback();return redirect(url_for("admin_facturacion.expedientes_fiscales",error=str(exc)))
+        return render_template("admin_expedientes_fiscales.html",candidatos=listar_candidatos(Borrador,organizacion_id=organizacion.id),expedientes=listar_expedientes(Expediente,organizacion_id=organizacion.id),ok=(request.args.get("ok") or ""),error=(request.args.get("error") or ""))
+
+    @blueprint.route("/admin/facturacion/expedientes/<int:expediente_id>/exportar")
+    @login_required
+    def exportar_expediente_fiscal(expediente_id):
+        _usuario,organizacion,respuesta=resolver_acceso()
+        if respuesta is not None:return respuesta
+        expediente=next((x for x in listar_expedientes(modelos["ExpedienteAutorizacionFiscal"],organizacion_id=organizacion.id) if x.id==expediente_id),None)
+        if expediente is None:return redirect(url_for("admin_facturacion.expedientes_fiscales",error="No se encontró el expediente dentro del tenant."))
+        return send_file(exportar(expediente),as_attachment=True,download_name=f"expediente_fiscal_{expediente.id}.json",mimetype="application/json")
 
     return blueprint

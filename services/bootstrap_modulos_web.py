@@ -254,6 +254,7 @@ def registrar_modulos_web(
                         "BorradorItemFiscal",
                         "EventoFiscal",
                         "LoteImportacionFiscal",
+                        "ExpedienteAutorizacionFiscal",
                     )
                 },
             },

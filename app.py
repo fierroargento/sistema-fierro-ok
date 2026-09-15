@@ -311,6 +311,7 @@ from models.tarea_manual_ml import EventoTareaManualML, TareaManualML
 from models.cierre_conciliacion_mp import CierreConciliacionMP, EventoCierreConciliacionMP
 from models.lote_importacion_mp import LoteImportacionMP
 from models.lote_importacion_fiscal import LoteImportacionFiscal
+from models.expediente_autorizacion_fiscal import ExpedienteAutorizacionFiscal
 from models.lote_diagnostico_tienda_nube import (
     EventoLoteDiagnosticoTiendaNube,
     LoteDiagnosticoTiendaNube,
@@ -11949,6 +11950,7 @@ registrar_modulos_web(
             "EventoCierreConciliacionMP": EventoCierreConciliacionMP,
             "LoteImportacionMP": LoteImportacionMP,
             "LoteImportacionFiscal": LoteImportacionFiscal,
+            "ExpedienteAutorizacionFiscal": ExpedienteAutorizacionFiscal,
             "LoteDiagnosticoTiendaNube": LoteDiagnosticoTiendaNube,
             "EventoLoteDiagnosticoTiendaNube": EventoLoteDiagnosticoTiendaNube,
             "PropuestaPedidoTiendaNube": PropuestaPedidoTiendaNube,
