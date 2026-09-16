@@ -100,6 +100,7 @@ from services.auditoria_tenant import obtener_auditorias_tenant,diagnosticar_aud
 from services.diagnostico_auditoria_legacy import obtener_contexto_legacy,clasificar_auditorias_legacy,exportar_diagnostico
 from services.asignacion_tenant_auditoria import obtener_propuestas_tenant,preparar_propuestas,obtener_propuesta,aprobar_propuesta,rechazar_propuesta,aplicar_propuesta
 from services.control_final_auditoria_legacy import obtener_control_tenant,exportar_control
+from services.certificacion_eventos_operativos import obtener_eventos_tenant,certificar_eventos,exportar_certificacion
 
 from services.ml_ignorados import (
     ml_pedido_esta_ignorado_service,
@@ -7309,6 +7310,26 @@ def admin_auditoria_legacy_control_exportar():
     if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
     control = obtener_control_tenant(membresia.organizacion_id, AsignacionTenantAuditoria=AsignacionTenantAuditoria)
     return send_file(exportar_control(control), as_attachment=True, download_name="control_final_auditoria_legacy.json", mimetype="application/json")
+
+
+@app.route("/admin/auditoria/eventos")
+@login_required
+def admin_auditoria_eventos():
+    membresia=membresia_actual()
+    if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
+    eventos,pedidos=obtener_eventos_tenant(membresia.organizacion_id,Pedido=Pedido,EventoOperativo=EventoOperativo)
+    certificacion=certificar_eventos(membresia.organizacion_id,eventos,pedidos)
+    return render_template("admin_certificacion_eventos_operativos.html",certificacion=certificacion)
+
+
+@app.route("/admin/auditoria/eventos/exportar")
+@login_required
+def admin_auditoria_eventos_exportar():
+    membresia=membresia_actual()
+    if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
+    eventos,pedidos=obtener_eventos_tenant(membresia.organizacion_id,Pedido=Pedido,EventoOperativo=EventoOperativo)
+    certificacion=certificar_eventos(membresia.organizacion_id,eventos,pedidos)
+    return send_file(exportar_certificacion(certificacion),as_attachment=True,download_name="certificacion_eventos_operativos.json",mimetype="application/json")
 
 
 from modules.admin.integraciones.routes import (

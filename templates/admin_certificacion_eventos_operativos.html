@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block title %}Certificación de eventos operativos{% endblock %}
+{% block content %}<div class="contenedor"><h1>Certificación de eventos operativos</h1>
+<p>Control de solo lectura. Los eventos se atribuyen exclusivamente mediante pedidos del tenant activo.</p>
+<p><strong>Resultado:</strong> {{ 'APROBADO' if certificacion.aprobado else 'OBSERVADO' }} · <strong>Eventos:</strong> {{ certificacion.total }} · <strong>Observaciones:</strong> {{ certificacion.observaciones|length }}</p>
+<p><a class="boton" href="{{ url_for('admin_auditoria_eventos_exportar') }}">Descargar certificación firmada</a> <a href="{{ url_for('admin_auditoria') }}">Volver</a></p>
+<table class="tabla-items"><thead><tr><th>Evento</th><th>Pedido</th><th>Tipo</th><th>Procesado</th><th>Resultado</th></tr></thead><tbody>{% for fila in certificacion.eventos %}<tr><td>#{{ fila.evento_id }}</td><td>#{{ fila.pedido_id }}</td><td>{{ fila.tipo_evento }}</td><td>{{ 'Sí' if fila.procesado else 'No' }}</td><td>{{ fila.resultado }}</td></tr>{% else %}<tr><td colspan="5">No hay eventos atribuibles a pedidos de este tenant.</td></tr>{% endfor %}</tbody></table></div>{% endblock %}
