@@ -101,6 +101,11 @@ from services.diagnostico_auditoria_legacy import obtener_contexto_legacy,clasif
 from services.asignacion_tenant_auditoria import obtener_propuestas_tenant,preparar_propuestas,obtener_propuesta,aprobar_propuesta,rechazar_propuesta,aplicar_propuesta
 from services.control_final_auditoria_legacy import obtener_control_tenant,exportar_control
 from services.certificacion_eventos_operativos import obtener_eventos_tenant,certificar_eventos,exportar_certificacion
+from services.seguridad_entorno import (
+    exigir_efecto_externo,
+    procesamiento_webhook_habilitado,
+    scheduler_habilitado,
+)
 
 from services.ml_ignorados import (
     ml_pedido_esta_ignorado_service,
@@ -673,6 +678,8 @@ def guardar_etiqueta_subida(archivo):
     if not archivo or not archivo.filename:
         return ""
 
+    exigir_efecto_externo("CLOUDINARY", "Carga de etiqueta")
+
     try:
         resultado = cloudinary.uploader.upload(
             archivo,
@@ -693,6 +700,8 @@ def guardar_etiqueta_subida(archivo):
 def guardar_comprobante_dux_subido(archivo):
     if not archivo or not archivo.filename:
         return {"url": "", "public_id": ""}
+
+    exigir_efecto_externo("CLOUDINARY", "Carga de comprobante DUX")
 
     try:
         resultado = cloudinary.uploader.upload(
@@ -717,6 +726,8 @@ def guardar_comprobante_dux_subido(archivo):
 def guardar_comprobante_pago_agregado_subido(archivo):
     if not archivo or not archivo.filename:
         return {"url": "", "public_id": ""}
+
+    exigir_efecto_externo("CLOUDINARY", "Carga de comprobante de pago")
 
     try:
         resultado = cloudinary.uploader.upload(
@@ -2236,8 +2247,12 @@ def alertas_operativas():
         "Reclamar a Mercado Libre",
     ]
     try:
+        membresia = membresia_actual()
+        if membresia is None:
+            return []
         pedidos = Pedido.query.filter(
-            Pedido.estado.in_(estados_activos)
+            Pedido.organizacion_id == membresia.organizacion_id,
+            Pedido.estado.in_(estados_activos),
         ).all()
 
     except Exception as error:
@@ -3197,7 +3212,7 @@ def tn_extraer_order_id(payload):
 def tn_webhook_firma_valida(raw_body):
     secret = tn_app_secret()
     if not secret:
-        return True
+        return False
 
     firma_recibida = (
         request.headers.get("X-Linkedstore-Hmac-SHA256")
@@ -3816,6 +3831,7 @@ def tn_sync_manual(limit=50):
 
 
 def tn_registrar_webhooks_sistema_fierro():
+    exigir_efecto_externo("TN", "Registro de webhooks Tienda Nube")
     webhook_url = request.url_root.rstrip("/") + "/webhook/tiendanube"
     eventos = ["order/created", "order/paid", "order/cancelled", "order/fulfilled", "fulfillment_order/status_updated", "fulfillment_order/tracking_event_created", "fulfillment_order/tracking_event_updated"]
     resultados = []
@@ -5064,6 +5080,7 @@ def ml_enviar_mensaje_acordas(
     texto,
     permitir_requiere_operador=False,
 ):
+    exigir_efecto_externo("ML", "Envio de mensaje Mercado Libre")
     if not pedido or pedido.canal != "Mercado Libre" or not es_ml_acordas_entrega(pedido):
         raise ValueError("El pedido no corresponde a Mercado Libre / Acordás la Entrega.")
 
@@ -5678,9 +5695,13 @@ def ml_upsert_pedido_desde_order(
     return pedido, creado, ""
 
 def ml_borrar_pedidos_ml_cargando_importados():
+    membresia = membresia_actual()
+    if membresia is None:
+        abort(403)
     pedidos = (
         Pedido.query
         .filter(
+            Pedido.organizacion_id == membresia.organizacion_id,
             Pedido.estado == "Cargando Pedido",
             or_(
                 Pedido.origen == "mercadolibre",
@@ -7103,6 +7124,9 @@ def webhook_mercadolibre():
     if request.method == "GET":
         return "OK", 200
 
+    if not procesamiento_webhook_habilitado("ML"):
+        return "IGNORADO - modo desconectado", 200
+
     log_id = None
     try:
         data = request.get_json(silent=True) or {}
@@ -7365,6 +7389,9 @@ app.register_blueprint(
 
 @app.route("/webhook/tiendanube", methods=["POST"])
 def webhook_tiendanube():
+    if not procesamiento_webhook_habilitado("TN"):
+        return "IGNORADO - modo desconectado", 200
+
     raw_body = request.get_data() or b""
     data = None
     log_id = None
@@ -7518,7 +7545,11 @@ def reset_prueba_tiendanube():
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
     try:
+        membresia = membresia_actual()
+        if membresia is None:
+            abort(403)
         pedidos = Pedido.query.filter(
+            Pedido.organizacion_id == membresia.organizacion_id,
             Pedido.origen == "tiendanube",
             Pedido.estado == "Cargando Pedido"
         ).all()
@@ -8088,9 +8119,13 @@ def reset_total_mercadolibre():
         return redirect(url_for("inicio"))
 
     try:
+        membresia = membresia_actual()
+        if membresia is None:
+            abort(403)
         pedidos = (
             Pedido.query
             .filter(
+                Pedido.organizacion_id == membresia.organizacion_id,
                 or_(
                     Pedido.origen == "mercadolibre",
                     Pedido.canal == "Mercado Libre"
@@ -8165,7 +8200,15 @@ def historico():
 @app.route("/productos")
 @login_required
 def productos():
-    productos_db = Producto.query.order_by(Producto.descripcion.asc()).all()
+    membresia = membresia_actual()
+    if membresia is None:
+        abort(403)
+    productos_db = (
+        Producto.query
+        .filter(Producto.organizacion_id == membresia.organizacion_id)
+        .order_by(Producto.descripcion.asc())
+        .all()
+    )
 
     if productos_db:
         return jsonify([
@@ -8178,7 +8221,10 @@ def productos():
         productos = productos_desde_excel(ruta_excel)
         if productos:
             try:
-                sincronizar_productos_desde_excel(ruta_excel)
+                sincronizar_productos_desde_excel(
+                    ruta_excel,
+                    organizacion_id=membresia.organizacion_id,
+                )
             except Exception as e:
                 print("No se pudo sincronizar productos desde Excel:", e)
         return jsonify(productos)
@@ -8189,7 +8235,21 @@ def productos():
 @app.route("/uploads/<path:nombre_archivo>")
 @login_required
 def ver_etiqueta(nombre_archivo):
-    return send_from_directory(app.config["UPLOAD_FOLDER"], nombre_archivo)
+    archivo = os.path.basename(str(nombre_archivo or ""))
+    if not archivo or archivo != str(nombre_archivo or ""):
+        abort(404)
+    pedido = (
+        consulta_pedidos_tenant_actual()
+        .filter(or_(
+            Pedido.etiqueta_archivo.ilike(f"%{archivo}%"),
+            Pedido.comprobante_dux_archivo.ilike(f"%{archivo}%"),
+            Pedido.comprobante_pago_archivo.ilike(f"%{archivo}%"),
+        ))
+        .first()
+    )
+    if pedido is None:
+        abort(404)
+    return send_from_directory(app.config["UPLOAD_FOLDER"], archivo)
 
 
 @app.route("/pedido/<path:nombre_archivo>")
@@ -8708,7 +8768,12 @@ def nuevo_pedido():
                 comprobante_pago_guardado=comprobante_pago_existente,
             )
 
+        membresia_pedido = membresia_actual()
+        if membresia_pedido is None:
+            abort(403)
+
         pedido = Pedido(
+            organizacion_id=membresia_pedido.organizacion_id,
             cliente=request.form.get("cliente"),
             dni=request.form.get("dni"),
             telefono=normalizar_telefono(request.form.get("telefono")),
@@ -12197,7 +12262,7 @@ activar(app)
 
 # ── Scheduler: jobs periódicos ───────────────────────────────────
 try:
-    scheduler_enabled = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
+    scheduler_enabled = scheduler_habilitado()
 
     if scheduler_enabled:
         from modules.automation.manager import iniciar_scheduler

@@ -8,6 +8,14 @@ def inicializar_base_datos_saas(
     *,
     dependencias,
 ):
+    from services.seguridad_entorno import bootstrap_base_habilitado
+
+    if not bootstrap_base_habilitado():
+        dependencias.get("logger_fn", print)(
+            "[BASE DATOS] Bootstrap y migraciones de arranque deshabilitados"
+        )
+        return False
+
     from services.estructura_empresarial import (
         asegurar_estructura_empresarial_inicial,
     )

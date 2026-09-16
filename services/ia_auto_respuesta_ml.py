@@ -21,7 +21,7 @@ def evaluar_habilitacion_auto_respuesta_ml(
     """Evalua las precondiciones generales del flujo."""
 
     configuracion = str(
-        os.getenv("IA_AUTO_RESPUESTA", "1") or ""
+        os.getenv("IA_AUTO_RESPUESTA", "0") or ""
     ).strip().lower()
 
     if configuracion in {"0", "false", "no", "off"}:

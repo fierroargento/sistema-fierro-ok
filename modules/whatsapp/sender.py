@@ -24,6 +24,7 @@ from .runtime import (
     wa_ventana_24h_abierta,
 )
 from services.whatsapp_template_params import sanitizar_parametros_template_meta
+from services.seguridad_entorno import efectos_externos_habilitados
 
 logger = get_app_logger(__name__)
 
@@ -46,6 +47,11 @@ def _registrar_historial(pedido=None, telefono="", texto="", autor="bot", estado
 
 def _wa_post(payload):
     """Envia un payload a la API de Meta. Devuelve (ok, data/error)."""
+    if not efectos_externos_habilitados("WHATSAPP"):
+        msg = "Envio WhatsApp bloqueado: Sistema Fierro esta en modo desconectado"
+        logger.warning("[WA-SEGURIDAD] %s", msg)
+        return False, msg
+
     if not WA_TOKEN:
         msg = "WHATSAPP_TOKEN no configurado -modulo inactivo"
         print("[WA]", msg)
