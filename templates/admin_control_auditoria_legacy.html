@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block title %}Control final de auditoría legacy{% endblock %}
+{% block content %}<div class="contenedor"><h1>Control final de auditoría legacy</h1>
+<p>Expediente de solo lectura para verificar las asignaciones históricas del tenant activo.</p>
+<p><strong>Resultado:</strong> {{ 'APROBADO' if control.aprobado else 'OBSERVADO' }} · <strong>Propuestas:</strong> {{ control.total }} · <strong>Observaciones:</strong> {{ control.observaciones|length }}</p>
+<p><a class="boton" href="{{ url_for('admin_auditoria_legacy_control_exportar') }}">Descargar control firmado</a> <a href="{{ url_for('admin_auditoria_legacy') }}">Volver</a></p>
+<table class="tabla-items"><thead><tr><th>Propuesta</th><th>Auditoría</th><th>Estado</th><th>Tenant aplicado</th><th>Resultado</th></tr></thead><tbody>
+{% for fila in control.asignaciones %}<tr><td>#{{ fila.propuesta_id }}</td><td>#{{ fila.auditoria_id }}</td><td>{{ fila.estado }}</td><td>{{ fila.tenant_auditoria or '-' }}</td><td>{{ fila.resultado }}</td></tr>{% else %}<tr><td colspan="5">No hay propuestas para este tenant.</td></tr>{% endfor %}</tbody></table></div>{% endblock %}

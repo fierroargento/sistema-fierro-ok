@@ -99,6 +99,7 @@ from services.tracking_info import tracking_info_pedido_service
 from services.auditoria_tenant import obtener_auditorias_tenant,diagnosticar_auditorias_tenant,construir_evidencia_auditoria,exportar_evidencia
 from services.diagnostico_auditoria_legacy import obtener_contexto_legacy,clasificar_auditorias_legacy,exportar_diagnostico
 from services.asignacion_tenant_auditoria import obtener_propuestas_tenant,preparar_propuestas,obtener_propuesta,aprobar_propuesta,rechazar_propuesta,aplicar_propuesta
+from services.control_final_auditoria_legacy import obtener_control_tenant,exportar_control
 
 from services.ml_ignorados import (
     ml_pedido_esta_ignorado_service,
@@ -7290,6 +7291,24 @@ def admin_auditoria_legacy_accion(propuesta_id, accion):
         return redirect(url_for("admin_auditoria_legacy", ok=f"Propuesta #{propuesta.id}: {propuesta.estado}."))
     except Exception as error:
         db.session.rollback(); return redirect(url_for("admin_auditoria_legacy", error=str(error)))
+
+
+@app.route("/admin/auditoria/legacy/control")
+@login_required
+def admin_auditoria_legacy_control():
+    membresia = membresia_actual()
+    if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
+    control = obtener_control_tenant(membresia.organizacion_id, AsignacionTenantAuditoria=AsignacionTenantAuditoria)
+    return render_template("admin_control_auditoria_legacy.html", control=control)
+
+
+@app.route("/admin/auditoria/legacy/control/exportar")
+@login_required
+def admin_auditoria_legacy_control_exportar():
+    membresia = membresia_actual()
+    if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
+    control = obtener_control_tenant(membresia.organizacion_id, AsignacionTenantAuditoria=AsignacionTenantAuditoria)
+    return send_file(exportar_control(control), as_attachment=True, download_name="control_final_auditoria_legacy.json", mimetype="application/json")
 
 
 from modules.admin.integraciones.routes import (
