@@ -106,6 +106,10 @@ from services.seguridad_entorno import (
     procesamiento_webhook_habilitado,
     scheduler_habilitado,
 )
+from services.contexto_canal_tenant import (
+    resolver_contexto_cuenta,
+    validar_pedido_en_contexto,
+)
 
 from services.ml_ignorados import (
     ml_pedido_esta_ignorado_service,
@@ -3149,6 +3153,40 @@ def cuenta_tn_actual():
     return cuenta
 
 
+def cuenta_tn_desde_webhook(data):
+    store_id = str(
+        request.headers.get("X-Linkedstore-Id")
+        or request.headers.get("X-TiendaNube-Store-Id")
+        or (data or {}).get("store_id")
+        or (data or {}).get("user_id")
+        or ""
+    ).strip()
+    if not store_id:
+        raise ValueError("Webhook Tienda Nube sin identificador de tienda.")
+    cuenta = TiendaNubeCuenta.query.filter_by(store_id=store_id).first()
+    if cuenta is None:
+        raise ValueError("La tienda del webhook no esta registrada.")
+    resolver_contexto_cuenta(
+        cuenta,
+        canal="tiendanube",
+        VinculoCanalComercial=VinculoCanalComercial,
+    )
+    return cuenta
+
+
+def cuenta_tn_tenant_actual():
+    cuenta = cuenta_tn_actual()
+    membresia = membresia_actual()
+    vinculo = resolver_contexto_cuenta(
+        cuenta,
+        canal="tiendanube",
+        VinculoCanalComercial=VinculoCanalComercial,
+    )
+    if membresia is None or vinculo.organizacion_id != membresia.organizacion_id:
+        abort(403)
+    return cuenta, vinculo
+
+
 def tn_http_json(method, path, data=None, params=None):
     if tn_config_faltante():
         raise ValueError(f"Faltan variables TN: {', '.join(tn_config_faltante())}")
@@ -3682,14 +3720,23 @@ def tn_intentar_iniciar_wa_via_cargo_sucursal(pedido):
         return False
 
 
-def tn_importar_o_actualizar_pedido(order):
-    cuenta_origen = cuenta_tn_actual()
+def tn_importar_o_actualizar_pedido(order, cuenta_origen=None):
+    cuenta_origen = cuenta_origen or cuenta_tn_actual()
+    vinculo_origen = resolver_contexto_cuenta(
+        cuenta_origen,
+        canal="tiendanube",
+        VinculoCanalComercial=VinculoCanalComercial,
+    )
     tn_id = str(order.get("id") or "").strip()
     if not tn_id:
         return None, "omitido_sin_id"
 
     apto, motivo_omision = tn_pedido_apto_para_fierro(order)
-    pedido = Pedido.query.filter_by(tn_order_id=tn_id).first()
+    pedido = Pedido.query.filter_by(
+        tn_order_id=tn_id,
+        organizacion_id=vinculo_origen.organizacion_id,
+    ).first()
+    validar_pedido_en_contexto(pedido, vinculo_origen)
 
     # APB TN:
     # - Pedido nuevo cancelado/enviado/no pago: no ingresa.
@@ -3707,6 +3754,8 @@ def tn_importar_o_actualizar_pedido(order):
     creado = False
     if not pedido:
         pedido = Pedido(
+            organizacion_id=vinculo_origen.organizacion_id,
+            unidad_negocio_id=vinculo_origen.unidad_negocio_id,
             origen="tiendanube",
             canal="Tienda Nube",
             id_venta=tn_id,
@@ -3790,14 +3839,23 @@ def tn_importar_o_actualizar_pedido(order):
     return pedido, "creado" if creado else "actualizado"
 
 
-def tn_importar_pedido_por_id(order_id):
+def tn_importar_pedido_por_id(order_id, cuenta_origen=None):
     order = tn_enriquecer_order_con_fulfillment(order_id)
-    pedido, accion = tn_importar_o_actualizar_pedido(order)
+    pedido, accion = tn_importar_o_actualizar_pedido(
+        order,
+        cuenta_origen=cuenta_origen,
+    )
     db.session.commit()
     return pedido, accion
 
 
-def tn_sync_manual(limit=50):
+def tn_sync_manual(limit=50, cuenta_origen=None):
+    cuenta_origen = cuenta_origen or cuenta_tn_actual()
+    resolver_contexto_cuenta(
+        cuenta_origen,
+        canal="tiendanube",
+        VinculoCanalComercial=VinculoCanalComercial,
+    )
     limit = max(1, min(int(limit or 50), 100))
     orders = tn_http_json("GET", "/orders", params={"per_page": limit})
     if not isinstance(orders, list):
@@ -3811,7 +3869,10 @@ def tn_sync_manual(limit=50):
                 order = tn_enriquecer_order_con_fulfillment(order_id)
             except Exception as e:
                 print(f"[TN] Sync manual: no se pudo enriquecer orden {order_id}: {e}")
-        _, accion = tn_importar_o_actualizar_pedido(order)
+        _, accion = tn_importar_o_actualizar_pedido(
+            order,
+            cuenta_origen=cuenta_origen,
+        )
         if accion == "creado":
             resultado["creados"] += 1
         elif accion == "actualizado":
@@ -4194,13 +4255,20 @@ from modules.bot_ml.mensajes import (
 )
 
 
-def ml_marcar_mensajes_pendientes_por_ids(ids, count=1, commit=False):
+def ml_marcar_mensajes_pendientes_por_ids(
+    ids, count=1, commit=False, organizacion_id=None,
+):
     """Marca pedidos con mensajes pendientes usando id_venta o ml_pack_id."""
     ids_limpios = {str(x or "").strip() for x in (ids or []) if str(x or "").strip()}
     if not ids_limpios:
         return 0
 
-    pedidos = Pedido.query.filter(Pedido.canal == "Mercado Libre").all()
+    if organizacion_id is None:
+        raise ValueError("Falta organizacion para vincular mensajes ML.")
+    pedidos = Pedido.query.filter(
+        Pedido.canal == "Mercado Libre",
+        Pedido.organizacion_id == int(organizacion_id),
+    ).all()
     ahora = datetime.utcnow()
     marcados = 0
 
@@ -6851,6 +6919,8 @@ def ml_sync_shipment_por_id_webhook(
         api_context = ml_api_contexto_webhook(
             seller_id
         )
+        vinculo_cuenta = ml_vinculo_activo_cuenta(api_context.cuenta)
+        organizacion_id = int(vinculo_cuenta.organizacion_id)
         shipment = ml_obtener_shipment(
             shipment_id,
             api_context=api_context,
@@ -6863,6 +6933,7 @@ def ml_sync_shipment_por_id_webhook(
             Pedido.query
             .filter(
                 Pedido.canal == "Mercado Libre",
+                Pedido.organizacion_id == organizacion_id,
                 or_(
                     Pedido.ml_shipping_id == shipment_id,
                     Pedido.ml_shipping_id == str(shipment_id)
@@ -6905,6 +6976,7 @@ def ml_sync_shipment_por_id_webhook(
                 .filter_by(
                     canal="Mercado Libre",
                     id_venta=order_id,
+                    organizacion_id=organizacion_id,
                 )
                 .first()
             )
@@ -6927,6 +6999,7 @@ def ml_sync_shipment_por_id_webhook(
                 .filter_by(
                     canal="Mercado Libre",
                     id_venta=order_id,
+                    organizacion_id=organizacion_id,
                 )
                 .first()
             )
@@ -6993,6 +7066,8 @@ def ml_marcar_reclamo_webhook(
         api_context = ml_api_contexto_webhook(
             seller_id
         )
+        vinculo_cuenta = ml_vinculo_activo_cuenta(api_context.cuenta)
+        organizacion_id = int(vinculo_cuenta.organizacion_id)
         claim = api_context.get(
             f"/post-purchase/v1/claims/{claim_id}"
         )
@@ -7023,7 +7098,10 @@ def ml_marcar_reclamo_webhook(
                 continue
 
             pedido = (
-                Pedido.query.filter(Pedido.canal == "Mercado Libre")
+                Pedido.query.filter(
+                    Pedido.canal == "Mercado Libre",
+                    Pedido.organizacion_id == organizacion_id,
+                )
                 .filter(or_(
                     Pedido.ml_pack_id == buscar_id,
                     Pedido.id_venta == buscar_id,
@@ -7142,6 +7220,9 @@ def webhook_mercadolibre():
         detalle_log = "sin accion"
 
         if "message" in topic or "/messages" in resource:
+            contexto_ml = ml_api_contexto_webhook(seller_id_webhook)
+            vinculo_ml = ml_vinculo_activo_cuenta(contexto_ml.cuenta)
+            organizacion_id_webhook = int(vinculo_ml.organizacion_id)
             pack_id = ""
             match_pack = re.search(r"/packs/([^/?#]+)", resource)
             if match_pack:
@@ -7149,7 +7230,10 @@ def webhook_mercadolibre():
 
             if pack_id:
                 pedido = (
-                    Pedido.query.filter(Pedido.canal == "Mercado Libre")
+                    Pedido.query.filter(
+                        Pedido.canal == "Mercado Libre",
+                        Pedido.organizacion_id == organizacion_id_webhook,
+                    )
                     .filter(or_(
                         Pedido.ml_pack_id == pack_id,
                         Pedido.id_venta == pack_id,
@@ -7169,7 +7253,12 @@ def webhook_mercadolibre():
                 if not ids and resource:
                     ids = ml_resolver_ids_desde_recurso_mensaje(resource)
 
-                marcados = ml_marcar_mensajes_pendientes_por_ids(ids, count=1, commit=True)
+                marcados = ml_marcar_mensajes_pendientes_por_ids(
+                    ids,
+                    count=1,
+                    commit=True,
+                    organizacion_id=organizacion_id_webhook,
+                )
 
                 if marcados == 0:
                     detalle_log = "mensaje sin match directo"
@@ -7409,6 +7498,7 @@ def webhook_tiendanube():
             return "Firma inválida", 401
 
         data = request.get_json(silent=True) or {}
+        cuenta_webhook = cuenta_tn_desde_webhook(data)
         event = (
             request.headers.get("X-Event")
             or request.headers.get("X-TiendaNube-Topic")
@@ -7430,7 +7520,10 @@ def webhook_tiendanube():
 
         if tn_order_id and str(event).startswith("order/"):
             try:
-                tn_importar_pedido_por_id(tn_order_id)
+                tn_importar_pedido_por_id(
+                    tn_order_id,
+                    cuenta_origen=cuenta_webhook,
+                )
                 log = TiendaNubeWebhookLog.query.get(log_id)
                 if log:
                     log.procesado = True
@@ -7470,9 +7563,10 @@ def test_tiendanube():
     faltantes = tn_config_faltante()
     if faltantes:
         return redirect(url_for("admin_integraciones.panel", error=f"Faltan variables TN: {', '.join(faltantes)}"))
+    cuenta = None
     try:
+        cuenta, _ = cuenta_tn_tenant_actual()
         orders = tn_http_json("GET", "/orders", params={"per_page": 1})
-        cuenta = cuenta_tn_actual()
         if cuenta:
             cuenta.store_id = tn_store_id()
             cuenta.estado_conexion = "conectada"
@@ -7483,7 +7577,6 @@ def test_tiendanube():
         cantidad = len(orders) if isinstance(orders, list) else 0
         return redirect(url_for("admin_integraciones.panel", ok=f"Conexión Tienda Nube OK. Pedidos leídos de prueba: {cantidad}."))
     except Exception as e:
-        cuenta = cuenta_tn_actual()
         if cuenta:
             cuenta.estado_conexion = "error"
             cuenta.last_sync_at = datetime.utcnow()
@@ -7501,8 +7594,10 @@ def sync_tiendanube():
     faltantes = tn_config_faltante()
     if faltantes:
         return redirect(url_for("admin_integraciones.panel", error=f"Faltan variables TN: {', '.join(faltantes)}"))
+    cuenta = None
     try:
-        resultado = tn_sync_manual(limit=50)
+        cuenta, _ = cuenta_tn_tenant_actual()
+        resultado = tn_sync_manual(limit=50, cuenta_origen=cuenta)
         mensaje = (
             f"Sync TN OK. Leídos: {resultado['leidos']} | "
             f"Nuevos: {resultado['creados']} | "
@@ -7512,7 +7607,6 @@ def sync_tiendanube():
         return redirect(url_for("admin_integraciones.panel", ok=mensaje))
     except Exception as e:
         db.session.rollback()
-        cuenta = cuenta_tn_actual()
         if cuenta:
             cuenta.last_sync_at = datetime.utcnow()
             cuenta.last_sync_status = "error"
@@ -7530,6 +7624,7 @@ def registrar_webhooks_tiendanube():
     if faltantes:
         return redirect(url_for("admin_integraciones.panel", error=f"Faltan variables TN: {', '.join(faltantes)}"))
     try:
+        cuenta_tn_tenant_actual()
         resultados = tn_registrar_webhooks_sistema_fierro()
         ok_count = sum(1 for r in resultados if r.get("ok"))
         mensaje = f"Webhooks TN solicitados. Creados OK: {ok_count}/{len(resultados)}. Si alguno ya existía, TN puede devolver advertencia sin afectar."
