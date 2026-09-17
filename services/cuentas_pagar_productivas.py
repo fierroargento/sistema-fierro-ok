@@ -148,6 +148,20 @@ def actualizar_estado(obligacion):
     return obligacion.estado
 
 
+def reconciliar_estados_obligaciones(obligaciones, *, db_session=None):
+    """Corrige estados históricos usando pagos aplicados como fuente de verdad."""
+    corregidas = 0
+    for obligacion in obligaciones or []:
+        if getattr(obligacion, "estado", None) == "anulada":
+            continue
+        anterior = obligacion.estado
+        actualizar_estado(obligacion)
+        corregidas += int(obligacion.estado != anterior)
+    if corregidas and db_session is not None:
+        db_session.commit()
+    return corregidas
+
+
 def asegurar_obligacion_ajuste(regla, *, ObligacionCostoProductivo,
                                CostoFijoVersion, db_session, usuario_id=None):
     """Crea la obligación provisional sin inventar el IPC aún no publicado."""
@@ -255,7 +269,7 @@ def registrar_pago(obligacion, *, fecha_pago, importe_centavos, medio_pago,
     if importe <= 0 or importe > saldo:
         raise ValueError("El pago debe ser positivo y no superar el saldo pendiente.")
     pago = PagoObligacionCostoProductivo(
-        obligacion_id=obligacion.id, fecha_pago=date.fromisoformat(str(fecha_pago)),
+        obligacion=obligacion, fecha_pago=date.fromisoformat(str(fecha_pago)),
         importe_centavos=importe, medio_pago=str(medio_pago or "").strip() or None,
         referencia=str(referencia or "").strip() or None,
         comprobante=str(comprobante or "").strip() or None,
@@ -293,7 +307,7 @@ def resumen_vencimientos(obligaciones, *, hoy=None, dias_aviso=7):
     limite = hoy + timedelta(days=dias_aviso)
     vencidas, proximas = [], []
     for obligacion in obligaciones:
-        if obligacion.estado in {"pagada", "anulada"}:
+        if obligacion.estado in {"pagada", "anulada"} or saldo_obligacion(obligacion) == 0:
             continue
         if obligacion.fecha_vencimiento < hoy:
             vencidas.append(obligacion)
