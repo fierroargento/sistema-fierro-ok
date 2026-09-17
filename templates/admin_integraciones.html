@@ -7,6 +7,19 @@
     {% if ok_feedback %}<div class="alerta alerta-ok">{{ ok_feedback }}</div>{% endif %}
     {% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
 
+    {% if diagnostico_entorno and diagnostico_entorno.desconectado %}
+    <div class="alerta alerta-ok" data-control="laboratorio-desconectado">
+        <strong>Laboratorio desconectado.</strong>
+        Ningún canal externo, webhook ni automatización está habilitado.
+        Las credenciales guardadas no abren conexiones por sí solas.
+    </div>
+    {% elif diagnostico_entorno %}
+    <div class="alerta alerta-error" data-control="entorno-conectable">
+        <strong>Atención:</strong> este entorno tiene al menos una frontera externa habilitada.
+        Revisá la configuración antes de realizar pruebas.
+    </div>
+    {% endif %}
+
     <div class="card" style="margin-top:16px;">
         <h2>Mercado Libre</h2>
 

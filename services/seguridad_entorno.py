@@ -71,7 +71,7 @@ def exigir_conexion_externa(canal, operacion="conexion externa"):
 def diagnostico_laboratorio_desconectado(canales=None):
     canales = canales or (
         "ML", "TN", "WHATSAPP", "OPENAI", "CLOUDINARY",
-        "ANDREANI", "CORREO", "TRACKING", "GEOCODING",
+        "ANDREANI", "CORREO", "TRACKING", "GEOCODING", "DESCARGAS",
     )
     detalle = {
         canal: {

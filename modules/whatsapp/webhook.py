@@ -49,6 +49,7 @@ from services.telefonos import normalizar_telefono_service
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono
 from services.logger import get_app_logger
 from services.wa_general_bot import manejar_sin_pedido_activo_wa_general
+from services.seguridad_entorno import procesamiento_webhook_habilitado
 
 logger = get_app_logger(__name__)
 
@@ -323,6 +324,9 @@ def registrar_webhook(app):
 
     @app.route("/webhook/whatsapp", methods=["GET", "POST"])
     def webhook_whatsapp():
+
+        if not procesamiento_webhook_habilitado("WHATSAPP"):
+            return jsonify({"status": "ignored", "reason": "disconnected"}), 200
 
         # ── Verificación inicial de Meta ──
         if request.method == "GET":

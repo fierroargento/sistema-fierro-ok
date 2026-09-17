@@ -19,6 +19,11 @@ entorno futuro hacen falta simultáneamente la llave maestra
 `CONEXIONES_EXTERNAS_HABILITADAS=true` y la llave específica del canal, por
 ejemplo `ML_CONEXION_HABILITADA=true`. Tener credenciales cargadas nunca basta.
 
+La frontera incluye además el inicio y callback OAuth de Mercado Libre, el
+webhook entrante de WhatsApp, la geocodificación y las descargas directas de
+PDF. El panel de Integraciones muestra el estado global del laboratorio antes
+de ofrecer cualquier operación.
+
 Cada canal exige además su propia llave: `ML_EFECTOS_HABILITADOS`,
 `TN_EFECTOS_HABILITADOS`, `WHATSAPP_EFECTOS_HABILITADOS` o
 `CLOUDINARY_EFECTOS_HABILITADOS`. Los webhooks requieren

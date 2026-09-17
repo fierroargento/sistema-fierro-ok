@@ -25,6 +25,7 @@ from services.tenant_context import (
     TenantError,
     resolver_tenant_usuario,
 )
+from services.seguridad_entorno import diagnostico_laboratorio_desconectado
 
 
 SLUG_ORGANIZACION_PLATAFORMA = (
@@ -229,6 +230,7 @@ def crear_blueprint_integraciones(
 
         return render_template(
             "admin_integraciones.html",
+            diagnostico_entorno=diagnostico_laboratorio_desconectado(),
             unidades_negocio=(
                 unidades_negocio
             ),

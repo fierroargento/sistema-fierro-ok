@@ -102,6 +102,7 @@ from services.asignacion_tenant_auditoria import obtener_propuestas_tenant,prepa
 from services.control_final_auditoria_legacy import obtener_control_tenant,exportar_control
 from services.certificacion_eventos_operativos import obtener_eventos_tenant,certificar_eventos,exportar_certificacion
 from services.seguridad_entorno import (
+    conexiones_externas_habilitadas,
     exigir_conexion_externa,
     exigir_efecto_externo,
     procesamiento_webhook_habilitado,
@@ -793,6 +794,7 @@ def asegurar_pdf_local_desde_url(url_pdf, prefijo="etiqueta"):
         return nombre_archivo
 
     try:
+        exigir_conexion_externa("DESCARGAS", "Descarga de PDF remoto")
         with urlopen(url_pdf) as response, open(ruta_pdf, "wb") as salida:
             salida.write(response.read())
         return nombre_archivo
@@ -1095,6 +1097,7 @@ def _obtener_coords_cliente(codigo_postal, direccion, localidad, provincia):
 
     def nominatim(q):
         try:
+            exigir_conexion_externa("GEOCODING", "Consulta de geocodificacion")
             params = urllib.parse.urlencode({"q": q, "format": "json", "limit": 1, "countrycodes": "ar"})
             url = f"https://nominatim.openstreetmap.org/search?{params}"
             req = urllib.request.Request(url, headers=headers)
@@ -7666,6 +7669,12 @@ def conectar_mercadolibre():
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
 
+    if not conexiones_externas_habilitadas("ML"):
+        return redirect(url_for(
+            "admin_integraciones.panel",
+            error="Conexion Mercado Libre bloqueada por el laboratorio desconectado.",
+        ))
+
     faltantes = ml_config_faltante()
     if faltantes:
         return redirect(url_for(
@@ -7769,6 +7778,12 @@ def conectar_mercadolibre():
 def callback_mercadolibre():
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
+
+    if not conexiones_externas_habilitadas("ML"):
+        return redirect(url_for(
+            "admin_integraciones.panel",
+            error="Callback Mercado Libre bloqueado por el laboratorio desconectado.",
+        ))
 
     error = (
         request.args.get("error")
