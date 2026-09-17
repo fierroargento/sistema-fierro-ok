@@ -384,6 +384,29 @@ def asegurar_costos_porcentuales_canal(*, db, inspect_fn, text_fn, logger_fn=pri
     return {"columnas_creadas": creadas}
 
 
+def asegurar_desglose_liquidacion_canal(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Conserva el desglose del motor unificado en ventas ya conciliables."""
+    inspector = inspect_fn(db.engine)
+    tabla = "venta_canal_item"
+    if tabla not in inspector.get_table_names():
+        return {"columnas_creadas": []}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    definiciones = {
+        "publicidad_esperada_centavos": "BIGINT NOT NULL DEFAULT 0",
+        "financiacion_esperada_centavos": "BIGINT NOT NULL DEFAULT 0",
+        "devoluciones_esperadas_centavos": "BIGINT NOT NULL DEFAULT 0",
+    }
+    creadas = []
+    for nombre, definicion in definiciones.items():
+        if nombre not in columnas:
+            db.session.execute(text_fn(f"ALTER TABLE {tabla} ADD COLUMN {nombre} {definicion}"))
+            creadas.append(nombre)
+    db.session.commit()
+    if creadas and logger_fn is not None:
+        logger_fn("[SAAS] Desglose historico de liquidaciones habilitado en cero.")
+    return {"columnas_creadas": creadas}
+
+
 def asegurar_obligaciones_ajustables(*, db, inspect_fn, text_fn, logger_fn=print):
     """Vincula obligaciones con reglas y propuestas sin alterar pagos existentes."""
     inspector = inspect_fn(db.engine)

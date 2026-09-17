@@ -34,6 +34,7 @@ def inicializar_base_datos_saas(
         asegurar_producto_tenant,
         asegurar_reglas_ajuste_configurables,
         asegurar_costos_porcentuales_canal,
+        asegurar_desglose_liquidacion_canal,
         asegurar_obligaciones_ajustables,
         asegurar_auditoria_pagos_productivos,
         asegurar_recursos_mano_obra,
@@ -90,6 +91,10 @@ def inicializar_base_datos_saas(
         )
 
         asegurar_costos_porcentuales_canal(
+            db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
+        )
+
+        asegurar_desglose_liquidacion_canal(
             db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
         )
 

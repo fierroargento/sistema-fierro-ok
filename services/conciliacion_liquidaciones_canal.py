@@ -19,13 +19,20 @@ def calcular_expectativa(precio_unitario_centavos, cantidad, regla_canal):
     cantidad = int(cantidad); precio = int(precio_unitario_centavos)
     if cantidad <= 0 or precio < 0: raise ValueError("La cantidad y el precio no son validos.")
     unidad = liquidar_precio(
-        precio, comision_pct=regla_canal.comision_pct, tramos=regla_canal.tramos,
+        precio, comision_pct=regla_canal.comision_pct,
+        publicidad_pct=getattr(regla_canal, "publicidad_pct", 0),
+        financiacion_pct=getattr(regla_canal, "financiacion_pct", 0),
+        devoluciones_pct=getattr(regla_canal, "devoluciones_pct", 0),
+        tramos=regla_canal.tramos,
         umbral_envio_centavos=regla_canal.umbral_envio_centavos,
         costo_envio_centavos=regla_canal.costo_envio_default_centavos,
     )
     return {
         "importe_bruto_centavos": precio * cantidad,
         "comision_esperada_centavos": unidad["comision_centavos"] * cantidad,
+        "publicidad_esperada_centavos": unidad["publicidad_centavos"] * cantidad,
+        "financiacion_esperada_centavos": unidad["financiacion_centavos"] * cantidad,
+        "devoluciones_esperadas_centavos": unidad["devoluciones_centavos"] * cantidad,
         "cargo_fijo_esperado_centavos": unidad["cargo_fijo_centavos"] * cantidad,
         "envio_esperado_centavos": unidad["envio_centavos"] * cantidad,
         "liquidacion_esperada_centavos": unidad["liquidacion_centavos"] * cantidad,
@@ -96,6 +103,14 @@ def conciliar_venta(referencia_venta, cuenta_codigo, ventas, movimientos, *, tol
     pisos = [int(v.piso_unitario_snapshot_centavos) * int(v.cantidad) for v in items if v.estado not in {"cancelada", "devuelta"} and v.piso_unitario_snapshot_centavos is not None]
     piso = sum(pisos) if pisos else None
     bruto = sum(int(v.importe_bruto_centavos) for v in items)
+    deducciones = {
+        "comision_esperada_centavos": sum(int(getattr(v, "comision_esperada_centavos", 0) or 0) for v in items),
+        "publicidad_esperada_centavos": sum(int(getattr(v, "publicidad_esperada_centavos", 0) or 0) for v in items),
+        "financiacion_esperada_centavos": sum(int(getattr(v, "financiacion_esperada_centavos", 0) or 0) for v in items),
+        "devoluciones_esperadas_centavos": sum(int(getattr(v, "devoluciones_esperadas_centavos", 0) or 0) for v in items),
+        "cargo_fijo_esperado_centavos": sum(int(getattr(v, "cargo_fijo_esperado_centavos", 0) or 0) for v in items),
+        "envio_esperado_centavos": sum(int(getattr(v, "envio_esperado_centavos", 0) or 0) for v in items),
+    }
     real = sum(int(m.importe_centavos) * (1 if m.direccion == "credito" else -1) for m in propios)
     estados = {v.estado for v in items}
     if items and estados <= {"cancelada"}: estado = "anulada"
@@ -106,7 +121,7 @@ def conciliar_venta(referencia_venta, cuenta_codigo, ventas, movimientos, *, tol
     elif real > esperado + int(tolerancia_centavos): estado = "diferencia_a_favor"
     else: estado = "conciliada"
     estado_economico = "no_aplica" if estados and estados <= {"cancelada", "devuelta"} else "sin_piso" if piso is None else "cumple" if esperado >= piso else "bajo_piso"
-    return {"referencia_venta": referencia_venta, "cuenta_codigo": cuenta_codigo, "items": items, "movimientos": propios, "importe_bruto_centavos": bruto, "liquidacion_esperada_centavos": esperado, "piso_economico_centavos": piso, "estado_economico": estado_economico, "liquidacion_real_centavos": real, "diferencia_centavos": real - esperado, "estado_conciliacion": estado}
+    return {"referencia_venta": referencia_venta, "cuenta_codigo": cuenta_codigo, "items": items, "movimientos": propios, "importe_bruto_centavos": bruto, **deducciones, "liquidacion_esperada_centavos": esperado, "piso_economico_centavos": piso, "estado_economico": estado_economico, "liquidacion_real_centavos": real, "diferencia_centavos": real - esperado, "estado_conciliacion": estado}
 
 
 def construir_conciliaciones(ventas, movimientos, *, tolerancia_centavos=1):
@@ -173,7 +188,7 @@ def registrar_gestion(fila, *, clasificacion, estado, observacion, organizacion_
 
 def exportar_conciliaciones(filas):
     libro = Workbook(); hoja = libro.active; hoja.title = "Conciliacion"
-    hoja.append(["CUENTA", "VENTA", "ESTADO", "CONTROL_ECONOMICO", "CLASIFICACION", "ESTADO_GESTION", "OBSERVACION", "BRUTO", "ESPERADO", "PISO", "REAL", "DIFERENCIA", "ITEMS", "MOVIMIENTOS"])
+    hoja.append(["CUENTA", "VENTA", "ESTADO", "CONTROL_ECONOMICO", "CLASIFICACION", "ESTADO_GESTION", "OBSERVACION", "BRUTO", "COMISION_ESPERADA", "PUBLICIDAD_ESPERADA", "FINANCIACION_ESPERADA", "DEVOLUCIONES_ESPERADAS", "CARGO_FIJO_ESPERADO", "ENVIO_ESPERADO", "ESPERADO", "PISO", "REAL", "DIFERENCIA", "ITEMS", "MOVIMIENTOS"])
     for fila in filas:
         hoja.append([
             fila["cuenta_codigo"], fila["referencia_venta"], fila["estado_conciliacion"],
@@ -181,6 +196,12 @@ def exportar_conciliaciones(filas):
             fila.get("estado_gestion", "abierta"),
             getattr(fila.get("gestion_actual"), "observacion", None),
             fila["importe_bruto_centavos"] / 100,
+            fila["comision_esperada_centavos"] / 100,
+            fila["publicidad_esperada_centavos"] / 100,
+            fila["financiacion_esperada_centavos"] / 100,
+            fila["devoluciones_esperadas_centavos"] / 100,
+            fila["cargo_fijo_esperado_centavos"] / 100,
+            fila["envio_esperado_centavos"] / 100,
             fila["liquidacion_esperada_centavos"] / 100,
             fila["piso_economico_centavos"] / 100 if fila["piso_economico_centavos"] is not None else None,
             fila["liquidacion_real_centavos"] / 100, fila["diferencia_centavos"] / 100,

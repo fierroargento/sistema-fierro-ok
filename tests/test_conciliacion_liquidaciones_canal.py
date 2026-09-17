@@ -22,7 +22,8 @@ class Sesion:
 
 def regla():
     return Obj(
-        comision_pct=10, umbral_envio_centavos=3300000,
+        comision_pct=10, publicidad_pct=0, financiacion_pct=0,
+        devoluciones_pct=0, umbral_envio_centavos=3300000,
         costo_envio_default_centavos=500000,
         tramos=[Obj(precio_desde_centavos=0, precio_hasta_centavos=3300000, cargo_fijo_centavos=100000)],
     )
@@ -51,12 +52,27 @@ def test_expectativa_desglosa_comision_cargo_y_envio_por_cantidad():
     assert resultado == {
         "importe_bruto_centavos": 4000000,
         "comision_esperada_centavos": 400000,
+        "publicidad_esperada_centavos": 0,
+        "financiacion_esperada_centavos": 0,
+        "devoluciones_esperadas_centavos": 0,
         "cargo_fijo_esperado_centavos": 200000,
         "envio_esperado_centavos": 0,
         "liquidacion_esperada_centavos": 3400000,
     }
     con_envio = calcular_expectativa(4000000, 1, regla())
     assert con_envio["envio_esperado_centavos"] == 500000
+
+
+def test_expectativa_usa_publicidad_cuotas_y_devoluciones_del_motor_unico():
+    politica = regla()
+    politica.publicidad_pct = 10
+    politica.financiacion_pct = 6
+    politica.devoluciones_pct = 4
+    resultado = calcular_expectativa(1000000, 2, politica)
+    assert resultado["publicidad_esperada_centavos"] == 200000
+    assert resultado["financiacion_esperada_centavos"] == 120000
+    assert resultado["devoluciones_esperadas_centavos"] == 80000
+    assert resultado["liquidacion_esperada_centavos"] == 1200000
 
 
 def test_registros_congelan_expectativa_e_identidad_sin_conectar():
