@@ -2,6 +2,8 @@
 
 from datetime import date, timedelta
 
+from services.cuentas_pagar_productivas import saldo_obligacion
+
 
 def construir_alertas_cuentas_pagar(obligaciones, *, hoy=None, dias_aviso=7, url=None):
     """Resume vencimientos sin exponer datos de otra organización."""
@@ -11,7 +13,7 @@ def construir_alertas_cuentas_pagar(obligaciones, *, hoy=None, dias_aviso=7, url
     proximas = 0
 
     for obligacion in obligaciones:
-        if obligacion.estado in {"pagada", "anulada"}:
+        if obligacion.estado in {"pagada", "anulada"} or saldo_obligacion(obligacion) == 0:
             continue
         if obligacion.fecha_vencimiento < hoy:
             vencidas += 1

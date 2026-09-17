@@ -2,7 +2,8 @@ from datetime import date
 from types import SimpleNamespace
 
 from services.cuentas_pagar_productivas import (
-    actualizar_estado, anular_pago, resumen_vencimientos, saldo_obligacion,
+    actualizar_estado, anular_pago, reconciliar_estados_obligaciones,
+    registrar_pago, resumen_vencimientos, saldo_obligacion,
     fecha_vencimiento_periodo, ultimo_dia_mes,
 )
 
@@ -21,6 +22,44 @@ def test_varios_pagos_a_cuenta_actualizan_saldo_y_estado():
     assert actualizar_estado(item) == "parcial"
     item.pagos.append(SimpleNamespace(importe_centavos=4500))
     assert actualizar_estado(item) == "pagada"
+
+
+def test_pago_total_se_incorpora_antes_de_actualizar_estado():
+    item = obligacion(10000, [], date(2026, 9, 1))
+    item.id = 3
+
+    class Pago:
+        def __init__(self, obligacion, **datos):
+            self.obligacion = obligacion
+            self.anulado = False
+            for campo, valor in datos.items():
+                setattr(self, campo, valor)
+            obligacion.pagos.append(self)
+
+    sesion = SimpleNamespace(
+        add=lambda _pago: None,
+        flush=lambda: None,
+        commit=lambda: None,
+    )
+    registrar_pago(
+        item, fecha_pago="2026-09-01", importe_centavos=10000,
+        medio_pago="transferencia", referencia="REF", comprobante=None,
+        observacion=None, usuario_id=1,
+        PagoObligacionCostoProductivo=Pago, db_session=sesion,
+    )
+    assert saldo_obligacion(item) == 0
+    assert item.estado == "pagada"
+
+
+def test_reconciliacion_corrige_estado_historico_parcial_saldado():
+    item = obligacion(10000, [10000], date(2026, 9, 1), estado="parcial")
+    commits = []
+    cantidad = reconciliar_estados_obligaciones(
+        [item], db_session=SimpleNamespace(commit=lambda: commits.append(True)),
+    )
+    assert cantidad == 1
+    assert item.estado == "pagada"
+    assert commits == [True]
 
 
 def test_alertas_separan_vencidas_y_proximas():

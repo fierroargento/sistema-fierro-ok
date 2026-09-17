@@ -151,7 +151,8 @@ def crear_blueprint_comercial(*, dependencias):
             unidad_activa=unidad_activa, unidades=unidades,
             formatear_centavos_ars=formatear_centavos_ars,
             **obtener_fuentes_costo(
-                organizacion.id, unidad_activa.id, modelos=modelos,
+                organizacion.id, unidad_activa.id,
+                modelos=modelos, db_session=db.session,
             ),
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(),
@@ -170,7 +171,8 @@ def crear_blueprint_comercial(*, dependencias):
             unidad_activa=unidad_activa, unidades=unidades,
             formatear_centavos_ars=formatear_centavos_ars,
             **obtener_fuentes_costo(
-                organizacion.id, unidad_activa.id, modelos=modelos,
+                organizacion.id, unidad_activa.id,
+                modelos=modelos, db_session=db.session,
             ),
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(),

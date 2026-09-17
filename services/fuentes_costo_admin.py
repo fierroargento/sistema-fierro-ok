@@ -47,7 +47,7 @@ from services.ajustes_costos_ipc import (
 from services.cuentas_pagar_productivas import (
     anular_pago, asegurar_obligacion_ajuste, configurar_regla_obligacion,
     crear_obligacion, generar_obligaciones_recurrentes, registrar_pago,
-    resumen_vencimientos, saldo_obligacion,
+    reconciliar_estados_obligaciones, resumen_vencimientos, saldo_obligacion,
 )
 
 
@@ -766,7 +766,9 @@ def procesar_accion_fuente_costo(
     raise ValueError("Accion de fuente de costo no reconocida.")
 
 
-def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
+def obtener_fuentes_costo(
+    organizacion_id, unidad_negocio_id, *, modelos, db_session=None,
+):
     perfiles = modelos["PerfilCosteoProducto"].query.filter_by(
         organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id
     ).order_by(modelos["PerfilCosteoProducto"].fecha_creacion).all()
@@ -808,6 +810,10 @@ def obtener_fuentes_costo(organizacion_id, unidad_negocio_id, *, modelos):
     ).order_by(
         modelos["ObligacionCostoProductivo"].fecha_vencimiento.desc(),
     ).all() if ids_costos_visibles else []
+    reconciliar_estados_obligaciones(
+        obligaciones,
+        db_session=db_session,
+    )
     reglas_obligaciones = modelos["ReglaObligacionCostoProductivo"].query.filter_by(
         organizacion_id=organizacion_id,
     ).filter(
