@@ -13,7 +13,8 @@ class ReglaCanalVersion(db.Model):
         CheckConstraint("comision_pct >= 0 AND comision_pct < 100", name="ck_regla_canal_comision"),
         CheckConstraint("publicidad_pct >= 0 AND publicidad_pct < 100", name="ck_regla_canal_publicidad"),
         CheckConstraint("financiacion_pct >= 0 AND financiacion_pct < 100", name="ck_regla_canal_financiacion"),
-        CheckConstraint("comision_pct + publicidad_pct + financiacion_pct < 100", name="ck_regla_canal_costos_porcentuales"),
+        CheckConstraint("devoluciones_pct >= 0 AND devoluciones_pct < 100", name="ck_regla_canal_devoluciones"),
+        CheckConstraint("comision_pct + publicidad_pct + financiacion_pct + devoluciones_pct < 100", name="ck_regla_canal_costos_porcentuales"),
         CheckConstraint("umbral_envio_centavos >= 0 AND costo_envio_default_centavos >= 0", name="ck_regla_canal_envio"),
         CheckConstraint("incremento_redondeo_centavos > 0", name="ck_regla_canal_redondeo"),
         CheckConstraint("estado IN ('preparatorio', 'vigente', 'archivado', 'cancelado')", name="ck_regla_canal_estado"),
@@ -26,6 +27,7 @@ class ReglaCanalVersion(db.Model):
     comision_pct = db.Column(db.Numeric(9, 6), default=0, nullable=False)
     publicidad_pct = db.Column(db.Numeric(9, 6), default=0, nullable=False)
     financiacion_pct = db.Column(db.Numeric(9, 6), default=0, nullable=False)
+    devoluciones_pct = db.Column(db.Numeric(9, 6), default=0, nullable=False)
     umbral_envio_centavos = db.Column(db.BigInteger, default=0, nullable=False)
     costo_envio_default_centavos = db.Column(db.BigInteger, default=0, nullable=False)
     incremento_redondeo_centavos = db.Column(db.BigInteger, default=1, nullable=False)

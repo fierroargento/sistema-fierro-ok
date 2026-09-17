@@ -59,6 +59,9 @@ def _regla(datos):
     )
     return SimpleNamespace(
         comision_pct=datos["comision_pct"], tramos=[tramo],
+        publicidad_pct=datos.get("publicidad_pct", 0),
+        financiacion_pct=datos.get("financiacion_pct", 0),
+        devoluciones_pct=datos.get("devoluciones_pct", 0),
         umbral_envio_centavos=umbral,
         costo_envio_default_centavos=int(datos["envio_centavos"]),
         incremento_redondeo_centavos=max(1, int(datos.get("redondeo_centavos", 100))),
@@ -80,6 +83,9 @@ def simular_escenario(datos):
     regla = _regla(datos)
     actual = liquidar_precio(
         precio, comision_pct=regla.comision_pct, tramos=regla.tramos,
+        publicidad_pct=regla.publicidad_pct,
+        financiacion_pct=regla.financiacion_pct,
+        devoluciones_pct=regla.devoluciones_pct,
         umbral_envio_centavos=regla.umbral_envio_centavos,
         costo_envio_centavos=regla.costo_envio_default_centavos,
     )

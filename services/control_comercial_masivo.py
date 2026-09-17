@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from openpyxl import Workbook
 
-from services.motor_comercial_canal import liquidar_precio
+from services.motor_comercial_canal import liquidar_precio, precio_lista_para_descuento
 
 
 def evaluar_control(simulacion, precio_actual_centavos=None, fuente_precio=None,
@@ -19,6 +19,9 @@ def evaluar_control(simulacion, precio_actual_centavos=None, fuente_precio=None,
     if precio_actual_centavos is not None:
         actual = liquidar_precio(
             int(precio_actual_centavos), comision_pct=regla.comision_pct,
+            publicidad_pct=getattr(regla, "publicidad_pct", 0),
+            financiacion_pct=getattr(regla, "financiacion_pct", 0),
+            devoluciones_pct=getattr(regla, "devoluciones_pct", 0),
             tramos=regla.tramos,
             umbral_envio_centavos=regla.umbral_envio_centavos,
             costo_envio_centavos=regla.costo_envio_default_centavos,
@@ -36,12 +39,22 @@ def evaluar_control(simulacion, precio_actual_centavos=None, fuente_precio=None,
         precio_propuesto = actual["precio_final_centavos"]
     propuesto = liquidar_precio(
         precio_propuesto, comision_pct=regla.comision_pct,
+        publicidad_pct=getattr(regla, "publicidad_pct", 0),
+        financiacion_pct=getattr(regla, "financiacion_pct", 0),
+        devoluciones_pct=getattr(regla, "devoluciones_pct", 0),
         tramos=regla.tramos,
         umbral_envio_centavos=regla.umbral_envio_centavos,
         costo_envio_centavos=regla.costo_envio_default_centavos,
     )
     requiere_correccion = actual is None or precio_propuesto > actual["precio_final_centavos"]
     promocion_activa = promocion is not None and promocion.estado_observado == "activa"
+    precio_base_promocional_sugerido = None
+    if promocion_activa:
+        precio_base_promocional_sugerido = precio_lista_para_descuento(
+            precio_propuesto,
+            getattr(promocion, "descuento_pct", 0),
+            getattr(regla, "incremento_redondeo_centavos", 1),
+        )
     accion_recomendada = (
         "completar_catalogo" if simulacion.get("inclusion") is None else
         "cancelar_promocion_antes_de_actualizar" if promocion_activa and requiere_correccion
@@ -58,6 +71,7 @@ def evaluar_control(simulacion, precio_actual_centavos=None, fuente_precio=None,
         "cambia_envio": actual is not None and actual["envio_centavos"] != propuesto["envio_centavos"],
         "promocion": promocion, "promocion_activa": promocion_activa,
         "precio_base_centavos": precio_base_centavos,
+        "precio_base_promocional_sugerido_centavos": precio_base_promocional_sugerido,
         "accion_recomendada": accion_recomendada,
         "clave": f'{regla.lista_precio_id}:{simulacion["costo"].producto_id}',
     }
@@ -110,7 +124,7 @@ def construir_bandeja(simulaciones, items, promociones=(), observaciones=()):
 
 def exportar_bandeja_excel(filas):
     libro = Workbook(); hoja = libro.active; hoja.title = "Control comercial"
-    hoja.append(["SKU", "LISTA_CANAL", "ESTADO", "FUENTE_PRECIO", "PRECIO_BASE", "PRECIO_EFECTIVO", "PRECIO_MINIMO", "PRECIO_PROPUESTO", "LIQUIDACION_ACTUAL", "PISO_MINIMO", "DIFERENCIA", "DIFERENCIA_PCT", "PROMOCION_ACTIVA", "ACCION_RECOMENDADA", "CAMBIA_CARGO", "CAMBIA_ENVIO", "DESVIOS_OBSERVADOS"])
+    hoja.append(["SKU", "LISTA_CANAL", "ESTADO", "FUENTE_PRECIO", "PRECIO_BASE", "PRECIO_EFECTIVO", "PRECIO_MINIMO", "PRECIO_PROPUESTO", "PRECIO_BASE_PROMOCIONAL_SUGERIDO", "LIQUIDACION_ACTUAL", "PISO_MINIMO", "DIFERENCIA", "DIFERENCIA_PCT", "PROMOCION_ACTIVA", "ACCION_RECOMENDADA", "CAMBIA_CARGO", "CAMBIA_ENVIO", "DESVIOS_OBSERVADOS"])
     for fila in filas:
         actual = fila["actual"]
         hoja.append([
@@ -120,6 +134,7 @@ def exportar_bandeja_excel(filas):
             actual["precio_final_centavos"] / 100 if actual else None,
             fila["minimo"]["precio_final_centavos"] / 100,
             fila["propuesto"]["precio_final_centavos"] / 100,
+            fila["precio_base_promocional_sugerido_centavos"] / 100 if fila["precio_base_promocional_sugerido_centavos"] is not None else None,
             actual["liquidacion_centavos"] / 100 if actual else None,
             fila["minimo"]["piso_liquidacion_centavos"] / 100,
             fila["diferencia_precio_centavos"] / 100 if fila["diferencia_precio_centavos"] is not None else None,

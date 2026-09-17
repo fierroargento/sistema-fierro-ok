@@ -371,6 +371,7 @@ def asegurar_costos_porcentuales_canal(*, db, inspect_fn, text_fn, logger_fn=pri
     definiciones = {
         "publicidad_pct": "NUMERIC(9, 6) NOT NULL DEFAULT 0",
         "financiacion_pct": "NUMERIC(9, 6) NOT NULL DEFAULT 0",
+        "devoluciones_pct": "NUMERIC(9, 6) NOT NULL DEFAULT 0",
     }
     creadas = []
     for nombre, definicion in definiciones.items():

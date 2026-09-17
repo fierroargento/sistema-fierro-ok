@@ -150,6 +150,7 @@ def procesar_accion_comercial(
                 lista, nombre=formulario.get("nombre"), comision_pct=formulario.get("comision_pct", 0),
                 publicidad_pct=formulario.get("publicidad_pct", 0),
                 financiacion_pct=formulario.get("financiacion_pct", 0),
+                devoluciones_pct=formulario.get("devoluciones_pct", 0),
                 umbral_envio_centavos=importe_a_centavos(formulario.get("umbral_envio", 0)),
                 costo_envio_default_centavos=importe_a_centavos(formulario.get("costo_envio", 0)),
                 incremento_redondeo_centavos=importe_a_centavos(formulario.get("redondeo", "0.01")),

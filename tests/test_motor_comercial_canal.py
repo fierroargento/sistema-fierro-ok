@@ -13,7 +13,7 @@ class Obj:
 
 def regla():
     return Obj(
-        comision_pct=10, publicidad_pct=0, financiacion_pct=0,
+        comision_pct=10, publicidad_pct=0, financiacion_pct=0, devoluciones_pct=0,
         umbral_envio_centavos=3300000,
         costo_envio_default_centavos=500000,
         incremento_redondeo_centavos=100,
@@ -57,7 +57,7 @@ def test_liquidacion_desglosa_todas_las_deducciones():
     )
     assert resultado == {
         "precio_final_centavos": 2000000, "comision_centavos": 200000,
-        "publicidad_centavos": 0, "financiacion_centavos": 0,
+        "publicidad_centavos": 0, "financiacion_centavos": 0, "devoluciones_centavos": 0,
         "cargo_fijo_centavos": 100000, "envio_centavos": 0,
         "liquidacion_centavos": 1700000,
     }
@@ -74,6 +74,15 @@ def test_publicidad_y_cuotas_reducen_la_liquidacion_real():
     assert resultado["publicidad_centavos"] == 100000
     assert resultado["financiacion_centavos"] == 60000
     assert resultado["liquidacion_centavos"] == 680000
+
+
+def test_prevision_de_devoluciones_reduce_la_liquidacion_sin_crear_movimientos():
+    resultado = liquidar_precio(
+        1000000, comision_pct=16, publicidad_pct=10,
+        financiacion_pct=6, devoluciones_pct=4,
+    )
+    assert resultado["devoluciones_centavos"] == 40000
+    assert resultado["liquidacion_centavos"] == 640000
 
 
 def test_precio_minimo_cubre_publicidad_y_financiacion():
