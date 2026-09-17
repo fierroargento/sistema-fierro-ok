@@ -20,12 +20,17 @@ def cargo_para_precio(precio_centavos, tramos):
     return int(coincidentes[0].cargo_fijo_centavos) if coincidentes else 0
 
 
-def liquidar_precio(precio_centavos, *, comision_pct, tramos=(), umbral_envio_centavos=0, costo_envio_centavos=0):
+def liquidar_precio(precio_centavos, *, comision_pct, publicidad_pct=0, financiacion_pct=0, tramos=(), umbral_envio_centavos=0, costo_envio_centavos=0):
     precio = int(precio_centavos); comision = _pct(comision_pct)
+    publicidad = _pct(publicidad_pct); financiacion = _pct(financiacion_pct)
+    if comision + publicidad + financiacion >= 100:
+        raise ValueError("Comision, publicidad y financiacion deben sumar menos de 100%.")
     comision_centavos = int((Decimal(precio) * comision / Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    publicidad_centavos = int((Decimal(precio) * publicidad / Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    financiacion_centavos = int((Decimal(precio) * financiacion / Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
     cargo = cargo_para_precio(precio, tramos)
     envio = int(costo_envio_centavos) if int(umbral_envio_centavos or 0) > 0 and precio >= int(umbral_envio_centavos) else 0
-    return {"precio_final_centavos": precio, "comision_centavos": comision_centavos, "cargo_fijo_centavos": cargo, "envio_centavos": envio, "liquidacion_centavos": precio - comision_centavos - cargo - envio}
+    return {"precio_final_centavos": precio, "comision_centavos": comision_centavos, "publicidad_centavos": publicidad_centavos, "financiacion_centavos": financiacion_centavos, "cargo_fijo_centavos": cargo, "envio_centavos": envio, "liquidacion_centavos": precio - comision_centavos - publicidad_centavos - financiacion_centavos - cargo - envio}
 
 
 def calcular_precio_minimo_canal(piso_liquidacion_centavos, regla, *, costo_envio_centavos=None):
@@ -39,15 +44,19 @@ def calcular_precio_minimo_canal(piso_liquidacion_centavos, regla, *, costo_envi
     limites = sorted(x for x in limites if x >= 0)
     segmentos = [(desde, limites[i + 1] - 1 if i + 1 < len(limites) else None) for i, desde in enumerate(limites)]
     comision = _pct(regla.comision_pct) / Decimal("100")
+    publicidad = _pct(getattr(regla, "publicidad_pct", 0)) / Decimal("100")
+    financiacion = _pct(getattr(regla, "financiacion_pct", 0)) / Decimal("100")
+    tasa_total = comision + publicidad + financiacion
+    if tasa_total >= 1: raise ValueError("Los costos porcentuales deben sumar menos de 100%.")
     candidatos = []
     for desde, hasta in segmentos:
         muestra = desde
         cargo = cargo_para_precio(muestra, regla.tramos)
         envio_segmento = envio if int(regla.umbral_envio_centavos or 0) > 0 and muestra >= int(regla.umbral_envio_centavos) else 0
-        requerido = (Decimal(piso + cargo + envio_segmento) / (Decimal("1") - comision)).to_integral_value(rounding=ROUND_CEILING)
+        requerido = (Decimal(piso + cargo + envio_segmento) / (Decimal("1") - tasa_total)).to_integral_value(rounding=ROUND_CEILING)
         candidato = _redondear(max(desde, int(requerido)), paso)
         if hasta is not None and candidato > hasta: continue
-        liquidacion = liquidar_precio(candidato, comision_pct=regla.comision_pct, tramos=regla.tramos, umbral_envio_centavos=regla.umbral_envio_centavos, costo_envio_centavos=envio)
+        liquidacion = liquidar_precio(candidato, comision_pct=regla.comision_pct, publicidad_pct=getattr(regla, "publicidad_pct", 0), financiacion_pct=getattr(regla, "financiacion_pct", 0), tramos=regla.tramos, umbral_envio_centavos=regla.umbral_envio_centavos, costo_envio_centavos=envio)
         if liquidacion["liquidacion_centavos"] >= piso: candidatos.append(liquidacion)
     if not candidatos: raise ValueError("No se encontró un precio compatible con la política.")
     resultado = min(candidatos, key=lambda item: item["precio_final_centavos"])

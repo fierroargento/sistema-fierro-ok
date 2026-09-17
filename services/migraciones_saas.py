@@ -361,6 +361,28 @@ def asegurar_reglas_ajuste_configurables(*, db, inspect_fn, text_fn, logger_fn=p
     return {"columnas_creadas": creadas}
 
 
+def asegurar_costos_porcentuales_canal(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Agrega publicidad y financiacion en cero, sin activar reglas."""
+    inspector = inspect_fn(db.engine)
+    tabla = "regla_canal_version"
+    if tabla not in inspector.get_table_names():
+        return {"columnas_creadas": []}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    definiciones = {
+        "publicidad_pct": "NUMERIC(9, 6) NOT NULL DEFAULT 0",
+        "financiacion_pct": "NUMERIC(9, 6) NOT NULL DEFAULT 0",
+    }
+    creadas = []
+    for nombre, definicion in definiciones.items():
+        if nombre not in columnas:
+            db.session.execute(text_fn(f"ALTER TABLE {tabla} ADD COLUMN {nombre} {definicion}"))
+            creadas.append(nombre)
+    db.session.commit()
+    if creadas and logger_fn is not None:
+        logger_fn("[SAAS] Costos de publicidad y financiacion de canal habilitados en cero.")
+    return {"columnas_creadas": creadas}
+
+
 def asegurar_obligaciones_ajustables(*, db, inspect_fn, text_fn, logger_fn=print):
     """Vincula obligaciones con reglas y propuestas sin alterar pagos existentes."""
     inspector = inspect_fn(db.engine)

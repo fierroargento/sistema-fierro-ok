@@ -13,14 +13,21 @@ def _entero(valor, nombre, permitir_vacio=False):
     return numero
 
 
-def crear_regla_canal(lista, *, nombre, comision_pct, umbral_envio_centavos, costo_envio_default_centavos, incremento_redondeo_centavos, observacion, usuario, ReglaCanalVersion, db_session):
+def crear_regla_canal(lista, *, nombre, comision_pct, publicidad_pct=0, financiacion_pct=0, umbral_envio_centavos, costo_envio_default_centavos, incremento_redondeo_centavos, observacion, usuario, ReglaCanalVersion, db_session):
     try: comision = Decimal(str(comision_pct or 0).replace(",", "."))
     except InvalidOperation as error: raise ValueError("La comisión no es válida.") from error
     if comision < 0 or comision >= 100: raise ValueError("La comisión debe ser menor a 100%.")
+    try:
+        publicidad = Decimal(str(publicidad_pct or 0).replace(",", "."))
+        financiacion = Decimal(str(financiacion_pct or 0).replace(",", "."))
+    except InvalidOperation as error: raise ValueError("Publicidad o financiacion no son validas.") from error
+    if publicidad < 0 or financiacion < 0 or comision + publicidad + financiacion >= 100:
+        raise ValueError("Comision, publicidad y financiacion deben ser no negativas y sumar menos de 100%.")
     anteriores = ReglaCanalVersion.query.filter_by(lista_precio_id=lista.id).all()
     regla = ReglaCanalVersion(
         lista_precio_id=lista.id, numero_version=max((r.numero_version for r in anteriores), default=0) + 1,
         nombre=str(nombre or "").strip(), comision_pct=comision,
+        publicidad_pct=publicidad, financiacion_pct=financiacion,
         umbral_envio_centavos=_entero(umbral_envio_centavos, "El umbral de envío"),
         costo_envio_default_centavos=_entero(costo_envio_default_centavos, "El costo de envío"),
         incremento_redondeo_centavos=max(1, _entero(incremento_redondeo_centavos, "El redondeo")),

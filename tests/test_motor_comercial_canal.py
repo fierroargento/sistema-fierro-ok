@@ -13,7 +13,8 @@ class Obj:
 
 def regla():
     return Obj(
-        comision_pct=10, umbral_envio_centavos=3300000,
+        comision_pct=10, publicidad_pct=0, financiacion_pct=0,
+        umbral_envio_centavos=3300000,
         costo_envio_default_centavos=500000,
         incremento_redondeo_centavos=100,
         tramos=[Obj(precio_desde_centavos=0, precio_hasta_centavos=3300000, cargo_fijo_centavos=100000)],
@@ -56,9 +57,41 @@ def test_liquidacion_desglosa_todas_las_deducciones():
     )
     assert resultado == {
         "precio_final_centavos": 2000000, "comision_centavos": 200000,
+        "publicidad_centavos": 0, "financiacion_centavos": 0,
         "cargo_fijo_centavos": 100000, "envio_centavos": 0,
         "liquidacion_centavos": 1700000,
     }
+
+
+def test_publicidad_y_cuotas_reducen_la_liquidacion_real():
+    resultado = liquidar_precio(
+        1000000,
+        comision_pct=16,
+        publicidad_pct=10,
+        financiacion_pct=6,
+    )
+    assert resultado["comision_centavos"] == 160000
+    assert resultado["publicidad_centavos"] == 100000
+    assert resultado["financiacion_centavos"] == 60000
+    assert resultado["liquidacion_centavos"] == 680000
+
+
+def test_precio_minimo_cubre_publicidad_y_financiacion():
+    politica = regla()
+    politica.publicidad_pct = 10
+    politica.financiacion_pct = 5
+    resultado = calcular_precio_minimo_canal(1000000, politica)
+    assert resultado["precio_final_centavos"] == 1466700
+    assert resultado["liquidacion_centavos"] >= 1000000
+
+
+def test_costos_porcentuales_no_pueden_consumir_toda_la_venta():
+    try:
+        liquidar_precio(100000, comision_pct=60, publicidad_pct=30, financiacion_pct=10)
+    except ValueError as error:
+        assert "sumar menos de 100" in str(error)
+    else:
+        raise AssertionError("Se acepto una liquidacion sin saldo.")
 
 
 def test_tramos_superpuestos_se_rechazan_en_el_calculo():
