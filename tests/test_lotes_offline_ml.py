@@ -59,7 +59,11 @@ def test_consolida_con_piso_interno_y_ordena_promocion():
 def test_entrega_cuatro_plantillas_separadas_y_exporta_evidencia():
     with ZipFile(plantillas_secciones_zip()) as paquete:
         nombres = set(paquete.namelist())
+        cargos = paquete.read("02_cargos.csv").decode("utf-8-sig")
     assert {"01_precios.csv", "02_cargos.csv", "03_envios.csv", "04_promociones.csv"} <= nombres
+    assert "advertising_percentage" in cargos
+    assert "financing_percentage" in cargos
+    assert "returns_percentage" in cargos
     resultado = consolidar_lote_secciones(archivos(), [control()], cuenta_codigo="CTA", organizacion_id=2, unidad_negocio_id=3, lista_precio_id=10)
     assert json.loads(exportar_lote_json(resultado).getvalue().decode("utf-8"))["lote"]["completas"] == 1
 

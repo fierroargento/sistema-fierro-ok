@@ -9,7 +9,7 @@ from services.consolidacion_offline_ml import (
 
 
 def control(sku="SKU-1", lista_id=10, precio=130000, piso_minimo=90000, piso_objetivo=100000):
-    regla = SimpleNamespace(id=30, lista_precio_id=lista_id, comision_pct="15")
+    regla = SimpleNamespace(id=30, lista_precio_id=lista_id, comision_pct="15", publicidad_pct=0, financiacion_pct=0, devoluciones_pct=0)
     costo = SimpleNamespace(id=20, producto=SimpleNamespace(sku=sku))
     return {"regla_canal": regla, "costo": costo, "regla": SimpleNamespace(id=40), "inclusion": SimpleNamespace(id=50), "minimo": {"piso_liquidacion_centavos": piso_minimo}, "objetivo": {"piso_liquidacion_centavos": piso_objetivo}, "propuesto": {"precio_final_centavos": precio}, "actual": {"cargo_fijo_centavos": 10000, "envio_centavos": 0}}
 
@@ -46,6 +46,32 @@ def test_sku_ausente_o_ambiguo_queda_bloqueado():
 def test_detecta_desvios_de_comision_cargo_y_envio():
     resultado = consolidar_snapshot_ml(snapshot(commission_percentage=16, fixed_fee=120, shipping_cost=50), [control()], lista_precio_id=10)
     assert len(resultado["resultados"][0]["desvios"]) == 3
+
+
+def test_bloquea_rentabilidad_si_falta_un_costo_obligatorio_del_snapshot():
+    fila_control = control()
+    fila_control["actual"].update(publicidad_centavos=10000, financiacion_centavos=6000, devoluciones_centavos=4000)
+    fila_control["regla_canal"].publicidad_pct = 10
+    fila_control["regla_canal"].financiacion_pct = 6
+    fila_control["regla_canal"].devoluciones_pct = 4
+    resultado = consolidar_snapshot_ml(snapshot(), [fila_control], lista_precio_id=10)
+    fila = resultado["resultados"][0]
+    assert fila["estado"] == "bloqueada"
+    assert fila["bloqueos"] == [
+        "publicidad_no_informada_en_snapshot",
+        "financiacion_no_informada_en_snapshot",
+        "devoluciones_no_informada_en_snapshot",
+    ]
+    assert fila["acciones"] == []
+
+
+def test_compara_componentes_informados_con_la_politica_interna():
+    fila_control = control()
+    fila_control["actual"].update(publicidad_centavos=10000, financiacion_centavos=6000, devoluciones_centavos=4000)
+    observado = snapshot(advertising_cost=90, financing_cost=60, returns_cost=40)
+    resultado = consolidar_snapshot_ml(observado, [fila_control], lista_precio_id=10)
+    assert resultado["resultados"][0]["bloqueos"] == []
+    assert resultado["resultados"][0]["desvios"] == ["publicidad_ml_distinta_de_politica"]
 
 
 def test_evidencia_es_exportable_y_no_aplicable():

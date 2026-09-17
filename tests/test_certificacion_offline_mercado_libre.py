@@ -21,6 +21,18 @@ def test_liquidacion_respeta_comision_cargo_envio_y_piso():
     assert fila["cumple_piso"] is True
 
 
+def test_liquidacion_admite_publicidad_cuotas_y_devoluciones_explicitas():
+    fila = normalizar_publicacion(
+        {**BASE, "publicidad_pct": 10, "financing_percentage": 6, "returns_cost": 40},
+        cuenta_codigo="A", organizacion_id=2, unidad_negocio_id=3,
+    )
+    assert fila["publicidad_centavos"] == 10000
+    assert fila["financiacion_centavos"] == 6000
+    assert fila["devoluciones_centavos"] == 4000
+    assert fila["liquidacion_centavos"] == 55000
+    assert all(fila["componentes_informados"].values())
+
+
 def test_promocion_exige_cancelacion_antes_del_precio():
     fila = normalizar_publicacion({**BASE, "economic_floor": 900, "proposed_safe_price": 1200, "promotion_active": True}, cuenta_codigo="A", organizacion_id=2, unidad_negocio_id=3)
     assert [x["accion"] for x in fila["acciones_proyectadas"]] == ["cancelar_promocion_manual", "actualizar_precio_manual"]

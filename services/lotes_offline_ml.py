@@ -105,6 +105,12 @@ def preparar_lote_secciones(archivos, *, cuenta_codigo, organizacion_id, unidad_
             "listing_type_id": precio.get("listing_type_id", precio.get("tipo_publicacion")),
             "commission_percentage": cargo.get("commission_percentage", cargo.get("comision_pct")),
             "fixed_fee": cargo.get("fixed_fee", cargo.get("cargo_fijo", 0)),
+            "advertising_cost": cargo.get("advertising_cost", cargo.get("publicidad")),
+            "advertising_percentage": cargo.get("advertising_percentage", cargo.get("publicidad_pct")),
+            "financing_cost": cargo.get("financing_cost", cargo.get("financiacion")),
+            "financing_percentage": cargo.get("financing_percentage", cargo.get("financiacion_pct")),
+            "returns_cost": cargo.get("returns_cost", cargo.get("devoluciones")),
+            "returns_percentage": cargo.get("returns_percentage", cargo.get("devoluciones_pct")),
             "shipping_cost": envio.get("shipping_cost", envio.get("costo_envio", 0)),
             "promotion_active": promocion.get("promotion_active", promocion.get("promocion_activa", False)),
         })
@@ -155,7 +161,7 @@ def _csv_bytes(encabezados, ejemplo):
 def plantillas_secciones_zip():
     archivos = {
         "01_precios.csv": (("publicacion_id", "seller_sku", "price", "status", "listing_type_id"), ("MLA-DEMO-001", "SKU-DEMO", 15000, "active", "gold_special")),
-        "02_cargos.csv": (("publicacion_id", "commission_percentage", "fixed_fee"), ("MLA-DEMO-001", 15, 1200)),
+        "02_cargos.csv": (("publicacion_id", "commission_percentage", "fixed_fee", "advertising_percentage", "financing_percentage", "returns_percentage"), ("MLA-DEMO-001", 15, 1200, 10, 0, 3)),
         "03_envios.csv": (("publicacion_id", "shipping_cost"), ("MLA-DEMO-001", 3500)),
         "04_promociones.csv": (("publicacion_id", "promotion_active", "original_price"), ("MLA-DEMO-001", "false", 15000)),
     }
@@ -166,7 +172,8 @@ def plantillas_secciones_zip():
         paquete.writestr(
             "LEEME.txt",
             "Plantillas SaaS genericas. Cada archivo se importa por separado. "
-            "Los importes se expresan en moneda, no en centavos. "
+            "Los importes se expresan en moneda, no en centavos. Publicidad, "
+            "financiacion y devoluciones pueden informarse como importe o porcentaje. "
             "La promocion es opcional; las otras tres secciones son obligatorias.\n",
         )
     salida.seek(0)

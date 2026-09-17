@@ -48,6 +48,18 @@ def _texto(item, *campos):
     return ""
 
 
+def _costo_adicional(item, precio, *, nombre, campos_importe, campos_porcentaje):
+    for campo in campos_importe:
+        if item.get(campo) not in (None, ""):
+            return _centavos(item[campo], nombre, obligatorio=False), True, None
+    for campo in campos_porcentaje:
+        if item.get(campo) not in (None, ""):
+            porcentaje = _porcentaje(item[campo])
+            importe = int((Decimal(precio) * porcentaje / Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+            return importe, True, str(porcentaje)
+    return 0, False, None
+
+
 def normalizar_publicacion(item, *, cuenta_codigo, organizacion_id, unidad_negocio_id):
     if not isinstance(item, dict):
         raise ValueError("Cada publicacion debe ser un objeto JSON.")
@@ -66,6 +78,21 @@ def normalizar_publicacion(item, *, cuenta_codigo, organizacion_id, unidad_negoc
     comision = int((Decimal(precio) * porcentaje / Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
     cargo_fijo = _centavos(item.get("cargo_fijo", item.get("fixed_fee", 0)), "cargo_fijo", obligatorio=False)
     envio = _centavos(item.get("costo_envio", item.get("shipping_cost", 0)), "costo_envio", obligatorio=False)
+    publicidad, publicidad_informada, publicidad_pct = _costo_adicional(
+        item, precio, nombre="publicidad",
+        campos_importe=("publicidad", "advertising_cost"),
+        campos_porcentaje=("publicidad_pct", "advertising_percentage"),
+    )
+    financiacion, financiacion_informada, financiacion_pct = _costo_adicional(
+        item, precio, nombre="financiacion",
+        campos_importe=("financiacion", "financing_cost"),
+        campos_porcentaje=("financiacion_pct", "financing_percentage"),
+    )
+    devoluciones, devoluciones_informadas, devoluciones_pct = _costo_adicional(
+        item, precio, nombre="devoluciones",
+        campos_importe=("devoluciones", "returns_cost"),
+        campos_porcentaje=("devoluciones_pct", "returns_percentage"),
+    )
     piso = _centavos(
         item.get("piso_economico", item.get("economic_floor", 0)),
         "piso_economico", obligatorio=False,
@@ -83,7 +110,7 @@ def normalizar_publicacion(item, *, cuenta_codigo, organizacion_id, unidad_negoc
         valor_promocion.strip().lower() in {"1", "true", "si", "activa", "active"}
         if isinstance(valor_promocion, str) else bool(valor_promocion)
     )
-    liquidacion = precio - comision - cargo_fijo - envio
+    liquidacion = precio - comision - publicidad - financiacion - devoluciones - cargo_fijo - envio
     diferencia = liquidacion - piso
     riesgo_promo = promo_activa and precio_seguro > precio
     acciones = []
@@ -111,6 +138,17 @@ def normalizar_publicacion(item, *, cuenta_codigo, organizacion_id, unidad_negoc
         "precio_original_centavos": original,
         "comision_pct": str(porcentaje),
         "comision_centavos": comision,
+        "publicidad_centavos": publicidad,
+        "publicidad_pct": publicidad_pct,
+        "financiacion_centavos": financiacion,
+        "financiacion_pct": financiacion_pct,
+        "devoluciones_centavos": devoluciones,
+        "devoluciones_pct": devoluciones_pct,
+        "componentes_informados": {
+            "publicidad": publicidad_informada,
+            "financiacion": financiacion_informada,
+            "devoluciones": devoluciones_informadas,
+        },
         "cargo_fijo_centavos": cargo_fijo,
         "envio_centavos": envio,
         "liquidacion_centavos": liquidacion,

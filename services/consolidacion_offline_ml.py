@@ -72,6 +72,7 @@ def consolidar_snapshot_ml(snapshot, filas_control, *, lista_precio_id):
         piso_objetivo = int(fila["objetivo"]["piso_liquidacion_centavos"])
         liquidacion = int(observado["liquidacion_centavos"])
         desvios = []
+        bloqueos = []
         if str(observado["comision_pct"]) != str(regla.comision_pct):
             desvios.append("comision_ml_distinta_de_politica")
         actual_interno = fila.get("actual")
@@ -80,16 +81,29 @@ def consolidar_snapshot_ml(snapshot, filas_control, *, lista_precio_id):
                 desvios.append("cargo_fijo_ml_distinto_de_politica")
             if int(observado["envio_centavos"]) != int(actual_interno["envio_centavos"]):
                 desvios.append("envio_ml_distinto_de_politica")
+            informados = observado.get("componentes_informados") or {}
+            componentes = (
+                ("publicidad", "publicidad_centavos"),
+                ("financiacion", "financiacion_centavos"),
+                ("devoluciones", "devoluciones_centavos"),
+            )
+            for nombre, campo in componentes:
+                esperado_componente = int(actual_interno.get(campo, 0) or 0)
+                if esperado_componente and not informados.get(nombre, False):
+                    bloqueos.append(f"{nombre}_no_informada_en_snapshot")
+                elif informados.get(nombre, False) and int(observado.get(campo, 0) or 0) != esperado_componente:
+                    desvios.append(f"{nombre}_ml_distinta_de_politica")
         estado = (
-            "debajo_del_piso" if liquidacion < piso_minimo
+            "bloqueada" if bloqueos
+            else "debajo_del_piso" if liquidacion < piso_minimo
             else "al_limite" if liquidacion < piso_objetivo
             else "rentable"
         )
-        acciones = _acciones(fila, observado)
+        acciones = [] if bloqueos else _acciones(fila, observado)
         resultados.append({
             "publicacion": observado,
             "estado": estado,
-            "bloqueos": [],
+            "bloqueos": bloqueos,
             "desvios": desvios,
             "costo_version_id": getattr(fila["costo"], "id", None),
             "regla_economica_id": getattr(fila.get("regla"), "id", None),
