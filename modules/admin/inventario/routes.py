@@ -27,6 +27,12 @@ from services.inventario_conteos_excel import (
     obtener_conteo_tenant,
 )
 from services.certificacion_integral_inventario import certificar_inventario,exportar_certificacion
+from services.control_sombra_dux import (
+    comparar_sombra_dux,
+    construir_fotografia_fierro,
+    exportar_control as exportar_control_dux,
+    leer_exportacion_dux,
+)
 from services.tenant_context import (
     TenantError,
     resolver_tenant_usuario,
@@ -279,5 +285,45 @@ def crear_blueprint_inventario(
         if request.method == "POST":
             return send_file(exportar_certificacion(resultado), as_attachment=True, download_name="certificacion_integral_inventario.json", mimetype="application/json")
         return render_template("admin_certificacion_inventario.html", certificacion=resultado)
+
+    @blueprint.route("/admin/inventario/control-sombra-dux", methods=["GET", "POST"])
+    @login_required
+    def control_sombra_dux():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        resultado = None
+        error = ""
+        if request.method == "POST":
+            try:
+                archivo = request.files.get("archivo_dux")
+                if archivo is None or not archivo.filename:
+                    raise ValueError("Selecciona una exportacion CSV de DUX.")
+                datos = obtener_datos_panel_inventario(organizacion, modelos=modelos)
+                dux = leer_exportacion_dux(archivo)
+                fierro = construir_fotografia_fierro(
+                    items=datos["items_inventario"],
+                    existencias=datos["existencias"],
+                    productos_catalogo=datos["productos_catalogo"],
+                )
+                resultado = comparar_sombra_dux(
+                    organizacion_id=organizacion.id,
+                    dux=dux,
+                    fierro=fierro,
+                )
+                if request.form.get("exportar") == "1":
+                    return send_file(
+                        exportar_control_dux(resultado),
+                        as_attachment=True,
+                        download_name="control_sombra_dux.json",
+                        mimetype="application/json",
+                    )
+            except Exception as exc:
+                error = str(exc)
+        return render_template(
+            "admin_control_sombra_dux.html",
+            resultado=resultado,
+            error=error,
+        )
 
     return blueprint

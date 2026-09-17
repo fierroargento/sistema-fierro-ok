@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="admin-shell inventory-admin">
+  <header class="admin-hero">
+    <div><p class="eyebrow">ADMINISTRACIÓN · INVENTARIO</p><h1>Control sombra DUX</h1><p>Compará una exportación CSV de DUX con la fotografía interna de Fierro.</p></div>
+    <div class="internal-note"><strong>Solo lectura</strong><br>No consulta DUX, no modifica stock o precios y no publica en ningún canal.</div>
+  </header>
+  {% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
+  <section class="source-section">
+    <h2>Cargar fotografía DUX</h2>
+    <p>Columnas reconocidas: SKU/Código, Nombre/Producto, Stock/Existencia y Precio/Precio venta. Acepta CSV separado por punto y coma, coma o tabulación.</p>
+    <form method="post" enctype="multipart/form-data" class="source-form">
+      <label>Exportación CSV de DUX<input type="file" name="archivo_dux" accept=".csv,.txt" required></label>
+      <div class="inline-actions"><button type="submit">Comparar sin guardar</button><button type="submit" name="exportar" value="1">Descargar evidencia JSON</button></div>
+    </form>
+  </section>
+  {% if resultado %}
+  <section class="source-section">
+    <div class="section-heading"><div><h2>Resultado</h2><p>Huella: {{ resultado.huella_sha256 }}</p></div><span class="status-pill">{{ 'LISTO' if resultado.listo_para_reemplazo else 'NO LISTO' }}</span></div>
+    <div class="summary-strip"><div><strong>{{ resultado.resumen.productos_dux }}</strong><span>SKU DUX</span></div><div><strong>{{ resultado.resumen.productos_fierro }}</strong><span>SKU Fierro</span></div><div><strong>{{ resultado.resumen.coincidentes }}</strong><span>Coinciden</span></div><div><strong>{{ resultado.resumen.observados }}</strong><span>Observados</span></div></div>
+    <div class="table-shell"><table><thead><tr><th>SKU</th><th>Producto</th><th>Stock DUX</th><th>Stock Fierro</th><th>Precio DUX</th><th>Precio Fierro</th><th>Resultado</th></tr></thead><tbody>
+      {% for fila in resultado.detalles %}<tr><td><strong>{{ fila.sku }}</strong></td><td>{{ fila.nombre or '—' }}</td><td>{{ fila.stock_dux if fila.stock_dux is not none else '—' }}</td><td>{{ fila.stock_fierro if fila.stock_fierro is not none else '—' }}</td><td>{{ ('$ %.2f'|format(fila.precio_dux_centavos / 100)) if fila.precio_dux_centavos is not none else '—' }}</td><td>{{ ('$ %.2f'|format(fila.precio_fierro_centavos / 100)) if fila.precio_fierro_centavos is not none else '—' }}</td><td>{{ 'Coincide' if fila.coincide else fila.diferencias|join(', ') }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  {% endif %}
+  <p><a href="{{ url_for('admin_inventario.panel') }}">Volver a Inventario</a></p>
+</main>
+{% endblock %}
