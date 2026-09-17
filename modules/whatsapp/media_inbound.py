@@ -3,6 +3,7 @@ import tempfile
 
 import requests
 import cloudinary.uploader
+from services.seguridad_entorno import exigir_conexion_externa
 
 
 ALLOWED_WA_INBOUND_MIME_TYPES = {
@@ -99,6 +100,7 @@ def obtener_url_temporal_media_meta(media_id, access_token=None):
     """
     Consulta a Meta por la URL temporal de descarga del media_id.
     """
+    exigir_conexion_externa("WHATSAPP", "Consulta de media WhatsApp")
     media_id = _normalizar_texto(media_id)
     access_token = access_token or _obtener_token_whatsapp()
 
@@ -140,6 +142,7 @@ def descargar_media_meta(media_url, access_token=None):
     """
     Descarga el archivo desde la URL temporal de Meta.
     """
+    exigir_conexion_externa("WHATSAPP", "Descarga de media WhatsApp")
     access_token = access_token or _obtener_token_whatsapp()
 
     if not access_token:
@@ -192,6 +195,7 @@ def subir_media_inbound_cloudinary(
     suffix = os.path.splitext(filename)[1] or ""
     temp_path = ""
 
+    exigir_conexion_externa("CLOUDINARY", "Carga de media WhatsApp")
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(contenido)

@@ -20,6 +20,7 @@ from functools import lru_cache
 from html import unescape
 from pathlib import Path
 from urllib.parse import urlencode
+from services.seguridad_entorno import exigir_conexion_externa
 from urllib.request import Request, urlopen
 
 
@@ -135,6 +136,7 @@ def codigo_provincia_correo(provincia):
 
 
 def _post_correo(payload, accept="application/json, text/javascript, */*; q=0.01"):
+    exigir_conexion_externa("CORREO", "Consulta de CPA Correo Argentino")
     data = urlencode(payload).encode("utf-8")
 
     req = Request(

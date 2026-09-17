@@ -20,6 +20,7 @@ import os
 import json
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
+from services.seguridad_entorno import exigir_conexion_externa
 
 # ── Configuración ────────────────────────────────────────────────────
 ANDREANI_USUARIO   = os.getenv("ANDREANI_USUARIO", "")
@@ -76,6 +77,7 @@ def cotizar_andreani(cp_destino):
 # ── Implementación real (activar cuando lleguen las credenciales) ─────
 
 def _cotizar_andreani_real(cp_destino):
+    exigir_conexion_externa("ANDREANI", "Cotizacion Andreani")
     """
     Cotización real via API de Andreani.
     Activar cuando se tengan las credenciales.

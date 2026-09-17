@@ -4,6 +4,7 @@ import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
+from services.seguridad_entorno import exigir_conexion_externa
 
 _TOKEN_CACHE = {
     "access_token": "",
@@ -37,6 +38,7 @@ def _leer_json_response(response):
 
 
 def _post_json(url, payload):
+    exigir_conexion_externa("ANDREANI", "Llamada API Andreani")
     data = json.dumps(payload).encode("utf-8")
     req = Request(
         url,
@@ -49,6 +51,7 @@ def _post_json(url, payload):
 
 
 def _post_form(url, payload):
+    exigir_conexion_externa("ANDREANI", "Autenticacion API Andreani")
     data = urlencode(payload).encode("utf-8")
     req = Request(
         url,
@@ -116,6 +119,7 @@ def andreani_obtener_token(forzar=False):
 
 
 def _get_json(url, token):
+    exigir_conexion_externa("ANDREANI", "Consulta API Andreani")
     req = Request(
         url,
         headers={"Accept": "application/json", "Authorization": f"Bearer {token}"},

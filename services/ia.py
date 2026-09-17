@@ -2,6 +2,7 @@ import json
 import os
 
 from urllib.request import Request, urlopen
+from services.seguridad_entorno import exigir_conexion_externa
 
 
 def ia_llamar_openai_chat_service(prompt, temperatura=0.4):
@@ -10,6 +11,7 @@ def ia_llamar_openai_chat_service(prompt, temperatura=0.4):
     Devuelve el texto de respuesta o lanza excepción.
     """
 
+    exigir_conexion_externa("OPENAI", "Consulta OpenAI")
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
 
     if not api_key:
@@ -64,6 +66,7 @@ def ia_chat_completion_json_service(
     Devuelve el content del primer choice.
     """
 
+    exigir_conexion_externa("OPENAI", "Consulta OpenAI")
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
 
     if not api_key:

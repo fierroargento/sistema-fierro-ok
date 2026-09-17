@@ -15,6 +15,7 @@ from datetime import timedelta
 from urllib.request import Request, urlopen
 
 from services.fechas import ahora_utc_naive
+from services.seguridad_entorno import exigir_conexion_externa
 
 
 def ml_obtener_usuario_actual_api(api_get_fn):
@@ -96,6 +97,7 @@ def ml_obtener_shipment_api(shipping_id, api_get_fn):
 
 
 def ml_obtener_billing_info_api(order_id, access_token):
+    exigir_conexion_externa("ML", "Consulta de facturacion Mercado Libre")
     order_id = str(order_id or "").strip()
     access_token = str(access_token or "").strip()
 

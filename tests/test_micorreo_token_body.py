@@ -17,6 +17,9 @@ class FakeResponse:
 
 
 def test_obtener_token_envia_body_json_vacio(monkeypatch):
+    monkeypatch.setenv("SISTEMA_FIERRO_ENTORNO", "staging")
+    monkeypatch.setenv("CONEXIONES_EXTERNAS_HABILITADAS", "true")
+    monkeypatch.setenv("CORREO_CONEXION_HABILITADA", "true")
     capturado = {}
 
     def fake_urlopen(req, timeout):
@@ -47,6 +50,9 @@ def test_obtener_token_envia_body_json_vacio(monkeypatch):
     assert capturado["timeout"] == 20
 
 def test_obtener_token_reintenta_si_primer_intento_falla(monkeypatch):
+    monkeypatch.setenv("SISTEMA_FIERRO_ENTORNO", "staging")
+    monkeypatch.setenv("CONEXIONES_EXTERNAS_HABILITADAS", "true")
+    monkeypatch.setenv("CORREO_CONEXION_HABILITADA", "true")
     llamadas = {"cantidad": 0}
 
     def fake_urlopen(req, timeout):

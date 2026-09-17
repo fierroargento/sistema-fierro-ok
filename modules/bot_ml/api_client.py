@@ -19,6 +19,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from services.fechas import ahora_utc_naive
+from services.seguridad_entorno import exigir_conexion_externa
 
 
 def ml_client_id():
@@ -56,6 +57,7 @@ def ml_token_vencido(cuenta):
 
 
 def ml_http_json(method, url, data=None, headers=None):
+    exigir_conexion_externa("ML", "Llamada API Mercado Libre")
     headers = headers or {}
     body = None
 
@@ -172,6 +174,7 @@ def ml_api_post_json_con_token(access_token, path, payload=None):
     access_token = str(access_token or "").strip()
     if not access_token:
         raise ValueError("No hay access token valido para enviar a Mercado Libre.")
+    exigir_conexion_externa("ML", "Envio API Mercado Libre")
 
     url = f"https://api.mercadolibre.com{path}"
     data = json.dumps(payload or {}).encode("utf-8")
@@ -203,6 +206,7 @@ def ml_api_get_binario_con_token(
     access_token = str(access_token or "").strip()
     if not access_token:
         raise ValueError("No hay access token valido para descargar desde Mercado Libre.")
+    exigir_conexion_externa("ML", "Descarga API Mercado Libre")
 
     params = params or {}
     query = urlencode(params)

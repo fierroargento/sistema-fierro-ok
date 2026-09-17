@@ -1,4 +1,5 @@
 CATEGORIA_DEFAULT = "General"
+from services.seguridad_entorno import exigir_conexion_externa
 
 
 def _normalizar_texto(valor):
@@ -186,6 +187,7 @@ def subir_imagen_manual_wa_cloudinary(archivo, *, pedido_id="", usuario=""):
     if not ok:
         raise ValueError(error)
 
+    exigir_conexion_externa("CLOUDINARY", "Carga de imagen WhatsApp")
     import cloudinary.uploader
 
     nombre_original = str(archivo.filename or "").strip()

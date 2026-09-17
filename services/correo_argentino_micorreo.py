@@ -22,6 +22,7 @@ Variables esperadas:
 """
 
 import base64
+from services.seguridad_entorno import exigir_conexion_externa
 import json
 import os
 from dataclasses import dataclass
@@ -164,6 +165,7 @@ def _basic_header(user, password):
 
 
 def _request_json(method, path, config, token=None, body=None, query=None, basic_auth=None):
+    exigir_conexion_externa("CORREO", "Llamada API MiCorreo")
     path = "/" + str(path or "").lstrip("/")
     url = f"{config.base_url}{path}"
 

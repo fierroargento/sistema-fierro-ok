@@ -39,6 +39,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from datetime import datetime
+from services.seguridad_entorno import exigir_conexion_externa
 
 # ─────────────────────────────────────────────
 # Configuración
@@ -100,6 +101,7 @@ def _leer_error_http(e):
 
 def _request_json(method, endpoint, payload=None, params=None, timeout=20):
     """Request JSON genérico contra PAQ.AR."""
+    exigir_conexion_externa("CORREO", "Llamada API PAQ.AR")
     if not _credenciales_configuradas():
         raise RuntimeError(
             "Faltan CORREO_ARGENTINO_API_KEY y/o CORREO_ARGENTINO_AGREEMENT en Render."
@@ -143,6 +145,7 @@ def _request_json(method, endpoint, payload=None, params=None, timeout=20):
 
 
 def _request_raw(method, endpoint, payload=None, params=None, timeout=20):
+    exigir_conexion_externa("CORREO", "Descarga API PAQ.AR")
     """Request que puede devolver texto/binario/base64 sin forzar JSON."""
     if not _credenciales_configuradas():
         raise RuntimeError(
@@ -173,6 +176,7 @@ def _request_raw(method, endpoint, payload=None, params=None, timeout=20):
 # ─────────────────────────────────────────────
 
 def validar_credenciales_correo():
+    exigir_conexion_externa("CORREO", "Validacion API PAQ.AR")
     """GET /auth. La respuesta correcta es HTTP 204 sin body."""
     if not _credenciales_configuradas():
         return {

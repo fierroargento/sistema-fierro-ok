@@ -16,6 +16,16 @@ def entorno_actual():
     return valor if valor in {"desarrollo", "staging", "produccion"} else "desarrollo"
 
 
+def conexiones_externas_habilitadas(canal):
+    """Autoriza red saliente solo con doble habilitacion explicita."""
+    canal = str(canal or "").strip().upper()
+    return (
+        entorno_actual() in ENTORNOS_CONECTABLES
+        and _activo("CONEXIONES_EXTERNAS_HABILITADAS")
+        and _activo(f"{canal}_CONEXION_HABILITADA")
+    )
+
+
 def efectos_externos_habilitados(canal):
     canal = str(canal or "").strip().upper()
     return (
@@ -48,3 +58,37 @@ def exigir_efecto_externo(canal, operacion="operacion externa"):
             f"{operacion} bloqueada: Sistema Fierro esta en modo desconectado "
             f"para {str(canal or '').upper()}."
         )
+
+
+def exigir_conexion_externa(canal, operacion="conexion externa"):
+    if not conexiones_externas_habilitadas(canal):
+        raise RuntimeError(
+            f"{operacion} bloqueada: Sistema Fierro esta en laboratorio "
+            f"desconectado para {str(canal or '').upper()}."
+        )
+
+
+def diagnostico_laboratorio_desconectado(canales=None):
+    canales = canales or (
+        "ML", "TN", "WHATSAPP", "OPENAI", "CLOUDINARY",
+        "ANDREANI", "CORREO", "TRACKING", "GEOCODING",
+    )
+    detalle = {
+        canal: {
+            "conexion": conexiones_externas_habilitadas(canal),
+            "efectos": efectos_externos_habilitados(canal),
+            "webhook": procesamiento_webhook_habilitado(canal),
+        }
+        for canal in canales
+    }
+    return {
+        "entorno": entorno_actual(),
+        "scheduler": scheduler_habilitado(),
+        "bootstrap_base": bootstrap_base_habilitado(),
+        "canales": detalle,
+        "desconectado": all(
+            not valor
+            for estado in detalle.values()
+            for valor in estado.values()
+        ) and not scheduler_habilitado(),
+    }

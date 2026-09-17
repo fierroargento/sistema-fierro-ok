@@ -102,6 +102,7 @@ from services.asignacion_tenant_auditoria import obtener_propuestas_tenant,prepa
 from services.control_final_auditoria_legacy import obtener_control_tenant,exportar_control
 from services.certificacion_eventos_operativos import obtener_eventos_tenant,certificar_eventos,exportar_certificacion
 from services.seguridad_entorno import (
+    exigir_conexion_externa,
     exigir_efecto_externo,
     procesamiento_webhook_habilitado,
     scheduler_habilitado,
@@ -3188,6 +3189,7 @@ def cuenta_tn_tenant_actual():
 
 
 def tn_http_json(method, path, data=None, params=None):
+    exigir_conexion_externa("TN", "Llamada API Tienda Nube")
     if tn_config_faltante():
         raise ValueError(f"Faltan variables TN: {', '.join(tn_config_faltante())}")
 

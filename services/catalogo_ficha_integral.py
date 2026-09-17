@@ -2,6 +2,7 @@
 
 import json
 from decimal import Decimal
+from services.seguridad_entorno import exigir_conexion_externa
 
 
 TIPOS_RELACION = {"complementario", "sustituto", "accesorio", "repuesto"}
@@ -185,6 +186,7 @@ def subir_imagenes(archivos, *, organizacion_id, inclusion_id):
         extension = archivo.filename.rsplit(".", 1)[-1].lower()
         if extension not in EXTENSIONES_IMAGEN:
             raise ValueError("Las imágenes deben ser JPG, PNG o WEBP.")
+        exigir_conexion_externa("CLOUDINARY", "Carga de imagen de catalogo")
         contenido = archivo.read()
         if not contenido or len(contenido) > 8 * 1024 * 1024:
             raise ValueError("Cada imagen debe pesar entre 1 byte y 8 MB.")

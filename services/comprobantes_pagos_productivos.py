@@ -1,5 +1,7 @@
 """Carga segura de comprobantes asociados a pagos productivos."""
 
+from services.seguridad_entorno import exigir_conexion_externa
+
 EXTENSIONES_PERMITIDAS = {"pdf", "png", "jpg", "jpeg", "webp"}
 TAMANO_MAXIMO = 10 * 1024 * 1024
 
@@ -12,6 +14,7 @@ def guardar_comprobante_pago(archivo):
     extension = nombre.rsplit(".", 1)[-1].lower() if "." in nombre else ""
     if extension not in EXTENSIONES_PERMITIDAS:
         raise ValueError("El comprobante debe ser PDF, PNG, JPG o WEBP.")
+    exigir_conexion_externa("CLOUDINARY", "Carga de comprobante de pago")
 
     contenido = archivo.read(TAMANO_MAXIMO + 1)
     if len(contenido) > TAMANO_MAXIMO:

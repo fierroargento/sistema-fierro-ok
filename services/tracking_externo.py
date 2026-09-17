@@ -5,6 +5,7 @@ import unicodedata
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, quote
+from services.seguridad_entorno import exigir_conexion_externa
 
 
 USER_AGENT = (
@@ -323,6 +324,7 @@ def interpretar_estado_logistico(texto, transporte=""):
 
 
 def _leer_url(url, referer="", accept_json=False):
+    exigir_conexion_externa("TRACKING", "Consulta de tracking externo")
     req = Request(url, headers=_headers_navegador(referer=referer, accept_json=accept_json))
     with urlopen(req, timeout=25) as resp:
         raw = resp.read(1600000).decode("utf-8", errors="ignore")
@@ -586,6 +588,7 @@ def consultar_tracking_url(url, transporte="", seguimiento=""):
 
 
 def consultar_correo_formulario(seguimiento, mercado_envios=False):
+    exigir_conexion_externa("CORREO", "Consulta de tracking Correo Argentino")
     """Consulta real segura de Correo Argentino.
 
     Usa el endpoint interno que utiliza la web de Correo:
