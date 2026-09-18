@@ -7,6 +7,8 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
     Recepcion = modelos["RecepcionCompra"]
     Insumo = modelos["InsumoProductivo"]
     Propuesta = modelos["PropuestaImpactoCompra"]
+    Mapeo = modelos["MapeoInsumoInventario"]
+    Existencia = modelos["ExistenciaSucursal"]
     proveedores = Proveedor.query.filter_by(
         organizacion_id=organizacion_id,
     ).order_by(Proveedor.razon_social.asc()).all()
@@ -22,17 +24,26 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
     propuestas = Propuesta.query.filter_by(
         organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
     ).order_by(Propuesta.fecha_creacion.desc()).all()
+    mapeos = Mapeo.query.filter_by(
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
+    ).order_by(Mapeo.fecha_creacion.desc()).all()
+    existencias = Existencia.query.filter_by(
+        organizacion_id=organizacion_id,
+    ).order_by(Existencia.id.asc()).all()
     return {
         "proveedores": proveedores,
         "ordenes_compra": ordenes,
         "recepciones_compra": recepciones,
         "insumos_compra": insumos,
         "propuestas_impacto_compra": propuestas,
+        "mapeos_insumo_inventario": mapeos,
+        "existencias_para_compras": existencias,
         "resumen_compras": {
             "proveedores_activos": sum(item.estado == "activo" for item in proveedores),
             "ordenes_abiertas": sum(item.estado in {"borrador", "en_revision", "aprobada"} for item in ordenes),
             "ordenes_aprobadas": sum(item.estado == "aprobada" for item in ordenes),
             "recepciones_preparatorias": sum(item.estado == "preparatoria" for item in recepciones),
             "propuestas_pendientes": sum(item.estado in {"preparada", "bloqueada"} for item in propuestas),
+            "insumos_mapeados": sum(bool(item.activo) for item in mapeos),
         },
     }

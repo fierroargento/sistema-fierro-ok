@@ -26,7 +26,8 @@ def _crear(*, recepcion, item, tipo, detalle, estado, usuario_id,
 
 
 def preparar_propuestas(recepcion, *, organizacion_id, unidad_negocio_id,
-                        PropuestaImpactoCompra, db_session, usuario_id=None):
+                        PropuestaImpactoCompra, db_session, usuario_id=None,
+                        mapeos=()):
     if int(recepcion.organizacion_id) != int(organizacion_id) or int(recepcion.unidad_negocio_id) != int(unidad_negocio_id):
         raise ValueError("La recepción no pertenece al tenant y unidad activos.")
     if recepcion.estado not in {"preparatoria", "revisada"}:
@@ -39,6 +40,9 @@ def preparar_propuestas(recepcion, *, organizacion_id, unidad_negocio_id,
         ).all()
     }
     creadas = []
+    mapeos_por_insumo = {
+        int(item.insumo_id): item for item in mapeos if item.activo
+    }
     for recibido in recepcion.items:
         orden_item = recibido.orden_item
         costo = _crear(
@@ -54,15 +58,18 @@ def preparar_propuestas(recepcion, *, organizacion_id, unidad_negocio_id,
             usuario_id=usuario_id, PropuestaImpactoCompra=PropuestaImpactoCompra,
             db_session=db_session, existentes=existentes,
         )
+        mapeo = mapeos_por_insumo.get(int(orden_item.insumo_id)) if orden_item.insumo_id else None
         stock = _crear(
             recepcion=recepcion, item=recibido, tipo="stock",
             detalle={
                 "insumo_id": orden_item.insumo_id,
                 "cantidad_recibida": str(recibido.cantidad_recibida),
-                "requiere_mapeo_item_inventario": True,
+                "requiere_mapeo_item_inventario": mapeo is None,
+                "existencia_sucursal_id": getattr(mapeo, "existencia_sucursal_id", None),
+                "mapeo_id": getattr(mapeo, "id", None),
                 "movimiento_creado": False,
             },
-            estado="bloqueada", usuario_id=usuario_id,
+            estado="preparada" if mapeo is not None else "bloqueada", usuario_id=usuario_id,
             PropuestaImpactoCompra=PropuestaImpactoCompra,
             db_session=db_session, existentes=existentes,
         )

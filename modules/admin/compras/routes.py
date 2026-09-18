@@ -12,6 +12,7 @@ from services.compras_nucleo import (
     quitar_item_orden,
 )
 from services.propuestas_impacto_compra import decidir_propuesta, preparar_propuestas
+from services.mapeos_compras_inventario import crear_mapeo, habilitar_propuestas_stock
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -165,8 +166,37 @@ def crear_blueprint_compras(*, dependencias):
                     unidad_negocio_id=unidad.id,
                     PropuestaImpactoCompra=modelos["PropuestaImpactoCompra"],
                     db_session=db.session, usuario_id=getattr(usuario, "id", None),
+                    mapeos=modelos["MapeoInsumoInventario"].query.filter_by(
+                        organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad.id, activo=True,
+                    ).all(),
                 )
                 mensaje = f"Se prepararon {len(creadas)} propuestas sin ejecutar impactos."
+            elif accion == "crear_mapeo_inventario":
+                insumo = modelos["InsumoProductivo"].query.filter_by(
+                    id=int(request.form.get("insumo_id")), organizacion_id=organizacion.id,
+                ).first()
+                existencia = modelos["ExistenciaSucursal"].query.filter_by(
+                    id=int(request.form.get("existencia_sucursal_id")),
+                    organizacion_id=organizacion.id,
+                ).first()
+                if insumo is None or existencia is None:
+                    raise ValueError("El insumo o la existencia no pertenecen al tenant activo.")
+                mapeo = crear_mapeo(
+                    organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+                    insumo=insumo, existencia=existencia,
+                    MapeoInsumoInventario=modelos["MapeoInsumoInventario"],
+                    db_session=db.session, usuario_id=getattr(usuario, "id", None),
+                    observacion=request.form.get("observacion"),
+                )
+                propuestas = modelos["PropuestaImpactoCompra"].query.filter_by(
+                    organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+                    tipo="stock", estado="bloqueada",
+                ).all()
+                habilitadas = habilitar_propuestas_stock(
+                    propuestas, [mapeo], db_session=db.session,
+                )
+                mensaje = f"Mapeo creado; {len(habilitadas)} propuestas de stock quedaron preparadas, no ejecutadas."
             elif accion == "decidir_impacto":
                 propuesta = modelos["PropuestaImpactoCompra"].query.filter_by(
                     id=int(request.form.get("propuesta_id")), organizacion_id=organizacion.id,

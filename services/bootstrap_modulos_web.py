@@ -133,6 +133,7 @@ def registrar_modulos_web(
                         "ProveedorCompra", "OrdenCompra", "OrdenCompraItem",
                         "RecepcionCompra", "RecepcionCompraItem",
                         "PropuestaImpactoCompra",
+                        "MapeoInsumoInventario", "ExistenciaSucursal",
                     )
                 },
             },

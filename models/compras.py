@@ -133,3 +133,26 @@ class PropuestaImpactoCompra(db.Model):
     fecha_decision = db.Column(db.DateTime)
     recepcion = db.relationship("RecepcionCompra", backref="propuestas_impacto")
     recepcion_item = db.relationship("RecepcionCompraItem")
+
+
+class MapeoInsumoInventario(db.Model):
+    """Destino explícito de inventario para un insumo dentro de una unidad."""
+
+    __tablename__ = "mapeo_insumo_inventario"
+    __table_args__ = (
+        UniqueConstraint(
+            "organizacion_id", "unidad_negocio_id", "insumo_id",
+            name="uq_mapeo_insumo_inventario_tenant_unidad",
+        ),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
+    unidad_negocio_id = db.Column(db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=False, index=True)
+    insumo_id = db.Column(db.Integer, db.ForeignKey("insumo_productivo.id"), nullable=False, index=True)
+    existencia_sucursal_id = db.Column(db.Integer, db.ForeignKey("existencia_sucursal.id"), nullable=False, index=True)
+    activo = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    observacion = db.Column(db.String(500))
+    creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
+    fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+    insumo = db.relationship("InsumoProductivo")
+    existencia = db.relationship("ExistenciaSucursal")
