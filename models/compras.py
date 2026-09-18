@@ -158,3 +158,44 @@ class MapeoInsumoInventario(db.Model):
     fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
     insumo = db.relationship("InsumoProductivo")
     existencia = db.relationship("ExistenciaSucursal")
+
+
+class FacturaProveedorCompra(db.Model):
+    """Comprobante preparatorio conciliado con orden y recepción; sin impacto fiscal."""
+
+    __tablename__ = "factura_proveedor_compra"
+    __table_args__ = (
+        UniqueConstraint(
+            "organizacion_id", "proveedor_id", "tipo_comprobante",
+            "punto_venta", "numero", name="uq_factura_proveedor_compra_tenant",
+        ),
+        CheckConstraint("total_centavos >= 0", name="ck_factura_proveedor_total"),
+        CheckConstraint(
+            "estado IN ('conciliada', 'observada', 'anulada')",
+            name="ck_factura_proveedor_estado",
+        ),
+        CheckConstraint(
+            "impacta_fiscal = false AND obligacion_creada = false",
+            name="ck_factura_proveedor_sin_impacto",
+        ),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
+    unidad_negocio_id = db.Column(db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=False, index=True)
+    proveedor_id = db.Column(db.Integer, db.ForeignKey("proveedor_compra.id"), nullable=False, index=True)
+    orden_compra_id = db.Column(db.Integer, db.ForeignKey("orden_compra.id"), nullable=False, index=True)
+    recepcion_compra_id = db.Column(db.Integer, db.ForeignKey("recepcion_compra.id"), nullable=False, index=True)
+    tipo_comprobante = db.Column(db.String(10), nullable=False)
+    punto_venta = db.Column(db.String(8), nullable=False)
+    numero = db.Column(db.String(20), nullable=False)
+    total_centavos = db.Column(db.BigInteger, nullable=False)
+    diferencia_centavos = db.Column(db.BigInteger, nullable=False, default=0)
+    estado = db.Column(db.String(20), nullable=False, index=True)
+    motivo_observacion = db.Column(db.String(500))
+    impacta_fiscal = db.Column(db.Boolean, default=False, nullable=False)
+    obligacion_creada = db.Column(db.Boolean, default=False, nullable=False)
+    creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
+    fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+    proveedor = db.relationship("ProveedorCompra")
+    orden = db.relationship("OrdenCompra")
+    recepcion = db.relationship("RecepcionCompra", backref="facturas_preparatorias")

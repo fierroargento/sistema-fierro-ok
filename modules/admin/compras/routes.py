@@ -13,6 +13,7 @@ from services.compras_nucleo import (
 )
 from services.propuestas_impacto_compra import decidir_propuesta, preparar_propuestas
 from services.mapeos_compras_inventario import crear_mapeo, habilitar_propuestas_stock
+from services.conciliacion_facturas_compra import registrar_factura_preparatoria
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -172,6 +173,20 @@ def crear_blueprint_compras(*, dependencias):
                     ).all(),
                 )
                 mensaje = f"Se prepararon {len(creadas)} propuestas sin ejecutar impactos."
+            elif accion == "registrar_factura":
+                recepcion = modelos["RecepcionCompra"].query.filter_by(
+                    id=int(request.form.get("recepcion_id")), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id,
+                ).first()
+                if recepcion is None:
+                    raise ValueError("La recepción no pertenece al tenant y unidad activos.")
+                factura = registrar_factura_preparatoria(
+                    request.form, recepcion=recepcion,
+                    organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+                    FacturaProveedorCompra=modelos["FacturaProveedorCompra"],
+                    db_session=db.session, usuario_id=getattr(usuario, "id", None),
+                )
+                mensaje = f"Factura {factura.punto_venta}-{factura.numero} registrada como {factura.estado}, sin impacto."
             elif accion == "crear_mapeo_inventario":
                 insumo = modelos["InsumoProductivo"].query.filter_by(
                     id=int(request.form.get("insumo_id")), organizacion_id=organizacion.id,

@@ -9,6 +9,7 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
     Propuesta = modelos["PropuestaImpactoCompra"]
     Mapeo = modelos["MapeoInsumoInventario"]
     Existencia = modelos["ExistenciaSucursal"]
+    Factura = modelos["FacturaProveedorCompra"]
     proveedores = Proveedor.query.filter_by(
         organizacion_id=organizacion_id,
     ).order_by(Proveedor.razon_social.asc()).all()
@@ -30,6 +31,9 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
     existencias = Existencia.query.filter_by(
         organizacion_id=organizacion_id,
     ).order_by(Existencia.id.asc()).all()
+    facturas = Factura.query.filter_by(
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
+    ).order_by(Factura.fecha_creacion.desc()).all()
     return {
         "proveedores": proveedores,
         "ordenes_compra": ordenes,
@@ -38,6 +42,7 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
         "propuestas_impacto_compra": propuestas,
         "mapeos_insumo_inventario": mapeos,
         "existencias_para_compras": existencias,
+        "facturas_proveedor_compra": facturas,
         "resumen_compras": {
             "proveedores_activos": sum(item.estado == "activo" for item in proveedores),
             "ordenes_abiertas": sum(item.estado in {"borrador", "en_revision", "aprobada"} for item in ordenes),
@@ -45,5 +50,6 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
             "recepciones_preparatorias": sum(item.estado == "preparatoria" for item in recepciones),
             "propuestas_pendientes": sum(item.estado in {"preparada", "bloqueada"} for item in propuestas),
             "insumos_mapeados": sum(bool(item.activo) for item in mapeos),
+            "facturas_observadas": sum(item.estado == "observada" for item in facturas),
         },
     }

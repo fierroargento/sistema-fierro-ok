@@ -316,6 +316,7 @@ from models.lista_precio import ListaPrecio
 from models.compras import (
     ProveedorCompra, OrdenCompra, OrdenCompraItem,
     RecepcionCompra, RecepcionCompraItem, PropuestaImpactoCompra,
+    FacturaProveedorCompra,
     MapeoInsumoInventario,
 )
 from models.politica_comercial_lista import PoliticaComercialLista
@@ -12222,6 +12223,7 @@ registrar_modulos_web(
             "RecepcionCompra": RecepcionCompra,
             "RecepcionCompraItem": RecepcionCompraItem,
             "PropuestaImpactoCompra": PropuestaImpactoCompra,
+            "FacturaProveedorCompra": FacturaProveedorCompra,
             "MapeoInsumoInventario": MapeoInsumoInventario,
             "PoliticaComercialLista": PoliticaComercialLista,
             "ListaPrecioItem": ListaPrecioItem,
