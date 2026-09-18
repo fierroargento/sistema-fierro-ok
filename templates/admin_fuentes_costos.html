@@ -22,6 +22,7 @@
         <label><span>Unidad administrativa</span><select name="unidad_negocio_id" onchange="this.form.submit()">{% for unidad in unidades %}<option value="{{ unidad.id }}" {% if unidad.id == unidad_activa.id %}selected{% endif %}>{{ unidad.nombre }}</option>{% endfor %}</select></label>
       </form>
       <a class="secondary-link" href="{{ url_for('admin_comercial.panel') }}#costos">Volver a Costos y precios</a>
+      <a class="secondary-link" href="{{ url_for('admin_compras.panel') }}">Proveedores y compras</a>
       <a class="comercial-primary header-payables-link" href="{{ url_for('admin_comercial.cuentas_pagar') }}">Pagos y vencimientos</a>
       <div class="comercial-safe"><strong>Entorno interno</strong><span>No publica ni sincroniza canales.</span></div>
     </div>

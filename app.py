@@ -313,6 +313,10 @@ from models.composicion_costo_producto import (
     ProductoMaquinaCosteo,
 )
 from models.lista_precio import ListaPrecio
+from models.compras import (
+    ProveedorCompra, OrdenCompra, OrdenCompraItem,
+    RecepcionCompra, RecepcionCompraItem,
+)
 from models.politica_comercial_lista import PoliticaComercialLista
 from models.lista_precio_item import ListaPrecioItem
 from models.regla_economica import ReglaEconomicaVersion
@@ -12211,6 +12215,11 @@ registrar_modulos_web(
             "ProductoMaquinaCosteo": ProductoMaquinaCosteo,
             "ProductoCostoFijoCosteo": ProductoCostoFijoCosteo,
             "ListaPrecio": ListaPrecio,
+            "ProveedorCompra": ProveedorCompra,
+            "OrdenCompra": OrdenCompra,
+            "OrdenCompraItem": OrdenCompraItem,
+            "RecepcionCompra": RecepcionCompra,
+            "RecepcionCompraItem": RecepcionCompraItem,
             "PoliticaComercialLista": PoliticaComercialLista,
             "ListaPrecioItem": ListaPrecioItem,
             "ReglaEconomicaVersion": ReglaEconomicaVersion,
