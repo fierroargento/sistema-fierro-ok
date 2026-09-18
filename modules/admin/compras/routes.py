@@ -1,6 +1,6 @@
 """Panel tenant de compras preparatorias sin impacto automático."""
 
-from flask import Blueprint, redirect, render_template, request, session, url_for
+from flask import Blueprint, redirect, render_template, request, send_file, session, url_for
 
 from services.compras_consultas import obtener_panel_compras
 from services.compras_nucleo import (
@@ -14,6 +14,7 @@ from services.compras_nucleo import (
 from services.propuestas_impacto_compra import decidir_propuesta, preparar_propuestas
 from services.mapeos_compras_inventario import crear_mapeo, habilitar_propuestas_stock
 from services.conciliacion_facturas_compra import registrar_factura_preparatoria
+from services.control_integral_compras import controlar_compras, exportar_control
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -234,5 +235,24 @@ def crear_blueprint_compras(*, dependencias):
         except Exception as error:
             db.session.rollback()
             return redirect(url_for("admin_compras.panel", error=str(error)))
+
+    @blueprint.route("/admin/compras/control-integral")
+    @dependencias["login_required"]
+    def control_integral():
+        _usuario, organizacion, unidad, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        datos = obtener_panel_compras(organizacion.id, unidad.id, modelos=modelos)
+        resultado = controlar_compras(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+            ordenes=datos["ordenes_compra"], recepciones=datos["recepciones_compra"],
+            facturas=datos["facturas_proveedor_compra"],
+            mapeos=datos["mapeos_insumo_inventario"],
+            propuestas=datos["propuestas_impacto_compra"],
+        )
+        return send_file(
+            exportar_control(resultado), as_attachment=True,
+            download_name="control_integral_compras.json", mimetype="application/json",
+        )
 
     return blueprint
