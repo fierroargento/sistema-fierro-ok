@@ -1,10 +1,11 @@
 """Panel administrativo de planificación productiva bloqueada."""
 
-from flask import Blueprint, redirect, render_template, request, session, url_for
+from flask import Blueprint, redirect, render_template, request, send_file, session, url_for
 
 from services.produccion_consultas import obtener_panel
 from services.produccion_nucleo import cambiar_estado, crear_orden_preparatoria
 from services.avances_produccion import registrar_parte
+from services.simulacion_cierre_produccion import exportar_simulacion, simular_cierre
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -100,6 +101,28 @@ def crear_blueprint_produccion(*, dependencias):
             return redirect(url_for("admin_produccion.panel", ok=mensaje))
         except Exception as error:
             db.session.rollback()
+            return redirect(url_for("admin_produccion.panel", error=str(error)))
+
+    @blueprint.route("/admin/produccion/orden/<int:orden_id>/simulacion")
+    @dependencias["login_required"]
+    def simulacion(orden_id):
+        _usuario, organizacion, unidad, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        orden = modelos["OrdenProduccion"].query.filter_by(
+            id=orden_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+        ).first()
+        if orden is None:
+            return redirect(url_for("admin_produccion.panel", error="La orden no pertenece al contexto activo."))
+        try:
+            resultado = simular_cierre(
+                orden, organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+            )
+            return send_file(
+                exportar_simulacion(resultado), as_attachment=True,
+                download_name=f"simulacion_cierre_produccion_{orden.id}.json",
+                mimetype="application/json",
+            )
+        except ValueError as error:
             return redirect(url_for("admin_produccion.panel", error=str(error)))
 
     return blueprint
