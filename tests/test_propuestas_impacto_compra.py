@@ -45,6 +45,7 @@ def recepcion(insumo_id=20):
     return Obj(
         id=10, organizacion_id=7, unidad_negocio_id=9,
         estado="preparatoria", items=[recibido], orden=orden,
+        subtotal_centavos=375000,
         comprobante_referencia="FC-1",
     )
 
@@ -60,6 +61,8 @@ def test_recepcion_prepara_costo_stock_y_cuenta_pagar_sin_ejecutarlos():
     assert creadas[0].estado == "preparada"
     assert creadas[1].estado == "bloqueada"
     assert all(item.ejecutada is False for item in creadas)
+    detalle_pagar = json.loads(creadas[2].detalle_json)
+    assert detalle_pagar["importe_centavos"] == 375000
     assert sesion.commits == 1
 
 

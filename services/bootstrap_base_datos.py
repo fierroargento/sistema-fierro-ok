@@ -39,6 +39,7 @@ def inicializar_base_datos_saas(
         asegurar_auditoria_pagos_productivos,
         asegurar_recursos_mano_obra,
         asegurar_unidad_importacion_costos,
+        asegurar_subtotal_recepciones_compra,
     )
     from services.modulos_organizacion import (
         asegurar_modulos_iniciales,
@@ -61,6 +62,10 @@ def inicializar_base_datos_saas(
 
     with app.app_context():
         db.create_all()
+
+        asegurar_subtotal_recepciones_compra(
+            db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,
+        )
 
         asegurar_identidad_tenant_auditoria_preparatoria(
             db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,

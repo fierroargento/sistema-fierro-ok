@@ -1,8 +1,25 @@
 """Prepara y decide propuestas de una recepción sin ejecutar sus efectos."""
 
 import json
+from decimal import Decimal, ROUND_HALF_UP
 
 from services.fechas import ahora_utc_naive
+
+
+def _importe_recepcion_centavos(recepcion):
+    """Usa el importe persistido; tolera objetos legacy sin la columna."""
+    importe = getattr(recepcion, "subtotal_centavos", None)
+    if importe is not None:
+        return int(importe)
+    return sum(
+        int(
+            (
+                Decimal(str(item.cantidad_recibida))
+                * Decimal(int(item.orden_item.precio_unitario_centavos))
+            ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        )
+        for item in recepcion.items
+    )
 
 
 def _crear(*, recepcion, item, tipo, detalle, estado, usuario_id,
@@ -78,7 +95,7 @@ def preparar_propuestas(recepcion, *, organizacion_id, unidad_negocio_id,
         recepcion=recepcion, item=None, tipo="cuenta_pagar",
         detalle={
             "proveedor_id": recepcion.orden.proveedor_id,
-            "importe_centavos": int(recepcion.orden.total_centavos),
+            "importe_centavos": _importe_recepcion_centavos(recepcion),
             "comprobante_referencia": recepcion.comprobante_referencia,
             "obligacion_creada": False,
         },

@@ -5,6 +5,28 @@ No elimina columnas ni modifica flujos operativos.
 """
 
 
+def asegurar_subtotal_recepciones_compra(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Agrega el importe propio de cada recepción sin inferir importes legacy."""
+    inspector = inspect_fn(db.engine)
+    tabla = "recepcion_compra"
+    if tabla not in inspector.get_table_names():
+        return {"columna_creada": False}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    creada = "subtotal_centavos" not in columnas
+    if creada:
+        db.session.execute(text_fn(
+            "ALTER TABLE recepcion_compra "
+            "ADD COLUMN subtotal_centavos BIGINT NOT NULL DEFAULT 0"
+        ))
+        db.session.commit()
+        if logger_fn is not None:
+            logger_fn(
+                "[SAAS] Importe de recepciones agregado; "
+                "registros legacy conservados en cero y sin backfill automático."
+            )
+    return {"columna_creada": creada}
+
+
 def asegurar_identidad_tenant_auditoria_preparatoria(*, db, inspect_fn, text_fn, logger_fn=print):
     """Agrega organización nullable sin atribuir automáticamente auditorías legacy."""
     inspector = inspect_fn(db.engine)

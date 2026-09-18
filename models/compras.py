@@ -75,6 +75,7 @@ class RecepcionCompra(db.Model):
     __table_args__ = (
         UniqueConstraint("organizacion_id", "numero", name="uq_recepcion_compra_tenant_numero"),
         CheckConstraint("estado IN ('preparatoria', 'revisada', 'anulada')", name="ck_recepcion_compra_estado"),
+        CheckConstraint("subtotal_centavos >= 0", name="ck_recepcion_compra_subtotal"),
         CheckConstraint("impacta_stock = false AND impacta_costos = false", name="ck_recepcion_compra_sin_impacto"),
     )
     id = db.Column(db.Integer, primary_key=True)
@@ -84,6 +85,7 @@ class RecepcionCompra(db.Model):
     numero = db.Column(db.String(80), nullable=False)
     estado = db.Column(db.String(20), default="preparatoria", nullable=False, index=True)
     comprobante_referencia = db.Column(db.String(160))
+    subtotal_centavos = db.Column(db.BigInteger, default=0, nullable=False)
     impacta_stock = db.Column(db.Boolean, default=False, nullable=False)
     impacta_costos = db.Column(db.Boolean, default=False, nullable=False)
     observacion = db.Column(db.String(500))

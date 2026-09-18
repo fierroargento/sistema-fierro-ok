@@ -150,6 +150,7 @@ def preparar_recepcion(datos, *, orden, organizacion_id, unidad_negocio_id,
         orden_compra_id=orden.id,
         numero=_texto(datos.get("numero"), "El número de recepción", 80).upper(),
         estado="preparatoria", impacta_stock=False, impacta_costos=False,
+        subtotal_centavos=0,
         comprobante_referencia=str(datos.get("comprobante_referencia") or "").strip() or None,
         observacion=str(datos.get("observacion") or "").strip() or None,
         creado_por_usuario_id=usuario_id,
@@ -175,6 +176,11 @@ def preparar_recepcion(datos, *, orden, organizacion_id, unidad_negocio_id,
         recepcion.items.append(RecepcionCompraItem(
             orden_compra_item_id=item.id, cantidad_recibida=cantidad,
         ))
+        recepcion.subtotal_centavos += int(
+            (cantidad * Decimal(int(item.precio_unitario_centavos))).quantize(
+                Decimal("1"), rounding=ROUND_HALF_UP,
+            )
+        )
     if not recepcion.items:
         raise ValueError("La recepción debe incluir al menos una cantidad pendiente.")
     db_session.add(recepcion)

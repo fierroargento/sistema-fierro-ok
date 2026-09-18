@@ -112,7 +112,7 @@ def test_flujo_de_aprobacion_no_permite_saltos():
 def test_recepcion_preparatoria_copia_items_sin_impactar_stock_o_costos():
     orden = Obj(
         id=5, organizacion_id=7, unidad_negocio_id=9, estado="aprobada",
-        items=[Obj(id=10, cantidad=Decimal("3.500000"))], recepciones=[],
+        items=[Obj(id=10, cantidad=Decimal("3.500000"), precio_unitario_centavos=12500)], recepciones=[],
     )
     recepcion = preparar_recepcion(
         {"numero": "RC-1", "comprobante_referencia": "FC-A"}, orden=orden,
@@ -123,12 +123,13 @@ def test_recepcion_preparatoria_copia_items_sin_impactar_stock_o_costos():
     assert recepcion.estado == "preparatoria"
     assert recepcion.impacta_stock is False and recepcion.impacta_costos is False
     assert recepcion.items[0].cantidad_recibida == Decimal("3.500000")
+    assert recepcion.subtotal_centavos == 43750
 
 
 def test_recepcion_parcial_respeta_el_saldo_pendiente_acumulado():
     orden = Obj(
         id=5, organizacion_id=7, unidad_negocio_id=9, estado="aprobada",
-        items=[Obj(id=10, cantidad=Decimal("5"), descripcion="Hierro")],
+        items=[Obj(id=10, cantidad=Decimal("5"), descripcion="Hierro", precio_unitario_centavos=10000)],
         recepciones=[Obj(
             estado="preparatoria",
             items=[Obj(orden_compra_item_id=10, cantidad_recibida=Decimal("2"))],
