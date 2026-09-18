@@ -152,6 +152,7 @@ def registrar_modulos_web(
                         "UnidadNegocio", "PerfilCosteoProducto", "CostoProductoVersion",
                         "OrdenProduccion", "OrdenProduccionInsumo",
                         "OrdenProduccionOperacion", "OrdenProduccionMaquina",
+                        "ParteProduccion",
                     )
                 },
             },

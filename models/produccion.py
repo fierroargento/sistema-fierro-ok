@@ -79,3 +79,35 @@ class OrdenProduccionMaquina(db.Model):
     uso_registrado = db.Column(db.Boolean, default=False, nullable=False)
     maquina = db.relationship("MaquinaProductiva")
     orden = db.relationship("OrdenProduccion", backref=db.backref("maquinas_planificadas", cascade="all, delete-orphan"))
+
+
+class ParteProduccion(db.Model):
+    """Avance declarado para ensayo; no genera consumos ni producto terminado."""
+
+    __tablename__ = "parte_produccion"
+    __table_args__ = (
+        UniqueConstraint("organizacion_id", "numero", name="uq_parte_produccion_tenant_numero"),
+        CheckConstraint("cantidad_buena >= 0 AND cantidad_rechazada >= 0", name="ck_parte_cantidades"),
+        CheckConstraint("cantidad_buena + cantidad_rechazada > 0", name="ck_parte_avance_positivo"),
+        CheckConstraint("minutos_reales >= 0", name="ck_parte_minutos"),
+        CheckConstraint(
+            "impacta_inventario = false AND consume_insumos = false AND crea_producto_terminado = false",
+            name="ck_parte_sin_impacto",
+        ),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
+    unidad_negocio_id = db.Column(db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=False, index=True)
+    orden_produccion_id = db.Column(db.Integer, db.ForeignKey("orden_produccion.id"), nullable=False, index=True)
+    numero = db.Column(db.String(80), nullable=False)
+    cantidad_buena = db.Column(db.Numeric(18, 6), default=0, nullable=False)
+    cantidad_rechazada = db.Column(db.Numeric(18, 6), default=0, nullable=False)
+    minutos_reales = db.Column(db.Numeric(18, 4), default=0, nullable=False)
+    estado = db.Column(db.String(20), default="informado", nullable=False)
+    impacta_inventario = db.Column(db.Boolean, default=False, nullable=False)
+    consume_insumos = db.Column(db.Boolean, default=False, nullable=False)
+    crea_producto_terminado = db.Column(db.Boolean, default=False, nullable=False)
+    observacion = db.Column(db.String(500))
+    creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
+    fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+    orden = db.relationship("OrdenProduccion", backref="partes_informados")

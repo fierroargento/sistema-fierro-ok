@@ -4,6 +4,7 @@ from flask import Blueprint, redirect, render_template, request, session, url_fo
 
 from services.produccion_consultas import obtener_panel
 from services.produccion_nucleo import cambiar_estado, crear_orden_preparatoria
+from services.avances_produccion import registrar_parte
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -81,6 +82,18 @@ def crear_blueprint_produccion(*, dependencias):
                     unidad_negocio_id=unidad.id, db_session=db.session,
                 )
                 mensaje = f"Orden {orden.numero} actualizada a {orden.estado}; ejecución bloqueada."
+            elif accion == "registrar_parte":
+                orden = modelos["OrdenProduccion"].query.filter_by(
+                    id=int(request.form.get("orden_id")), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id,
+                ).first()
+                if orden is None: raise ValueError("La orden no pertenece al contexto activo.")
+                parte = registrar_parte(
+                    request.form, orden=orden, organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id, ParteProduccion=modelos["ParteProduccion"],
+                    db_session=db.session, usuario_id=getattr(usuario, "id", None),
+                )
+                mensaje = f"Parte {parte.numero} informado sin consumos ni altas de stock."
             else:
                 raise ValueError("La acción productiva no es válida.")
             dependencias["registrar_auditoria"]("Producción preparatoria", entidad="produccion", detalle=mensaje)

@@ -1,5 +1,7 @@
 """Consultas aisladas del panel preparatorio de producción."""
 
+from services.avances_produccion import resumir_orden
+
 
 def obtener_panel(organizacion_id, unidad_negocio_id, *, modelos):
     Perfil = modelos["PerfilCosteoProducto"]
@@ -14,6 +16,7 @@ def obtener_panel(organizacion_id, unidad_negocio_id, *, modelos):
     return {
         "perfiles_produccion": perfiles,
         "ordenes_produccion": ordenes,
+        "avances_por_orden": {item.id: resumir_orden(item) for item in ordenes},
         "resumen_produccion": {
             "ordenes": len(ordenes),
             "borradores": sum(item.estado == "borrador" for item in ordenes),
