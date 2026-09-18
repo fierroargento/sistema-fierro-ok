@@ -11,6 +11,7 @@ from services.reglas_economicas import calcular_pisos_regla, resolver_regla_vige
 from services.motor_comercial_canal import calcular_precio_minimo_canal
 from services.control_comercial_masivo import construir_bandeja
 from services.validacion_integral_canal import construir_tablero
+from services.control_motores_comerciales import construir_control_motores
 
 
 def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos):
@@ -106,6 +107,14 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         control_comercial, reglas_validacion, observaciones_canal,
         promociones, propuestas_comerciales,
     )
+    listas = Lista.query.filter_by(
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id
+    ).order_by(Lista.nombre).all()
+    politicas = Politica.query.join(Lista).filter(
+        Lista.organizacion_id == organizacion_id,
+        Lista.unidad_negocio_id == unidad_negocio_id,
+    ).order_by(Politica.fecha_creacion.desc()).all()
+    control_motores = construir_control_motores(listas, politicas, reglas_canal, items)
     return {
         "productos_maestro": Producto.query.filter_by(
             organizacion_id=organizacion_id
@@ -125,13 +134,8 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
             inclusion for inclusion in inclusiones if inclusion.activo
         ],
         "costos": costos,
-        "listas": Lista.query.filter_by(
-            organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id
-        ).order_by(Lista.nombre).all(),
-        "politicas": Politica.query.join(Lista).filter(
-            Lista.organizacion_id == organizacion_id
-            , Lista.unidad_negocio_id == unidad_negocio_id
-        ).order_by(Politica.fecha_creacion.desc()).all(),
+        "listas": listas,
+        "politicas": politicas,
         "items": items,
         "reglas_economicas": reglas_economicas,
         "pisos_economicos": pisos_economicos,
@@ -146,4 +150,5 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         "tablero_preparacion": tablero_preparacion,
         "resumen_preparacion": resumen_preparacion,
         "propuestas_obsoletas": propuestas_obsoletas,
+        "control_motores": control_motores,
     }

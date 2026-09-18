@@ -7,6 +7,7 @@ from flask import Blueprint, redirect, render_template, request, send_file, sess
 from services.comercial_admin import procesar_accion_comercial
 from services.comercial_consultas import obtener_datos_panel_comercial
 from services.control_comercial_masivo import exportar_bandeja_excel
+from services.control_motores_comerciales import exportar_control_motores
 from services.catalogos_comerciales import importe_a_centavos
 from services.conciliacion_liquidaciones_canal import (
     construir_conciliaciones, exportar_conciliaciones, incorporar_gestiones,
@@ -867,6 +868,7 @@ def crear_blueprint_comercial(*, dependencias):
         datos_panel_tn = obtener_datos_panel_comercial(
             organizacion.id, unidad_activa.id, modelos=modelos,
         )
+
         try:
             if request.method == "POST":
                 accion = (request.form.get("accion") or "").strip()
@@ -949,6 +951,23 @@ def crear_blueprint_comercial(*, dependencias):
             bandeja=bandeja,
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=error,
+        )
+
+    @blueprint.route("/admin/comercial/control-motores/exportar")
+    @dependencias["login_required"]
+    def exportar_control_motores_comerciales():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        datos = obtener_datos_panel_comercial(
+            organizacion.id, unidad_activa.id, modelos=modelos,
+        )
+        return send_file(
+            exportar_control_motores(datos["control_motores"]),
+            as_attachment=True,
+            download_name="control_motores_comerciales.json",
+            mimetype="application/json",
         )
 
     @blueprint.route("/admin/comercial/tienda-nube-offline/lotes/<int:lote_id>/preparar-pedidos", methods=["GET", "POST"])
