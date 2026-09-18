@@ -25,6 +25,9 @@ class Session:
     def commit(self):
         self.commits += 1
 
+    def delete(self, item):
+        self.agregados.append(("eliminado", item))
+
 
 class Proveedor(Obj):
     pass
@@ -122,22 +125,31 @@ def test_recepcion_preparatoria_copia_items_sin_impactar_stock_o_costos():
     assert recepcion.items[0].cantidad_recibida == Decimal("3.500000")
 
 
-def test_no_duplica_recepcion_vigente_de_una_misma_orden():
+def test_recepcion_parcial_respeta_el_saldo_pendiente_acumulado():
     orden = Obj(
         id=5, organizacion_id=7, unidad_negocio_id=9, estado="aprobada",
-        items=[Obj(id=10, cantidad=Decimal("1"))],
-        recepciones=[Obj(estado="preparatoria")],
+        items=[Obj(id=10, cantidad=Decimal("5"), descripcion="Hierro")],
+        recepciones=[Obj(
+            estado="preparatoria",
+            items=[Obj(orden_compra_item_id=10, cantidad_recibida=Decimal("2"))],
+        )],
     )
+    nueva = preparar_recepcion(
+        {"numero": "RC-2", "cantidad_10": "3"}, orden=orden,
+        organizacion_id=7, unidad_negocio_id=9, RecepcionCompra=Recepcion,
+        RecepcionCompraItem=RecepcionItem, db_session=Session(),
+    )
+    assert nueva.items[0].cantidad_recibida == Decimal("3.000000")
     try:
         preparar_recepcion(
-            {"numero": "RC-2"}, orden=orden, organizacion_id=7,
-            unidad_negocio_id=9, RecepcionCompra=Recepcion,
+            {"numero": "RC-3", "cantidad_10": "4"}, orden=orden,
+            organizacion_id=7, unidad_negocio_id=9, RecepcionCompra=Recepcion,
             RecepcionCompraItem=RecepcionItem, db_session=Session(),
         )
     except ValueError as error:
-        assert "ya tiene" in str(error)
+        assert "supera" in str(error)
     else:
-        raise AssertionError("Se duplicó una recepción preparatoria vigente.")
+        raise AssertionError("Se recibió más que la cantidad pendiente.")
 
 
 def test_modelo_impide_recepcion_con_impacto_automatico():

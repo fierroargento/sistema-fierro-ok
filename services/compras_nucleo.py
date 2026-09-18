@@ -76,6 +76,53 @@ def crear_orden(datos, *, organizacion_id, unidad_negocio_id, proveedor,
     return orden
 
 
+def _nuevo_item(datos, insumo, OrdenCompraItem):
+    cantidad = _cantidad(datos.get("cantidad"))
+    precio = _centavos(datos.get("precio_unitario"))
+    subtotal = int((cantidad * Decimal(precio)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return OrdenCompraItem(
+        insumo_id=getattr(insumo, "id", None),
+        descripcion=_texto(datos.get("descripcion"), "La descripción", 250),
+        unidad_medida=_texto(datos.get("unidad_medida"), "La unidad", 30),
+        cantidad=cantidad, precio_unitario_centavos=precio,
+        subtotal_centavos=subtotal,
+    )
+
+
+def _recalcular_total(orden):
+    orden.total_centavos = sum(int(item.subtotal_centavos) for item in orden.items)
+
+
+def agregar_item_orden(orden, datos, *, organizacion_id, insumo,
+                       OrdenCompraItem, db_session):
+    if int(orden.organizacion_id) != int(organizacion_id):
+        raise ValueError("La orden no pertenece al tenant activo.")
+    if orden.estado != "borrador":
+        raise ValueError("Solo se pueden editar ítems de una orden borrador.")
+    if insumo is not None and int(insumo.organizacion_id) != int(organizacion_id):
+        raise ValueError("El insumo no pertenece al tenant activo.")
+    orden.items.append(_nuevo_item(datos, insumo, OrdenCompraItem))
+    _recalcular_total(orden)
+    db_session.commit()
+    return orden
+
+
+def quitar_item_orden(orden, item, *, organizacion_id, db_session):
+    if int(orden.organizacion_id) != int(organizacion_id):
+        raise ValueError("La orden no pertenece al tenant activo.")
+    if orden.estado != "borrador":
+        raise ValueError("Solo se pueden editar ítems de una orden borrador.")
+    if item not in orden.items:
+        raise ValueError("El ítem no pertenece a la orden.")
+    if len(orden.items) <= 1:
+        raise ValueError("La orden debe conservar al menos un ítem.")
+    orden.items.remove(item)
+    db_session.delete(item)
+    _recalcular_total(orden)
+    db_session.commit()
+    return orden
+
+
 def cambiar_estado_orden(orden, estado, *, organizacion_id, db_session):
     if int(orden.organizacion_id) != int(organizacion_id):
         raise ValueError("La orden no pertenece al tenant activo.")
@@ -98,8 +145,6 @@ def preparar_recepcion(datos, *, orden, organizacion_id, unidad_negocio_id,
         raise ValueError("La orden no pertenece al tenant y unidad activos.")
     if orden.estado != "aprobada":
         raise ValueError("Solo una orden aprobada admite una recepción preparatoria.")
-    if any(item.estado != "anulada" for item in getattr(orden, "recepciones", ())):
-        raise ValueError("La orden ya tiene una recepción preparatoria vigente.")
     recepcion = RecepcionCompra(
         organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
         orden_compra_id=orden.id,
@@ -109,11 +154,29 @@ def preparar_recepcion(datos, *, orden, organizacion_id, unidad_negocio_id,
         observacion=str(datos.get("observacion") or "").strip() or None,
         creado_por_usuario_id=usuario_id,
     )
+    acumulado = {}
+    for anterior in getattr(orden, "recepciones", ()):
+        if anterior.estado == "anulada":
+            continue
+        for recibido in anterior.items:
+            acumulado[recibido.orden_compra_item_id] = (
+                acumulado.get(recibido.orden_compra_item_id, Decimal("0"))
+                + Decimal(str(recibido.cantidad_recibida))
+            )
+    campos_explicitos = any(f"cantidad_{item.id}" in datos for item in orden.items)
     for item in orden.items:
+        pendiente = Decimal(str(item.cantidad)) - acumulado.get(item.id, Decimal("0"))
+        valor = datos.get(f"cantidad_{item.id}") if campos_explicitos else pendiente
+        if valor in (None, "", "0", 0):
+            continue
+        cantidad = _cantidad(valor)
+        if cantidad > pendiente:
+            raise ValueError(f"La recepción de {item.descripcion} supera la cantidad pendiente.")
         recepcion.items.append(RecepcionCompraItem(
-            orden_compra_item_id=item.id,
-            cantidad_recibida=item.cantidad,
+            orden_compra_item_id=item.id, cantidad_recibida=cantidad,
         ))
+    if not recepcion.items:
+        raise ValueError("La recepción debe incluir al menos una cantidad pendiente.")
     db_session.add(recepcion)
     db_session.commit()
     return recepcion

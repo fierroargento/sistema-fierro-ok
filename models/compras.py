@@ -74,7 +74,6 @@ class RecepcionCompra(db.Model):
     __tablename__ = "recepcion_compra"
     __table_args__ = (
         UniqueConstraint("organizacion_id", "numero", name="uq_recepcion_compra_tenant_numero"),
-        UniqueConstraint("orden_compra_id", name="uq_recepcion_compra_orden"),
         CheckConstraint("estado IN ('preparatoria', 'revisada', 'anulada')", name="ck_recepcion_compra_estado"),
         CheckConstraint("impacta_stock = false AND impacta_costos = false", name="ck_recepcion_compra_sin_impacto"),
     )

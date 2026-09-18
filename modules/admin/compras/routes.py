@@ -4,10 +4,12 @@ from flask import Blueprint, redirect, render_template, request, session, url_fo
 
 from services.compras_consultas import obtener_panel_compras
 from services.compras_nucleo import (
+    agregar_item_orden,
     cambiar_estado_orden,
     crear_orden,
     crear_proveedor,
     preparar_recepcion,
+    quitar_item_orden,
 )
 from services.propuestas_impacto_compra import decidir_propuesta, preparar_propuestas
 from services.tenant_context import TenantError, resolver_tenant_usuario
@@ -92,6 +94,38 @@ def crear_blueprint_compras(*, dependencias):
                     db_session=db.session, usuario_id=getattr(usuario, "id", None),
                 )
                 mensaje = f"Orden {creada.numero} creada como borrador."
+            elif accion in {"agregar_item", "quitar_item"}:
+                orden = modelos["OrdenCompra"].query.filter_by(
+                    id=int(request.form.get("orden_id")), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id,
+                ).first()
+                if orden is None:
+                    raise ValueError("La orden no pertenece al tenant y unidad activos.")
+                if accion == "agregar_item":
+                    insumo_id = request.form.get("insumo_id")
+                    insumo = modelos["InsumoProductivo"].query.filter_by(
+                        id=int(insumo_id), organizacion_id=organizacion.id,
+                    ).first() if insumo_id else None
+                    if insumo_id and insumo is None:
+                        raise ValueError("El insumo no pertenece al tenant activo.")
+                    agregar_item_orden(
+                        orden, request.form, organizacion_id=organizacion.id,
+                        insumo=insumo, OrdenCompraItem=modelos["OrdenCompraItem"],
+                        db_session=db.session,
+                    )
+                    mensaje = f"Ítem agregado a la orden {orden.numero}."
+                else:
+                    item = next(
+                        (fila for fila in orden.items if fila.id == int(request.form.get("item_id"))),
+                        None,
+                    )
+                    if item is None:
+                        raise ValueError("El ítem no pertenece a la orden.")
+                    quitar_item_orden(
+                        orden, item, organizacion_id=organizacion.id,
+                        db_session=db.session,
+                    )
+                    mensaje = f"Ítem quitado de la orden {orden.numero}."
             elif accion == "cambiar_estado":
                 orden = modelos["OrdenCompra"].query.filter_by(
                     id=int(request.form.get("orden_id")), organizacion_id=organizacion.id,
