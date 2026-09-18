@@ -5,6 +5,8 @@ import io
 import json
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
+from services.motor_comercial_canal import liquidar_precio
+
 
 EFECTOS_BLOQUEADOS = {
     "consulta_api": False,
@@ -101,6 +103,7 @@ def normalizar_pedido(order, contexto):
             "sku": sku.upper(),
             "nombre": _texto(item, "name", "product_name") or f"Producto {numero}",
             "cantidad": cantidad,
+            "precio_unitario_centavos": _centavos(item.get("price")) if item.get("price") not in (None, "") else None,
             "identificado": bool(sku),
         })
     bloqueos = []
@@ -126,6 +129,9 @@ def normalizar_pedido(order, contexto):
         "estado_pago": pago,
         "estado_envio": envio,
         "total_centavos": _centavos(order.get("total", 0)),
+        "descuento_centavos": _centavos(order.get("discount", order.get("discount_total", 0))),
+        "costo_pago_centavos": _centavos(order.get("payment_cost", order.get("gateway_cost", 0))),
+        "costo_envio_centavos": _centavos(order.get("shipping_cost", 0)),
         "productos": productos,
         "telefono_presente": bool(_texto(order, "contact_phone") or _texto(order.get("customer") or {}, "phone") or _texto(order.get("billing_address") or {}, "phone")),
         "cancelado": cancelado,
@@ -137,7 +143,55 @@ def normalizar_pedido(order, contexto):
     }
 
 
-def procesar_fixture_tienda_nube(contenido, vinculo, *, organizacion_id, unidad_negocio_id):
+def evaluar_economia_pedido(pedido, controles):
+    """Compara ítems observados con el piso interno sin alterar el pedido."""
+    indices = {}
+    for fila in controles or []:
+        sku = str(getattr(getattr(fila.get("costo"), "producto", None), "sku", "") or "").strip().upper()
+        if sku:
+            indices.setdefault(sku, []).append(fila)
+    detalles, bloqueos = [], []
+    liquidacion = 0
+    piso = 0
+    for producto in pedido["productos"]:
+        sku = producto["sku"]
+        candidatas = indices.get(sku, [])
+        if len(candidatas) != 1:
+            bloqueos.append(f"{sku or 'SIN-SKU'}:control_interno_{'ausente' if not candidatas else 'ambiguo'}")
+            continue
+        if producto["precio_unitario_centavos"] is None:
+            bloqueos.append(f"{sku}:precio_unitario_no_informado")
+            continue
+        fila = candidatas[0]
+        regla = fila["regla_canal"]
+        cantidad = int(producto["cantidad"])
+        calculo = liquidar_precio(
+            producto["precio_unitario_centavos"],
+            comision_pct=regla.comision_pct,
+            publicidad_pct=getattr(regla, "publicidad_pct", 0),
+            financiacion_pct=getattr(regla, "financiacion_pct", 0),
+            devoluciones_pct=getattr(regla, "devoluciones_pct", 0),
+            tramos=regla.tramos,
+            umbral_envio_centavos=regla.umbral_envio_centavos,
+            costo_envio_centavos=regla.costo_envio_default_centavos,
+        )
+        piso_item = int(fila["minimo"]["piso_liquidacion_centavos"])
+        liquidacion += calculo["liquidacion_centavos"] * cantidad
+        piso += piso_item * cantidad
+        detalles.append({"sku": sku, "cantidad": cantidad, "liquidacion_unitaria_centavos": calculo["liquidacion_centavos"], "piso_unitario_centavos": piso_item})
+    liquidacion -= int(pedido.get("costo_pago_centavos", 0) or 0)
+    return {
+        "estado": "bloqueada" if bloqueos else "debajo_del_piso" if liquidacion < piso else "rentable",
+        "liquidacion_estimada_centavos": liquidacion,
+        "piso_minimo_centavos": piso,
+        "margen_minimo_centavos": liquidacion - piso,
+        "bloqueos": bloqueos,
+        "detalles": detalles,
+        "acciones_externas": 0,
+    }
+
+
+def procesar_fixture_tienda_nube(contenido, vinculo, *, organizacion_id, unidad_negocio_id, controles=None):
     contexto = resolver_cuenta_tenant(
         vinculo,
         organizacion_id=organizacion_id,
@@ -154,6 +208,7 @@ def procesar_fixture_tienda_nube(contenido, vinculo, *, organizacion_id, unidad_
     for numero, order in enumerate(filas, start=1):
         try:
             pedido = normalizar_pedido(order, contexto)
+            pedido["control_economico"] = evaluar_economia_pedido(pedido, controles) if controles is not None else None
             if pedido["identidad"] in identidades:
                 raise ValueError("El pedido esta duplicado dentro del archivo.")
             identidades.append(pedido["identidad"])
@@ -167,6 +222,8 @@ def procesar_fixture_tienda_nube(contenido, vinculo, *, organizacion_id, unidad_
         "aptas": sum(pedido["apto_importacion_simulada"] for pedido in resultados),
         "bloqueadas": sum(not pedido["apto_importacion_simulada"] for pedido in resultados),
         "sin_telefono": sum(not pedido["telefono_presente"] for pedido in resultados),
+        "rentables": sum(pedido.get("control_economico", {}).get("estado") == "rentable" for pedido in resultados if pedido.get("control_economico")),
+        "economicamente_bloqueadas": sum(pedido.get("control_economico", {}).get("estado") == "bloqueada" for pedido in resultados if pedido.get("control_economico")),
         "acciones_externas": 0,
     }
     base = {"contexto": contexto, "resultados": resultados, "errores": errores, "resumen": resumen}

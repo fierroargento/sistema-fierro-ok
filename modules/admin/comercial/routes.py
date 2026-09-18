@@ -864,6 +864,9 @@ def crear_blueprint_comercial(*, dependencias):
         resultado = None
         error = ""
         certificacion = certificar_escenarios_tienda_nube()
+        datos_panel_tn = obtener_datos_panel_comercial(
+            organizacion.id, unidad_activa.id, modelos=modelos,
+        )
         try:
             if request.method == "POST":
                 accion = (request.form.get("accion") or "").strip()
@@ -906,6 +909,7 @@ def crear_blueprint_comercial(*, dependencias):
                     contenido, vinculo,
                     organizacion_id=organizacion.id,
                     unidad_negocio_id=unidad_activa.id,
+                    controles=datos_panel_tn["control_comercial"],
                 )
                 if accion == "guardar_lote":
                     lote, creado = registrar_lote_tienda_nube(
