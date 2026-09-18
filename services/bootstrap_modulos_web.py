@@ -132,6 +132,7 @@ def registrar_modulos_web(
                         "UnidadNegocio", "InsumoProductivo",
                         "ProveedorCompra", "OrdenCompra", "OrdenCompraItem",
                         "RecepcionCompra", "RecepcionCompraItem",
+                        "PropuestaImpactoCompra",
                     )
                 },
             },

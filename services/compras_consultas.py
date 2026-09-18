@@ -6,6 +6,7 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
     Orden = modelos["OrdenCompra"]
     Recepcion = modelos["RecepcionCompra"]
     Insumo = modelos["InsumoProductivo"]
+    Propuesta = modelos["PropuestaImpactoCompra"]
     proveedores = Proveedor.query.filter_by(
         organizacion_id=organizacion_id,
     ).order_by(Proveedor.razon_social.asc()).all()
@@ -18,15 +19,20 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
     insumos = Insumo.query.filter_by(
         organizacion_id=organizacion_id, activo=True,
     ).order_by(Insumo.nombre.asc()).all()
+    propuestas = Propuesta.query.filter_by(
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
+    ).order_by(Propuesta.fecha_creacion.desc()).all()
     return {
         "proveedores": proveedores,
         "ordenes_compra": ordenes,
         "recepciones_compra": recepciones,
         "insumos_compra": insumos,
+        "propuestas_impacto_compra": propuestas,
         "resumen_compras": {
             "proveedores_activos": sum(item.estado == "activo" for item in proveedores),
             "ordenes_abiertas": sum(item.estado in {"borrador", "en_revision", "aprobada"} for item in ordenes),
             "ordenes_aprobadas": sum(item.estado == "aprobada" for item in ordenes),
             "recepciones_preparatorias": sum(item.estado == "preparatoria" for item in recepciones),
+            "propuestas_pendientes": sum(item.estado in {"preparada", "bloqueada"} for item in propuestas),
         },
     }

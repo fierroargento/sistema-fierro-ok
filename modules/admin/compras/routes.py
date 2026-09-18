@@ -9,6 +9,7 @@ from services.compras_nucleo import (
     crear_proveedor,
     preparar_recepcion,
 )
+from services.propuestas_impacto_compra import decidir_propuesta, preparar_propuestas
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -118,6 +119,33 @@ def crear_blueprint_compras(*, dependencias):
                     db_session=db.session, usuario_id=getattr(usuario, "id", None),
                 )
                 mensaje = f"Recepción {recepcion.numero} preparada sin impacto en stock o costos."
+            elif accion == "preparar_impactos":
+                recepcion = modelos["RecepcionCompra"].query.filter_by(
+                    id=int(request.form.get("recepcion_id")), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id,
+                ).first()
+                if recepcion is None:
+                    raise ValueError("La recepción no pertenece al tenant y unidad activos.")
+                creadas = preparar_propuestas(
+                    recepcion, organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id,
+                    PropuestaImpactoCompra=modelos["PropuestaImpactoCompra"],
+                    db_session=db.session, usuario_id=getattr(usuario, "id", None),
+                )
+                mensaje = f"Se prepararon {len(creadas)} propuestas sin ejecutar impactos."
+            elif accion == "decidir_impacto":
+                propuesta = modelos["PropuestaImpactoCompra"].query.filter_by(
+                    id=int(request.form.get("propuesta_id")), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id,
+                ).first()
+                if propuesta is None:
+                    raise ValueError("La propuesta no pertenece al tenant y unidad activos.")
+                decidir_propuesta(
+                    propuesta, (request.form.get("decision") or "").strip(),
+                    request.form.get("motivo"), organizacion_id=organizacion.id,
+                    db_session=db.session, usuario_id=getattr(usuario, "id", None),
+                )
+                mensaje = f"Propuesta #{propuesta.id} actualizada a {propuesta.estado}; ejecución bloqueada."
             else:
                 raise ValueError("La acción de compras no es válida.")
             dependencias["registrar_auditoria"](

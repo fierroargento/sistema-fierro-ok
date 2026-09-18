@@ -105,3 +105,32 @@ class RecepcionCompraItem(db.Model):
     cantidad_recibida = db.Column(db.Numeric(18, 6), nullable=False)
     recepcion = db.relationship("RecepcionCompra", back_populates="items")
     orden_item = db.relationship("OrdenCompraItem")
+
+
+class PropuestaImpactoCompra(db.Model):
+    """Efecto futuro sugerido; nunca ejecuta inventario, costos o pagos."""
+
+    __tablename__ = "propuesta_impacto_compra"
+    __table_args__ = (
+        UniqueConstraint("organizacion_id", "clave_idempotencia", name="uq_propuesta_compra_tenant_clave"),
+        CheckConstraint("tipo IN ('stock', 'costo', 'cuenta_pagar')", name="ck_propuesta_compra_tipo"),
+        CheckConstraint("estado IN ('preparada', 'aprobada', 'rechazada', 'bloqueada', 'archivada')", name="ck_propuesta_compra_estado"),
+        CheckConstraint("ejecutada = false", name="ck_propuesta_compra_no_ejecutada"),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
+    unidad_negocio_id = db.Column(db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=False, index=True)
+    recepcion_compra_id = db.Column(db.Integer, db.ForeignKey("recepcion_compra.id"), nullable=False, index=True)
+    recepcion_item_id = db.Column(db.Integer, db.ForeignKey("recepcion_compra_item.id"), index=True)
+    tipo = db.Column(db.String(30), nullable=False, index=True)
+    clave_idempotencia = db.Column(db.String(180), nullable=False)
+    estado = db.Column(db.String(30), default="preparada", nullable=False, index=True)
+    detalle_json = db.Column(db.Text, nullable=False)
+    ejecutada = db.Column(db.Boolean, default=False, nullable=False)
+    motivo_decision = db.Column(db.String(500))
+    creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
+    decidido_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
+    fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+    fecha_decision = db.Column(db.DateTime)
+    recepcion = db.relationship("RecepcionCompra", backref="propuestas_impacto")
+    recepcion_item = db.relationship("RecepcionCompraItem")
