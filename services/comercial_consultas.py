@@ -13,6 +13,7 @@ from services.control_comercial_masivo import construir_bandeja
 from services.validacion_integral_canal import construir_tablero
 from services.control_motores_comerciales import construir_control_motores
 from services.plan_transicion_motores_comerciales import construir_plan_transicion
+from services.ensayo_transicion_motores_comerciales import construir_ensayo_transicion
 
 
 def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos):
@@ -117,6 +118,9 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
     ).order_by(Politica.fecha_creacion.desc()).all()
     control_motores = construir_control_motores(listas, politicas, reglas_canal, items)
     plan_transicion_motores = construir_plan_transicion(control_motores)
+    ensayo_transicion_motores = construir_ensayo_transicion(
+        listas, politicas, reglas_canal, items,
+    )
     return {
         "productos_maestro": Producto.query.filter_by(
             organizacion_id=organizacion_id
@@ -154,4 +158,5 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         "propuestas_obsoletas": propuestas_obsoletas,
         "control_motores": control_motores,
         "plan_transicion_motores": plan_transicion_motores,
+        "ensayo_transicion_motores": ensayo_transicion_motores,
     }

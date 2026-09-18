@@ -9,6 +9,7 @@ from services.comercial_consultas import obtener_datos_panel_comercial
 from services.control_comercial_masivo import exportar_bandeja_excel
 from services.control_motores_comerciales import exportar_control_motores
 from services.plan_transicion_motores_comerciales import exportar_plan_transicion
+from services.ensayo_transicion_motores_comerciales import exportar_ensayo_transicion
 from services.catalogos_comerciales import importe_a_centavos
 from services.conciliacion_liquidaciones_canal import (
     construir_conciliaciones, exportar_conciliaciones, incorporar_gestiones,
@@ -985,6 +986,23 @@ def crear_blueprint_comercial(*, dependencias):
             exportar_plan_transicion(datos["plan_transicion_motores"]),
             as_attachment=True,
             download_name="plan_transicion_motores_comerciales.json",
+            mimetype="application/json",
+        )
+
+    @blueprint.route("/admin/comercial/control-motores/ensayo-transicion")
+    @dependencias["login_required"]
+    def exportar_ensayo_transicion_motores():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        datos = obtener_datos_panel_comercial(
+            organizacion.id, unidad_activa.id, modelos=modelos,
+        )
+        return send_file(
+            exportar_ensayo_transicion(datos["ensayo_transicion_motores"]),
+            as_attachment=True,
+            download_name="ensayo_transicion_motores_comerciales.json",
             mimetype="application/json",
         )
 
