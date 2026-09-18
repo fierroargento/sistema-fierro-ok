@@ -37,7 +37,7 @@ def test_bootstrap_registra_todos_los_modulos():
 
     assert contenido.count(
         "app.register_blueprint("
-    ) == 8
+    ) == 9
     assert "registrar_rutas_auth(" in contenido
 
     for referencia in (
@@ -48,6 +48,7 @@ def test_bootstrap_registra_todos_los_modulos():
         "crear_blueprint_inventario",
         "crear_blueprint_facturacion",
         "crear_blueprint_compras",
+        "crear_blueprint_produccion",
     ):
         assert referencia in contenido
 

@@ -22,6 +22,7 @@ def registrar_modulos_web(
     from modules.admin.inventario.routes import (
         crear_blueprint_inventario,
     )
+    from modules.admin.produccion.routes import crear_blueprint_produccion
     from modules.admin.usuarios.routes import (
         crear_blueprint_usuarios,
     )
@@ -135,6 +136,22 @@ def registrar_modulos_web(
                         "PropuestaImpactoCompra",
                         "FacturaProveedorCompra",
                         "MapeoInsumoInventario", "ExistenciaSucursal",
+                    )
+                },
+            },
+        )
+    )
+
+    app.register_blueprint(
+        crear_blueprint_produccion(
+            dependencias={
+                **comunes,
+                "modelos": {
+                    nombre: modelos[nombre]
+                    for nombre in (
+                        "UnidadNegocio", "PerfilCosteoProducto", "CostoProductoVersion",
+                        "OrdenProduccion", "OrdenProduccionInsumo",
+                        "OrdenProduccionOperacion", "OrdenProduccionMaquina",
                     )
                 },
             },

@@ -319,6 +319,10 @@ from models.compras import (
     FacturaProveedorCompra,
     MapeoInsumoInventario,
 )
+from models.produccion import (
+    OrdenProduccion, OrdenProduccionInsumo,
+    OrdenProduccionOperacion, OrdenProduccionMaquina,
+)
 from models.politica_comercial_lista import PoliticaComercialLista
 from models.lista_precio_item import ListaPrecioItem
 from models.regla_economica import ReglaEconomicaVersion
@@ -12225,6 +12229,10 @@ registrar_modulos_web(
             "PropuestaImpactoCompra": PropuestaImpactoCompra,
             "FacturaProveedorCompra": FacturaProveedorCompra,
             "MapeoInsumoInventario": MapeoInsumoInventario,
+            "OrdenProduccion": OrdenProduccion,
+            "OrdenProduccionInsumo": OrdenProduccionInsumo,
+            "OrdenProduccionOperacion": OrdenProduccionOperacion,
+            "OrdenProduccionMaquina": OrdenProduccionMaquina,
             "PoliticaComercialLista": PoliticaComercialLista,
             "ListaPrecioItem": ListaPrecioItem,
             "ReglaEconomicaVersion": ReglaEconomicaVersion,
