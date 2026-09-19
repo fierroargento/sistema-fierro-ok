@@ -6,6 +6,7 @@ from services.produccion_consultas import obtener_panel
 from services.produccion_nucleo import cambiar_estado, crear_orden_preparatoria
 from services.avances_produccion import registrar_parte
 from services.simulacion_cierre_produccion import exportar_simulacion, simular_cierre
+from services.control_integral_produccion import controlar_produccion, exportar_control
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -124,5 +125,21 @@ def crear_blueprint_produccion(*, dependencias):
             )
         except ValueError as error:
             return redirect(url_for("admin_produccion.panel", error=str(error)))
+
+    @blueprint.route("/admin/produccion/control-integral")
+    @dependencias["login_required"]
+    def control_integral():
+        _usuario, organizacion, unidad, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        ordenes = modelos["OrdenProduccion"].query.filter_by(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+        ).order_by(modelos["OrdenProduccion"].id.asc()).all()
+        resultado = controlar_produccion(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id, ordenes=ordenes,
+        )
+        return send_file(
+            exportar_control(resultado), as_attachment=True,
+            download_name="control_integral_produccion.json", mimetype="application/json",
+        )
 
     return blueprint
