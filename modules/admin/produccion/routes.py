@@ -8,6 +8,7 @@ from services.avances_produccion import registrar_parte
 from services.simulacion_cierre_produccion import exportar_simulacion, simular_cierre
 from services.control_integral_produccion import controlar_produccion, exportar_control
 from services.propuestas_inventario_produccion import preparar_propuesta_inventario, exportar_propuesta
+from services.plan_materiales_produccion import planificar_materiales, exportar_plan
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -171,5 +172,25 @@ def crear_blueprint_produccion(*, dependencias):
             )
         except ValueError as error:
             return redirect(url_for("admin_produccion.panel", error=str(error)))
+
+    @blueprint.route("/admin/produccion/plan-materiales")
+    @dependencias["login_required"]
+    def plan_materiales():
+        _usuario, organizacion, unidad, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        ordenes = modelos["OrdenProduccion"].query.filter_by(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+        ).order_by(modelos["OrdenProduccion"].id.asc()).all()
+        mapeos = modelos["MapeoInsumoInventario"].query.filter_by(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+        ).all()
+        resultado = planificar_materiales(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+            ordenes=ordenes, mapeos_insumo=mapeos,
+        )
+        return send_file(
+            exportar_plan(resultado), as_attachment=True,
+            download_name="plan_materiales_produccion.json", mimetype="application/json",
+        )
 
     return blueprint

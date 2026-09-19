@@ -9,4 +9,5 @@
 {% for orden in ordenes_produccion %}{% set avance = avances_por_orden[orden.id] %}{% if orden.estado == 'aprobada' and avance.informadas > 0 %}<a class="secondary-link" href="{{ url_for('admin_produccion.simulacion', orden_id=orden.id) }}">Descargar simulación firmada · {{ orden.numero }}</a>{% endif %}{% endfor %}
 {% for orden in ordenes_produccion %}{% set avance = avances_por_orden[orden.id] %}{% if orden.estado == 'aprobada' and avance.informadas > 0 %}<a class="secondary-link" href="{{ url_for('admin_produccion.propuesta_inventario', orden_id=orden.id) }}">Propuesta Producción–Inventario · {{ orden.numero }}</a>{% endif %}{% endfor %}
 <p><a class="secondary-link" href="{{ url_for('admin_produccion.control_integral') }}">Descargar control integral de Producción</a></p>
+<p><a class="secondary-link" href="{{ url_for('admin_produccion.plan_materiales') }}">Descargar planificación agregada de materiales</a></p>
 {% endblock %}
