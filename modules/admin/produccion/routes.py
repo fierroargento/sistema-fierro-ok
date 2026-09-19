@@ -7,6 +7,7 @@ from services.produccion_nucleo import cambiar_estado, crear_orden_preparatoria
 from services.avances_produccion import registrar_parte
 from services.simulacion_cierre_produccion import exportar_simulacion, simular_cierre
 from services.control_integral_produccion import controlar_produccion, exportar_control
+from services.propuestas_inventario_produccion import preparar_propuesta_inventario, exportar_propuesta
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -141,5 +142,34 @@ def crear_blueprint_produccion(*, dependencias):
             exportar_control(resultado), as_attachment=True,
             download_name="control_integral_produccion.json", mimetype="application/json",
         )
+
+    @blueprint.route("/admin/produccion/orden/<int:orden_id>/propuesta-inventario")
+    @dependencias["login_required"]
+    def propuesta_inventario(orden_id):
+        _usuario, organizacion, unidad, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        orden = modelos["OrdenProduccion"].query.filter_by(
+            id=orden_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+        ).first()
+        if orden is None:
+            return redirect(url_for("admin_produccion.panel", error="La orden no pertenece al contexto activo."))
+        mapeos = modelos["MapeoInsumoInventario"].query.filter_by(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+        ).all()
+        existencias = modelos["ExistenciaSucursal"].query.filter_by(
+            organizacion_id=organizacion.id, producto_id=orden.producto_id,
+        ).all()
+        try:
+            resultado = preparar_propuesta_inventario(
+                orden, organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+                mapeos_insumo=mapeos, existencias_producto=existencias,
+            )
+            return send_file(
+                exportar_propuesta(resultado), as_attachment=True,
+                download_name=f"propuesta_inventario_produccion_{orden.id}.json",
+                mimetype="application/json",
+            )
+        except ValueError as error:
+            return redirect(url_for("admin_produccion.panel", error=str(error)))
 
     return blueprint
