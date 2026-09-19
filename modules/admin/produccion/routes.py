@@ -9,6 +9,7 @@ from services.simulacion_cierre_produccion import exportar_simulacion, simular_c
 from services.control_integral_produccion import controlar_produccion, exportar_control
 from services.propuestas_inventario_produccion import preparar_propuesta_inventario, exportar_propuesta
 from services.plan_materiales_produccion import planificar_materiales, exportar_plan
+from services.plan_capacidad_produccion import planificar_capacidad, exportar_capacidad
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -191,6 +192,39 @@ def crear_blueprint_produccion(*, dependencias):
         return send_file(
             exportar_plan(resultado), as_attachment=True,
             download_name="plan_materiales_produccion.json", mimetype="application/json",
+        )
+
+    @blueprint.route("/admin/produccion/plan-capacidad")
+    @dependencias["login_required"]
+    def plan_capacidad():
+        _usuario, organizacion, unidad, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        ordenes = modelos["OrdenProduccion"].query.filter_by(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+        ).order_by(modelos["OrdenProduccion"].id.asc()).all()
+        versiones_empleado = modelos["EmpleadoCostoVersion"].query.join(
+            modelos["EmpleadoProductivo"],
+            modelos["EmpleadoCostoVersion"].empleado_id == modelos["EmpleadoProductivo"].id,
+        ).filter(
+            modelos["EmpleadoProductivo"].organizacion_id == organizacion.id,
+            modelos["EmpleadoProductivo"].unidad_negocio_id == unidad.id,
+            modelos["EmpleadoCostoVersion"].vigente.is_(True),
+        ).all()
+        versiones_maquina = modelos["MaquinaCostoVersion"].query.join(
+            modelos["MaquinaProductiva"],
+            modelos["MaquinaCostoVersion"].maquina_id == modelos["MaquinaProductiva"].id,
+        ).filter(
+            modelos["MaquinaProductiva"].organizacion_id == organizacion.id,
+            modelos["MaquinaProductiva"].unidad_negocio_id == unidad.id,
+            modelos["MaquinaCostoVersion"].vigente.is_(True),
+        ).all()
+        resultado = planificar_capacidad(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id, ordenes=ordenes,
+            versiones_empleado=versiones_empleado, versiones_maquina=versiones_maquina,
+        )
+        return send_file(
+            exportar_capacidad(resultado), as_attachment=True,
+            download_name="plan_capacidad_produccion.json", mimetype="application/json",
         )
 
     return blueprint

@@ -153,6 +153,8 @@ def registrar_modulos_web(
                         "OrdenProduccion", "OrdenProduccionInsumo",
                         "OrdenProduccionOperacion", "OrdenProduccionMaquina",
                         "ParteProduccion", "MapeoInsumoInventario", "ExistenciaSucursal",
+                        "EmpleadoProductivo", "EmpleadoCostoVersion",
+                        "MaquinaProductiva", "MaquinaCostoVersion",
                     )
                 },
             },
