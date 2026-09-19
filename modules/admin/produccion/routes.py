@@ -11,6 +11,7 @@ from services.propuestas_inventario_produccion import preparar_propuesta_inventa
 from services.plan_materiales_produccion import planificar_materiales, exportar_plan
 from services.plan_capacidad_produccion import planificar_capacidad, exportar_capacidad
 from services.calidad_produccion import crear_lote, registrar_control, evidencia_calidad, exportar_evidencia
+from services.costeo_resultado_produccion import costear_resultado, exportar_costeo
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -267,5 +268,23 @@ def crear_blueprint_produccion(*, dependencias):
         resultado=evidencia_calidad(organizacion_id=organizacion.id,unidad_negocio_id=unidad.id,lotes=lotes)
         return send_file(exportar_evidencia(resultado),as_attachment=True,
                          download_name="evidencia_calidad_produccion.json",mimetype="application/json")
+
+    @blueprint.route("/admin/produccion/orden/<int:orden_id>/costeo-resultado")
+    @dependencias["login_required"]
+    def costeo_resultado(orden_id):
+        _usuario, organizacion, unidad, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        orden = modelos["OrdenProduccion"].query.filter_by(
+            id=orden_id, organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+        ).first()
+        if orden is None:
+            return redirect(url_for("admin_produccion.panel", error="La orden no pertenece al contexto activo."))
+        try:
+            resultado=costear_resultado(orden,organizacion_id=organizacion.id,unidad_negocio_id=unidad.id)
+            return send_file(exportar_costeo(resultado),as_attachment=True,
+                             download_name=f"costeo_resultado_produccion_{orden.id}.json",
+                             mimetype="application/json")
+        except ValueError as error:
+            return redirect(url_for("admin_produccion.panel",error=str(error)))
 
     return blueprint
