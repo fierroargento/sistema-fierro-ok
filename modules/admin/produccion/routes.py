@@ -10,6 +10,7 @@ from services.control_integral_produccion import controlar_produccion, exportar_
 from services.propuestas_inventario_produccion import preparar_propuesta_inventario, exportar_propuesta
 from services.plan_materiales_produccion import planificar_materiales, exportar_plan
 from services.plan_capacidad_produccion import planificar_capacidad, exportar_capacidad
+from services.calidad_produccion import crear_lote, registrar_control, evidencia_calidad, exportar_evidencia
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -99,6 +100,34 @@ def crear_blueprint_produccion(*, dependencias):
                     db_session=db.session, usuario_id=getattr(usuario, "id", None),
                 )
                 mensaje = f"Parte {parte.numero} informado sin consumos ni altas de stock."
+            elif accion == "crear_lote":
+                orden = modelos["OrdenProduccion"].query.filter_by(
+                    id=int(request.form.get("orden_id")), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id,
+                ).first()
+                parte = modelos["ParteProduccion"].query.filter_by(
+                    id=int(request.form.get("parte_id")), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id,
+                ).first()
+                if orden is None or parte is None: raise ValueError("Orden o parte fuera del contexto activo.")
+                lote = crear_lote(
+                    request.form, orden=orden, parte=parte, organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id, LoteProduccion=modelos["LoteProduccion"],
+                    db_session=db.session, usuario_id=getattr(usuario,"id",None),
+                )
+                mensaje = f"Lote {lote.codigo} creado en cuarentena, sin ingreso a stock."
+            elif accion == "control_calidad":
+                lote = modelos["LoteProduccion"].query.filter_by(
+                    id=int(request.form.get("lote_id")), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id,
+                ).first()
+                if lote is None: raise ValueError("El lote no pertenece al contexto activo.")
+                control = registrar_control(
+                    request.form, lote=lote, organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id, ControlCalidadProduccion=modelos["ControlCalidadProduccion"],
+                    db_session=db.session, usuario_id=getattr(usuario,"id",None),
+                )
+                mensaje = f"Control {control.numero} registrado; el lote continúa fuera del stock."
             else:
                 raise ValueError("La acción productiva no es válida.")
             dependencias["registrar_auditoria"]("Producción preparatoria", entidad="produccion", detalle=mensaje)
@@ -226,5 +255,17 @@ def crear_blueprint_produccion(*, dependencias):
             exportar_capacidad(resultado), as_attachment=True,
             download_name="plan_capacidad_produccion.json", mimetype="application/json",
         )
+
+    @blueprint.route("/admin/produccion/evidencia-calidad")
+    @dependencias["login_required"]
+    def descargar_evidencia_calidad():
+        _usuario, organizacion, unidad, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        lotes = modelos["LoteProduccion"].query.filter_by(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+        ).order_by(modelos["LoteProduccion"].id.asc()).all()
+        resultado=evidencia_calidad(organizacion_id=organizacion.id,unidad_negocio_id=unidad.id,lotes=lotes)
+        return send_file(exportar_evidencia(resultado),as_attachment=True,
+                         download_name="evidencia_calidad_produccion.json",mimetype="application/json")
 
     return blueprint

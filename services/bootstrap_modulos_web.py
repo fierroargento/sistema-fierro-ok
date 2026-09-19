@@ -155,6 +155,7 @@ def registrar_modulos_web(
                         "ParteProduccion", "MapeoInsumoInventario", "ExistenciaSucursal",
                         "EmpleadoProductivo", "EmpleadoCostoVersion",
                         "MaquinaProductiva", "MaquinaCostoVersion",
+                        "LoteProduccion", "ControlCalidadProduccion",
                     )
                 },
             },

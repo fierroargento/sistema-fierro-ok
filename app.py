@@ -322,7 +322,7 @@ from models.compras import (
 from models.produccion import (
     OrdenProduccion, OrdenProduccionInsumo,
     OrdenProduccionOperacion, OrdenProduccionMaquina,
-    ParteProduccion,
+    ParteProduccion, LoteProduccion, ControlCalidadProduccion,
 )
 from models.politica_comercial_lista import PoliticaComercialLista
 from models.lista_precio_item import ListaPrecioItem
@@ -12235,6 +12235,8 @@ registrar_modulos_web(
             "OrdenProduccionOperacion": OrdenProduccionOperacion,
             "OrdenProduccionMaquina": OrdenProduccionMaquina,
             "ParteProduccion": ParteProduccion,
+            "LoteProduccion": LoteProduccion,
+            "ControlCalidadProduccion": ControlCalidadProduccion,
             "PoliticaComercialLista": PoliticaComercialLista,
             "ListaPrecioItem": ListaPrecioItem,
             "ReglaEconomicaVersion": ReglaEconomicaVersion,

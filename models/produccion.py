@@ -111,3 +111,67 @@ class ParteProduccion(db.Model):
     creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
     fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
     orden = db.relationship("OrdenProduccion", backref="partes_informados")
+
+
+class LoteProduccion(db.Model):
+    """Lote trazable nacido de un parte, siempre retenido fuera del inventario."""
+
+    __tablename__ = "lote_produccion"
+    __table_args__ = (
+        UniqueConstraint("organizacion_id", "codigo", name="uq_lote_produccion_tenant_codigo"),
+        CheckConstraint("cantidad > 0", name="ck_lote_produccion_cantidad"),
+        CheckConstraint(
+            "estado IN ('cuarentena', 'en_control', 'aprobado_interno', 'rechazado_interno')",
+            name="ck_lote_produccion_estado",
+        ),
+        CheckConstraint(
+            "liberado_inventario = false AND movimiento_creado = false",
+            name="ck_lote_produccion_sin_impacto",
+        ),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
+    unidad_negocio_id = db.Column(db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=False, index=True)
+    orden_produccion_id = db.Column(db.Integer, db.ForeignKey("orden_produccion.id"), nullable=False, index=True)
+    parte_produccion_id = db.Column(db.Integer, db.ForeignKey("parte_produccion.id"), nullable=False, index=True)
+    codigo = db.Column(db.String(100), nullable=False)
+    cantidad = db.Column(db.Numeric(18, 6), nullable=False)
+    estado = db.Column(db.String(30), default="cuarentena", nullable=False, index=True)
+    liberado_inventario = db.Column(db.Boolean, default=False, nullable=False)
+    movimiento_creado = db.Column(db.Boolean, default=False, nullable=False)
+    observacion = db.Column(db.String(500))
+    creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
+    fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+    orden = db.relationship("OrdenProduccion", backref="lotes_preparatorios")
+    parte = db.relationship("ParteProduccion", backref="lotes_preparatorios")
+
+
+class ControlCalidadProduccion(db.Model):
+    """Inspeccion interna de un lote sin liberarlo al inventario."""
+
+    __tablename__ = "control_calidad_produccion"
+    __table_args__ = (
+        UniqueConstraint("organizacion_id", "numero", name="uq_control_calidad_tenant_numero"),
+        CheckConstraint("muestra > 0", name="ck_control_calidad_muestra"),
+        CheckConstraint("aprobadas >= 0 AND rechazadas >= 0", name="ck_control_calidad_resultados"),
+        CheckConstraint("aprobadas + rechazadas = muestra", name="ck_control_calidad_balance"),
+        CheckConstraint(
+            "resultado IN ('aprobado_interno', 'rechazado_interno')",
+            name="ck_control_calidad_resultado",
+        ),
+        CheckConstraint("libera_stock = false", name="ck_control_calidad_sin_liberacion"),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
+    unidad_negocio_id = db.Column(db.Integer, db.ForeignKey("unidad_negocio.id"), nullable=False, index=True)
+    lote_produccion_id = db.Column(db.Integer, db.ForeignKey("lote_produccion.id"), nullable=False, index=True)
+    numero = db.Column(db.String(100), nullable=False)
+    muestra = db.Column(db.Numeric(18, 6), nullable=False)
+    aprobadas = db.Column(db.Numeric(18, 6), nullable=False)
+    rechazadas = db.Column(db.Numeric(18, 6), nullable=False)
+    resultado = db.Column(db.String(30), nullable=False, index=True)
+    libera_stock = db.Column(db.Boolean, default=False, nullable=False)
+    observacion = db.Column(db.String(500))
+    creado_por_usuario_id = db.Column(db.Integer, db.ForeignKey("usuario_sistema.id"))
+    fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)
+    lote = db.relationship("LoteProduccion", backref="controles_calidad")
