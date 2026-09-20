@@ -45,3 +45,22 @@ class AsientoContableBorrador(db.Model):
     fecha_creacion=db.Column(db.DateTime,default=ahora_utc_naive,nullable=False)
     cuenta_debe=db.relationship("CuentaContable",foreign_keys=[cuenta_debe_id])
     cuenta_haber=db.relationship("CuentaContable",foreign_keys=[cuenta_haber_id])
+
+
+class LineaAsientoContableBorrador(db.Model):
+    __tablename__="linea_asiento_contable_borrador"
+    __table_args__=(UniqueConstraint("asiento_borrador_id","renglon",name="uq_linea_asiento_borrador_renglon"),
+        CheckConstraint("(debe_centavos > 0 AND haber_centavos = 0) OR (haber_centavos > 0 AND debe_centavos = 0)",name="ck_linea_borrador_partida"),
+        CheckConstraint("afecta_saldos = false",name="ck_linea_borrador_sin_impacto"),)
+    id=db.Column(db.Integer,primary_key=True)
+    organizacion_id=db.Column(db.Integer,db.ForeignKey("organizacion.id"),nullable=False,index=True)
+    unidad_negocio_id=db.Column(db.Integer,db.ForeignKey("unidad_negocio.id"),nullable=False,index=True)
+    asiento_borrador_id=db.Column(db.Integer,db.ForeignKey("asiento_contable_borrador.id"),nullable=False,index=True)
+    renglon=db.Column(db.Integer,nullable=False)
+    cuenta_contable_id=db.Column(db.Integer,db.ForeignKey("cuenta_contable.id"),nullable=False,index=True)
+    concepto=db.Column(db.String(220),nullable=False)
+    debe_centavos=db.Column(db.BigInteger,default=0,nullable=False)
+    haber_centavos=db.Column(db.BigInteger,default=0,nullable=False)
+    afecta_saldos=db.Column(db.Boolean,default=False,nullable=False)
+    asiento=db.relationship("AsientoContableBorrador",backref="lineas_borrador")
+    cuenta=db.relationship("CuentaContable")

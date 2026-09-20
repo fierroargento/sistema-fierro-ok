@@ -2,6 +2,7 @@ from flask import Blueprint,redirect,render_template,request,session,url_for
 from services.tenant_context import TenantError,resolver_tenant_usuario
 from services.contabilidad_nucleo import crear_cuenta,crear_borrador
 from services.contabilidad_consultas import obtener_panel
+from services.importacion_borradores_contables import importar_borradores
 
 def crear_blueprint_contabilidad(*,dependencias):
     bp=Blueprint("admin_contabilidad",__name__);db=dependencias["db"];modelos=dependencias["modelos"]
@@ -36,6 +37,21 @@ def crear_blueprint_contabilidad(*,dependencias):
                 objeto=crear_borrador(request.form,cuenta_debe=debe,cuenta_haber=haber,organizacion_id=o.id,unidad_negocio_id=u.id,Asiento=modelos["AsientoContableBorrador"],db_session=db.session,usuario_id=getattr(usuario,"id",None));mensaje=f"Asiento {objeto.id} guardado solo como borrador."
             else:raise ValueError("Accion contable invalida.")
             dependencias["registrar_auditoria"]("Contabilidad preparatoria",entidad="contabilidad",detalle=mensaje)
+            return redirect(url_for("admin_contabilidad.panel",ok=mensaje))
+        except Exception as error:db.session.rollback();return redirect(url_for("admin_contabilidad.panel",error=str(error)))
+    @bp.route("/admin/contabilidad/importar-borradores",methods=["POST"])
+    @dependencias["login_required"]
+    def importar():
+        usuario,o,u,r=acceso()
+        if r is not None:return r
+        archivo=request.files.get("borradores")
+        if archivo is None:return redirect(url_for("admin_contabilidad.panel",error="Debe seleccionar un CSV o JSON."))
+        try:
+            cuentas=modelos["CuentaContable"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all()
+            creados=importar_borradores(organizacion_id=o.id,unidad_negocio_id=u.id,contenido=archivo.read(),nombre_archivo=archivo.filename,
+                cuentas=cuentas,Asiento=modelos["AsientoContableBorrador"],Linea=modelos["LineaAsientoContableBorrador"],db_session=db.session,usuario_id=getattr(usuario,"id",None))
+            mensaje=f"{len(creados)} asientos importados exclusivamente como borradores."
+            dependencias["registrar_auditoria"]("Importacion contable preparatoria",entidad="contabilidad",detalle=mensaje)
             return redirect(url_for("admin_contabilidad.panel",ok=mensaje))
         except Exception as error:db.session.rollback();return redirect(url_for("admin_contabilidad.panel",error=str(error)))
     return bp

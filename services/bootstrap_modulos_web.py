@@ -185,7 +185,7 @@ def registrar_modulos_web(
                 **comunes,
                 "modelos": {
                     nombre: modelos[nombre]
-                    for nombre in ("UnidadNegocio", "CuentaContable", "AsientoContableBorrador")
+                    for nombre in ("UnidadNegocio", "CuentaContable", "AsientoContableBorrador", "LineaAsientoContableBorrador")
                 },
             },
         )

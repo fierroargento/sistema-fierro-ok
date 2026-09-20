@@ -325,7 +325,7 @@ from models.produccion import (
     ParteProduccion, LoteProduccion, ControlCalidadProduccion,
 )
 from models.tesoreria import CuentaTesoreria, MovimientoTesoreriaProyectado
-from models.contabilidad import CuentaContable, AsientoContableBorrador
+from models.contabilidad import CuentaContable, AsientoContableBorrador, LineaAsientoContableBorrador
 from models.politica_comercial_lista import PoliticaComercialLista
 from models.lista_precio_item import ListaPrecioItem
 from models.regla_economica import ReglaEconomicaVersion
@@ -12243,6 +12243,7 @@ registrar_modulos_web(
             "MovimientoTesoreriaProyectado": MovimientoTesoreriaProyectado,
             "CuentaContable": CuentaContable,
             "AsientoContableBorrador": AsientoContableBorrador,
+            "LineaAsientoContableBorrador": LineaAsientoContableBorrador,
             "PoliticaComercialLista": PoliticaComercialLista,
             "ListaPrecioItem": ListaPrecioItem,
             "ReglaEconomicaVersion": ReglaEconomicaVersion,
