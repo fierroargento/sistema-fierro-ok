@@ -12,6 +12,7 @@ from services.plan_materiales_produccion import planificar_materiales, exportar_
 from services.plan_capacidad_produccion import planificar_capacidad, exportar_capacidad
 from services.calidad_produccion import crear_lote, registrar_control, evidencia_calidad, exportar_evidencia
 from services.costeo_resultado_produccion import costear_resultado, exportar_costeo
+from services.expediente_habilitacion_produccion import construir_expediente, exportar_expediente
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -286,5 +287,42 @@ def crear_blueprint_produccion(*, dependencias):
                              mimetype="application/json")
         except ValueError as error:
             return redirect(url_for("admin_produccion.panel",error=str(error)))
+
+    @blueprint.route("/admin/produccion/expediente-habilitacion")
+    @dependencias["login_required"]
+    def expediente_habilitacion():
+        _usuario, organizacion, unidad, respuesta = acceso()
+        if respuesta is not None: return respuesta
+        ordenes=modelos["OrdenProduccion"].query.filter_by(
+            organizacion_id=organizacion.id,unidad_negocio_id=unidad.id,
+        ).order_by(modelos["OrdenProduccion"].id.asc()).all()
+        mapeos=modelos["MapeoInsumoInventario"].query.filter_by(
+            organizacion_id=organizacion.id,unidad_negocio_id=unidad.id,
+        ).all()
+        productos={item.producto_id for item in ordenes}
+        existencias=modelos["ExistenciaSucursal"].query.filter(
+            modelos["ExistenciaSucursal"].organizacion_id==organizacion.id,
+            modelos["ExistenciaSucursal"].producto_id.in_(productos),
+        ).all() if productos else []
+        empleados=modelos["EmpleadoCostoVersion"].query.join(modelos["EmpleadoProductivo"]).filter(
+            modelos["EmpleadoProductivo"].organizacion_id==organizacion.id,
+            modelos["EmpleadoProductivo"].unidad_negocio_id==unidad.id,
+            modelos["EmpleadoCostoVersion"].vigente.is_(True),
+        ).all()
+        maquinas=modelos["MaquinaCostoVersion"].query.join(modelos["MaquinaProductiva"]).filter(
+            modelos["MaquinaProductiva"].organizacion_id==organizacion.id,
+            modelos["MaquinaProductiva"].unidad_negocio_id==unidad.id,
+            modelos["MaquinaCostoVersion"].vigente.is_(True),
+        ).all()
+        lotes=modelos["LoteProduccion"].query.filter_by(
+            organizacion_id=organizacion.id,unidad_negocio_id=unidad.id,
+        ).order_by(modelos["LoteProduccion"].id.asc()).all()
+        resultado=construir_expediente(
+            organizacion_id=organizacion.id,unidad_negocio_id=unidad.id,ordenes=ordenes,
+            mapeos_insumo=mapeos,existencias_producto=existencias,
+            versiones_empleado=empleados,versiones_maquina=maquinas,lotes=lotes,
+        )
+        return send_file(exportar_expediente(resultado),as_attachment=True,
+                         download_name="expediente_habilitacion_produccion.json",mimetype="application/json")
 
     return blueprint
