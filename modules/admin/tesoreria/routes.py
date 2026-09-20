@@ -3,6 +3,7 @@ from services.tenant_context import TenantError,resolver_tenant_usuario
 from services.tesoreria_nucleo import crear_cuenta,crear_proyeccion
 from services.tesoreria_consultas import obtener_panel,exportar_flujo,archivo_flujo
 from services.origenes_proyectados_tesoreria import consolidar_origenes,exportar_origenes
+from services.confirmacion_origen_tesoreria import confirmar_candidato
 
 def crear_blueprint_tesoreria(*,dependencias):
     bp=Blueprint("admin_tesoreria",__name__);db=dependencias["db"];modelos=dependencias["modelos"]
@@ -21,7 +22,16 @@ def crear_blueprint_tesoreria(*,dependencias):
     def panel():
         _u,o,u,r=acceso()
         if r is not None:return r
-        return render_template("admin_tesoreria.html",organizacion=o,unidad_activa=u,ok_feedback=request.args.get("ok"),error=request.args.get("error"),**obtener_panel(o.id,u.id,modelos=modelos))
+        datos=obtener_panel(o.id,u.id,modelos=modelos)
+        origenes=consolidar_origenes(organizacion_id=o.id,unidad_negocio_id=u.id,
+            obligaciones=modelos["ObligacionCostoProductivo"].query.filter_by(organizacion_id=o.id).all(),
+            facturas=modelos["FacturaProveedorCompra"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all(),
+            ventas=modelos["VentaCanalItem"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all(),
+            proyecciones_existentes=datos["movimientos_tesoreria"])
+        return render_template("admin_tesoreria.html",organizacion=o,unidad_activa=u,
+            ok_feedback=request.args.get("ok"),error=request.args.get("error"),
+            candidatos_origen=[x for x in origenes["candidatos"] if not x["ya_proyectado"]],
+            hallazgos_origen=origenes["hallazgos"],**datos)
     @bp.route("/admin/tesoreria/guardar",methods=["POST"])
     @dependencias["login_required"]
     def guardar():
@@ -34,6 +44,20 @@ def crear_blueprint_tesoreria(*,dependencias):
                 cuenta=modelos["CuentaTesoreria"].query.filter_by(id=int(request.form.get("cuenta_id")),organizacion_id=o.id,unidad_negocio_id=u.id).first()
                 if cuenta is None:raise ValueError("La cuenta no pertenece al contexto activo.")
                 mov=crear_proyeccion(request.form,cuenta=cuenta,organizacion_id=o.id,unidad_negocio_id=u.id,Movimiento=modelos["MovimientoTesoreriaProyectado"],db_session=db.session,usuario_id=getattr(usuario,"id",None));mensaje=f"Proyección {mov.concepto} registrada sin afectar saldo."
+            elif request.form.get("accion")=="confirmar_origen":
+                cuenta=modelos["CuentaTesoreria"].query.filter_by(id=int(request.form.get("cuenta_id")),organizacion_id=o.id,unidad_negocio_id=u.id).first()
+                if cuenta is None:raise ValueError("La cuenta no pertenece al contexto activo.")
+                origen=str(request.form.get("origen") or "");origen_id=int(request.form.get("origen_id"))
+                candidatos=consolidar_origenes(organizacion_id=o.id,unidad_negocio_id=u.id,
+                    obligaciones=modelos["ObligacionCostoProductivo"].query.filter_by(organizacion_id=o.id).all(),
+                    facturas=modelos["FacturaProveedorCompra"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all(),
+                    ventas=modelos["VentaCanalItem"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all(),
+                    proyecciones_existentes=modelos["MovimientoTesoreriaProyectado"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all())["candidatos"]
+                candidato=next((x for x in candidatos if x["origen"]==origen and int(x["origen_id"])==origen_id),None)
+                if candidato is None:raise ValueError("El origen ya no está disponible o no pertenece al contexto activo.")
+                mov=confirmar_candidato(candidato,cuenta=cuenta,organizacion_id=o.id,unidad_negocio_id=u.id,
+                    Movimiento=modelos["MovimientoTesoreriaProyectado"],db_session=db.session,usuario_id=getattr(usuario,"id",None))
+                mensaje=f"Origen {mov.referencia} confirmado solo como proyección."
             else:raise ValueError("La acción de tesorería no es válida.")
             dependencias["registrar_auditoria"]("Tesorería preparatoria",entidad="tesoreria",detalle=mensaje)
             return redirect(url_for("admin_tesoreria.panel",ok=mensaje))
