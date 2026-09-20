@@ -23,6 +23,7 @@ def registrar_modulos_web(
         crear_blueprint_inventario,
     )
     from modules.admin.produccion.routes import crear_blueprint_produccion
+    from modules.admin.tesoreria.routes import crear_blueprint_tesoreria
     from modules.admin.usuarios.routes import (
         crear_blueprint_usuarios,
     )
@@ -156,6 +157,20 @@ def registrar_modulos_web(
                         "EmpleadoProductivo", "EmpleadoCostoVersion",
                         "MaquinaProductiva", "MaquinaCostoVersion",
                         "LoteProduccion", "ControlCalidadProduccion",
+                    )
+                },
+            },
+        )
+    )
+
+    app.register_blueprint(
+        crear_blueprint_tesoreria(
+            dependencias={
+                **comunes,
+                "modelos": {
+                    nombre: modelos[nombre]
+                    for nombre in (
+                        "UnidadNegocio", "CuentaTesoreria", "MovimientoTesoreriaProyectado",
                     )
                 },
             },
