@@ -171,6 +171,7 @@ def registrar_modulos_web(
                     nombre: modelos[nombre]
                     for nombre in (
                         "UnidadNegocio", "CuentaTesoreria", "MovimientoTesoreriaProyectado",
+                        "ObligacionCostoProductivo", "FacturaProveedorCompra", "VentaCanalItem",
                     )
                 },
             },

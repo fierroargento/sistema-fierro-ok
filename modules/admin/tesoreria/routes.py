@@ -2,6 +2,7 @@ from flask import Blueprint,redirect,render_template,request,send_file,session,u
 from services.tenant_context import TenantError,resolver_tenant_usuario
 from services.tesoreria_nucleo import crear_cuenta,crear_proyeccion
 from services.tesoreria_consultas import obtener_panel,exportar_flujo,archivo_flujo
+from services.origenes_proyectados_tesoreria import consolidar_origenes,exportar_origenes
 
 def crear_blueprint_tesoreria(*,dependencias):
     bp=Blueprint("admin_tesoreria",__name__);db=dependencias["db"];modelos=dependencias["modelos"]
@@ -44,4 +45,17 @@ def crear_blueprint_tesoreria(*,dependencias):
         if r is not None:return r
         panel=obtener_panel(o.id,u.id,modelos=modelos);resultado=exportar_flujo(organizacion_id=o.id,unidad_negocio_id=u.id,cuentas=panel["cuentas_tesoreria"],movimientos=panel["movimientos_tesoreria"])
         return send_file(archivo_flujo(resultado),as_attachment=True,download_name="flujo_tesoreria_proyectado.json",mimetype="application/json")
+    @bp.route("/admin/tesoreria/origenes")
+    @dependencias["login_required"]
+    def origenes():
+        _u,o,u,r=acceso()
+        if r is not None:return r
+        obligaciones=modelos["ObligacionCostoProductivo"].query.filter_by(organizacion_id=o.id).all()
+        facturas=modelos["FacturaProveedorCompra"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all()
+        ventas=modelos["VentaCanalItem"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all()
+        existentes=modelos["MovimientoTesoreriaProyectado"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all()
+        resultado=consolidar_origenes(organizacion_id=o.id,unidad_negocio_id=u.id,obligaciones=obligaciones,
+            facturas=facturas,ventas=ventas,proyecciones_existentes=existentes)
+        return send_file(exportar_origenes(resultado),as_attachment=True,
+                         download_name="origenes_proyectados_tesoreria.json",mimetype="application/json")
     return bp
