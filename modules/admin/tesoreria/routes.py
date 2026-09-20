@@ -8,6 +8,7 @@ from services.gestion_proyecciones_tesoreria import cancelar_proyeccion
 from services.control_liquidez_tesoreria import controlar_liquidez,exportar_liquidez
 from services.conciliacion_offline_tesoreria import conciliar_extracto,exportar_conciliacion
 from services.presupuesto_offline_tesoreria import comparar_presupuesto,exportar_presupuesto
+from services.precontabilidad_offline import validar_borrador,exportar_validacion
 
 def crear_blueprint_tesoreria(*,dependencias):
     bp=Blueprint("admin_tesoreria",__name__);db=dependencias["db"];modelos=dependencias["modelos"]
@@ -131,4 +132,15 @@ def crear_blueprint_tesoreria(*,dependencias):
             return send_file(exportar_presupuesto(resultado),as_attachment=True,download_name="presupuesto_offline_tesoreria.json",mimetype="application/json")
         except Exception as error:
             return redirect(url_for("admin_tesoreria.panel",error=str(error)))
+    @bp.route("/admin/tesoreria/precontabilidad-offline",methods=["POST"])
+    @dependencias["login_required"]
+    def precontabilidad_offline():
+        _u,o,u,r=acceso()
+        if r is not None:return r
+        archivo=request.files.get("borrador_contable")
+        if archivo is None:return redirect(url_for("admin_tesoreria.panel",error="Debe seleccionar un borrador CSV o JSON."))
+        try:
+            resultado=validar_borrador(organizacion_id=o.id,unidad_negocio_id=u.id,contenido=archivo.read(),nombre_archivo=archivo.filename)
+            return send_file(exportar_validacion(resultado),as_attachment=True,download_name="validacion_precontable_offline.json",mimetype="application/json")
+        except Exception as error:return redirect(url_for("admin_tesoreria.panel",error=str(error)))
     return bp
