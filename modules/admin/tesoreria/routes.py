@@ -6,6 +6,7 @@ from services.origenes_proyectados_tesoreria import consolidar_origenes,exportar
 from services.confirmacion_origen_tesoreria import confirmar_candidato
 from services.gestion_proyecciones_tesoreria import cancelar_proyeccion
 from services.control_liquidez_tesoreria import controlar_liquidez,exportar_liquidez
+from services.conciliacion_offline_tesoreria import conciliar_extracto,exportar_conciliacion
 
 def crear_blueprint_tesoreria(*,dependencias):
     bp=Blueprint("admin_tesoreria",__name__);db=dependencias["db"];modelos=dependencias["modelos"]
@@ -99,4 +100,21 @@ def crear_blueprint_tesoreria(*,dependencias):
             cuentas=datos["cuentas_tesoreria"],movimientos=datos["movimientos_tesoreria"])
         return send_file(exportar_liquidez(resultado),as_attachment=True,
                          download_name="control_liquidez_tesoreria.json",mimetype="application/json")
+    @bp.route("/admin/tesoreria/conciliacion-offline",methods=["POST"])
+    @dependencias["login_required"]
+    def conciliacion_offline():
+        _u,o,u,r=acceso()
+        if r is not None:return r
+        archivo=request.files.get("extracto")
+        if archivo is None:return redirect(url_for("admin_tesoreria.panel",error="Debe seleccionar un extracto CSV o JSON."))
+        try:
+            cuenta=modelos["CuentaTesoreria"].query.filter_by(id=int(request.form.get("cuenta_id")),organizacion_id=o.id,unidad_negocio_id=u.id).first()
+            if cuenta is None:raise ValueError("La cuenta no pertenece al contexto activo.")
+            proyecciones=modelos["MovimientoTesoreriaProyectado"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all()
+            resultado=conciliar_extracto(organizacion_id=o.id,unidad_negocio_id=u.id,cuenta_id=cuenta.id,
+                contenido=archivo.read(),nombre_archivo=archivo.filename,proyecciones=proyecciones)
+            return send_file(exportar_conciliacion(resultado),as_attachment=True,
+                download_name="conciliacion_offline_tesoreria.json",mimetype="application/json")
+        except Exception as error:
+            return redirect(url_for("admin_tesoreria.panel",error=str(error)))
     return bp
