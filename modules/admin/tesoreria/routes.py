@@ -7,6 +7,7 @@ from services.confirmacion_origen_tesoreria import confirmar_candidato
 from services.gestion_proyecciones_tesoreria import cancelar_proyeccion
 from services.control_liquidez_tesoreria import controlar_liquidez,exportar_liquidez
 from services.conciliacion_offline_tesoreria import conciliar_extracto,exportar_conciliacion
+from services.presupuesto_offline_tesoreria import comparar_presupuesto,exportar_presupuesto
 
 def crear_blueprint_tesoreria(*,dependencias):
     bp=Blueprint("admin_tesoreria",__name__);db=dependencias["db"];modelos=dependencias["modelos"]
@@ -115,6 +116,19 @@ def crear_blueprint_tesoreria(*,dependencias):
                 contenido=archivo.read(),nombre_archivo=archivo.filename,proyecciones=proyecciones)
             return send_file(exportar_conciliacion(resultado),as_attachment=True,
                 download_name="conciliacion_offline_tesoreria.json",mimetype="application/json")
+        except Exception as error:
+            return redirect(url_for("admin_tesoreria.panel",error=str(error)))
+    @bp.route("/admin/tesoreria/presupuesto-offline",methods=["POST"])
+    @dependencias["login_required"]
+    def presupuesto_offline():
+        _u,o,u,r=acceso()
+        if r is not None:return r
+        archivo=request.files.get("presupuesto")
+        if archivo is None:return redirect(url_for("admin_tesoreria.panel",error="Debe seleccionar un presupuesto CSV o JSON."))
+        try:
+            proyecciones=modelos["MovimientoTesoreriaProyectado"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all()
+            resultado=comparar_presupuesto(organizacion_id=o.id,unidad_negocio_id=u.id,contenido=archivo.read(),nombre_archivo=archivo.filename,proyecciones=proyecciones)
+            return send_file(exportar_presupuesto(resultado),as_attachment=True,download_name="presupuesto_offline_tesoreria.json",mimetype="application/json")
         except Exception as error:
             return redirect(url_for("admin_tesoreria.panel",error=str(error)))
     return bp
