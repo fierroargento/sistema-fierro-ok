@@ -4,6 +4,8 @@ from services.tesoreria_nucleo import crear_cuenta,crear_proyeccion
 from services.tesoreria_consultas import obtener_panel,exportar_flujo,archivo_flujo
 from services.origenes_proyectados_tesoreria import consolidar_origenes,exportar_origenes
 from services.confirmacion_origen_tesoreria import confirmar_candidato
+from services.gestion_proyecciones_tesoreria import cancelar_proyeccion
+from services.control_liquidez_tesoreria import controlar_liquidez,exportar_liquidez
 
 def crear_blueprint_tesoreria(*,dependencias):
     bp=Blueprint("admin_tesoreria",__name__);db=dependencias["db"];modelos=dependencias["modelos"]
@@ -58,6 +60,11 @@ def crear_blueprint_tesoreria(*,dependencias):
                 mov=confirmar_candidato(candidato,cuenta=cuenta,organizacion_id=o.id,unidad_negocio_id=u.id,
                     Movimiento=modelos["MovimientoTesoreriaProyectado"],db_session=db.session,usuario_id=getattr(usuario,"id",None))
                 mensaje=f"Origen {mov.referencia} confirmado solo como proyección."
+            elif request.form.get("accion")=="cancelar_proyeccion":
+                mov=modelos["MovimientoTesoreriaProyectado"].query.filter_by(id=int(request.form.get("movimiento_id")),organizacion_id=o.id,unidad_negocio_id=u.id).first()
+                if mov is None:raise ValueError("La proyección no pertenece al contexto activo.")
+                cancelar_proyeccion(mov,organizacion_id=o.id,unidad_negocio_id=u.id,motivo=request.form.get("motivo"),db_session=db.session)
+                mensaje=f"Proyección {mov.id} cancelada sin borrar historial ni afectar saldo."
             else:raise ValueError("La acción de tesorería no es válida.")
             dependencias["registrar_auditoria"]("Tesorería preparatoria",entidad="tesoreria",detalle=mensaje)
             return redirect(url_for("admin_tesoreria.panel",ok=mensaje))
@@ -82,4 +89,14 @@ def crear_blueprint_tesoreria(*,dependencias):
             facturas=facturas,ventas=ventas,proyecciones_existentes=existentes)
         return send_file(exportar_origenes(resultado),as_attachment=True,
                          download_name="origenes_proyectados_tesoreria.json",mimetype="application/json")
+    @bp.route("/admin/tesoreria/liquidez")
+    @dependencias["login_required"]
+    def liquidez():
+        _u,o,u,r=acceso()
+        if r is not None:return r
+        datos=obtener_panel(o.id,u.id,modelos=modelos)
+        resultado=controlar_liquidez(organizacion_id=o.id,unidad_negocio_id=u.id,
+            cuentas=datos["cuentas_tesoreria"],movimientos=datos["movimientos_tesoreria"])
+        return send_file(exportar_liquidez(resultado),as_attachment=True,
+                         download_name="control_liquidez_tesoreria.json",mimetype="application/json")
     return bp
