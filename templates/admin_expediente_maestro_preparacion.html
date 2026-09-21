@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="card">
+  <h1>Expediente maestro de preparación</h1>
+  <p>Valida conjuntamente las evidencias firmadas de los dominios construidos. Se procesa en memoria: no autoriza el corte de DUX, no persiste documentos y no ejecuta efectos externos.</p>
+  {% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
+  <form method="post" enctype="multipart/form-data">
+    <input type="file" name="evidencias" accept=".json,application/json" multiple required>
+    <button name="accion" value="validar" type="submit">Validar expediente</button>
+    <button name="accion" value="exportar" type="submit">Descargar expediente</button>
+  </form>
+  {% if resultado %}
+  <div class="alerta {{ 'alerta-ok' if resultado.estado == 'preparado_para_revision_humana' else 'alerta-error' }}">
+    <strong>{{ resultado.estado|replace('_', ' ')|upper }}</strong> · {{ resultado.resumen.dominios_identificados }}/{{ resultado.resumen.dominios_requeridos }} dominios
+  </div>
+  <table style="width:100%"><thead><tr><th>Dominio</th><th>Estado</th><th>Modo</th><th>Huella</th></tr></thead><tbody>
+  {% for item in resultado.dominios %}<tr><td>{{ item.dominio }}</td><td>{{ 'aprobado' if item.aprobado else 'revisar' }}</td><td>{{ item.modo }}</td><td><code>{{ item.huella }}</code></td></tr>{% endfor %}
+  </tbody></table>
+  <h2>Hallazgos</h2><ul>{% for item in resultado.hallazgos %}<li><strong>{{ item.dominio }}</strong>: {{ item.detalle }}</li>{% else %}<li>Todos los dominios requeridos están presentes y aprobados.</li>{% endfor %}</ul>
+  <p><strong>Autorización de corte real:</strong> NO</p><p><code>{{ resultado.huella_expediente_maestro }}</code></p>
+  {% endif %}
+  <p><a href="{{ url_for('admin_estructura.control_integral') }}">Volver al control estructural</a></p>
+</main>
+{% endblock %}
+

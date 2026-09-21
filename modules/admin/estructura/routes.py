@@ -21,6 +21,7 @@ from services.ensayo_corte_dux import ensayar_corte,exportar_ensayo
 from services.snapshots_corte_dux import construir_snapshot_fierro,plantilla_snapshot_dux,exportar as exportar_snapshot
 from services.importacion_snapshot_dux import convertir_exportaciones,exportar as exportar_snapshot_dux,plantilla_productos,plantilla_pedidos
 from services.expediente_transicion_dux import construir_expediente as construir_expediente_transicion,exportar as exportar_expediente_transicion
+from services.expediente_maestro_preparacion import construir_expediente as construir_expediente_maestro,exportar as exportar_expediente_maestro
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -468,5 +469,22 @@ def crear_blueprint_estructura(
                 if request.form.get("accion") == "exportar":return send_file(exportar_expediente_transicion(resultado),as_attachment=True,download_name="expediente_transicion_dux.json",mimetype="application/json")
             except (ValueError,TypeError) as excepcion:error=str(excepcion)
         return render_template("admin_expediente_transicion_dux.html",resultado=resultado,error=error,organizacion=organizacion)
+
+    @blueprint.route("/admin/estructura/expediente-maestro", methods=["GET", "POST"])
+    @login_required
+    def expediente_maestro():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:return respuesta
+        unidad_id=session.get("unidad_negocio_id")
+        unidad=modelos["UnidadNegocio"].query.filter_by(id=unidad_id,organizacion_id=organizacion.id,activa=True).first() if unidad_id else None
+        if unidad is None:unidad=modelos["UnidadNegocio"].query.filter_by(organizacion_id=organizacion.id,activa=True).order_by(modelos["UnidadNegocio"].id.asc()).first()
+        if unidad is None:return redirect(url_for("admin_estructura.panel",error="No hay una unidad activa para construir el expediente maestro."))
+        resultado=None;error=""
+        if request.method == "POST":
+            try:
+                resultado=construir_expediente_maestro(request.files.getlist("evidencias"),organizacion_id=organizacion.id,unidad_negocio_id=unidad.id)
+                if request.form.get("accion") == "exportar":return send_file(exportar_expediente_maestro(resultado),as_attachment=True,download_name="expediente_maestro_preparacion.json",mimetype="application/json")
+            except (ValueError,TypeError) as excepcion:error=str(excepcion)
+        return render_template("admin_expediente_maestro_preparacion.html",resultado=resultado,error=error,organizacion=organizacion,unidad=unidad)
 
     return blueprint
