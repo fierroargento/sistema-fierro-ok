@@ -17,6 +17,7 @@ from flask import (
 from services.control_integral_estructura_saas import controlar_estructura,exportar_control
 from services.certificacion_consolidada_saas import consolidar_certificaciones,exportar_expediente
 from services.plan_corte_dux import construir_plan,exportar_plan
+from services.ensayo_corte_dux import ensayar_corte,exportar_ensayo
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -402,5 +403,19 @@ def crear_blueprint_estructura(
         if resultado is not None and request.form.get("accion") == "exportar":
             return send_file(exportar_plan(resultado), as_attachment=True, download_name="plan_corte_dux_no_ejecutable.json", mimetype="application/json")
         return render_template("admin_plan_corte_dux.html", resultado=resultado, organizacion=organizacion)
+
+    @blueprint.route("/admin/estructura/ensayo-corte-dux", methods=["GET", "POST"])
+    @login_required
+    def ensayo_corte_dux():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        resultado = None; error = ""
+        if request.method == "POST":
+            try:
+                resultado = ensayar_corte(request.files.get("snapshot_dux"), request.files.get("snapshot_fierro"), organizacion_id=organizacion.id)
+                if request.form.get("accion") == "exportar":return send_file(exportar_ensayo(resultado),as_attachment=True,download_name="ensayo_corte_dux_offline.json",mimetype="application/json")
+            except (ValueError,TypeError) as excepcion:error=str(excepcion)
+        return render_template("admin_ensayo_corte_dux.html",resultado=resultado,error=error,organizacion=organizacion)
 
     return blueprint
