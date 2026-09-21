@@ -16,6 +16,7 @@ from flask import (
 )
 from services.control_integral_estructura_saas import controlar_estructura,exportar_control
 from services.certificacion_consolidada_saas import consolidar_certificaciones,exportar_expediente
+from services.plan_corte_dux import construir_plan,exportar_plan
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -390,5 +391,16 @@ def crear_blueprint_estructura(
             except ValueError as excepcion:
                 error = str(excepcion)
         return render_template("admin_certificacion_consolidada_saas.html", resultado=resultado, error=error, organizacion=organizacion)
+
+    @blueprint.route("/admin/estructura/plan-corte-dux", methods=["GET", "POST"])
+    @login_required
+    def plan_corte_dux():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        resultado = construir_plan(request.form, organizacion_id=organizacion.id) if request.method == "POST" else None
+        if resultado is not None and request.form.get("accion") == "exportar":
+            return send_file(exportar_plan(resultado), as_attachment=True, download_name="plan_corte_dux_no_ejecutable.json", mimetype="application/json")
+        return render_template("admin_plan_corte_dux.html", resultado=resultado, organizacion=organizacion)
 
     return blueprint
