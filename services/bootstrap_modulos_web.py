@@ -204,7 +204,7 @@ def registrar_modulos_web(
 
     app.register_blueprint(
         crear_blueprint_personas(
-            dependencias={**comunes,"modelos":{nombre:modelos[nombre] for nombre in ("UnidadNegocio","EmpleadoProductivo","TurnoLaboralPlanificado","NovedadLaboralPreparatoria")}},
+            dependencias={**comunes,"modelos":{nombre:modelos[nombre] for nombre in ("UnidadNegocio","EmpleadoProductivo","TurnoLaboralPlanificado","NovedadLaboralPreparatoria","CompetenciaEmpleadoPreparatoria")}},
         )
     )
 
