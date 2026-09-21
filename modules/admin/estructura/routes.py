@@ -19,6 +19,7 @@ from services.certificacion_consolidada_saas import consolidar_certificaciones,e
 from services.plan_corte_dux import construir_plan,exportar_plan
 from services.ensayo_corte_dux import ensayar_corte,exportar_ensayo
 from services.snapshots_corte_dux import construir_snapshot_fierro,plantilla_snapshot_dux,exportar as exportar_snapshot
+from services.importacion_snapshot_dux import convertir_exportaciones,exportar as exportar_snapshot_dux,plantilla_productos,plantilla_pedidos
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -438,5 +439,20 @@ def crear_blueprint_estructura(
         pedidos=modelos["Pedido"].query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_id).all()
         resultado=construir_snapshot_fierro(organizacion_id=organizacion.id,unidad_negocio_id=unidad_id,productos=productos,inclusiones=inclusiones,existencias=existencias,pedidos=pedidos)
         return send_file(exportar_snapshot(resultado),as_attachment=True,download_name="snapshot_sistema_fierro.json",mimetype="application/json")
+
+    @blueprint.route("/admin/estructura/convertir-snapshot-dux", methods=["GET", "POST"])
+    @login_required
+    def convertir_snapshot_dux():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:return respuesta
+        if request.args.get("plantilla") == "productos":return send_file(plantilla_productos(),as_attachment=True,download_name="plantilla_productos_dux.csv",mimetype="text/csv")
+        if request.args.get("plantilla") == "pedidos":return send_file(plantilla_pedidos(),as_attachment=True,download_name="plantilla_pedidos_dux.csv",mimetype="text/csv")
+        resultado=None;error=""
+        if request.method == "POST":
+            try:
+                resultado=convertir_exportaciones(request.files.get("productos_csv"),request.files.get("pedidos_csv"))
+                if request.form.get("accion") == "exportar":return send_file(exportar_snapshot_dux(resultado),as_attachment=True,download_name="snapshot_dux_convertido.json",mimetype="application/json")
+            except (ValueError,TypeError) as excepcion:error=str(excepcion)
+        return render_template("admin_convertir_snapshot_dux.html",resultado=resultado,error=error,organizacion=organizacion)
 
     return blueprint
