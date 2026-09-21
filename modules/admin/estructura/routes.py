@@ -20,6 +20,7 @@ from services.plan_corte_dux import construir_plan,exportar_plan
 from services.ensayo_corte_dux import ensayar_corte,exportar_ensayo
 from services.snapshots_corte_dux import construir_snapshot_fierro,plantilla_snapshot_dux,exportar as exportar_snapshot
 from services.importacion_snapshot_dux import convertir_exportaciones,exportar as exportar_snapshot_dux,plantilla_productos,plantilla_pedidos
+from services.expediente_transicion_dux import construir_expediente as construir_expediente_transicion,exportar as exportar_expediente_transicion
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -454,5 +455,18 @@ def crear_blueprint_estructura(
                 if request.form.get("accion") == "exportar":return send_file(exportar_snapshot_dux(resultado),as_attachment=True,download_name="snapshot_dux_convertido.json",mimetype="application/json")
             except (ValueError,TypeError) as excepcion:error=str(excepcion)
         return render_template("admin_convertir_snapshot_dux.html",resultado=resultado,error=error,organizacion=organizacion)
+
+    @blueprint.route("/admin/estructura/expediente-transicion-dux", methods=["GET", "POST"])
+    @login_required
+    def expediente_transicion_dux():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:return respuesta
+        resultado=None;error=""
+        if request.method == "POST":
+            try:
+                resultado=construir_expediente_transicion(request.files.get("plan"),request.files.get("ensayo"),request.files.get("certificacion"),organizacion_id=organizacion.id)
+                if request.form.get("accion") == "exportar":return send_file(exportar_expediente_transicion(resultado),as_attachment=True,download_name="expediente_transicion_dux.json",mimetype="application/json")
+            except (ValueError,TypeError) as excepcion:error=str(excepcion)
+        return render_template("admin_expediente_transicion_dux.html",resultado=resultado,error=error,organizacion=organizacion)
 
     return blueprint
