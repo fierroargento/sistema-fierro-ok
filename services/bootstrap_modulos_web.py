@@ -211,7 +211,7 @@ def registrar_modulos_web(
 
     app.register_blueprint(
         crear_blueprint_postventa(
-            dependencias={**comunes,"modelos":{nombre:modelos[nombre] for nombre in ("UnidadNegocio","Pedido","CasoPostventa","PropuestaResolucionPostventa")}},
+            dependencias={**comunes,"modelos":{nombre:modelos[nombre] for nombre in ("UnidadNegocio","Pedido","Producto","CasoPostventa","PropuestaResolucionPostventa","ItemCasoPostventa","EvidenciaCasoPostventa")}},
         )
     )
 
