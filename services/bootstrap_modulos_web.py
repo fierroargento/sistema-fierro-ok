@@ -258,6 +258,7 @@ def registrar_modulos_web(
                         "CatalogoProducto",
                         "ModuloOrganizacion",
                         "Producto",
+                        "ExistenciaSucursal",
                         "Pedido",
                         "AsignacionTenantPedido",
                         "WhatsAppMensaje",

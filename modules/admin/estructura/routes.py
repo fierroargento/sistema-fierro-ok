@@ -18,6 +18,7 @@ from services.control_integral_estructura_saas import controlar_estructura,expor
 from services.certificacion_consolidada_saas import consolidar_certificaciones,exportar_expediente
 from services.plan_corte_dux import construir_plan,exportar_plan
 from services.ensayo_corte_dux import ensayar_corte,exportar_ensayo
+from services.snapshots_corte_dux import construir_snapshot_fierro,plantilla_snapshot_dux,exportar as exportar_snapshot
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -417,5 +418,25 @@ def crear_blueprint_estructura(
                 if request.form.get("accion") == "exportar":return send_file(exportar_ensayo(resultado),as_attachment=True,download_name="ensayo_corte_dux_offline.json",mimetype="application/json")
             except (ValueError,TypeError) as excepcion:error=str(excepcion)
         return render_template("admin_ensayo_corte_dux.html",resultado=resultado,error=error,organizacion=organizacion)
+
+    @blueprint.route("/admin/estructura/snapshot-corte/<origen>")
+    @login_required
+    def snapshot_corte(origen):
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:return respuesta
+        if origen == "dux":return send_file(exportar_snapshot(plantilla_snapshot_dux()),as_attachment=True,download_name="plantilla_snapshot_dux.json",mimetype="application/json")
+        if origen != "fierro":return redirect(url_for("admin_estructura.ensayo_corte_dux",error="Origen de snapshot invalido."))
+        unidad_id=session.get("unidad_negocio_id")
+        unidad=modelos["UnidadNegocio"].query.filter_by(id=unidad_id,organizacion_id=organizacion.id,activa=True).first() if unidad_id else None
+        if unidad is None:unidad=modelos["UnidadNegocio"].query.filter_by(organizacion_id=organizacion.id,activa=True).order_by(modelos["UnidadNegocio"].id.asc()).first()
+        if unidad is None:return redirect(url_for("admin_estructura.ensayo_corte_dux",error="No hay una unidad activa para generar el snapshot."))
+        unidad_id=unidad.id
+        productos=modelos["Producto"].query.filter_by(organizacion_id=organizacion.id).all()
+        ids=[p.id for p in productos]
+        inclusiones=modelos["CatalogoProducto"].query.filter(modelos["CatalogoProducto"].producto_id.in_(ids)).all() if ids else []
+        existencias=modelos["ExistenciaSucursal"].query.filter_by(organizacion_id=organizacion.id).all()
+        pedidos=modelos["Pedido"].query.filter_by(organizacion_id=organizacion.id,unidad_negocio_id=unidad_id).all()
+        resultado=construir_snapshot_fierro(organizacion_id=organizacion.id,unidad_negocio_id=unidad_id,productos=productos,inclusiones=inclusiones,existencias=existencias,pedidos=pedidos)
+        return send_file(exportar_snapshot(resultado),as_attachment=True,download_name="snapshot_sistema_fierro.json",mimetype="application/json")
 
     return blueprint
