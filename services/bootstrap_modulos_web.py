@@ -196,7 +196,7 @@ def registrar_modulos_web(
         crear_blueprint_mantenimiento(
             dependencias={
                 **comunes,
-                "modelos": {nombre:modelos[nombre] for nombre in ("UnidadNegocio","MaquinaProductiva","PlanMantenimiento","OrdenMantenimientoPreparatoria")},
+                "modelos": {nombre:modelos[nombre] for nombre in ("UnidadNegocio","MaquinaProductiva","PlanMantenimiento","OrdenMantenimientoPreparatoria","TareaPlanMantenimiento","PropuestaRepuestoMantenimiento")},
             },
         )
     )

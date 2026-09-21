@@ -1,6 +1,7 @@
 from flask import Blueprint,redirect,render_template,request,send_file,session,url_for
 from services.tenant_context import TenantError,resolver_tenant_usuario
 from services.mantenimiento_nucleo import crear_plan,crear_orden,cancelar_orden,controlar_mantenimiento,exportar_control
+from services.preparacion_mantenimiento import agregar_tarea,proponer_repuesto,expediente_mantenimiento,exportar_expediente
 
 def crear_blueprint_mantenimiento(*,dependencias):
     bp=Blueprint("admin_mantenimiento",__name__);db=dependencias["db"];m=dependencias["modelos"]
@@ -17,14 +18,16 @@ def crear_blueprint_mantenimiento(*,dependencias):
         maquinas=m["MaquinaProductiva"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).order_by(m["MaquinaProductiva"].codigo.asc()).all()
         planes=m["PlanMantenimiento"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).order_by(m["PlanMantenimiento"].proxima_fecha.asc()).all()
         ordenes=m["OrdenMantenimientoPreparatoria"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).order_by(m["OrdenMantenimientoPreparatoria"].fecha_prevista.asc()).all()
-        return maquinas,planes,ordenes
+        tareas=m["TareaPlanMantenimiento"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).order_by(m["TareaPlanMantenimiento"].plan_id.asc(),m["TareaPlanMantenimiento"].orden.asc()).all()
+        repuestos=m["PropuestaRepuestoMantenimiento"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all()
+        return maquinas,planes,ordenes,tareas,repuestos
     @bp.route("/admin/mantenimiento")
     @dependencias["login_required"]
     def panel():
         _x,o,u,r=acceso()
         if r is not None:return r
-        maquinas,planes,ordenes=datos(o,u);control=controlar_mantenimiento(organizacion_id=o.id,unidad_negocio_id=u.id,planes=planes,ordenes=ordenes)
-        return render_template("admin_mantenimiento.html",organizacion=o,unidad_activa=u,maquinas=maquinas,planes=planes,ordenes=ordenes,control=control,ok_feedback=request.args.get("ok"),error=request.args.get("error"))
+        maquinas,planes,ordenes,tareas,repuestos=datos(o,u);control=controlar_mantenimiento(organizacion_id=o.id,unidad_negocio_id=u.id,planes=planes,ordenes=ordenes)
+        return render_template("admin_mantenimiento.html",organizacion=o,unidad_activa=u,maquinas=maquinas,planes=planes,ordenes=ordenes,tareas=tareas,repuestos=repuestos,control=control,ok_feedback=request.args.get("ok"),error=request.args.get("error"))
     @bp.route("/admin/mantenimiento/guardar",methods=["POST"])
     @dependencias["login_required"]
     def guardar():
@@ -43,6 +46,10 @@ def crear_blueprint_mantenimiento(*,dependencias):
                 obj=m["OrdenMantenimientoPreparatoria"].query.filter_by(id=int(request.form.get("orden_id")),organizacion_id=o.id,unidad_negocio_id=u.id).first()
                 if obj is None:raise ValueError("La orden no pertenece al contexto activo.")
                 cancelar_orden(obj,organizacion_id=o.id,unidad_negocio_id=u.id,motivo=request.form.get("motivo"),db_session=db.session);mensaje=f"Orden {obj.id} cancelada sin borrar historial."
+            elif accion=="agregar_tarea":
+                plan=m["PlanMantenimiento"].query.filter_by(id=int(request.form.get("plan_id")),organizacion_id=o.id,unidad_negocio_id=u.id).first();obj=agregar_tarea(request.form,plan=plan,organizacion_id=o.id,unidad_negocio_id=u.id,Tarea=m["TareaPlanMantenimiento"],db_session=db.session);mensaje=f"Tarea {obj.id} agregada sin marcar como completada."
+            elif accion=="proponer_repuesto":
+                orden=m["OrdenMantenimientoPreparatoria"].query.filter_by(id=int(request.form.get("orden_id")),organizacion_id=o.id,unidad_negocio_id=u.id).first();obj=proponer_repuesto(request.form,orden=orden,organizacion_id=o.id,unidad_negocio_id=u.id,Propuesta=m["PropuestaRepuestoMantenimiento"],db_session=db.session);mensaje=f"Repuesto {obj.codigo_repuesto} propuesto sin reserva."
             else:raise ValueError("Accion de mantenimiento invalida.")
             dependencias["registrar_auditoria"]("Mantenimiento preparatorio",entidad="mantenimiento",detalle=mensaje);return redirect(url_for("admin_mantenimiento.panel",ok=mensaje))
         except Exception as error:db.session.rollback();return redirect(url_for("admin_mantenimiento.panel",error=str(error)))
@@ -51,6 +58,13 @@ def crear_blueprint_mantenimiento(*,dependencias):
     def control():
         _x,o,u,r=acceso()
         if r is not None:return r
-        _maquinas,planes,ordenes=datos(o,u);resultado=controlar_mantenimiento(organizacion_id=o.id,unidad_negocio_id=u.id,planes=planes,ordenes=ordenes)
+        _maquinas,planes,ordenes,_tareas,_repuestos=datos(o,u);resultado=controlar_mantenimiento(organizacion_id=o.id,unidad_negocio_id=u.id,planes=planes,ordenes=ordenes)
         return send_file(exportar_control(resultado),as_attachment=True,download_name="control_mantenimiento_preparatorio.json",mimetype="application/json")
+    @bp.route("/admin/mantenimiento/expediente")
+    @dependencias["login_required"]
+    def expediente():
+        _x,o,u,r=acceso()
+        if r is not None:return r
+        _maquinas,planes,ordenes,tareas,repuestos=datos(o,u);resultado=expediente_mantenimiento(organizacion_id=o.id,unidad_negocio_id=u.id,planes=planes,ordenes=ordenes,tareas=tareas,repuestos=repuestos)
+        return send_file(exportar_expediente(resultado),as_attachment=True,download_name="expediente_mantenimiento.json",mimetype="application/json")
     return bp

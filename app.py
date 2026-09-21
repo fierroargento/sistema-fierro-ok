@@ -326,7 +326,7 @@ from models.produccion import (
 )
 from models.tesoreria import CuentaTesoreria, MovimientoTesoreriaProyectado
 from models.contabilidad import CuentaContable, AsientoContableBorrador, LineaAsientoContableBorrador
-from models.mantenimiento import PlanMantenimiento, OrdenMantenimientoPreparatoria
+from models.mantenimiento import PlanMantenimiento, OrdenMantenimientoPreparatoria, TareaPlanMantenimiento, PropuestaRepuestoMantenimiento
 from models.politica_comercial_lista import PoliticaComercialLista
 from models.lista_precio_item import ListaPrecioItem
 from models.regla_economica import ReglaEconomicaVersion
@@ -12247,6 +12247,8 @@ registrar_modulos_web(
             "LineaAsientoContableBorrador": LineaAsientoContableBorrador,
             "PlanMantenimiento": PlanMantenimiento,
             "OrdenMantenimientoPreparatoria": OrdenMantenimientoPreparatoria,
+            "TareaPlanMantenimiento": TareaPlanMantenimiento,
+            "PropuestaRepuestoMantenimiento": PropuestaRepuestoMantenimiento,
             "PoliticaComercialLista": PoliticaComercialLista,
             "ListaPrecioItem": ListaPrecioItem,
             "ReglaEconomicaVersion": ReglaEconomicaVersion,
