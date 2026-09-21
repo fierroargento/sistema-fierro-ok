@@ -328,6 +328,7 @@ from models.tesoreria import CuentaTesoreria, MovimientoTesoreriaProyectado
 from models.contabilidad import CuentaContable, AsientoContableBorrador, LineaAsientoContableBorrador
 from models.mantenimiento import PlanMantenimiento, OrdenMantenimientoPreparatoria, TareaPlanMantenimiento, PropuestaRepuestoMantenimiento
 from models.personas import TurnoLaboralPlanificado, NovedadLaboralPreparatoria, CompetenciaEmpleadoPreparatoria
+from models.postventa import CasoPostventa, PropuestaResolucionPostventa
 from models.politica_comercial_lista import PoliticaComercialLista
 from models.lista_precio_item import ListaPrecioItem
 from models.regla_economica import ReglaEconomicaVersion
@@ -12253,6 +12254,8 @@ registrar_modulos_web(
             "TurnoLaboralPlanificado": TurnoLaboralPlanificado,
             "NovedadLaboralPreparatoria": NovedadLaboralPreparatoria,
             "CompetenciaEmpleadoPreparatoria": CompetenciaEmpleadoPreparatoria,
+            "CasoPostventa": CasoPostventa,
+            "PropuestaResolucionPostventa": PropuestaResolucionPostventa,
             "PoliticaComercialLista": PoliticaComercialLista,
             "ListaPrecioItem": ListaPrecioItem,
             "ReglaEconomicaVersion": ReglaEconomicaVersion,
