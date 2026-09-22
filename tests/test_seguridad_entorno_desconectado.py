@@ -13,6 +13,7 @@ VARIABLES = [
     "WHATSAPP_EFECTOS_HABILITADOS", "ML_EFECTOS_HABILITADOS",
     "WEBHOOKS_HABILITADOS", "ML_WEBHOOK_HABILITADO",
     "SCHEDULER_ENABLED", "BOOTSTRAP_BASE_DATOS_HABILITADO",
+    "MODO_LABORATORIO_DESCONECTADO",
 ]
 
 
@@ -44,6 +45,20 @@ def test_doble_habilitacion_y_entorno_son_obligatorios(monkeypatch):
     assert efectos_externos_habilitados("ML") is False
     monkeypatch.setenv("ML_EFECTOS_HABILITADOS", "true")
     assert efectos_externos_habilitados("ML") is True
+
+
+def test_candado_superior_anula_todas_las_llaves(monkeypatch):
+    limpiar(monkeypatch)
+    monkeypatch.setenv("SISTEMA_FIERRO_ENTORNO", "staging")
+    monkeypatch.setenv("MODO_LABORATORIO_DESCONECTADO", "true")
+    for nombre in ("CONEXIONES_EXTERNAS_HABILITADAS", "EFECTOS_EXTERNOS_HABILITADOS", "WEBHOOKS_HABILITADOS", "SCHEDULER_ENABLED", "BOOTSTRAP_BASE_DATOS_HABILITADO", "ML_CONEXION_HABILITADA", "ML_EFECTOS_HABILITADOS", "ML_WEBHOOK_HABILITADO"):
+        monkeypatch.setenv(nombre, "true")
+    from services.seguridad_entorno import conexiones_externas_habilitadas
+    assert conexiones_externas_habilitadas("ML") is False
+    assert efectos_externos_habilitados("ML") is False
+    assert procesamiento_webhook_habilitado("ML") is False
+    assert scheduler_habilitado() is False
+    assert bootstrap_base_habilitado() is False
 
 
 def test_exigir_efecto_falla_cerrado(monkeypatch):

@@ -16,10 +16,15 @@ def entorno_actual():
     return valor if valor in {"desarrollo", "staging", "produccion"} else "desarrollo"
 
 
+def laboratorio_forzado():
+    """Candado superior: ninguna otra llave puede abrir red o automatizaciones."""
+    return _activo("MODO_LABORATORIO_DESCONECTADO")
+
+
 def conexiones_externas_habilitadas(canal):
     """Autoriza red saliente solo con doble habilitacion explicita."""
     canal = str(canal or "").strip().upper()
-    return (
+    return (not laboratorio_forzado()) and (
         entorno_actual() in ENTORNOS_CONECTABLES
         and _activo("CONEXIONES_EXTERNAS_HABILITADAS")
         and _activo(f"{canal}_CONEXION_HABILITADA")
@@ -28,7 +33,7 @@ def conexiones_externas_habilitadas(canal):
 
 def efectos_externos_habilitados(canal):
     canal = str(canal or "").strip().upper()
-    return (
+    return (not laboratorio_forzado()) and (
         entorno_actual() in ENTORNOS_CONECTABLES
         and _activo("EFECTOS_EXTERNOS_HABILITADOS")
         and _activo(f"{canal}_EFECTOS_HABILITADOS")
@@ -37,7 +42,7 @@ def efectos_externos_habilitados(canal):
 
 def procesamiento_webhook_habilitado(canal):
     canal = str(canal or "").strip().upper()
-    return (
+    return (not laboratorio_forzado()) and (
         entorno_actual() in ENTORNOS_CONECTABLES
         and _activo("WEBHOOKS_HABILITADOS")
         and _activo(f"{canal}_WEBHOOK_HABILITADO")
@@ -45,11 +50,11 @@ def procesamiento_webhook_habilitado(canal):
 
 
 def scheduler_habilitado():
-    return entorno_actual() in ENTORNOS_CONECTABLES and _activo("SCHEDULER_ENABLED")
+    return (not laboratorio_forzado()) and entorno_actual() in ENTORNOS_CONECTABLES and _activo("SCHEDULER_ENABLED")
 
 
 def bootstrap_base_habilitado():
-    return _activo("BOOTSTRAP_BASE_DATOS_HABILITADO")
+    return (not laboratorio_forzado()) and _activo("BOOTSTRAP_BASE_DATOS_HABILITADO")
 
 
 def exigir_efecto_externo(canal, operacion="operacion externa"):
@@ -83,6 +88,7 @@ def diagnostico_laboratorio_desconectado(canales=None):
     }
     return {
         "entorno": entorno_actual(),
+        "laboratorio_forzado": laboratorio_forzado(),
         "scheduler": scheduler_habilitado(),
         "bootstrap_base": bootstrap_base_habilitado(),
         "canales": detalle,

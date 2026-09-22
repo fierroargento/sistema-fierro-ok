@@ -6,6 +6,7 @@ sola ninguna salida real.
 
 ```text
 SISTEMA_FIERRO_ENTORNO=desarrollo
+MODO_LABORATORIO_DESCONECTADO=true
 CONEXIONES_EXTERNAS_HABILITADAS=false
 EFECTOS_EXTERNOS_HABILITADOS=false
 WEBHOOKS_HABILITADOS=false
@@ -13,6 +14,16 @@ SCHEDULER_ENABLED=false
 BOOTSTRAP_BASE_DATOS_HABILITADO=false
 IA_AUTO_RESPUESTA=0
 ```
+
+Para un servicio de ensayo usar `SISTEMA_FIERRO_ENTORNO=staging`, mantener
+`MODO_LABORATORIO_DESCONECTADO=true` y asignar una `DATABASE_URL` exclusiva.
+Debe configurarse `BASE_PRODUCTIVA_HUELLA_SHA256` con el SHA-256 de la URL
+productiva: sólo se compara la huella y nunca se muestra la credencial. Si las
+bases coinciden, la certificación del laboratorio falla.
+
+El candado `MODO_LABORATORIO_DESCONECTADO` prevalece sobre todas las demás
+variables. Mientras esté activo bloquea conexiones, efectos, webhooks,
+scheduler y bootstrap aunque otra llave haya quedado accidentalmente en true.
 
 Las consultas y descargas también están bloqueadas. Para abrir red en un
 entorno futuro hacen falta simultáneamente la llave maestra

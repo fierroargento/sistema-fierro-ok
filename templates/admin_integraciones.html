@@ -12,6 +12,7 @@
         <strong>Laboratorio desconectado.</strong>
         Ningún canal externo, webhook ni automatización está habilitado.
         Las credenciales guardadas no abren conexiones por sí solas.
+        {% if diagnostico_entorno.laboratorio_forzado %}<strong>Candado superior activo.</strong>{% endif %}
     </div>
     {% elif diagnostico_entorno %}
     <div class="alerta alerta-error" data-control="entorno-conectable">
