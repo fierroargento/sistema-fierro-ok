@@ -1,5 +1,5 @@
 import json
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta,UTC
 from pathlib import Path
 import pytest
 from services.cierre_postventa import agregar_item,agregar_evidencia,control_final,exportar
@@ -10,7 +10,8 @@ class S:
  def __init__(s):s.o=[];s.commits=0
  def add(s,x):s.o.append(x)
  def commit(s):s.commits+=1
-def caso(**k):return O(id=k.pop("id",1),organizacion_id=7,unidad_negocio_id=9,estado=k.pop("estado","abierto"),fecha_creacion=k.pop("fecha_creacion",datetime.utcnow()),**k)
+def ahora():return datetime.now(UTC).replace(tzinfo=None)
+def caso(**k):return O(id=k.pop("id",1),organizacion_id=7,unidad_negocio_id=9,estado=k.pop("estado","abierto"),fecha_creacion=k.pop("fecha_creacion",ahora()),**k)
 def propuesta(**k):return O(id=2,caso_id=1,importe_centavos=k.get("importe_centavos",1000))
 def item(**k):return O(id=3,caso_id=1,recibido=k.get("recibido",False),afecta_stock=False)
 def evidencia(**k):return O(id=4,caso_id=1,verificada=False,enviada=False)
@@ -21,7 +22,7 @@ def test_item_rechaza_contexto_y_cantidad():
 def test_evidencia_nace_interna_con_huella():
  s=S();e=agregar_evidencia({"tipo_evidencia":"foto","referencia":"foto-frente-001"},caso=caso(),organizacion_id=7,unidad_negocio_id=9,Evidencia=O,db_session=s);assert len(e.huella)==64 and not e.verificada and not e.enviada
 def test_control_detecta_casos_incompletos_y_vencidos():
- c=caso(estado="diagnostico",fecha_creacion=datetime.utcnow()-timedelta(days=20));r=control_final(organizacion_id=7,unidad_negocio_id=9,casos=[c],propuestas=[],items=[],evidencias=[]);assert {x["codigo"] for x in r["hallazgos"]}=={"caso_sin_items","caso_sin_evidencia","caso_vencido"}
+ c=caso(estado="diagnostico",fecha_creacion=ahora()-timedelta(days=20));r=control_final(organizacion_id=7,unidad_negocio_id=9,casos=[c],propuestas=[],items=[],evidencias=[]);assert {x["codigo"] for x in r["hallazgos"]}=={"caso_sin_items","caso_sin_evidencia","caso_vencido"}
 def test_control_completo_calcula_exposicion():
  r=control_final(organizacion_id=7,unidad_negocio_id=9,casos=[caso(estado="propuesta")],propuestas=[propuesta(importe_centavos=5000)],items=[item()],evidencias=[evidencia()]);assert r["aprobado"] and r["resumen"]["exposicion_centavos"]==5000 and not any(r["controles"].values())
 def test_control_firmado_reproducible():

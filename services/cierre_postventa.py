@@ -1,6 +1,6 @@
 """Items, evidencias y control final de postventa sin efectos operativos."""
 import hashlib,io,json
-from datetime import datetime
+from services.fechas import ahora_utc_naive
 from decimal import Decimal,InvalidOperation
 def agregar_item(datos,*,caso,producto,organizacion_id,unidad_negocio_id,Item,db_session):
  if caso is None or producto is None or int(caso.organizacion_id)!=int(organizacion_id) or int(caso.unidad_negocio_id)!=int(unidad_negocio_id) or int(producto.organizacion_id)!=int(organizacion_id):raise ValueError("Caso o producto fuera del contexto activo.")
@@ -15,7 +15,7 @@ def agregar_evidencia(datos,*,caso,organizacion_id,unidad_negocio_id,Evidencia,d
  if tipo not in {"foto","video","documento","nota_interna"} or len(referencia)<5:raise ValueError("Tipo y referencia de evidencia son obligatorios.")
  huella=hashlib.sha256(f"{caso.id}|{tipo}|{referencia}".encode()).hexdigest();e=Evidencia(organizacion_id=organizacion_id,unidad_negocio_id=unidad_negocio_id,caso_id=caso.id,tipo=tipo,referencia=referencia,huella=huella,verificada=False,enviada=False);db_session.add(e);db_session.commit();return e
 def control_final(*,organizacion_id,unidad_negocio_id,casos,propuestas,items,evidencias,ahora=None):
- ahora=ahora or datetime.utcnow();casos=[x for x in casos if int(x.organizacion_id)==int(organizacion_id) and int(x.unidad_negocio_id)==int(unidad_negocio_id)];ids={x.id for x in casos};propuestas=[x for x in propuestas if x.caso_id in ids];items=[x for x in items if x.caso_id in ids];evidencias=[x for x in evidencias if x.caso_id in ids];hallazgos=[]
+ ahora=ahora or ahora_utc_naive();casos=[x for x in casos if int(x.organizacion_id)==int(organizacion_id) and int(x.unidad_negocio_id)==int(unidad_negocio_id)];ids={x.id for x in casos};propuestas=[x for x in propuestas if x.caso_id in ids];items=[x for x in items if x.caso_id in ids];evidencias=[x for x in evidencias if x.caso_id in ids];hallazgos=[]
  for c in casos:
   if c.estado not in {"cancelado","cerrado_sin_efecto"} and not any(x.caso_id==c.id for x in items):hallazgos.append({"codigo":"caso_sin_items","caso_id":c.id})
   if c.estado in {"diagnostico","propuesta"} and not any(x.caso_id==c.id for x in evidencias):hallazgos.append({"codigo":"caso_sin_evidencia","caso_id":c.id})

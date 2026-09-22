@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="card">
+  <h1>Comparación de respaldos integrales</h1>
+  <p>Compara dos exportaciones firmadas del mismo tenant y unidad. No restaura bases, no persiste resultados y no habilita operaciones.</p>
+  {% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
+  <form method="post" enctype="multipart/form-data">
+    <label>Respaldo anterior <input type="file" name="anterior" accept=".json,application/json" required></label>
+    <label>Respaldo posterior <input type="file" name="posterior" accept=".json,application/json" required></label>
+    <button name="accion" value="comparar" type="submit">Comparar</button><button name="accion" value="exportar" type="submit">Descargar evidencia</button>
+  </form>
+  {% if resultado %}
+  <div class="alerta {{ 'alerta-ok' if resultado.estado == 'sin_perdidas_detectadas' else 'alerta-error' }}"><strong>{{ resultado.estado|replace('_',' ')|upper }}</strong> · Altas {{ resultado.resumen.altas }} · Bajas {{ resultado.resumen.bajas }} · Cambios {{ resultado.resumen.cambios }}</div>
+  <table style="width:100%"><thead><tr><th>Conjunto</th><th>Anterior</th><th>Posterior</th><th>Altas</th><th>Bajas</th><th>Cambios</th></tr></thead><tbody>{% for item in resultado.detalle %}<tr><td>{{ item.conjunto }}</td><td>{{ item.anteriores }}</td><td>{{ item.posteriores }}</td><td>{{ item.altas }}</td><td>{{ item.bajas }}</td><td>{{ item.cambios }}</td></tr>{% endfor %}</tbody></table>
+  <h2>Hallazgos</h2><ul>{% for item in resultado.hallazgos %}<li><strong>{{ item.conjunto }}</strong>: {{ item.detalle }} ({{ item.cantidad }})</li>{% else %}<li>No se detectaron pérdidas ni registros incomparables.</li>{% endfor %}</ul>
+  <p><strong>Restauración autorizada:</strong> NO</p><p><code>{{ resultado.huella_comparacion }}</code></p>
+  {% endif %}
+  <p><a href="{{ url_for('admin_estructura.exportacion_respaldo_integral') }}">Generar respaldo integral</a></p>
+</main>
+{% endblock %}
+

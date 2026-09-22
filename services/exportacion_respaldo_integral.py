@@ -3,7 +3,7 @@
 import hashlib
 import io
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 
@@ -87,6 +87,7 @@ def construir_respaldo(*, organizacion_id, unidad_negocio_id, modelos):
         "organizacion_id": int(organizacion_id),
         "unidad_negocio_id": int(unidad_negocio_id),
         "origen": "exportacion_controlada_sistema_fierro",
+        "generado_en": datetime.now(timezone.utc).isoformat(),
         "modo": "respaldo_integral_solo_lectura_sin_secretos",
         "restauracion_automatica_habilitada": False,
         "conjuntos": conjuntos,
@@ -117,4 +118,3 @@ def construir_respaldo(*, organizacion_id, unidad_negocio_id, modelos):
 
 def exportar(documento):
     return io.BytesIO(json.dumps(documento, ensure_ascii=False, sort_keys=True, indent=2, default=str).encode("utf-8"))
-

@@ -11,7 +11,6 @@
   <p><strong>Restauración automática habilitada:</strong> NO</p>
   <form method="post"><button type="submit">Descargar respaldo JSON</button></form>
   <p><code>{{ respaldo.huella_respaldo }}</code></p>
-  <p><a href="{{ url_for('admin_estructura.ensayo_respaldo_restauracion') }}">Ensayar respaldo y restauración</a> · <a href="{{ url_for('admin_estructura.expediente_maestro') }}">Volver al expediente maestro</a></p>
+  <p><a href="{{ url_for('admin_estructura.comparacion_respaldos') }}">Comparar respaldos</a> · <a href="{{ url_for('admin_estructura.ensayo_respaldo_restauracion') }}">Ensayar respaldo y restauración</a> · <a href="{{ url_for('admin_estructura.expediente_maestro') }}">Volver al expediente maestro</a></p>
 </main>
 {% endblock %}
-
