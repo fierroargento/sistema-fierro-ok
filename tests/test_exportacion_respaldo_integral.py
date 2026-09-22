@@ -21,10 +21,14 @@ def modelo(nombre, columnas, filas):
 
 
 def modelos():
-    fila = SimpleNamespace(id=1, organizacion_id=7, unidad_negocio_id=3, nombre="Dato", access_token="secreto")
-    base = modelo("BaseTenant", ["id", "organizacion_id", "unidad_negocio_id", "nombre", "access_token"], [fila])
-    from services.exportacion_respaldo_integral import MODELOS_POR_CONJUNTO
-    return {nombre: base for nombres in MODELOS_POR_CONJUNTO.values() for nombre in nombres}
+    fila = SimpleNamespace(id=1, organizacion_id=7, unidad_negocio_id=3, nombre="Dato", access_token="secreto", catalogo_id=1, costo_producto_version_id=1, pedido_id=1, orden_compra_id=1, recepcion_compra_id=1, orden_produccion_id=1)
+    columnas = ["id", "organizacion_id", "unidad_negocio_id", "nombre", "access_token", "catalogo_id", "costo_producto_version_id", "pedido_id", "orden_compra_id", "recepcion_compra_id", "orden_produccion_id"]
+    from services.exportacion_respaldo_integral import MODELOS_HIJO_POR_CONJUNTO, MODELOS_POR_CONJUNTO
+    resultado = {nombre: modelo(nombre, columnas, [fila]) for nombres in MODELOS_POR_CONJUNTO.values() for nombre in nombres}
+    for especificaciones in MODELOS_HIJO_POR_CONJUNTO.values():
+        for nombre, _padre, _clave in especificaciones:
+            resultado[nombre] = modelo(nombre, columnas, [fila])
+    return resultado
 
 
 def test_exporta_doce_conjuntos_aislados_y_firmados():
@@ -32,6 +36,7 @@ def test_exporta_doce_conjuntos_aislados_y_firmados():
     assert len(resultado["conjuntos"]) == 12 and len(resultado["huella_respaldo"]) == 64
     assert all(item["registros"] for item in resultado["manifiesto"].values())
     assert resultado["restauracion_automatica_habilitada"] is False
+    assert resultado["respaldo_reconstruible"] is True
 
 
 def test_excluye_secretos_y_otro_tenant_unidad():
@@ -46,6 +51,7 @@ def test_omite_modelos_sin_identidad_tenant():
     fuentes = modelos(); fuentes["Pedido"] = sin_tenant
     resultado = construir_respaldo(organizacion_id=7, unidad_negocio_id=3, modelos=fuentes)
     assert any(x["modelo"] == "Pedido" and x["motivo"] == "modelo_sin_identidad_tenant" for x in resultado["seguridad"]["modelos_omitidos"])
+    assert resultado["respaldo_reconstruible"] is False
 
 
 def test_json_compatible_con_ensayo_y_utf8():
@@ -53,6 +59,14 @@ def test_json_compatible_con_ensayo_y_utf8():
     documento = json.loads(exportar(resultado).read())
     assert documento["origen"] == "exportacion_controlada_sistema_fierro"
     assert "postventa" in documento["conjuntos"] and "auditoria" in documento["conjuntos"]
+
+
+def test_exporta_hijos_solo_desde_cabeceras_tenant():
+    resultado = construir_respaldo(organizacion_id=7, unidad_negocio_id=3, modelos=modelos())
+    nombres = {x["_modelo"] for x in resultado["conjuntos"]["compras"]}
+    assert {"OrdenCompraItem", "RecepcionCompraItem"} <= nombres
+    assert "PedidoItem" in {x["_modelo"] for x in resultado["conjuntos"]["pedidos"]}
+    assert "CostoProductoDetalle" in {x["_modelo"] for x in resultado["conjuntos"]["costos"]}
 
 
 def test_servicio_es_solo_lectura_y_sin_red():

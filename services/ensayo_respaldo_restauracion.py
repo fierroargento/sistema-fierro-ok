@@ -74,6 +74,9 @@ def ensayar(archivo, *, organizacion_id, unidad_negocio_id):
     hallazgos = []
     detalle = []
     desconocidos = sorted(set(conjuntos) - set(CONJUNTOS_REQUERIDOS))
+    omitidos = documento.get("seguridad", {}).get("modelos_omitidos", [])
+    if omitidos:
+        hallazgos.append({"codigo": "cobertura_incompleta", "conjunto": "respaldo", "detalle": f"La exportación omitió {len(omitidos)} modelos y no es reconstruible íntegramente."})
     for nombre in desconocidos:
         hallazgos.append({"codigo": "conjunto_desconocido", "conjunto": nombre, "detalle": "El conjunto no pertenece al contrato de respaldo."})
     for nombre in CONJUNTOS_REQUERIDOS:
@@ -130,6 +133,7 @@ def ensayar(archivo, *, organizacion_id, unidad_negocio_id):
             "registros": sum(item["registros"] for item in detalle),
             "conjuntos_vacios": len(vacios),
             "hallazgos": len(hallazgos),
+            "modelos_omitidos": len(omitidos),
         },
         "conjuntos_vacios": vacios,
         "orden_restauracion": detalle,

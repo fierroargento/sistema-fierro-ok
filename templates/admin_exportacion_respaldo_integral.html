@@ -3,7 +3,7 @@
 <main class="card">
   <h1>Generador de respaldo integral</h1>
   <p>Exportación local y de solo lectura para {{ organizacion.nombre }} / {{ unidad.nombre }}. Excluye contraseñas, tokens, secretos, credenciales y sesiones.</p>
-  <div class="alerta alerta-ok"><strong>LISTO PARA DESCARGAR</strong> · {{ respaldo.manifiesto|length }} conjuntos · credenciales incluidas: NO</div>
+  <div class="alerta {{ 'alerta-ok' if respaldo.respaldo_reconstruible else 'alerta-error' }}"><strong>{{ 'COBERTURA COMPLETA' if respaldo.respaldo_reconstruible else 'COBERTURA INCOMPLETA' }}</strong> · {{ respaldo.manifiesto|length }} conjuntos · credenciales incluidas: NO</div>
   <table style="width:100%"><thead><tr><th>Conjunto</th><th>Registros</th><th>Huella</th></tr></thead><tbody>
   {% for nombre, item in respaldo.manifiesto.items() %}<tr><td>{{ nombre }}</td><td>{{ item.registros }}</td><td><code>{{ item.huella }}</code></td></tr>{% endfor %}
   </tbody></table>

@@ -41,6 +41,14 @@ def test_ids_iguales_de_modelos_distintos_no_son_duplicados():
     assert "ids_duplicados" not in {item["codigo"] for item in resultado["hallazgos"]}
 
 
+def test_bloquea_exportacion_con_modelos_omitidos():
+    documento = json.loads(respaldo().read())
+    documento["seguridad"] = {"modelos_omitidos": [{"modelo": "PedidoItem"}]}
+    resultado = ensayar(io.BytesIO(json.dumps(documento).encode()), organizacion_id=7, unidad_negocio_id=3)
+    assert "cobertura_incompleta" in {item["codigo"] for item in resultado["hallazgos"]}
+    assert resultado["resumen"]["modelos_omitidos"] == 1
+
+
 def test_rechaza_tenant_unidad_formato_y_tamano():
     with pytest.raises(ValueError, match="otro tenant"):
         ensayar(respaldo(org=8), organizacion_id=7, unidad_negocio_id=3)
