@@ -92,7 +92,8 @@ def ensayar(archivo, *, organizacion_id, unidad_negocio_id):
             if not isinstance(registro, dict):
                 hallazgos.append({"codigo": "registro_invalido", "conjunto": nombre, "detalle": "Hay un registro que no es un objeto."})
                 continue
-            identidad = registro.get("id")
+            identidad_simple = registro.get("id")
+            identidad = (registro.get("_modelo"), identidad_simple) if registro.get("_modelo") else identidad_simple
             if identidad is not None and identidad in ids:
                 duplicados += 1
             if identidad is not None:
@@ -149,4 +150,3 @@ def ensayar(archivo, *, organizacion_id, unidad_negocio_id):
 
 def exportar(resultado):
     return io.BytesIO(json.dumps(resultado, ensure_ascii=False, sort_keys=True, indent=2).encode("utf-8"))
-

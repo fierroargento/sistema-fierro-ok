@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="card">
+  <h1>Generador de respaldo integral</h1>
+  <p>Exportación local y de solo lectura para {{ organizacion.nombre }} / {{ unidad.nombre }}. Excluye contraseñas, tokens, secretos, credenciales y sesiones.</p>
+  <div class="alerta alerta-ok"><strong>LISTO PARA DESCARGAR</strong> · {{ respaldo.manifiesto|length }} conjuntos · credenciales incluidas: NO</div>
+  <table style="width:100%"><thead><tr><th>Conjunto</th><th>Registros</th><th>Huella</th></tr></thead><tbody>
+  {% for nombre, item in respaldo.manifiesto.items() %}<tr><td>{{ nombre }}</td><td>{{ item.registros }}</td><td><code>{{ item.huella }}</code></td></tr>{% endfor %}
+  </tbody></table>
+  {% if respaldo.seguridad.modelos_omitidos %}<h2>Modelos omitidos de forma segura</h2><ul>{% for item in respaldo.seguridad.modelos_omitidos %}<li>{{ item.conjunto }} / {{ item.modelo }}: {{ item.motivo }}</li>{% endfor %}</ul>{% endif %}
+  <p><strong>Restauración automática habilitada:</strong> NO</p>
+  <form method="post"><button type="submit">Descargar respaldo JSON</button></form>
+  <p><code>{{ respaldo.huella_respaldo }}</code></p>
+  <p><a href="{{ url_for('admin_estructura.ensayo_respaldo_restauracion') }}">Ensayar respaldo y restauración</a> · <a href="{{ url_for('admin_estructura.expediente_maestro') }}">Volver al expediente maestro</a></p>
+</main>
+{% endblock %}
+

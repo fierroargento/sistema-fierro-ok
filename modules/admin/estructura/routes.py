@@ -23,6 +23,7 @@ from services.importacion_snapshot_dux import convertir_exportaciones,exportar a
 from services.expediente_transicion_dux import construir_expediente as construir_expediente_transicion,exportar as exportar_expediente_transicion
 from services.expediente_maestro_preparacion import construir_expediente as construir_expediente_maestro,exportar as exportar_expediente_maestro
 from services.ensayo_respaldo_restauracion import ensayar as ensayar_respaldo,exportar as exportar_ensayo_respaldo,plantilla as plantilla_respaldo
+from services.exportacion_respaldo_integral import construir_respaldo as construir_respaldo_integral,exportar as exportar_respaldo_integral
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -505,5 +506,19 @@ def crear_blueprint_estructura(
                 if request.form.get("accion") == "exportar":return send_file(exportar_ensayo_respaldo(resultado),as_attachment=True,download_name="ensayo_respaldo_restauracion.json",mimetype="application/json")
             except (ValueError,TypeError) as excepcion:error=str(excepcion)
         return render_template("admin_ensayo_respaldo_restauracion.html",resultado=resultado,error=error,organizacion=organizacion,unidad=unidad)
+
+    @blueprint.route("/admin/estructura/exportacion-respaldo-integral", methods=["GET", "POST"])
+    @login_required
+    def exportacion_respaldo_integral():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:return respuesta
+        unidad_id=session.get("unidad_negocio_id")
+        unidad=modelos["UnidadNegocio"].query.filter_by(id=unidad_id,organizacion_id=organizacion.id,activa=True).first() if unidad_id else None
+        if unidad is None:unidad=modelos["UnidadNegocio"].query.filter_by(organizacion_id=organizacion.id,activa=True).order_by(modelos["UnidadNegocio"].id.asc()).first()
+        if unidad is None:return redirect(url_for("admin_estructura.panel",error="No hay una unidad activa para generar el respaldo."))
+        fuentes={**modelos,"UsuarioOrganizacion":UsuarioOrganizacion,"Auditoria":dependencias.get("Auditoria")}
+        respaldo=construir_respaldo_integral(organizacion_id=organizacion.id,unidad_negocio_id=unidad.id,modelos=fuentes)
+        if request.method == "POST":return send_file(exportar_respaldo_integral(respaldo),as_attachment=True,download_name="respaldo_integral_sin_secretos.json",mimetype="application/json")
+        return render_template("admin_exportacion_respaldo_integral.html",respaldo=respaldo,organizacion=organizacion,unidad=unidad)
 
     return blueprint

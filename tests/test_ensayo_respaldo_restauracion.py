@@ -31,6 +31,16 @@ def test_detecta_faltantes_duplicados_y_registros_ajenos():
     assert {"conjunto_faltante", "ids_duplicados", "registros_otro_tenant", "registros_otra_unidad"} <= codigos
 
 
+def test_ids_iguales_de_modelos_distintos_no_son_duplicados():
+    documento = json.loads(respaldo().read())
+    documento["conjuntos"]["catalogo"] = [
+        {"id": 1, "_modelo": "Producto", "organizacion_id": 7, "unidad_negocio_id": 3},
+        {"id": 1, "_modelo": "Catalogo", "organizacion_id": 7, "unidad_negocio_id": 3},
+    ]
+    resultado = ensayar(io.BytesIO(json.dumps(documento).encode()), organizacion_id=7, unidad_negocio_id=3)
+    assert "ids_duplicados" not in {item["codigo"] for item in resultado["hallazgos"]}
+
+
 def test_rechaza_tenant_unidad_formato_y_tamano():
     with pytest.raises(ValueError, match="otro tenant"):
         ensayar(respaldo(org=8), organizacion_id=7, unidad_negocio_id=3)
@@ -58,4 +68,3 @@ def test_ruta_admin_y_panel_declaran_frontera():
     panel = Path("templates/admin_ensayo_respaldo_restauracion.html").read_text(encoding="utf-8")
     assert "ensayar_respaldo(" in rutas and "resolver_acceso()" in rutas
     assert "no restaura bases ni escribe registros" in panel and "Restauración autorizada" in panel
-

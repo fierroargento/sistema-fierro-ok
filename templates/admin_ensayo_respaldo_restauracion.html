@@ -18,7 +18,6 @@
   <h2>Hallazgos</h2><ul>{% for item in resultado.hallazgos %}<li><strong>{{ item.conjunto }}</strong>: {{ item.detalle }}</li>{% else %}<li>No se detectaron inconsistencias de integridad.</li>{% endfor %}</ul>
   <p><strong>Restauración autorizada:</strong> NO · <strong>Base modificada:</strong> NO</p><p><code>{{ resultado.huella_ensayo_restauracion }}</code></p>
   {% endif %}
-  <p><a href="{{ url_for('admin_estructura.expediente_maestro') }}">Volver al expediente maestro</a></p>
+  <p><a href="{{ url_for('admin_estructura.exportacion_respaldo_integral') }}">Generar respaldo integral</a> · <a href="{{ url_for('admin_estructura.expediente_maestro') }}">Volver al expediente maestro</a></p>
 </main>
 {% endblock %}
-
