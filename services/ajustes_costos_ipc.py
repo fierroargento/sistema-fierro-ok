@@ -61,6 +61,9 @@ def calcular_ajuste(importe_centavos, indice_base, indice_final):
 
 
 def _leer_api(urlopen_fn, desde, hasta, serie):
+    from services.seguridad_entorno import exigir_conexion_externa
+
+    exigir_conexion_externa("IPC", "consulta de índices IPC")
     parametros = urlencode({
         "ids": serie, "format": "json",
         "start_date": desde.isoformat(), "end_date": hasta.isoformat(),

@@ -8,6 +8,7 @@ def registrar_modulos_web(
     *,
     dependencias,
 ):
+    from services.presentacion_monetaria import formatear_centavos_ars
     from modules.admin.comercial.routes import crear_blueprint_comercial
     from modules.admin.compras.routes import crear_blueprint_compras
     from modules.admin.crm.routes import (
@@ -40,6 +41,8 @@ def registrar_modulos_web(
 
     db = dependencias["db"]
     modelos = dependencias["modelos"]
+
+    app.jinja_env.filters["moneda_centavos"] = formatear_centavos_ars
 
     comunes = {
         "db": db,
@@ -122,6 +125,7 @@ def registrar_modulos_web(
                         "ResultadoIncorporacionTiendaNube",
                         "PedidoItem",
                         "MapeoPublicacionCanal",
+                        "VinculoCanalComercial",
                     )
                 },
             },

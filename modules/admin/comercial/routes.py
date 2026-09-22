@@ -1573,7 +1573,10 @@ def crear_blueprint_comercial(*, dependencias):
         if seleccion:
             filas = [fila for fila in filas if fila["clave"] in seleccion]
         if not filas:
-            raise ValueError("No hay filas de control para exportar.")
+            return redirect(url_for(
+                "admin_comercial.panel",
+                error="No hay filas de control para exportar.",
+            ))
         return send_file(
             exportar_bandeja_excel(filas), as_attachment=True,
             download_name="control_comercial.xlsx",

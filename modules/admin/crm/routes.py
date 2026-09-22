@@ -107,6 +107,7 @@ def crear_blueprint_crm(
 
         return render_template(
             "admin_crm.html",
+            organizacion=organizacion,
             **datos,
             ok_feedback=(
                 request.args.get("ok")

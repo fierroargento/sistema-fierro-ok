@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import base64
 import logging
+import click
 import sentry_sdk
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
@@ -243,7 +244,7 @@ _engine_options = {
     "pool_recycle": 300,
 }
 
-if database_url:
+if database_url.startswith("postgresql://"):
     _engine_options["connect_args"] = {
         "sslmode": "require"
     }
@@ -12145,11 +12146,16 @@ def asegurar_usuarios_iniciales():
     if UsuarioSistema.query.count() > 0:
         return
 
-    # Seguridad:
-    # No crear usuarios default automáticamente en Render/producción.
-    # Solo permitir bootstrap local explícito.
-    if os.environ.get("RENDER"):
-        print("[APB] Bootstrap de usuarios omitido en Render.")
+    # Los usuarios de demostración con contraseñas conocidas solo se crean
+    # cuando un desarrollador los habilita expresamente en su máquina.
+    usuarios_demo_habilitados = str(
+        os.environ.get("USUARIOS_DEMO_HABILITADOS", "false")
+    ).strip().lower() in {"1", "true", "si", "sí", "yes", "on"}
+    if os.environ.get("RENDER") or not usuarios_demo_habilitados:
+        print(
+            "[APB] Usuarios automáticos omitidos. "
+            "Usá 'flask crear-admin-inicial' para crear el primer acceso."
+        )
         return
 
     usuarios_base = [
@@ -12290,6 +12296,7 @@ registrar_modulos_web(
             "EventoLoteIncorporacionTiendaNube": EventoLoteIncorporacionTiendaNube,
             "ResultadoIncorporacionTiendaNube": ResultadoIncorporacionTiendaNube,
             "AsignacionTenantPedido": AsignacionTenantPedido,
+            "WhatsAppMensaje": WhatsAppMensaje,
             "ModuloOrganizacion": ModuloOrganizacion,
             "Producto": Producto,
             "VinculoCanalComercial": (
@@ -12407,11 +12414,68 @@ inicializar_base_datos_saas(
             "UsuarioOrganizacion": (
                 UsuarioOrganizacion
             ),
+            "Producto": Producto,
             "WhatsAppMensaje": WhatsAppMensaje,
             "AsignacionTenantWhatsApp": AsignacionTenantWhatsApp,
         },
     },
 )
+
+
+@app.cli.command("crear-admin-inicial")
+@click.option("--username", prompt="Usuario")
+@click.option("--nombre", prompt="Nombre")
+@click.option(
+    "--password",
+    prompt="Contraseña",
+    hide_input=True,
+    confirmation_prompt=True,
+)
+@click.option(
+    "--organizacion",
+    "organizacion_slug",
+    prompt="Slug de la organización",
+)
+def crear_admin_inicial(username, nombre, password, organizacion_slug):
+    """Crea el primer administrador sin contraseñas predeterminadas."""
+    username = str(username or "").strip()
+    nombre = str(nombre or "").strip()
+    organizacion_slug = str(organizacion_slug or "").strip()
+    if len(username) < 3 or len(nombre) < 3:
+        raise click.ClickException("Usuario y nombre deben tener al menos 3 caracteres.")
+    if len(password or "") < 12:
+        raise click.ClickException("La contraseña debe tener al menos 12 caracteres.")
+
+    organizacion = Organizacion.query.filter_by(
+        slug=organizacion_slug,
+        activa=True,
+    ).first()
+    if organizacion is None:
+        raise click.ClickException("La organización indicada no existe o está inactiva.")
+    if UsuarioSistema.query.filter_by(username=username).first() is not None:
+        raise click.ClickException("El usuario ya existe.")
+
+    usuario = UsuarioSistema(
+        username=username,
+        password_hash=generate_password_hash(password),
+        nombre=nombre,
+        rol="admin",
+        activo=True,
+        creado_por="cli_segura",
+    )
+    db.session.add(usuario)
+    db.session.flush()
+    db.session.add(UsuarioOrganizacion(
+        usuario_id=usuario.id,
+        organizacion_id=organizacion.id,
+        rol="admin",
+        activa=True,
+        predeterminada=True,
+    ))
+    db.session.commit()
+    click.echo(
+        f"Administrador '{username}' creado para '{organizacion.slug}'."
+    )
 
 # Modulo WhatsApp Bot. Su activacion queda
 # separada del bootstrap de base de datos.
