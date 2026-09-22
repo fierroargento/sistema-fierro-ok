@@ -26,6 +26,7 @@ from services.ensayo_respaldo_restauracion import ensayar as ensayar_respaldo,ex
 from services.exportacion_respaldo_integral import construir_respaldo as construir_respaldo_integral,exportar as exportar_respaldo_integral
 from services.comparacion_respaldos_integrales import comparar as comparar_respaldos,exportar as exportar_comparacion_respaldos
 from services.expediente_continuidad_operativa import construir as construir_expediente_continuidad,exportar as exportar_expediente_continuidad
+from services.aceptacion_operativa_integral import evaluar as evaluar_aceptacion_integral,exportar as exportar_aceptacion_integral,plantilla as plantilla_aceptacion_integral
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -555,5 +556,22 @@ def crear_blueprint_estructura(
                 if request.form.get("accion")=="exportar":return send_file(exportar_expediente_continuidad(resultado),as_attachment=True,download_name="expediente_continuidad_operativa.json",mimetype="application/json")
             except (ValueError,TypeError) as excepcion:error=str(excepcion)
         return render_template("admin_expediente_continuidad_operativa.html",resultado=resultado,error=error,organizacion=organizacion,unidad=unidad)
+
+    @blueprint.route("/admin/estructura/aceptacion-operativa-integral",methods=["GET","POST"])
+    @login_required
+    def aceptacion_operativa_integral():
+        _usuario,organizacion,respuesta=resolver_acceso()
+        if respuesta is not None:return respuesta
+        unidad_id=session.get("unidad_negocio_id");unidad=modelos["UnidadNegocio"].query.filter_by(id=unidad_id,organizacion_id=organizacion.id,activa=True).first() if unidad_id else None
+        if unidad is None:unidad=modelos["UnidadNegocio"].query.filter_by(organizacion_id=organizacion.id,activa=True).order_by(modelos["UnidadNegocio"].id.asc()).first()
+        if unidad is None:return redirect(url_for("admin_estructura.panel",error="No hay unidad activa para la aceptacion integral."))
+        if request.args.get("plantilla")=="1":return send_file(plantilla_aceptacion_integral(organizacion_id=organizacion.id,unidad_negocio_id=unidad.id),as_attachment=True,download_name="escenario_aceptacion_integral.json",mimetype="application/json")
+        resultado=None;error=""
+        if request.method=="POST":
+            try:
+                resultado=evaluar_aceptacion_integral(request.files.get("escenario"),organizacion_id=organizacion.id,unidad_negocio_id=unidad.id)
+                if request.form.get("accion")=="exportar":return send_file(exportar_aceptacion_integral(resultado),as_attachment=True,download_name="evidencia_aceptacion_operativa_integral.json",mimetype="application/json")
+            except (ValueError,TypeError) as excepcion:error=str(excepcion)
+        return render_template("admin_aceptacion_operativa_integral.html",resultado=resultado,error=error,organizacion=organizacion,unidad=unidad)
 
     return blueprint
