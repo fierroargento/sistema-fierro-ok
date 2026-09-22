@@ -28,6 +28,7 @@ from services.comparacion_respaldos_integrales import comparar as comparar_respa
 from services.expediente_continuidad_operativa import construir as construir_expediente_continuidad,exportar as exportar_expediente_continuidad
 from services.aceptacion_operativa_integral import evaluar as evaluar_aceptacion_integral,exportar as exportar_aceptacion_integral,plantilla as plantilla_aceptacion_integral
 from services.evaluacion_preparacion_reemplazo_dux import CONTROLES_HUMANOS,evaluar as evaluar_preparacion_dux,exportar as exportar_preparacion_dux
+from services.aceptacion_usuarios_operativos import evaluar as evaluar_uat,exportar as exportar_uat,plantilla as plantilla_uat
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -591,5 +592,22 @@ def crear_blueprint_estructura(
                 if request.form.get("accion")=="exportar":return send_file(exportar_preparacion_dux(resultado),as_attachment=True,download_name="evaluacion_preparacion_reemplazo_dux.json",mimetype="application/json")
             except (ValueError,TypeError) as excepcion:error=str(excepcion)
         return render_template("admin_evaluacion_preparacion_reemplazo_dux.html",resultado=resultado,error=error,organizacion=organizacion,unidad=unidad,controles_humanos=CONTROLES_HUMANOS)
+
+    @blueprint.route("/admin/estructura/aceptacion-usuarios-operativos",methods=["GET","POST"])
+    @login_required
+    def aceptacion_usuarios_operativos():
+        _usuario,organizacion,respuesta=resolver_acceso()
+        if respuesta is not None:return respuesta
+        unidad_id=session.get("unidad_negocio_id");unidad=modelos["UnidadNegocio"].query.filter_by(id=unidad_id,organizacion_id=organizacion.id,activa=True).first() if unidad_id else None
+        if unidad is None:unidad=modelos["UnidadNegocio"].query.filter_by(organizacion_id=organizacion.id,activa=True).order_by(modelos["UnidadNegocio"].id.asc()).first()
+        if unidad is None:return redirect(url_for("admin_estructura.panel",error="No hay unidad activa para la campaña UAT."))
+        if request.args.get("plantilla")=="1":return send_file(plantilla_uat(organizacion_id=organizacion.id,unidad_negocio_id=unidad.id),as_attachment=True,download_name="plantilla_resultados_uat.json",mimetype="application/json")
+        resultado=None;error=""
+        if request.method=="POST":
+            try:
+                resultado=evaluar_uat(request.files.get("evaluacion"),request.files.get("resultados"),organizacion_id=organizacion.id,unidad_negocio_id=unidad.id)
+                if request.form.get("accion")=="exportar":return send_file(exportar_uat(resultado),as_attachment=True,download_name="acta_aceptacion_usuarios.json",mimetype="application/json")
+            except (ValueError,TypeError) as excepcion:error=str(excepcion)
+        return render_template("admin_aceptacion_usuarios_operativos.html",resultado=resultado,error=error,organizacion=organizacion,unidad=unidad)
 
     return blueprint
