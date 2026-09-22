@@ -1,9 +1,18 @@
 """Smoke real: se ejecuta en un subproceso sin los dobles de tests/conftest.py."""
 
+from io import BytesIO
+
+from PIL import Image
+from werkzeug.datastructures import FileStorage
 from werkzeug.security import check_password_hash
 
 import app as modulo
 from services.ajustes_costos_ipc import actualizar_indices_oficiales
+from services.marcador_base_entorno import (
+    crear_marcador_staging,
+    verificar_marcador_staging,
+)
+from services.almacenamiento_archivos import guardar_imagen_local
 
 
 aplicacion = modulo.app
@@ -11,6 +20,9 @@ db = modulo.db
 aplicacion.config.update(TESTING=True, SESSION_COOKIE_SECURE=False)
 
 with aplicacion.app_context():
+    assert crear_marcador_staging(db.engine, "marcador-runtime-pruebas-aisladas-2026")
+    assert verificar_marcador_staging(db.engine, "marcador-runtime-pruebas-aisladas-2026")
+    assert not crear_marcador_staging(db.engine, "marcador-runtime-pruebas-aisladas-2026")
     db.create_all()
     organizacion = modulo.Organizacion(
         nombre="Fierro UAT",
@@ -75,6 +87,24 @@ with cliente.session_transaction() as sesion:
     sesion["username"] = "admin-uat"
     sesion["organizacion_id"] = ids[1]
     sesion["unidad_negocio_id"] = ids[2]
+
+contenido_imagen = BytesIO()
+Image.new("RGB", (8, 8), "red").save(contenido_imagen, format="PNG")
+contenido_imagen.seek(0)
+imagen_guardada = guardar_imagen_local(
+    FileStorage(stream=contenido_imagen, filename="producto.png"),
+    organizacion_id=ids[1],
+    espacio="catalogo_prueba",
+    limite_bytes=1024 * 1024,
+)
+respuesta_imagen = cliente.get(imagen_guardada["url"], base_url="https://localhost")
+assert respuesta_imagen.status_code == 200
+assert respuesta_imagen.mimetype == "image/png"
+respuesta_otro_tenant = cliente.get(
+    imagen_guardada["url"].replace(f"/{ids[1]}/", "/999999/"),
+    base_url="https://localhost",
+)
+assert respuesta_otro_tenant.status_code == 404
 
 revisadas = 0
 for regla in sorted(aplicacion.url_map.iter_rules(), key=lambda item: item.rule):

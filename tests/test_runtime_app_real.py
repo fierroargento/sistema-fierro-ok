@@ -18,6 +18,8 @@ def _entorno_runtime(raiz, base):
         "SCHEDULER_ENABLED": "false",
         "USUARIOS_DEMO_HABILITADOS": "false",
         "SENTRY_DSN": "",
+        "ALMACENAMIENTO_ARCHIVOS": "local_aislado",
+        "STAGING_UPLOAD_ROOT": str(base.parent / "archivos-uat"),
     })
     return entorno
 
@@ -51,6 +53,8 @@ def test_bootstrap_real_inicializa_una_base_vacia(tmp_path):
         "ctx=app.app.app_context(); ctx.push(); "
         "assert app.Organizacion.query.count() == 1; "
         "assert app.UsuarioSistema.query.count() == 0; "
+        "assert app.db.session.execute(app.text("
+        "'SELECT version FROM schema_version_saas')).first() is not None; "
         "print('BOOTSTRAP_RUNTIME_OK')"
     )
     resultado = subprocess.run(
@@ -64,3 +68,28 @@ def test_bootstrap_real_inicializa_una_base_vacia(tmp_path):
     )
     assert resultado.returncode == 0, resultado.stdout + resultado.stderr
     assert "BOOTSTRAP_RUNTIME_OK" in resultado.stdout
+
+
+def test_staging_inseguro_es_rechazado_antes_de_conectar(tmp_path):
+    raiz = Path(__file__).resolve().parents[1]
+    entorno = _entorno_runtime(raiz, tmp_path / "no-debe-usarse.sqlite3")
+    entorno.update({
+        "SISTEMA_FIERRO_ENTORNO": "staging",
+        "DATABASE_URL": "postgresql://usuario:clave@host-inexistente/base-staging",
+        "SISTEMA_FIERRO_PROPOSITO": "uat_desconectada",
+        "SISTEMA_FIERRO_RAMA_DESPLIEGUE": "integracion-saas-2026-09",
+        "MODO_LABORATORIO_DESCONECTADO": "false",
+    })
+    resultado = subprocess.run(
+        [sys.executable, "-c", "import app"],
+        cwd=raiz,
+        env=entorno,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    salida = resultado.stdout + resultado.stderr
+    assert resultado.returncode != 0
+    assert "Staging rechazado por preflight" in salida
+    assert "host-inexistente" not in salida

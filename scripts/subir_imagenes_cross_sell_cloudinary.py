@@ -1,8 +1,15 @@
 import os
 from pathlib import Path
+import sys
 
 import cloudinary
 import cloudinary.uploader
+
+RAIZ = Path(__file__).resolve().parents[1]
+if str(RAIZ) not in sys.path:
+    sys.path.insert(0, str(RAIZ))
+
+from services.seguridad_entorno import exigir_efecto_externo
 
 
 SKUS_CROSS_SELL = [
@@ -15,6 +22,7 @@ SKUS_CROSS_SELL = [
 
 
 def main():
+    exigir_efecto_externo("CLOUDINARY", "Carga manual de imágenes cross-sell")
     cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "").strip()
     api_key = os.getenv("CLOUDINARY_API_KEY", "").strip()
     api_secret = os.getenv("CLOUDINARY_API_SECRET", "").strip()

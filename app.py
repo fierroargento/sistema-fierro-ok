@@ -108,6 +108,7 @@ from services.seguridad_entorno import (
     exigir_efecto_externo,
     procesamiento_webhook_habilitado,
     scheduler_habilitado,
+    entorno_actual,
 )
 from services.contexto_canal_tenant import (
     resolver_contexto_cuenta,
@@ -191,7 +192,7 @@ from services.motor_bloqueo import (
 
 SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
 
-if SENTRY_DSN:
+if SENTRY_DSN and conexiones_externas_habilitadas("SENTRY"):
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[FlaskIntegration()],
@@ -230,6 +231,21 @@ cloudinary.config(
 )
 
 database_url = os.getenv("DATABASE_URL", "").strip()
+entorno_sistema = entorno_actual()
+if not database_url and entorno_sistema != "desarrollo":
+    raise RuntimeError("DATABASE_URL es obligatoria fuera del entorno de desarrollo.")
+if entorno_sistema in {"staging", "produccion"} and not database_url.startswith(("postgresql://", "postgres://")):
+    raise RuntimeError("Staging y producción requieren una DATABASE_URL PostgreSQL.")
+
+if entorno_sistema == "staging":
+    from services.certificacion_entorno_ensayo import certificar
+
+    certificacion_arranque = certificar()
+    if not certificacion_arranque["aprobado"]:
+        codigos = ", ".join(
+            hallazgo["codigo"] for hallazgo in certificacion_arranque["hallazgos"]
+        )
+        raise RuntimeError(f"Staging rechazado por preflight: {codigos}")
 if database_url:
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -264,6 +280,15 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 db.init_app(app)
+
+if entorno_sistema == "staging":
+    from services.marcador_base_entorno import verificar_marcador_aplicacion
+
+    verificar_marcador_aplicacion(
+        app,
+        db,
+        os.environ.get("STAGING_DATABASE_MARKER", ""),
+    )
 
 from models.auditoria import Auditoria
 from models.asignacion_tenant_auditoria import AsignacionTenantAuditoria
@@ -803,7 +828,7 @@ def asegurar_pdf_local_desde_url(url_pdf, prefijo="etiqueta"):
 
     parsed = urlparse(url_pdf)
     extension = os.path.splitext(parsed.path)[1].lower() or ".pdf"
-    firma = hashlib.md5(url_pdf.encode("utf-8")).hexdigest()[:12]
+    firma = hashlib.sha256(url_pdf.encode("utf-8")).hexdigest()[:12]
     nombre_archivo = secure_filename(f"{prefijo}_{firma}{extension}")
     ruta_pdf = os.path.join(app.config["UPLOAD_FOLDER"], nombre_archivo)
 
@@ -6656,6 +6681,36 @@ def health():
         "timestamp": datetime.utcnow().isoformat()
     }, 200
 
+
+@app.route("/ready")
+def readiness():
+    """Readiness real: confirma base y candados sin exponer configuración."""
+    from services.almacenamiento_archivos import almacenamiento_local_habilitado
+    from services.seguridad_entorno import diagnostico_laboratorio_desconectado
+
+    try:
+        db.session.execute(text("SELECT 1"))
+        diagnostico = diagnostico_laboratorio_desconectado()
+        listo = entorno_sistema != "staging" or (
+            diagnostico["laboratorio_forzado"]
+            and diagnostico["desconectado"]
+            and almacenamiento_local_habilitado()
+        )
+        return {
+            "status": "ready" if listo else "not_ready",
+            "database": "ok",
+            "entorno": entorno_sistema,
+            "laboratorio_desconectado": diagnostico["desconectado"],
+            "almacenamiento_aislado": almacenamiento_local_habilitado(),
+        }, 200 if listo else 503
+    except Exception:
+        db.session.rollback()
+        return {
+            "status": "not_ready",
+            "database": "error",
+            "entorno": entorno_sistema,
+        }, 503
+
 @app.errorhandler(404)
 def not_found(e):
     return render_template("404.html"), 404
@@ -8379,6 +8434,25 @@ def ver_etiqueta(nombre_archivo):
     if pedido is None:
         abort(404)
     return send_from_directory(app.config["UPLOAD_FOLDER"], archivo)
+
+
+@app.route("/archivos-uat/<int:organizacion_id>/<path:ruta_relativa>")
+@login_required
+def ver_archivo_aislado_uat(organizacion_id, ruta_relativa):
+    from services.almacenamiento_archivos import (
+        almacenamiento_local_habilitado,
+        raiz_local_aislada,
+    )
+
+    membresia = membresia_actual()
+    if (
+        not almacenamiento_local_habilitado()
+        or membresia is None
+        or membresia.organizacion_id != organizacion_id
+    ):
+        abort(404)
+    directorio = raiz_local_aislada() / f"organizacion_{organizacion_id}"
+    return send_from_directory(directorio, ruta_relativa)
 
 
 @app.route("/pedido/<path:nombre_archivo>")
@@ -12356,9 +12430,7 @@ from services.bootstrap_base_datos import (
 )
 
 
-inicializar_base_datos_saas(
-    app,
-    dependencias={
+DEPENDENCIAS_BOOTSTRAP_BASE = {
         "db": db,
         "inspect": inspect,
         "text": text,
@@ -12418,8 +12490,46 @@ inicializar_base_datos_saas(
             "WhatsAppMensaje": WhatsAppMensaje,
             "AsignacionTenantWhatsApp": AsignacionTenantWhatsApp,
         },
-    },
+}
+
+inicializar_base_datos_saas(
+    app,
+    dependencias=DEPENDENCIAS_BOOTSTRAP_BASE,
 )
+
+
+@app.cli.command("inicializar-base-staging")
+@click.option("--confirmar", required=True)
+def inicializar_base_staging(confirmar):
+    """Inicializa/migra staging una sola vez, con marcador ya verificado."""
+    if confirmar != "INICIALIZAR BASE STAGING AISLADA":
+        raise click.ClickException("Confirmación inválida; no se modificó la base.")
+    if entorno_actual() != "staging":
+        raise click.ClickException("Este comando sólo puede ejecutarse en staging.")
+    anteriores = {
+        "MODO_LABORATORIO_DESCONECTADO": os.environ.get(
+            "MODO_LABORATORIO_DESCONECTADO"
+        ),
+        "BOOTSTRAP_BASE_DATOS_HABILITADO": os.environ.get(
+            "BOOTSTRAP_BASE_DATOS_HABILITADO"
+        ),
+    }
+    os.environ["MODO_LABORATORIO_DESCONECTADO"] = "false"
+    os.environ["BOOTSTRAP_BASE_DATOS_HABILITADO"] = "true"
+    try:
+        ejecutado = inicializar_base_datos_saas(
+            app,
+            dependencias=DEPENDENCIAS_BOOTSTRAP_BASE,
+        )
+    finally:
+        for nombre, valor in anteriores.items():
+            if valor is None:
+                os.environ.pop(nombre, None)
+            else:
+                os.environ[nombre] = valor
+    if not ejecutado:
+        raise click.ClickException("La inicialización no llegó a ejecutarse.")
+    click.echo("BASE_STAGING_INICIALIZADA")
 
 
 @app.cli.command("crear-admin-inicial")

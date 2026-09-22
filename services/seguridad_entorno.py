@@ -77,6 +77,7 @@ def diagnostico_laboratorio_desconectado(canales=None):
     canales = canales or (
         "ML", "TN", "WHATSAPP", "OPENAI", "CLOUDINARY",
         "ANDREANI", "CORREO", "TRACKING", "GEOCODING", "DESCARGAS",
+        "IPC", "SENTRY",
     )
     detalle = {
         canal: {

@@ -61,6 +61,15 @@ def inicializar_base_datos_saas(
     )
 
     with app.app_context():
+        bloqueo_postgresql = db.engine.dialect.name == "postgresql"
+        if bloqueo_postgresql:
+            adquirido = db.session.execute(text_fn(
+                "SELECT pg_try_advisory_lock(hashtext('sistema_fierro_bootstrap_saas'))"
+            )).scalar()
+            if not adquirido:
+                raise RuntimeError(
+                    "Otra inicialización de la base SaaS está en ejecución."
+                )
         db.create_all()
 
         asegurar_subtotal_recepciones_compra(
@@ -263,3 +272,28 @@ def inicializar_base_datos_saas(
         dependencias[
             "asegurar_configuracion_inicial"
         ]()
+
+        db.session.execute(text_fn(
+            "CREATE TABLE IF NOT EXISTS schema_version_saas ("
+            "version VARCHAR(80) PRIMARY KEY, "
+            "aplicada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+        ))
+        version = "2026_09_22_staging_seguro_bloque_2"
+        registrada = db.session.execute(
+            text_fn("SELECT version FROM schema_version_saas WHERE version = :version"),
+            {"version": version},
+        ).first()
+        if registrada is None:
+            db.session.execute(
+                text_fn("INSERT INTO schema_version_saas (version) VALUES (:version)"),
+                {"version": version},
+            )
+            db.session.commit()
+
+        if bloqueo_postgresql:
+            db.session.execute(text_fn(
+                "SELECT pg_advisory_unlock(hashtext('sistema_fierro_bootstrap_saas'))"
+            ))
+            db.session.commit()
+
+    return True
