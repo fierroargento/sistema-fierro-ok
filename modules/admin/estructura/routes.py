@@ -25,6 +25,7 @@ from services.expediente_maestro_preparacion import construir_expediente as cons
 from services.ensayo_respaldo_restauracion import ensayar as ensayar_respaldo,exportar as exportar_ensayo_respaldo,plantilla as plantilla_respaldo
 from services.exportacion_respaldo_integral import construir_respaldo as construir_respaldo_integral,exportar as exportar_respaldo_integral
 from services.comparacion_respaldos_integrales import comparar as comparar_respaldos,exportar as exportar_comparacion_respaldos
+from services.expediente_continuidad_operativa import construir as construir_expediente_continuidad,exportar as exportar_expediente_continuidad
 
 from services.estructura_admin import (
     procesar_accion_estructura_admin,
@@ -538,5 +539,21 @@ def crear_blueprint_estructura(
                 if request.form.get("accion") == "exportar":return send_file(exportar_comparacion_respaldos(resultado),as_attachment=True,download_name="comparacion_respaldos_integrales.json",mimetype="application/json")
             except (ValueError,TypeError) as excepcion:error=str(excepcion)
         return render_template("admin_comparacion_respaldos_integrales.html",resultado=resultado,error=error,organizacion=organizacion,unidad=unidad)
+
+    @blueprint.route("/admin/estructura/expediente-continuidad",methods=["GET","POST"])
+    @login_required
+    def expediente_continuidad():
+        _usuario,organizacion,respuesta=resolver_acceso()
+        if respuesta is not None:return respuesta
+        unidad_id=session.get("unidad_negocio_id");unidad=modelos["UnidadNegocio"].query.filter_by(id=unidad_id,organizacion_id=organizacion.id,activa=True).first() if unidad_id else None
+        if unidad is None:unidad=modelos["UnidadNegocio"].query.filter_by(organizacion_id=organizacion.id,activa=True).order_by(modelos["UnidadNegocio"].id.asc()).first()
+        if unidad is None:return redirect(url_for("admin_estructura.panel",error="No hay unidad activa para el expediente de continuidad."))
+        resultado=None;error=""
+        if request.method=="POST":
+            try:
+                resultado=construir_expediente_continuidad(request.files.get("respaldo"),request.files.get("ensayo"),request.files.get("comparacion"),request.form,organizacion_id=organizacion.id,unidad_negocio_id=unidad.id)
+                if request.form.get("accion")=="exportar":return send_file(exportar_expediente_continuidad(resultado),as_attachment=True,download_name="expediente_continuidad_operativa.json",mimetype="application/json")
+            except (ValueError,TypeError) as excepcion:error=str(excepcion)
+        return render_template("admin_expediente_continuidad_operativa.html",resultado=resultado,error=error,organizacion=organizacion,unidad=unidad)
 
     return blueprint
