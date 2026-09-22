@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="card">
+  <h1>Ensayo offline de respaldo y restauración</h1>
+  <p>Controla integridad, pertenencia tenant, cantidades, duplicados, huellas y orden de recuperación. Trabaja sólo en memoria: no restaura bases ni escribe registros.</p>
+  {% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
+  <p><a href="{{ url_for('admin_estructura.ensayo_respaldo_restauracion', plantilla='1') }}">Descargar plantilla de respaldo</a></p>
+  <form method="post" enctype="multipart/form-data">
+    <input type="file" name="respaldo" accept=".json,application/json" required>
+    <button name="accion" value="validar" type="submit">Ensayar restauración</button>
+    <button name="accion" value="exportar" type="submit">Descargar evidencia</button>
+  </form>
+  {% if resultado %}
+  <div class="alerta {{ 'alerta-ok' if resultado.aprobado else 'alerta-error' }}"><strong>{{ 'ÍNTEGRO' if resultado.aprobado else 'REQUIERE REVISIÓN' }}</strong> · {{ resultado.resumen.conjuntos_presentes }}/{{ resultado.resumen.conjuntos_requeridos }} conjuntos · {{ resultado.resumen.registros }} registros</div>
+  <table style="width:100%"><thead><tr><th>Orden</th><th>Conjunto</th><th>Registros</th><th>Huella</th><th>Restaurado</th></tr></thead><tbody>
+  {% for item in resultado.orden_restauracion %}<tr><td>{{ item.orden }}</td><td>{{ item.conjunto }}</td><td>{{ item.registros }}</td><td><code>{{ item.huella }}</code></td><td>NO</td></tr>{% endfor %}
+  </tbody></table>
+  <h2>Hallazgos</h2><ul>{% for item in resultado.hallazgos %}<li><strong>{{ item.conjunto }}</strong>: {{ item.detalle }}</li>{% else %}<li>No se detectaron inconsistencias de integridad.</li>{% endfor %}</ul>
+  <p><strong>Restauración autorizada:</strong> NO · <strong>Base modificada:</strong> NO</p><p><code>{{ resultado.huella_ensayo_restauracion }}</code></p>
+  {% endif %}
+  <p><a href="{{ url_for('admin_estructura.expediente_maestro') }}">Volver al expediente maestro</a></p>
+</main>
+{% endblock %}
+

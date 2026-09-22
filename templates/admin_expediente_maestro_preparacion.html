@@ -19,7 +19,6 @@
   <h2>Hallazgos</h2><ul>{% for item in resultado.hallazgos %}<li><strong>{{ item.dominio }}</strong>: {{ item.detalle }}</li>{% else %}<li>Todos los dominios requeridos están presentes y aprobados.</li>{% endfor %}</ul>
   <p><strong>Autorización de corte real:</strong> NO</p><p><code>{{ resultado.huella_expediente_maestro }}</code></p>
   {% endif %}
-  <p><a href="{{ url_for('admin_estructura.control_integral') }}">Volver al control estructural</a></p>
+  <p><a href="{{ url_for('admin_estructura.ensayo_respaldo_restauracion') }}">Ensayar respaldo y restauración</a> · <a href="{{ url_for('admin_estructura.control_integral') }}">Volver al control estructural</a></p>
 </main>
 {% endblock %}
-
