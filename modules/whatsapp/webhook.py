@@ -142,7 +142,9 @@ def _procesar_statuses_whatsapp(statuses, organizacion_id):
             db.session.rollback()
             logger.exception("[WA-STATUS] Error guardando estados")
 
-def _routear_mensaje(pedido, texto, telefono, organizacion_id=None):
+def _routear_mensaje(
+    pedido, texto, telefono, organizacion_id=None, unidad_negocio_id=None,
+):
     """
     Decide qué flujo manejar según el estado actual del pedido.
     """
@@ -159,6 +161,7 @@ def _routear_mensaje(pedido, texto, telefono, organizacion_id=None):
             WhatsAppMensaje=WhatsAppMensaje,
             wa_enviar_texto=wa_enviar_texto,
             organizacion_id=organizacion_id,
+            unidad_negocio_id=unidad_negocio_id,
         )
         return
 
@@ -499,6 +502,7 @@ def registrar_webhook(app):
                             telefono,
                             _obtener_estado_wa,
                             organizacion_id,
+                            unidad_negocio_id,
                         )
                     elif pedido is not None:
                         try:

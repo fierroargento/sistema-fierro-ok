@@ -10,11 +10,11 @@ APB conversacion interna:
 """
 
 import json
+import os
 import re
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
-from .config import WA_TOKEN, WA_API_URL
 from services.logger import get_app_logger
 from services.busqueda_pedidos import buscar_pedido_activo_por_telefono
 from .runtime import (
@@ -24,7 +24,14 @@ from .runtime import (
     wa_ventana_24h_abierta,
 )
 from services.whatsapp_template_params import sanitizar_parametros_template_meta
-from services.seguridad_entorno import efectos_externos_habilitados
+from services.seguridad_entorno import (
+    conexiones_externas_habilitadas,
+    efectos_externos_habilitados,
+)
+from services.whatsapp_salida_tenant import (
+    ConfiguracionSalidaWhatsAppError,
+    resolver_configuracion_salida_whatsapp,
+)
 
 logger = get_app_logger(__name__)
 
@@ -45,23 +52,83 @@ def _registrar_historial(pedido=None, telefono="", texto="", autor="bot", estado
         logger.exception("[WA-HIST] Error registrando salida")
 
 
-def _wa_post(payload):
+def _identidad_tenant_salida(pedido=None, organizacion_id=None, unidad_negocio_id=None):
+    organizacion_id = organizacion_id or getattr(pedido, "organizacion_id", None)
+    unidad_negocio_id = unidad_negocio_id or getattr(pedido, "unidad_negocio_id", None)
+    try:
+        organizacion_id = int(organizacion_id)
+        unidad_negocio_id = int(unidad_negocio_id)
+    except (TypeError, ValueError) as error:
+        raise ConfiguracionSalidaWhatsAppError(
+            "Salida WhatsApp bloqueada: falta identidad de organización/unidad."
+        ) from error
+    if organizacion_id <= 0 or unidad_negocio_id <= 0:
+        raise ConfiguracionSalidaWhatsAppError(
+            "Salida WhatsApp bloqueada: identidad de organización/unidad inválida."
+        )
+    return organizacion_id, unidad_negocio_id
+
+
+def _resolver_configuracion_envio(
+    *, pedido=None, organizacion_id=None, unidad_negocio_id=None,
+):
+    organizacion_id, unidad_negocio_id = _identidad_tenant_salida(
+        pedido, organizacion_id, unidad_negocio_id,
+    )
+    from models.vinculo_canal_comercial import VinculoCanalComercial
+
+    vinculos = (
+        VinculoCanalComercial.query
+        .filter_by(
+            canal="whatsapp",
+            estado="activo",
+            organizacion_id=organizacion_id,
+            unidad_negocio_id=unidad_negocio_id,
+        )
+        .all()
+    )
+    return resolver_configuracion_salida_whatsapp(
+        vinculos,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+        environ=os.environ,
+    )
+
+
+def _wa_post(
+    payload, *, pedido=None, organizacion_id=None, unidad_negocio_id=None,
+):
     """Envia un payload a la API de Meta. Devuelve (ok, data/error)."""
     if not efectos_externos_habilitados("WHATSAPP"):
         msg = "Envio WhatsApp bloqueado: Sistema Fierro esta en modo desconectado"
         logger.warning("[WA-SEGURIDAD] %s", msg)
         return False, msg
 
-    if not WA_TOKEN:
-        msg = "WHATSAPP_TOKEN no configurado -modulo inactivo"
-        print("[WA]", msg)
+    if not conexiones_externas_habilitadas("WHATSAPP"):
+        msg = "Envio WhatsApp bloqueado: conexion externa no habilitada"
+        logger.warning("[WA-SEGURIDAD] %s", msg)
+        return False, msg
+
+    try:
+        configuracion = _resolver_configuracion_envio(
+            pedido=pedido,
+            organizacion_id=organizacion_id,
+            unidad_negocio_id=unidad_negocio_id,
+        )
+    except ConfiguracionSalidaWhatsAppError as error:
+        msg = str(error)
+        logger.warning("[WA-TENANT] %s", msg)
+        return False, msg
+    except Exception:
+        msg = "Salida WhatsApp bloqueada: no se pudo resolver la cuenta tenant."
+        logger.exception("[WA-TENANT] %s", msg)
         return False, msg
 
     req = Request(
-        WA_API_URL,
+        configuracion.api_url,
         data=json.dumps(payload).encode("utf-8"),
         headers={
-            "Authorization": f"Bearer {WA_TOKEN}",
+            "Authorization": f"Bearer {configuracion.token}",
             "Content-Type":  "application/json",
         },
         method="POST",
@@ -105,7 +172,10 @@ def _extraer_message_id(data):
         pass
     return ""
 
-def wa_enviar_template(telefono, template_name, parametros=None, pedido=None, autor="bot", registrar=True):
+def wa_enviar_template(
+    telefono, template_name, parametros=None, pedido=None, autor="bot",
+    registrar=True, organizacion_id=None, unidad_negocio_id=None,
+):
     """Envia una plantilla aprobada de Meta WhatsApp.
 
     Sirve para iniciar/reabrir conversacion cuando la ventana de 24 hs esta cerrada.
@@ -154,7 +224,12 @@ def wa_enviar_template(telefono, template_name, parametros=None, pedido=None, au
         },
     }
 
-    ok, data = _wa_post(payload)
+    ok, data = _wa_post(
+        payload,
+        pedido=pedido,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+    )
 
     texto_hist = f"[Template] {template_name} | Params: {parametros}"
 
@@ -185,6 +260,8 @@ def wa_enviar_texto(
     registrar=True,
     fallback_template=None,
     fallback_parametros=None,
+    organizacion_id=None,
+    unidad_negocio_id=None,
 ):
     """Envia un mensaje de texto simple.
 
@@ -231,6 +308,8 @@ def wa_enviar_texto(
                         pedido=pedido,
                         autor=autor,
                         registrar=registrar,
+                        organizacion_id=organizacion_id,
+                        unidad_negocio_id=unidad_negocio_id,
                     )
 
                 print(f"[WA-APB] Bloqueado envio automatico pedido #{getattr(pedido, 'id', '?')}: {motivo}")
@@ -271,12 +350,17 @@ def wa_enviar_texto(
         except Exception as e:
             logger.exception("[WA-APB] Error evaluando candado")
 
-    ok, data = _wa_post({
-        "messaging_product": "whatsapp",
-        "to":   telefono,
-        "type": "text",
-        "text": {"body": texto_limpio},
-    })
+    ok, data = _wa_post(
+        {
+            "messaging_product": "whatsapp",
+            "to": telefono,
+            "type": "text",
+            "text": {"body": texto_limpio},
+        },
+        pedido=pedido,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+    )
 
     if ok and autor == "bot" and pedido is not None:
         try:
@@ -297,7 +381,10 @@ def wa_enviar_texto(
     return ok
 
 
-def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot", registrar=True):
+def wa_enviar_imagen(
+    telefono, imagen_url, caption="", pedido=None, autor="bot", registrar=True,
+    organizacion_id=None, unidad_negocio_id=None,
+):
     """Envia una imagen con caption opcional."""
     telefono = re.sub(r"\D", "", str(telefono or ""))
     if not telefono or not imagen_url:
@@ -332,7 +419,12 @@ def wa_enviar_imagen(telefono, imagen_url, caption="", pedido=None, autor="bot",
     if caption:
         payload["image"]["caption"] = str(caption).strip()
 
-    ok, data = _wa_post(payload)
+    ok, data = _wa_post(
+        payload,
+        pedido=pedido,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+    )
     if caption:
         texto_hist = f"[Imagen enviada] {caption}"
     else:

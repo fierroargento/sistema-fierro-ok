@@ -199,6 +199,7 @@ def manejar_sin_pedido_activo_wa_general(
     WhatsAppMensaje,
     wa_enviar_texto,
     organizacion_id,
+    unidad_negocio_id=None,
 ):
     tel = normalizar_telefono_service(telefono)
 
@@ -226,6 +227,8 @@ def manejar_sin_pedido_activo_wa_general(
         wa_enviar_texto(
             tel,
             respuesta_agradecimiento_wa_general(),
+            organizacion_id=organizacion_id,
+            unidad_negocio_id=unidad_negocio_id,
         )
         return accion
 
@@ -233,6 +236,8 @@ def manejar_sin_pedido_activo_wa_general(
         wa_enviar_texto(
             tel,
             respuesta_menu_contacto_nuevo_wa_general(),
+            organizacion_id=organizacion_id,
+            unidad_negocio_id=unidad_negocio_id,
         )
         return accion
 

@@ -216,6 +216,8 @@ def registrar_wa_general_routes(app):
             pedido=None,
             autor="operador",
             registrar=True,
+            organizacion_id=session.get("organizacion_id"),
+            unidad_negocio_id=session.get("unidad_negocio_id"),
         )
 
         if ok:
@@ -258,6 +260,8 @@ def registrar_wa_general_routes(app):
             pedido=None,
             autor="operador",
             registrar=True,
+            organizacion_id=session.get("organizacion_id"),
+            unidad_negocio_id=session.get("unidad_negocio_id"),
         )
 
         if ok:

@@ -109,7 +109,7 @@ def hay_cross_sell(pedido):
     return bool(obtener_productos_a_ofrecer(pedido))
 
 
-def wa_ofrecer_producto(telefono, sku_producto):
+def wa_ofrecer_producto(telefono, sku_producto, pedido=None):
 
     producto = obtener_producto(sku_producto)
 
@@ -120,10 +120,11 @@ def wa_ofrecer_producto(telefono, sku_producto):
         telefono,
         producto.get("descripcion", producto.get("nombre", "")),
         producto.get("imagen_url", ""),
+        pedido=pedido,
     )
 
 
-def wa_responder_precio(telefono, sku_producto, cantidad=1):
+def wa_responder_precio(telefono, sku_producto, cantidad=1, pedido=None):
 
     producto = obtener_producto(sku_producto)
 
@@ -144,14 +145,15 @@ def wa_responder_precio(telefono, sku_producto, cantidad=1):
         f"Avisanos cuando hagas el pago 😊"
     )
 
-    return wa_enviar_texto(telefono, texto)
+    return wa_enviar_texto(telefono, texto, pedido=pedido)
 
 
-def wa_cerrar_cross_sell(telefono):
+def wa_cerrar_cross_sell(telefono, pedido=None):
 
     return wa_enviar_texto(
         telefono,
-        "¡Perfecto! Cuando despachemos tu pedido te avisamos por acá con el seguimiento 😊"
+        "¡Perfecto! Cuando despachemos tu pedido te avisamos por acá con el seguimiento 😊",
+        pedido=pedido,
     )
 
 

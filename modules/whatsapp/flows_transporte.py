@@ -306,7 +306,7 @@ def wa_enviar_confirmacion_sucursal(pedido):
     WA_ESPERANDO_CONFIRMACION_SUCURSAL,
     tel
 )
-    return wa_enviar_texto(tel, texto)
+    return wa_enviar_texto(tel, texto, pedido=pedido)
 
 def wa_procesar_respuesta_confirmacion(pedido, texto_cliente):
     from modules.whatsapp.flows import (
@@ -501,7 +501,8 @@ def wa_procesar_eleccion_transporte(pedido, texto_cliente):
 
         wa_enviar_texto(
             tel,
-            texto_pide_opcion_numerica_sucursal()
+            texto_pide_opcion_numerica_sucursal(),
+            pedido=pedido,
         )
         return
 
@@ -598,6 +599,7 @@ def wa_cerrar_datos_completos(pedido):
             return wa_enviar_texto(
                 tel,
                 resultado_suc.mensaje,
+                pedido=pedido,
             )
 
         if ok:

@@ -157,7 +157,7 @@ def wa_procesar_respuesta_postventa(pedido, texto_cliente):
         return
 
     if _es_afirmativo(texto_cliente) or "gracias" in texto_cliente.lower():
-        wa_enviar_texto(tel, "Gracias a vos! Un placer.")
+        wa_enviar_texto(tel, "Gracias a vos! Un placer.", pedido=pedido)
         return
 
     _wa_responder_con_ia(pedido, texto_cliente, tel)

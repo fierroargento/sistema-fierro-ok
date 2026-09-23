@@ -160,7 +160,7 @@ def _escalar_operador(pedido, motivo, mensaje_cliente=None):
         if mensaje_cliente:
             tel = normalizar_telefono_service(pedido.telefono)
             if tel:
-                wa_enviar_texto(tel, mensaje_cliente)
+                wa_enviar_texto(tel, mensaje_cliente, pedido=pedido)
     except Exception as e:
         print("[WA] Error escalando:", e)
 
@@ -205,7 +205,8 @@ def _responder_factura_o_escalar(pedido, texto_cliente):
         return True
     wa_enviar_texto(
         tel,
-        "Sí, realizamos factura A y B.\n\nLa factura se emite con los datos cargados en la plataforma donde realizaste la compra."
+        "Sí, realizamos factura A y B.\n\nLa factura se emite con los datos cargados en la plataforma donde realizaste la compra.",
+        pedido=pedido,
     )
     return True
 
@@ -602,7 +603,7 @@ def wa_iniciar_cross_sell(pedido, origen="bot", forzar=False):
         autor=origen,
     )
 
-    ok_3 = wa_ofrecer_producto(tel, primer_sku)
+    ok_3 = wa_ofrecer_producto(tel, primer_sku, pedido=pedido)
 
     envio_ok = bool(ok_1 or ok_2 or ok_3)
 
@@ -717,9 +718,9 @@ def wa_procesar_respuesta_cross_sell(pedido, texto_cliente, sku_actual, indice_a
         if siguiente_idx < len(productos):
             siguiente_sku = productos[siguiente_idx]
             _guardar_estado_wa(pedido, f"cross_sell:{siguiente_sku}:{siguiente_idx}", tel)
-            wa_ofrecer_producto(tel, siguiente_sku)
+            wa_ofrecer_producto(tel, siguiente_sku, pedido=pedido)
         else:
-            wa_cerrar_cross_sell(tel)
+            wa_cerrar_cross_sell(tel, pedido=pedido)
             _guardar_estado_wa(pedido, WA_CROSS_SELL_CERRADO, tel)
         return
     _wa_responder_con_ia(pedido, texto_cliente, tel)
@@ -757,7 +758,7 @@ REGLAS:
             respuesta = respuesta.replace("ESCALAR", "").strip()
             _escalar_operador(pedido, f"IA no pudo resolver: {texto_cliente[:80]}")
         if respuesta:
-            wa_enviar_texto(tel, respuesta)
+            wa_enviar_texto(tel, respuesta, pedido=pedido)
     except Exception as e:
         print("[WA] Error IA:", e)
         _escalar_operador(pedido, "Error IA", "Te derivamos con un operador para ayudarte mejor.")
