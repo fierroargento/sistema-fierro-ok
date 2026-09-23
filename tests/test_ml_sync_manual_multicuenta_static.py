@@ -38,11 +38,11 @@ def test_sync_manual_acumula_resultados():
         assert campo in bloque
 
     assert (
-        "ml_sync_mensajes_pendientes_pedidos()"
+        "ml_sync_mensajes_pendientes_pedidos(organizacion_id)"
         in bloque
     )
     assert (
-        "ml_sync_claims_pedidos_operativos()"
+        "ml_sync_claims_pedidos_operativos(organizacion_id)"
         in bloque
     )
 

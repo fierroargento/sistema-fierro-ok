@@ -24,6 +24,21 @@ CAMPOS_DATOS_CLIENTE = (
     "autorizado_telefono",
 )
 
+LIMITES_DATOS_CLIENTE = {
+    "cliente": 120,
+    "dni": 20,
+    "telefono": 30,
+    "mail": 120,
+    "direccion": 200,
+    "localidad": 100,
+    "provincia": 100,
+    "codigo_postal": 10,
+    "sucursal_nombre": 150,
+    "autorizado_nombre": 120,
+    "autorizado_dni": 20,
+    "autorizado_telefono": 30,
+}
+
 
 @dataclass(frozen=True)
 class ResultadoEdicionDatosCliente:
@@ -53,19 +68,41 @@ def aplicar_edicion_datos_cliente_para_etiqueta(
     datos: Mapping[str, Any],
     *,
     rol: str,
+    organizacion_id: int,
+    unidad_negocio_id: int,
     normalizar_telefono_fn: Callable[[Any], str],
 ) -> ResultadoEdicionDatosCliente:
+    if (
+        getattr(pedido, "organizacion_id", None) != int(organizacion_id)
+        or getattr(pedido, "unidad_negocio_id", None) != int(unidad_negocio_id)
+    ):
+        return ResultadoEdicionDatosCliente(
+            permitida=False,
+            motivo="pedido_fuera_del_contexto_activo",
+        )
+
     if not puede_editar_datos_cliente_para_etiqueta(pedido, rol=rol):
         return ResultadoEdicionDatosCliente(
             permitida=False,
             motivo="edicion_fuera_de_etapa_o_rol",
         )
 
-    cambios = []
+    valores_validados = {}
     for campo in CAMPOS_DATOS_CLIENTE:
         valor_nuevo = str(datos.get(campo) or "").strip()
         if campo in {"telefono", "autorizado_telefono"}:
             valor_nuevo = normalizar_telefono_fn(valor_nuevo) if valor_nuevo else ""
+
+        if len(valor_nuevo) > LIMITES_DATOS_CLIENTE[campo]:
+            return ResultadoEdicionDatosCliente(
+                permitida=False,
+                motivo=f"campo_demasiado_largo:{campo}",
+            )
+
+        valores_validados[campo] = valor_nuevo
+
+    cambios = []
+    for campo, valor_nuevo in valores_validados.items():
 
         valor_anterior = str(getattr(pedido, campo, "") or "").strip()
         if valor_nuevo == valor_anterior:

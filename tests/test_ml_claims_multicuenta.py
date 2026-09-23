@@ -54,6 +54,7 @@ def test_sync_claims_consulta_cada_pedido_con_su_contexto():
     class PedidoFake:
         canal = CampoFake()
         estado = CampoFake()
+        organizacion_id = CampoFake()
         query = QueryPedidosFake([
             pedido_1,
             pedido_2,
@@ -85,6 +86,7 @@ def test_sync_claims_consulta_cada_pedido_con_su_contexto():
             (pedido.id, claim)
         ),
         ["Cargando Pedido"],
+        organizacion_id=7,
     )
 
     assert consultas == [
@@ -107,7 +109,7 @@ def test_app_conecta_claims_con_cuenta_del_pedido():
         "def ml_obtener_claim_de_pedido("
     )
     fin_adaptador = app.index(
-        "\ndef ml_sync_claims_pedidos_operativos():",
+        "\ndef ml_sync_claims_pedidos_operativos(organizacion_id):",
         inicio_adaptador,
     )
     adaptador = app[inicio_adaptador:fin_adaptador]

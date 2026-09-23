@@ -17,7 +17,7 @@ def test_sync_mensajes_no_elige_cuenta_global():
     app = _app()
     bloque = _bloque(
         app,
-        "def ml_sync_mensajes_pendientes_pedidos(",
+        "def ml_sync_mensajes_pendientes_pedidos(organizacion_id):",
         "\ndef ml_pedido_tiene_mensajes_pendientes(",
     )
 

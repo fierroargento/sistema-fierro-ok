@@ -70,6 +70,10 @@ from services.acceso_tenant_pedidos import (
     consulta_pedidos_tenant,
     obtener_pedido_tenant,
 )
+from services.devoluciones_pedidos import (
+    validar_cierre_reclamo_ml,
+    validar_devolucion_pedido,
+)
 from services.horario_operativo import (
     ARG_TZ,
     IA_HORA_FIN_OPERATIVA,
@@ -691,9 +695,10 @@ def backfill_ml_identidad_cuenta_pedidos():
 
     cuenta = cuentas[0]
     seller_id = str(getattr(cuenta, "user_id_ml", "") or "").strip()
+    organizacion_id = getattr(cuenta, "organizacion_id", None)
 
-    if not getattr(cuenta, "id", None) or not seller_id:
-        print("[ML CUENTAS] Backfill omitido: cuenta ML sin id o user_id_ml.")
+    if not getattr(cuenta, "id", None) or not seller_id or not organizacion_id:
+        print("[ML CUENTAS] Backfill omitido: cuenta ML sin identidad tenant completa.")
         return {
             "ok": False,
             "motivo": "cuenta_incompleta",
@@ -702,7 +707,10 @@ def backfill_ml_identidad_cuenta_pedidos():
 
     pedidos = (
         Pedido.query
-        .filter(Pedido.canal == "Mercado Libre")
+        .filter(
+            Pedido.canal == "Mercado Libre",
+            Pedido.organizacion_id == int(organizacion_id),
+        )
         .filter(
             (Pedido.ml_cuenta_id.is_(None))
             | (Pedido.ml_seller_id.is_(None))
@@ -5115,7 +5123,7 @@ def ml_sync_mensajes_pack(pack_id, pedido=None):
     return tiene_pendiente, count
 
 
-def ml_sync_mensajes_pendientes_pedidos():
+def ml_sync_mensajes_pendientes_pedidos(organizacion_id):
     """
     Sync mejorada para mensajes postventa:
     en vez de depender de /messages/unread, consulta por pack_id/order_id
@@ -5136,8 +5144,12 @@ def ml_sync_mensajes_pendientes_pedidos():
         "No entregado",
     ]
 
+    if organizacion_id is None:
+        raise ValueError("La sincronización de mensajes requiere organización explícita.")
+
     pedidos_ml = Pedido.query.filter(
         Pedido.canal == "Mercado Libre",
+        Pedido.organizacion_id == int(organizacion_id),
         Pedido.estado.in_(estados_operativos)
     ).all()
 
@@ -5531,7 +5543,7 @@ def ml_obtener_claim_de_pedido(
     )
 
 
-def ml_sync_claims_pedidos_operativos():
+def ml_sync_claims_pedidos_operativos(organizacion_id):
     estados_operativos = [
         Estado.CARGANDO,
         Estado.ETIQUETA_LISTA,
@@ -5551,6 +5563,7 @@ def ml_sync_claims_pedidos_operativos():
         ml_obtener_claim_de_pedido,
         ml_marcar_claim_en_pedido,
         estados_operativos,
+        organizacion_id=organizacion_id,
     )
 
 
@@ -6104,11 +6117,11 @@ def ml_sync_manual(
     if incluir_auxiliares:
         resultado_total[
             "mensajes_pendientes"
-        ] = ml_sync_mensajes_pendientes_pedidos()
+        ] = ml_sync_mensajes_pendientes_pedidos(organizacion_id)
 
         resultado_total[
             "claims_marcados"
-        ] = ml_sync_claims_pedidos_operativos()
+        ] = ml_sync_claims_pedidos_operativos(organizacion_id)
 
     session["ml_me_sin_etiqueta_count"] = (
         resultado_total["me_sin_etiqueta"]
@@ -8409,9 +8422,13 @@ def reset_ml_directo():
         return redirect(url_for("inicio"))
 
     try:
+        membresia = membresia_actual()
+        if membresia is None:
+            abort(403)
         pedidos = (
             Pedido.query
             .filter(
+                Pedido.organizacion_id == membresia.organizacion_id,
                 or_(
                     Pedido.origen == "mercadolibre",
                     Pedido.canal == "Mercado Libre"
@@ -11570,6 +11587,21 @@ def gestionar_devolucion(id):
             form_data[f"cantidad_danada_{item.id}"] = (request.form.get(f"cantidad_danada_{item.id}") or "0").strip() or "0"
             form_data[f"obs_item_{item.id}"] = (request.form.get(f"obs_item_{item.id}") or "").strip()
 
+        try:
+            validar_devolucion_pedido(
+                pedido,
+                form_data,
+                organizacion_id=pedido.organizacion_id,
+                unidad_negocio_id=pedido.unidad_negocio_id,
+            )
+        except ValueError as error:
+            return render_template(
+                "gestionar_devolucion.html",
+                pedido=pedido,
+                error=str(error),
+                form_data=form_data,
+            )
+
         fecha_devolucion_raw = form_data["fecha_devolucion"]
         estado_devolucion = form_data["estado_devolucion"]
         observacion_devolucion = form_data["observacion_devolucion"]
@@ -11726,6 +11758,25 @@ def cerrar_reclamo_ml_devolucion(id):
         resultado_reclamo_ml = (request.form.get("resultado_reclamo_ml") or "").strip()
         monto_recuperado_raw = (request.form.get("monto_recuperado_ml") or "").strip()
         observacion_reclamo_ml = (request.form.get("observacion_reclamo_ml") or "").strip()
+
+        try:
+            (
+                numero_reclamo_ml,
+                resultado_reclamo_ml,
+                monto_recuperado_ml,
+                observacion_reclamo_ml,
+            ) = validar_cierre_reclamo_ml(
+                pedido,
+                request.form,
+                organizacion_id=pedido.organizacion_id,
+                unidad_negocio_id=pedido.unidad_negocio_id,
+            )
+        except ValueError as error:
+            return render_template(
+                "cerrar_reclamo_ml_devolucion.html",
+                pedido=pedido,
+                error=str(error),
+            )
 
         if not numero_reclamo_ml:
             return render_template(

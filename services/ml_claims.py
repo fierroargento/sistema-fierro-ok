@@ -230,14 +230,20 @@ def ml_sync_claims_pedidos_operativos_service(
     ml_obtener_claim_de_pedido,
     ml_marcar_claim_en_pedido,
     estados_operativos,
+    *,
+    organizacion_id,
 ):
     """
     Consulta claims para pedidos ML operativos.
     Respaldo para cuando el webhook no trae/impacta el evento.
     """
 
+    if organizacion_id is None:
+        raise ValueError("La sincronización de reclamos requiere organización explícita.")
+
     pedidos = Pedido.query.filter(
         Pedido.canal == "Mercado Libre",
+        Pedido.organizacion_id == int(organizacion_id),
         Pedido.estado.in_(estados_operativos),
     ).all()
 
@@ -284,4 +290,4 @@ def ml_sync_claims_pedidos_operativos_service(
         db.session.rollback()
         print(f"[ML-CLAIMS-SYNC] Error commit: {e}")
 
-    return marcados    
+    return marcados

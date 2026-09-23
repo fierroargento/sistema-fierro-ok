@@ -36,7 +36,10 @@ def crear_blueprint_edicion_cliente(*, dependencias):
         except TenantError:
             return redirect(url_for("inicio"))
         pedido = obtener_pedido_tenant(
-            id, membresia.organizacion_id, Pedido=Pedido,
+            id,
+            membresia.organizacion_id,
+            Pedido=Pedido,
+            unidad_negocio_id=session.get("unidad_negocio_id"),
         )
         if pedido is None:
             abort(404)
@@ -54,6 +57,8 @@ def crear_blueprint_edicion_cliente(*, dependencias):
                 pedido,
                 request.form,
                 rol=rol,
+                organizacion_id=membresia.organizacion_id,
+                unidad_negocio_id=session.get("unidad_negocio_id"),
                 normalizar_telefono_fn=normalizar_telefono,
             )
 

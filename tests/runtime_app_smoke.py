@@ -36,6 +36,7 @@ from services.contabilidad_nucleo import (
 from services.crm_admin import procesar_accion_crm_admin
 from services.postventa_preparatoria import crear_caso, proponer_resolucion
 from services.cierre_postventa import agregar_item
+from services.ml_claims import ml_sync_claims_pedidos_operativos_service
 
 
 aplicacion = modulo.app
@@ -618,14 +619,37 @@ with aplicacion.app_context():
 
     pedido_fierro = modulo.Pedido(
         organizacion_id=ids[1], unidad_negocio_id=ids[2],
-        cliente="Cliente Fierro UAT", canal="laboratorio", id_venta="UAT-PV-1",
+        cliente="Cliente Fierro UAT", canal="Mercado Libre", id_venta="UAT-PV-1",
     )
     pedido_nautica = modulo.Pedido(
         organizacion_id=nautica_ids[0], unidad_negocio_id=nautica_ids[1],
-        cliente="Cliente Náutica UAT", canal="laboratorio", id_venta="UAT-PV-1",
+        cliente="Cliente Náutica UAT", canal="Mercado Libre", id_venta="UAT-PV-1",
     )
     db.session.add_all([pedido_fierro, pedido_nautica])
     db.session.commit()
+    sincronizados = []
+    sincronizador_original = modulo.ml_sync_mensajes_pedido
+    modulo.ml_sync_mensajes_pedido = lambda pedido: (
+        sincronizados.append(pedido.id) or (False, 0)
+    )
+    try:
+        modulo.ml_sync_mensajes_pendientes_pedidos(ids[1])
+    finally:
+        modulo.ml_sync_mensajes_pedido = sincronizador_original
+    assert sincronizados == [pedido_fierro.id]
+
+    claims_consultados = []
+    ml_sync_claims_pedidos_operativos_service(
+        modulo.Pedido,
+        db,
+        lambda pedido, _order_id, _pack_id: (
+            claims_consultados.append(pedido.id) or None
+        ),
+        lambda _pedido, _claim: None,
+        ["Cargando Pedido"],
+        organizacion_id=ids[1],
+    )
+    assert claims_consultados == [pedido_fierro.id]
     caso_fierro = crear_caso(
         {"tipo": "garantia", "titulo": "Prueba UAT",
          "descripcion": "Caso interno de laboratorio sin efectos."},
