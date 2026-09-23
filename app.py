@@ -789,6 +789,7 @@ def guardar_etiqueta_subida(archivo):
         return ""
 
     exigir_efecto_externo("CLOUDINARY", "Carga de etiqueta")
+    exigir_conexion_externa("CLOUDINARY", "Carga de etiqueta")
 
     try:
         resultado = cloudinary.uploader.upload(
@@ -812,6 +813,7 @@ def guardar_comprobante_dux_subido(archivo):
         return {"url": "", "public_id": ""}
 
     exigir_efecto_externo("CLOUDINARY", "Carga de comprobante DUX")
+    exigir_conexion_externa("CLOUDINARY", "Carga de comprobante DUX")
 
     try:
         resultado = cloudinary.uploader.upload(
@@ -838,6 +840,7 @@ def guardar_comprobante_pago_agregado_subido(archivo):
         return {"url": "", "public_id": ""}
 
     exigir_efecto_externo("CLOUDINARY", "Carga de comprobante de pago")
+    exigir_conexion_externa("CLOUDINARY", "Carga de comprobante de pago")
 
     try:
         resultado = cloudinary.uploader.upload(
@@ -8523,9 +8526,14 @@ def ver_etiqueta(nombre_archivo):
     return send_from_directory(app.config["UPLOAD_FOLDER"], archivo)
 
 
-@app.route("/archivos-uat/<int:organizacion_id>/<path:ruta_relativa>")
+@app.route(
+    "/archivos-uat/<int:organizacion_id>/<int:unidad_negocio_id>/"
+    "<path:ruta_relativa>"
+)
 @login_required
-def ver_archivo_aislado_uat(organizacion_id, ruta_relativa):
+def ver_archivo_aislado_uat(
+    organizacion_id, unidad_negocio_id, ruta_relativa,
+):
     from services.almacenamiento_archivos import (
         almacenamiento_local_habilitado,
         raiz_local_aislada,
@@ -8536,9 +8544,13 @@ def ver_archivo_aislado_uat(organizacion_id, ruta_relativa):
         not almacenamiento_local_habilitado()
         or membresia is None
         or membresia.organizacion_id != organizacion_id
+        or int(session.get("unidad_negocio_id") or 0) != unidad_negocio_id
     ):
         abort(404)
-    directorio = raiz_local_aislada() / f"organizacion_{organizacion_id}"
+    directorio = (
+        raiz_local_aislada() / f"organizacion_{organizacion_id}"
+        / f"unidad_{unidad_negocio_id}"
+    )
     return send_from_directory(directorio, ruta_relativa)
 
 
@@ -10927,6 +10939,8 @@ def whatsapp_enviar_operador(id):
                 imagen_manual,
                 pedido_id=pedido.id,
                 usuario=session.get("username", ""),
+                organizacion_id=pedido.organizacion_id,
+                unidad_negocio_id=pedido.unidad_negocio_id,
             )
             imagen_url_final = subida.get("url", "")
             imagen_nombre_final = subida.get("nombre", "") or "Imagen adjunta"

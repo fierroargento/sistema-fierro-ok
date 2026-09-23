@@ -328,7 +328,11 @@ def procesar_accion_fuente_costo(
         archivo = archivos.get("comprobante_archivo") if archivos is not None else None
         if archivo is not None and getattr(archivo, "filename", ""):
             from services.comprobantes_pagos_productivos import guardar_comprobante_pago
-            comprobante = guardar_comprobante_pago(archivo)
+            comprobante = guardar_comprobante_pago(
+                archivo,
+                organizacion_id=organizacion.id,
+                unidad_negocio_id=unidad_activa.id,
+            )
         registrar_pago(
             obligacion, organizacion_id=organizacion.id,
             fecha_pago=formulario.get("fecha_pago"),

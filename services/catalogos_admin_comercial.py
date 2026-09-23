@@ -232,6 +232,7 @@ def procesar_accion_catalogo_comercial(
         nuevas = subir_imagenes(
             archivos.getlist("imagenes") if archivos is not None else [],
             organizacion_id=organizacion.id,
+            unidad_negocio_id=inclusion.catalogo.unidad_negocio_id,
             inclusion_id=inclusion.id,
         )
         imagenes.extend(nuevas)

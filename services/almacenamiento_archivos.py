@@ -3,10 +3,10 @@
 from io import BytesIO
 import os
 from pathlib import Path
+import re
 from uuid import uuid4
 
 from PIL import Image
-from werkzeug.utils import secure_filename
 
 
 def almacenamiento_local_habilitado():
@@ -17,27 +17,60 @@ def raiz_local_aislada():
     raiz = Path(os.getenv("STAGING_UPLOAD_ROOT", "").strip())
     if not raiz.is_absolute():
         raise RuntimeError("STAGING_UPLOAD_ROOT debe ser una ruta absoluta.")
-    return raiz.resolve()
+    raiz = raiz.resolve()
+    if raiz == Path(raiz.anchor):
+        raise RuntimeError("STAGING_UPLOAD_ROOT no puede ser la raíz del sistema.")
+    return raiz
 
 
-def guardar_imagen_local(archivo, *, organizacion_id, espacio, limite_bytes):
-    """Valida y guarda una imagen con nombre no controlado por el usuario."""
-    nombre = secure_filename(str(getattr(archivo, "filename", "") or ""))
+def _nombre_seguro(valor, default="archivo"):
+    nombre = str(valor or "").replace("\\", "/").rsplit("/", 1)[-1]
+    nombre = re.sub(r"[^A-Za-z0-9._-]+", "_", nombre).strip("._")
+    return nombre[:180] or default
+
+
+def _identidad_almacenamiento(organizacion_id, unidad_negocio_id):
+    try:
+        organizacion_id = int(organizacion_id)
+        unidad_negocio_id = int(unidad_negocio_id)
+    except (TypeError, ValueError) as error:
+        raise ValueError("El archivo requiere organización y unidad válidas.") from error
+    if organizacion_id <= 0 or unidad_negocio_id <= 0:
+        raise ValueError("El archivo requiere organización y unidad válidas.")
+    return organizacion_id, unidad_negocio_id
+
+
+def guardar_archivo_local(
+    archivo, *, organizacion_id, unidad_negocio_id, espacio, limite_bytes,
+    extensiones_permitidas, validar_imagen=False,
+):
+    """Valida y guarda un archivo dentro del espacio aislado del tenant."""
+    organizacion_id, unidad_negocio_id = _identidad_almacenamiento(
+        organizacion_id, unidad_negocio_id,
+    )
+    nombre = _nombre_seguro(getattr(archivo, "filename", ""))
     extension = nombre.rsplit(".", 1)[-1].lower() if "." in nombre else ""
-    if extension not in {"jpg", "jpeg", "png", "webp"}:
-        raise ValueError("Las imágenes deben ser JPG, PNG o WEBP.")
+    permitidas = {str(valor).lower() for valor in extensiones_permitidas}
+    if extension not in permitidas:
+        raise ValueError("El tipo de archivo no está permitido.")
     contenido = archivo.read(limite_bytes + 1)
     if not contenido or len(contenido) > limite_bytes:
-        raise ValueError("La imagen está vacía o supera el tamaño permitido.")
-    try:
-        with Image.open(BytesIO(contenido)) as imagen:
-            imagen.verify()
-    except Exception as error:
-        raise ValueError("El archivo no contiene una imagen válida.") from error
+        raise ValueError("El archivo está vacío o supera el tamaño permitido.")
+    if validar_imagen:
+        try:
+            with Image.open(BytesIO(contenido)) as imagen:
+                imagen.verify()
+        except Exception as error:
+            raise ValueError("El archivo no contiene una imagen válida.") from error
+    elif extension == "pdf" and not contenido.startswith(b"%PDF-"):
+        raise ValueError("El archivo no contiene un PDF válido.")
 
     raiz = raiz_local_aislada()
-    espacio_seguro = secure_filename(str(espacio or "general")) or "general"
-    directorio = (raiz / f"organizacion_{int(organizacion_id)}" / espacio_seguro).resolve()
+    espacio_seguro = _nombre_seguro(espacio, "general")
+    directorio = (
+        raiz / f"organizacion_{organizacion_id}"
+        / f"unidad_{unidad_negocio_id}" / espacio_seguro
+    ).resolve()
     if raiz not in directorio.parents:
         raise RuntimeError("Ruta de almacenamiento fuera del espacio aislado.")
     directorio.mkdir(parents=True, exist_ok=True)
@@ -48,7 +81,29 @@ def guardar_imagen_local(archivo, *, organizacion_id, espacio, limite_bytes):
     archivo.stream.seek(0)
     ruta_relativa = f"{espacio_seguro}/{nombre_guardado}"
     return {
-        "url": f"/archivos-uat/{int(organizacion_id)}/{ruta_relativa}",
-        "public_id": f"local:{int(organizacion_id)}:{ruta_relativa}",
+        "url": (
+            f"/archivos-uat/{organizacion_id}/{unidad_negocio_id}/"
+            f"{ruta_relativa}"
+        ),
+        "public_id": (
+            f"local:{organizacion_id}:{unidad_negocio_id}:{ruta_relativa}"
+        ),
         "principal": False,
+        "nombre": nombre,
+        "size_bytes": len(contenido),
     }
+
+
+def guardar_imagen_local(
+    archivo, *, organizacion_id, unidad_negocio_id, espacio, limite_bytes,
+):
+    """Valida y guarda una imagen con nombre no controlado por el usuario."""
+    return guardar_archivo_local(
+        archivo,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+        espacio=espacio,
+        limite_bytes=limite_bytes,
+        extensiones_permitidas={"jpg", "jpeg", "png", "webp"},
+        validar_imagen=True,
+    )

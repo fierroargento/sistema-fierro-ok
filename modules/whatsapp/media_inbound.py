@@ -3,7 +3,7 @@ import tempfile
 
 import requests
 import cloudinary.uploader
-from services.seguridad_entorno import exigir_conexion_externa
+from services.seguridad_entorno import exigir_conexion_externa, exigir_efecto_externo
 
 
 ALLOWED_WA_INBOUND_MIME_TYPES = {
@@ -177,6 +177,8 @@ def subir_media_inbound_cloudinary(
     filename="",
     tipo="",
     mime_type="",
+    organizacion_id=None,
+    unidad_negocio_id=None,
 ):
     """
     Sube media recibida a Cloudinary.
@@ -191,11 +193,14 @@ def subir_media_inbound_cloudinary(
     filename = _normalizar_texto(filename) or "archivo_whatsapp"
     tipo = _normalizar_texto(tipo) or "media"
     pedido_id = _normalizar_texto(pedido_id) or "sin_pedido"
+    if not organizacion_id or not unidad_negocio_id:
+        raise ValueError("La media requiere organización y unidad.")
 
     suffix = os.path.splitext(filename)[1] or ""
     temp_path = ""
 
     exigir_conexion_externa("CLOUDINARY", "Carga de media WhatsApp")
+    exigir_efecto_externo("CLOUDINARY", "Carga de media WhatsApp")
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(contenido)
@@ -203,7 +208,10 @@ def subir_media_inbound_cloudinary(
 
         resultado = cloudinary.uploader.upload(
             temp_path,
-            folder=f"sistema_fierro/wa_inbound/pedido_{pedido_id}",
+            folder=(
+                f"sistema_fierro/{int(organizacion_id)}/"
+                f"{int(unidad_negocio_id)}/wa_inbound/pedido_{pedido_id}"
+            ),
             resource_type="auto",
             use_filename=True,
             unique_filename=True,
@@ -239,6 +247,7 @@ def procesar_media_inbound_whatsapp(
     WhatsAppMediaRecibida,
     db,
     organizacion_id,
+    unidad_negocio_id,
 ):
     """
     Procesa un mensaje entrante image/document:
@@ -275,6 +284,8 @@ def procesar_media_inbound_whatsapp(
         filename=media.get("filename", ""),
         tipo=media.get("tipo", ""),
         mime_type=mime_type,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
     )
 
     tipo = media.get("tipo") or ""

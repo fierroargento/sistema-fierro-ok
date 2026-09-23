@@ -1,5 +1,9 @@
 CATEGORIA_DEFAULT = "General"
-from services.seguridad_entorno import exigir_conexion_externa
+from services.seguridad_entorno import exigir_conexion_externa, exigir_efecto_externo
+from services.almacenamiento_archivos import (
+    almacenamiento_local_habilitado,
+    guardar_imagen_local,
+)
 
 
 def _normalizar_texto(valor):
@@ -171,7 +175,10 @@ def imagen_manual_wa_es_valida(archivo):
     return True, ""
 
 
-def subir_imagen_manual_wa_cloudinary(archivo, *, pedido_id="", usuario=""):
+def subir_imagen_manual_wa_cloudinary(
+    archivo, *, pedido_id="", usuario="", organizacion_id=None,
+    unidad_negocio_id=None,
+):
     """
     Sube imagen manual del operador a Cloudinary y devuelve metadata segura.
     No guarda claves ni depende de app.py.
@@ -187,11 +194,28 @@ def subir_imagen_manual_wa_cloudinary(archivo, *, pedido_id="", usuario=""):
     if not ok:
         raise ValueError(error)
 
+    nombre_original = str(archivo.filename or "").strip()
+    if almacenamiento_local_habilitado():
+        resultado = guardar_imagen_local(
+            archivo,
+            organizacion_id=organizacion_id,
+            unidad_negocio_id=unidad_negocio_id,
+            espacio=f"wa_operador_pedido_{pedido_id or 'sin_pedido'}",
+            limite_bytes=MAX_IMAGEN_WA_BYTES,
+        )
+        resultado["nombre"] = nombre_original
+        return resultado
+
+    if not organizacion_id or not unidad_negocio_id:
+        raise ValueError("La imagen requiere organización y unidad.")
     exigir_conexion_externa("CLOUDINARY", "Carga de imagen WhatsApp")
+    exigir_efecto_externo("CLOUDINARY", "Carga de imagen WhatsApp")
     import cloudinary.uploader
 
-    nombre_original = str(archivo.filename or "").strip()
-    carpeta = f"sistema_fierro/wa_operador/pedido_{pedido_id or 'sin_pedido'}"
+    carpeta = (
+        f"sistema_fierro/{int(organizacion_id)}/{int(unidad_negocio_id)}/"
+        f"wa_operador/pedido_{pedido_id or 'sin_pedido'}"
+    )
 
     resultado = cloudinary.uploader.upload(
         archivo,

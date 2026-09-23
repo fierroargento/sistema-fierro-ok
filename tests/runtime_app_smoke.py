@@ -754,6 +754,7 @@ contenido_imagen.seek(0)
 imagen_guardada = guardar_imagen_local(
     FileStorage(stream=contenido_imagen, filename="producto.png"),
     organizacion_id=ids[1],
+    unidad_negocio_id=ids[2],
     espacio="catalogo_prueba",
     limite_bytes=1024 * 1024,
 )
@@ -765,6 +766,12 @@ respuesta_otro_tenant = cliente.get(
     base_url="https://localhost",
 )
 assert respuesta_otro_tenant.status_code == 404
+with cliente.session_transaction() as sesion:
+    sesion["unidad_negocio_id"] = 999999
+respuesta_otra_unidad = cliente.get(
+    imagen_guardada["url"], base_url="https://localhost",
+)
+assert respuesta_otra_unidad.status_code == 404
 
 revisadas = 0
 for regla in sorted(aplicacion.url_map.iter_rules(), key=lambda item: item.rule):

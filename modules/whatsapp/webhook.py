@@ -479,6 +479,7 @@ def registrar_webhook(app):
                                 WhatsAppMediaRecibida=WhatsAppMediaRecibida,
                                 db=db,
                                 organizacion_id=organizacion_id,
+                                unidad_negocio_id=unidad_negocio_id,
                             )
 
                             if media_resultado:

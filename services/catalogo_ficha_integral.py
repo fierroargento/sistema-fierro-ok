@@ -2,7 +2,7 @@
 
 import json
 from decimal import Decimal
-from services.seguridad_entorno import exigir_conexion_externa
+from services.seguridad_entorno import exigir_conexion_externa, exigir_efecto_externo
 from services.almacenamiento_archivos import (
     almacenamiento_local_habilitado,
     guardar_imagen_local,
@@ -186,7 +186,9 @@ def validar_relaciones(ids, *, inclusion, CatalogoProducto):
     return relaciones
 
 
-def subir_imagenes(archivos, *, organizacion_id, inclusion_id):
+def subir_imagenes(
+    archivos, *, organizacion_id, unidad_negocio_id, inclusion_id,
+):
     nuevas = []
     for archivo in archivos or []:
         if not archivo or not getattr(archivo, "filename", ""):
@@ -198,11 +200,13 @@ def subir_imagenes(archivos, *, organizacion_id, inclusion_id):
             nuevas.append(guardar_imagen_local(
                 archivo,
                 organizacion_id=organizacion_id,
+                unidad_negocio_id=unidad_negocio_id,
                 espacio=f"catalogo_{inclusion_id}",
                 limite_bytes=8 * 1024 * 1024,
             ))
             continue
         exigir_conexion_externa("CLOUDINARY", "Carga de imagen de catalogo")
+        exigir_efecto_externo("CLOUDINARY", "Carga de imagen de catalogo")
         contenido = archivo.read()
         if not contenido or len(contenido) > 8 * 1024 * 1024:
             raise ValueError("Cada imagen debe pesar entre 1 byte y 8 MB.")
