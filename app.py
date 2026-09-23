@@ -7637,8 +7637,9 @@ def admin_auditoria_legacy_control_exportar():
 def admin_auditoria_eventos():
     membresia=membresia_actual()
     if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
-    eventos,pedidos=obtener_eventos_tenant(membresia.organizacion_id,Pedido=Pedido,EventoOperativo=EventoOperativo)
-    certificacion=certificar_eventos(membresia.organizacion_id,eventos,pedidos)
+    unidad = unidad_negocio_actual_o_403(membresia)
+    eventos,pedidos=obtener_eventos_tenant(membresia.organizacion_id,unidad_negocio_id=unidad.id,Pedido=Pedido,EventoOperativo=EventoOperativo)
+    certificacion=certificar_eventos(membresia.organizacion_id,eventos,pedidos,unidad_negocio_id=unidad.id)
     return render_template("admin_certificacion_eventos_operativos.html",certificacion=certificacion)
 
 
@@ -7647,8 +7648,9 @@ def admin_auditoria_eventos():
 def admin_auditoria_eventos_exportar():
     membresia=membresia_actual()
     if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
-    eventos,pedidos=obtener_eventos_tenant(membresia.organizacion_id,Pedido=Pedido,EventoOperativo=EventoOperativo)
-    certificacion=certificar_eventos(membresia.organizacion_id,eventos,pedidos)
+    unidad = unidad_negocio_actual_o_403(membresia)
+    eventos,pedidos=obtener_eventos_tenant(membresia.organizacion_id,unidad_negocio_id=unidad.id,Pedido=Pedido,EventoOperativo=EventoOperativo)
+    certificacion=certificar_eventos(membresia.organizacion_id,eventos,pedidos,unidad_negocio_id=unidad.id)
     return send_file(exportar_certificacion(certificacion),as_attachment=True,download_name="certificacion_eventos_operativos.json",mimetype="application/json")
 
 

@@ -1,7 +1,11 @@
 from pathlib import Path
 from types import SimpleNamespace
 import json
-from services.certificacion_eventos_operativos import certificar_eventos,exportar_certificacion
+from services.certificacion_eventos_operativos import (
+    certificar_eventos,
+    exportar_certificacion,
+    obtener_eventos_tenant,
+)
 
 def evento(eid=1,pedido_id=4,tipo="mensaje",procesado=False):return SimpleNamespace(id=eid,pedido_id=pedido_id,tipo_evento=tipo,procesado=procesado)
 def test_certifica_evento_del_tenant_y_firma():
@@ -15,3 +19,90 @@ def test_rutas_y_vista_presentes():
  a=Path("app.py").read_text(encoding="utf-8");h=Path("templates/admin_certificacion_eventos_operativos.html").read_text(encoding="utf-8");assert "admin_auditoria_eventos" in a and "Descargar certificación firmada" in h
 def test_servicio_solo_lectura_y_sin_red():
  s=Path("services/certificacion_eventos_operativos.py").read_text(encoding="utf-8").lower();assert not any(x in s for x in ("db.session","commit(","rollback(","delete(","update(","requests","urlopen"))
+
+
+class _QueryPedidos:
+    def __init__(self, pedidos):
+        self.pedidos = pedidos
+        self.filtros = None
+
+    def filter_by(self, **filtros):
+        self.filtros = filtros
+        return self
+
+    def all(self):
+        return self.pedidos
+
+
+class _QueryEventos:
+    def filter(self, *_args):
+        return self
+
+    def order_by(self, *_args):
+        return self
+
+    def limit(self, _limite):
+        return self
+
+    def all(self):
+        return []
+
+
+def test_lectura_eventos_filtra_organizacion_y_unidad():
+    consulta = _QueryPedidos([SimpleNamespace(id=8)])
+    Pedido = type("PedidoFake", (), {"query": consulta})
+    Evento = type(
+        "EventoFake",
+        (),
+        {
+            "query": _QueryEventos(),
+            "pedido_id": SimpleNamespace(in_=lambda _ids: True),
+            "id": SimpleNamespace(desc=lambda: None),
+        },
+    )
+
+    eventos, pedidos = obtener_eventos_tenant(
+        7,
+        unidad_negocio_id=70,
+        Pedido=Pedido,
+        EventoOperativo=Evento,
+    )
+
+    assert eventos == []
+    assert pedidos == {8: consulta.pedidos[0]}
+    assert consulta.filtros == {
+        "organizacion_id": 7,
+        "unidad_negocio_id": 70,
+    }
+
+
+def test_certificacion_detecta_evento_de_otra_unidad():
+    certificacion = certificar_eventos(
+        7,
+        [evento()],
+        {
+            4: SimpleNamespace(
+                id=4,
+                organizacion_id=7,
+                unidad_negocio_id=71,
+            )
+        },
+        unidad_negocio_id=70,
+    )
+
+    assert certificacion["aprobado"] is False
+    assert certificacion["unidad_negocio_id"] == 70
+    assert certificacion["observaciones"] == [
+        {"evento_id": 1, "codigo": "pedido_unidad_cruzada"}
+    ]
+
+
+def test_rutas_certificacion_resuelven_unidad_activa():
+    fuente = Path("app.py").read_text(encoding="utf-8")
+    for nombre in (
+        "admin_auditoria_eventos",
+        "admin_auditoria_eventos_exportar",
+    ):
+        bloque = fuente.split(f"def {nombre}(", 1)[1].split("\n@app.route", 1)[0]
+        assert "unidad_negocio_actual_o_403(membresia)" in bloque
+        assert "unidad_negocio_id=unidad.id" in bloque
