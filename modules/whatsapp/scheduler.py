@@ -13,6 +13,11 @@ from threading import Lock
 from extensions import db
 from models.pedido import Pedido
 from services.acceso_tenant_pedidos import consulta_pedidos_job_tenant
+from services.seguridad_entorno import (
+    conexiones_externas_habilitadas,
+    efectos_externos_habilitados,
+    scheduler_habilitado,
+)
 
 from domain.estados import Estado, ESTADOS_POST_DESPACHO
 from services.logger import get_app_logger
@@ -53,8 +58,17 @@ from .config import (
     TRACKING_INTERVALO_MINUTOS,
     WA_ESPERANDO_DATOS,
     WA_ESPERANDO_CONFIRMACION_SUCURSAL,
-    modulo_activo,
 )
+
+
+def _organizacion_scheduler(organizacion_id):
+    try:
+        organizacion_id = int(organizacion_id)
+    except (TypeError, ValueError) as error:
+        raise ValueError("El scheduler requiere una organización válida.") from error
+    if organizacion_id <= 0:
+        raise ValueError("El scheduler requiere una organización válida.")
+    return organizacion_id
 
 
 def ejecutar_timers(*, organizacion_id):
@@ -64,14 +78,20 @@ def ejecutar_timers(*, organizacion_id):
     APScheduler y también desde el hook liviano de requests. Si se solapan, se
     saltea una vuelta para no compartir sesión DB ni duplicar consultas externas.
     """
+    organizacion_id = _organizacion_scheduler(organizacion_id)
+    if not scheduler_habilitado():
+        logger.info("[WA SCHEDULER] Tick bloqueado por configuración segura")
+        return False
+
     if not _scheduler_lock.acquire(blocking=False):
         logger.info("[WA SCHEDULER] Tick omitido: ya hay un scheduler corriendo")
-        return
+        return False
 
     hubo_error = False
     try:
         ejecutar_timers_whatsapp(organizacion_id=organizacion_id)
         ejecutar_tracking_automatico(organizacion_id=organizacion_id)
+        return True
     except Exception as e:
         hubo_error = True
         logger.exception("[WA SCHEDULER] Error general ejecutar_timers")
@@ -92,8 +112,13 @@ def ejecutar_timers_whatsapp(*, organizacion_id):
     - esperando_datos
     - esperando_confirmacion_sucursal
     """
-    if not modulo_activo():
-        return
+    organizacion_id = _organizacion_scheduler(organizacion_id)
+    if not scheduler_habilitado():
+        return False
+    if not efectos_externos_habilitados("WHATSAPP"):
+        return False
+    if not conexiones_externas_habilitadas("WHATSAPP"):
+        return False
 
     try:
         from modules.whatsapp.flows import (
@@ -176,6 +201,12 @@ def ejecutar_tracking_automatico(*, organizacion_id):
     - NO marca Entregado automáticamente en Mercado Libre/Acordás la Entrega,
       porque antes debe intervenir el operador y avisar/confirmar en ML.
     """
+    organizacion_id = _organizacion_scheduler(organizacion_id)
+    if not scheduler_habilitado():
+        return False
+    if not conexiones_externas_habilitadas("TRACKING"):
+        return False
+
     try:
         from app import (
             tracking_info_pedido,
