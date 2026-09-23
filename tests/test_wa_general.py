@@ -4,8 +4,10 @@ from types import SimpleNamespace
 from services.fechas import ahora_utc_naive
 from services.wa_general import (
     armar_conversaciones_wa_general,
+    obtener_pedidos_por_telefono,
     pedido_esta_activo_para_wa_general,
 )
+import pytest
 
 
 class QueryFake:
@@ -151,3 +153,10 @@ def test_wa_general_ordena_por_ultima_actividad():
     )
 
     assert [c.telefono for c in conversaciones] == ["222", "111"]
+
+
+def test_consultas_wa_general_rechazan_contexto_global():
+    with pytest.raises(ValueError, match="organización"):
+        obtener_pedidos_por_telefono("5492920123456", ModeloPedidoFake, None)
+    with pytest.raises(ValueError, match="organización"):
+        armar_conversaciones_wa_general(ModeloMensajesFake, ModeloPedidoFake)

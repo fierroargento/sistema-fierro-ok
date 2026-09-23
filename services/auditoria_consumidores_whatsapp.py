@@ -12,7 +12,10 @@ ARCHIVOS_CONTROLADOS = {
     "services/asignacion_tenant_whatsapp.py",
     "services/certificacion_whatsapp_tenant.py",
     "modules/whatsapp/runtime.py",
+    "modules/whatsapp/webhook.py",
     "services/canal_manager.py",
+    "services/wa_general.py",
+    "services/wa_general_bot.py",
     "services/whatsapp_idempotencia.py",
 }
 

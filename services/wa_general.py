@@ -76,15 +76,12 @@ def mensaje_es_entrante_cliente(mensaje):
     return direccion == "in"
 
 
-def obtener_pedido_por_id(Pedido, pedido_id, organizacion_id=None):
+def obtener_pedido_por_id(Pedido, pedido_id, organizacion_id):
     if not pedido_id:
         return None
-
-    consulta = Pedido.query
-    if organizacion_id is not None:
-        consulta = consulta.filter_by(
-            organizacion_id=int(organizacion_id),
-        )
+    if organizacion_id is None:
+        raise ValueError("Falta la organización para consultar pedidos WhatsApp.")
+    consulta = Pedido.query.filter_by(organizacion_id=int(organizacion_id))
     return consulta.filter(Pedido.id == pedido_id).first()
 
 
@@ -99,7 +96,7 @@ def mensaje_es_posterior_a_entrega(mensaje, pedido):
 
 
 def mensaje_es_general_para_wa_general(
-    mensaje, Pedido, organizacion_id=None,
+    mensaje, Pedido, organizacion_id,
 ):
     """
     Define si un mensaje puede abrir conversacion en WA General.
@@ -135,7 +132,7 @@ def mensaje_es_general_para_wa_general(
 
 
 def mensaje_visible_en_chat_wa_general(
-    mensaje, Pedido, organizacion_id=None,
+    mensaje, Pedido, organizacion_id,
 ):
     """
     Define si un mensaje debe mostrarse dentro del chat WA General.
@@ -177,17 +174,15 @@ def mensaje_esta_no_leido_wa_general(mensaje):
 
 
 def obtener_pedidos_por_telefono(
-    telefono, Pedido, organizacion_id=None,
+    telefono, Pedido, organizacion_id,
 ):
     tel = normalizar_telefono_simple(telefono)
     if not tel:
         return []
 
-    consulta = Pedido.query
-    if organizacion_id is not None:
-        consulta = consulta.filter_by(
-            organizacion_id=int(organizacion_id),
-        )
+    if organizacion_id is None:
+        raise ValueError("Falta la organización para consultar pedidos WhatsApp.")
+    consulta = Pedido.query.filter_by(organizacion_id=int(organizacion_id))
     pedidos = (
         consulta
         .filter(Pedido.telefono.isnot(None))
@@ -218,11 +213,11 @@ def armar_conversaciones_wa_general(
     - Si el telefono tiene algun pedido activo, NO aparece en WA General.
     """
 
-    consulta = WhatsAppMensaje.query
-    if organizacion_id is not None:
-        consulta = consulta.filter_by(
-            organizacion_id=int(organizacion_id),
-        )
+    if organizacion_id is None:
+        raise ValueError("Falta la organización para consultar WhatsApp General.")
+    consulta = WhatsAppMensaje.query.filter_by(
+        organizacion_id=int(organizacion_id),
+    )
     mensajes = (
         consulta
         .filter(WhatsAppMensaje.telefono.isnot(None))

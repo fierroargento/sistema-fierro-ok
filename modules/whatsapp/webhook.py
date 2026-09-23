@@ -50,6 +50,11 @@ from services.busqueda_pedidos import buscar_pedido_activo_por_telefono
 from services.logger import get_app_logger
 from services.wa_general_bot import manejar_sin_pedido_activo_wa_general
 from services.seguridad_entorno import procesamiento_webhook_habilitado
+from services.contexto_webhook_whatsapp import (
+    ContextoWebhookWhatsAppError,
+    extraer_phone_number_id,
+    resolver_contexto_webhook_whatsapp,
+)
 
 logger = get_app_logger(__name__)
 
@@ -58,9 +63,9 @@ def _obtener_estado_wa(pedido):
     return str(getattr(pedido, "wa_estado", "") or "")
 
 
-def _buscar_pedido_por_telefono(telefono):
+def _buscar_pedido_por_telefono(telefono, organizacion_id):
     """Busca el pedido activo más reciente asociado a ese número."""
-    return buscar_pedido_activo_por_telefono(telefono)
+    return buscar_pedido_activo_por_telefono(telefono, organizacion_id)
 
 
 
@@ -75,7 +80,7 @@ def _normalizar_estado_meta(estado):
     return mapa.get(estado, estado or "pendiente")
 
 
-def _procesar_statuses_whatsapp(statuses):
+def _procesar_statuses_whatsapp(statuses, organizacion_id):
     """
     Actualiza el historial interno de WhatsApp con los estados que envía Meta.
     Meta informa estos eventos para mensajes salientes: sent, delivered, read, failed.
@@ -94,7 +99,10 @@ def _procesar_statuses_whatsapp(statuses):
             continue
 
         try:
-            msg = WhatsAppMensaje.query.filter_by(message_id_meta=message_id).first()
+            msg = WhatsAppMensaje.query.filter_by(
+                message_id_meta=message_id,
+                organizacion_id=int(organizacion_id),
+            ).first()
             if not msg:
                 print(f"[WA-STATUS] No se encontró mensaje para id Meta {message_id} estado={estado_meta}")
                 continue
@@ -134,7 +142,7 @@ def _procesar_statuses_whatsapp(statuses):
             db.session.rollback()
             logger.exception("[WA-STATUS] Error guardando estados")
 
-def _routear_mensaje(pedido, texto, telefono):
+def _routear_mensaje(pedido, texto, telefono, organizacion_id=None):
     """
     Decide qué flujo manejar según el estado actual del pedido.
     """
@@ -150,6 +158,7 @@ def _routear_mensaje(pedido, texto, telefono):
             Pedido=Pedido,
             WhatsAppMensaje=WhatsAppMensaje,
             wa_enviar_texto=wa_enviar_texto,
+            organizacion_id=organizacion_id,
         )
         return
 
@@ -352,6 +361,23 @@ def registrar_webhook(app):
             data = request.get_json(silent=True) or {}
             print("[WA] Webhook:", json.dumps(data)[:300])
 
+            phone_number_id = extraer_phone_number_id(data)
+            from models.vinculo_canal_comercial import VinculoCanalComercial
+            vinculos = [] if not phone_number_id else (
+                VinculoCanalComercial.query.filter_by(
+                    canal="whatsapp",
+                    whatsapp_phone_number_id=phone_number_id,
+                    estado="activo",
+                ).all()
+            )
+            try:
+                contexto = resolver_contexto_webhook_whatsapp(data, vinculos)
+            except ContextoWebhookWhatsAppError as error:
+                logger.warning("[WA] Webhook ignorado por contexto tenant: %s", error)
+                return jsonify({"status": "ignored", "reason": "tenant_context"}), 200
+            organizacion_id = contexto["organizacion_id"]
+            unidad_negocio_id = contexto["unidad_negocio_id"]
+
             entry   = (data.get("entry") or [{}])[0]
             changes = (entry.get("changes") or [{}])[0]
             value   = changes.get("value") or {}
@@ -361,7 +387,7 @@ def registrar_webhook(app):
             # Estados de entrega/lectura de mensajes salientes (sent/delivered/read/failed).
             # Esto alimenta las tildes del chat interno del pedido.
             if statuses:
-                _procesar_statuses_whatsapp(statuses)
+                _procesar_statuses_whatsapp(statuses, organizacion_id)
 
             for msg in messages:
                 tipo     = msg.get("type")
@@ -392,6 +418,7 @@ def registrar_webhook(app):
                                 .filter_by(
                                     message_id_meta=message_id_meta,
                                     direccion="in",
+                                    organizacion_id=organizacion_id,
                                 )
                                 .first()
                             )
@@ -411,7 +438,13 @@ def registrar_webhook(app):
 
                             logger.exception("[WA-HIST] Error verificando dedup entrada")
 
-                    pedido = _buscar_pedido_por_telefono(telefono)
+                    pedido = _buscar_pedido_por_telefono(telefono, organizacion_id)
+                    if (
+                        pedido is not None
+                        and int(pedido.unidad_negocio_id) != int(unidad_negocio_id)
+                    ):
+                        logger.warning("[WA] Pedido rechazado por unidad distinta al vínculo.")
+                        pedido = None
 
                     texto_para_historial = texto
 
@@ -425,6 +458,7 @@ def registrar_webhook(app):
                                 telefono=telefono,
                                 WhatsAppMediaRecibida=WhatsAppMediaRecibida,
                                 db=db,
+                                organizacion_id=organizacion_id,
                             )
 
                             if media_resultado:
@@ -444,6 +478,8 @@ def registrar_webhook(app):
                             texto=texto_para_historial,
                             message_id_meta=message_id_meta,
                             estado="recibido",
+                            organizacion_id=organizacion_id,
+                            unidad_negocio_id=unidad_negocio_id,
                         )
 
                         if pedido is not None:
@@ -462,6 +498,7 @@ def registrar_webhook(app):
                             texto,
                             telefono,
                             _obtener_estado_wa,
+                            organizacion_id,
                         )
                     elif pedido is not None:
                         try:

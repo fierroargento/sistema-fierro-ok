@@ -115,12 +115,12 @@ def respuesta_menu_contacto_nuevo_wa_general():
     )
 
 
-def telefono_tiene_historial_pedidos_wa_general(telefono, Pedido):
+def telefono_tiene_historial_pedidos_wa_general(telefono, Pedido, organizacion_id):
     if Pedido is None:
         return False
 
     try:
-        return bool(obtener_pedidos_por_telefono(telefono, Pedido))
+        return bool(obtener_pedidos_por_telefono(telefono, Pedido, organizacion_id))
     except Exception:
         return False
 
@@ -128,6 +128,7 @@ def telefono_tiene_historial_pedidos_wa_general(telefono, Pedido):
 def telefono_tiene_historial_whatsapp_wa_general(
     telefono,
     WhatsAppMensaje,
+    organizacion_id,
     limite=50,
 ):
     if WhatsAppMensaje is None:
@@ -138,8 +139,10 @@ def telefono_tiene_historial_whatsapp_wa_general(
         return False
 
     try:
+        if organizacion_id is None:
+            return False
         mensajes = (
-            WhatsAppMensaje.query
+            WhatsAppMensaje.query.filter_by(organizacion_id=int(organizacion_id))
             .filter(WhatsAppMensaje.telefono.isnot(None))
             .order_by(WhatsAppMensaje.fecha.desc())
             .limit(limite)
@@ -195,6 +198,7 @@ def manejar_sin_pedido_activo_wa_general(
     Pedido,
     WhatsAppMensaje,
     wa_enviar_texto,
+    organizacion_id,
 ):
     tel = normalizar_telefono_service(telefono)
 
@@ -204,10 +208,12 @@ def manejar_sin_pedido_activo_wa_general(
     tiene_historial_pedidos = telefono_tiene_historial_pedidos_wa_general(
         tel,
         Pedido,
+        organizacion_id,
     )
     tiene_historial_whatsapp = telefono_tiene_historial_whatsapp_wa_general(
         tel,
         WhatsAppMensaje,
+        organizacion_id,
     )
 
     accion = clasificar_sin_pedido_activo_wa_general(

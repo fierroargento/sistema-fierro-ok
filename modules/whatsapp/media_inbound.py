@@ -238,6 +238,7 @@ def procesar_media_inbound_whatsapp(
     telefono,
     WhatsAppMediaRecibida,
     db,
+    organizacion_id,
 ):
     """
     Procesa un mensaje entrante image/document:
@@ -296,7 +297,7 @@ def procesar_media_inbound_whatsapp(
         texto_historial += f"\n\nComentario del cliente:\n{media.get('caption')}"
 
     registro = WhatsAppMediaRecibida(
-        empresa_id=1,
+        empresa_id=int(organizacion_id),
         pedido_id=getattr(pedido, "id", None),
         telefono=str(telefono or ""),
         message_id_meta=str((msg or {}).get("id") or ""),

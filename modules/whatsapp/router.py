@@ -41,6 +41,7 @@ def routear_mensaje(
     texto,
     telefono,
     obtener_estado_wa,
+    organizacion_id=None,
 ):
     """
     Decide qué flujo manejar según el estado actual del pedido.
@@ -57,6 +58,7 @@ def routear_mensaje(
             Pedido=Pedido,
             WhatsAppMensaje=WhatsAppMensaje,
             wa_enviar_texto=wa_enviar_texto,
+            organizacion_id=organizacion_id,
         )
         return
 

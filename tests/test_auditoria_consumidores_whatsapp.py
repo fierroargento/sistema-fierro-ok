@@ -11,9 +11,9 @@ def test_auditoria_clasifica_accesos_sin_ejecutarlos():
         ("services/acceso_tenant_whatsapp.py", "WhatsAppMensaje.query.filter_by(x=1)"),
         ("tests/test_x.py", "WhatsAppMensaje.query"),
     ])
-    assert resultado["total"] == 1
-    assert resultado["controlados"] == 1
-    assert resultado["por_grupo"]["webhook"] == 1
+    assert resultado["total"] == 0
+    assert resultado["controlados"] == 2
+    assert resultado["por_grupo"] == {}
     assert resultado["escrituras_realizadas"] == 0
     assert resultado["integraciones_habilitables"] is False
 

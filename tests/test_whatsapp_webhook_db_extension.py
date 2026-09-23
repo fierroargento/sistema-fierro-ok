@@ -86,10 +86,11 @@ def test_status_meta_actualiza_y_persiste(
             "id": "wamid.123",
             "status": "delivered",
         },
-    ])
+    ], 7)
 
     assert consulta.filtros == {
         "message_id_meta": "wamid.123",
+        "organizacion_id": 7,
     }
     assert mensaje.estado == "entregado"
     assert mensaje.error == ""
@@ -115,7 +116,7 @@ def test_status_meta_hace_rollback_si_falla_commit(
             "id": "wamid.456",
             "status": "read",
         },
-    ])
+    ], 7)
 
     assert mensaje.estado == "leido"
     assert session.commits == 1

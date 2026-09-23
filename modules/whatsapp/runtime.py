@@ -130,6 +130,7 @@ def registrar_whatsapp_mensaje_service(
     estado="",
     error="",
     organizacion_id=None,
+    unidad_negocio_id=None,
 ):
     """
     Guarda un mensaje WA
@@ -158,14 +159,19 @@ def registrar_whatsapp_mensaje_service(
             and int(organizacion_id) != int(pedido_organizacion_id)
         ):
             raise ValueError("El pedido no pertenece a la organización indicada.")
+        pedido_unidad_id = getattr(pedido, "unidad_negocio_id", None)
+        if (
+            unidad_negocio_id is not None
+            and pedido_unidad_id is not None
+            and int(unidad_negocio_id) != int(pedido_unidad_id)
+        ):
+            raise ValueError("El pedido no pertenece a la unidad indicada.")
         mensaje_organizacion_id = (
             pedido_organizacion_id
             if pedido_organizacion_id is not None
             else organizacion_id
         )
-        mensaje_unidad_negocio_id = getattr(
-            pedido, "unidad_negocio_id", None,
-        )
+        mensaje_unidad_negocio_id = pedido_unidad_id or unidad_negocio_id
 
         ahora = datetime.now(UTC)
 
@@ -318,6 +324,7 @@ def registrar_whatsapp_mensaje(
     estado="",
     error="",
     organizacion_id=None,
+    unidad_negocio_id=None,
 ):
     """Registra historial WA usando dependencias canónicas."""
     return registrar_whatsapp_mensaje_service(
@@ -335,4 +342,5 @@ def registrar_whatsapp_mensaje(
         estado=estado,
         error=error,
         organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
     )
