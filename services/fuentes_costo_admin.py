@@ -330,7 +330,8 @@ def procesar_accion_fuente_costo(
             from services.comprobantes_pagos_productivos import guardar_comprobante_pago
             comprobante = guardar_comprobante_pago(archivo)
         registrar_pago(
-            obligacion, fecha_pago=formulario.get("fecha_pago"),
+            obligacion, organizacion_id=organizacion.id,
+            fecha_pago=formulario.get("fecha_pago"),
             importe_centavos=importe_a_centavos(formulario.get("importe")),
             medio_pago=formulario.get("medio_pago"),
             referencia=formulario.get("referencia"),
@@ -348,7 +349,8 @@ def procesar_accion_fuente_costo(
         if pago is None or pago.obligacion.organizacion_id != organizacion.id:
             raise ValueError("El pago no pertenece a la organización.")
         anular_pago(
-            pago, motivo=formulario.get("motivo_anulacion"),
+            pago, organizacion_id=organizacion.id,
+            motivo=formulario.get("motivo_anulacion"),
             usuario_id=usuario_id, db_session=db_session,
         )
         return "Pago anulado; el saldo fue recalculado y el movimiento quedó en el historial."

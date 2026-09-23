@@ -23,6 +23,14 @@ def registrar_factura_preparatoria(datos, *, recepcion, organizacion_id,
         raise ValueError("La recepción no pertenece al tenant y unidad activos.")
     if recepcion.estado == "anulada":
         raise ValueError("Una recepción anulada no admite comprobantes.")
+    orden = recepcion.orden
+    if (
+        int(orden.organizacion_id) != int(organizacion_id)
+        or int(orden.unidad_negocio_id) != int(unidad_negocio_id)
+    ):
+        raise ValueError("La recepción está vinculada a una orden de otro contexto.")
+    if int(orden.proveedor.organizacion_id) != int(organizacion_id):
+        raise ValueError("La orden está vinculada a un proveedor de otra organización.")
     total = _centavos(datos.get("total"))
     esperado = int(recepcion.subtotal_centavos)
     diferencia = total - esperado
@@ -39,7 +47,7 @@ def registrar_factura_preparatoria(datos, *, recepcion, organizacion_id,
     factura = FacturaProveedorCompra(
         organizacion_id=organizacion_id,
         unidad_negocio_id=unidad_negocio_id,
-        proveedor_id=recepcion.orden.proveedor_id,
+        proveedor_id=orden.proveedor_id,
         orden_compra_id=recepcion.orden_compra_id,
         recepcion_compra_id=recepcion.id,
         tipo_comprobante=tipo, punto_venta=punto, numero=numero,

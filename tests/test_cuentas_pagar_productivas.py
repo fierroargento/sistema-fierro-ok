@@ -9,7 +9,9 @@ from services.cuentas_pagar_productivas import (
 
 
 def obligacion(importe, pagos, vencimiento, estado="pendiente"):
+    costo = SimpleNamespace(organizacion_id=7)
     return SimpleNamespace(
+        organizacion_id=7, costo_fijo=costo,
         importe_centavos=importe,
         pagos=[SimpleNamespace(importe_centavos=p, anulado=False) for p in pagos],
         fecha_vencimiento=vencimiento, estado=estado,
@@ -42,7 +44,7 @@ def test_pago_total_se_incorpora_antes_de_actualizar_estado():
         commit=lambda: None,
     )
     registrar_pago(
-        item, fecha_pago="2026-09-01", importe_centavos=10000,
+        item, organizacion_id=7, fecha_pago="2026-09-01", importe_centavos=10000,
         medio_pago="transferencia", referencia="REF", comprobante=None,
         observacion=None, usuario_id=1,
         PagoObligacionCostoProductivo=Pago, db_session=sesion,
@@ -129,13 +131,31 @@ def test_pago_anulado_no_reduce_saldo_y_conserva_motivo():
     pago.obligacion = item
     sesion = SimpleNamespace(commit=lambda: None)
     anular_pago(
-        pago, motivo="Carga duplicada", usuario_id=7, db_session=sesion,
+        pago, organizacion_id=7, motivo="Carga duplicada", usuario_id=7, db_session=sesion,
         ahora_fn=lambda: "instante",
     )
     assert saldo_obligacion(item) == 10000
     assert item.estado == "pendiente"
     assert pago.anulado is True
     assert pago.motivo_anulacion == "Carga duplicada"
+
+
+def test_pago_rechaza_obligacion_de_otro_tenant():
+    item = obligacion(10000, [], date(2026, 9, 1))
+    item.id = 3
+    item.organizacion_id = 8
+    try:
+        registrar_pago(
+            item, organizacion_id=7, fecha_pago="2026-09-01",
+            importe_centavos=1000, medio_pago="transferencia",
+            referencia=None, comprobante=None, observacion=None, usuario_id=1,
+            PagoObligacionCostoProductivo=SimpleNamespace,
+            db_session=SimpleNamespace(),
+        )
+    except ValueError as error:
+        assert "organización activa" in str(error)
+    else:
+        raise AssertionError("Se aceptó pagar una obligación de otro tenant.")
 
 
 def test_interfaz_gestiona_comprobante_historial_y_anulacion():

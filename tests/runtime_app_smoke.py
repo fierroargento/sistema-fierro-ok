@@ -25,6 +25,14 @@ from services.inventario_saas import (
     validar_transferencia,
 )
 from services.produccion_nucleo import crear_orden_preparatoria
+from services.tesoreria_nucleo import (
+    crear_cuenta as crear_cuenta_tesoreria,
+    crear_proyeccion,
+)
+from services.contabilidad_nucleo import (
+    crear_borrador as crear_borrador_contable,
+    crear_cuenta as crear_cuenta_contable,
+)
 
 
 aplicacion = modulo.app
@@ -361,6 +369,65 @@ with aplicacion.app_context():
         assert "tenant activo" in str(error)
     else:
         raise AssertionError("Producción aceptó un costo de otro tenant.")
+
+    cuenta_tesoreria = crear_cuenta_tesoreria(
+        {"codigo": "CAJA-UAT", "nombre": "Caja UAT", "tipo": "caja"},
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_id,
+        CuentaTesoreria=modulo.CuentaTesoreria,
+        db_session=db.session, usuario_id=usuario.id,
+    )
+    proyeccion = crear_proyeccion(
+        {
+            "tipo": "egreso", "concepto": "Compra preparatoria UAT",
+            "fecha_prevista": "2026-10-01", "importe": "1000,00",
+            "referencia": "UAT-FIN-1",
+        },
+        cuenta=cuenta_tesoreria, organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_id,
+        Movimiento=modulo.MovimientoTesoreriaProyectado,
+        db_session=db.session, usuario_id=usuario.id,
+    )
+    assert proyeccion.confirmado is False and proyeccion.afecta_saldo is False
+    try:
+        crear_proyeccion(
+            {
+                "tipo": "egreso", "concepto": "Cruce UAT",
+                "fecha_prevista": "2026-10-01", "importe": "1,00",
+            },
+            cuenta=cuenta_tesoreria, organizacion_id=organizacion_nautica.id,
+            unidad_negocio_id=unidad_nautica.id,
+            Movimiento=modulo.MovimientoTesoreriaProyectado,
+            db_session=db.session, usuario_id=usuario.id,
+        )
+    except ValueError as error:
+        assert "contexto activo" in str(error)
+    else:
+        raise AssertionError("Tesorería aceptó una cuenta de otro tenant.")
+
+    cuenta_debe = crear_cuenta_contable(
+        {"codigo": "5.1.1", "nombre": "Compras UAT", "naturaleza": "egreso"},
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_id,
+        Cuenta=modulo.CuentaContable, db_session=db.session,
+        usuario_id=usuario.id,
+    )
+    cuenta_haber = crear_cuenta_contable(
+        {"codigo": "1.1.1", "nombre": "Caja UAT", "naturaleza": "activo"},
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_id,
+        Cuenta=modulo.CuentaContable, db_session=db.session,
+        usuario_id=usuario.id,
+    )
+    asiento = crear_borrador_contable(
+        {
+            "fecha": "2026-10-01", "concepto": "Compra UAT",
+            "importe": "1000,00", "referencia": "UAT-CONT-1",
+        },
+        cuenta_debe=cuenta_debe, cuenta_haber=cuenta_haber,
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_id,
+        Asiento=modulo.AsientoContableBorrador,
+        db_session=db.session, usuario_id=usuario.id,
+    )
+    assert asiento.total_debe_centavos == asiento.total_haber_centavos
+    assert asiento.contabilizado is False and asiento.afecta_saldos is False
 
     deposito_fierro_a = modulo.SucursalOperativa(
         organizacion_id=organizacion_id, codigo="deposito-a-uat",

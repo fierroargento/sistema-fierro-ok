@@ -7,6 +7,11 @@ def confirmar_candidato(candidato, *, cuenta, organizacion_id, unidad_negocio_id
                         Movimiento, db_session, usuario_id=None):
     if int(cuenta.organizacion_id) != int(organizacion_id) or int(cuenta.unidad_negocio_id) != int(unidad_negocio_id):
         raise ValueError("La cuenta no pertenece al contexto activo.")
+    if (
+        int(candidato.get("organizacion_id") or 0) != int(organizacion_id)
+        or int(candidato.get("unidad_negocio_id") or 0) != int(unidad_negocio_id)
+    ):
+        raise ValueError("El origen no pertenece al contexto activo.")
     if candidato.get("ya_proyectado"):
         raise ValueError("El origen ya tiene una proyección equivalente.")
     if candidato.get("origen") not in {"obligacion_costo", "liquidacion_canal_esperada"}:

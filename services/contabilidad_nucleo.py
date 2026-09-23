@@ -7,7 +7,7 @@ from decimal import Decimal,InvalidOperation,ROUND_HALF_UP
 def _centavos(valor):
     try:numero=Decimal(str(valor).replace(".","").replace(",","."))
     except (InvalidOperation,ValueError):raise ValueError("El importe no es valido.")
-    if numero<=0:raise ValueError("El importe debe ser mayor que cero.")
+    if not numero.is_finite() or numero<=0:raise ValueError("El importe debe ser mayor que cero.")
     return int((numero*100).quantize(Decimal("1"),rounding=ROUND_HALF_UP))
 
 def crear_cuenta(datos,*,organizacion_id,unidad_negocio_id,Cuenta,db_session,usuario_id=None):

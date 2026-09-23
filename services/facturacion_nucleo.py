@@ -106,7 +106,7 @@ def cantidad_a_milesimas(cantidad):
             "La cantidad no es válida."
         ) from error
 
-    if valor <= 0:
+    if not valor.is_finite() or valor <= 0:
         raise ValueError(
             "La cantidad debe ser mayor que cero."
         )

@@ -20,7 +20,8 @@ def consolidar_origenes(*,organizacion_id,unidad_negocio_id,obligaciones,factura
         saldo=max(0,int(obligacion.importe_centavos)-pagado)
         if saldo==0:continue
         clave=_clave("obligacion",organizacion_id,unidad_negocio_id,obligacion.id,saldo)
-        candidatos.append({"origen":"obligacion_costo","origen_id":obligacion.id,"tipo":"egreso",
+        candidatos.append({"organizacion_id":organizacion_id,"unidad_negocio_id":unidad_negocio_id,
+            "origen":"obligacion_costo","origen_id":obligacion.id,"tipo":"egreso",
             "concepto":getattr(obligacion.costo_fijo,"nombre","Obligación productiva"),"importe_centavos":saldo,
             "fecha_prevista":obligacion.fecha_vencimiento.isoformat(),"clave_idempotencia":clave,
             "ya_proyectado":clave in existentes,"cuenta_asignada":False})
@@ -35,7 +36,8 @@ def consolidar_origenes(*,organizacion_id,unidad_negocio_id,obligaciones,factura
             hallazgos.append({"codigo":"venta_fuera_contexto","venta_id":venta.id});continue
         if venta.estado!="confirmada" or int(venta.liquidacion_esperada_centavos)<=0:continue
         clave=_clave("venta",organizacion_id,unidad_negocio_id,venta.id,venta.liquidacion_esperada_centavos)
-        candidatos.append({"origen":"liquidacion_canal_esperada","origen_id":venta.id,"tipo":"ingreso",
+        candidatos.append({"organizacion_id":organizacion_id,"unidad_negocio_id":unidad_negocio_id,
+            "origen":"liquidacion_canal_esperada","origen_id":venta.id,"tipo":"ingreso",
             "concepto":f"Liquidación esperada {venta.cuenta_codigo} · {venta.referencia_venta}",
             "importe_centavos":int(venta.liquidacion_esperada_centavos),
             "fecha_prevista":venta.fecha_venta.date().isoformat(),"clave_idempotencia":clave,

@@ -18,10 +18,15 @@ class Session:
 
 
 def recepcion(subtotal=100000):
+    proveedor = Obj(organizacion_id=7)
+    orden = Obj(
+        organizacion_id=7, unidad_negocio_id=9,
+        proveedor_id=4, proveedor=proveedor,
+    )
     return Obj(
         id=3, organizacion_id=7, unidad_negocio_id=9, estado="preparatoria",
         subtotal_centavos=subtotal, orden_compra_id=2,
-        orden=Obj(proveedor_id=4),
+        orden=orden,
     )
 
 
@@ -54,6 +59,25 @@ def test_aislamiento_tenant_y_recepcion_anulada():
             assert esperado in str(error)
         else:
             raise AssertionError("Se aceptó una factura fuera de frontera.")
+
+
+def test_rechaza_orden_o_proveedor_cruzados_dentro_de_recepcion():
+    rec = recepcion()
+    rec.orden.organizacion_id = 8
+    try:
+        registrar("1.000,00", rec)
+    except ValueError as error:
+        assert "orden de otro contexto" in str(error)
+    else:
+        raise AssertionError("Se aceptó una orden cruzada.")
+    rec = recepcion()
+    rec.orden.proveedor.organizacion_id = 8
+    try:
+        registrar("1.000,00", rec)
+    except ValueError as error:
+        assert "proveedor de otra organización" in str(error)
+    else:
+        raise AssertionError("Se aceptó un proveedor cruzado.")
 
 
 def test_identidad_documental_es_unica_por_tenant_y_proveedor():

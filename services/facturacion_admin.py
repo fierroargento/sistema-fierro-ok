@@ -165,7 +165,7 @@ def _alicuota_basis_points(valor):
             "La alícuota IVA no es válida."
         ) from error
 
-    if not 0 <= porcentaje <= 100:
+    if not porcentaje.is_finite() or not 0 <= porcentaje <= 100:
         raise ValueError(
             "La alícuota IVA no es válida."
         )

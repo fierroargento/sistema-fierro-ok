@@ -25,6 +25,8 @@ def configurar_regla_obligacion(costo, *, organizacion_id, frecuencia_meses,
                                 periodo_inicio, dia_vencimiento, meses_anticipacion, activa,
                                 observacion, usuario_id,
                                 ReglaObligacionCostoProductivo, db_session):
+    if int(getattr(costo, "organizacion_id", 0) or 0) != int(organizacion_id):
+        raise ValueError("El costo no pertenece a la organización activa.")
     frecuencia = int(frecuencia_meses)
     dia = int(dia_vencimiento)
     anticipacion = int(meses_anticipacion)
@@ -80,6 +82,8 @@ def generar_obligaciones_recurrentes(regla, *, ObligacionCostoProductivo,
     """Genera períodos faltantes hasta el horizonte, de forma idempotente."""
     if not regla.activa:
         return []
+    if int(regla.costo_fijo.organizacion_id) != int(regla.organizacion_id):
+        raise ValueError("La regla mezcla un costo de otra organización.")
     hoy = hoy or date.today()
     inicio = primer_dia_mes(hoy)
     fin = desplazar_meses(inicio, regla.meses_anticipacion)
@@ -88,6 +92,8 @@ def generar_obligaciones_recurrentes(regla, *, ObligacionCostoProductivo,
     ).first()
     if version is None:
         return []
+    if int(version.costo_fijo.organizacion_id) != int(regla.organizacion_id):
+        raise ValueError("La versión del costo pertenece a otra organización.")
     creadas = []
     periodo = inicio
     while periodo <= fin:
@@ -233,6 +239,8 @@ def actualizar_obligacion_con_propuesta(propuesta, *, ObligacionCostoProductivo,
 def crear_obligacion(costo, *, periodo, fecha_vencimiento, importe_centavos,
                      organizacion_id, usuario_id, observacion,
                      ObligacionCostoProductivo, CostoFijoVersion, db_session):
+    if int(getattr(costo, "organizacion_id", 0) or 0) != int(organizacion_id):
+        raise ValueError("El costo no pertenece a la organización activa.")
     periodo_texto = str(periodo)
     if len(periodo_texto) == 7:
         periodo_texto += "-01"
@@ -247,6 +255,8 @@ def crear_obligacion(costo, *, periodo, fecha_vencimiento, importe_centavos,
     version = CostoFijoVersion.query.filter_by(costo_fijo_id=costo.id, vigente=True).first()
     if version is None:
         raise ValueError("El costo no tiene una versión vigente.")
+    if int(version.costo_fijo.organizacion_id) != int(organizacion_id):
+        raise ValueError("La versión del costo pertenece a otra organización.")
     obligacion = ObligacionCostoProductivo(
         organizacion_id=organizacion_id, costo_fijo_id=costo.id,
         version_costo_id=version.id, periodo=periodo_fecha,
@@ -259,9 +269,13 @@ def crear_obligacion(costo, *, periodo, fecha_vencimiento, importe_centavos,
     return obligacion
 
 
-def registrar_pago(obligacion, *, fecha_pago, importe_centavos, medio_pago,
+def registrar_pago(obligacion, *, organizacion_id, fecha_pago, importe_centavos, medio_pago,
                    referencia, comprobante, observacion, usuario_id,
                    PagoObligacionCostoProductivo, db_session):
+    if int(obligacion.organizacion_id) != int(organizacion_id):
+        raise ValueError("La obligación no pertenece a la organización activa.")
+    if int(obligacion.costo_fijo.organizacion_id) != int(organizacion_id):
+        raise ValueError("La obligación está vinculada a un costo de otra organización.")
     if obligacion.estado == "anulada":
         raise ValueError("No se puede pagar una obligación anulada.")
     importe = int(importe_centavos)
@@ -283,8 +297,10 @@ def registrar_pago(obligacion, *, fecha_pago, importe_centavos, medio_pago,
     return pago
 
 
-def anular_pago(pago, *, motivo, usuario_id, db_session, ahora_fn=None):
+def anular_pago(pago, *, organizacion_id, motivo, usuario_id, db_session, ahora_fn=None):
     """Revierte un movimiento conservando su trazabilidad completa."""
+    if int(pago.obligacion.organizacion_id) != int(organizacion_id):
+        raise ValueError("El pago no pertenece a la organización activa.")
     if pago.anulado:
         raise ValueError("El pago ya se encuentra anulado.")
     motivo_limpio = str(motivo or "").strip()

@@ -11,7 +11,7 @@ class Session:
     def add(self,x):self.items.append(x)
     def commit(self):self.commits+=1
 
-def candidato():return {"origen":"obligacion_costo","origen_id":4,"tipo":"egreso","concepto":"Alquiler",
+def candidato():return {"organizacion_id":7,"unidad_negocio_id":9,"origen":"obligacion_costo","origen_id":4,"tipo":"egreso","concepto":"Alquiler",
     "importe_centavos":75000,"fecha_prevista":"2026-10-10","clave_idempotencia":"a"*64,"ya_proyectado":False}
 
 def test_confirma_como_proyeccion_sin_afectar_saldo():
@@ -30,6 +30,11 @@ def test_admite_liquidacion_esperada_pero_no_otros_origenes():
 def test_bloquea_duplicado_y_cuenta_cruzada():
     cuenta=Obj(id=2,organizacion_id=7,unidad_negocio_id=9);dato=candidato();dato["ya_proyectado"]=True
     with pytest.raises(ValueError):confirmar_candidato(dato,cuenta=cuenta,organizacion_id=7,unidad_negocio_id=9,Movimiento=Modelo,db_session=Session())
+
+def test_bloquea_origen_cruzado_aunque_la_cuenta_sea_valida():
+    cuenta=Obj(id=2,organizacion_id=7,unidad_negocio_id=9);dato=candidato();dato["organizacion_id"]=8
+    with pytest.raises(ValueError,match="origen.*contexto"):
+        confirmar_candidato(dato,cuenta=cuenta,organizacion_id=7,unidad_negocio_id=9,Movimiento=Modelo,db_session=Session())
     dato["ya_proyectado"]=False;cuenta.organizacion_id=8
     with pytest.raises(ValueError):confirmar_candidato(dato,cuenta=cuenta,organizacion_id=7,unidad_negocio_id=9,Movimiento=Modelo,db_session=Session())
 
