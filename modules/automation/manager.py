@@ -1,4 +1,5 @@
 from apscheduler.schedulers.background import BackgroundScheduler
+from services.seguridad_entorno import scheduler_habilitado
 
 
 _scheduler = None
@@ -23,6 +24,9 @@ def iniciar_scheduler(
     """
 
     global _scheduler
+
+    if not scheduler_habilitado():
+        return None
 
     # Evita doble scheduler en reloads/debug dentro del mismo proceso.
     if _scheduler:

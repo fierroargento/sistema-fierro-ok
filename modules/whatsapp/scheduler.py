@@ -71,7 +71,17 @@ def _organizacion_scheduler(organizacion_id):
     return organizacion_id
 
 
-def ejecutar_timers(*, organizacion_id):
+def _unidad_scheduler(unidad_negocio_id):
+    try:
+        unidad_negocio_id = int(unidad_negocio_id)
+    except (TypeError, ValueError) as error:
+        raise ValueError("El scheduler requiere una unidad válida.") from error
+    if unidad_negocio_id <= 0:
+        raise ValueError("El scheduler requiere una unidad válida.")
+    return unidad_negocio_id
+
+
+def ejecutar_timers(*, organizacion_id, unidad_negocio_id):
     """Punto único de scheduler.
 
     Protegido contra ejecuciones simultáneas: el módulo puede dispararse desde
@@ -79,6 +89,7 @@ def ejecutar_timers(*, organizacion_id):
     saltea una vuelta para no compartir sesión DB ni duplicar consultas externas.
     """
     organizacion_id = _organizacion_scheduler(organizacion_id)
+    unidad_negocio_id = _unidad_scheduler(unidad_negocio_id)
     if not scheduler_habilitado():
         logger.info("[WA SCHEDULER] Tick bloqueado por configuración segura")
         return False
@@ -89,8 +100,14 @@ def ejecutar_timers(*, organizacion_id):
 
     hubo_error = False
     try:
-        ejecutar_timers_whatsapp(organizacion_id=organizacion_id)
-        ejecutar_tracking_automatico(organizacion_id=organizacion_id)
+        ejecutar_timers_whatsapp(
+            organizacion_id=organizacion_id,
+            unidad_negocio_id=unidad_negocio_id,
+        )
+        ejecutar_tracking_automatico(
+            organizacion_id=organizacion_id,
+            unidad_negocio_id=unidad_negocio_id,
+        )
         return True
     except Exception as e:
         hubo_error = True
@@ -100,7 +117,7 @@ def ejecutar_timers(*, organizacion_id):
         _scheduler_lock.release()
 
 
-def ejecutar_timers_whatsapp(*, organizacion_id):
+def ejecutar_timers_whatsapp(*, organizacion_id, unidad_negocio_id):
     """APB WhatsApp.
 
     Recordatorios por template:
@@ -113,6 +130,7 @@ def ejecutar_timers_whatsapp(*, organizacion_id):
     - esperando_confirmacion_sucursal
     """
     organizacion_id = _organizacion_scheduler(organizacion_id)
+    unidad_negocio_id = _unidad_scheduler(unidad_negocio_id)
     if not scheduler_habilitado():
         return False
     if not efectos_externos_habilitados("WHATSAPP"):
@@ -130,7 +148,9 @@ def ejecutar_timers_whatsapp(*, organizacion_id):
         ahora = ia_ahora_utc()
 
         pedidos = (
-            consulta_pedidos_job_tenant(Pedido, organizacion_id)
+            consulta_pedidos_job_tenant(
+                Pedido, organizacion_id, unidad_negocio_id,
+            )
             .filter(Pedido.ia_esperando_respuesta == True)
             .filter(Pedido.ia_ultimo_mensaje_bot.isnot(None))
             .filter(Pedido.estado.notin_([
@@ -192,7 +212,7 @@ def _es_transporte_tracking_auto_apb(pedido):
 
     return "correo" in transporte or "mercado envios" in transporte or "mercado envios" in ml_tipo
 
-def ejecutar_tracking_automatico(*, organizacion_id):
+def ejecutar_tracking_automatico(*, organizacion_id, unidad_negocio_id):
     """Consulta tracking de Correo/Mercado Envíos y trae el estado al resumen.
 
     Modo APB:
@@ -202,6 +222,7 @@ def ejecutar_tracking_automatico(*, organizacion_id):
       porque antes debe intervenir el operador y avisar/confirmar en ML.
     """
     organizacion_id = _organizacion_scheduler(organizacion_id)
+    unidad_negocio_id = _unidad_scheduler(unidad_negocio_id)
     if not scheduler_habilitado():
         return False
     if not conexiones_externas_habilitadas("TRACKING"):
@@ -219,7 +240,9 @@ def ejecutar_tracking_automatico(*, organizacion_id):
         limite = ahora - timedelta(minutes=TRACKING_INTERVALO_MINUTOS)
 
         pedidos = (
-            consulta_pedidos_job_tenant(Pedido, organizacion_id)
+            consulta_pedidos_job_tenant(
+                Pedido, organizacion_id, unidad_negocio_id,
+            )
             .filter(Pedido.estado.in_(ESTADOS_POST_DESPACHO))
             .filter(Pedido.seguimiento.isnot(None))
             .filter(Pedido.seguimiento != "")

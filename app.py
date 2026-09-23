@@ -12884,17 +12884,33 @@ try:
             from modules.automation.jobs.ml_messages import ejecutar_job_ml_mensajes
 
             for organizacion in Organizacion.query.filter_by(activa=True).all():
-                ejecutar_job_ml_mensajes(
-                    app, db, organizacion_id=organizacion.id,
-                )
+                unidades = UnidadNegocio.query.filter_by(
+                    organizacion_id=organizacion.id,
+                    activa=True,
+                ).all()
+                for unidad in unidades:
+                    ejecutar_job_ml_mensajes(
+                        app,
+                        db,
+                        organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad.id,
+                    )
 
         def _job_wa_timers():
             from modules.automation.jobs.wa_timers import ejecutar_job_wa_timers
 
             for organizacion in Organizacion.query.filter_by(activa=True).all():
-                ejecutar_job_wa_timers(
-                    app, db, organizacion_id=organizacion.id,
-                )
+                unidades = UnidadNegocio.query.filter_by(
+                    organizacion_id=organizacion.id,
+                    activa=True,
+                ).all()
+                for unidad in unidades:
+                    ejecutar_job_wa_timers(
+                        app,
+                        db,
+                        organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad.id,
+                    )
 
         def _job_ipc_costos():
             from modules.automation.jobs.ipc_costs import ejecutar_job_ipc_costos

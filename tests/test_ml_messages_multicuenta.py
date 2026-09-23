@@ -104,6 +104,21 @@ def instalar_app_fake(
     )
     monkeypatch.setattr(
         ml_messages,
+        "scheduler_habilitado",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        ml_messages,
+        "conexiones_externas_habilitadas",
+        lambda _canal: True,
+    )
+    monkeypatch.setattr(
+        ml_messages,
+        "efectos_externos_habilitados",
+        lambda _canal: True,
+    )
+    monkeypatch.setattr(
+        ml_messages,
         "ia_escalar_si_timeout_operativo",
         timeout_fn or (
             lambda *args, **kwargs: None
@@ -199,7 +214,9 @@ def test_job_ml_mensajes_usa_seller_id_por_pedido(monkeypatch):
     )
 
     db = DbFake()
-    ejecutar_job_ml_mensajes(FlaskAppFake(), db, organizacion_id=10)
+    ejecutar_job_ml_mensajes(
+        FlaskAppFake(), db, organizacion_id=10, unidad_negocio_id=100,
+    )
 
     assert llamadas_mensajes == [
         ("pack-1", "111", 1),
@@ -283,7 +300,9 @@ def test_job_ml_mensajes_saltea_pedido_sin_cuenta_valida(monkeypatch):
     )
 
     db = DbFake()
-    ejecutar_job_ml_mensajes(FlaskAppFake(), db, organizacion_id=10)
+    ejecutar_job_ml_mensajes(
+        FlaskAppFake(), db, organizacion_id=10, unidad_negocio_id=100,
+    )
 
     assert llamadas_mensajes == [
         ("pack-2", "222", 2),
@@ -332,6 +351,7 @@ def test_job_ml_usa_timeout_canonico(
         FlaskAppFake(),
         db,
         organizacion_id=10,
+        unidad_negocio_id=100,
     )
 
     assert llamados == [

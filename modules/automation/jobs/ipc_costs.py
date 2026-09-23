@@ -1,7 +1,17 @@
 """Job diario de consulta y preparación de ajustes por IPC."""
 
+from services.seguridad_entorno import (
+    conexiones_externas_habilitadas,
+    scheduler_habilitado,
+)
+
 
 def ejecutar_job_ipc_costos(app, db):
+    if not scheduler_habilitado():
+        return False
+    if not conexiones_externas_habilitadas("IPC"):
+        return False
+
     with app.app_context():
         from models.ajuste_ipc_productivo import (
             IndiceIPCOficial, PropuestaAjusteIPCProductivo,
@@ -29,3 +39,4 @@ def ejecutar_job_ipc_costos(app, db):
             ObligacionCostoProductivo=ObligacionCostoProductivo,
             CostoFijoVersion=CostoFijoVersion, db_session=db.session,
         )
+    return True

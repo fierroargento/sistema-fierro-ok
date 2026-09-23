@@ -22,9 +22,15 @@ def consulta_pedidos_tenant(Pedido, organizacion_id, unidad_negocio_id=None):
     return consulta
 
 
-def consulta_pedidos_job_tenant(Pedido, organizacion_id):
-    """Alias explícito para impedir jobs sin partición tenant."""
-    return consulta_pedidos_tenant(Pedido, organizacion_id)
+def consulta_pedidos_job_tenant(Pedido, organizacion_id, unidad_negocio_id):
+    """Frontera estricta para jobs: organización y unidad son obligatorias."""
+    return consulta_pedidos_tenant(
+        Pedido,
+        organizacion_id,
+        unidad_negocio_id=_id_positivo(
+            unidad_negocio_id, "unidad de negocio",
+        ),
+    )
 
 
 def obtener_pedido_tenant(

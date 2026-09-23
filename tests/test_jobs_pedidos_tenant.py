@@ -26,37 +26,38 @@ class PedidoModelo:
 
 def test_consulta_job_exige_y_filtra_un_tenant_concreto():
     PedidoModelo.query = Query([
-        SimpleNamespace(id=1, organizacion_id=10),
-        SimpleNamespace(id=2, organizacion_id=20),
-        SimpleNamespace(id=3, organizacion_id=None),
+        SimpleNamespace(id=1, organizacion_id=10, unidad_negocio_id=100),
+        SimpleNamespace(id=2, organizacion_id=10, unidad_negocio_id=101),
+        SimpleNamespace(id=3, organizacion_id=20, unidad_negocio_id=100),
+        SimpleNamespace(id=4, organizacion_id=None, unidad_negocio_id=None),
     ])
     assert [
-        p.id for p in consulta_pedidos_job_tenant(PedidoModelo, 10).all()
+        p.id for p in consulta_pedidos_job_tenant(PedidoModelo, 10, 100).all()
     ] == [1]
     with pytest.raises(ValueError, match="organización"):
-        consulta_pedidos_job_tenant(PedidoModelo, None)
+        consulta_pedidos_job_tenant(PedidoModelo, None, 100)
+    with pytest.raises(ValueError, match="unidad"):
+        consulta_pedidos_job_tenant(PedidoModelo, 10, None)
 
 
 def test_job_ml_particiona_sus_dos_conjuntos_por_tenant():
     texto = Path("modules/automation/jobs/ml_messages.py").read_text(encoding="utf-8")
-    assert "def ejecutar_job_ml_mensajes(app, db, *, organizacion_id):" in texto
-    assert texto.count("consulta_pedidos_job_tenant(Pedido, organizacion_id)") == 2
+    assert "unidad_negocio_id," in texto
+    assert texto.count("Pedido, organizacion_id, unidad_negocio_id,") == 2
     assert "Pedido.query" not in texto
 
 
 def test_scheduler_wa_particiona_recordatorios_y_tracking():
     texto = Path("modules/whatsapp/scheduler.py").read_text(encoding="utf-8")
-    assert "def ejecutar_timers(*, organizacion_id):" in texto
-    assert "ejecutar_timers_whatsapp(organizacion_id=organizacion_id)" in texto
-    assert "ejecutar_tracking_automatico(organizacion_id=organizacion_id)" in texto
-    assert texto.count("consulta_pedidos_job_tenant(Pedido, organizacion_id)") == 2
+    assert "def ejecutar_timers(*, organizacion_id, unidad_negocio_id):" in texto
+    assert texto.count("Pedido, organizacion_id, unidad_negocio_id,") == 2
     assert "Pedido.query" not in texto
 
 
 def test_wrapper_wa_propaga_tenant_obligatorio():
     texto = Path("modules/automation/jobs/wa_timers.py").read_text(encoding="utf-8")
-    assert "def ejecutar_job_wa_timers(app, db, *, organizacion_id):" in texto
-    assert "ejecutar_timers(organizacion_id=organizacion_id)" in texto
+    assert "unidad_negocio_id," in texto
+    assert "unidad_negocio_id=unidad_negocio_id" in texto
 
 
 def test_orquestador_recorrer_organizaciones_activas_por_separado():
@@ -65,7 +66,37 @@ def test_orquestador_recorrer_organizaciones_activas_por_separado():
         "def _job_ipc_costos():", 1
     )[0]
     assert bloque.count("Organizacion.query.filter_by(activa=True).all()") == 2
-    assert bloque.count("organizacion_id=organizacion.id") == 2
+    assert bloque.count("organizacion_id=organizacion.id") == 4
+    assert bloque.count("UnidadNegocio.query.filter_by(") == 2
+    assert bloque.count("unidad_negocio_id=unidad.id") == 2
+
+
+def test_job_ml_falla_cerrado_antes_de_contexto_o_base(monkeypatch):
+    from modules.automation.jobs import ml_messages
+
+    entradas = []
+
+    class App:
+        def app_context(self):
+            entradas.append("contexto")
+            raise AssertionError("No debe abrir contexto")
+
+    monkeypatch.setattr(ml_messages, "scheduler_habilitado", lambda: True)
+    monkeypatch.setattr(
+        ml_messages,
+        "conexiones_externas_habilitadas",
+        lambda _canal: False,
+    )
+    monkeypatch.setattr(
+        ml_messages,
+        "efectos_externos_habilitados",
+        lambda _canal: True,
+    )
+
+    assert ml_messages.ejecutar_job_ml_mensajes(
+        App(), object(), organizacion_id=10, unidad_negocio_id=100,
+    ) is False
+    assert entradas == []
 
 
 def test_migracion_no_activa_scheduler_ni_agrega_transporte():

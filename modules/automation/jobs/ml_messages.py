@@ -14,10 +14,28 @@ from services.ml_mensajes import (
     ml_obtener_mensajes_pack_para_ia_service,
 )
 from services.acceso_tenant_pedidos import consulta_pedidos_job_tenant
+from services.seguridad_entorno import (
+    conexiones_externas_habilitadas,
+    efectos_externos_habilitados,
+    scheduler_habilitado,
+)
 
 
-def ejecutar_job_ml_mensajes(app, db, *, organizacion_id):
+def ejecutar_job_ml_mensajes(
+    app,
+    db,
+    *,
+    organizacion_id,
+    unidad_negocio_id,
+):
     """Procesa mensajes pendientes de ML Acordás cada 5 minutos."""
+
+    if not scheduler_habilitado():
+        return False
+    if not conexiones_externas_habilitadas("ML"):
+        return False
+    if not efectos_externos_habilitados("ML"):
+        return False
 
     try:
         with app.app_context():
@@ -34,7 +52,9 @@ def ejecutar_job_ml_mensajes(app, db, *, organizacion_id):
             # APB anti-acoso: si el bot ML habló y el comprador no respondió
             # durante 2 horas operativas, escala al operador. No insiste.
             pedidos_esperando = (
-                consulta_pedidos_job_tenant(Pedido, organizacion_id)
+                consulta_pedidos_job_tenant(
+                    Pedido, organizacion_id, unidad_negocio_id,
+                )
                 .filter(Pedido.canal == "Mercado Libre")
                 .filter(Pedido.ia_esperando_respuesta == True)
                 # APB:
@@ -70,7 +90,9 @@ def ejecutar_job_ml_mensajes(app, db, *, organizacion_id):
                 )
 
             pedidos = (
-                consulta_pedidos_job_tenant(Pedido, organizacion_id)
+                consulta_pedidos_job_tenant(
+                    Pedido, organizacion_id, unidad_negocio_id,
+                )
                 .filter(Pedido.canal == "Mercado Libre")
                 .filter(Pedido.ml_tipo == "Acordás la Entrega")
                 .filter(Pedido.ml_mensajes_pendientes == True)
@@ -167,6 +189,8 @@ def ejecutar_job_ml_mensajes(app, db, *, organizacion_id):
                     except Exception:
                         pass
 
+            return True
+
     except Exception as e:
         print("[SCHEDULER ML] Error general:", e)
 
@@ -174,6 +198,8 @@ def ejecutar_job_ml_mensajes(app, db, *, organizacion_id):
             db.session.rollback()
         except Exception:
             pass
+
+        return False
 
     finally:
         try:

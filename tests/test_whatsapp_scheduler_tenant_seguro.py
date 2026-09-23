@@ -17,7 +17,9 @@ def test_tick_desconectado_corta_antes_de_jobs_y_base(monkeypatch):
         lambda **_kwargs: llamados.append("tracking"),
     )
 
-    assert scheduler.ejecutar_timers(organizacion_id=7) is False
+    assert scheduler.ejecutar_timers(
+        organizacion_id=7, unidad_negocio_id=70,
+    ) is False
     assert llamados == []
 
 
@@ -26,25 +28,41 @@ def test_tick_habilitado_propaga_un_mismo_tenant(monkeypatch):
     monkeypatch.setattr(scheduler, "scheduler_habilitado", lambda: True)
     monkeypatch.setattr(
         scheduler, "ejecutar_timers_whatsapp",
-        lambda **kwargs: llamados.append(("whatsapp", kwargs["organizacion_id"])),
+        lambda **kwargs: llamados.append((
+            "whatsapp", kwargs["organizacion_id"], kwargs["unidad_negocio_id"],
+        )),
     )
     monkeypatch.setattr(
         scheduler, "ejecutar_tracking_automatico",
-        lambda **kwargs: llamados.append(("tracking", kwargs["organizacion_id"])),
+        lambda **kwargs: llamados.append((
+            "tracking", kwargs["organizacion_id"], kwargs["unidad_negocio_id"],
+        )),
     )
     monkeypatch.setattr(
         scheduler, "_cerrar_sesion_db_segura",
         lambda **_kwargs: None,
     )
 
-    assert scheduler.ejecutar_timers(organizacion_id="7") is True
-    assert llamados == [("whatsapp", 7), ("tracking", 7)]
+    assert scheduler.ejecutar_timers(
+        organizacion_id="7", unidad_negocio_id="70",
+    ) is True
+    assert llamados == [("whatsapp", 7, 70), ("tracking", 7, 70)]
 
 
 @pytest.mark.parametrize("organizacion_id", [None, "", 0, -1, "abc"])
 def test_scheduler_rechaza_tenant_invalido(organizacion_id):
     with pytest.raises(ValueError, match="organización"):
-        scheduler.ejecutar_timers(organizacion_id=organizacion_id)
+        scheduler.ejecutar_timers(
+            organizacion_id=organizacion_id, unidad_negocio_id=70,
+        )
+
+
+@pytest.mark.parametrize("unidad_negocio_id", [None, "", 0, -1, "abc"])
+def test_scheduler_rechaza_unidad_invalida(unidad_negocio_id):
+    with pytest.raises(ValueError, match="unidad"):
+        scheduler.ejecutar_timers(
+            organizacion_id=7, unidad_negocio_id=unidad_negocio_id,
+        )
 
 
 def test_recordatorios_exigen_scheduler_conexion_y_efectos(monkeypatch):
@@ -61,7 +79,9 @@ def test_recordatorios_exigen_scheduler_conexion_y_efectos(monkeypatch):
         scheduler, "efectos_externos_habilitados", lambda _canal: False,
     )
 
-    assert scheduler.ejecutar_timers_whatsapp(organizacion_id=1) is False
+    assert scheduler.ejecutar_timers_whatsapp(
+        organizacion_id=1, unidad_negocio_id=10,
+    ) is False
     assert consultas == []
 
 
@@ -76,7 +96,9 @@ def test_tracking_exige_scheduler_y_conexion_especifica(monkeypatch):
         scheduler, "conexiones_externas_habilitadas", lambda canal: canal != "TRACKING",
     )
 
-    assert scheduler.ejecutar_tracking_automatico(organizacion_id=1) is False
+    assert scheduler.ejecutar_tracking_automatico(
+        organizacion_id=1, unidad_negocio_id=10,
+    ) is False
     assert consultas == []
 
 
