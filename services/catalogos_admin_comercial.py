@@ -215,9 +215,7 @@ def procesar_accion_catalogo_comercial(
         inclusion.atributos_json = volcar_json(
             parsear_atributos_estructurados(formulario)
         )
-        inclusion.variantes_json = volcar_json(
-            parsear_variantes_estructuradas(formulario)
-        )
+        variantes = parsear_variantes_estructuradas(formulario)
         inclusion.canales_json = volcar_json(parsear_canales(formulario))
         inclusion.relaciones_json = volcar_json(validar_relaciones(
             formulario.getlist("relaciones")
@@ -242,6 +240,18 @@ def procesar_accion_catalogo_comercial(
             principal = imagenes[0].get("url")
         for imagen in imagenes:
             imagen["principal"] = imagen.get("url") == principal
+        urls_imagenes = {
+            str(imagen.get("url") or "").strip()
+            for imagen in imagenes
+            if imagen.get("url")
+        }
+        for variante in variantes:
+            imagen_variante = str(variante.get("imagen_url") or "").strip()
+            if imagen_variante and imagen_variante not in urls_imagenes:
+                raise ValueError(
+                    "La imagen de una variante no pertenece a la ficha activa."
+                )
+        inclusion.variantes_json = volcar_json(variantes)
         inclusion.imagenes_json = volcar_json(imagenes)
         inclusion.estado_comercial = estado
         inclusion.estado_disponibilidad = disponibilidad

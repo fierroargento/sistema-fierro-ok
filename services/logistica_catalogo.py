@@ -13,17 +13,23 @@ from models.producto import Producto as ProductoModel
 from services.productos_logistica import calcular_logistica_pedido
 
 
-def buscar_producto_catalogo_por_sku(Producto, sku):
-    """Busca un producto del catálogo por SKU normalizado."""
+def buscar_producto_catalogo_por_sku(Producto, sku, *, organizacion_id):
+    """Busca un producto por SKU únicamente dentro del tenant indicado."""
     sku = str(sku or "").strip().upper()
-    if not sku:
+    if not sku or organizacion_id is None:
         return None
 
     try:
-        return Producto.query.filter_by(sku=sku).first()
+        return Producto.query.filter_by(
+            sku=sku,
+            organizacion_id=int(organizacion_id),
+        ).first()
     except Exception:
         try:
-            return Producto.query.filter(Producto.sku.ilike(sku)).first()
+            return Producto.query.filter(
+                Producto.organizacion_id == int(organizacion_id),
+                Producto.sku.ilike(sku),
+            ).first()
         except Exception:
             return None
 
@@ -39,7 +45,13 @@ def calcular_logistica_pedido_desde_catalogo(pedido, Producto=None):
     if Producto is None:
         Producto = ProductoModel
 
+    organizacion_id = getattr(pedido, "organizacion_id", None)
+
     return calcular_logistica_pedido(
         pedido,
-        buscar_producto_por_sku=lambda sku: buscar_producto_catalogo_por_sku(Producto, sku),
+        buscar_producto_por_sku=lambda sku: buscar_producto_catalogo_por_sku(
+            Producto,
+            sku,
+            organizacion_id=organizacion_id,
+        ),
     )

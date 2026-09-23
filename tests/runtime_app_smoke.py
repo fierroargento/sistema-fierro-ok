@@ -13,6 +13,10 @@ from services.marcador_base_entorno import (
     verificar_marcador_staging,
 )
 from services.almacenamiento_archivos import guardar_imagen_local
+from services.compras_nucleo import crear_orden, crear_proveedor
+from services.costos_productos import crear_version_costo
+from services.catalogo_ficha_integral import validar_relaciones
+from services.importacion_inclusiones_catalogo import aplicar_inclusiones
 
 
 aplicacion = modulo.app
@@ -92,6 +96,201 @@ with aplicacion.app_context():
     db.session.commit()
     nautica_ids = organizacion_nautica.id, unidad_nautica.id
     respuesta_fierro_id = respuesta_fierro.id
+
+    producto_fierro = modulo.Producto(
+        organizacion_id=organizacion_id,
+        sku="SKU-COMPARTIDO-UAT",
+        descripcion="Producto Fierro UAT",
+    )
+    producto_nautica = modulo.Producto(
+        organizacion_id=organizacion_nautica.id,
+        sku="SKU-COMPARTIDO-UAT",
+        descripcion="Producto Náutica UAT",
+    )
+    insumo_fierro = modulo.InsumoProductivo(
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_id,
+        codigo="CHAPA-UAT",
+        nombre="Chapa UAT",
+        tipo="materia_prima",
+        unidad_medida="kg",
+        activo=True,
+    )
+    db.session.add_all([producto_fierro, producto_nautica, insumo_fierro])
+    db.session.commit()
+    assert modulo.Producto.query.filter_by(
+        organizacion_id=organizacion_id,
+        sku="SKU-COMPARTIDO-UAT",
+    ).one().descripcion == "Producto Fierro UAT"
+    assert modulo.Producto.query.filter_by(
+        organizacion_id=organizacion_nautica.id,
+        sku="SKU-COMPARTIDO-UAT",
+    ).one().descripcion == "Producto Náutica UAT"
+
+    catalogo_fierro = modulo.Catalogo(
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_id,
+        codigo="catalogo-fierro-uat",
+        nombre="Catálogo Fierro UAT",
+        estado="desactivado",
+    )
+    catalogo_nautica = modulo.Catalogo(
+        organizacion_id=organizacion_nautica.id,
+        unidad_negocio_id=unidad_nautica.id,
+        codigo="catalogo-nautica-uat",
+        nombre="Catálogo Náutica UAT",
+        estado="desactivado",
+    )
+    db.session.add_all([catalogo_fierro, catalogo_nautica])
+    db.session.flush()
+    inclusion_fierro = modulo.CatalogoProducto(
+        catalogo_id=catalogo_fierro.id,
+        producto_id=producto_fierro.id,
+        sku_comercial="SKU-COMPARTIDO-UAT",
+        nombre_comercial="Producto Fierro UAT",
+        precio_centavos=0,
+        activo=False,
+        disponible=False,
+    )
+    inclusion_nautica = modulo.CatalogoProducto(
+        catalogo_id=catalogo_nautica.id,
+        producto_id=producto_nautica.id,
+        sku_comercial="SKU-COMPARTIDO-UAT",
+        nombre_comercial="Producto Náutica UAT",
+        precio_centavos=0,
+        activo=False,
+        disponible=False,
+    )
+    db.session.add_all([inclusion_fierro, inclusion_nautica])
+    db.session.commit()
+    try:
+        validar_relaciones(
+            [f"complementario:{inclusion_nautica.id}"],
+            inclusion=inclusion_fierro,
+            CatalogoProducto=modulo.CatalogoProducto,
+        )
+    except ValueError as error:
+        assert "organización y unidad" in str(error)
+    else:
+        raise AssertionError("Catálogo aceptó una relación de otro tenant.")
+    try:
+        aplicar_inclusiones(
+            [{
+                "accion": "actualizar",
+                "catalogo_id": catalogo_fierro.id,
+                "producto_id": producto_fierro.id,
+                "inclusion_id": inclusion_nautica.id,
+                "sku": producto_fierro.sku,
+                "descripcion": producto_fierro.descripcion,
+                "sku_comercial": "ATAQUE-CRUZADO",
+                "nombre_comercial": "No modificar",
+                "marca": "",
+                "categoria": "",
+            }],
+            organizacion_id=organizacion_id,
+            unidad_negocio_id=unidad_id,
+            modelos={
+                "Producto": modulo.Producto,
+                "Catalogo": modulo.Catalogo,
+                "CatalogoProducto": modulo.CatalogoProducto,
+            },
+            db_session=db.session,
+        )
+    except ValueError as error:
+        assert "cambió de tenant" in str(error)
+    else:
+        raise AssertionError("Importación aceptó una inclusión de otro tenant.")
+
+    proveedor_fierro = crear_proveedor(
+        {"codigo": "PROV-UAT", "razon_social": "Proveedor Fierro UAT"},
+        organizacion_id=organizacion_id,
+        ProveedorCompra=modulo.ProveedorCompra,
+        db_session=db.session,
+    )
+    orden_fierro = crear_orden(
+        {
+            "numero": "OC-UAT-1",
+            "cantidad": "2",
+            "precio_unitario": "1000",
+            "descripcion": "Chapa UAT",
+            "unidad_medida": "kg",
+        },
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_id,
+        proveedor=proveedor_fierro,
+        insumo=insumo_fierro,
+        OrdenCompra=modulo.OrdenCompra,
+        OrdenCompraItem=modulo.OrdenCompraItem,
+        db_session=db.session,
+        usuario_id=usuario.id,
+    )
+    assert orden_fierro.total_centavos == 200000
+    try:
+        crear_orden(
+            {
+                "numero": "OC-CRUZADA-UAT",
+                "cantidad": "1",
+                "precio_unitario": "1",
+                "descripcion": "No permitido",
+                "unidad_medida": "u",
+            },
+            organizacion_id=organizacion_nautica.id,
+            unidad_negocio_id=unidad_nautica.id,
+            proveedor=proveedor_fierro,
+            insumo=None,
+            OrdenCompra=modulo.OrdenCompra,
+            OrdenCompraItem=modulo.OrdenCompraItem,
+            db_session=db.session,
+        )
+    except ValueError as error:
+        assert "tenant activo" in str(error)
+    else:
+        raise AssertionError("Compras aceptó un proveedor de otro tenant.")
+
+    costo_fierro = crear_version_costo(
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_id,
+        producto_id=producto_fierro.id,
+        moneda="ARS",
+        tipo="manual",
+        detalles=[{
+            "tipo": "insumo",
+            "concepto": "Chapa UAT",
+            "cantidad": "2",
+            "unidad_medida": "kg",
+            "costo_unitario_centavos": 100000,
+            "orden": 0,
+        }],
+        Organizacion=modulo.Organizacion,
+        UnidadNegocio=modulo.UnidadNegocio,
+        Producto=modulo.Producto,
+        CostoProductoVersion=modulo.CostoProductoVersion,
+        CostoProductoDetalle=modulo.CostoProductoDetalle,
+        db_session=db.session,
+    )
+    assert costo_fierro.costo_total_centavos == 200000
+    try:
+        crear_version_costo(
+            organizacion_id=organizacion_nautica.id,
+            unidad_negocio_id=unidad_nautica.id,
+            producto_id=producto_fierro.id,
+            moneda="ARS",
+            tipo="manual",
+            detalles=[{
+                "tipo": "insumo", "concepto": "Cruce", "cantidad": "1",
+                "unidad_medida": "u", "costo_unitario_centavos": 1,
+            }],
+            Organizacion=modulo.Organizacion,
+            UnidadNegocio=modulo.UnidadNegocio,
+            Producto=modulo.Producto,
+            CostoProductoVersion=modulo.CostoProductoVersion,
+            CostoProductoDetalle=modulo.CostoProductoDetalle,
+            db_session=db.session,
+        )
+    except ValueError as error:
+        assert "no pertenece" in str(error)
+    else:
+        raise AssertionError("Costos aceptó un producto de otro tenant.")
 
 
 def _red_no_debe_invocarse(*_args, **_kwargs):

@@ -176,8 +176,12 @@ def validar_relaciones(ids, *, inclusion, CatalogoProducto):
             destino is None
             or destino.id == inclusion.id
             or destino.catalogo.organizacion_id != inclusion.catalogo.organizacion_id
+            or destino.catalogo.unidad_negocio_id
+            != inclusion.catalogo.unidad_negocio_id
         ):
-            raise ValueError("El producto relacionado no pertenece a la organización.")
+            raise ValueError(
+                "El producto relacionado no pertenece a la organización y unidad activas."
+            )
         relaciones.append({"tipo": tipo, "catalogo_producto_id": destino.id})
     return relaciones
 

@@ -2364,7 +2364,10 @@ def crear_blueprint_comercial(*, dependencias):
                     if lote.modo == "solo_validar":
                         raise ValueError("El modo Solo validar no permite confirmar cambios.")
                     conteos = aplicar_combos(
-                        deserializar(lote.vista_previa_json, []), modelos=modelos,
+                        deserializar(lote.vista_previa_json, []),
+                        organizacion_id=organizacion.id,
+                        unidad_negocio_id=unidad_activa.id,
+                        modelos=modelos,
                         db_session=db.session,
                     )
                     lote = db.session.get(Lote, lote.id)

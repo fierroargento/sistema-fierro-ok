@@ -11,8 +11,9 @@ class QueryFake:
         self.productos = productos
         self.sku_busqueda = None
 
-    def filter_by(self, sku):
+    def filter_by(self, sku, organizacion_id):
         self.sku_busqueda = sku
+        self.organizacion_id = organizacion_id
         return self
 
     def first(self):
@@ -32,15 +33,30 @@ class ItemFake:
 class PedidoFake:
     def __init__(self, items):
         self.items = items
+        self.organizacion_id = 7
 
 
 def test_buscar_producto_catalogo_por_sku_normaliza_sku():
     producto = SimpleNamespace(sku="PF9060H")
     ProductoFake.query = QueryFake({"PF9060H": producto})
 
-    encontrado = buscar_producto_catalogo_por_sku(ProductoFake, " pf9060h ")
+    encontrado = buscar_producto_catalogo_por_sku(
+        ProductoFake,
+        " pf9060h ",
+        organizacion_id=7,
+    )
 
     assert encontrado is producto
+    assert ProductoFake.query.organizacion_id == 7
+
+
+def test_busqueda_sin_tenant_no_devuelve_producto_global():
+    ProductoFake.query = QueryFake({"PF9060H": SimpleNamespace(sku="PF9060H")})
+    assert buscar_producto_catalogo_por_sku(
+        ProductoFake,
+        "PF9060H",
+        organizacion_id=None,
+    ) is None
 
 
 def test_calcular_logistica_pedido_desde_catalogo_usa_producto_inyectado():

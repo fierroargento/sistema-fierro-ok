@@ -262,6 +262,14 @@ def aplicar_inclusiones(
                 db_session.get(CatalogoProducto, inclusion_id)
                 if inclusion_id else None
             )
+            if inclusion is not None and (
+                inclusion.catalogo_id != catalogo.id
+                or inclusion.producto_id != producto.id
+            ):
+                raise ValueError(
+                    "La inclusión cambió de tenant, catálogo o producto "
+                    "desde la validación."
+                )
             creado = inclusion is None
             if creado:
                 inclusion = CatalogoProducto(

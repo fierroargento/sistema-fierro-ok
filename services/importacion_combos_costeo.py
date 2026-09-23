@@ -110,15 +110,32 @@ def previsualizar_combos(
     return resultado
 
 
-def aplicar_combos(vista, *, modelos, db_session):
+def aplicar_combos(
+    vista, *, organizacion_id, unidad_negocio_id, modelos, db_session,
+):
     conteos = {"creados": 0, "actualizados": 0, "sin_cambios": 0, "rechazados": 0}
     for fila in vista:
         if fila["accion"] in {"rechazado", "sin_cambios"}:
             conteos["rechazados" if fila["accion"] == "rechazado" else "sin_cambios"] += 1
             continue
+        combo = modelos["PerfilCosteoProducto"].query.filter_by(
+            id=fila["combo_id"],
+            organizacion_id=organizacion_id,
+            unidad_negocio_id=unidad_negocio_id,
+        ).first()
+        componente = modelos["PerfilCosteoProducto"].query.filter_by(
+            id=fila["componente_id"],
+            organizacion_id=organizacion_id,
+            unidad_negocio_id=unidad_negocio_id,
+        ).first()
+        if combo is None or componente is None:
+            raise ValueError(
+                "El combo o su componente cambió de tenant o unidad "
+                "desde la validación."
+            )
         crear_o_actualizar_componente_combo(
-            db_session.get(modelos["PerfilCosteoProducto"], fila["combo_id"]),
-            db_session.get(modelos["PerfilCosteoProducto"], fila["componente_id"]),
+            combo,
+            componente,
             cantidad=fila["cantidad"], observacion=fila["observacion"],
             ComboProductoComponente=modelos["ComboProductoComponente"],
             db_session=db_session, commit=False,

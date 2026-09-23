@@ -13,6 +13,7 @@ class PedidoFalso:
     def __init__(self, cp="7505", items=None):
         self.codigo_postal = cp
         self.items = items or []
+        self.organizacion_id = 7
 
 
 class ProductoFalso:
@@ -40,8 +41,9 @@ class QueryProductoFalsa:
         self.catalogo = catalogo
         self.sku = ""
 
-    def filter_by(self, sku):
+    def filter_by(self, sku, organizacion_id):
         self.sku = sku
+        self.organizacion_id = organizacion_id
         return self
 
     def first(self):
