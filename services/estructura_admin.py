@@ -779,6 +779,11 @@ def procesar_accion_estructura_admin(
                 ),
                 "la cuenta de Mercado Libre",
             )
+            _exigir_pertenencia_tenant(
+                organizacion,
+                cuenta_ml,
+                "La cuenta de Mercado Libre",
+            )
             duplicado = (
                 VinculoCanalComercial.query
                 .filter_by(
@@ -796,6 +801,11 @@ def procesar_accion_estructura_admin(
                     "tienda_nube_cuenta_id",
                 ),
                 "la cuenta Tienda Nube",
+            )
+            _exigir_pertenencia_tenant(
+                organizacion,
+                cuenta_tn,
+                "La cuenta Tienda Nube",
             )
             duplicado = (
                 VinculoCanalComercial.query

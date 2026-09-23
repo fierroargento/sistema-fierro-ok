@@ -113,10 +113,8 @@ def registrar_rutas_auth(
                     db.session.rollback()
 
             else:
-                session.pop(
-                    "organizacion_id",
-                    None,
-                )
+                session.clear()
+                session.permanent = True
                 session["user_id"] = usuario.id
                 session["username"] = (
                     usuario.username

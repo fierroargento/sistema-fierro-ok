@@ -76,7 +76,7 @@ def test_mutaciones_sensibles_exigen_tenant():
 
     assert bloque.count(
         "_exigir_pertenencia_tenant("
-    ) == 11
+    ) >= 13
 
     acciones = (
         "toggle_sucursal",

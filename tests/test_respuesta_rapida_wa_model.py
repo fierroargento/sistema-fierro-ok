@@ -8,6 +8,7 @@ def test_respuesta_rapida_wa_expone_modelo_canonico():
 
     columnas = {
         "id",
+        "organizacion_id",
         "empresa_id",
         "titulo",
         "texto",

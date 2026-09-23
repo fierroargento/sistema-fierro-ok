@@ -12,6 +12,12 @@ class RespuestaRapidaWA(db.Model):
     __tablename__ = "respuesta_rapida_wa"
 
     id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizacion.id"),
+        nullable=False,
+        index=True,
+    )
     empresa_id = db.Column(db.Integer, default=1, index=True)
 
     titulo = db.Column(db.String(120), nullable=False)

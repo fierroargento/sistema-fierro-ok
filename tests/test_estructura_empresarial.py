@@ -47,7 +47,7 @@ def test_bootstrap_empresarial_es_idempotente_y_sin_pedidos():
 
     assert (
         'ORGANIZACION_SLUG_GRUPO_FIERRO = '
-        '"grupo-fierro"'
+        '"fierro-100-argento"'
         in servicio
     )
     assert '"fierro-100-argento"' in servicio

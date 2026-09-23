@@ -170,6 +170,88 @@ def asegurar_identidad_tenant_whatsapp_preparatoria(
     return {"columnas_creadas": creadas}
 
 
+def asegurar_respuestas_rapidas_whatsapp_tenant(
+    *, db, inspect_fn, text_fn, organizacion_id_predeterminada, logger_fn=print,
+):
+    """Aísla respuestas rápidas existentes dentro del tenant inicial."""
+    inspector = inspect_fn(db.engine)
+    tabla = "respuesta_rapida_wa"
+    if tabla not in inspector.get_table_names():
+        return {"columna_creada": False, "filas_actualizadas": 0}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    creada = "organizacion_id" not in columnas
+    if creada:
+        db.session.execute(text_fn(
+            "ALTER TABLE respuesta_rapida_wa ADD COLUMN organizacion_id INTEGER"
+        ))
+    resultado = db.session.execute(
+        text_fn(
+            "UPDATE respuesta_rapida_wa SET organizacion_id = :organizacion_id "
+            "WHERE organizacion_id IS NULL"
+        ),
+        {"organizacion_id": int(organizacion_id_predeterminada)},
+    )
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS ix_respuesta_rapida_wa_organizacion_id "
+        "ON respuesta_rapida_wa (organizacion_id)"
+    ))
+    db.session.commit()
+    if creada and db.engine.dialect.name == "postgresql":
+        db.session.execute(text_fn(
+            "ALTER TABLE respuesta_rapida_wa ALTER COLUMN organizacion_id SET NOT NULL"
+        ))
+        db.session.commit()
+    if creada and logger_fn is not None:
+        logger_fn("[SAAS] Respuestas rápidas WhatsApp aisladas por organización.")
+    return {
+        "columna_creada": creada,
+        "filas_actualizadas": int(getattr(resultado, "rowcount", 0) or 0),
+    }
+
+
+def asegurar_propiedad_tenant_cuentas_canal(
+    *, db, inspect_fn, text_fn, logger_fn=print,
+):
+    """Agrega dueño explícito a ML/TN y lo deriva sólo de vínculos existentes."""
+    inspector = inspect_fn(db.engine)
+    tablas = set(inspector.get_table_names())
+    configuraciones = (
+        ("mercado_libre_cuenta", "mercado_libre_cuenta_id"),
+        ("tienda_nube_cuenta", "tienda_nube_cuenta_id"),
+    )
+    resultado = {}
+    for tabla, columna_vinculo in configuraciones:
+        if tabla not in tablas:
+            resultado[tabla] = {"columna_creada": False, "filas_actualizadas": 0}
+            continue
+        columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+        creada = "organizacion_id" not in columnas
+        if creada:
+            db.session.execute(text_fn(
+                f"ALTER TABLE {tabla} ADD COLUMN organizacion_id INTEGER"
+            ))
+        actualizado = db.session.execute(text_fn(
+            f"UPDATE {tabla} SET organizacion_id = ("
+            "SELECT vinculo.organizacion_id FROM vinculo_canal_comercial vinculo "
+            f"WHERE vinculo.{columna_vinculo} = {tabla}.id LIMIT 1"
+            ") WHERE organizacion_id IS NULL AND EXISTS ("
+            "SELECT 1 FROM vinculo_canal_comercial vinculo "
+            f"WHERE vinculo.{columna_vinculo} = {tabla}.id)"
+        ))
+        db.session.execute(text_fn(
+            f"CREATE INDEX IF NOT EXISTS ix_{tabla}_organizacion_id "
+            f"ON {tabla} (organizacion_id)"
+        ))
+        resultado[tabla] = {
+            "columna_creada": creada,
+            "filas_actualizadas": int(getattr(actualizado, "rowcount", 0) or 0),
+        }
+    db.session.commit()
+    if any(item["columna_creada"] for item in resultado.values()) and logger_fn:
+        logger_fn("[SAAS] Propiedad tenant explícita agregada a cuentas ML/TN.")
+    return resultado
+
+
 def asegurar_cuenta_whatsapp_vinculo_preparatoria(
     *, db, inspect_fn, text_fn, logger_fn=print,
 ):

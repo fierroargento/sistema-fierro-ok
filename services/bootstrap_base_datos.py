@@ -27,6 +27,8 @@ def inicializar_base_datos_saas(
         asegurar_identidad_canal_crm_tenant,
         asegurar_identidad_tenant_pedido_preparatoria,
         asegurar_identidad_tenant_whatsapp_preparatoria,
+        asegurar_respuestas_rapidas_whatsapp_tenant,
+        asegurar_propiedad_tenant_cuentas_canal,
         asegurar_cuenta_whatsapp_vinculo_preparatoria,
         asegurar_movimiento_inventario_tenant,
         asegurar_inventario_saas,
@@ -158,6 +160,21 @@ def inicializar_base_datos_saas(
         organizacion_id = estructura_inicial[
             "organizacion"
         ].id
+
+        asegurar_respuestas_rapidas_whatsapp_tenant(
+            db=db,
+            inspect_fn=inspect_fn,
+            text_fn=text_fn,
+            organizacion_id_predeterminada=organizacion_id,
+            logger_fn=logger_fn,
+        )
+
+        asegurar_propiedad_tenant_cuentas_canal(
+            db=db,
+            inspect_fn=inspect_fn,
+            text_fn=text_fn,
+            logger_fn=logger_fn,
+        )
 
         asegurar_producto_tenant(
             db=db,

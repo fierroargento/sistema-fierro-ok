@@ -153,6 +153,11 @@ def exigir_vinculo_cuenta_tenant(
     organizacion_id = _organizacion_id(
         organizacion
     )
+    cuenta_organizacion_id = getattr(cuenta, "organizacion_id", None)
+    if cuenta_organizacion_id != organizacion_id:
+        raise ValueError(
+            "La cuenta del canal no pertenece a la organizacion activa."
+        )
     canal = normalizar_canal(canal)
 
     filtros = {
@@ -237,6 +242,12 @@ def asegurar_vinculo_ml_oauth(
         raise ValueError(
             "La cuenta de Mercado Libre todavia "
             "no tiene identificador."
+        )
+
+    if getattr(cuenta, "organizacion_id", None) != organizacion_id:
+        raise ValueError(
+            "La cuenta de Mercado Libre no pertenece "
+            "a la organizacion activa."
         )
 
     vinculo = (

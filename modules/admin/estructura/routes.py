@@ -145,7 +145,9 @@ def crear_blueprint_estructura(
             "admin_estructura.html",
             organizacion=organizacion,
             membresias_tenant=membresias_usuario(usuario),
-            puede_crear_tenant=(usuario.rol == "admin"),
+            # El alta/estado global de tenants no es una facultad del admin
+            # de una organización. Se opera sólo por bootstrap/CLI controlado.
+            puede_crear_tenant=False,
             **datos,
             ok_feedback=(
                 request.args.get("ok")
@@ -185,33 +187,15 @@ def crear_blueprint_estructura(
                 session["organizacion_id"] = membresia.organizacion_id
                 return redirect(url_for("admin_estructura.panel"))
             if accion == "crear_organizacion":
-                if usuario.rol != "admin":
-                    raise ValueError("No tenés permiso para crear organizaciones.")
-                nueva = crear_organizacion(
-                    nombre=request.form.get("nombre"),
-                    slug=request.form.get("slug"),
-                    unidad_nombre=request.form.get("unidad_nombre"),
-                    unidad_codigo=request.form.get("unidad_codigo"),
-                    usuario=usuario,
-                    Organizacion=modelos["Organizacion"],
-                    UnidadNegocio=modelos["UnidadNegocio"],
-                    UsuarioOrganizacion=UsuarioOrganizacion,
-                    ModuloOrganizacion=modelos["ModuloOrganizacion"],
-                    db_session=db.session,
-                    asegurar_modulos_fn=asegurar_modulos_iniciales,
+                raise ValueError(
+                    "La creación de organizaciones está reservada al "
+                    "bootstrap o CLI de plataforma."
                 )
-                mensaje = f"Organización {nueva.nombre} creada desactivada."
             elif accion == "estado_organizacion":
-                if usuario.rol != "admin":
-                    raise ValueError("No tenés permiso para cambiar organizaciones.")
-                objetivo = cambiar_estado_organizacion(
-                    request.form.get("organizacion_id"),
-                    usuario_id=usuario.id,
-                    Organizacion=modelos["Organizacion"],
-                    UsuarioOrganizacion=UsuarioOrganizacion,
-                    db_session=db.session,
+                raise ValueError(
+                    "El estado global de organizaciones sólo puede cambiarse "
+                    "desde una operación de plataforma controlada."
                 )
-                mensaje = f"Organización {objetivo.nombre} actualizada."
             elif accion == "editar_organizacion":
                 actualizar_organizacion(
                     organizacion,

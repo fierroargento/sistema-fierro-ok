@@ -51,7 +51,7 @@ def test_bootstrap_real_inicializa_una_base_vacia(tmp_path):
     codigo = (
         "import app; "
         "ctx=app.app.app_context(); ctx.push(); "
-        "assert app.Organizacion.query.count() == 1; "
+        "assert app.Organizacion.query.count() == 2; "
         "assert app.UsuarioSistema.query.count() == 0; "
         "assert app.db.session.execute(app.text("
         "'SELECT version FROM schema_version_saas')).first() is not None; "

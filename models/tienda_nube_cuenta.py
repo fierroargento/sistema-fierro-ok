@@ -12,6 +12,12 @@ class TiendaNubeCuenta(db.Model):
     __tablename__ = "tienda_nube_cuenta"
 
     id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizacion.id"),
+        nullable=True,
+        index=True,
+    )
     store_id = db.Column(db.String(50))
     estado_conexion = db.Column(
         db.String(30),

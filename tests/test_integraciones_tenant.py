@@ -65,9 +65,9 @@ def modelo_vinculo(registros):
 
 
 def crear_datos():
-    cuenta_ml_a = SimpleNamespace(id=101)
-    cuenta_ml_b = SimpleNamespace(id=102)
-    cuenta_tn = SimpleNamespace(id=201)
+    cuenta_ml_a = SimpleNamespace(id=101, organizacion_id=1)
+    cuenta_ml_b = SimpleNamespace(id=102, organizacion_id=2)
+    cuenta_tn = SimpleNamespace(id=201, organizacion_id=1)
 
     vinculos = [
         SimpleNamespace(
@@ -204,7 +204,7 @@ def test_devuelve_vinculo_de_cuenta_autorizada():
     )
 
 
-def test_cuentas_no_duplican_propiedad_tenant():
+def test_cuentas_declaran_propiedad_tenant_y_vinculo_exclusivo():
     ml = Path(
         "models/mercado_libre_cuenta.py"
     ).read_text(encoding="utf-8")
@@ -215,8 +215,8 @@ def test_cuentas_no_duplican_propiedad_tenant():
         "models/vinculo_canal_comercial.py"
     ).read_text(encoding="utf-8")
 
-    assert "organizacion_id" not in ml
-    assert "organizacion_id" not in tn
+    assert "organizacion_id = db.Column(" in ml
+    assert "organizacion_id = db.Column(" in tn
     assert (
         "organizacion_id = db.Column("
         in vinculo

@@ -32,8 +32,8 @@ def validar_respuesta_rapida_payload(titulo, texto):
     return True, ""
 
 
-def listar_respuestas_rapidas_wa(modelo, empresa_id=1, incluir_inactivas=True):
-    query = modelo.query.filter_by(empresa_id=empresa_id)
+def listar_respuestas_rapidas_wa(modelo, *, organizacion_id, incluir_inactivas=True):
+    query = modelo.query.filter_by(organizacion_id=int(organizacion_id))
 
     if not incluir_inactivas:
         query = query.filter_by(activa=True)
@@ -45,10 +45,10 @@ def listar_respuestas_rapidas_wa(modelo, empresa_id=1, incluir_inactivas=True):
     )
 
 
-def obtener_respuestas_activas_wa(modelo, empresa_id=1):
+def obtener_respuestas_activas_wa(modelo, *, organizacion_id):
     return listar_respuestas_rapidas_wa(
         modelo,
-        empresa_id=empresa_id,
+        organizacion_id=organizacion_id,
         incluir_inactivas=False,
     )
 
@@ -57,7 +57,7 @@ def crear_respuesta_rapida_wa(
     modelo,
     db,
     *,
-    empresa_id=1,
+    organizacion_id,
     titulo="",
     texto="",
     categoria="",
@@ -72,7 +72,7 @@ def crear_respuesta_rapida_wa(
         return False, error, None
 
     respuesta = modelo(
-        empresa_id=empresa_id,
+        organizacion_id=int(organizacion_id),
         titulo=_normalizar_texto(titulo),
         texto=_normalizar_texto(texto),
         categoria=_normalizar_texto(categoria) or CATEGORIA_DEFAULT,

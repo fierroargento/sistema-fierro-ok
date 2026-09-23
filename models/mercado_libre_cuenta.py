@@ -12,6 +12,12 @@ class MercadoLibreCuenta(db.Model):
     __tablename__ = "mercado_libre_cuenta"
 
     id = db.Column(db.Integer, primary_key=True)
+    organizacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizacion.id"),
+        nullable=True,
+        index=True,
+    )
     user_id_ml = db.Column(db.String(50))
     nickname = db.Column(db.String(120))
     access_token = db.Column(db.Text)

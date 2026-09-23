@@ -6,6 +6,7 @@ import hmac
 import base64
 import logging
 import click
+import secrets
 import sentry_sdk
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
@@ -276,6 +277,59 @@ app.config["SECRET_KEY"] = _secret_key
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
+app.config["SESSION_REFRESH_EACH_REQUEST"] = True
+
+
+def csrf_token():
+    token = session.get("_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["_csrf_token"] = token
+    return token
+
+
+app.jinja_env.globals["csrf_token"] = csrf_token
+
+
+@app.before_request
+def validar_csrf():
+    if app.config.get("TESTING") or request.method not in {
+        "POST", "PUT", "PATCH", "DELETE",
+    }:
+        return None
+    if request.path in {
+        "/webhook/mercadolibre",
+        "/admin/integraciones/mercadolibre/webhook",
+        "/webhook/tiendanube",
+        "/webhook/whatsapp",
+    }:
+        return None
+    esperado = session.get("_csrf_token", "")
+    recibido = (
+        request.form.get("_csrf_token", "")
+        or request.headers.get("X-CSRF-Token", "")
+    )
+    if not esperado or not hmac.compare_digest(esperado, recibido):
+        abort(400, description="Token CSRF ausente o inválido.")
+
+
+@app.after_request
+def agregar_cabeceras_seguridad(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault(
+        "Permissions-Policy",
+        "camera=(), microphone=(), geolocation=()",
+    )
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; img-src 'self' data: https:; "
+        "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
+        "connect-src 'self'",
+    )
+    return response
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
@@ -3187,13 +3241,24 @@ def tn_config_faltante():
     return faltantes
 
 
-def cuenta_tn_actual():
+def cuenta_tn_actual(organizacion_id=None):
     store_id = tn_store_id()
     if not store_id:
         return None
+    if organizacion_id is None:
+        membresia = membresia_actual()
+        organizacion_id = getattr(membresia, "organizacion_id", None)
+    if organizacion_id is None:
+        raise ValueError("No se pudo resolver la organización de Tienda Nube.")
     cuenta = TiendaNubeCuenta.query.filter_by(store_id=store_id).first()
+    if cuenta is not None and cuenta.organizacion_id != organizacion_id:
+        raise ValueError("La tienda Tienda Nube pertenece a otra organización.")
     if not cuenta:
-        cuenta = TiendaNubeCuenta(store_id=store_id, estado_conexion="configurada")
+        cuenta = TiendaNubeCuenta(
+            organizacion_id=organizacion_id,
+            store_id=store_id,
+            estado_conexion="configurada",
+        )
         db.session.add(cuenta)
         db.session.commit()
     return cuenta
@@ -8048,9 +8113,14 @@ def callback_mercadolibre():
 
         if cuenta_nueva:
             cuenta = MercadoLibreCuenta(
+                organizacion_id=membresia_oauth.organizacion_id,
                 user_id_ml=seller_id,
             )
             db.session.add(cuenta)
+        elif cuenta.organizacion_id != membresia_oauth.organizacion_id:
+            raise ValueError(
+                "La cuenta de Mercado Libre pertenece a otra organización."
+            )
 
         ml_guardar_token_en_cuenta(
             cuenta,
@@ -9053,7 +9123,7 @@ def respuestas_rapidas_wa_route():
 
     respuestas = listar_respuestas_rapidas_wa(
         RespuestaRapidaWA,
-        empresa_id=1,
+        organizacion_id=membresia_actual().organizacion_id,
         incluir_inactivas=True,
     )
 
@@ -9076,7 +9146,7 @@ def crear_respuesta_rapida_wa_route():
     ok, mensaje, respuesta = crear_respuesta_rapida_wa(
         RespuestaRapidaWA,
         db,
-        empresa_id=1,
+        organizacion_id=membresia_actual().organizacion_id,
         titulo=request.form.get("titulo", ""),
         texto=request.form.get("texto", ""),
         categoria=request.form.get("categoria", ""),
@@ -9104,7 +9174,10 @@ def editar_respuesta_rapida_wa_route(respuesta_id):
     if rol_actual() not in ["admin", "carga"]:
         return redirect(url_for("inicio"))
 
-    respuesta = RespuestaRapidaWA.query.get_or_404(respuesta_id)
+    respuesta = RespuestaRapidaWA.query.filter_by(
+        id=respuesta_id,
+        organizacion_id=membresia_actual().organizacion_id,
+    ).first_or_404()
 
     from modules.whatsapp.respuestas_rapidas import actualizar_respuesta_rapida_wa
 
@@ -9137,7 +9210,10 @@ def toggle_respuesta_rapida_wa_route(respuesta_id):
     if rol_actual() not in ["admin", "carga"]:
         return redirect(url_for("inicio"))
 
-    respuesta = RespuestaRapidaWA.query.get_or_404(respuesta_id)
+    respuesta = RespuestaRapidaWA.query.filter_by(
+        id=respuesta_id,
+        organizacion_id=membresia_actual().organizacion_id,
+    ).first_or_404()
 
     from modules.whatsapp.respuestas_rapidas import toggle_respuesta_rapida_wa
 
@@ -9340,7 +9416,7 @@ def detalle_pedido(id):
 
         respuestas_rapidas_wa = obtener_respuestas_activas_wa(
             RespuestaRapidaWA,
-            empresa_id=1,
+            organizacion_id=pedido.organizacion_id,
         )
 
     except Exception as e:

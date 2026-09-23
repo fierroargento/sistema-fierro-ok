@@ -24,7 +24,7 @@ def test_diagnostico_separa_asignados_inferibles_pendientes_y_conflictos():
 def test_migracion_es_nullable_y_no_hace_backfill():
     texto = Path("services/migraciones_saas.py").read_text(encoding="utf-8")
     inicio = texto.index("def asegurar_identidad_tenant_whatsapp_preparatoria(")
-    fin = texto.index("\ndef asegurar_ficha_catalogo_integral(", inicio)
+    fin = texto.index("\ndef asegurar_respuestas_rapidas_whatsapp_tenant(", inicio)
     bloque = texto[inicio:fin]
     assert "ADD COLUMN {nombre} INTEGER" in bloque
     assert "UPDATE whatsapp_mensaje" not in bloque

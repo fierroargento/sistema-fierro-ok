@@ -61,6 +61,37 @@ with aplicacion.app_context():
     assert membresia.rol == "admin"
     assert check_password_hash(usuario.password_hash, "Clave-UAT-Segura-2026")
     ids = usuario.id, organizacion_id, unidad_id
+    organizacion_nautica = modulo.Organizacion(
+        nombre="Náutica UAT",
+        slug="nautica-uat",
+        activa=True,
+    )
+    unidad_nautica = modulo.UnidadNegocio(
+        organizacion=organizacion_nautica,
+        nombre="Náutica",
+        codigo="nautica",
+        activa=True,
+    )
+    db.session.add_all([organizacion_nautica, unidad_nautica])
+    db.session.flush()
+    db.session.add(modulo.UsuarioOrganizacion(
+        usuario_id=usuario.id,
+        organizacion_id=organizacion_nautica.id,
+        rol="admin",
+        activa=True,
+        predeterminada=False,
+    ))
+    respuesta_fierro = modulo.RespuestaRapidaWA(
+        organizacion_id=organizacion_id,
+        titulo="SECRETO_FIERRO_UAT",
+        texto="Visible sólo en Fierro",
+        categoria="prueba",
+        activa=True,
+    )
+    db.session.add(respuesta_fierro)
+    db.session.commit()
+    nautica_ids = organizacion_nautica.id, unidad_nautica.id
+    respuesta_fierro_id = respuesta_fierro.id
 
 
 def _red_no_debe_invocarse(*_args, **_kwargs):
@@ -85,6 +116,46 @@ cliente = aplicacion.test_client()
 with cliente.session_transaction() as sesion:
     sesion["user_id"] = ids[0]
     sesion["username"] = "admin-uat"
+    sesion["organizacion_id"] = ids[1]
+    sesion["unidad_negocio_id"] = ids[2]
+
+respuesta_segura = cliente.get("/login", base_url="https://localhost")
+assert respuesta_segura.headers["X-Content-Type-Options"] == "nosniff"
+assert respuesta_segura.headers["X-Frame-Options"] == "DENY"
+assert "Content-Security-Policy" in respuesta_segura.headers
+
+aplicacion.config["TESTING"] = False
+respuesta_sin_csrf = cliente.post(
+    "/whatsapp/respuestas-rapidas/nueva",
+    data={"titulo": "No debe crearse", "texto": "sin token"},
+    base_url="https://localhost",
+)
+assert respuesta_sin_csrf.status_code == 400
+aplicacion.config["TESTING"] = True
+
+with cliente.session_transaction() as sesion:
+    sesion["organizacion_id"] = nautica_ids[0]
+    sesion["unidad_negocio_id"] = nautica_ids[1]
+
+panel_nautica = cliente.get(
+    "/whatsapp/respuestas-rapidas",
+    base_url="https://localhost",
+)
+assert panel_nautica.status_code == 200
+assert b"SECRETO_FIERRO_UAT" not in panel_nautica.data
+edicion_cruzada = cliente.post(
+    f"/whatsapp/respuestas-rapidas/{respuesta_fierro_id}/editar",
+    data={"titulo": "Intrusión", "texto": "No modificar"},
+    base_url="https://localhost",
+)
+assert edicion_cruzada.status_code == 404
+toggle_cruzado = cliente.post(
+    f"/whatsapp/respuestas-rapidas/{respuesta_fierro_id}/toggle",
+    base_url="https://localhost",
+)
+assert toggle_cruzado.status_code == 404
+
+with cliente.session_transaction() as sesion:
     sesion["organizacion_id"] = ids[1]
     sesion["unidad_negocio_id"] = ids[2]
 

@@ -47,6 +47,7 @@ def _datos():
     )
     cuenta = SimpleNamespace(
         id=30,
+        organizacion_id=10,
         nickname="NAUTICA_DEL_PLATA",
         user_id_ml="999",
     )
@@ -197,6 +198,24 @@ def test_rechaza_cuenta_sin_id():
             VinculoCanalComercial=(
                 ModeloVinculo
             ),
+            db_session=sesion,
+        )
+
+    assert sesion.agregados == []
+
+
+def test_rechaza_cuenta_de_otro_tenant():
+    organizacion, unidad, cuenta = _datos()
+    cuenta.organizacion_id = 99
+    ModeloVinculo.query = Consulta()
+    sesion = Sesion()
+
+    with pytest.raises(ValueError, match="no pertenece"):
+        asegurar_vinculo_ml_oauth(
+            organizacion,
+            unidad,
+            cuenta,
+            VinculoCanalComercial=ModeloVinculo,
             db_session=sesion,
         )
 
