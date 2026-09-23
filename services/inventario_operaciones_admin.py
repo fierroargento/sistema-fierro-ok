@@ -7,6 +7,7 @@ from services.inventario_saas import (
     despachar_transferencia,
     preparar_items_catalogo,
     recibir_transferencia,
+    validar_transferencia,
 )
 from services.inventario_pedidos import (
     guardar_configuracion_automatizacion,
@@ -316,13 +317,17 @@ def procesar_operacion_inventario(
         cantidad = _entero(formulario, "cantidad")
         if not codigo or cantidad <= 0:
             raise ValueError("Completá código y cantidad positiva.")
-        db_session.add(Transferencia(
+        transferencia = Transferencia(
             organizacion_id=organizacion.id, codigo=codigo,
             existencia_origen_id=origen.id, existencia_destino_id=destino.id,
             cantidad_solicitada=cantidad,
             motivo=_texto(formulario, "motivo") or "Transferencia interna",
             estado="borrador", usuario_solicita=usuario,
-        ))
+        )
+        transferencia.origen = origen
+        transferencia.destino = destino
+        validar_transferencia(transferencia)
+        db_session.add(transferencia)
         _guardar(db_session)
         return f"Transferencia {codigo} creada en borrador."
 

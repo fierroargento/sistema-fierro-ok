@@ -82,11 +82,30 @@ def validar_mismo_tenant(organizacion_id, *registros):
             raise ValueError("La operación mezcla registros de otra organización.")
 
 
+def validar_existencia_operativa(existencia):
+    """Exige una existencia v2 íntegra y habilitada para mutar cantidades."""
+    validar_mismo_tenant(
+        existencia.organizacion_id,
+        existencia.sucursal,
+        existencia.item_inventario,
+    )
+    if not bool(existencia.control_activo):
+        raise ValueError("El control de la existencia está desactivado.")
+    if not bool(existencia.sucursal.activa):
+        raise ValueError("La ubicación de la existencia está desactivada.")
+    if not bool(existencia.item_inventario.activo):
+        raise ValueError("El SKU de la existencia está desactivado.")
+    if int(existencia.producto_id) != int(existencia.item_inventario.producto_id):
+        raise ValueError("La existencia no corresponde al producto de su SKU.")
+    return True
+
+
 def crear_reserva(
     existencia, *, canal, referencia_externa, clave_idempotencia, cantidad,
     ReservaInventario, MovimientoInventario, db_session, vence_en=None,
     motivo="Reserva por canal", usuario="sistema",
 ):
+    validar_existencia_operativa(existencia)
     clave = str(clave_idempotencia or "").strip()
     if not clave:
         raise ValueError("La reserva necesita una clave idempotente.")
@@ -126,6 +145,8 @@ def cerrar_reserva(
     if reserva.estado != "activa":
         return reserva
     existencia = reserva.existencia
+    validar_mismo_tenant(reserva.organizacion_id, existencia)
+    validar_existencia_operativa(existencia)
     registrar_movimiento(
         existencia, tipo="liberacion", cantidad=reserva.cantidad,
         motivo=f"Reserva {estado}", referencia=reserva.referencia_externa,
@@ -151,8 +172,15 @@ def validar_transferencia(transferencia):
     )
     if transferencia.origen.id == transferencia.destino.id:
         raise ValueError("El origen y el destino deben ser diferentes.")
-    if transferencia.origen.producto_id != transferencia.destino.producto_id:
-        raise ValueError("El origen y el destino deben corresponder al mismo producto.")
+    validar_existencia_operativa(transferencia.origen)
+    validar_existencia_operativa(transferencia.destino)
+    if (
+        transferencia.origen.item_inventario_id is None
+        or transferencia.destino.item_inventario_id is None
+        or int(transferencia.origen.item_inventario_id)
+        != int(transferencia.destino.item_inventario_id)
+    ):
+        raise ValueError("El origen y el destino deben corresponder al mismo SKU.")
     if int(transferencia.cantidad_solicitada) <= 0:
         raise ValueError("La transferencia necesita una cantidad positiva.")
     return True
@@ -186,6 +214,7 @@ def despachar_transferencia(
 def recibir_transferencia(
     transferencia, cantidad, *, MovimientoInventario, db_session, usuario="admin",
 ):
+    validar_transferencia(transferencia)
     if transferencia.estado not in {"despachada", "parcial"}:
         raise ValueError("La transferencia no está disponible para recepción.")
     cantidad = int(cantidad)
@@ -232,6 +261,14 @@ def conciliar_conteo(
     if not conteo.items:
         raise ValueError("El inventario no contiene existencias.")
     for item in conteo.items:
+        validar_mismo_tenant(conteo.organizacion_id, item.existencia)
+        if int(item.existencia.sucursal_operativa_id) != int(
+            conteo.sucursal_operativa_id
+        ):
+            raise ValueError(
+                "El conteo contiene una existencia de otra ubicación."
+            )
+        validar_existencia_operativa(item.existencia)
         if item.cantidad_contada is None:
             raise ValueError("Faltan cantidades por contar.")
         diferencia = diferencia_conteo(item.cantidad_esperada, item.cantidad_contada)

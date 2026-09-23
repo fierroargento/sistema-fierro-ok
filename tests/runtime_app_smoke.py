@@ -17,6 +17,12 @@ from services.compras_nucleo import crear_orden, crear_proveedor
 from services.costos_productos import crear_version_costo
 from services.catalogo_ficha_integral import validar_relaciones
 from services.importacion_inclusiones_catalogo import aplicar_inclusiones
+from services.inventario_saas import (
+    cerrar_reserva,
+    conciliar_conteo,
+    crear_reserva,
+    validar_transferencia,
+)
 
 
 aplicacion = modulo.app
@@ -291,6 +297,132 @@ with aplicacion.app_context():
         assert "no pertenece" in str(error)
     else:
         raise AssertionError("Costos aceptó un producto de otro tenant.")
+
+    deposito_fierro_a = modulo.SucursalOperativa(
+        organizacion_id=organizacion_id, codigo="deposito-a-uat",
+        nombre="Depósito A UAT", activa=True, es_principal=True,
+    )
+    deposito_fierro_b = modulo.SucursalOperativa(
+        organizacion_id=organizacion_id, codigo="deposito-b-uat",
+        nombre="Depósito B UAT", activa=True, es_principal=False,
+    )
+    deposito_nautica = modulo.SucursalOperativa(
+        organizacion_id=organizacion_nautica.id, codigo="deposito-a-uat",
+        nombre="Depósito Náutica UAT", activa=True, es_principal=True,
+    )
+    item_fierro = modulo.ItemInventario(
+        organizacion_id=organizacion_id, producto_id=producto_fierro.id,
+        catalogo_producto_id=inclusion_fierro.id, sku="SKU-COMPARTIDO-UAT",
+        nombre="Producto Fierro UAT", tipo="producto", activo=True,
+    )
+    item_fierro_alternativo = modulo.ItemInventario(
+        organizacion_id=organizacion_id, producto_id=producto_fierro.id,
+        catalogo_producto_id=inclusion_fierro.id, sku="SKU-OTRO-UAT",
+        nombre="Otro SKU del mismo producto", tipo="variante", activo=True,
+    )
+    item_nautica = modulo.ItemInventario(
+        organizacion_id=organizacion_nautica.id, producto_id=producto_nautica.id,
+        catalogo_producto_id=inclusion_nautica.id, sku="SKU-COMPARTIDO-UAT",
+        nombre="Producto Náutica UAT", tipo="producto", activo=True,
+    )
+    db.session.add_all([
+        deposito_fierro_a, deposito_fierro_b, deposito_nautica,
+        item_fierro, item_fierro_alternativo, item_nautica,
+    ])
+    db.session.flush()
+    existencia_fierro_a = modulo.ExistenciaSucursal(
+        organizacion_id=organizacion_id,
+        sucursal_operativa_id=deposito_fierro_a.id,
+        producto_id=producto_fierro.id, item_inventario_id=item_fierro.id,
+        stock_actual=10, stock_reservado=0, stock_bloqueado=0,
+        stock_transito=0, stock_minimo=0, control_activo=True,
+    )
+    existencia_fierro_b = modulo.ExistenciaSucursal(
+        organizacion_id=organizacion_id,
+        sucursal_operativa_id=deposito_fierro_b.id,
+        producto_id=producto_fierro.id, item_inventario_id=item_fierro.id,
+        stock_actual=0, stock_reservado=0, stock_bloqueado=0,
+        stock_transito=0, stock_minimo=0, control_activo=True,
+    )
+    existencia_otro_sku = modulo.ExistenciaSucursal(
+        organizacion_id=organizacion_id,
+        sucursal_operativa_id=deposito_fierro_b.id,
+        producto_id=producto_fierro.id,
+        item_inventario_id=item_fierro_alternativo.id,
+        stock_actual=0, stock_reservado=0, stock_bloqueado=0,
+        stock_transito=0, stock_minimo=0, control_activo=True,
+    )
+    existencia_nautica = modulo.ExistenciaSucursal(
+        organizacion_id=organizacion_nautica.id,
+        sucursal_operativa_id=deposito_nautica.id,
+        producto_id=producto_nautica.id, item_inventario_id=item_nautica.id,
+        stock_actual=10, stock_reservado=0, stock_bloqueado=0,
+        stock_transito=0, stock_minimo=0, control_activo=True,
+    )
+    db.session.add_all([
+        existencia_fierro_a, existencia_fierro_b,
+        existencia_otro_sku, existencia_nautica,
+    ])
+    db.session.commit()
+
+    reserva = crear_reserva(
+        existencia_fierro_a, canal="laboratorio", referencia_externa="UAT-1",
+        clave_idempotencia="fierro-uat-reserva-1", cantidad=2,
+        ReservaInventario=modulo.ReservaInventario,
+        MovimientoInventario=modulo.MovimientoInventario,
+        db_session=db.session, usuario="admin-uat",
+    )
+    assert existencia_fierro_a.stock_reservado == 2
+    cerrar_reserva(
+        reserva, estado="liberada",
+        MovimientoInventario=modulo.MovimientoInventario,
+        db_session=db.session, usuario="admin-uat",
+    )
+    assert existencia_fierro_a.stock_reservado == 0
+
+    transferencia_otro_sku = modulo.TransferenciaInventario(
+        organizacion_id=organizacion_id, codigo="TR-SKU-UAT",
+        origen=existencia_fierro_a, destino=existencia_otro_sku,
+        cantidad_solicitada=1, motivo="Prueba", estado="borrador",
+    )
+    try:
+        validar_transferencia(transferencia_otro_sku)
+    except ValueError as error:
+        assert "mismo SKU" in str(error)
+    else:
+        raise AssertionError("Inventario transfirió entre SKU diferentes.")
+
+    transferencia_cruzada = modulo.TransferenciaInventario(
+        organizacion_id=organizacion_id, codigo="TR-TENANT-UAT",
+        origen=existencia_fierro_a, destino=existencia_nautica,
+        cantidad_solicitada=1, motivo="Prueba", estado="borrador",
+    )
+    try:
+        validar_transferencia(transferencia_cruzada)
+    except ValueError as error:
+        assert "otra organización" in str(error)
+    else:
+        raise AssertionError("Inventario aceptó una transferencia entre tenants.")
+
+    conteo_alterado = modulo.ConteoInventario(
+        organizacion_id=organizacion_id,
+        sucursal_operativa_id=deposito_fierro_a.id,
+        codigo="CONTEO-ALTERADO-UAT", estado="contado",
+    )
+    conteo_alterado.items.append(modulo.ConteoInventarioItem(
+        existencia=existencia_nautica, cantidad_esperada=10,
+        cantidad_contada=9,
+    ))
+    try:
+        conciliar_conteo(
+            conteo_alterado, MovimientoInventario=modulo.MovimientoInventario,
+            db_session=db.session, usuario="admin-uat",
+        )
+    except ValueError as error:
+        assert "otra organización" in str(error)
+    else:
+        raise AssertionError("Conteo aceptó una existencia de otro tenant.")
+    db.session.rollback()
 
 
 def _red_no_debe_invocarse(*_args, **_kwargs):
