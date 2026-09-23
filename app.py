@@ -784,79 +784,53 @@ def sincronizar_productos_desde_excel(
     )
 
 
-def guardar_etiqueta_subida(archivo):
-    if not archivo or not archivo.filename:
-        return ""
+def _guardar_documento_pedido(archivo, tipo, pedido=None, *, organizacion_id=None, unidad_negocio_id=None):
+    from services.documentos_pedido import guardar_documento_pedido
 
-    exigir_efecto_externo("CLOUDINARY", "Carga de etiqueta")
-    exigir_conexion_externa("CLOUDINARY", "Carga de etiqueta")
-
-    try:
-        resultado = cloudinary.uploader.upload(
-            archivo,
-            resource_type="image",
-            use_filename=True,
-            unique_filename=True,
-            overwrite=False
-        )
-        return {
-            "url": resultado.get("secure_url", ""),
-            "public_id": resultado.get("public_id", "")
-        }
-    except Exception as e:
-        print("Error subiendo a Cloudinary:", e)
-        return {"url": "", "public_id": ""}
+    if pedido is not None:
+        organizacion_id = pedido.organizacion_id
+        unidad_negocio_id = pedido.unidad_negocio_id
+        pedido_id = pedido.id
+    else:
+        pedido_id = "nuevo"
+    return guardar_documento_pedido(
+        archivo,
+        tipo=tipo,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+        pedido_id=pedido_id,
+        cloudinary_uploader=cloudinary.uploader,
+    )
 
 
-def guardar_comprobante_dux_subido(archivo):
-    if not archivo or not archivo.filename:
-        return {"url": "", "public_id": ""}
-
-    exigir_efecto_externo("CLOUDINARY", "Carga de comprobante DUX")
-    exigir_conexion_externa("CLOUDINARY", "Carga de comprobante DUX")
-
-    try:
-        resultado = cloudinary.uploader.upload(
-            archivo,
-            resource_type="auto",
-            use_filename=True,
-            unique_filename=True,
-            overwrite=False
-        )
-        return {
-            "url": resultado.get("secure_url", ""),
-            "public_id": resultado.get("public_id", "")
-        }
-    except Exception as e:
-        print("Error subiendo comprobante DUX a Cloudinary:", e)
-        return {"url": "", "public_id": ""}
+def guardar_etiqueta_subida(archivo, pedido=None, **identidad):
+    return _guardar_documento_pedido(
+        archivo, "etiqueta", pedido, **identidad,
+    )
 
 
+def guardar_comprobante_dux_subido(archivo, pedido=None, **identidad):
+    return _guardar_documento_pedido(
+        archivo, "comprobante_dux", pedido, **identidad,
+    )
 
 
+def guardar_comprobante_pago_agregado_subido(archivo, pedido=None, **identidad):
+    return _guardar_documento_pedido(
+        archivo, "comprobante_pago", pedido, **identidad,
+    )
 
-def guardar_comprobante_pago_agregado_subido(archivo):
-    if not archivo or not archivo.filename:
-        return {"url": "", "public_id": ""}
 
-    exigir_efecto_externo("CLOUDINARY", "Carga de comprobante de pago")
-    exigir_conexion_externa("CLOUDINARY", "Carga de comprobante de pago")
+def _referencia_documento_pertenece_tenant(
+    referencia, *, organizacion_id, unidad_negocio_id,
+):
+    from services.documentos_pedido import referencia_local_pertenece_tenant
 
-    try:
-        resultado = cloudinary.uploader.upload(
-            archivo,
-            resource_type="auto",
-            use_filename=True,
-            unique_filename=True,
-            overwrite=False
-        )
-        return {
-            "url": resultado.get("secure_url", ""),
-            "public_id": resultado.get("public_id", "")
-        }
-    except Exception as e:
-        print("Error subiendo comprobante de pago del agregado a Cloudinary:", e)
-        return {"url": "", "public_id": ""}
+    return referencia_local_pertenece_tenant(
+        referencia,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+    )
 
 
 def _items_agregado_desde_json(raw):
@@ -2560,6 +2534,35 @@ def membresia_actual():
             UsuarioOrganizacion
         ),
     )
+
+
+def unidad_negocio_actual_o_403(membresia=None):
+    """Resuelve una unidad activa perteneciente a la organización autorizada."""
+    membresia = membresia or membresia_actual()
+    if membresia is None:
+        abort(403)
+    unidad_id = session.get("unidad_negocio_id")
+    unidad = None
+    if unidad_id:
+        unidad = UnidadNegocio.query.filter_by(
+            id=unidad_id,
+            organizacion_id=membresia.organizacion_id,
+            activa=True,
+        ).first()
+    if unidad is None:
+        unidad = (
+            UnidadNegocio.query
+            .filter_by(
+                organizacion_id=membresia.organizacion_id,
+                activa=True,
+            )
+            .order_by(UnidadNegocio.id.asc())
+            .first()
+        )
+    if unidad is None:
+        abort(403)
+    session["unidad_negocio_id"] = unidad.id
+    return unidad
 
 
 def consulta_pedidos_tenant_actual():
@@ -8512,8 +8515,12 @@ def ver_etiqueta(nombre_archivo):
     archivo = os.path.basename(str(nombre_archivo or ""))
     if not archivo or archivo != str(nombre_archivo or ""):
         abort(404)
+    unidad_id = int(session.get("unidad_negocio_id") or 0)
+    if unidad_id <= 0:
+        abort(404)
     pedido = (
         consulta_pedidos_tenant_actual()
+        .filter(Pedido.unidad_negocio_id == unidad_id)
         .filter(or_(
             Pedido.etiqueta_archivo.ilike(f"%{archivo}%"),
             Pedido.comprobante_dux_archivo.ilike(f"%{archivo}%"),
@@ -8568,8 +8575,12 @@ def ver_archivo_pedido_sin_id_compat(nombre_archivo):
     if not archivo:
         return "Etiqueta no disponible", 404
 
+    unidad_id = int(session.get("unidad_negocio_id") or 0)
+    if unidad_id <= 0:
+        abort(404)
     pedido = (
         consulta_pedidos_tenant_actual()
+        .filter(Pedido.unidad_negocio_id == unidad_id)
         .filter(Pedido.etiqueta_archivo.ilike(f"%{archivo}%"))
         .order_by(Pedido.id.desc())
         .first()
@@ -8589,9 +8600,23 @@ def ver_archivo_pedido_sin_id_compat(nombre_archivo):
 def ver_archivo_pedido_compat(pedido_id, nombre_archivo):
     # Compatibilidad con links antiguos tipo /pedido/106/ml_xxx.pdf
     pedido = pedido_tenant_actual_o_404(pedido_id)
+    if int(pedido.unidad_negocio_id or 0) != int(
+        session.get("unidad_negocio_id") or 0
+    ):
+        abort(404)
 
     if not pedido.etiqueta_archivo:
         return "Etiqueta no disponible", 404
+
+    etiqueta_referencia = str(pedido.etiqueta_archivo or "").strip()
+    if etiqueta_referencia.startswith("/archivos-uat/"):
+        if not _referencia_documento_pertenece_tenant(
+            etiqueta_referencia,
+            organizacion_id=pedido.organizacion_id,
+            unidad_negocio_id=pedido.unidad_negocio_id,
+        ):
+            abort(404)
+        return redirect(etiqueta_referencia)
 
     archivo_guardado = os.path.basename(str(pedido.etiqueta_archivo))
 
@@ -8742,7 +8767,16 @@ def imprimir_etiqueta(id):
     url_original = etiqueta
     preset_etiqueta = "default"
 
-    if etiqueta.startswith("http"):
+    if etiqueta.startswith("/archivos-uat/"):
+        if not _referencia_documento_pertenece_tenant(
+            etiqueta,
+            organizacion_id=pedido.organizacion_id,
+            unidad_negocio_id=pedido.unidad_negocio_id,
+        ):
+            abort(404)
+        url_archivo = etiqueta
+        url_original = etiqueta
+    elif etiqueta.startswith("http"):
         if extension == "pdf":
             if pedido.empresa_envio and "andreani" in pedido.empresa_envio.lower():
                 preset_etiqueta = "andreani"
@@ -8843,16 +8877,37 @@ def nuevo_pedido():
     if request.method == "POST":
         accion_paso2 = (request.form.get("accion_paso2") or "").strip()
 
+        membresia_pedido = membresia_actual()
+        if membresia_pedido is None:
+            abort(403)
+        unidad_pedido = unidad_negocio_actual_o_403(membresia_pedido)
+
         etiqueta_existente = request.form.get("etiqueta_existente", "").strip()
         comprobante_dux_existente = request.form.get("comprobante_dux_existente", "").strip()
         comprobante_pago_existente = request.form.get("comprobante_pago_existente", "").strip()
+
+        for referencia in (
+            etiqueta_existente,
+            comprobante_dux_existente,
+            comprobante_pago_existente,
+        ):
+            if not _referencia_documento_pertenece_tenant(
+                referencia,
+                organizacion_id=membresia_pedido.organizacion_id,
+                unidad_negocio_id=unidad_pedido.id,
+            ):
+                abort(400)
 
         archivo_etiqueta = request.files.get("etiqueta")
         archivo_comprobante_dux = request.files.get("comprobante_dux")
         archivo_comprobante_pago = request.files.get("comprobante_pago")
 
         if archivo_etiqueta and archivo_etiqueta.filename:
-            subida = guardar_etiqueta_subida(archivo_etiqueta)
+            subida = guardar_etiqueta_subida(
+                archivo_etiqueta,
+                organizacion_id=membresia_pedido.organizacion_id,
+                unidad_negocio_id=unidad_pedido.id,
+            )
             etiqueta_existente = subida.get("url", "")
 
         canal = request.form.get("canal")
@@ -8913,7 +8968,11 @@ def nuevo_pedido():
                 )
 
             archivo_importar_dux.stream.seek(0)
-            subida_dux = guardar_comprobante_dux_subido(archivo_importar_dux)
+            subida_dux = guardar_comprobante_dux_subido(
+                archivo_importar_dux,
+                organizacion_id=membresia_pedido.organizacion_id,
+                unidad_negocio_id=unidad_pedido.id,
+            )
             comprobante_dux_existente = subida_dux.get("url", "")
 
             if not comprobante_dux_existente:
@@ -8997,7 +9056,11 @@ def nuevo_pedido():
                 )
 
             archivo_comprobante_dux.stream.seek(0)
-            subida_dux = guardar_comprobante_dux_subido(archivo_comprobante_dux)
+            subida_dux = guardar_comprobante_dux_subido(
+                archivo_comprobante_dux,
+                organizacion_id=membresia_pedido.organizacion_id,
+                unidad_negocio_id=unidad_pedido.id,
+            )
             comprobante_dux_existente = subida_dux.get("url", "")
             if not comprobante_dux_existente:
                 return render_template(
@@ -9010,7 +9073,11 @@ def nuevo_pedido():
                 )
 
             if archivo_comprobante_pago and archivo_comprobante_pago.filename:
-                subida_pago = guardar_comprobante_pago_agregado_subido(archivo_comprobante_pago)
+                subida_pago = guardar_comprobante_pago_agregado_subido(
+                    archivo_comprobante_pago,
+                    organizacion_id=membresia_pedido.organizacion_id,
+                    unidad_negocio_id=unidad_pedido.id,
+                )
                 comprobante_pago_existente = subida_pago.get("url", "")
 
             form_data["items_texto"] = items_detectados_a_texto(items_detectados)
@@ -9028,11 +9095,19 @@ def nuevo_pedido():
             )
 
         if archivo_comprobante_dux and archivo_comprobante_dux.filename:
-            subida_dux = guardar_comprobante_dux_subido(archivo_comprobante_dux)
+            subida_dux = guardar_comprobante_dux_subido(
+                archivo_comprobante_dux,
+                organizacion_id=membresia_pedido.organizacion_id,
+                unidad_negocio_id=unidad_pedido.id,
+            )
             comprobante_dux_existente = subida_dux.get("url", "")
 
         if archivo_comprobante_pago and archivo_comprobante_pago.filename:
-            subida_pago = guardar_comprobante_pago_agregado_subido(archivo_comprobante_pago)
+            subida_pago = guardar_comprobante_pago_agregado_subido(
+                archivo_comprobante_pago,
+                organizacion_id=membresia_pedido.organizacion_id,
+                unidad_negocio_id=unidad_pedido.id,
+            )
             comprobante_pago_existente = subida_pago.get("url", "")
 
         empresa_envio = request.form.get("empresa_envio")
@@ -9070,12 +9145,9 @@ def nuevo_pedido():
                 comprobante_pago_guardado=comprobante_pago_existente,
             )
 
-        membresia_pedido = membresia_actual()
-        if membresia_pedido is None:
-            abort(403)
-
         pedido = Pedido(
             organizacion_id=membresia_pedido.organizacion_id,
+            unidad_negocio_id=unidad_pedido.id,
             cliente=request.form.get("cliente"),
             dni=request.form.get("dni"),
             telefono=normalizar_telefono(request.form.get("telefono")),
@@ -10647,18 +10719,20 @@ def editar_pedido(id):
                 return redirect(url_for("detalle_pedido", id=pedido.id))
             return redirect(url_for("inicio"))
 
-        etiqueta_actual = request.form.get("etiqueta_existente", "").strip()
+        etiqueta_actual = str(pedido.etiqueta_archivo or "").strip()
         archivo_etiqueta = request.files.get("etiqueta")
 
         if archivo_etiqueta and archivo_etiqueta.filename:
-            subida = guardar_etiqueta_subida(archivo_etiqueta)
+            subida = guardar_etiqueta_subida(archivo_etiqueta, pedido)
             etiqueta_actual = subida.get("url", "")
 
-        comprobante_dux_actual = request.form.get("comprobante_dux_existente", "").strip()
+        comprobante_dux_actual = str(pedido.comprobante_dux_archivo or "").strip()
         archivo_comprobante_dux = request.files.get("comprobante_dux")
 
         if archivo_comprobante_dux and archivo_comprobante_dux.filename:
-            subida_dux = guardar_comprobante_dux_subido(archivo_comprobante_dux)
+            subida_dux = guardar_comprobante_dux_subido(
+                archivo_comprobante_dux, pedido,
+            )
             comprobante_dux_actual = subida_dux.get("url", "")
 
         canal = request.form.get("canal")
@@ -12224,6 +12298,17 @@ def agregar_item_pedido(id):
         datos_form["items_json"] = (request.form.get("items_json") or "").strip()
         items_detectados = _items_agregado_desde_json(datos_form["items_json"])
 
+        for referencia in (
+            datos_form["comprobante_dux_url"],
+            datos_form["comprobante_pago_url"],
+        ):
+            if not _referencia_documento_pertenece_tenant(
+                referencia,
+                organizacion_id=pedido.organizacion_id,
+                unidad_negocio_id=pedido.unidad_negocio_id,
+            ):
+                abort(400)
+
         if accion == "leer_pdf":
             if not archivo_dux or not archivo_dux.filename:
                 error = "Subí un comprobante DUX en PDF para leer los items."
@@ -12242,7 +12327,9 @@ def agregar_item_pedido(id):
                 return render_template("agregar_item_pedido.html", pedido=pedido, error=error, datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
 
             archivo_dux.stream.seek(0)
-            comprobante_dux = guardar_comprobante_dux_subido(archivo_dux)
+            comprobante_dux = guardar_comprobante_dux_subido(
+                archivo_dux, pedido,
+            )
             if not comprobante_dux.get("url"):
                 error = "Se leyeron los items, pero no se pudo guardar el comprobante DUX. Volvé a intentar."
                 return render_template("agregar_item_pedido.html", pedido=pedido, error=error, datos=datos_form, items_detectados=items_detectados, mensaje_ok=mensaje_ok)
@@ -12290,7 +12377,9 @@ def agregar_item_pedido(id):
                     items_detectados=items_detectados,
                     mensaje_ok=mensaje_ok,
                 )
-            comprobante_pago = guardar_comprobante_pago_agregado_subido(archivo_pago)
+            comprobante_pago = guardar_comprobante_pago_agregado_subido(
+                archivo_pago, pedido,
+            )
             comprobante_pago_url = comprobante_pago.get("url", "")
             comprobante_pago_public_id = comprobante_pago.get("public_id", "")
 

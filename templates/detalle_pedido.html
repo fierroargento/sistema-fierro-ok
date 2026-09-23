@@ -379,7 +379,12 @@ body { background: #f4f7f8; }
             {% if pedido.canal == "Mayorista" %}
             <p><strong>Comprobante DUX:</strong>
                 {% if pedido.comprobante_dux_archivo %}
-                    <a href="{{ url_for('ver_etiqueta', nombre_archivo=pedido.comprobante_dux_archivo) }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                    {% set dux_valor = pedido.comprobante_dux_archivo|string %}
+                    {% if dux_valor.startswith("http") or dux_valor.startswith("/archivos-uat/") %}
+                        <a href="{{ dux_valor }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                    {% else %}
+                        <a href="{{ url_for('ver_etiqueta', nombre_archivo=dux_valor) }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                    {% endif %}
                 {% else %}
                     -
                 {% endif %}
@@ -388,7 +393,7 @@ body { background: #f4f7f8; }
             <p><strong>Etiqueta:</strong>
                 {% if pedido.etiqueta_archivo %}
                     {% set etiqueta_valor = pedido.etiqueta_archivo|string %}
-                    {% if etiqueta_valor.startswith("http") %}
+                    {% if etiqueta_valor.startswith("http") or etiqueta_valor.startswith("/archivos-uat/") %}
                         <a href="{{ etiqueta_valor }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
                     {% else %}
                         <a href="{{ url_for('ver_archivo_pedido_compat', pedido_id=pedido.id, nombre_archivo=etiqueta_valor) }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>

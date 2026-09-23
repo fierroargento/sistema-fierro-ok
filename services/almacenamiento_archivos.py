@@ -56,7 +56,7 @@ def guardar_archivo_local(
     contenido = archivo.read(limite_bytes + 1)
     if not contenido or len(contenido) > limite_bytes:
         raise ValueError("El archivo está vacío o supera el tamaño permitido.")
-    if validar_imagen:
+    if validar_imagen or extension in {"jpg", "jpeg", "png", "webp"}:
         try:
             with Image.open(BytesIO(contenido)) as imagen:
                 imagen.verify()
@@ -66,7 +66,12 @@ def guardar_archivo_local(
         raise ValueError("El archivo no contiene un PDF válido.")
 
     raiz = raiz_local_aislada()
-    espacio_seguro = _nombre_seguro(espacio, "general")
+    segmentos_espacio = [
+        _nombre_seguro(segmento)
+        for segmento in str(espacio or "general").replace("\\", "/").split("/")
+        if str(segmento).strip()
+    ]
+    espacio_seguro = "/".join(segmentos_espacio) or "general"
     directorio = (
         raiz / f"organizacion_{organizacion_id}"
         / f"unidad_{unidad_negocio_id}" / espacio_seguro
