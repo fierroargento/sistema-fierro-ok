@@ -9372,6 +9372,8 @@ def detalle_pedido(id):
                     WhatsAppMediaRecibida.query
                     .filter(
                         WhatsAppMediaRecibida.pedido_id == pedido.id,
+                        WhatsAppMediaRecibida.empresa_id == pedido.organizacion_id,
+                        WhatsAppMediaRecibida.unidad_negocio_id == pedido.unidad_negocio_id,
                         WhatsAppMediaRecibida.message_id_meta.in_(message_ids_meta),
                     )
                     .all()

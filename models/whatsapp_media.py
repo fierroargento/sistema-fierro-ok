@@ -28,6 +28,12 @@ class WhatsAppMediaRecibida(db.Model):
         default=1,
         index=True,
     )
+    unidad_negocio_id = db.Column(
+        db.Integer,
+        db.ForeignKey("unidad_negocio.id"),
+        nullable=True,
+        index=True,
+    )
     pedido_id = db.Column(
         db.Integer,
         db.ForeignKey("pedido.id"),

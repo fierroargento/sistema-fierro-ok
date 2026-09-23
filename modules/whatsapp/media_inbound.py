@@ -309,6 +309,7 @@ def procesar_media_inbound_whatsapp(
 
     registro = WhatsAppMediaRecibida(
         empresa_id=int(organizacion_id),
+        unidad_negocio_id=int(unidad_negocio_id),
         pedido_id=getattr(pedido, "id", None),
         telefono=str(telefono or ""),
         message_id_meta=str((msg or {}).get("id") or ""),

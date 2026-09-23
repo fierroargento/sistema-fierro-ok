@@ -170,6 +170,35 @@ def asegurar_identidad_tenant_whatsapp_preparatoria(
     return {"columnas_creadas": creadas}
 
 
+def asegurar_unidad_tenant_media_whatsapp_preparatoria(
+    *, db, inspect_fn, text_fn, logger_fn=print,
+):
+    """Agrega unidad nullable a adjuntos WA sin atribuir archivos históricos."""
+    inspector = inspect_fn(db.engine)
+    tabla = "whatsapp_media_recibida"
+    if tabla not in inspector.get_table_names():
+        return {"columna_creada": False}
+    columnas = {columna["name"] for columna in inspector.get_columns(tabla)}
+    creada = "unidad_negocio_id" not in columnas
+    if creada:
+        db.session.execute(text_fn(
+            "ALTER TABLE whatsapp_media_recibida "
+            "ADD COLUMN unidad_negocio_id INTEGER"
+        ))
+    db.session.execute(text_fn(
+        "CREATE INDEX IF NOT EXISTS "
+        "ix_whatsapp_media_recibida_unidad_negocio_id "
+        "ON whatsapp_media_recibida (unidad_negocio_id)"
+    ))
+    db.session.commit()
+    if creada and logger_fn is not None:
+        logger_fn(
+            "[SAAS] Unidad tenant preparatoria agregada a adjuntos WhatsApp; "
+            "sin backfill automático."
+        )
+    return {"columna_creada": creada}
+
+
 def asegurar_respuestas_rapidas_whatsapp_tenant(
     *, db, inspect_fn, text_fn, organizacion_id_predeterminada, logger_fn=print,
 ):

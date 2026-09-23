@@ -13,6 +13,7 @@ def test_modelo_media_conserva_contrato():
     for nombre in (
         "id",
         "empresa_id",
+        "unidad_negocio_id",
         "pedido_id",
         "telefono",
         "message_id_meta",
