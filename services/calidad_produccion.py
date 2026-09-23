@@ -9,7 +9,8 @@ from decimal import Decimal, InvalidOperation
 def _positivo(valor, nombre):
     try: numero = Decimal(str(valor).replace(",", "."))
     except (InvalidOperation, ValueError): raise ValueError(f"{nombre} no es válido.")
-    if numero <= 0: raise ValueError(f"{nombre} debe ser mayor que cero.")
+    if not numero.is_finite() or numero <= 0:
+        raise ValueError(f"{nombre} debe ser mayor que cero.")
     return numero
 
 
@@ -43,9 +44,15 @@ def registrar_control(datos, *, lote, organizacion_id, unidad_negocio_id, Contro
     if int(lote.organizacion_id) != int(organizacion_id) or int(lote.unidad_negocio_id) != int(unidad_negocio_id):
         raise ValueError("El lote no pertenece al contexto activo.")
     muestra = _positivo(datos.get("muestra"), "La muestra")
-    aprobadas = Decimal(str(datos.get("aprobadas") or "0").replace(",", "."))
-    rechazadas = Decimal(str(datos.get("rechazadas") or "0").replace(",", "."))
-    if aprobadas < 0 or rechazadas < 0 or aprobadas + rechazadas != muestra:
+    try:
+        aprobadas = Decimal(str(datos.get("aprobadas") or "0").replace(",", "."))
+        rechazadas = Decimal(str(datos.get("rechazadas") or "0").replace(",", "."))
+    except (InvalidOperation, ValueError) as error:
+        raise ValueError("Aprobadas y rechazadas no son válidas.") from error
+    if (
+        not aprobadas.is_finite() or not rechazadas.is_finite()
+        or aprobadas < 0 or rechazadas < 0 or aprobadas + rechazadas != muestra
+    ):
         raise ValueError("Aprobadas y rechazadas deben ser no negativas y sumar la muestra.")
     if muestra > Decimal(str(lote.cantidad)):
         raise ValueError("La muestra no puede superar la cantidad del lote.")

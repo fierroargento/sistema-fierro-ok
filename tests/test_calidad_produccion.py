@@ -41,6 +41,8 @@ def test_control_balancea_muestra_y_no_libera():
     assert lote.estado=="aprobado_interno"
     with pytest.raises(ValueError): registrar_control({"numero":"C-2","muestra":"5","aprobadas":"4","rechazadas":"0"},
         lote=lote,organizacion_id=7,unidad_negocio_id=9,ControlCalidadProduccion=Modelo,db_session=Session())
+    with pytest.raises(ValueError): registrar_control({"numero":"C-3","muestra":"NaN","aprobadas":"0","rechazadas":"0"},
+        lote=lote,organizacion_id=7,unidad_negocio_id=9,ControlCalidadProduccion=Modelo,db_session=Session())
 
 def test_evidencia_es_firmada_y_reproducible():
     control=Obj(id=5,numero="C-1",muestra="5",aprobadas="5",rechazadas="0",resultado="aprobado_interno")

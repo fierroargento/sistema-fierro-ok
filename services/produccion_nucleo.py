@@ -23,6 +23,12 @@ def crear_orden_preparatoria(datos, *, perfil, version_costo, organizacion_id,
         raise ValueError("Solo un perfil productivo activo admite planificación.")
     if version_costo is None or not version_costo.vigente:
         raise ValueError("El producto necesita una versión de costo vigente.")
+    if int(version_costo.organizacion_id) != int(organizacion_id):
+        raise ValueError("La versión de costo no pertenece al tenant activo.")
+    if version_costo.unidad_negocio_id not in {None, unidad_negocio_id}:
+        raise ValueError("La versión de costo no pertenece a la unidad activa.")
+    if int(version_costo.producto_id) != int(perfil.producto_id):
+        raise ValueError("La versión de costo no corresponde al producto del perfil.")
     cantidad = _cantidad(datos.get("cantidad"))
     costo_unitario = int(version_costo.costo_total_centavos)
     total = int((cantidad * Decimal(costo_unitario)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
@@ -40,6 +46,9 @@ def crear_orden_preparatoria(datos, *, perfil, version_costo, organizacion_id,
     if not orden.numero:
         raise ValueError("El número de orden es obligatorio.")
     for ficha in perfil.insumos_costeo:
+        _validar_recurso_ficha(
+            ficha.insumo, organizacion_id, unidad_negocio_id, "insumo",
+        )
         factor_merma = Decimal("1") + Decimal(str(ficha.porcentaje_merma)) / Decimal("100")
         orden.insumos_planificados.append(modelos["OrdenProduccionInsumo"](
             insumo_id=ficha.insumo_id,
@@ -47,12 +56,18 @@ def crear_orden_preparatoria(datos, *, perfil, version_costo, organizacion_id,
             porcentaje_merma=ficha.porcentaje_merma, consumo_registrado=False,
         ))
     for ficha in perfil.operaciones_costeo:
+        _validar_recurso_ficha(
+            ficha.empleado, organizacion_id, unidad_negocio_id, "empleado",
+        )
         orden.operaciones_planificadas.append(modelos["OrdenProduccionOperacion"](
             empleado_id=ficha.empleado_id, nombre=ficha.nombre,
             minutos_planificados=Decimal(str(ficha.minutos)) * cantidad,
             avance_registrado=False,
         ))
     for ficha in perfil.maquinas_costeo:
+        _validar_recurso_ficha(
+            ficha.maquina, organizacion_id, unidad_negocio_id, "máquina",
+        )
         orden.maquinas_planificadas.append(modelos["OrdenProduccionMaquina"](
             maquina_id=ficha.maquina_id, nombre=ficha.nombre,
             minutos_planificados=Decimal(str(ficha.minutos)) * cantidad,
@@ -63,6 +78,16 @@ def crear_orden_preparatoria(datos, *, perfil, version_costo, organizacion_id,
     db_session.add(orden)
     db_session.commit()
     return orden
+
+
+def _validar_recurso_ficha(recurso, organizacion_id, unidad_negocio_id, nombre):
+    if int(getattr(recurso, "organizacion_id", 0) or 0) != int(organizacion_id):
+        raise ValueError(f"El {nombre} de la ficha no pertenece al tenant activo.")
+    unidad = getattr(recurso, "unidad_negocio_id", None)
+    if unidad not in {None, unidad_negocio_id}:
+        raise ValueError(f"El {nombre} de la ficha no pertenece a la unidad activa.")
+    if not bool(getattr(recurso, "activo", False)):
+        raise ValueError(f"El {nombre} de la ficha está desactivado.")
 
 
 def cambiar_estado(orden, estado, *, organizacion_id, unidad_negocio_id, db_session):

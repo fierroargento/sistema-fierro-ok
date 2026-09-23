@@ -1,6 +1,7 @@
 """Smoke real: se ejecuta en un subproceso sin los dobles de tests/conftest.py."""
 
 from io import BytesIO
+from types import SimpleNamespace
 
 from PIL import Image
 from werkzeug.datastructures import FileStorage
@@ -23,6 +24,7 @@ from services.inventario_saas import (
     crear_reserva,
     validar_transferencia,
 )
+from services.produccion_nucleo import crear_orden_preparatoria
 
 
 aplicacion = modulo.app
@@ -297,6 +299,68 @@ with aplicacion.app_context():
         assert "no pertenece" in str(error)
     else:
         raise AssertionError("Costos aceptó un producto de otro tenant.")
+
+    costo_fierro.vigente = True
+    costo_fierro.estado = "vigente"
+    db.session.commit()
+    empleado_fierro = modulo.EmpleadoProductivo(
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_id,
+        codigo="SOLDADOR-UAT", nombre="Soldador UAT", sector="Producción",
+        tipo_registro="empleado", porcentaje_indirecto=0, activo=True,
+    )
+    perfil_produccion = modulo.PerfilCosteoProducto(
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_id,
+        producto_id=producto_fierro.id, tipo="produccion", activo=True,
+    )
+    db.session.add_all([empleado_fierro, perfil_produccion])
+    db.session.flush()
+    db.session.add_all([
+        modulo.ProductoInsumoCosteo(
+            perfil_costeo_id=perfil_produccion.id, insumo_id=insumo_fierro.id,
+            cantidad=2, porcentaje_merma=0,
+        ),
+        modulo.ProductoOperacionCosteo(
+            perfil_costeo_id=perfil_produccion.id, empleado_id=empleado_fierro.id,
+            nombre="Soldadura UAT", minutos=15, orden=1,
+        ),
+    ])
+    db.session.commit()
+    orden_produccion = crear_orden_preparatoria(
+        {"numero": "OP-UAT-1", "cantidad": "3"},
+        perfil=perfil_produccion, version_costo=costo_fierro,
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_id,
+        modelos={
+            "OrdenProduccion": modulo.OrdenProduccion,
+            "OrdenProduccionInsumo": modulo.OrdenProduccionInsumo,
+            "OrdenProduccionOperacion": modulo.OrdenProduccionOperacion,
+            "OrdenProduccionMaquina": modulo.OrdenProduccionMaquina,
+        },
+        db_session=db.session, usuario_id=usuario.id,
+    )
+    assert orden_produccion.impacta_inventario is False
+    assert orden_produccion.ejecucion_habilitada is False
+    try:
+        crear_orden_preparatoria(
+            {"numero": "OP-CRUZADA-UAT", "cantidad": "1"},
+            perfil=perfil_produccion,
+            version_costo=SimpleNamespace(
+                id=999, vigente=True, costo_total_centavos=1,
+                organizacion_id=organizacion_nautica.id,
+                unidad_negocio_id=unidad_id, producto_id=producto_fierro.id,
+            ),
+            organizacion_id=organizacion_id, unidad_negocio_id=unidad_id,
+            modelos={
+                "OrdenProduccion": modulo.OrdenProduccion,
+                "OrdenProduccionInsumo": modulo.OrdenProduccionInsumo,
+                "OrdenProduccionOperacion": modulo.OrdenProduccionOperacion,
+                "OrdenProduccionMaquina": modulo.OrdenProduccionMaquina,
+            },
+            db_session=db.session, usuario_id=usuario.id,
+        )
+    except ValueError as error:
+        assert "tenant activo" in str(error)
+    else:
+        raise AssertionError("Producción aceptó un costo de otro tenant.")
 
     deposito_fierro_a = modulo.SucursalOperativa(
         organizacion_id=organizacion_id, codigo="deposito-a-uat",

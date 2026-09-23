@@ -25,9 +25,22 @@ def planificar_materiales(*, organizacion_id, unidad_negocio_id, ordenes, mapeos
             continue
         if not mapeo.activo:
             continue
+        insumo = mapeo.insumo
+        if int(insumo.organizacion_id) != int(organizacion_id):
+            hallazgos.append({"codigo": "insumo_otro_tenant", "mapeo_id": mapeo.id})
+            continue
+        if insumo.unidad_negocio_id not in {None, unidad_negocio_id}:
+            hallazgos.append({"codigo": "insumo_otra_unidad", "mapeo_id": mapeo.id})
+            continue
+        if not insumo.activo:
+            hallazgos.append({"codigo": "insumo_inactivo", "mapeo_id": mapeo.id})
+            continue
         existencia = mapeo.existencia
         if int(existencia.organizacion_id) != int(organizacion_id):
             hallazgos.append({"codigo": "existencia_otro_tenant", "mapeo_id": mapeo.id})
+            continue
+        if not existencia.control_activo:
+            hallazgos.append({"codigo": "existencia_sin_control", "mapeo_id": mapeo.id})
             continue
         candidatos.setdefault(int(mapeo.insumo_id), []).append(mapeo)
 

@@ -19,9 +19,11 @@ def orden(identificador, numero, cantidad_buena="0", estado="aprobada"):
 
 def mapeo(stock=25, reservado=0, bloqueado=0):
     existencia=Obj(id=11, organizacion_id=7, stock_actual=stock,
-                   stock_reservado=reservado, stock_bloqueado=bloqueado)
+                   stock_reservado=reservado, stock_bloqueado=bloqueado,
+                   control_activo=True)
+    insumo=Obj(organizacion_id=7, unidad_negocio_id=9, activo=True)
     return Obj(id=5, organizacion_id=7, unidad_negocio_id=9, insumo_id=3,
-               activo=True, existencia=existencia)
+               activo=True, insumo=insumo, existencia=existencia)
 
 
 def test_asigna_stock_neto_por_prioridad_y_sugiere_compra():

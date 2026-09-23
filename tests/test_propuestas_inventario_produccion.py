@@ -19,10 +19,11 @@ def orden():
 
 
 def datos():
-    existencia_insumo=Obj(id=11, organizacion_id=7, producto_id=20)
+    existencia_insumo=Obj(id=11, organizacion_id=7, producto_id=20, control_activo=True)
+    insumo=Obj(organizacion_id=7, unidad_negocio_id=9, activo=True)
     mapeo=Obj(id=5, organizacion_id=7, unidad_negocio_id=9, insumo_id=3,
-              activo=True, existencia=existencia_insumo)
-    destino=Obj(id=12, organizacion_id=7, producto_id=30)
+              activo=True, insumo=insumo, existencia=existencia_insumo)
+    destino=Obj(id=12, organizacion_id=7, producto_id=30, control_activo=True)
     return [mapeo], [destino]
 
 
@@ -44,7 +45,7 @@ def test_detecta_mapeos_faltantes_ambiguos_y_destino_ambiguo():
     duplicado=Obj(**mapeos[0].__dict__); duplicado.id=6
     resultado=preparar_propuesta_inventario(
         orden(), organizacion_id=7, unidad_negocio_id=9,
-        mapeos_insumo=mapeos+[duplicado], existencias_producto=destinos+[Obj(id=13, organizacion_id=7, producto_id=30)],
+        mapeos_insumo=mapeos+[duplicado], existencias_producto=destinos+[Obj(id=13, organizacion_id=7, producto_id=30, control_activo=True)],
     )
     codigos={x["codigo"] for x in resultado["hallazgos"]}
     assert {"mapeo_insumo_ambiguo", "destino_producto_ambiguo"} <= codigos
@@ -58,7 +59,7 @@ def test_rechaza_relaciones_cruzadas_sin_atribuirlas():
     mapeos, destinos=datos(); mapeos[0].existencia.organizacion_id=8
     resultado=preparar_propuesta_inventario(
         orden(), organizacion_id=7, unidad_negocio_id=9,
-        mapeos_insumo=mapeos, existencias_producto=destinos+[Obj(id=99, organizacion_id=8, producto_id=30)],
+        mapeos_insumo=mapeos, existencias_producto=destinos+[Obj(id=99, organizacion_id=8, producto_id=30, control_activo=True)],
     )
     codigos={x["codigo"] for x in resultado["hallazgos"]}
     assert {"existencia_insumo_otro_tenant", "destino_producto_otro_tenant"} <= codigos

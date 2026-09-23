@@ -35,19 +35,25 @@ MODELOS = {
 
 
 def perfil():
+    insumo = Obj(organizacion_id=7, unidad_negocio_id=9, activo=True)
+    empleado = Obj(organizacion_id=7, unidad_negocio_id=9, activo=True)
+    maquina = Obj(organizacion_id=7, unidad_negocio_id=9, activo=True)
     return Obj(
         id=1, organizacion_id=7, unidad_negocio_id=9, producto_id=11,
         tipo="produccion", activo=True,
-        insumos_costeo=[Obj(insumo_id=2, cantidad="3", porcentaje_merma="10")],
-        operaciones_costeo=[Obj(empleado_id=3, nombre="Soldadura", minutos="5")],
-        maquinas_costeo=[Obj(maquina_id=4, nombre="Corte", minutos="2")],
+        insumos_costeo=[Obj(insumo_id=2, insumo=insumo, cantidad="3", porcentaje_merma="10")],
+        operaciones_costeo=[Obj(empleado_id=3, empleado=empleado, nombre="Soldadura", minutos="5")],
+        maquinas_costeo=[Obj(maquina_id=4, maquina=maquina, nombre="Corte", minutos="2")],
     )
 
 
 def crear(cantidad="2"):
     return crear_orden_preparatoria(
         {"numero": "op-1", "cantidad": cantidad}, perfil=perfil(),
-        version_costo=Obj(id=8, vigente=True, costo_total_centavos=10000),
+        version_costo=Obj(
+            id=8, vigente=True, costo_total_centavos=10000,
+            organizacion_id=7, unidad_negocio_id=9, producto_id=11,
+        ),
         organizacion_id=7, unidad_negocio_id=9, modelos=MODELOS,
         db_session=Session(), usuario_id=5,
     )
@@ -71,14 +77,44 @@ def test_aprobacion_interna_mantiene_bloqueos():
 
 
 def test_rechaza_perfil_cruzado_o_sin_costo_vigente():
-    for p, version, esperado in ((Obj(**{**perfil().__dict__, "organizacion_id": 8}), Obj(id=1, vigente=True, costo_total_centavos=1), "tenant"), (perfil(), None, "vigente")):
+    version = Obj(
+        id=1, vigente=True, costo_total_centavos=1,
+        organizacion_id=7, unidad_negocio_id=9, producto_id=11,
+    )
+    for p, version_prueba, esperado in (
+        (Obj(**{**perfil().__dict__, "organizacion_id": 8}), version, "tenant"),
+        (perfil(), None, "vigente"),
+    ):
         try:
             crear_orden_preparatoria(
-                {"numero": "X", "cantidad": "1"}, perfil=p, version_costo=version,
+                {"numero": "X", "cantidad": "1"}, perfil=p, version_costo=version_prueba,
                 organizacion_id=7, unidad_negocio_id=9, modelos=MODELOS, db_session=Session(),
             )
         except ValueError as error: assert esperado in str(error)
         else: raise AssertionError("Se aceptó una orden productiva inválida.")
+
+
+def test_rechaza_version_de_costo_de_otro_tenant_o_producto():
+    for cambio, esperado in (
+        ({"organizacion_id": 8}, "tenant"),
+        ({"producto_id": 99}, "producto"),
+        ({"unidad_negocio_id": 99}, "unidad"),
+    ):
+        version = Obj(
+            id=8, vigente=True, costo_total_centavos=10000,
+            organizacion_id=7, unidad_negocio_id=9, producto_id=11,
+        )
+        version.__dict__.update(cambio)
+        try:
+            crear_orden_preparatoria(
+                {"numero": "X", "cantidad": "1"}, perfil=perfil(),
+                version_costo=version, organizacion_id=7, unidad_negocio_id=9,
+                modelos=MODELOS, db_session=Session(),
+            )
+        except ValueError as error:
+            assert esperado in str(error)
+        else:
+            raise AssertionError("Se aceptó una versión de costo cruzada.")
 
 
 def test_modelos_bloquean_inventario_y_ejecucion_en_base():
