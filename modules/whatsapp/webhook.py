@@ -5,6 +5,7 @@ Endpoint que recibe mensajes entrantes de Meta y los deriva al flujo correcto.
 """
 
 import json
+import os
 import re
 from flask import request, jsonify
 
@@ -14,9 +15,6 @@ from models.whatsapp_media import WhatsAppMediaRecibida
 from models.whatsapp_mensaje import WhatsAppMensaje
 
 from .config import (
-    WA_VERIFY_TOKEN,
-    WA_APP_SECRET,
-    modulo_activo,
     WA_ESPERANDO_OK_INICIO,
     WA_ESPERANDO_DATOS,
     WA_ESPERANDO_CONFIRMACION_SUCURSAL,
@@ -53,7 +51,11 @@ from services.seguridad_entorno import procesamiento_webhook_habilitado
 from services.contexto_webhook_whatsapp import (
     ContextoWebhookWhatsAppError,
     extraer_phone_number_id,
-    resolver_contexto_webhook_whatsapp,
+)
+from services.whatsapp_entrada_tenant import (
+    ConfiguracionEntradaWhatsAppError,
+    resolver_configuracion_post_whatsapp,
+    resolver_configuracion_verificacion_whatsapp,
 )
 
 logger = get_app_logger(__name__)
@@ -328,12 +330,10 @@ def _routear_mensaje(
 def registrar_webhook(app):
     """
     Registra el endpoint /webhook/whatsapp en la app Flask.
-    Solo se activa si el módulo está configurado en el .env.
-    """
-    if not modulo_activo():
-        print("[WA] Módulo WhatsApp inactivo — configurar .env para activar")
-        return
 
+    La ruta existe aunque no haya credenciales, pero todo procesamiento queda
+    bloqueado por los flags de entorno y por la resolución tenant.
+    """
     @app.route("/webhook/whatsapp", methods=["GET", "POST"])
     def webhook_whatsapp():
 
@@ -345,10 +345,21 @@ def registrar_webhook(app):
             mode      = request.args.get("hub.mode")
             token     = request.args.get("hub.verify_token")
             challenge = request.args.get("hub.challenge")
-            if mode == "subscribe" and token == WA_VERIFY_TOKEN:
-                print("[WA] Webhook verificado por Meta ✓")
-                return challenge, 200
-            return "Token inválido", 403
+            if mode != "subscribe" or not challenge:
+                return "Token inválido", 403
+            try:
+                from models.vinculo_canal_comercial import VinculoCanalComercial
+                vinculos = VinculoCanalComercial.query.filter_by(
+                    canal="whatsapp", estado="activo",
+                ).all()
+                resolver_configuracion_verificacion_whatsapp(
+                    token, vinculos, environ=os.environ,
+                )
+            except Exception:
+                logger.warning("[WA] Verificación webhook rechazada")
+                return "Token inválido", 403
+            print("[WA] Webhook verificado por Meta ✓")
+            return challenge, 200
 
         # ── Mensajes entrantes ──
         try:
@@ -356,30 +367,36 @@ def registrar_webhook(app):
 
             raw_body = request.get_data() or b""
             signature_header = request.headers.get("X-Hub-Signature-256", "")
+            data = request.get_json(silent=True) or {}
+            phone_number_id = extraer_phone_number_id(data)
+            try:
+                from models.vinculo_canal_comercial import VinculoCanalComercial
+                vinculos = [] if not phone_number_id else (
+                    VinculoCanalComercial.query.filter_by(
+                        canal="whatsapp",
+                        whatsapp_phone_number_id=phone_number_id,
+                        estado="activo",
+                    ).all()
+                )
+                configuracion = resolver_configuracion_post_whatsapp(
+                    data, vinculos, environ=os.environ,
+                )
+            except (ContextoWebhookWhatsAppError, ConfiguracionEntradaWhatsAppError):
+                logger.warning("[WA] Webhook rechazado: cuenta tenant no verificable")
+                return jsonify({"status": "forbidden"}), 403
+            except Exception:
+                logger.exception("[WA] Webhook rechazado: error resolviendo cuenta tenant")
+                return jsonify({"status": "forbidden"}), 403
 
-            if not validar_signature_meta(raw_body, signature_header, WA_APP_SECRET):
+            if not validar_signature_meta(
+                raw_body, signature_header, configuracion.app_secret,
+            ):
                 logger.warning("[WA] Webhook rechazado: firma Meta inválida o ausente")
                 return jsonify({"status": "forbidden"}), 403
 
-            data = request.get_json(silent=True) or {}
+            organizacion_id = configuracion.organizacion_id
+            unidad_negocio_id = configuracion.unidad_negocio_id
             print("[WA] Webhook:", json.dumps(data)[:300])
-
-            phone_number_id = extraer_phone_number_id(data)
-            from models.vinculo_canal_comercial import VinculoCanalComercial
-            vinculos = [] if not phone_number_id else (
-                VinculoCanalComercial.query.filter_by(
-                    canal="whatsapp",
-                    whatsapp_phone_number_id=phone_number_id,
-                    estado="activo",
-                ).all()
-            )
-            try:
-                contexto = resolver_contexto_webhook_whatsapp(data, vinculos)
-            except ContextoWebhookWhatsAppError as error:
-                logger.warning("[WA] Webhook ignorado por contexto tenant: %s", error)
-                return jsonify({"status": "ignored", "reason": "tenant_context"}), 200
-            organizacion_id = contexto["organizacion_id"]
-            unidad_negocio_id = contexto["unidad_negocio_id"]
 
             entry   = (data.get("entry") or [{}])[0]
             changes = (entry.get("changes") or [{}])[0]

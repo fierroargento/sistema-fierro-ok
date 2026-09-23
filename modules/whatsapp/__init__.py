@@ -10,7 +10,6 @@ APB 2026-05:
   o que el bot vuelva a escribir cuando un operador tomó la conversación.
 """
 
-from .config import modulo_activo
 from .webhook import registrar_webhook
 from .general_routes import registrar_wa_general_routes
 from .flows import (
@@ -24,19 +23,14 @@ from .scheduler import ejecutar_timers
 
 
 def activar(app):
-    """Activa el webhook si WhatsApp está configurado.
+    """Registra las rutas WhatsApp con sus candados internos.
 
     El scheduler NO se engancha acá. Queda centralizado en app.py para que haya
     un único motor periódico en Render.
     """
     registrar_wa_general_routes(app)
-
-    if not modulo_activo():
-        print("[WA] Módulo WhatsApp en standby — configurar .env para activar")
-        return
-
     registrar_webhook(app)
-    print("[WA] Módulo WhatsApp activo ✓")
+    print("[WA] Rutas WhatsApp registradas; activación sujeta a candados ✓")
 
 
 __all__ = [

@@ -43,6 +43,7 @@ def test_contexto_acepta_vinculo_del_registro():
 
 def test_webhook_integra_contexto_tenant_sin_fallback_global():
     fuente = Path("modules/whatsapp/webhook.py").read_text(encoding="utf-8-sig")
-    assert "resolver_contexto_webhook_whatsapp(data, vinculos)" in fuente
-    assert '"reason": "tenant_context"' in fuente
+    assert "resolver_configuracion_post_whatsapp(" in fuente
+    assert "configuracion.app_secret" in fuente
+    assert '"status": "forbidden"' in fuente
     assert "_buscar_pedido_por_telefono(telefono, organizacion_id)" in fuente
