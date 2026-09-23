@@ -2538,31 +2538,46 @@ def membresia_actual():
 
 def unidad_negocio_actual_o_403(membresia=None):
     """Resuelve una unidad activa perteneciente a la organización autorizada."""
+    from services.unidad_negocio_contexto import (
+        UnidadNegocioError,
+        resolver_unidad_activa,
+    )
+
     membresia = membresia or membresia_actual()
     if membresia is None:
         abort(403)
-    unidad_id = session.get("unidad_negocio_id")
-    unidad = None
-    if unidad_id:
-        unidad = UnidadNegocio.query.filter_by(
-            id=unidad_id,
-            organizacion_id=membresia.organizacion_id,
-            activa=True,
-        ).first()
-    if unidad is None:
-        unidad = (
-            UnidadNegocio.query
-            .filter_by(
-                organizacion_id=membresia.organizacion_id,
-                activa=True,
-            )
-            .order_by(UnidadNegocio.id.asc())
-            .first()
+    try:
+        unidad, _unidades = resolver_unidad_activa(
+            membresia.organizacion_id,
+            session.get("unidad_negocio_id"),
+            UnidadNegocio=UnidadNegocio,
         )
-    if unidad is None:
+    except UnidadNegocioError:
         abort(403)
     session["unidad_negocio_id"] = unidad.id
     return unidad
+
+
+def contexto_unidad_operativa():
+    """Devuelve la unidad activa y sus alternativas sin exponer otras organizaciones."""
+    from services.unidad_negocio_contexto import (
+        UnidadNegocioError,
+        resolver_unidad_activa,
+    )
+
+    membresia = membresia_actual()
+    if membresia is None:
+        return None, []
+    try:
+        unidad, unidades = resolver_unidad_activa(
+            membresia.organizacion_id,
+            session.get("unidad_negocio_id"),
+            UnidadNegocio=UnidadNegocio,
+        )
+    except UnidadNegocioError:
+        return None, []
+    session["unidad_negocio_id"] = unidad.id
+    return unidad, unidades
 
 
 def consulta_pedidos_tenant_actual():
@@ -2570,8 +2585,11 @@ def consulta_pedidos_tenant_actual():
     membresia = membresia_actual()
     if membresia is None:
         abort(403)
+    unidad = unidad_negocio_actual_o_403(membresia)
     return consulta_pedidos_tenant(
-        Pedido, membresia.organizacion_id,
+        Pedido,
+        membresia.organizacion_id,
+        unidad_negocio_id=unidad.id,
     )
 
 
@@ -2580,8 +2598,12 @@ def pedido_tenant_actual_o_404(pedido_id):
     membresia = membresia_actual()
     if membresia is None:
         abort(403)
+    unidad = unidad_negocio_actual_o_403(membresia)
     pedido = obtener_pedido_tenant(
-        pedido_id, membresia.organizacion_id, Pedido=Pedido,
+        pedido_id,
+        membresia.organizacion_id,
+        Pedido=Pedido,
+        unidad_negocio_id=unidad.id,
     )
     if pedido is None:
         abort(404)
@@ -6706,9 +6728,12 @@ def accion_ui_pedido(pedido, origen="detalle"):
 
 @app.context_processor
 def inyectar_contexto_global():
+    unidad_activa, unidades_operativas = contexto_unidad_operativa()
     return {
         "usuario_logueado": usuario_actual(),
         "rol_actual": rol_actual(),
+        "unidad_operativa_activa": unidad_activa,
+        "unidades_operativas": unidades_operativas,
         "titulo_inicio_por_rol": titulo_inicio_por_rol,
         "subtitulo_inicio_por_rol": subtitulo_inicio_por_rol,
         "puede_crear_pedido": puede_crear_pedido,
@@ -6885,6 +6910,27 @@ def inicio():
         puede_imprimir_etiqueta_directamente=puede_imprimir_etiqueta_directamente,
         ok_feedback=ok_feedback
     )
+
+
+@app.route("/unidad-activa", methods=["POST"])
+@login_required
+def seleccionar_unidad_operativa():
+    membresia = membresia_actual()
+    if membresia is None:
+        abort(403)
+    try:
+        unidad_id = int(request.form.get("unidad_negocio_id") or 0)
+    except (TypeError, ValueError):
+        abort(400)
+    unidad = UnidadNegocio.query.filter_by(
+        id=unidad_id,
+        organizacion_id=membresia.organizacion_id,
+        activa=True,
+    ).first()
+    if unidad is None:
+        abort(404)
+    session["unidad_negocio_id"] = unidad.id
+    return redirect(url_for("inicio"))
 
 
 @app.route("/pedidos-preparacion")

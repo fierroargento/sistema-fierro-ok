@@ -48,6 +48,17 @@
             {% endif %}
             <a href="{{ url_for('ayuda') }}">Ayuda</a>
 
+            {% if unidades_operativas %}
+            <form method="post" action="{{ url_for('seleccionar_unidad_operativa') }}" class="menu-unit-form">
+                <label for="unidad-operativa">Unidad activa</label>
+                <select id="unidad-operativa" name="unidad_negocio_id" onchange="this.form.submit()">
+                    {% for unidad in unidades_operativas %}
+                    <option value="{{ unidad.id }}" {% if unidad_operativa_activa and unidad.id == unidad_operativa_activa.id %}selected{% endif %}>{{ unidad.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            {% endif %}
+
             <div class="menu-user">
                 <div class="menu-user-nombre">{{ usuario_logueado.nombre }}</div>
                 <div class="menu-user-rol">Rol: {{ rol_actual }}</div>

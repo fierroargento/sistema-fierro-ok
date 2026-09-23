@@ -59,10 +59,17 @@ with aplicacion.app_context():
         codigo="fierro",
         activa=True,
     )
-    db.session.add_all([organizacion, unidad])
+    unidad_alterna = modulo.UnidadNegocio(
+        organizacion=organizacion,
+        nombre="Fierro Segunda Unidad",
+        codigo="fierro-segunda",
+        activa=True,
+    )
+    db.session.add_all([organizacion, unidad, unidad_alterna])
     db.session.commit()
     organizacion_id = organizacion.id
     unidad_id = unidad.id
+    unidad_alterna_id = unidad_alterna.id
 
 runner = aplicacion.test_cli_runner()
 resultado = runner.invoke(
@@ -700,12 +707,45 @@ with aplicacion.app_context():
         assert "bloqueada" in str(error)
     else:
         raise AssertionError("La consulta IPC no fue bloqueada.")
+    pedido_otra_unidad = modulo.Pedido(
+        organizacion_id=ids[1],
+        unidad_negocio_id=unidad_alterna_id,
+        cliente="PEDIDO_OTRA_UNIDAD_UAT",
+        canal="Presencial",
+        estado="Cargando Pedido",
+    )
+    db.session.add(pedido_otra_unidad)
+    db.session.commit()
+    pedido_otra_unidad_id = pedido_otra_unidad.id
 
 cliente = aplicacion.test_client()
 with cliente.session_transaction() as sesion:
     sesion["user_id"] = ids[0]
     sesion["username"] = "admin-uat"
     sesion["organizacion_id"] = ids[1]
+    sesion["unidad_negocio_id"] = ids[2]
+
+detalle_otra_unidad = cliente.get(
+    f"/pedido/{pedido_otra_unidad_id}", base_url="https://localhost",
+)
+assert detalle_otra_unidad.status_code == 404
+seleccion_invalida = cliente.post(
+    "/unidad-activa",
+    data={"unidad_negocio_id": str(nautica_ids[1])},
+    base_url="https://localhost",
+)
+assert seleccion_invalida.status_code == 404
+seleccion_valida = cliente.post(
+    "/unidad-activa",
+    data={"unidad_negocio_id": str(unidad_alterna_id)},
+    base_url="https://localhost",
+)
+assert seleccion_valida.status_code == 302
+detalle_unidad_seleccionada = cliente.get(
+    f"/pedido/{pedido_otra_unidad_id}", base_url="https://localhost",
+)
+assert detalle_unidad_seleccionada.status_code == 200
+with cliente.session_transaction() as sesion:
     sesion["unidad_negocio_id"] = ids[2]
 
 respuesta_segura = cliente.get("/login", base_url="https://localhost")

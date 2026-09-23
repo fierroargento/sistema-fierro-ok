@@ -65,6 +65,7 @@ def registrar_modulos_web(
             dependencias={
                 **comunes,
                 "Pedido": modelos["Pedido"],
+                "UnidadNegocio": modelos["UnidadNegocio"],
                 "normalizar_telefono": dependencias[
                     "normalizar_telefono"
                 ],

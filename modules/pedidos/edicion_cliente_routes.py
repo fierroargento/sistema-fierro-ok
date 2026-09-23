@@ -8,6 +8,10 @@ from services.edicion_datos_cliente import (
 )
 from services.acceso_tenant_pedidos import obtener_pedido_tenant
 from services.tenant_context import TenantError, resolver_tenant_usuario
+from services.unidad_negocio_contexto import (
+    UnidadNegocioError,
+    resolver_unidad_activa,
+)
 
 
 def crear_blueprint_edicion_cliente(*, dependencias):
@@ -19,6 +23,7 @@ def crear_blueprint_edicion_cliente(*, dependencias):
     registrar_auditoria = dependencias["registrar_auditoria"]
     normalizar_telefono = dependencias["normalizar_telefono"]
     UsuarioOrganizacion = dependencias["UsuarioOrganizacion"]
+    UnidadNegocio = dependencias["UnidadNegocio"]
 
     @blueprint.route(
         "/pedido/<int:id>/corregir-datos-etiqueta",
@@ -35,11 +40,20 @@ def crear_blueprint_edicion_cliente(*, dependencias):
             )
         except TenantError:
             return redirect(url_for("inicio"))
+        try:
+            unidad, _unidades = resolver_unidad_activa(
+                membresia.organizacion_id,
+                session.get("unidad_negocio_id"),
+                UnidadNegocio=UnidadNegocio,
+            )
+        except UnidadNegocioError:
+            abort(403)
+        session["unidad_negocio_id"] = unidad.id
         pedido = obtener_pedido_tenant(
             id,
             membresia.organizacion_id,
             Pedido=Pedido,
-            unidad_negocio_id=session.get("unidad_negocio_id"),
+            unidad_negocio_id=unidad.id,
         )
         if pedido is None:
             abort(404)
@@ -58,7 +72,7 @@ def crear_blueprint_edicion_cliente(*, dependencias):
                 request.form,
                 rol=rol,
                 organizacion_id=membresia.organizacion_id,
-                unidad_negocio_id=session.get("unidad_negocio_id"),
+                unidad_negocio_id=unidad.id,
                 normalizar_telefono_fn=normalizar_telefono,
             )
 

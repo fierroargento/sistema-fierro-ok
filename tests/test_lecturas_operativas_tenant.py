@@ -23,7 +23,10 @@ def test_helpers_exigen_membresia_y_ocultan_pedido_ajeno():
     assert "membresia_actual()" in consulta
     assert "consulta_pedidos_tenant(" in consulta
     assert "membresia.organizacion_id" in consulta
+    assert "unidad_negocio_actual_o_403" in consulta
+    assert "unidad_negocio_id=unidad.id" in consulta
     assert "obtener_pedido_tenant(" in detalle
+    assert "unidad_negocio_id=unidad.id" in detalle
     assert "abort(404)" in detalle
     assert not _consulta_global_pedido(consulta + detalle)
 

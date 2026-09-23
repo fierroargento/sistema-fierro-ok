@@ -123,6 +123,27 @@ a {
     background: rgba(255,255,255,0.18);
 }
 
+.menu-unit-form {
+    margin: 10px 0;
+    padding: 10px 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.20);
+}
+
+.menu-unit-form label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--fierro-sidebar-text-soft);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.menu-unit-form select {
+    width: 100%;
+    padding: 7px;
+    border: 0;
+    border-radius: 7px;
+}
+
 .menu-user {
     margin: 10px 0 8px;
     padding: 10px 8px;

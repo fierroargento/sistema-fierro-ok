@@ -74,6 +74,7 @@ def test_ruta_modular_de_edicion_usa_guardian_tenant():
         encoding="utf-8"
     )
     assert "resolver_tenant_usuario(" in ruta
+    assert "resolver_unidad_activa(" in ruta
     assert 'session.get("organizacion_id")' in ruta
     assert "obtener_pedido_tenant(" in ruta
     assert "Pedido.query.get_or_404" not in ruta
