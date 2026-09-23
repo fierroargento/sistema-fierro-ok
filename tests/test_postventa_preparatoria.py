@@ -18,10 +18,13 @@ def test_caso_rechaza_otro_tenant_y_datos_incompletos():
  with pytest.raises(ValueError):crear_caso({"tipo":"garantia","titulo":"Falla","descripcion":"Descripcion valida"},pedido=pedido(organizacion_id=8),organizacion_id=7,unidad_negocio_id=9,Caso=O,db_session=S())
  with pytest.raises(ValueError):crear_caso({"tipo":"otro","titulo":"x","descripcion":"corta"},pedido=pedido(),organizacion_id=7,unidad_negocio_id=9,Caso=O,db_session=S())
 def test_resolucion_nace_no_aprobada_no_ejecutable():
- s=S();c=caso();p=proponer_resolucion({"tipo_resolucion":"reintegro","detalle":"Reintegro total propuesto","importe_centavos":"5000"},caso=c,organizacion_id=7,unidad_negocio_id=9,Propuesta=O,db_session=s);assert c.estado=="propuesta" and not p.aprobada and not p.ejecutada and not p.afecta_stock and not p.emite_credito
+ s=S();c=caso();p=proponer_resolucion({"tipo_resolucion":"reintegro","detalle":"Reintegro total propuesto","importe_centavos":"5000"},caso=c,pedido=pedido(),organizacion_id=7,unidad_negocio_id=9,Propuesta=O,db_session=s);assert c.estado=="propuesta" and not p.aprobada and not p.ejecutada and not p.afecta_stock and not p.emite_credito
 def test_transiciones_no_permiten_ejecucion():
- c=caso();cambiar_estado(c,organizacion_id=7,unidad_negocio_id=9,estado="diagnostico",db_session=S());assert c.estado=="diagnostico"
- with pytest.raises(ValueError):cambiar_estado(c,organizacion_id=7,unidad_negocio_id=9,estado="ejecutado",db_session=S())
+ c=caso();cambiar_estado(c,pedido=pedido(),organizacion_id=7,unidad_negocio_id=9,estado="diagnostico",db_session=S());assert c.estado=="diagnostico"
+ with pytest.raises(ValueError):cambiar_estado(c,pedido=pedido(),organizacion_id=7,unidad_negocio_id=9,estado="ejecutado",db_session=S())
+def test_resolucion_rechaza_pedido_de_otro_tenant_o_no_vinculado():
+ with pytest.raises(ValueError):proponer_resolucion({"tipo_resolucion":"rechazo","detalle":"No corresponde"},caso=caso(),pedido=pedido(organizacion_id=8),organizacion_id=7,unidad_negocio_id=9,Propuesta=O,db_session=S())
+ with pytest.raises(ValueError):proponer_resolucion({"tipo_resolucion":"rechazo","detalle":"No corresponde"},caso=caso(),pedido=O(id=99,organizacion_id=7,unidad_negocio_id=9),organizacion_id=7,unidad_negocio_id=9,Propuesta=O,db_session=S())
 def test_expediente_detecta_huerfanos_y_efectos():
  c=caso();p=propuesta(caso_id=99);r=expediente_postventa(organizacion_id=7,unidad_negocio_id=9,casos=[c],propuestas=[p]);assert not r["aprobado"] and r["hallazgos"][0]["codigo"]=="propuesta_huerfana"
 def test_expediente_firmado_reproducible():

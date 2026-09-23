@@ -11,16 +11,18 @@ class S:
  def add(s,x):s.o.append(x)
  def commit(s):s.commits+=1
 def ahora():return datetime.now(UTC).replace(tzinfo=None)
-def caso(**k):return O(id=k.pop("id",1),organizacion_id=7,unidad_negocio_id=9,estado=k.pop("estado","abierto"),fecha_creacion=k.pop("fecha_creacion",ahora()),**k)
-def propuesta(**k):return O(id=2,caso_id=1,importe_centavos=k.get("importe_centavos",1000))
-def item(**k):return O(id=3,caso_id=1,recibido=k.get("recibido",False),afecta_stock=False)
-def evidencia(**k):return O(id=4,caso_id=1,verificada=False,enviada=False)
+def pedido(**k):return O(id=k.pop("id",10),organizacion_id=k.pop("organizacion_id",7),unidad_negocio_id=k.pop("unidad_negocio_id",9),**k)
+def caso(**k):return O(id=k.pop("id",1),organizacion_id=7,unidad_negocio_id=9,pedido_id=k.pop("pedido_id",10),estado=k.pop("estado","abierto"),fecha_creacion=k.pop("fecha_creacion",ahora()),**k)
+def propuesta(**k):return O(id=2,organizacion_id=7,unidad_negocio_id=9,caso_id=1,importe_centavos=k.get("importe_centavos",1000))
+def item(**k):return O(id=3,organizacion_id=7,unidad_negocio_id=9,caso_id=1,recibido=k.get("recibido",False),afecta_stock=False)
+def evidencia(**k):return O(id=4,organizacion_id=7,unidad_negocio_id=9,caso_id=1,verificada=False,enviada=False)
 def test_item_nace_sin_recepcion_ni_stock():
- s=S();x=agregar_item({"cantidad":"2,5","condicion":"danado","detalle_item":"Golpe"},caso=caso(),producto=O(id=8,organizacion_id=7),organizacion_id=7,unidad_negocio_id=9,Item=O,db_session=s);assert str(x.cantidad)=="2.5" and not x.recibido and not x.afecta_stock and s.commits==1
+ s=S();x=agregar_item({"cantidad":"2,5","condicion":"danado","detalle_item":"Golpe"},caso=caso(),pedido=pedido(),producto=O(id=8,organizacion_id=7),organizacion_id=7,unidad_negocio_id=9,Item=O,db_session=s);assert str(x.cantidad)=="2.5" and not x.recibido and not x.afecta_stock and s.commits==1
 def test_item_rechaza_contexto_y_cantidad():
- with pytest.raises(ValueError):agregar_item({"cantidad":"0","condicion":"nuevo"},caso=caso(),producto=O(id=8,organizacion_id=7),organizacion_id=7,unidad_negocio_id=9,Item=O,db_session=S())
+ with pytest.raises(ValueError):agregar_item({"cantidad":"0","condicion":"nuevo"},caso=caso(),pedido=pedido(),producto=O(id=8,organizacion_id=7),organizacion_id=7,unidad_negocio_id=9,Item=O,db_session=S())
+ with pytest.raises(ValueError):agregar_item({"cantidad":"NaN","condicion":"nuevo"},caso=caso(),pedido=pedido(),producto=O(id=8,organizacion_id=7),organizacion_id=7,unidad_negocio_id=9,Item=O,db_session=S())
 def test_evidencia_nace_interna_con_huella():
- s=S();e=agregar_evidencia({"tipo_evidencia":"foto","referencia":"foto-frente-001"},caso=caso(),organizacion_id=7,unidad_negocio_id=9,Evidencia=O,db_session=s);assert len(e.huella)==64 and not e.verificada and not e.enviada
+ s=S();e=agregar_evidencia({"tipo_evidencia":"foto","referencia":"foto-frente-001"},caso=caso(),pedido=pedido(),organizacion_id=7,unidad_negocio_id=9,Evidencia=O,db_session=s);assert len(e.huella)==64 and not e.verificada and not e.enviada
 def test_control_detecta_casos_incompletos_y_vencidos():
  c=caso(estado="diagnostico",fecha_creacion=ahora()-timedelta(days=20));r=control_final(organizacion_id=7,unidad_negocio_id=9,casos=[c],propuestas=[],items=[],evidencias=[]);assert {x["codigo"] for x in r["hallazgos"]}=={"caso_sin_items","caso_sin_evidencia","caso_vencido"}
 def test_control_completo_calcula_exposicion():

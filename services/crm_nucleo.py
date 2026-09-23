@@ -183,12 +183,18 @@ def cambiar_estado_oportunidad(
     oportunidad,
     estado,
     *,
+    organizacion_id,
     db_session,
     commit=True,
 ):
     if oportunidad is None:
         raise ValueError(
             "No se recibió la oportunidad."
+        )
+
+    if int(oportunidad.organizacion_id) != int(organizacion_id):
+        raise ValueError(
+            "La oportunidad no pertenece a la organización activa."
         )
 
     oportunidad.estado = (

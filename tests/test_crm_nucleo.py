@@ -94,7 +94,8 @@ def test_identidad_rechaza_canal_desconocido():
 
 def test_estado_oportunidad_hace_rollback():
     oportunidad = SimpleNamespace(
-        estado="abierta"
+        estado="abierta",
+        organizacion_id=7,
     )
     session = SessionFake(
         RuntimeError("fallo commit")
@@ -107,11 +108,28 @@ def test_estado_oportunidad_hace_rollback():
         cambiar_estado_oportunidad(
             oportunidad,
             "ganada",
+            organizacion_id=7,
             db_session=session,
         )
 
     assert session.commits == 1
     assert session.rollbacks == 1
+
+
+def test_estado_oportunidad_rechaza_otro_tenant_sin_commit():
+    oportunidad = SimpleNamespace(estado="abierta", organizacion_id=8)
+    session = SessionFake()
+
+    with pytest.raises(ValueError, match="organización activa"):
+        cambiar_estado_oportunidad(
+            oportunidad,
+            "ganada",
+            organizacion_id=7,
+            db_session=session,
+        )
+
+    assert oportunidad.estado == "abierta"
+    assert session.commits == 0
 
 
 def test_crm_no_habilita_automatizaciones():

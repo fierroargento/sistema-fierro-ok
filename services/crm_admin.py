@@ -103,6 +103,48 @@ def _misma_organizacion(
         )
 
 
+def _validar_integridad_oportunidad(
+    organizacion,
+    oportunidad,
+    *,
+    ClienteCRM,
+    UnidadNegocio,
+    EtapaCRM,
+):
+    _misma_organizacion(organizacion, oportunidad, "La oportunidad")
+    cliente = _obtener(
+        ClienteCRM,
+        oportunidad.cliente_crm_id,
+        "el cliente de la oportunidad",
+    )
+    _misma_organizacion(organizacion, cliente, "El cliente")
+
+    if oportunidad.unidad_negocio_id is not None:
+        unidad = _obtener(
+            UnidadNegocio,
+            oportunidad.unidad_negocio_id,
+            "la unidad de la oportunidad",
+        )
+        _misma_organizacion(organizacion, unidad, "La unidad de negocio")
+        if (
+            cliente.unidad_negocio_id is not None
+            and cliente.unidad_negocio_id != unidad.id
+        ):
+            raise ValueError(
+                "La oportunidad y el cliente pertenecen a unidades diferentes."
+            )
+
+    if oportunidad.etapa_crm_id is not None:
+        etapa = _obtener(
+            EtapaCRM,
+            oportunidad.etapa_crm_id,
+            "la etapa de la oportunidad",
+        )
+        _misma_organizacion(organizacion, etapa, "La etapa")
+
+    return cliente
+
+
 def _guardar(db_session):
     try:
         db_session.commit()
@@ -520,6 +562,15 @@ def procesar_accion_crm_admin(
                 "La unidad de negocio",
             )
 
+            if (
+                cliente.unidad_negocio_id is not None
+                and cliente.unidad_negocio_id != unidad.id
+            ):
+                raise ValueError(
+                    "La oportunidad y el cliente pertenecen "
+                    "a unidades diferentes."
+                )
+
         etapa = None
         etapa_id = _opcional_id(
             formulario,
@@ -615,10 +666,12 @@ def procesar_accion_crm_admin(
             ),
             "la oportunidad",
         )
-        _misma_organizacion(
+        _validar_integridad_oportunidad(
             organizacion,
             oportunidad,
-            "La oportunidad",
+            ClienteCRM=ClienteCRM,
+            UnidadNegocio=UnidadNegocio,
+            EtapaCRM=EtapaCRM,
         )
 
         cambiar_estado_oportunidad(
@@ -628,6 +681,7 @@ def procesar_accion_crm_admin(
                 "estado",
                 30,
             ),
+            organizacion_id=organizacion.id,
             db_session=db_session,
         )
 
@@ -642,10 +696,12 @@ def procesar_accion_crm_admin(
             ),
             "la oportunidad",
         )
-        _misma_organizacion(
+        _validar_integridad_oportunidad(
             organizacion,
             oportunidad,
-            "La oportunidad",
+            ClienteCRM=ClienteCRM,
+            UnidadNegocio=UnidadNegocio,
+            EtapaCRM=EtapaCRM,
         )
         oportunidad.activa = not bool(
             oportunidad.activa
@@ -689,6 +745,14 @@ def procesar_accion_crm_admin(
                 organizacion,
                 oportunidad,
                 "La oportunidad",
+            )
+
+            _validar_integridad_oportunidad(
+                organizacion,
+                oportunidad,
+                ClienteCRM=ClienteCRM,
+                UnidadNegocio=UnidadNegocio,
+                EtapaCRM=EtapaCRM,
             )
 
             if (
@@ -765,6 +829,31 @@ def procesar_accion_crm_admin(
             actividad,
             "La actividad",
         )
+
+        cliente = _obtener(
+            ClienteCRM,
+            actividad.cliente_crm_id,
+            "el cliente de la actividad",
+        )
+        _misma_organizacion(organizacion, cliente, "El cliente")
+
+        if actividad.oportunidad_crm_id is not None:
+            oportunidad = _obtener(
+                OportunidadCRM,
+                actividad.oportunidad_crm_id,
+                "la oportunidad de la actividad",
+            )
+            _validar_integridad_oportunidad(
+                organizacion,
+                oportunidad,
+                ClienteCRM=ClienteCRM,
+                UnidadNegocio=UnidadNegocio,
+                EtapaCRM=EtapaCRM,
+            )
+            if oportunidad.cliente_crm_id != cliente.id:
+                raise ValueError(
+                    "La actividad vincula un cliente y una oportunidad incompatibles."
+                )
 
         if actividad.estado == "completada":
             actividad.estado = "pendiente"

@@ -33,6 +33,9 @@ from services.contabilidad_nucleo import (
     crear_borrador as crear_borrador_contable,
     crear_cuenta as crear_cuenta_contable,
 )
+from services.crm_admin import procesar_accion_crm_admin
+from services.postventa_preparatoria import crear_caso, proponer_resolucion
+from services.cierre_postventa import agregar_item
 
 
 aplicacion = modulo.app
@@ -554,6 +557,106 @@ with aplicacion.app_context():
     else:
         raise AssertionError("Conteo aceptó una existencia de otro tenant.")
     db.session.rollback()
+
+
+with aplicacion.app_context():
+    modelos_crm = {
+        "ClienteCRM": modulo.ClienteCRM,
+        "ClienteIdentidadCanal": modulo.ClienteIdentidadCanal,
+        "EtapaCRM": modulo.EtapaCRM,
+        "OportunidadCRM": modulo.OportunidadCRM,
+        "ActividadCRM": modulo.ActividadCRM,
+        "UnidadNegocio": modulo.UnidadNegocio,
+    }
+    organizacion_fierro = modulo.Organizacion.query.get(ids[1])
+    organizacion_nautica = modulo.Organizacion.query.get(nautica_ids[0])
+    procesar_accion_crm_admin(
+        "crear_cliente",
+        {"codigo": "cliente-compartido", "nombre": "Cliente Fierro UAT",
+         "unidad_negocio_id": str(ids[2])},
+        organizacion=organizacion_fierro, modelos=modelos_crm,
+        db_session=db.session, usuario="admin-uat",
+    )
+    procesar_accion_crm_admin(
+        "crear_cliente",
+        {"codigo": "cliente-compartido", "nombre": "Cliente Náutica UAT",
+         "unidad_negocio_id": str(nautica_ids[1])},
+        organizacion=organizacion_nautica, modelos=modelos_crm,
+        db_session=db.session, usuario="admin-uat",
+    )
+    cliente_fierro = modulo.ClienteCRM.query.filter_by(
+        organizacion_id=ids[1], codigo="cliente-compartido"
+    ).one()
+    cliente_nautica = modulo.ClienteCRM.query.filter_by(
+        organizacion_id=nautica_ids[0], codigo="cliente-compartido"
+    ).one()
+    for organizacion_actual, cliente_actual in (
+        (organizacion_fierro, cliente_fierro),
+        (organizacion_nautica, cliente_nautica),
+    ):
+        procesar_accion_crm_admin(
+            "agregar_identidad",
+            {"cliente_id": str(cliente_actual.id), "canal": "whatsapp",
+             "identificador_externo": "+5491100000000"},
+            organizacion=organizacion_actual, modelos=modelos_crm,
+            db_session=db.session, usuario="admin-uat",
+        )
+    assert modulo.ClienteIdentidadCanal.query.filter_by(
+        canal="whatsapp", identificador_externo="+5491100000000"
+    ).count() == 2
+    try:
+        procesar_accion_crm_admin(
+            "crear_oportunidad",
+            {"cliente_id": str(cliente_fierro.id), "titulo": "Cruce no permitido"},
+            organizacion=organizacion_nautica, modelos=modelos_crm,
+            db_session=db.session, usuario="admin-uat",
+        )
+    except ValueError as error:
+        assert "organización" in str(error)
+    else:
+        raise AssertionError("CRM aceptó un cliente de otro tenant.")
+
+    pedido_fierro = modulo.Pedido(
+        organizacion_id=ids[1], unidad_negocio_id=ids[2],
+        cliente="Cliente Fierro UAT", canal="laboratorio", id_venta="UAT-PV-1",
+    )
+    pedido_nautica = modulo.Pedido(
+        organizacion_id=nautica_ids[0], unidad_negocio_id=nautica_ids[1],
+        cliente="Cliente Náutica UAT", canal="laboratorio", id_venta="UAT-PV-1",
+    )
+    db.session.add_all([pedido_fierro, pedido_nautica])
+    db.session.commit()
+    caso_fierro = crear_caso(
+        {"tipo": "garantia", "titulo": "Prueba UAT",
+         "descripcion": "Caso interno de laboratorio sin efectos."},
+        pedido=pedido_fierro, organizacion_id=ids[1], unidad_negocio_id=ids[2],
+        Caso=modulo.CasoPostventa, db_session=db.session, usuario_id=ids[0],
+    )
+    assert not caso_fierro.contacto_externo and not caso_fierro.afecta_stock
+    try:
+        proponer_resolucion(
+            {"tipo_resolucion": "reintegro", "detalle": "Cruce bloqueado",
+             "importe_centavos": "1000"},
+            caso=caso_fierro, pedido=pedido_nautica,
+            organizacion_id=ids[1], unidad_negocio_id=ids[2],
+            Propuesta=modulo.PropuestaResolucionPostventa,
+            db_session=db.session,
+        )
+    except ValueError as error:
+        assert "contexto activo" in str(error)
+    else:
+        raise AssertionError("Postventa aceptó un pedido de otro tenant.")
+    producto_fierro_actual = modulo.Producto.query.filter_by(
+        organizacion_id=ids[1], sku="SKU-COMPARTIDO-UAT"
+    ).one()
+    item_postventa = agregar_item(
+        {"cantidad": "1", "condicion": "sin_recibir",
+         "detalle_item": "Sólo documentado para UAT"},
+        caso=caso_fierro, pedido=pedido_fierro, producto=producto_fierro_actual,
+        organizacion_id=ids[1], unidad_negocio_id=ids[2],
+        Item=modulo.ItemCasoPostventa, db_session=db.session,
+    )
+    assert item_postventa.recibido is False and item_postventa.afecta_stock is False
 
 
 def _red_no_debe_invocarse(*_args, **_kwargs):
