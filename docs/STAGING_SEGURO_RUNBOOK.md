@@ -43,6 +43,19 @@ requieren una autorización posterior y explícita.
 
 7. Reiniciar con `BOOTSTRAP_BASE_DATOS_HABILITADO=false` y comprobar `/ready`.
 
+## Paquete sintético para la futura UAT
+
+El repositorio puede generar un ZIP reproducible sin abrir la base ni utilizar
+la red:
+
+`python scripts/generar_paquete_datos_uat.py --salida paquete_uat.zip`
+
+El ZIP contiene inclusiones/producto, clasificación, insumos, empleados,
+máquinas, costos fijos, ficha técnica, proveedores y una imagen artificial.
+Incluye `LEEME_PRIMERO.txt` con el orden de carga y un manifiesto SHA-256.
+La generación del archivo no autoriza su carga: sólo debe utilizarse después
+de aprobar el preflight y sobre la organización/unidad exclusiva de ensayo.
+
 ## Resultado esperado
 
 El servidor sólo queda listo si puede consultar la base marcada, mantiene el
