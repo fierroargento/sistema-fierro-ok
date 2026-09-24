@@ -25,9 +25,12 @@ def test_marcador_rechaza_base_con_datos(monkeypatch):
         def get_schema_names(self): return ["main"]
         def get_table_names(self, schema=None): return ["pedido"]
     monkeypatch.setattr(marcador_base, "inspect", lambda _engine: Inspector())
+    engine = type("Engine", (), {
+        "dialect": type("Dialect", (), {"name": "sqlite"})(),
+    })()
     with pytest.raises(RuntimeError, match="no está vacía"):
         marcador_base.crear_marcador_staging(
-            object(), "marcador-seguro-de-prueba-con-longitud-suficiente"
+            engine, "marcador-seguro-de-prueba-con-longitud-suficiente"
         )
 
 
@@ -88,3 +91,40 @@ def test_password_debil_y_dinero_ambiguo_se_rechazan():
     with pytest.raises(ValueError, match="ambiguo|válido"):
         importe_a_centavos("1.500")
     assert importe_a_centavos("1.500,50") == 150050
+    assert importe_a_centavos("1.500.000") == 150000000
+    with pytest.raises(ValueError, match="espacios"):
+        validar_password("            a1")
+
+
+def test_marcador_rechaza_vistas_y_secuencias(monkeypatch):
+    class Inspector:
+        def get_schema_names(self): return ["main"]
+        def get_table_names(self, schema=None): return []
+        def get_view_names(self, schema=None): return ["vista_existente"]
+        def get_materialized_view_names(self, schema=None): return []
+        def get_sequence_names(self, schema=None): return ["secuencia_existente"]
+    class Engine:
+        dialect = type("Dialect", (), {"name": "sqlite"})()
+    monkeypatch.setattr(marcador_base, "inspect", lambda _engine: Inspector())
+    with pytest.raises(RuntimeError, match="no está vacía"):
+        marcador_base.crear_marcador_staging(
+            Engine(), "marcador-seguro-de-prueba-con-longitud-suficiente"
+        )
+
+
+def test_sesiones_impresion_archivos_y_dom_quedan_endurecidos():
+    app = Path("app.py").read_text(encoding="utf-8")
+    auth = Path("modules/auth/routes.py").read_text(encoding="utf-8")
+    assert 'session["session_epoch"]' in auth
+    assert 'methods=["POST"]' in auth.split('def logout()', 1)[0][-160:]
+    assert "usuario.session_epoch" in auth
+    bloque_impresion = app.split("def imprimir_etiqueta(", 1)[0][-180:]
+    assert 'methods=["POST"]' in bloque_impresion
+    bloque_archivo = app.split("def ver_etiqueta(", 1)[1].split("@app.route", 1)[0]
+    assert ".ilike(" not in bloque_archivo
+    assert "os.path.basename(urlparse(" in bloque_archivo
+    for nombre in ("nuevo_pedido.html", "editar_pedido.html"):
+        template = Path("templates", nombre).read_text(encoding="utf-8")
+        bloque = template.split("function renderizarItems()", 1)[1].split("function eliminarItem", 1)[0]
+        assert "tr.innerHTML" not in bloque
+        assert "textContent" in bloque

@@ -21,6 +21,8 @@ PASSWORDS_COMUNES = {
 
 def validar_password(password):
     valor = str(password or "")
+    if valor != valor.strip():
+        raise ValueError("La contraseña no puede comenzar ni terminar con espacios.")
     if len(valor) < 12:
         raise ValueError("La contraseña debe tener al menos 12 caracteres.")
     if valor.strip().lower() in PASSWORDS_COMUNES:
@@ -236,9 +238,11 @@ def editar_membresia_tenant(
         usuario.rol = rol
 
         if password:
+            password = validar_password(password)
             usuario.password_hash = (
                 generate_password_hash(password)
             )
+            usuario.session_epoch = int(getattr(usuario, "session_epoch", 0) or 0) + 1
 
     _guardar(db_session)
 

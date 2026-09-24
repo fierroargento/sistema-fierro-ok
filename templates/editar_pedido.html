@@ -1009,12 +1009,19 @@ function renderizarItems() {
 
     itemsAgregados.forEach((item, index) => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${item.sku}</td>
-            <td>${item.descripcion}</td>
-            <td>${item.cantidad}</td>
-            <td><button type="button" class="btn btn-eliminar" onclick="eliminarItem(${index})">Eliminar</button></td>
-        `;
+        [item.sku, item.descripcion, item.cantidad].forEach((valor) => {
+            const td = document.createElement("td");
+            td.textContent = String(valor ?? "");
+            tr.appendChild(td);
+        });
+        const tdAccion = document.createElement("td");
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.className = "btn btn-eliminar";
+        boton.textContent = "Eliminar";
+        boton.addEventListener("click", () => eliminarItem(index));
+        tdAccion.appendChild(boton);
+        tr.appendChild(tdAccion);
         body.appendChild(tr);
     });
 

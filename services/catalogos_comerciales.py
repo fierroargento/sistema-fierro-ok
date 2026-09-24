@@ -51,6 +51,12 @@ def importe_a_centavos(valor):
             elif "." in texto:
                 # 1.500 es ambiguo en Argentina: se exige 1500 o 1.500,00.
                 partes = texto.split(".")
+                if len(partes) > 2:
+                    if not partes[0].isdigit() or not 1 <= len(partes[0]) <= 3:
+                        raise InvalidOperation
+                    if any(not grupo.isdigit() or len(grupo) != 3 for grupo in partes[1:]):
+                        raise InvalidOperation
+                    texto = "".join(partes)
                 if (
                     len(partes) == 2
                     and 1 <= len(partes[0]) <= 3

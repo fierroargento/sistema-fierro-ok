@@ -9,17 +9,34 @@ TABLA = "sistema_entorno_marcador"
 
 
 def exigir_base_vacia_para_marcado(engine):
-    """No permite convertir en staging una base que ya contiene tablas."""
+    """No permite convertir en staging una base con objetos de usuario."""
     inspector = inspect(engine)
-    tablas_ajenas = []
+    objetos_ajenos = []
     for esquema in inspector.get_schema_names():
         if esquema in {"pg_catalog", "information_schema"}:
             continue
         for tabla in inspector.get_table_names(schema=esquema):
             if tabla != TABLA:
-                tablas_ajenas.append((esquema, tabla))
-    if tablas_ajenas:
-        muestra = ", ".join(f"{fila[0]}.{fila[1]}" for fila in tablas_ajenas[:5])
+                objetos_ajenos.append((esquema, tabla))
+        for metodo in ("get_view_names", "get_materialized_view_names", "get_sequence_names"):
+            obtener = getattr(inspector, metodo, None)
+            if obtener is None:
+                continue
+            try:
+                nombres = obtener(schema=esquema)
+            except NotImplementedError:
+                nombres = ()
+            for nombre in nombres:
+                objetos_ajenos.append((esquema, nombre))
+    if engine.dialect.name == "postgresql":
+        with engine.connect() as conexion:
+            rutinas = conexion.execute(text(
+                "SELECT routine_schema, routine_name FROM information_schema.routines "
+                "WHERE routine_schema NOT IN ('pg_catalog', 'information_schema')"
+            )).fetchall()
+        objetos_ajenos.extend((fila[0], fila[1]) for fila in rutinas)
+    if objetos_ajenos:
+        muestra = ", ".join(f"{fila[0]}.{fila[1]}" for fila in objetos_ajenos[:5])
         raise RuntimeError(
             "La base no está vacía; se rechazó el marcado para proteger datos existentes"
             + (f": {muestra}." if muestra else ".")

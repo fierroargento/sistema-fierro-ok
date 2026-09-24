@@ -323,7 +323,10 @@
     {% endif %}
 
     <div class="mobile-footer-actions">
-        <a href="{{ url_for('logout') }}">Cerrar sesión</a>
+        <form method="post" action="{{ url_for('logout') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">Cerrar sesión</button>
+        </form>
     </div>
 </div>
 

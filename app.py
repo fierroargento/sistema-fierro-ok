@@ -530,7 +530,20 @@ def asegurar_columna_item_si_no_existe(nombre_columna, definicion_sql):
         db.session.commit()
 
 
+def asegurar_columna_usuario_si_no_existe(nombre_columna, definicion_sql):
+    inspector = inspect(db.engine)
+    columnas = [col["name"] for col in inspector.get_columns("usuario_sistema")]
+    if nombre_columna not in columnas:
+        db.session.execute(text(
+            f"ALTER TABLE usuario_sistema ADD COLUMN {nombre_columna} {definicion_sql}"
+        ))
+        db.session.commit()
+
+
 def asegurar_columnas_extra():
+    asegurar_columna_usuario_si_no_existe(
+        "session_epoch", "INTEGER NOT NULL DEFAULT 0"
+    )
     asegurar_columna_si_no_existe("etiqueta_archivo", "VARCHAR(255)")
     asegurar_columna_si_no_existe("andreani_estado", "VARCHAR(200)")
     asegurar_columna_si_no_existe("andreani_ultima_sync", "TIMESTAMP")
@@ -2036,11 +2049,7 @@ def accion_principal_pedido(pedido, origen="inicio"):
         }
 
     if puede_imprimir_pedido(pedido):
-        url_impresion = (
-            url_for("imprimir_etiqueta", id=pedido.id, origen="mobile")
-            if origen == "mobile"
-            else url_for("lanzar_impresion", id=pedido.id, origen=origen)
-        )
+        url_impresion = url_for("lanzar_impresion", id=pedido.id, origen=origen)
         return {
             "tipo": "imprimir_etiqueta",
             "texto": "Imprimir etiqueta",
@@ -2534,6 +2543,18 @@ def usuario_actual():
             session["user_id"] = usuario.id
 
     if not usuario or not usuario.activo:
+        session.clear()
+        return None
+    epoch_sesion = session.get("session_epoch")
+    emitida_en = session.get("session_issued_at")
+    ahora = int(datetime.now(timezone.utc).timestamp())
+    if (
+        epoch_sesion is None
+        or int(epoch_sesion) != int(getattr(usuario, "session_epoch", 0) or 0)
+        or emitida_en is None
+        or ahora - int(emitida_en) > 12 * 60 * 60
+    ):
+        session.clear()
         return None
     return usuario
 
@@ -6838,7 +6859,7 @@ def readiness():
         if entorno_sistema == "staging":
             esquema_completo = db.session.execute(text(
                 "SELECT version FROM schema_version_saas "
-                "WHERE version = '2026_09_22_staging_seguro_bloque_2'"
+                "WHERE version = '2026_09_24_seguridad_uat_bloque_3'"
             )).first() is not None
             from services.marcador_base_entorno import verificar_marcador_staging
             marcador_ok = verificar_marcador_staging(
@@ -6868,7 +6889,7 @@ def readiness():
             "laboratorio_desconectado": diagnostico["desconectado"],
             "almacenamiento_aislado": almacenamiento_local_habilitado(),
             "schema_version": (
-                "2026_09_22_staging_seguro_bloque_2" if esquema_completo else None
+                "2026_09_24_seguridad_uat_bloque_3" if esquema_completo else None
             ),
             "marcador": "ok" if marcador_ok else "error",
             "commit": commit_actual or None,
@@ -8666,17 +8687,27 @@ def ver_etiqueta(nombre_archivo):
     unidad_id = int(session.get("unidad_negocio_id") or 0)
     if unidad_id <= 0:
         abort(404)
-    pedido = (
+    pedidos = (
         consulta_pedidos_tenant_actual()
         .filter(Pedido.unidad_negocio_id == unidad_id)
         .filter(or_(
-            Pedido.etiqueta_archivo.ilike(f"%{archivo}%"),
-            Pedido.comprobante_dux_archivo.ilike(f"%{archivo}%"),
-            Pedido.comprobante_pago_archivo.ilike(f"%{archivo}%"),
+            Pedido.etiqueta_archivo.isnot(None),
+            Pedido.comprobante_dux_archivo.isnot(None),
+            Pedido.comprobante_pago_archivo.isnot(None),
         ))
-        .first()
+        .all()
     )
-    if pedido is None:
+    autorizado = any(
+        archivo == os.path.basename(urlparse(str(referencia or "")).path)
+        for pedido in pedidos
+        for referencia in (
+            pedido.etiqueta_archivo,
+            pedido.comprobante_dux_archivo,
+            pedido.comprobante_pago_archivo,
+        )
+        if referencia
+    )
+    if not autorizado:
         abort(404)
     return send_from_directory(app.config["UPLOAD_FOLDER"], archivo)
 
@@ -8804,9 +8835,6 @@ def lanzar_impresion(id):
 
     origen = (request.args.get("origen") or "").strip()
 
-    if origen == "mobile":
-        return redirect(url_for("imprimir_etiqueta", id=pedido.id, origen="mobile"))
-
     if origen == "detalle":
         volver_url = url_for("detalle_pedido", id=pedido.id)
     else:
@@ -8819,7 +8847,7 @@ def lanzar_impresion(id):
     )
 
 
-@app.route("/pedido/<int:id>/imprimir-etiqueta")
+@app.route("/pedido/<int:id>/imprimir-etiqueta", methods=["POST"])
 @login_required
 def imprimir_etiqueta(id):
     pedido = pedido_tenant_actual_o_404(id)
@@ -12929,8 +12957,11 @@ def crear_admin_inicial(username, nombre, password, organizacion_slug):
     organizacion_slug = str(organizacion_slug or "").strip()
     if len(username) < 3 or len(nombre) < 3:
         raise click.ClickException("Usuario y nombre deben tener al menos 3 caracteres.")
-    if len(password or "") < 12:
-        raise click.ClickException("La contraseña debe tener al menos 12 caracteres.")
+    from services.usuarios_admin import validar_password
+    try:
+        password = validar_password(password)
+    except ValueError as error:
+        raise click.ClickException(str(error)) from error
 
     organizacion = Organizacion.query.filter_by(
         slug=organizacion_slug,

@@ -722,6 +722,8 @@ cliente = aplicacion.test_client()
 with cliente.session_transaction() as sesion:
     sesion["user_id"] = ids[0]
     sesion["username"] = "admin-uat"
+    sesion["session_epoch"] = 0
+    sesion["session_issued_at"] = int(__import__("time").time())
     sesion["organizacion_id"] = ids[1]
     sesion["unidad_negocio_id"] = ids[2]
 
@@ -835,4 +837,16 @@ for regla in sorted(aplicacion.url_map.iter_rules(), key=lambda item: item.rule)
     revisadas += 1
 
 assert revisadas >= 100, revisadas
+
+cookie_anterior = cliente.get_cookie("session")
+assert cookie_anterior is not None
+respuesta_logout = cliente.post("/logout", base_url="https://localhost")
+assert respuesta_logout.status_code == 302
+cliente_cookie_copiada = aplicacion.test_client()
+cliente_cookie_copiada.set_cookie("session", cookie_anterior.value, domain="localhost")
+respuesta_cookie_copiada = cliente_cookie_copiada.get(
+    "/", base_url="https://localhost", follow_redirects=False,
+)
+assert respuesta_cookie_copiada.status_code == 302
+assert "/login" in respuesta_cookie_copiada.headers["Location"]
 print(f"RUNTIME_SMOKE_OK rutas={revisadas}")

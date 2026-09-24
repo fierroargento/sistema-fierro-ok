@@ -14,7 +14,13 @@ MAESTRAS = (
     "OPERACIONES_MASIVAS_HABILITADAS",
 )
 TRUE = {"1", "true", "si", "sí", "yes", "on"}
-CREDENCIAL_PATRON = re.compile(r"(?:TOKEN|SECRET|PASSWORD|PASS|API_KEY|CLIENT_ID|DSN)", re.I)
+CREDENCIAL_PATRON = re.compile(
+    r"(?:^|_)(?:TOKEN|SECRET|PASSWORD|PASS|API_KEY|CLIENT_ID|DSN)(?:_|$)",
+    re.I,
+)
+CREDENCIALES_PORTADORAS = {
+    "CLOUDINARY_URL", "TN_STORE_ID", "WHATSAPP_PHONE_NUMBER_ID",
+}
 CREDENCIALES_PERMITIDAS = {
     "SECRET_KEY", "DATABASE_URL", "STAGING_DATABASE_MARKER",
     "BASE_PRODUCTIVA_HUELLA_SHA256", "BASE_PRODUCTIVA_IDENTIDAD_SHA256",
@@ -79,7 +85,7 @@ def certificar(configuracion=None):
     credenciales_presentes = sorted(
         nombre for nombre, valor in env.items()
         if nombre not in CREDENCIALES_PERMITIDAS
-        and CREDENCIAL_PATRON.search(nombre)
+        and (CREDENCIAL_PATRON.search(nombre) or nombre in CREDENCIALES_PORTADORAS)
         and str(valor or "").strip()
     )
     if credenciales_presentes:hallazgos.append({"codigo":"credenciales_externas_presentes","detalle":"El laboratorio desconectado no debe recibir credenciales externas: " + ", ".join(credenciales_presentes) + "."})

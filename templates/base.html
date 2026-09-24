@@ -64,7 +64,10 @@
                 <div class="menu-user-rol">Rol: {{ rol_actual }}</div>
             </div>
 
-            <a href="{{ url_for('logout') }}">Cerrar sesión</a>
+            <form method="post" action="{{ url_for('logout') }}" class="logout-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button type="submit">Cerrar sesión</button>
+            </form>
         </div>
     </div>
 

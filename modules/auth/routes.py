@@ -12,6 +12,7 @@ from flask import (
     session,
     url_for,
 )
+from datetime import datetime, timezone
 
 
 def registrar_rutas_auth(
@@ -119,6 +120,12 @@ def registrar_rutas_auth(
                 session["username"] = (
                     usuario.username
                 )
+                session["session_epoch"] = int(
+                    getattr(usuario, "session_epoch", 0) or 0
+                )
+                session["session_issued_at"] = int(
+                    datetime.now(timezone.utc).timestamp()
+                )
 
                 if membresia_actual() is None:
                     session.clear()
@@ -146,7 +153,13 @@ def registrar_rutas_auth(
             error=error,
         )
 
-    @app.route("/logout")
+    @app.route("/logout", methods=["POST"])
     def logout():
+        usuario = usuario_actual()
+        if usuario is not None:
+            usuario.session_epoch = int(
+                getattr(usuario, "session_epoch", 0) or 0
+            ) + 1
+            db.session.commit()
         session.clear()
         return redirect(url_for("login"))

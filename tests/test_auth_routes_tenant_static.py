@@ -7,7 +7,7 @@ def test_auth_conserva_urls_y_endpoints():
     ).read_text(encoding="utf-8")
 
     assert '"/login"' in contenido
-    assert '@app.route("/logout")' in contenido
+    assert '@app.route("/logout", methods=["POST"])' in contenido
     assert "def login():" in contenido
     assert "def logout():" in contenido
 

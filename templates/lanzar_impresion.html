@@ -5,10 +5,13 @@
     <title>Lanzando impresión</title>
 </head>
 <body>
+    <form id="form-imprimir" method="post" action="{{ print_url }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <noscript><button type="submit">Continuar a impresión</button></noscript>
+    </form>
     <script nonce="{{ csp_nonce }}">
         (function () {
             var volverUrl = "{{ volver_url }}";
-            var printUrl = "{{ print_url }}";
 
             try {
                 if (window.opener && !window.opener.closed) {
@@ -25,7 +28,7 @@
                 }
             } catch (e) {}
 
-            window.location.href = printUrl;
+            document.getElementById("form-imprimir").submit();
         })();
     </script>
 </body>

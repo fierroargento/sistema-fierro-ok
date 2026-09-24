@@ -35,6 +35,11 @@ class UsuarioSistema(db.Model):
         db.Boolean,
         default=True,
     )
+    session_epoch = db.Column(
+        db.Integer,
+        nullable=False,
+        default=0,
+    )
     fecha_creacion = db.Column(
         db.DateTime,
         default=ahora_utc_naive,

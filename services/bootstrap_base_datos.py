@@ -287,12 +287,12 @@ def inicializar_base_datos_saas(
             "version VARCHAR(80) PRIMARY KEY, "
             "aplicada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
         ))
-        version = "2026_09_22_staging_seguro_bloque_2"
-        registrada = db.session.execute(
+        version_inicial = "2026_09_22_staging_seguro_bloque_2"
+        instalacion_inicial = db.session.execute(
             text_fn("SELECT version FROM schema_version_saas WHERE version = :version"),
-            {"version": version},
+            {"version": version_inicial},
         ).first()
-        if registrada is None:
+        if instalacion_inicial is None:
             asegurar_membresias_organizacion_inicial(
                 UsuarioSistema=modelos["UsuarioSistema"],
                 UsuarioOrganizacion=modelos["UsuarioOrganizacion"],
@@ -305,7 +305,17 @@ def inicializar_base_datos_saas(
             "asegurar_configuracion_inicial"
         ]()
 
+        version = "2026_09_24_seguridad_uat_bloque_3"
+        registrada = db.session.execute(
+            text_fn("SELECT version FROM schema_version_saas WHERE version = :version"),
+            {"version": version},
+        ).first()
         if registrada is None:
+            if instalacion_inicial is None:
+                db.session.execute(
+                    text_fn("INSERT INTO schema_version_saas (version) VALUES (:version)"),
+                    {"version": version_inicial},
+                )
             db.session.execute(
                 text_fn("INSERT INTO schema_version_saas (version) VALUES (:version)"),
                 {"version": version},
