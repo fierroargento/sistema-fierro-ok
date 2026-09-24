@@ -6,7 +6,10 @@ from services.importacion_productos_costeo import (
     leer_archivo,
     sugerir_mapeo,
     validar_mapeo,
+    exigir_confirmacion_importacion,
 )
+
+import pytest
 
 
 class Archivo(BytesIO):
@@ -32,6 +35,18 @@ def test_mapeo_exige_sku_y_tipo():
         assert "Tipo de producto" in str(error)
     else:
         raise AssertionError("Se acepto un mapeo incompleto.")
+
+
+def test_archivo_no_se_recorta_silenciosamente():
+    archivo = Archivo("SKU,TIPO\n".encode("utf-8") + b"A,simple\nB,simple\n")
+    with pytest.raises(ValueError, match="supera el maximo de 1 filas"):
+        leer_archivo(archivo, max_filas=1)
+
+
+def test_confirmacion_exige_frase_literal():
+    with pytest.raises(ValueError, match="IMPORTAR PRODUCTOS"):
+        exigir_confirmacion_importacion("importar productos", "IMPORTAR PRODUCTOS")
+    exigir_confirmacion_importacion(" IMPORTAR PRODUCTOS ", "IMPORTAR PRODUCTOS")
 
 
 def test_interfaz_tiene_flujo_y_exportaciones():
@@ -91,6 +106,8 @@ def test_confirmacion_revalida_limita_lote_y_audita():
     assert "vista_actual = previsualizar(" in rutas
     assert "Los datos cambiaron desde la validacion" in rutas
     assert "Confirmó importación de clasificación de productos" in rutas
+    assert '"IMPORTAR PRODUCTOS"' in rutas
+    assert "commit=False" in rutas
 
 
 def test_interfaz_aclara_que_clasificacion_esta_desconectada():
@@ -101,3 +118,4 @@ def test_interfaz_aclara_que_clasificacion_esta_desconectada():
     assert "Clasificación interna desconectada" in template
     assert "no modifica precios" in template
     assert "no consulta canales externos" in template
+    assert "IMPORTAR PRODUCTOS" in template

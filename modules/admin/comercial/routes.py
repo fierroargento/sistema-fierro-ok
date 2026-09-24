@@ -100,6 +100,7 @@ from services.importacion_productos_costeo import (
     deserializar,
     leer_archivo,
     previsualizar,
+    exigir_confirmacion_importacion,
     serializar,
     sugerir_mapeo,
 )
@@ -1754,6 +1755,9 @@ def crear_blueprint_comercial(*, dependencias):
                     lote.estado = "mapeado"
                     db.session.commit()
                 elif accion == "confirmar":
+                    exigir_confirmacion_importacion(
+                        request.form.get("confirmacion"), "IMPORTAR PRODUCTOS",
+                    )
                     if lote.estado != "mapeado":
                         raise ValueError("Primero validá el mapeo.")
                     if lote.modo == "validar":
@@ -1784,7 +1788,7 @@ def crear_blueprint_comercial(*, dependencias):
                         vista_actual,
                         organizacion_id=organizacion.id,
                         unidad_negocio_id=unidad_activa.id,
-                        modelos=modelos, db_session=db.session,
+                        modelos=modelos, db_session=db.session, commit=False,
                     )
                     lote = db.session.get(Lote, lote.id)
                     for campo, valor in conteos.items():
@@ -2445,6 +2449,9 @@ def crear_blueprint_comercial(*, dependencias):
                     vista = aplicar_modo_vista_fuentes(vista, lote.modo)
                     lote.mapeo_json, lote.vista_previa_json, lote.estado = serializar(mapeo), serializar(vista), "mapeado"; db.session.commit()
                 elif accion == "confirmar":
+                    exigir_confirmacion_importacion(
+                        request.form.get("confirmacion"), "IMPORTAR COSTOS",
+                    )
                     if lote.estado != "mapeado" or lote.modo == "solo_validar": raise ValueError("El lote no admite confirmación.")
                     vista_guardada = deserializar(lote.vista_previa_json, [])
                     vista_actual = previsualizar_fuentes(

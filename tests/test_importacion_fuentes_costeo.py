@@ -142,6 +142,8 @@ def test_confirmacion_revalida_audita_y_pide_confirmacion_humana():
     assert "Confirmó importación productiva" in rutas
     assert "resumen_vista.aplicables" in template
     assert "¿Confirmás la importación?" in template
+    assert '"IMPORTAR COSTOS"' in rutas
+    assert "IMPORTAR COSTOS" in template
 
 
 def test_confirmacion_oculta_vista_previa_y_muestra_cierre_compacto():

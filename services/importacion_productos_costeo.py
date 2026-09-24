@@ -64,6 +64,10 @@ def leer_archivo(archivo, nombre_hoja=None, max_filas=5000):
         raise ValueError("El archivo debe ser XLSX, XLSM o CSV.")
     if not datos:
         raise ValueError("El archivo no contiene filas.")
+    if len(datos) - 1 > max_filas:
+        raise ValueError(
+            f"El archivo supera el maximo de {max_filas} filas de datos."
+        )
     encabezados = [str(valor or "").strip() for valor in datos[0]]
     if not any(encabezados):
         raise ValueError("La primera fila no contiene encabezados.")
@@ -106,6 +110,7 @@ def previsualizar(filas, mapeo, *, organizacion_id, unidad_negocio_id=None, mode
         for p in perfiles
     }
     resultado = []
+    identidades = set()
     for fila in filas:
         datos = extraer_fila(fila, mapeo)
         sku = str(datos.get("sku") or "").strip().upper()
@@ -115,6 +120,10 @@ def previsualizar(filas, mapeo, *, organizacion_id, unidad_negocio_id=None, mode
             errores.append("Falta SKU")
         if tipo is None:
             errores.append("Tipo invalido")
+        identidad = (sku, int(unidad_negocio_id) if unidad_negocio_id is not None else None)
+        if sku and identidad in identidades:
+            errores.append("El archivo contiene un SKU duplicado para la unidad activa")
+        identidades.add(identidad)
         inclusion = None
         if not errores:
             Catalogo = modelos["Catalogo"]
@@ -176,6 +185,7 @@ def aplicar_modo_productos(vista, modo):
 
 def aplicar_vista_previa(
     vista, *, organizacion_id, unidad_negocio_id, modelos, db_session,
+    commit=True,
 ):
     conteos = {"creados": 0, "actualizados": 0, "sin_cambios": 0, "rechazados": 0}
     for fila in vista:
@@ -206,12 +216,19 @@ def aplicar_vista_previa(
             db_session=db_session, commit=False,
         )
         conteos["creados" if fila["accion"] == "crear" else "actualizados"] += 1
-    try:
-        db_session.commit()
-    except Exception:
-        db_session.rollback()
-        raise
+    if commit:
+        try:
+            db_session.commit()
+        except Exception:
+            db_session.rollback()
+            raise
     return conteos
+
+
+def exigir_confirmacion_importacion(valor, frase):
+    """Exige una confirmacion humana literal antes de aplicar un lote."""
+    if str(valor or "").strip() != frase:
+        raise ValueError(f"Escribi {frase} para confirmar la importacion.")
 
 
 def serializar(valor):
