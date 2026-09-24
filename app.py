@@ -113,6 +113,7 @@ from services.seguridad_entorno import (
     exigir_efecto_externo,
     procesamiento_webhook_habilitado,
     scheduler_habilitado,
+    operaciones_masivas_habilitadas,
     entorno_actual,
 )
 from services.contexto_canal_tenant import (
@@ -5931,10 +5932,12 @@ def ml_borrar_pedidos_ml_cargando_importados():
     membresia = membresia_actual()
     if membresia is None:
         abort(403)
+    unidad = unidad_negocio_actual_o_403(membresia)
     pedidos = (
         Pedido.query
         .filter(
             Pedido.organizacion_id == membresia.organizacion_id,
+            Pedido.unidad_negocio_id == unidad.id,
             Pedido.estado == "Cargando Pedido",
             or_(
                 Pedido.origen == "mercadolibre",
@@ -7870,12 +7873,18 @@ def registrar_webhooks_tiendanube():
 def reset_prueba_tiendanube():
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
+    if not operaciones_masivas_habilitadas():
+        return redirect(url_for("admin_integraciones.panel", error="Operación masiva bloqueada fuera de staging autorizado."))
+    if request.form.get("confirmacion") != "ELIMINAR PRUEBAS TN":
+        return redirect(url_for("admin_integraciones.panel", error="Confirmación inválida para borrar pruebas TN."))
     try:
         membresia = membresia_actual()
         if membresia is None:
             abort(403)
+        unidad = unidad_negocio_actual_o_403(membresia)
         pedidos = Pedido.query.filter(
             Pedido.organizacion_id == membresia.organizacion_id,
+            Pedido.unidad_negocio_id == unidad.id,
             Pedido.origen == "tiendanube",
             Pedido.estado == "Cargando Pedido"
         ).all()
@@ -8448,6 +8457,10 @@ def sync_mercadolibre():
 def reset_prueba_mercadolibre():
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
+    if not operaciones_masivas_habilitadas():
+        return redirect(url_for("admin_integraciones.panel", error="Operación masiva bloqueada fuera de staging autorizado."))
+    if request.form.get("confirmacion") != "ELIMINAR PRUEBAS ML":
+        return redirect(url_for("admin_integraciones.panel", error="Confirmación inválida para borrar pruebas ML."))
 
     try:
         eliminados = ml_borrar_pedidos_ml_cargando_importados()
@@ -8460,15 +8473,21 @@ def reset_prueba_mercadolibre():
 def reset_total_mercadolibre():
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
+    if not operaciones_masivas_habilitadas():
+        return redirect(url_for("admin_integraciones.panel", error="El reset total está bloqueado fuera de staging autorizado."))
+    if request.form.get("confirmacion") != "ELIMINAR TODO ML DE ESTA UNIDAD":
+        return redirect(url_for("admin_integraciones.panel", error="Confirmación inválida para el reset total ML."))
 
     try:
         membresia = membresia_actual()
         if membresia is None:
             abort(403)
+        unidad = unidad_negocio_actual_o_403(membresia)
         pedidos = (
             Pedido.query
             .filter(
                 Pedido.organizacion_id == membresia.organizacion_id,
+                Pedido.unidad_negocio_id == unidad.id,
                 or_(
                     Pedido.origen == "mercadolibre",
                     Pedido.canal == "Mercado Libre"
@@ -8496,15 +8515,21 @@ def reset_total_mercadolibre():
 def reset_ml_directo():
     if not puede_administrar_integraciones():
         return redirect(url_for("inicio"))
+    if not operaciones_masivas_habilitadas():
+        return "ERROR - operación masiva bloqueada fuera de staging autorizado", 403
+    if request.form.get("confirmacion") != "ELIMINAR TODO ML DE ESTA UNIDAD":
+        return "ERROR - confirmación inválida", 400
 
     try:
         membresia = membresia_actual()
         if membresia is None:
             abort(403)
+        unidad = unidad_negocio_actual_o_403(membresia)
         pedidos = (
             Pedido.query
             .filter(
                 Pedido.organizacion_id == membresia.organizacion_id,
+                Pedido.unidad_negocio_id == unidad.id,
                 or_(
                     Pedido.origen == "mercadolibre",
                     Pedido.canal == "Mercado Libre"

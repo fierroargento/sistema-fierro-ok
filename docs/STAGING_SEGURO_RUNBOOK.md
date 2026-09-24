@@ -10,6 +10,8 @@ requieren una autorización posterior y explícita.
 - `MODO_LABORATORIO_DESCONECTADO=true`.
 - Todas las llaves maestras de conexiones, efectos, webhooks, scheduler y
   bootstrap permanecen en `false` durante la ejecución normal.
+- `OPERACIONES_MASIVAS_HABILITADAS=false`; sólo se abre temporalmente para una
+  limpieza deliberada de datos de ensayo y vuelve a cerrarse inmediatamente.
 - La URL, la identidad estable y el marcador interno de la base deben ser
   distintos de producción.
 - Staging no recibe tokens de Mercado Libre, Tienda Nube, WhatsApp, OpenAI,

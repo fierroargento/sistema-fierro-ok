@@ -57,6 +57,15 @@ def bootstrap_base_habilitado():
     return (not laboratorio_forzado()) and _activo("BOOTSTRAP_BASE_DATOS_HABILITADO")
 
 
+def operaciones_masivas_habilitadas():
+    """Los resets destructivos sólo pueden abrirse expresamente en staging."""
+    return (
+        not laboratorio_forzado()
+        and entorno_actual() == "staging"
+        and _activo("OPERACIONES_MASIVAS_HABILITADAS")
+    )
+
+
 def exigir_efecto_externo(canal, operacion="operacion externa"):
     if not efectos_externos_habilitados(canal):
         raise RuntimeError(
@@ -92,10 +101,11 @@ def diagnostico_laboratorio_desconectado(canales=None):
         "laboratorio_forzado": laboratorio_forzado(),
         "scheduler": scheduler_habilitado(),
         "bootstrap_base": bootstrap_base_habilitado(),
+        "operaciones_masivas": operaciones_masivas_habilitadas(),
         "canales": detalle,
         "desconectado": all(
             not valor
             for estado in detalle.values()
             for valor in estado.values()
-        ) and not scheduler_habilitado(),
+        ) and not scheduler_habilitado() and not operaciones_masivas_habilitadas(),
     }

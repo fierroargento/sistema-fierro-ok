@@ -12,6 +12,7 @@ EFECTOS_EXTERNOS_HABILITADOS=false
 WEBHOOKS_HABILITADOS=false
 SCHEDULER_ENABLED=false
 BOOTSTRAP_BASE_DATOS_HABILITADO=false
+OPERACIONES_MASIVAS_HABILITADAS=false
 IA_AUTO_RESPUESTA=0
 ```
 
@@ -24,6 +25,9 @@ bases coinciden, la certificación del laboratorio falla.
 El candado `MODO_LABORATORIO_DESCONECTADO` prevalece sobre todas las demás
 variables. Mientras esté activo bloquea conexiones, efectos, webhooks,
 scheduler y bootstrap aunque otra llave haya quedado accidentalmente en true.
+También bloquea las limpiezas masivas. Estas últimas sólo pueden abrirse en
+`staging` con `OPERACIONES_MASIVAS_HABILITADAS=true`, nunca en producción, y
+siguen exigiendo confirmación exacta en cada formulario.
 
 Las consultas y descargas también están bloqueadas. Para abrir red en un
 entorno futuro hacen falta simultáneamente la llave maestra

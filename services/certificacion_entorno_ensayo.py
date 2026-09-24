@@ -10,6 +10,7 @@ from services.seguridad_entorno import diagnostico_laboratorio_desconectado
 MAESTRAS = (
     "CONEXIONES_EXTERNAS_HABILITADAS", "EFECTOS_EXTERNOS_HABILITADOS",
     "WEBHOOKS_HABILITADOS", "SCHEDULER_ENABLED", "BOOTSTRAP_BASE_DATOS_HABILITADO",
+    "OPERACIONES_MASIVAS_HABILITADAS",
 )
 TRUE = {"1", "true", "si", "sí", "yes", "on"}
 CREDENCIALES_EXTERNAS = (

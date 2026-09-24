@@ -135,6 +135,7 @@
                 action="{{ url_for('reset_prueba_mercadolibre') }}"
                 onsubmit="return confirm('Esto elimina SOLO pedidos importados de Mercado Libre que siguen en Cargando Pedido. No toca manuales, despachados ni finalizados. ¿Seguimos?');"
             >
+                <input type="hidden" name="confirmacion" value="ELIMINAR PRUEBAS ML">
                 <button type="submit" class="boton-cancelar">
                     Borrar pedidos ML de prueba
                 </button>
@@ -145,6 +146,7 @@
                 action="{{ url_for('reset_total_mercadolibre') }}"
                 onsubmit="return confirm('RESET TOTAL ML EN FIERRO: elimina TODOS los pedidos importados desde Mercado Libre dentro del Sistema Fierro. NO toca Mercado Libre real. ¿Confirmás?');"
             >
+                <input type="hidden" name="confirmacion" value="ELIMINAR TODO ML DE ESTA UNIDAD">
                 <button type="submit" class="boton-cancelar">
                     Reset total ML en Fierro
                 </button>
@@ -211,6 +213,7 @@
                 <button type="submit" class="boton-accion">Registrar webhooks TN</button>
             </form>
             <form method="post" action="{{ url_for('reset_prueba_tiendanube') }}" onsubmit="return confirm('Esto elimina SOLO pedidos importados de Tienda Nube que siguen en Cargando Pedido. No toca pedidos avanzados ni finalizados. ¿Seguimos?');">
+                <input type="hidden" name="confirmacion" value="ELIMINAR PRUEBAS TN">
                 <button type="submit" class="boton-cancelar">Borrar pedidos TN de prueba</button>
             </form>
             {% endif %}
