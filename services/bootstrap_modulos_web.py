@@ -146,6 +146,7 @@ def registrar_modulos_web(
                         "PropuestaImpactoCompra",
                         "FacturaProveedorCompra",
                         "MapeoInsumoInventario", "ExistenciaSucursal",
+                        "ImportacionMasivaCosto",
                     )
                 },
             },

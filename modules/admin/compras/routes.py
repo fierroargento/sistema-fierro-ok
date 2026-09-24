@@ -15,6 +15,14 @@ from services.propuestas_impacto_compra import decidir_propuesta, preparar_propu
 from services.mapeos_compras_inventario import crear_mapeo, habilitar_propuestas_stock
 from services.conciliacion_facturas_compra import registrar_factura_preparatoria
 from services.control_integral_compras import controlar_compras, exportar_control
+from services.importacion_productos_costeo import (
+    deserializar, exigir_confirmacion_importacion, leer_archivo, serializar,
+)
+from services.importacion_proveedores_compra import (
+    CAMPOS_PROVEEDORES, aplicar_proveedores, previsualizar_proveedores,
+    resumir_proveedores, sugerir_mapeo_proveedores,
+)
+from services.fechas import ahora_utc_naive
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
@@ -59,6 +67,133 @@ def crear_blueprint_compras(*, dependencias):
             "admin_compras.html", organizacion=organizacion, unidad_activa=unidad,
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(), **datos,
+        )
+
+    @blueprint.route("/admin/compras/importar-proveedores", methods=["GET", "POST"])
+    @dependencias["login_required"]
+    def importar_proveedores():
+        usuario, organizacion, unidad, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        Lote = modelos["ImportacionMasivaCosto"]
+        tipo_lote = "proveedores_compra"
+        try:
+            if request.method == "POST":
+                accion = (request.form.get("accion") or "").strip()
+                if accion == "subir":
+                    archivo = request.files.get("archivo")
+                    if archivo is None or not archivo.filename:
+                        raise ValueError("Seleccioná un archivo.")
+                    lectura = leer_archivo(archivo, request.form.get("hoja"))
+                    lote = Lote(
+                        organizacion_id=organizacion.id, unidad_negocio_id=None,
+                        usuario_id=getattr(usuario, "id", None),
+                        tipo_datos=tipo_lote, nombre_archivo=archivo.filename,
+                        nombre_hoja=lectura["hoja"], estado="cargado",
+                        modo="crear_actualizar",
+                        encabezados_json=serializar(lectura["encabezados"]),
+                        filas_json=serializar(lectura["filas"]),
+                        mapeo_json=serializar(
+                            sugerir_mapeo_proveedores(lectura["encabezados"])
+                        ), total_filas=len(lectura["filas"]),
+                    )
+                    db.session.add(lote)
+                    db.session.commit()
+                    return redirect(url_for(
+                        "admin_compras.importar_proveedores", lote=lote.id,
+                    ))
+                lote = Lote.query.filter_by(
+                    id=int(request.form.get("lote_id")),
+                    organizacion_id=organizacion.id,
+                    unidad_negocio_id=None, tipo_datos=tipo_lote,
+                ).first()
+                if lote is None:
+                    raise ValueError("El lote no pertenece a la organización activa.")
+                proveedores = modelos["ProveedorCompra"].query.filter_by(
+                    organizacion_id=organizacion.id,
+                ).all()
+                if accion == "mapear":
+                    encabezados = deserializar(lote.encabezados_json, [])
+                    mapeo = {
+                        str(i): (
+                            (request.form.get(f"col_{i}") or "").strip()
+                            if request.form.get(f"usar_{i}") == "1" else ""
+                        ) for i in range(len(encabezados))
+                    }
+                    vista = previsualizar_proveedores(
+                        deserializar(lote.filas_json, []), mapeo,
+                        proveedores=proveedores,
+                    )
+                    lote.mapeo_json = serializar(mapeo)
+                    lote.vista_previa_json = serializar(vista)
+                    lote.estado = "mapeado"
+                    db.session.commit()
+                elif accion == "confirmar":
+                    exigir_confirmacion_importacion(
+                        request.form.get("confirmacion"), "IMPORTAR PROVEEDORES",
+                    )
+                    if lote.estado != "mapeado":
+                        raise ValueError("Primero validá el mapeo.")
+                    vista_guardada = deserializar(lote.vista_previa_json, [])
+                    vista_actual = previsualizar_proveedores(
+                        deserializar(lote.filas_json, []),
+                        deserializar(lote.mapeo_json, {}),
+                        proveedores=proveedores,
+                    )
+                    if serializar(vista_actual) != serializar(vista_guardada):
+                        lote.vista_previa_json = serializar(vista_actual)
+                        db.session.commit()
+                        return redirect(url_for(
+                            "admin_compras.importar_proveedores", lote=lote.id,
+                            error=("Los proveedores cambiaron desde la validación. "
+                                   "Revisá la vista y confirmá nuevamente."),
+                        ))
+                    conteos = aplicar_proveedores(
+                        vista_actual, organizacion_id=organizacion.id,
+                        ProveedorCompra=modelos["ProveedorCompra"],
+                        db_session=db.session, commit=False,
+                    )
+                    lote = db.session.get(Lote, lote.id)
+                    for campo, valor in conteos.items():
+                        setattr(lote, campo, valor)
+                    lote.estado = "confirmado"
+                    lote.fecha_confirmacion = ahora_utc_naive()
+                    db.session.commit()
+                    dependencias["registrar_auditoria"](
+                        "Confirmó importación de proveedores",
+                        entidad="importacion_masiva_costo", entidad_id=lote.id,
+                        detalle=(f"Organización {organizacion.id}; "
+                                 f"{conteos['creados']} creados; "
+                                 f"{conteos['actualizados']} actualizados; "
+                                 f"{conteos['rechazados']} rechazados."),
+                    )
+                return redirect(url_for(
+                    "admin_compras.importar_proveedores", lote=lote.id,
+                ))
+        except Exception as error:
+            db.session.rollback()
+            return redirect(url_for(
+                "admin_compras.importar_proveedores", error=str(error),
+            ))
+        lote_id = request.args.get("lote", type=int)
+        lote = Lote.query.filter_by(
+            id=lote_id, organizacion_id=organizacion.id,
+            unidad_negocio_id=None, tipo_datos=tipo_lote,
+        ).first() if lote_id else None
+        vista = deserializar(lote.vista_previa_json, []) if lote else []
+        return render_template(
+            "admin_importacion_proveedores.html", organizacion=organizacion,
+            unidad_activa=unidad, lote=lote,
+            encabezados=deserializar(lote.encabezados_json, []) if lote else [],
+            filas=deserializar(lote.filas_json, []) if lote else [],
+            mapeo=deserializar(lote.mapeo_json, {}) if lote else {},
+            vista=vista, resumen=resumir_proveedores(vista),
+            campos=CAMPOS_PROVEEDORES,
+            historial=Lote.query.filter_by(
+                organizacion_id=organizacion.id, unidad_negocio_id=None,
+                tipo_datos=tipo_lote,
+            ).order_by(Lote.fecha_creacion.desc()).limit(20).all(),
+            error=(request.args.get("error") or "").strip(),
         )
 
     @blueprint.route("/admin/compras/guardar", methods=["POST"])
