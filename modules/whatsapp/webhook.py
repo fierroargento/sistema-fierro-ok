@@ -65,9 +65,15 @@ def _obtener_estado_wa(pedido):
     return str(getattr(pedido, "wa_estado", "") or "")
 
 
-def _buscar_pedido_por_telefono(telefono, organizacion_id):
+def _buscar_pedido_por_telefono(
+    telefono, organizacion_id, unidad_negocio_id,
+):
     """Busca el pedido activo más reciente asociado a ese número."""
-    return buscar_pedido_activo_por_telefono(telefono, organizacion_id)
+    return buscar_pedido_activo_por_telefono(
+        telefono,
+        organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+    )
 
 
 
@@ -458,13 +464,11 @@ def registrar_webhook(app):
 
                             logger.exception("[WA-HIST] Error verificando dedup entrada")
 
-                    pedido = _buscar_pedido_por_telefono(telefono, organizacion_id)
-                    if (
-                        pedido is not None
-                        and int(pedido.unidad_negocio_id) != int(unidad_negocio_id)
-                    ):
-                        logger.warning("[WA] Pedido rechazado por unidad distinta al vínculo.")
-                        pedido = None
+                    pedido = _buscar_pedido_por_telefono(
+                        telefono,
+                        organizacion_id,
+                        unidad_negocio_id,
+                    )
 
                     texto_para_historial = texto
 

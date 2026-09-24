@@ -884,13 +884,16 @@ def ml_aplicar_apb_en_pedido_service(
 def ml_pedido_existente_por_order_id_service(
     order_id,
     organizacion_id,
+    unidad_negocio_id,
     Pedido,
 ):
     if not order_id:
         return None
 
     from services.acceso_tenant_pedidos import consulta_pedidos_tenant
-    consulta = consulta_pedidos_tenant(Pedido, organizacion_id)
+    consulta = consulta_pedidos_tenant(
+        Pedido, organizacion_id, unidad_negocio_id,
+    )
 
     pedido = (
         consulta
@@ -903,7 +906,7 @@ def ml_pedido_existente_por_order_id_service(
         return pedido
 
     return (
-        consulta_pedidos_tenant(Pedido, organizacion_id)
+        consulta_pedidos_tenant(Pedido, organizacion_id, unidad_negocio_id)
         .filter_by(id_venta=order_id)
         .order_by(Pedido.id.asc())
         .first()
@@ -914,6 +917,7 @@ def ml_pedido_existente_operativo_service(
     order,
     shipment,
     organizacion_id,
+    unidad_negocio_id,
     Pedido,
     ml_es_mercado_envios_order_fn,
     ml_pedido_existente_por_order_id_fn,
@@ -936,7 +940,9 @@ def ml_pedido_existente_operativo_service(
     if ml_es_mercado_envios_order_fn(order, shipment):
         if pack_id:
             pedido = (
-                consulta_pedidos_tenant(Pedido, organizacion_id)
+                consulta_pedidos_tenant(
+                    Pedido, organizacion_id, unidad_negocio_id,
+                )
                 .filter_by(
                     canal="Mercado Libre",
                     ml_pack_id=pack_id,
@@ -950,7 +956,9 @@ def ml_pedido_existente_operativo_service(
 
         if shipping_id:
             pedido = (
-                consulta_pedidos_tenant(Pedido, organizacion_id)
+                consulta_pedidos_tenant(
+                    Pedido, organizacion_id, unidad_negocio_id,
+                )
                 .filter_by(
                     canal="Mercado Libre",
                     ml_shipping_id=shipping_id,

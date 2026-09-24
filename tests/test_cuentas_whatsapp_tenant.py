@@ -46,4 +46,5 @@ def test_webhook_integra_contexto_tenant_sin_fallback_global():
     assert "resolver_configuracion_post_whatsapp(" in fuente
     assert "configuracion.app_secret" in fuente
     assert '"status": "forbidden"' in fuente
-    assert "_buscar_pedido_por_telefono(telefono, organizacion_id)" in fuente
+    assert "_buscar_pedido_por_telefono(\n                        telefono," in fuente
+    assert "unidad_negocio_id," in fuente

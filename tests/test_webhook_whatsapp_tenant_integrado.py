@@ -20,12 +20,12 @@ def test_webhook_tenantiza_deduplicacion_busqueda_historial_y_media():
     fuente = Path("modules/whatsapp/webhook.py").read_text(encoding="utf-8-sig")
     for contrato in (
         "organizacion_id=organizacion_id",
-        "_buscar_pedido_por_telefono(telefono, organizacion_id)",
+        "_buscar_pedido_por_telefono(\n                        telefono,",
         "unidad_negocio_id=unidad_negocio_id",
         "organizacion_id=organizacion_id,",
     ):
         assert contrato in fuente
-    assert "pedido.unidad_negocio_id" in fuente
+    assert "unidad_negocio_id," in fuente
 
 
 def test_salida_general_recibe_contexto_organizacion_aunque_sigue_bloqueada():

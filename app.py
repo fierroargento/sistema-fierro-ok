@@ -3883,6 +3883,7 @@ def tn_importar_o_actualizar_pedido(order, cuenta_origen=None):
     pedido = Pedido.query.filter_by(
         tn_order_id=tn_id,
         organizacion_id=vinculo_origen.organizacion_id,
+        unidad_negocio_id=vinculo_origen.unidad_negocio_id,
     ).first()
     validar_pedido_en_contexto(pedido, vinculo_origen)
 
@@ -4404,7 +4405,7 @@ from modules.bot_ml.mensajes import (
 
 
 def ml_marcar_mensajes_pendientes_por_ids(
-    ids, count=1, commit=False, organizacion_id=None,
+    ids, count=1, commit=False, organizacion_id=None, unidad_negocio_id=None,
 ):
     """Marca pedidos con mensajes pendientes usando id_venta o ml_pack_id."""
     ids_limpios = {str(x or "").strip() for x in (ids or []) if str(x or "").strip()}
@@ -4413,9 +4414,12 @@ def ml_marcar_mensajes_pendientes_por_ids(
 
     if organizacion_id is None:
         raise ValueError("Falta organizacion para vincular mensajes ML.")
+    if unidad_negocio_id is None:
+        raise ValueError("Falta unidad para vincular mensajes ML.")
     pedidos = Pedido.query.filter(
         Pedido.canal == "Mercado Libre",
         Pedido.organizacion_id == int(organizacion_id),
+        Pedido.unidad_negocio_id == int(unidad_negocio_id),
     ).all()
     ahora = datetime.utcnow()
     marcados = 0
@@ -5472,23 +5476,29 @@ def ml_aplicar_datos_envio(pedido, order, shipment):
     )
 
 
-def ml_pedido_existente_por_order_id(order_id, organizacion_id):
+def ml_pedido_existente_por_order_id(
+    order_id, organizacion_id, unidad_negocio_id,
+):
     return ml_pedido_existente_por_order_id_service(
         order_id,
         organizacion_id,
+        unidad_negocio_id,
         Pedido,
     )
 
 
-def ml_pedido_existente_operativo(order, shipment=None, *, organizacion_id):
+def ml_pedido_existente_operativo(
+    order, shipment=None, *, organizacion_id, unidad_negocio_id,
+):
     return ml_pedido_existente_operativo_service(
         order,
         shipment,
         organizacion_id,
+        unidad_negocio_id,
         Pedido,
         ml_es_mercado_envios_order,
         lambda order_id: ml_pedido_existente_por_order_id(
-            order_id, organizacion_id,
+            order_id, organizacion_id, unidad_negocio_id,
         ),
     )
 
@@ -5736,17 +5746,16 @@ def ml_borrar_pedido_importado_si_corresponde(
 
 
 def ml_vinculo_activo_cuenta(cuenta_ml, organizacion_id=None):
-    filtros = {
-        "mercado_libre_cuenta_id": cuenta_ml.id,
-        "estado": "activo",
-    }
-    if organizacion_id is not None:
-        filtros["organizacion_id"] = int(organizacion_id)
-    vinculo = VinculoCanalComercial.query.filter_by(**filtros).first()
-    if vinculo is None:
-        raise ValueError(
-            "La cuenta Mercado Libre no tiene un vínculo tenant activo."
-        )
+    vinculo = resolver_contexto_cuenta(
+        cuenta_ml,
+        canal="mercadolibre",
+        VinculoCanalComercial=VinculoCanalComercial,
+    )
+    if (
+        organizacion_id is not None
+        and int(vinculo.organizacion_id) != int(organizacion_id)
+    ):
+        raise ValueError("La cuenta Mercado Libre pertenece a otra organización.")
     return vinculo
 
 
@@ -5780,6 +5789,7 @@ def ml_upsert_pedido_desde_order(
         organizacion_id=organizacion_id,
     )
     organizacion_id = int(vinculo_cuenta.organizacion_id)
+    unidad_negocio_id = int(vinculo_cuenta.unidad_negocio_id)
 
     from services.ml_api_context import ml_api_contexto
 
@@ -5806,6 +5816,7 @@ def ml_upsert_pedido_desde_order(
                 order_actual,
                 shipment_actual,
                 organizacion_id=organizacion_id,
+                unidad_negocio_id=unidad_negocio_id,
             )
         ),
         ml_registrar_order_ignorado,
@@ -5865,6 +5876,7 @@ def ml_upsert_pedido_desde_order(
                 order_actual,
                 shipment_actual,
                 organizacion_id=organizacion_id,
+                unidad_negocio_id=unidad_negocio_id,
             )
         ),
         ml_aplicar_datos_envio,
@@ -7053,6 +7065,7 @@ def ml_sync_pedido_por_order_id_webhook(
         )
         vinculo_cuenta = ml_vinculo_activo_cuenta(api_context.cuenta)
         organizacion_id = int(vinculo_cuenta.organizacion_id)
+        unidad_negocio_id = int(vinculo_cuenta.unidad_negocio_id)
         order = ml_obtener_order_api(
             order_id,
             api_context.get,
@@ -7075,7 +7088,7 @@ def ml_sync_pedido_por_order_id_webhook(
             order_status = str((order or {}).get("status") or "").lower().strip()
             if order_status in estados_cancelados_ml:
                 pedido_existente = ml_pedido_existente_por_order_id(
-                    order_id, organizacion_id,
+                    order_id, organizacion_id, unidad_negocio_id,
                 )
                 if pedido_existente and pedido_existente.estado not in ["Cancelado", "Finalizado", "Entregado"]:
                     pedido_existente.estado = "Cancelado"
@@ -7128,6 +7141,7 @@ def ml_sync_shipment_por_id_webhook(
         )
         vinculo_cuenta = ml_vinculo_activo_cuenta(api_context.cuenta)
         organizacion_id = int(vinculo_cuenta.organizacion_id)
+        unidad_negocio_id = int(vinculo_cuenta.unidad_negocio_id)
         shipment = ml_obtener_shipment(
             shipment_id,
             api_context=api_context,
@@ -7141,6 +7155,7 @@ def ml_sync_shipment_por_id_webhook(
             .filter(
                 Pedido.canal == "Mercado Libre",
                 Pedido.organizacion_id == organizacion_id,
+                Pedido.unidad_negocio_id == unidad_negocio_id,
                 or_(
                     Pedido.ml_shipping_id == shipment_id,
                     Pedido.ml_shipping_id == str(shipment_id)
@@ -7184,6 +7199,7 @@ def ml_sync_shipment_por_id_webhook(
                     canal="Mercado Libre",
                     id_venta=order_id,
                     organizacion_id=organizacion_id,
+                    unidad_negocio_id=unidad_negocio_id,
                 )
                 .first()
             )
@@ -7207,6 +7223,7 @@ def ml_sync_shipment_por_id_webhook(
                     canal="Mercado Libre",
                     id_venta=order_id,
                     organizacion_id=organizacion_id,
+                    unidad_negocio_id=unidad_negocio_id,
                 )
                 .first()
             )
@@ -7275,6 +7292,7 @@ def ml_marcar_reclamo_webhook(
         )
         vinculo_cuenta = ml_vinculo_activo_cuenta(api_context.cuenta)
         organizacion_id = int(vinculo_cuenta.organizacion_id)
+        unidad_negocio_id = int(vinculo_cuenta.unidad_negocio_id)
         claim = api_context.get(
             f"/post-purchase/v1/claims/{claim_id}"
         )
@@ -7308,6 +7326,7 @@ def ml_marcar_reclamo_webhook(
                 Pedido.query.filter(
                     Pedido.canal == "Mercado Libre",
                     Pedido.organizacion_id == organizacion_id,
+                    Pedido.unidad_negocio_id == unidad_negocio_id,
                 )
                 .filter(or_(
                     Pedido.ml_pack_id == buscar_id,
@@ -7430,6 +7449,7 @@ def webhook_mercadolibre():
             contexto_ml = ml_api_contexto_webhook(seller_id_webhook)
             vinculo_ml = ml_vinculo_activo_cuenta(contexto_ml.cuenta)
             organizacion_id_webhook = int(vinculo_ml.organizacion_id)
+            unidad_negocio_id_webhook = int(vinculo_ml.unidad_negocio_id)
             pack_id = ""
             match_pack = re.search(r"/packs/([^/?#]+)", resource)
             if match_pack:
@@ -7440,6 +7460,7 @@ def webhook_mercadolibre():
                     Pedido.query.filter(
                         Pedido.canal == "Mercado Libre",
                         Pedido.organizacion_id == organizacion_id_webhook,
+                        Pedido.unidad_negocio_id == unidad_negocio_id_webhook,
                     )
                     .filter(or_(
                         Pedido.ml_pack_id == pack_id,
@@ -7465,6 +7486,7 @@ def webhook_mercadolibre():
                     count=1,
                     commit=True,
                     organizacion_id=organizacion_id_webhook,
+                    unidad_negocio_id=unidad_negocio_id_webhook,
                 )
 
                 if marcados == 0:

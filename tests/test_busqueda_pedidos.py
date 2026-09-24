@@ -51,8 +51,8 @@ def test_wrapper_usa_modelo_pedido_canonico(monkeypatch):
     monkeypatch.setattr(
         busqueda_pedidos,
         "buscar_pedido_activo_por_telefono_service",
-        lambda telefono, organizacion_id, modelo: llamadas.append(
-            (telefono, organizacion_id, modelo)
+        lambda telefono, organizacion_id, modelo, **kwargs: llamadas.append(
+            (telefono, organizacion_id, modelo, kwargs)
         ) or "pedido",
     )
 
@@ -63,7 +63,9 @@ def test_wrapper_usa_modelo_pedido_canonico(monkeypatch):
     )
 
     assert resultado == "pedido"
-    assert llamadas == [("2920123456", 10, PedidoFake)]
+    assert llamadas == [(
+        "2920123456", 10, PedidoFake, {"unidad_negocio_id": None},
+    )]
 
 
 def test_service_encuentra_pedido_por_ultimos_ocho_digitos():

@@ -38,21 +38,40 @@ class Pedido:
 
 def test_busqueda_order_no_cruza_organizaciones():
     ajeno = SimpleNamespace(
-        id=1, organizacion_id=20, canal="Mercado Libre", id_venta="ORDER-1",
+        id=1, organizacion_id=20, unidad_negocio_id=100,
+        canal="Mercado Libre", id_venta="ORDER-1",
     )
     propio = SimpleNamespace(
-        id=2, organizacion_id=10, canal="Mercado Libre", id_venta="ORDER-1",
+        id=2, organizacion_id=10, unidad_negocio_id=100,
+        canal="Mercado Libre", id_venta="ORDER-1",
     )
     Pedido.query = Query([ajeno, propio])
-    assert ml_pedido_existente_por_order_id_service("ORDER-1", 10, Pedido) is propio
+    assert ml_pedido_existente_por_order_id_service(
+        "ORDER-1", 10, 100, Pedido,
+    ) is propio
     with pytest.raises(ValueError, match="organización"):
-        ml_pedido_existente_por_order_id_service("ORDER-1", None, Pedido)
+        ml_pedido_existente_por_order_id_service("ORDER-1", None, 100, Pedido)
+
+
+def test_busqueda_order_no_cruza_unidades():
+    ajeno = SimpleNamespace(
+        id=1, organizacion_id=10, unidad_negocio_id=101,
+        canal="Mercado Libre", id_venta="ORDER-1",
+    )
+    propio = SimpleNamespace(
+        id=2, organizacion_id=10, unidad_negocio_id=100,
+        canal="Mercado Libre", id_venta="ORDER-1",
+    )
+    Pedido.query = Query([ajeno, propio])
+    assert ml_pedido_existente_por_order_id_service(
+        "ORDER-1", 10, 100, Pedido,
+    ) is propio
 
 
 def test_cinco_consultas_del_importador_quedaron_particionadas():
     texto = Path("services/ml_importacion.py").read_text(encoding="utf-8")
     assert "Pedido.query" not in texto
-    assert texto.count("consulta_pedidos_tenant(Pedido, organizacion_id)") == 5
+    assert texto.count("Pedido, organizacion_id, unidad_negocio_id") == 4
 
 
 def test_sync_manual_exige_tenant_y_lo_propaga():
@@ -74,6 +93,7 @@ def test_upsert_resuelve_vinculo_y_graba_identidad_tenant():
     assert "ml_vinculo_activo_cuenta(" in bloque
     assert "pedido.organizacion_id = organizacion_id" in bloque
     assert "pedido.unidad_negocio_id = vinculo_cuenta.unidad_negocio_id" in bloque
+    assert "unidad_negocio_id=unidad_negocio_id" in bloque
 
 
 def test_webhook_deriva_tenant_desde_cuenta_sin_fallback_global():
@@ -83,7 +103,7 @@ def test_webhook_deriva_tenant_desde_cuenta_sin_fallback_global():
     bloque = texto[inicio:fin]
     assert "vinculo_cuenta = ml_vinculo_activo_cuenta(api_context.cuenta)" in bloque
     assert "organizacion_id=organizacion_id" in bloque
-    assert "ml_pedido_existente_por_order_id(\n                    order_id, organizacion_id," in bloque
+    assert "order_id, organizacion_id, unidad_negocio_id," in bloque
 
 
 def test_lote_no_habilita_importaciones_ni_transporte():
