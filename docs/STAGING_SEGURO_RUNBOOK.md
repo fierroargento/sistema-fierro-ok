@@ -56,6 +56,19 @@ Incluye `LEEME_PRIMERO.txt` con el orden de carga y un manifiesto SHA-256.
 La generación del archivo no autoriza su carga: sólo debe utilizarse después
 de aprobar el preflight y sobre la organización/unidad exclusiva de ensayo.
 
+## Cierre visual y evidencia
+
+La pantalla `Administración > Estructura > Aceptación por usuarios y roles`
+entrega una plantilla JSON con ocho pruebas guiadas `DAT-01` a `DAT-08`. El
+recorrido exige registrar responsable, resultado y referencia de evidencia
+visual para contexto UAT, producto, clasificación, fuentes de costo, ficha
+técnica, proveedor, imagen e idempotencia.
+
+Un resultado aprobado sólo genera un acta firmada para revisión humana. El
+acta mantiene expresamente `corte_dux_autorizado=false`,
+`integraciones_autorizadas=false` y todos los contadores de efectos en cero.
+No habilita producción, canales, webhooks, scheduler ni movimientos reales.
+
 ## Resultado esperado
 
 El servidor sólo queda listo si puede consultar la base marcada, mantiene el
