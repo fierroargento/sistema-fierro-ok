@@ -63,7 +63,7 @@
     </table>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function limpiarBusquedaHistorico() {
     const input = document.getElementById('buscador_historico');
     if (!input) return;

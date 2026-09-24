@@ -13,6 +13,21 @@ ROLES_TENANT = (
     "carga",
     "despacho",
 )
+PASSWORDS_COMUNES = {
+    "123456789012", "password1234", "contraseña123", "qwerty123456",
+    "admin1234567", "sistemafierro", "fierro123456",
+}
+
+
+def validar_password(password):
+    valor = str(password or "")
+    if len(valor) < 12:
+        raise ValueError("La contraseña debe tener al menos 12 caracteres.")
+    if valor.strip().lower() in PASSWORDS_COMUNES:
+        raise ValueError("La contraseña elegida es demasiado común.")
+    if not any(c.isalpha() for c in valor) or not any(c.isdigit() for c in valor):
+        raise ValueError("La contraseña debe combinar letras y números.")
+    return valor
 
 
 def _texto(formulario, campo, maximo):
@@ -106,6 +121,8 @@ def crear_usuario_tenant(
         raise ValueError(
             "Completá usuario, nombre y contraseña."
         )
+
+    password = validar_password(password)
 
     if rol not in ROLES_TENANT:
         raise ValueError("El rol no es válido.")

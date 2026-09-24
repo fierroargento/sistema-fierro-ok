@@ -154,6 +154,7 @@ def asegurar_membresias_organizacion_inicial(
     db_session,
     usuarios=None,
     buscar_membresia_fn=None,
+    buscar_cualquier_membresia_fn=None,
     logger_fn=print,
 ):
     """
@@ -185,13 +186,25 @@ def asegurar_membresias_organizacion_inicial(
                 .first()
             )
 
+    if buscar_cualquier_membresia_fn is None:
+        if hasattr(UsuarioOrganizacion, "query"):
+            def buscar_cualquier_membresia_fn(usuario_id):
+                return (
+                    UsuarioOrganizacion.query
+                    .filter_by(usuario_id=usuario_id)
+                    .first()
+                )
+        else:
+            # Compatibilidad con adaptadores de pruebas: una membresía en la
+            # organización inicial también impide duplicar el vínculo.
+            buscar_cualquier_membresia_fn = lambda usuario_id: buscar_membresia_fn(
+                usuario_id, organizacion_id
+            )
+
     creadas = 0
 
     for usuario in list(usuarios or []):
-        existente = buscar_membresia_fn(
-            usuario.id,
-            organizacion_id,
-        )
+        existente = buscar_cualquier_membresia_fn(usuario.id)
 
         if existente is not None:
             continue
@@ -199,10 +212,7 @@ def asegurar_membresias_organizacion_inicial(
         membresia = UsuarioOrganizacion(
             usuario_id=usuario.id,
             organizacion_id=organizacion_id,
-            rol=(
-                getattr(usuario, "rol", None)
-                or "carga"
-            ),
+            rol="carga",
             activa=bool(
                 getattr(usuario, "activo", True)
             ),

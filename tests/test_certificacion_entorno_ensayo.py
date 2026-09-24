@@ -2,13 +2,16 @@ import hashlib
 from pathlib import Path
 from services.certificacion_entorno_ensayo import certificar,identidad_base
 def base():
- url="postgresql://ensayo:clave@host/ensayo";return {"SISTEMA_FIERRO_ENTORNO":"staging","SISTEMA_FIERRO_PROPOSITO":"uat_desconectada","SISTEMA_FIERRO_RAMA_DESPLIEGUE":"integracion-saas-2026-09","MODO_LABORATORIO_DESCONECTADO":"true","DATABASE_URL":url,"BASE_PRODUCTIVA_HUELLA_SHA256":hashlib.sha256(b"postgresql://produccion:secreta@host/prod").hexdigest(),"BASE_PRODUCTIVA_IDENTIDAD_SHA256":identidad_base("postgresql://produccion:otra@host/prod?sslmode=require"),"STAGING_DATABASE_MARKER":"marcador-staging-exclusivo-2026-seguro","ALMACENAMIENTO_ARCHIVOS":"local_aislado","STAGING_UPLOAD_ROOT":"/var/data/sistema-fierro-staging","SECRET_KEY":"x"*40,"CONEXIONES_EXTERNAS_HABILITADAS":"false","EFECTOS_EXTERNOS_HABILITADOS":"false","WEBHOOKS_HABILITADOS":"false","SCHEDULER_ENABLED":"false","BOOTSTRAP_BASE_DATOS_HABILITADO":"false","OPERACIONES_MASIVAS_HABILITADAS":"false"}
+ url="postgresql://ensayo:clave@dpg-staging-a/ensayo";return {"SISTEMA_FIERRO_ENTORNO":"staging","SISTEMA_FIERRO_PROPOSITO":"uat_desconectada","SISTEMA_FIERRO_RAMA_DESPLIEGUE":"integracion-saas-2026-09","MODO_LABORATORIO_DESCONECTADO":"true","DATABASE_URL":url,"BASE_PRODUCTIVA_HUELLA_SHA256":hashlib.sha256(b"postgresql://produccion:secreta@dpg-prod-a/prod").hexdigest(),"BASE_PRODUCTIVA_IDENTIDADES_SHA256":identidad_base("postgresql://produccion:otra@dpg-prod-a/prod?sslmode=require"),"STAGING_DATABASE_MARKER":"marcador-staging-exclusivo-2026-seguro","ALMACENAMIENTO_ARCHIVOS":"local_aislado","STAGING_UPLOAD_ROOT":"/var/data/sistema-fierro-staging","SECRET_KEY":"x"*40,"CONEXIONES_EXTERNAS_HABILITADAS":"false","EFECTOS_EXTERNOS_HABILITADOS":"false","WEBHOOKS_HABILITADOS":"false","SCHEDULER_ENABLED":"false","BOOTSTRAP_BASE_DATOS_HABILITADO":"false","OPERACIONES_MASIVAS_HABILITADAS":"false"}
 def test_aprueba_staging_forzado_con_base_separada():
  r=certificar(base());assert r["aprobado"] and r["base_separada"] and r["laboratorio_forzado"] and len(r["huella_base_ensayo"])==64
 def test_rechaza_base_productiva_reutilizada():
  e=base();e["BASE_PRODUCTIVA_HUELLA_SHA256"]=hashlib.sha256(e["DATABASE_URL"].encode()).hexdigest();r=certificar(e);assert "base_productiva_reutilizada" in {x["codigo"] for x in r["hallazgos"]}
 def test_rechaza_misma_identidad_con_credenciales_o_query_distintos():
- e=base();e["DATABASE_URL"]="postgresql://otro:secreto@host/prod?sslmode=require";r=certificar(e);assert "identidad_base_productiva_reutilizada" in {x["codigo"] for x in r["hallazgos"]}
+ e=base();e["DATABASE_URL"]="postgresql://produccion:secreto@dpg-prod-a.ohio-postgres.render.com/prod?sslmode=require";r=certificar(e);assert "identidad_base_productiva_reutilizada" in {x["codigo"] for x in r["hallazgos"]}
+
+def test_rechaza_credenciales_por_patron_no_enumerado():
+ e=base();e["MELI_CLIENT_SECRET"]="real";e["ANDREANI_PASSWORD"]="real";r=certificar(e);assert "credenciales_externas_presentes" in {x["codigo"] for x in r["hallazgos"]}
 def test_rechaza_marcador_archivos_y_credenciales_externas_inseguros():
  e=base();e.update(STAGING_DATABASE_MARKER="corto",ALMACENAMIENTO_ARCHIVOS="cloudinary",STAGING_UPLOAD_ROOT="relativa",SENTRY_DSN="https://sentry.example/1");c={x["codigo"] for x in certificar(e)["hallazgos"]};assert {"marcador_staging_ausente","almacenamiento_no_aislado","raiz_archivos_invalida","credenciales_externas_presentes"}<=c
 def test_rechaza_entorno_candado_huella_y_llaves_inseguros():

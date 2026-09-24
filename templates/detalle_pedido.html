@@ -195,7 +195,7 @@ body { background: #f4f7f8; }
     </div>
 
     {% if error %}
-    <div class="error">{{ error|safe }}</div>
+    <div class="error">{{ error }}</div>
     {% if error and "CROSS-SELL PENDIENTE" in error and rol_actual in ["admin", "carga"] and not cross_sell_propuesta_omitida %}
     <div style="margin:8px 0 14px 0;">
         <form method="POST" action="{{ url_for('whatsapp_omitir_cross_sell', id=pedido.id) }}" style="display:inline;" onsubmit="return confirm('¿Confirmás omitir el Cross-Sell para este pedido? Esta acción queda registrada y libera el avance operativo.');">
@@ -1389,7 +1389,7 @@ body { background: #f4f7f8; }
 </div>
 
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function imprimirDesdeDetalle(urlImpresion, urlRecarga) {
     window.open(urlImpresion, "_blank");
     setTimeout(function () {
@@ -1491,7 +1491,7 @@ window.addEventListener("load", function () {
 </script>
 
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function copiarTextoTrackingSync(textoSeguimiento) {
     const texto = String(textoSeguimiento || "").trim();
     if (!texto) {
@@ -1574,7 +1574,7 @@ function abrirTrackingConCopia(event, enlace) {
 }
 </script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function cargarRespuestaRapidaWA(select) {
     if (!select) {
         return;
@@ -1638,7 +1638,7 @@ function cargarRespuestaRapidaWA(select) {
 </script>
 
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function bloquearEnvioWhatsAppOperador(form) {
     if (!form) {
         return true;

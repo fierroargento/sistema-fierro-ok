@@ -5,7 +5,7 @@
     <title>Lanzando impresión</title>
 </head>
 <body>
-    <script>
+    <script nonce="{{ csp_nonce }}">
         (function () {
             var volverUrl = "{{ volver_url }}";
             var printUrl = "{{ print_url }}";

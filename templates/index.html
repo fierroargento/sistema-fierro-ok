@@ -269,7 +269,7 @@
         </tbody>
     </table>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function copiarTexto(texto) {
     navigator.clipboard.writeText(texto).then(function () {
         console.log("Copiado:", texto);
@@ -461,7 +461,7 @@ function copiarTexto(texto) {
 
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     const botonOrdenHaceCuanto = document.getElementById('ordenar_hace_cuanto');
     const iconoOrdenHaceCuanto = document.getElementById('icono_orden_hace_cuanto');

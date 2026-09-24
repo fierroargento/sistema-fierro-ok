@@ -2,7 +2,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260813-4') }}">
-<script src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260813-4') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260813-4') }}" defer></script>
 {% endblock %}
 
 {% block content %}

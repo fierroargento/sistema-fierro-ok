@@ -2,10 +2,29 @@
 
 import hashlib
 
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 
 
 TABLA = "sistema_entorno_marcador"
+
+
+def exigir_base_vacia_para_marcado(engine):
+    """No permite convertir en staging una base que ya contiene tablas."""
+    inspector = inspect(engine)
+    tablas_ajenas = []
+    for esquema in inspector.get_schema_names():
+        if esquema in {"pg_catalog", "information_schema"}:
+            continue
+        for tabla in inspector.get_table_names(schema=esquema):
+            if tabla != TABLA:
+                tablas_ajenas.append((esquema, tabla))
+    if tablas_ajenas:
+        muestra = ", ".join(f"{fila[0]}.{fila[1]}" for fila in tablas_ajenas[:5])
+        raise RuntimeError(
+            "La base no está vacía; se rechazó el marcado para proteger datos existentes"
+            + (f": {muestra}." if muestra else ".")
+        )
+    return True
 
 
 def _huella(marcador):
@@ -16,6 +35,7 @@ def _huella(marcador):
 
 
 def crear_marcador_staging(engine, marcador):
+    exigir_base_vacia_para_marcado(engine)
     huella = _huella(marcador)
     with engine.begin() as conexion:
         conexion.execute(text(

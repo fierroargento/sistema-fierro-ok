@@ -30,9 +30,39 @@ def importe_a_centavos(valor):
     Convierte pesos a centavos sin usar coma flotante.
     """
     try:
-        importe = Decimal(
-            str(valor).strip().replace(",", ".")
-        )
+        if isinstance(valor, str):
+            texto = valor.strip().replace(" ", "")
+            if not texto:
+                raise InvalidOperation
+            if "," in texto:
+                if texto.count(",") != 1:
+                    raise InvalidOperation
+                entero, decimal = texto.rsplit(",", 1)
+                if not decimal.isdigit() or len(decimal) > 2:
+                    raise InvalidOperation
+                if "." in entero:
+                    grupos = entero.split(".")
+                    if not grupos[0].isdigit() or any(
+                        not grupo.isdigit() or len(grupo) != 3 for grupo in grupos[1:]
+                    ):
+                        raise InvalidOperation
+                    entero = "".join(grupos)
+                texto = f"{entero}.{decimal}"
+            elif "." in texto:
+                # 1.500 es ambiguo en Argentina: se exige 1500 o 1.500,00.
+                partes = texto.split(".")
+                if (
+                    len(partes) == 2
+                    and 1 <= len(partes[0]) <= 3
+                    and len(partes[1]) == 3
+                    and all(p.isdigit() for p in partes)
+                ):
+                    raise ValueError(
+                        "El importe es ambiguo. Usá 1500 o 1.500,00."
+                    )
+            importe = Decimal(texto)
+        else:
+            importe = Decimal(str(valor))
     except (
         InvalidOperation,
         AttributeError,

@@ -57,7 +57,7 @@ def crear_blueprint_edicion_cliente(*, dependencias):
         )
         if pedido is None:
             abort(404)
-        rol = str(getattr(usuario, "rol", "") or "").lower()
+        rol = str(getattr(membresia, "rol", "") or "").lower()
 
         if not puede_editar_datos_cliente_para_etiqueta(pedido, rol=rol):
             return redirect(url_for(

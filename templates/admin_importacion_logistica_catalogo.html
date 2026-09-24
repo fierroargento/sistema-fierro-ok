@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}"><script src="{{ url_for('static', filename='admin_importacion_costos.js') }}" defer></script>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}"><script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_importacion_costos.js') }}" defer></script>{% endblock %}
 {% block content %}
 <main class="comercial-page import-page">
   <header class="comercial-header"><div><p class="comercial-eyebrow">Importación masiva · {{ unidad_activa.nombre }}</p><h1>Ficha física por catálogo</h1><p class="comercial-intro">Actualiza peso, medidas y descripción física de inclusiones ya creadas.</p></div><a class="secondary-link" href="{{ url_for('admin_comercial.panel') }}#catalogos">Volver</a></header>

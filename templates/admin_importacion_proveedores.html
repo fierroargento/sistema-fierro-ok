@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Importar proveedores</title><link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}"><script src="{{ url_for('static', filename='admin_importacion_costos.js') }}" defer></script></head>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Importar proveedores</title><link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}"><script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_importacion_costos.js') }}" defer></script></head>
 <body class="comercial-body"><main class="comercial-shell">
 <header class="comercial-header"><div><span class="eyebrow">ADMINISTRACIÓN · COMPRAS</span><h1>Importar proveedores</h1><p>Actualiza el maestro existente de {{ organizacion.nombre }}. No crea órdenes, recepciones, pagos ni conexiones externas.</p></div><a class="secondary-link" href="{{ url_for('admin_compras.panel') }}">Volver a Compras</a></header>
 {% if error %}<div class="feedback feedback-error">{{ error }}</div>{% endif %}

@@ -282,22 +282,6 @@ def inicializar_base_datos_saas(
             "asegurar_usuarios_iniciales"
         ]()
 
-        asegurar_membresias_organizacion_inicial(
-            UsuarioSistema=(
-                modelos["UsuarioSistema"]
-            ),
-            UsuarioOrganizacion=(
-                modelos["UsuarioOrganizacion"]
-            ),
-            organizacion_id=organizacion_id,
-            db_session=db.session,
-            logger_fn=logger_fn,
-        )
-
-        dependencias[
-            "asegurar_configuracion_inicial"
-        ]()
-
         db.session.execute(text_fn(
             "CREATE TABLE IF NOT EXISTS schema_version_saas ("
             "version VARCHAR(80) PRIMARY KEY, "
@@ -308,6 +292,19 @@ def inicializar_base_datos_saas(
             text_fn("SELECT version FROM schema_version_saas WHERE version = :version"),
             {"version": version},
         ).first()
+        if registrada is None:
+            asegurar_membresias_organizacion_inicial(
+                UsuarioSistema=modelos["UsuarioSistema"],
+                UsuarioOrganizacion=modelos["UsuarioOrganizacion"],
+                organizacion_id=organizacion_id,
+                db_session=db.session,
+                logger_fn=logger_fn,
+            )
+
+        dependencias[
+            "asegurar_configuracion_inicial"
+        ]()
+
         if registrada is None:
             db.session.execute(
                 text_fn("INSERT INTO schema_version_saas (version) VALUES (:version)"),

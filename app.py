@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 
 
-from flask import Flask, abort, request, redirect, render_template, url_for, jsonify, send_file, send_from_directory, session, flash
+from flask import Flask, abort, request, redirect, render_template, url_for, jsonify, send_file, send_from_directory, session, flash, g
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from sentry_sdk.integrations.flask import FlaskIntegration
@@ -115,6 +115,7 @@ from services.seguridad_entorno import (
     scheduler_habilitado,
     operaciones_masivas_habilitadas,
     entorno_actual,
+    exigir_entorno_explicito,
 )
 from services.contexto_canal_tenant import (
     resolver_contexto_cuenta,
@@ -237,6 +238,7 @@ cloudinary.config(
 )
 
 database_url = os.getenv("DATABASE_URL", "").strip()
+exigir_entorno_explicito()
 entorno_sistema = entorno_actual()
 if not database_url and entorno_sistema != "desarrollo":
     raise RuntimeError("DATABASE_URL es obligatoria fuera del entorno de desarrollo.")
@@ -319,6 +321,16 @@ def validar_csrf():
         abort(400, description="Token CSRF ausente o inválido.")
 
 
+@app.before_request
+def preparar_nonce_csp():
+    g.csp_nonce = secrets.token_urlsafe(24)
+
+
+@app.context_processor
+def exponer_nonce_csp():
+    return {"csp_nonce": getattr(g, "csp_nonce", "")}
+
+
 @app.after_request
 def agregar_cabeceras_seguridad(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -331,7 +343,9 @@ def agregar_cabeceras_seguridad(response):
     response.headers.setdefault(
         "Content-Security-Policy",
         "default-src 'self'; img-src 'self' data: https:; "
-        "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; script-src 'self' "
+        f"'nonce-{getattr(g, 'csp_nonce', '')}'; "
+        "script-src-attr 'unsafe-inline'; "
         "connect-src 'self'",
     )
     return response
@@ -6815,10 +6829,37 @@ def readiness():
     try:
         db.session.execute(text("SELECT 1"))
         diagnostico = diagnostico_laboratorio_desconectado()
+        esquema_completo = True
+        marcador_ok = True
+        commit_actual = str(os.getenv("RENDER_GIT_COMMIT", "") or "").strip()
+        commit_esperado = str(os.getenv("SISTEMA_FIERRO_COMMIT_ESPERADO", "") or "").strip()
+        commit_ok = True
+        tokens_ml = 0
+        if entorno_sistema == "staging":
+            esquema_completo = db.session.execute(text(
+                "SELECT version FROM schema_version_saas "
+                "WHERE version = '2026_09_22_staging_seguro_bloque_2'"
+            )).first() is not None
+            from services.marcador_base_entorno import verificar_marcador_staging
+            marcador_ok = verificar_marcador_staging(
+                db.engine, os.environ.get("STAGING_DATABASE_MARKER", "")
+            )
+            commit_ok = bool(
+                commit_actual and commit_esperado and commit_actual == commit_esperado
+            )
+            tokens_ml = int(db.session.execute(text(
+                "SELECT COUNT(*) FROM mercado_libre_cuenta "
+                "WHERE COALESCE(access_token, '') <> '' "
+                "OR COALESCE(refresh_token, '') <> ''"
+            )).scalar() or 0)
         listo = entorno_sistema != "staging" or (
             diagnostico["laboratorio_forzado"]
             and diagnostico["desconectado"]
             and almacenamiento_local_habilitado()
+            and esquema_completo
+            and marcador_ok
+            and commit_ok
+            and tokens_ml == 0
         )
         return {
             "status": "ready" if listo else "not_ready",
@@ -6826,6 +6867,13 @@ def readiness():
             "entorno": entorno_sistema,
             "laboratorio_desconectado": diagnostico["desconectado"],
             "almacenamiento_aislado": almacenamiento_local_habilitado(),
+            "schema_version": (
+                "2026_09_22_staging_seguro_bloque_2" if esquema_completo else None
+            ),
+            "marcador": "ok" if marcador_ok else "error",
+            "commit": commit_actual or None,
+            "commit_verificado": commit_ok,
+            "credenciales_ml_ausentes": tokens_ml == 0,
         }, 200 if listo else 503
     except Exception:
         db.session.rollback()
@@ -7600,6 +7648,7 @@ def admin_auditoria_legacy():
     membresia = membresia_actual()
     if membresia is None or membresia.rol != "admin":
         return redirect(url_for("inicio"))
+    abort(404)
     auditorias, membresias = obtener_contexto_legacy(Auditoria=Auditoria, UsuarioSistema=UsuarioSistema, UsuarioOrganizacion=UsuarioOrganizacion)
     diagnostico = clasificar_auditorias_legacy(auditorias, membresias)
     if request.method == "POST":
@@ -7613,6 +7662,7 @@ def admin_auditoria_legacy():
 def admin_auditoria_legacy_propuestas():
     usuario = usuario_actual(); membresia = membresia_actual()
     if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
+    abort(404)
     try:
         auditorias, membresias = obtener_contexto_legacy(Auditoria=Auditoria, UsuarioSistema=UsuarioSistema, UsuarioOrganizacion=UsuarioOrganizacion)
         diagnostico = clasificar_auditorias_legacy(auditorias, membresias)
@@ -7627,6 +7677,7 @@ def admin_auditoria_legacy_propuestas():
 def admin_auditoria_legacy_accion(propuesta_id, accion):
     usuario = usuario_actual(); membresia = membresia_actual()
     if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
+    abort(404)
     try:
         propuesta = obtener_propuesta(propuesta_id, AsignacionTenantAuditoria=AsignacionTenantAuditoria)
         if propuesta.organizacion_propuesta_id != membresia.organizacion_id: raise ValueError("La propuesta pertenece a otro tenant.")
@@ -7644,6 +7695,7 @@ def admin_auditoria_legacy_accion(propuesta_id, accion):
 def admin_auditoria_legacy_control():
     membresia = membresia_actual()
     if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
+    abort(404)
     control = obtener_control_tenant(membresia.organizacion_id, AsignacionTenantAuditoria=AsignacionTenantAuditoria)
     return render_template("admin_control_auditoria_legacy.html", control=control)
 
@@ -7653,6 +7705,7 @@ def admin_auditoria_legacy_control():
 def admin_auditoria_legacy_control_exportar():
     membresia = membresia_actual()
     if membresia is None or membresia.rol != "admin": return redirect(url_for("inicio"))
+    abort(404)
     control = obtener_control_tenant(membresia.organizacion_id, AsignacionTenantAuditoria=AsignacionTenantAuditoria)
     return send_file(exportar_control(control), as_attachment=True, download_name="control_final_auditoria_legacy.json", mimetype="application/json")
 
@@ -10575,6 +10628,17 @@ ADMIN_PEDIDO_LABELS = {
     "ia_resumen": "Resumen IA", "ia_requiere_operador": "IA requiere operador",
 }
 
+# Campos humanos que un administrador puede corregir sin alterar ownership,
+# estados, canales, credenciales ni datos técnicos de sincronización.
+ADMIN_PEDIDO_CAMPOS_EDITABLES = frozenset({
+    "cliente", "dni", "telefono", "mail", "id_venta", "empresa_envio",
+    "tipo_entrega", "direccion", "codigo_postal", "localidad", "provincia",
+    "cpa", "observaciones", "sucursal_nombre", "autorizado_nombre",
+    "autorizado_dni", "autorizado_telefono", "seguimiento", "numero_reclamo",
+    "observacion_reclamo", "motivo_no_entregado", "observacion_devolucion",
+    "numero_reclamo_ml", "resultado_reclamo_ml", "observacion_reclamo_ml",
+})
+
 
 def _admin_valor_a_texto(valor):
     if valor is None:
@@ -10664,7 +10728,7 @@ def _admin_campos_pedido_para_template(pedido):
     for titulo, campos in ADMIN_PEDIDO_CAMPOS_GRUPOS:
         lista = []
         for campo in campos:
-            if campo not in columnas or campo == "id":
+            if campo not in columnas or campo not in ADMIN_PEDIDO_CAMPOS_EDITABLES:
                 continue
             usados.add(campo)
             valor = getattr(pedido, campo, None)
@@ -10676,21 +10740,6 @@ def _admin_campos_pedido_para_template(pedido):
             })
         if lista:
             grupos.append((titulo, lista))
-
-    otros = []
-    for columna in columnas:
-        campo = columna.name
-        if campo == "id" or campo in usados:
-            continue
-        valor = getattr(pedido, campo, None)
-        otros.append({
-            "name": campo,
-            "label": ADMIN_PEDIDO_LABELS.get(campo, campo.replace("_", " ").capitalize()),
-            "tipo": _admin_tipo_input_pedido(campo),
-            "value": _admin_valor_a_texto(valor),
-        })
-    if otros:
-        grupos.append(("Otros campos", otros))
 
     return grupos
 
@@ -10705,7 +10754,7 @@ def admin_editar_pedido_completo(id):
         try:
             for columna in Pedido.__table__.columns:
                 campo = columna.name
-                if campo == "id" or campo not in request.form:
+                if campo not in ADMIN_PEDIDO_CAMPOS_EDITABLES or campo not in request.form:
                     continue
 
                 valor_anterior = getattr(pedido, campo, None)

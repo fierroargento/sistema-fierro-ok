@@ -1,6 +1,7 @@
 """Frontera central para impedir efectos externos accidentales."""
 
 import os
+from urllib.parse import urlsplit
 
 
 VALORES_TRUE = {"1", "true", "si", "sí", "yes", "on"}
@@ -14,6 +15,22 @@ def _activo(nombre, default="false"):
 def entorno_actual():
     valor = str(os.getenv("SISTEMA_FIERRO_ENTORNO", "desarrollo") or "").strip().lower()
     return valor if valor in {"desarrollo", "staging", "produccion"} else "desarrollo"
+
+
+def exigir_entorno_explicito(env=None):
+    """Falla cerrado en Render o ante una base remota/no SQLite."""
+    env = os.environ if env is None else env
+    declarado = str(env.get("SISTEMA_FIERRO_ENTORNO", "") or "").strip().lower()
+    database_url = str(env.get("DATABASE_URL", "") or "").strip()
+    esquema = urlsplit(database_url).scheme.lower() if database_url else ""
+    ejecucion_remota = bool(str(env.get("RENDER", "") or "").strip())
+    base_no_local = bool(database_url and esquema != "sqlite")
+    if (ejecucion_remota or base_no_local) and declarado not in {"staging", "produccion"}:
+        raise RuntimeError(
+            "SISTEMA_FIERRO_ENTORNO debe ser exactamente staging o produccion "
+            "cuando se ejecuta en Render o con una base no local."
+        )
+    return declarado or "desarrollo"
 
 
 def laboratorio_forzado():

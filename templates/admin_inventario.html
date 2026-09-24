@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block extra_head %}{# v='20260814-3' compatibilidad de pruebas historicas #}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260820-2') }}"><script src="{{ url_for('static', filename='admin_comercial.js', v='20260821-1') }}" defer></script>{% endblock %}
+{% block extra_head %}{# v='20260814-3' compatibilidad de pruebas historicas #}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260820-2') }}"><script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_comercial.js', v='20260821-1') }}" defer></script>{% endblock %}
 {% block content %}
 <p><a href="{{ url_for('admin_inventario.certificacion_integral') }}">Abrir certificación integral offline del inventario</a> · <a href="{{ url_for('admin_inventario.control_sombra_dux') }}">Comparar exportación DUX en modo sombra</a></p>
 <main class="admin-shell inventory-admin">
