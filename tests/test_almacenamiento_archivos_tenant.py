@@ -73,6 +73,24 @@ def test_raiz_del_sistema_no_puede_usarse_como_upload_root(monkeypatch):
         almacenamiento_archivos.raiz_local_aislada()
 
 
+def test_compensacion_elimina_solo_archivo_del_tenant(monkeypatch, tmp_path):
+    preparar_local(monkeypatch, tmp_path)
+    guardado = almacenamiento_archivos.guardar_imagen_local(
+        Archivo(png_bytes(), "producto.png"),
+        organizacion_id=1, unidad_negocio_id=10,
+        espacio="catalogo_7", limite_bytes=1024 * 1024,
+    )
+    assert almacenamiento_archivos.eliminar_archivos_locales(
+        [guardado], organizacion_id=1, unidad_negocio_id=10,
+    ) == 1
+    assert not list(tmp_path.rglob("*.png"))
+
+    assert almacenamiento_archivos.eliminar_archivos_locales(
+        [{"public_id": "local:2:10:catalogo_7/ajeno.png"}],
+        organizacion_id=1, unidad_negocio_id=10,
+    ) == 0
+
+
 def test_comprobante_costos_local_no_invoca_cloudinary(monkeypatch, tmp_path):
     preparar_local(monkeypatch, tmp_path)
     monkeypatch.setattr(

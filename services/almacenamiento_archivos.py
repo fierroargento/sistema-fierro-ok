@@ -112,3 +112,30 @@ def guardar_imagen_local(
         extensiones_permitidas={"jpg", "jpeg", "png", "webp"},
         validar_imagen=True,
     )
+
+
+def eliminar_archivos_locales(
+    registros, *, organizacion_id, unidad_negocio_id,
+):
+    """Compensa archivos recién creados si la operación de base falla."""
+    organizacion_id, unidad_negocio_id = _identidad_almacenamiento(
+        organizacion_id, unidad_negocio_id,
+    )
+    raiz = raiz_local_aislada()
+    base = (
+        raiz / f"organizacion_{organizacion_id}"
+        / f"unidad_{unidad_negocio_id}"
+    ).resolve()
+    prefijo = f"local:{organizacion_id}:{unidad_negocio_id}:"
+    eliminados = 0
+    for registro in registros or []:
+        public_id = str(registro.get("public_id") or "")
+        if not public_id.startswith(prefijo):
+            continue
+        relativa = public_id[len(prefijo):].strip().replace("\\", "/")
+        destino = (base / relativa).resolve()
+        if base not in destino.parents or not destino.is_file():
+            continue
+        destino.unlink()
+        eliminados += 1
+    return eliminados

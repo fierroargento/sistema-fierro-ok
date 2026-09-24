@@ -2,15 +2,21 @@
 
 import json
 from decimal import Decimal
+from io import BytesIO
+
+from PIL import Image
 from services.seguridad_entorno import exigir_conexion_externa, exigir_efecto_externo
 from services.almacenamiento_archivos import (
     almacenamiento_local_habilitado,
+    eliminar_archivos_locales,
     guardar_imagen_local,
 )
 
 
 TIPOS_RELACION = {"complementario", "sustituto", "accesorio", "repuesto"}
 EXTENSIONES_IMAGEN = {"jpg", "jpeg", "png", "webp"}
+MAX_IMAGENES_FICHA = 12
+MAX_BYTES_IMAGEN = 8 * 1024 * 1024
 
 
 def cargar_json(valor, defecto):
@@ -186,29 +192,59 @@ def validar_relaciones(ids, *, inclusion, CatalogoProducto):
     return relaciones
 
 
-def subir_imagenes(
-    archivos, *, organizacion_id, unidad_negocio_id, inclusion_id,
-):
-    nuevas = []
-    for archivo in archivos or []:
-        if not archivo or not getattr(archivo, "filename", ""):
-            continue
+def prevalidar_imagenes(archivos, *, max_imagenes=MAX_IMAGENES_FICHA):
+    validas = [
+        archivo for archivo in (archivos or [])
+        if archivo and getattr(archivo, "filename", "")
+    ]
+    if len(validas) > max_imagenes:
+        raise ValueError(f"La ficha admite como máximo {max_imagenes} imágenes.")
+    resumen = []
+    for archivo in validas:
         extension = archivo.filename.rsplit(".", 1)[-1].lower()
         if extension not in EXTENSIONES_IMAGEN:
             raise ValueError("Las imágenes deben ser JPG, PNG o WEBP.")
+        contenido = archivo.read(MAX_BYTES_IMAGEN + 1)
+        try:
+            if not contenido or len(contenido) > MAX_BYTES_IMAGEN:
+                raise ValueError("Cada imagen debe pesar entre 1 byte y 8 MB.")
+            with Image.open(BytesIO(contenido)) as imagen:
+                imagen.verify()
+            with Image.open(BytesIO(contenido)) as imagen:
+                ancho, alto = imagen.size
+            resumen.append({
+                "nombre": str(archivo.filename)[:180],
+                "size_bytes": len(contenido),
+                "ancho": ancho, "alto": alto,
+            })
+        except ValueError:
+            raise
+        except Exception as error:
+            raise ValueError("Uno de los archivos no es una imagen válida.") from error
+        finally:
+            archivo.stream.seek(0)
+    return validas, resumen
+
+
+def subir_imagenes(
+    archivos, *, organizacion_id, unidad_negocio_id, inclusion_id,
+):
+    archivos, _resumen = prevalidar_imagenes(archivos)
+    nuevas = []
+    for archivo in archivos:
         if almacenamiento_local_habilitado():
             nuevas.append(guardar_imagen_local(
                 archivo,
                 organizacion_id=organizacion_id,
                 unidad_negocio_id=unidad_negocio_id,
                 espacio=f"catalogo_{inclusion_id}",
-                limite_bytes=8 * 1024 * 1024,
+                limite_bytes=MAX_BYTES_IMAGEN,
             ))
             continue
         exigir_conexion_externa("CLOUDINARY", "Carga de imagen de catalogo")
         exigir_efecto_externo("CLOUDINARY", "Carga de imagen de catalogo")
         contenido = archivo.read()
-        if not contenido or len(contenido) > 8 * 1024 * 1024:
+        if not contenido or len(contenido) > MAX_BYTES_IMAGEN:
             raise ValueError("Cada imagen debe pesar entre 1 byte y 8 MB.")
         archivo.stream.seek(0)
         import cloudinary.uploader
@@ -225,6 +261,17 @@ def subir_imagenes(
             "principal": False,
         })
     return nuevas
+
+
+def compensar_imagenes_locales(
+    imagenes, *, organizacion_id, unidad_negocio_id,
+):
+    if not almacenamiento_local_habilitado():
+        return 0
+    return eliminar_archivos_locales(
+        imagenes, organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+    )
 
 
 def calcular_completitud(inclusion, producto):

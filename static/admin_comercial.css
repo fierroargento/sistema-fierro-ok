@@ -695,6 +695,11 @@
 .catalog-image img { display:block;width:100%;height:110px;object-fit:contain;margin-bottom:.45rem;border-radius:.4rem;background:#fff; }
 .catalog-image>span { display:block;margin-top:.3rem;font-size:.78rem; }
 .catalog-image-upload { display:flex;flex-direction:column;justify-content:center;gap:.45rem;min-height:130px; }
+.catalog-image-preview { display:grid;grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem; }
+.catalog-image-preview:empty { display:none; }
+.catalog-image-preview figure { margin:0;padding:.55rem;border:1px dashed #8ac4da;border-radius:.7rem;background:#edf8fc; }
+.catalog-image-preview img { display:block;width:100%;height:110px;object-fit:contain;border-radius:.4rem;background:#fff; }
+.catalog-image-preview figcaption { margin-top:.4rem;overflow:hidden;color:#526173;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap; }
 .catalog-channel-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem; }
 .catalog-channel-grid section { display:grid;gap:.55rem;padding:.75rem;border:1px solid #d8e1ea;border-radius:.7rem;background:#f8fafc; }
 .catalog-channel-grid h4 { margin:0;color:#17334d; }

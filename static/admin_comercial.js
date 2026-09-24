@@ -246,6 +246,39 @@
       const filasVariantes = dialogo.querySelector("[data-variant-rows]");
       if (filasAtributos) prepararEditor(filasAtributos);
       if (filasVariantes) prepararEditor(filasVariantes);
+      const entradaImagenes = dialogo.querySelector("[data-catalog-images-input]");
+      const vistaImagenes = dialogo.querySelector("[data-catalog-images-preview]");
+      if (entradaImagenes && vistaImagenes) {
+        entradaImagenes.addEventListener("change", function () {
+          vistaImagenes.replaceChildren();
+          const conservadas = dialogo.querySelectorAll(
+            'input[name="conservar_imagen"]:checked'
+          ).length;
+          const archivos = Array.from(entradaImagenes.files || []);
+          if (conservadas + archivos.length > 12) {
+            entradaImagenes.setCustomValidity(
+              "La ficha admite como máximo 12 imágenes."
+            );
+            entradaImagenes.reportValidity();
+            return;
+          }
+          entradaImagenes.setCustomValidity("");
+          archivos.forEach(function (archivo) {
+            const figura = document.createElement("figure");
+            const imagen = document.createElement("img");
+            const texto = document.createElement("figcaption");
+            imagen.alt = "Vista previa de " + archivo.name;
+            imagen.src = URL.createObjectURL(archivo);
+            imagen.addEventListener("load", function () {
+              URL.revokeObjectURL(imagen.src);
+            }, { once: true });
+            texto.textContent = archivo.name + " · " +
+              Math.ceil(archivo.size / 1024) + " KB";
+            figura.append(imagen, texto);
+            vistaImagenes.appendChild(figura);
+          });
+        });
+      }
       const agregarAtributo = dialogo.querySelector("[data-add-attribute]");
       if (agregarAtributo) agregarAtributo.addEventListener("click", function () {
         const plantilla = dialogo.querySelector("[data-attribute-template]");

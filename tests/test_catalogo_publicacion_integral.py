@@ -7,7 +7,13 @@ from services.catalogo_ficha_integral import (
     parsear_atributos_estructurados,
     parsear_variantes,
     parsear_variantes_estructuradas,
+    prevalidar_imagenes,
 )
+
+from io import BytesIO
+
+from PIL import Image
+import pytest
 
 
 def test_atributos_y_variantes_tienen_formato_controlado():
@@ -57,6 +63,43 @@ def test_ficha_cubre_publicacion_logistica_variantes_y_cross_sell():
         "Canales de publicación", "Cross-sell y relaciones", "Completitud actual",
     ):
         assert texto in plantilla
+
+
+class ArchivoImagen:
+    def __init__(self, contenido, nombre):
+        self.stream = BytesIO(contenido)
+        self.filename = nombre
+
+    def read(self, *args):
+        return self.stream.read(*args)
+
+
+def _png():
+    salida = BytesIO()
+    Image.new("RGB", (5, 7), "blue").save(salida, format="PNG")
+    return salida.getvalue()
+
+
+def test_prevalidacion_revisa_todo_antes_de_guardar():
+    archivo = ArchivoImagen(_png(), "producto.png")
+    validas, resumen = prevalidar_imagenes([archivo])
+    assert validas == [archivo]
+    assert resumen[0]["ancho"] == 5 and resumen[0]["alto"] == 7
+    assert archivo.stream.tell() == 0
+
+    with pytest.raises(ValueError, match="máximo 1 imágenes"):
+        prevalidar_imagenes([archivo, archivo], max_imagenes=1)
+    with pytest.raises(ValueError, match="imagen válida"):
+        prevalidar_imagenes([ArchivoImagen(b"falso", "falso.png")])
+
+
+def test_interfaz_previsualiza_imagenes_sin_subirlas():
+    plantilla = Path("templates/admin_comercial.html").read_text(encoding="utf-8")
+    javascript = Path("static/admin_comercial.js").read_text(encoding="utf-8")
+    assert "data-catalog-images-input" in plantilla
+    assert "data-catalog-images-preview" in plantilla
+    assert "URL.createObjectURL" in javascript
+    assert "máximo 12 imágenes" in javascript
     assert "no publica ni sincroniza" in plantilla.lower()
 
 

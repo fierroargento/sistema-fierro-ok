@@ -2,13 +2,16 @@
 
 from services.catalogos_comerciales import cambiar_estado_catalogo
 from services.catalogo_ficha_integral import (
+    MAX_IMAGENES_FICHA,
     calcular_completitud,
     cargar_json,
+    compensar_imagenes_locales,
     parsear_atributos,
     parsear_atributos_estructurados,
     parsear_canales,
     parsear_variantes,
     parsear_variantes_estructuradas,
+    prevalidar_imagenes,
     subir_imagenes,
     validar_relaciones,
     volcar_json,
@@ -229,18 +232,14 @@ def procesar_accion_catalogo_comercial(
             if hasattr(formulario, "getlist") else []
         )
         imagenes = [imagen for imagen in imagenes if imagen.get("url") in conservar]
-        nuevas = subir_imagenes(
-            archivos.getlist("imagenes") if archivos is not None else [],
-            organizacion_id=organizacion.id,
-            unidad_negocio_id=inclusion.catalogo.unidad_negocio_id,
-            inclusion_id=inclusion.id,
+        archivos_imagen = (
+            archivos.getlist("imagenes") if archivos is not None else []
         )
-        imagenes.extend(nuevas)
+        archivos_imagen, _resumen_imagenes = prevalidar_imagenes(
+            archivos_imagen,
+            max_imagenes=max(0, MAX_IMAGENES_FICHA - len(imagenes)),
+        )
         principal = str(formulario.get("imagen_principal") or "").strip()
-        if imagenes and not any(imagen.get("url") == principal for imagen in imagenes):
-            principal = imagenes[0].get("url")
-        for imagen in imagenes:
-            imagen["principal"] = imagen.get("url") == principal
         urls_imagenes = {
             str(imagen.get("url") or "").strip()
             for imagen in imagenes
@@ -252,36 +251,57 @@ def procesar_accion_catalogo_comercial(
                 raise ValueError(
                     "La imagen de una variante no pertenece a la ficha activa."
                 )
-        inclusion.variantes_json = volcar_json(variantes)
-        inclusion.imagenes_json = volcar_json(imagenes)
-        inclusion.estado_comercial = estado
-        inclusion.estado_disponibilidad = disponibilidad
-        inclusion.motivo_disponibilidad = motivo or None
-        inclusion.activo = estado == "activo"
-        inclusion.disponible = disponibilidad == "disponible"
-        producto = inclusion.producto
-        producto.peso_gr = _decimal_opcional(formulario, "peso_gr")
-        producto.alto_cm = _decimal_opcional(formulario, "alto_cm")
-        producto.ancho_cm = _decimal_opcional(formulario, "ancho_cm")
-        producto.largo_cm = _decimal_opcional(formulario, "largo_cm")
-        producto.permite_correo = formulario.get("permite_correo") == "1"
-        producto.permite_via_cargo = formulario.get("permite_via_cargo") == "1"
-        producto.requiere_revision_logistica = (
-            formulario.get("requiere_revision_logistica") == "1"
-        )
-        producto.observacion_logistica = (
-            _texto(formulario, "observacion_logistica", 300) or None
-        )
-        porcentaje, faltantes = calcular_completitud(inclusion, producto)
-        inclusion.completitud_pct = porcentaje
-        inclusion.faltantes_ficha = ", ".join(faltantes) or None
-        if estado == "activo" and disponibilidad == "disponible" and faltantes:
-            raise ValueError(
-                "La ficha no puede quedar disponible; faltan: "
-                + ", ".join(faltantes)
-                + "."
+        nuevas = []
+        try:
+            nuevas = subir_imagenes(
+                archivos_imagen,
+                organizacion_id=organizacion.id,
+                unidad_negocio_id=inclusion.catalogo.unidad_negocio_id,
+                inclusion_id=inclusion.id,
             )
-        _guardar(db_session)
+            imagenes.extend(nuevas)
+            if imagenes and not any(
+                imagen.get("url") == principal for imagen in imagenes
+            ):
+                principal = imagenes[0].get("url")
+            for imagen in imagenes:
+                imagen["principal"] = imagen.get("url") == principal
+            inclusion.variantes_json = volcar_json(variantes)
+            inclusion.imagenes_json = volcar_json(imagenes)
+            inclusion.estado_comercial = estado
+            inclusion.estado_disponibilidad = disponibilidad
+            inclusion.motivo_disponibilidad = motivo or None
+            inclusion.activo = estado == "activo"
+            inclusion.disponible = disponibilidad == "disponible"
+            producto = inclusion.producto
+            producto.peso_gr = _decimal_opcional(formulario, "peso_gr")
+            producto.alto_cm = _decimal_opcional(formulario, "alto_cm")
+            producto.ancho_cm = _decimal_opcional(formulario, "ancho_cm")
+            producto.largo_cm = _decimal_opcional(formulario, "largo_cm")
+            producto.permite_correo = formulario.get("permite_correo") == "1"
+            producto.permite_via_cargo = formulario.get("permite_via_cargo") == "1"
+            producto.requiere_revision_logistica = (
+                formulario.get("requiere_revision_logistica") == "1"
+            )
+            producto.observacion_logistica = (
+                _texto(formulario, "observacion_logistica", 300) or None
+            )
+            porcentaje, faltantes = calcular_completitud(inclusion, producto)
+            inclusion.completitud_pct = porcentaje
+            inclusion.faltantes_ficha = ", ".join(faltantes) or None
+            if estado == "activo" and disponibilidad == "disponible" and faltantes:
+                raise ValueError(
+                    "La ficha no puede quedar disponible; faltan: "
+                    + ", ".join(faltantes)
+                    + "."
+                )
+            _guardar(db_session)
+        except Exception:
+            compensar_imagenes_locales(
+                nuevas, organizacion_id=organizacion.id,
+                unidad_negocio_id=inclusion.catalogo.unidad_negocio_id,
+            )
+            raise
         return (
             f"Ficha {sku} actualizada: {estado}, "
             f"{disponibilidad.replace('_', ' ')}."
