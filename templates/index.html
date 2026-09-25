@@ -200,6 +200,10 @@
                     <span class="contacto-badge contacto-badge-reclamo" title="Reclamo activo en Mercado Libre: NO DESPACHAR">⚠️</span>
                     {% endif %}
 
+                    {% if tiene_despacho_fisico_pendiente(p) %}
+                    <span class="contacto-badge contacto-badge-reclamo" title="Impuesto en Correo, pendiente de entrega física">📦!</span>
+                    {% endif %}
+
                     {% if rol_actual in ['carga', 'admin'] %}
                         {% if p.ia_requiere_operador %}
                         <span class="contacto-badge contacto-badge-escalado" title="⚠️ Bot escaló al operador — requiere atención">

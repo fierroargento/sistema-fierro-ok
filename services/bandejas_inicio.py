@@ -141,6 +141,9 @@ def pedido_pendiente_despacho(pedido, agregado_pendiente_fn=None):
     if not pedido:
         return False
 
+    if bool(getattr(pedido, "impuesto_sin_despacho", False)):
+        return True
+
     if pedido_pendiente_carga(
         pedido,
         agregado_pendiente_fn=agregado_pendiente_fn,
@@ -163,6 +166,9 @@ def pedido_en_seguimiento(pedido, agregado_pendiente_fn=None):
     post-despacho sin acción pendiente de Carga.
     """
     if not pedido:
+        return False
+
+    if bool(getattr(pedido, "impuesto_sin_despacho", False)):
         return False
 
     if pedido_pendiente_carga(

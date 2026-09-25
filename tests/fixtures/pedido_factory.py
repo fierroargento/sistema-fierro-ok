@@ -107,6 +107,11 @@ class PedidoFake:
         self.fecha_embalado = kwargs.get("fecha_embalado", None)
         self.fecha_despachado = kwargs.get("fecha_despachado", None)
         self.fecha_entregado = kwargs.get("fecha_entregado", None)
+        self.impuesto_sin_despacho = kwargs.get("impuesto_sin_despacho", False)
+        self.impuesto_sin_despacho_fecha = kwargs.get("impuesto_sin_despacho_fecha", None)
+        self.impuesto_sin_despacho_usuario = kwargs.get("impuesto_sin_despacho_usuario", "")
+        self.despacho_fisico_fecha = kwargs.get("despacho_fisico_fecha", None)
+        self.despacho_fisico_usuario = kwargs.get("despacho_fisico_usuario", "")
 
         # Items (lista de objetos con sku, descripcion, cantidad)
         self.items = kwargs.get("items", [])
