@@ -182,7 +182,7 @@ body { background: #f4f7f8; }
         </div>
 
         <div class="detalle-header-central">
-            <div class="estado-chip-cumplido" {% if tiene_despacho_fisico_pendiente(pedido) %}style="background:#fed7aa;color:#9a3412;border-color:#f97316;"{% endif %}>
+            <div class="estado-chip-cumplido" {% if tiene_despacho_fisico_pendiente(pedido) %}style="background:#FFB86A;color:#124E64;border-color:#124E64;"{% endif %}>
                 {% if tiene_despacho_fisico_pendiente(pedido) %}
                     IMPUESTO SIN DESPACHO
                 {% else %}
@@ -199,7 +199,7 @@ body { background: #f4f7f8; }
     </div>
 
     {% if tiene_despacho_fisico_pendiente(pedido) %}
-    <div class="detalle-box detalle-box-full" style="margin-top:14px;border:3px solid #f97316;background:#fff7ed;color:#9a3412;">
+    <div class="detalle-box detalle-box-full" style="margin-top:14px;border:3px solid #FFB86A;background:rgba(255,184,106,0.16);color:#124E64;">
         <h3 style="margin:0 0 8px 0;">⚠️ IMPUESTO SIN DESPACHO FÍSICO</h3>
         <p style="margin:0;font-weight:800;">
             Mercado Libre y Correo lo informan como despachado, pero el paquete continúa pendiente de entrega física.
@@ -1366,7 +1366,7 @@ body { background: #f4f7f8; }
 
         {% if puede_marcar_impuesto_sin_despacho(pedido) and rol_actual in ['despacho', 'admin'] %}
         <form method="POST" action="{{ url_for('marcar_impuesto_sin_despacho_route', id=pedido.id) }}" style="display:inline;" onsubmit="return confirm('El pedido quedará como Despachado para coincidir con Mercado Libre, pero seguirá visible como pendiente físico. ¿Confirmás?');">
-            <button type="submit" class="btn btn-secundario" style="border:2px solid #f97316;background:#fff7ed;color:#9a3412;font-weight:900;">
+            <button type="submit" class="btn btn-secundario" style="border:2px solid #FFB86A;background:#ffffff;color:#124E64;font-weight:900;">
                 Impuesto sin despacho
             </button>
         </form>
