@@ -65,7 +65,7 @@
             </div>
 
             <form method="post" action="{{ url_for('logout') }}" class="logout-form">
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}">
                 <button type="submit">Cerrar sesión</button>
             </form>
         </div>
@@ -109,7 +109,7 @@
 
 <script nonce="{{ csp_nonce }}">
 (function () {
-    const token = {{ csrf_token()|tojson }};
+    const token = {{ csrf_token_value|tojson }};
     document.querySelectorAll('form[method="post"], form[method="POST"]').forEach(function (form) {
         if (form.querySelector('input[name="_csrf_token"]')) return;
         const input = document.createElement("input");

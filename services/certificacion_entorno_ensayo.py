@@ -84,7 +84,8 @@ def certificar(configuracion=None):
     if len(secreto) < 32:hallazgos.append({"codigo":"secret_key_debil","detalle":"SECRET_KEY debe ser exclusiva y tener al menos 32 caracteres."})
     credenciales_presentes = sorted(
         nombre for nombre, valor in env.items()
-        if nombre not in CREDENCIALES_PERMITIDAS
+        if not nombre.startswith("BASH_FUNC_")
+        and nombre not in CREDENCIALES_PERMITIDAS
         and (CREDENCIAL_PATRON.search(nombre) or nombre in CREDENCIALES_PORTADORAS)
         and str(valor or "").strip()
     )

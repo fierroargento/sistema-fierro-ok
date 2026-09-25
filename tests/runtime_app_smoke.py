@@ -1,6 +1,7 @@
 """Smoke real: se ejecuta en un subproceso sin los dobles de tests/conftest.py."""
 
 from io import BytesIO
+import re
 from types import SimpleNamespace
 
 from PIL import Image
@@ -42,6 +43,15 @@ from services.ml_claims import ml_sync_claims_pedidos_operativos_service
 aplicacion = modulo.app
 db = modulo.db
 aplicacion.config.update(TESTING=True, SESSION_COOKIE_SECURE=False)
+
+cliente_anonimo = aplicacion.test_client()
+login_anonimo = cliente_anonimo.get("/login", base_url="https://localhost")
+token_login = re.search(
+    rb'name="_csrf_token" value="([^"]+)"',
+    login_anonimo.data,
+)
+assert token_login is not None and len(token_login.group(1)) >= 32
+assert cliente_anonimo.get_cookie("session") is not None
 
 with aplicacion.app_context():
     assert crear_marcador_staging(db.engine, "marcador-runtime-pruebas-aisladas-2026")

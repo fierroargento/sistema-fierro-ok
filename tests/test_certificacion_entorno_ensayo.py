@@ -14,6 +14,8 @@ def test_rechaza_credenciales_por_patron_no_enumerado():
  e=base();e["MELI_CLIENT_SECRET"]="real";e["ANDREANI_PASSWORD"]="real";r=certificar(e);assert "credenciales_externas_presentes" in {x["codigo"] for x in r["hallazgos"]}
 def test_rechaza_portadoras_y_no_marca_nombres_inocuos():
  e=base();e["CLOUDINARY_URL"]="cloudinary://clave:secreto@cuenta";e["PASSENGER_APP_ENV"]="production";r=certificar(e);detalles=" ".join(x["detalle"] for x in r["hallazgos"]);assert "CLOUDINARY_URL" in detalles and "PASSENGER_APP_ENV" not in detalles
+def test_ignora_funciones_internas_de_shell_render():
+ e=base();e["BASH_FUNC_copy_secret_files%%"]="() { :; }";e["BASH_FUNC_remove_secret_files%%"]="() { :; }";r=certificar(e);assert r["aprobado"]
 def test_rechaza_marcador_archivos_y_credenciales_externas_inseguros():
  e=base();e.update(STAGING_DATABASE_MARKER="corto",ALMACENAMIENTO_ARCHIVOS="cloudinary",STAGING_UPLOAD_ROOT="relativa",SENTRY_DSN="https://sentry.example/1");c={x["codigo"] for x in certificar(e)["hallazgos"]};assert {"marcador_staging_ausente","almacenamiento_no_aislado","raiz_archivos_invalida","credenciales_externas_presentes"}<=c
 def test_rechaza_entorno_candado_huella_y_llaves_inseguros():

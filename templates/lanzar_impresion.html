@@ -6,7 +6,7 @@
 </head>
 <body>
     <form id="form-imprimir" method="post" action="{{ print_url }}">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}">
         <noscript><button type="submit">Continuar a impresión</button></noscript>
     </form>
     <script nonce="{{ csp_nonce }}">

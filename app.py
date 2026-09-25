@@ -306,6 +306,12 @@ def csrf_token():
 app.jinja_env.globals["csrf_token"] = csrf_token
 
 
+@app.context_processor
+def exponer_csrf_token():
+    """Entrega un valor CSRF concreto a todas las plantillas."""
+    return {"csrf_token_value": csrf_token()}
+
+
 @app.before_request
 def validar_csrf():
     if app.config.get("TESTING") or request.method not in {
@@ -2576,6 +2582,9 @@ def es_via_cargo(valor):
 def usuario_actual():
     user_id = session.get("user_id")
     username = session.get("username")
+
+    if not user_id and not username:
+        return None
 
     usuario = None
     if user_id:

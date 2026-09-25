@@ -45,3 +45,11 @@ def test_app_no_conserva_rutas_auth():
     assert '@app.route("/logout")' not in app
     assert "registrar_modulos_web(" in app
     assert "registrar_rutas_auth(" in bootstrap
+
+
+def test_formulario_login_recibe_csrf_explicito():
+    app = Path("app.py").read_text(encoding="utf-8")
+    login = Path("templates/login.html").read_text(encoding="utf-8")
+
+    assert 'return {"csrf_token_value": csrf_token()}' in app
+    assert 'name="_csrf_token" value="{{ csrf_token_value }}"' in login
