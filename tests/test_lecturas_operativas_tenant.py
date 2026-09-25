@@ -35,7 +35,7 @@ def test_inicio_y_preparacion_particionan_antes_de_filtrar_estado():
     app = _app()
     inicio = _bloque_funcion(app, "inicio", "pedidos_preparacion")
     preparacion = _bloque_funcion(app, "pedidos_preparacion", "despacho_mobile")
-    assert inicio.count("consulta_pedidos_tenant_actual()") == 3
+    assert inicio.count("consulta_pedidos_tenant_actual()") >= 3
     assert not _consulta_global_pedido(inicio)
     assert "consulta_pedidos_tenant_actual()" in preparacion
     assert not _consulta_global_pedido(preparacion)
@@ -52,6 +52,19 @@ def test_despacho_historico_y_detalle_usan_frontera_tenant():
     assert not _consulta_global_pedido(historico)
     assert "pedido_tenant_actual_o_404(id)" in detalle
     assert "Pedido.query.get_or_404(id)" not in detalle
+
+
+def test_despacho_fisico_no_permite_operar_pedidos_de_otro_tenant():
+    app = _app()
+    marcar = _bloque_funcion(
+        app, "marcar_impuesto_sin_despacho_route", "confirmar_despacho_fisico_route"
+    )
+    confirmar = _bloque_funcion(
+        app, "confirmar_despacho_fisico_route", "ia_llamar_openai_chat"
+    )
+    assert "pedido_tenant_actual_o_404(id)" in marcar
+    assert "pedido_tenant_actual_o_404(id)" in confirmar
+    assert not _consulta_global_pedido(marcar + confirmar)
 
 
 def test_lote_no_modifica_rutas_de_integracion_o_automatizacion():

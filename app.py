@@ -121,6 +121,13 @@ from services.contexto_canal_tenant import (
     resolver_contexto_cuenta,
     validar_pedido_en_contexto,
 )
+from services.despacho_fisico import (
+    confirmar_despacho_fisico as confirmar_despacho_fisico_service,
+    es_mercado_envios_correo,
+    marcar_impuesto_sin_despacho as marcar_impuesto_sin_despacho_service,
+    puede_marcar_impuesto_sin_despacho,
+    tiene_despacho_fisico_pendiente,
+)
 
 from services.ml_ignorados import (
     ml_pedido_esta_ignorado_service,
@@ -566,6 +573,11 @@ def asegurar_columnas_extra():
     asegurar_columna_si_no_existe("fecha_embalado", "TIMESTAMP")
     asegurar_columna_si_no_existe("fecha_despachado", "TIMESTAMP")
     asegurar_columna_si_no_existe("fecha_entregado", "TIMESTAMP")
+    asegurar_columna_si_no_existe("impuesto_sin_despacho", "BOOLEAN NOT NULL DEFAULT FALSE")
+    asegurar_columna_si_no_existe("impuesto_sin_despacho_fecha", "TIMESTAMP")
+    asegurar_columna_si_no_existe("impuesto_sin_despacho_usuario", "VARCHAR(100)")
+    asegurar_columna_si_no_existe("despacho_fisico_fecha", "TIMESTAMP")
+    asegurar_columna_si_no_existe("despacho_fisico_usuario", "VARCHAR(100)")
    # =====================
     # CAMPOS RECLAMOS
     # =====================
@@ -1712,6 +1724,22 @@ def intentar_cross_sell_previo_seguimiento_wa(pedido):
         )
         return False
 
+def iniciar_flujo_whatsapp_despacho_si_corresponde(pedido):
+    if (
+        pedido.telefono
+        and not es_via_cargo(pedido.empresa_envio)
+        and (pedido.seguimiento or pedido.tn_tracking_number)
+        and pedido.wa_estado != "despachado"
+        and not tiene_despacho_fisico_pendiente(pedido)
+    ):
+        try:
+            from modules.whatsapp.flows import wa_enviar_numero_seguimiento
+
+            wa_enviar_numero_seguimiento(pedido)
+        except Exception as e:
+            print(f"[WA-DESPACHO] Error iniciando flujo WA despacho: {e}")
+
+
 def aplicar_estado_y_fechas(pedido, nuevo_estado):
     if not nuevo_estado:
         return
@@ -1728,26 +1756,9 @@ def aplicar_estado_y_fechas(pedido, nuevo_estado):
         pedido.fecha_despachado = ahora
         aplicar_autoavance_post_despacho_service(pedido)
 
-        # APB:
-        # Al despachar un pedido con seguimiento,
-        # iniciamos automáticamente el flujo WhatsApp
-        # de despacho/seguimiento.
-        if (
-            pedido.telefono
-            and not es_via_cargo(pedido.empresa_envio)
-            and (
-                pedido.seguimiento
-                or pedido.tn_tracking_number
-            )
-            and pedido.wa_estado != "despachado"
-        ):
-            try:
-                from modules.whatsapp.flows import wa_enviar_numero_seguimiento
-
-                wa_enviar_numero_seguimiento(pedido)
-
-            except Exception as e:
-                print(f"[WA-DESPACHO] Error iniciando flujo WA despacho: {e}")
+        # Un impuesto todavía no entregado físicamente conserva el estado
+        # Despachado para ML, pero difiere este efecto hasta la confirmación real.
+        iniciar_flujo_whatsapp_despacho_si_corresponde(pedido)
     elif nuevo_estado == Estado.ENTREGADO:
         pedido.fecha_entregado = ahora
 
@@ -1856,6 +1867,9 @@ def texto_feedback_estado(estado):
 
 
 def accion_sugerida_pedido(pedido):
+    if tiene_despacho_fisico_pendiente(pedido):
+        return "⚠️ Confirmar despacho físico"
+
     # APB: si Mercado Libre tiene reclamo activo, esta es siempre la prioridad visual/operativa.
     if pedido.canal == "Mercado Libre" and getattr(pedido, "ml_claim_abierto", False):
         return "⚠️ Atender reclamo ML"
@@ -2031,6 +2045,16 @@ def accion_principal_pedido(pedido, origen="inicio"):
     if tn_pedido_bloqueado_cancelado(pedido):
         return None
 
+    if tiene_despacho_fisico_pendiente(pedido) and rol in ["despacho", "admin"]:
+        return {
+            "tipo": "confirmar_despacho_fisico",
+            "texto": "Confirmar despacho físico",
+            "url": url_for("confirmar_despacho_fisico_route", id=pedido.id),
+            "method": "POST",
+            "clases": clase_confirmar,
+            "target": "",
+        }
+
     from services.pedidos_acciones import debe_mostrar_accion_completar_carga
 
     if debe_mostrar_accion_completar_carga(
@@ -2198,6 +2222,9 @@ def accion_principal_pedido(pedido, origen="inicio"):
 
 
 def fecha_referencia_estado(pedido):
+    if tiene_despacho_fisico_pendiente(pedido):
+        return pedido.impuesto_sin_despacho_fecha or pedido.fecha_despachado or pedido.fecha_creacion
+
     if pedido.estado == Estado.ETIQUETA_IMPRESA:
         return pedido.fecha_etiqueta_impresa or pedido.fecha_creacion
 
@@ -2235,6 +2262,9 @@ def semaforo_pedido(pedido):
         return "gris"
 
     ahora = datetime.utcnow()
+
+    if tiene_despacho_fisico_pendiente(pedido):
+        return "rojo"
 
     # RECLAMOS / BLOQUEOS SIEMPRE CRÍTICOS
     if pedido.estado == "Reclamar a Mercado Libre" or tn_pedido_bloqueado_cancelado(pedido):
@@ -2367,6 +2397,9 @@ def alertas_operativas():
             Pedido.organizacion_id == membresia.organizacion_id,
             Pedido.estado.in_(estados_activos),
         ).all()
+        impuestos_pendientes = consulta_pedidos_tenant_actual().filter(
+            Pedido.impuesto_sin_despacho.is_(True)
+        ).count()
 
     except Exception as error:
         try:
@@ -2424,6 +2457,16 @@ def alertas_operativas():
         })
 
     if rol in ["despacho", "admin"]:
+        if impuestos_pendientes:
+            alertas.append({
+                "tipo": "roja",
+                "texto": (
+                    f"{impuestos_pendientes} pedido(s) impuesto(s) en Correo "
+                    "siguen pendientes de despacho físico"
+                ),
+                "url": url_for("inicio", filtro="pendientes_despacho"),
+                "boton": "Revisar ahora",
+            })
         if sin_despachar:
             alertas.append({"tipo": "roja", "texto": f"{sin_despachar} pedidos sin despacho desde hace más de 24 hs"})
 
@@ -2873,7 +2916,10 @@ def puede_ver_pedido(pedido):
         )
 
     if rol == "despacho":
-        return pedido.estado in ESTADOS_DESPACHO_OPERATIVO
+        return (
+            pedido.estado in ESTADOS_DESPACHO_OPERATIVO
+            or tiene_despacho_fisico_pendiente(pedido)
+        )
 
     return False
 
@@ -6821,6 +6867,8 @@ def inyectar_contexto_global():
         "es_via_cargo_pedido": es_via_cargo_pedido,
         "es_correo_argentino_pedido": es_correo_argentino_pedido,
         "puede_actualizar_tracking_externo": puede_actualizar_tracking_externo,
+        "puede_marcar_impuesto_sin_despacho": puede_marcar_impuesto_sin_despacho,
+        "tiene_despacho_fisico_pendiente": tiene_despacho_fisico_pendiente,
         "andreani_configurada": andreani_configurada,
         "andreani_texto_ultimo_evento": andreani_texto_ultimo_evento,
         "andreani_alerta_pedido": andreani_alerta_pedido,
@@ -6969,6 +7017,15 @@ def inicio():
                     e,
                 )
 
+        if rol_actual() in ["admin", "despacho"]:
+            pedidos_impuestos = consulta_pedidos_tenant_actual().filter(
+                Pedido.impuesto_sin_despacho.is_(True)
+            ).all()
+            pedidos_por_id = {p.id: p for p in pedidos}
+            for pedido_impuesto in pedidos_impuestos:
+                pedidos_por_id.setdefault(pedido_impuesto.id, pedido_impuesto)
+            pedidos = list(pedidos_por_id.values())
+
     actualizar_demoras_inicio_pedidos(pedidos)
 
     from services.bandejas_inicio import preparar_bandejas_inicio
@@ -7057,7 +7114,10 @@ def despacho_mobile():
         return redirect(url_for("inicio"))
 
     pedidos = consulta_pedidos_tenant_actual().filter(
-        Pedido.estado.in_(ESTADOS_DESPACHO_OPERATIVO)
+        or_(
+            Pedido.estado.in_(ESTADOS_DESPACHO_OPERATIVO),
+            Pedido.impuesto_sin_despacho.is_(True),
+        )
     ).all()
     pedidos.sort(key=orden_inicio_pedido)
 
@@ -12202,6 +12262,14 @@ def avanzar_pedido(id):
             return redirect(url_for("detalle_pedido", id=pedido.id, error=mensaje_ml))
 
     if nuevo:
+        if nuevo == Estado.DESPACHADO and es_mercado_envios_correo(pedido):
+            pedido.impuesto_sin_despacho = False
+            pedido.despacho_fisico_fecha = datetime.utcnow()
+            pedido.despacho_fisico_usuario = (
+                getattr(usuario_actual(), "username", None)
+                or session.get("username")
+                or "sistema"
+            )[:100]
         aplicar_estado_y_fechas(pedido, nuevo)
         db.session.commit()
 
@@ -12229,6 +12297,93 @@ def avanzar_pedido(id):
         return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje_ok))
 
     return redirect(url_for("inicio", ok=mensaje_ok))
+
+
+@app.route("/pedido/<int:id>/impuesto-sin-despacho", methods=["POST"])
+@login_required
+def marcar_impuesto_sin_despacho_route(id):
+    pedido = pedido_tenant_actual_o_404(id)
+
+    if rol_actual() not in ["despacho", "admin"] or not puede_ver_pedido(pedido):
+        return redirect(url_for("inicio", error="No autorizado para esta acción."))
+
+    puede_avanzar, errores = puede_avanzar_pedido(pedido)
+    if not puede_avanzar or siguiente_estado(pedido.estado) != Estado.DESPACHADO:
+        mensaje = " / ".join(errores) if errores else "El pedido no está listo para despachar."
+        destino = "despacho_mobile" if rol_actual() == "despacho" and es_dispositivo_movil() else "detalle_pedido"
+        kwargs = {"ok": mensaje} if destino == "despacho_mobile" else {"id": pedido.id, "error": mensaje}
+        return redirect(url_for(destino, **kwargs))
+
+    orden_ok, mensaje_ml = ml_validar_orden_operable_antes_de_despacho(pedido)
+    if not orden_ok:
+        destino = "despacho_mobile" if rol_actual() == "despacho" and es_dispositivo_movil() else "detalle_pedido"
+        kwargs = {"ok": mensaje_ml} if destino == "despacho_mobile" else {"id": pedido.id, "error": mensaje_ml}
+        return redirect(url_for(destino, **kwargs))
+
+    usuario = (
+        getattr(usuario_actual(), "username", None)
+        or session.get("username")
+        or "sistema"
+    )
+
+    ok, mensaje = marcar_impuesto_sin_despacho_service(pedido, usuario=usuario)
+    if not ok:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=mensaje))
+
+    try:
+        aplicar_estado_y_fechas(pedido, Estado.DESPACHADO)
+        db.session.commit()
+        registrar_auditoria(
+            "Marcó impuesto sin despacho físico",
+            entidad="pedido",
+            entidad_id=pedido.id,
+            detalle=(
+                "Estado canónico Despachado. "
+                "Entrega física pendiente de confirmación manual."
+            ),
+        )
+    except Exception:
+        db.session.rollback()
+        raise
+
+    if rol_actual() == "despacho" and es_dispositivo_movil():
+        return redirect(url_for("despacho_mobile", ok=mensaje))
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje))
+
+
+@app.route("/pedido/<int:id>/confirmar-despacho-fisico", methods=["POST"])
+@login_required
+def confirmar_despacho_fisico_route(id):
+    pedido = pedido_tenant_actual_o_404(id)
+
+    if rol_actual() not in ["despacho", "admin"] or not puede_ver_pedido(pedido):
+        return redirect(url_for("inicio", error="No autorizado para esta acción."))
+
+    usuario = (
+        getattr(usuario_actual(), "username", None)
+        or session.get("username")
+        or "sistema"
+    )
+    ok, mensaje = confirmar_despacho_fisico_service(pedido, usuario=usuario)
+    if not ok:
+        return redirect(url_for("detalle_pedido", id=pedido.id, error=mensaje))
+
+    try:
+        iniciar_flujo_whatsapp_despacho_si_corresponde(pedido)
+        db.session.commit()
+        registrar_auditoria(
+            "Confirmó despacho físico",
+            entidad="pedido",
+            entidad_id=pedido.id,
+            detalle="Cerró el pendiente físico originado al imponer en Correo Argentino.",
+        )
+    except Exception:
+        db.session.rollback()
+        raise
+
+    if rol_actual() == "despacho" and es_dispositivo_movil():
+        return redirect(url_for("despacho_mobile", ok=mensaje))
+    return redirect(url_for("detalle_pedido", id=pedido.id, ok=mensaje))
 
 def ia_llamar_openai_chat(prompt, temperatura=0.4):
     return ia_llamar_openai_chat_service(

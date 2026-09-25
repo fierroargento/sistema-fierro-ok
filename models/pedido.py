@@ -185,6 +185,14 @@ class Pedido(db.Model):
     fecha_despachado = db.Column(db.DateTime)
     fecha_entregado = db.Column(db.DateTime)
 
+    # Mercado Envíos / Correo Argentino:
+    # estado externo Despachado con entrega física todavía pendiente.
+    impuesto_sin_despacho = db.Column(db.Boolean, default=False, nullable=False)
+    impuesto_sin_despacho_fecha = db.Column(db.DateTime)
+    impuesto_sin_despacho_usuario = db.Column(db.String(100))
+    despacho_fisico_fecha = db.Column(db.DateTime)
+    despacho_fisico_usuario = db.Column(db.String(100))
+
     # =====================
     # CAMPOS RECLAMOS
     # =====================

@@ -71,6 +71,41 @@
     text-align: center;
 }
 
+.mobile-pedido-card.impuesto-pendiente {
+    border: 3px solid #FFB86A;
+    background: #ffffff;
+}
+
+.mobile-estado.impuesto-pendiente {
+    background: #FFB86A;
+    color: #124E64;
+}
+
+.mobile-alerta-impuesto {
+    margin: 10px 0 12px;
+    padding: 13px;
+    border-radius: 14px;
+    background: rgba(255, 184, 106, 0.18);
+    border: 2px solid #FFB86A;
+    color: #124E64;
+    font-weight: 900;
+    line-height: 1.3;
+}
+
+.mobile-action-impuesto {
+    display: block;
+    width: 100%;
+    margin-top: 9px;
+    padding: 14px 12px;
+    border-radius: 16px;
+    border: 2px solid #FFB86A;
+    background: #ffffff;
+    color: #124E64;
+    font-size: 16px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
 .mobile-cliente {
     font-size: 13px;
     color: #64748b;
@@ -234,7 +269,7 @@
             </span>
             {% endif %}
         </h1>
-        <p>Imprimir, embalar y despachar. Sin mensajes, sin tracking, sin edición.</p>
+        <p>Imprimir, embalar, despachar y controlar pendientes físicos.</p>
     </div>
 
     {% if ok_feedback %}
@@ -246,10 +281,12 @@
     {% if pedidos %}
         {% for pedido in pedidos %}
             {% set accion = accion_principal_pedido(pedido, 'mobile') %}
-            <div class="mobile-pedido-card">
+            <div class="mobile-pedido-card {% if tiene_despacho_fisico_pendiente(pedido) %}impuesto-pendiente{% endif %}">
                 <div class="mobile-pedido-top">
                     <div class="mobile-pedido-id">#{{ pedido.id }}</div>
-                    <div class="mobile-estado">{{ pedido.estado }}</div>
+                    <div class="mobile-estado {% if tiene_despacho_fisico_pendiente(pedido) %}impuesto-pendiente{% endif %}">
+                        {% if tiene_despacho_fisico_pendiente(pedido) %}IMPUESTO SIN DESPACHO{% else %}{{ pedido.estado }}{% endif %}
+                    </div>
                 </div>
 
                 <div class="mobile-cliente">{{ pedido.cliente or '-' }}</div>
@@ -277,6 +314,18 @@
                                 </div>
                             </div>
                         {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if tiene_despacho_fisico_pendiente(pedido) %}
+                    <div class="mobile-alerta-impuesto">
+                        ⚠️ ENTREGA FÍSICA PENDIENTE<br>
+                        <span style="font-size:13px;font-weight:700;">
+                            {{ pedido.impuesto_sin_despacho_usuario or 'sistema' }}
+                            {% if pedido.impuesto_sin_despacho_fecha %}
+                                · {{ fecha_argentina(pedido.impuesto_sin_despacho_fecha).strftime('%d/%m/%Y %H:%M') }}
+                            {% endif %}
+                        </span>
                     </div>
                 {% endif %}
 
@@ -315,6 +364,12 @@
 
                 {% else %}
                     <div class="mobile-empty">Sin acción pendiente.</div>
+                {% endif %}
+
+                {% if puede_marcar_impuesto_sin_despacho(pedido) %}
+                    <form method="POST" action="{{ url_for('marcar_impuesto_sin_despacho_route', id=pedido.id) }}" style="margin:0;" onsubmit="return confirm('El pedido seguirá visible hasta confirmar la entrega física. ¿Marcar como impuesto sin despacho?');">
+                        <button type="submit" class="mobile-action-impuesto">Impuesto sin despacho</button>
+                    </form>
                 {% endif %}
             </div>
         {% endfor %}

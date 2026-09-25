@@ -20,11 +20,13 @@ class PedidoFake:
         empresa_envio="",
         seguimiento="",
         tn_tracking_number="",
+        impuesto_sin_despacho=False,
     ):
         self.estado = estado
         self.empresa_envio = empresa_envio
         self.seguimiento = seguimiento
         self.tn_tracking_number = tn_tracking_number
+        self.impuesto_sin_despacho = impuesto_sin_despacho
 
 
 def test_cargando_pedido_es_pendiente_carga():
@@ -78,6 +80,19 @@ def test_embalado_es_pendiente_despacho():
     pedido = PedidoFake(estado="Embalado")
 
     assert pedido_pendiente_despacho(pedido) is True
+    assert clasificar_bandeja_pedido(pedido) == BANDEJA_PENDIENTES_DESPACHO
+
+
+def test_impuesto_sin_despacho_sigue_en_bandeja_despacho_aunque_estado_despachado():
+    pedido = PedidoFake(
+        estado="Despachado",
+        empresa_envio="Mercado Envíos",
+        seguimiento="ML123",
+        impuesto_sin_despacho=True,
+    )
+
+    assert pedido_pendiente_despacho(pedido) is True
+    assert pedido_en_seguimiento(pedido) is False
     assert clasificar_bandeja_pedido(pedido) == BANDEJA_PENDIENTES_DESPACHO
 
 
