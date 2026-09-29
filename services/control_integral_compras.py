@@ -1,4 +1,4 @@
-"""Control firmado y de solo lectura del circuito preparatorio de compras."""
+"""Control con huella y de solo lectura del circuito preparatorio de compras."""
 
 import hashlib
 import io
@@ -26,6 +26,8 @@ def controlar_compras(*, organizacion_id, unidad_negocio_id, ordenes,
                 hallazgos.append({"codigo": "cantidad_sobre_recibida", "orden_item_id": item.id})
 
     for recepcion in recepciones:
+        if getattr(recepcion, "impacta_stock", False) or getattr(recepcion, "impacta_costos", False):
+            hallazgos.append({"codigo": "recepcion_con_impacto_indebido", "recepcion_id": recepcion.id})
         calculado = sum(
             int((Decimal(str(item.cantidad_recibida)) * Decimal(int(item.orden_item.precio_unitario_centavos))).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
             for item in recepcion.items
@@ -64,10 +66,43 @@ def controlar_compras(*, organizacion_id, unidad_negocio_id, ordenes,
             "propuestas": len(propuestas), "hallazgos": len(hallazgos),
         },
         "hallazgos": hallazgos,
+        "alcance": "Consistencia de registros preparatorios y sus indicadores; no consulta movimientos ni sistemas externos.",
         "controles": {
-            "escrituras": 0, "movimientos_stock": 0, "costos_creados": 0,
-            "obligaciones_creadas": 0, "eventos_fiscales": 0,
-            "conexiones_externas": 0,
+            "escrituras": 0,
+            "propuestas_ejecutadas": sum(bool(item.ejecutada) for item in propuestas),
+            "recepciones_con_indicador_stock": sum(bool(getattr(item, "impacta_stock", False)) for item in recepciones),
+            "recepciones_con_indicador_costos": sum(bool(getattr(item, "impacta_costos", False)) for item in recepciones),
+            "obligaciones_indicadas_en_facturas": sum(bool(item.obligacion_creada) for item in facturas),
+            "impactos_fiscales_indicados_en_facturas": sum(bool(item.impacta_fiscal) for item in facturas),
+            "movimientos_stock": None, "costos_creados": None,
+            "obligaciones_creadas": None, "eventos_fiscales": None,
+            "conexiones_externas": None,
+        },
+        "detalle": {
+            "ordenes": [{"id": item.id, "numero": getattr(item, "numero", None),
+                "estado": getattr(item, "estado", None), "proveedor_id": getattr(item, "proveedor_id", None),
+                "total_centavos": int(item.total_centavos),
+                "items": [{"id": linea.id, "insumo_id": linea.insumo_id,
+                    "descripcion": getattr(linea, "descripcion", None), "cantidad": str(linea.cantidad),
+                    "unidad_medida": getattr(linea, "unidad_medida", None),
+                    "precio_unitario_centavos": int(linea.precio_unitario_centavos),
+                    "subtotal_centavos": int(linea.subtotal_centavos)} for linea in item.items]} for item in ordenes],
+            "recepciones": [{"id": item.id, "numero": getattr(item, "numero", None),
+                "orden_id": getattr(item, "orden_compra_id", None), "estado": item.estado,
+                "subtotal_centavos": int(item.subtotal_centavos),
+                "comprobante_referencia": getattr(item, "comprobante_referencia", None),
+                "items": [{"orden_item_id": linea.orden_compra_item_id,
+                    "cantidad_recibida": str(linea.cantidad_recibida)} for linea in item.items]} for item in recepciones],
+            "facturas": [{"id": item.id, "recepcion_id": getattr(item, "recepcion_compra_id", None),
+                "proveedor_id": item.proveedor_id, "tipo": item.tipo_comprobante,
+                "punto_venta": item.punto_venta, "numero": item.numero, "estado": item.estado,
+                "total_centavos": getattr(item, "total_centavos", None),
+                "diferencia_centavos": int(item.diferencia_centavos)} for item in facturas],
+            "propuestas": [{"id": item.id, "recepcion_id": getattr(item, "recepcion_compra_id", None),
+                "tipo": item.tipo, "estado": item.estado, "ejecutada": bool(item.ejecutada),
+                "motivo_decision": getattr(item, "motivo_decision", None),
+                "decidido_por_usuario_id": getattr(item, "decidido_por_usuario_id", None),
+                "fecha_decision": str(item.fecha_decision) if getattr(item, "fecha_decision", None) else None} for item in propuestas],
         },
     }
     resultado["huella_control"] = hashlib.sha256(

@@ -106,7 +106,7 @@ def test_confirmacion_revalida_limita_lote_y_audita():
     assert "vista_actual = previsualizar(" in rutas
     assert "Los datos cambiaron desde la validacion" in rutas
     assert "Confirmó importación de clasificación de productos" in rutas
-    assert '"IMPORTAR PRODUCTOS"' in rutas
+    assert 'request.form.get("confirmacion"), "IMPORTAR PRODUCTOS"' not in rutas
     assert "commit=False" in rutas
 
 
@@ -118,4 +118,5 @@ def test_interfaz_aclara_que_clasificacion_esta_desconectada():
     assert "Clasificación interna desconectada" in template
     assert "no modifica precios" in template
     assert "no consulta canales externos" in template
-    assert "IMPORTAR PRODUCTOS" in template
+    assert "data-confirm-import" in template
+    assert 'name="confirmacion"' not in template

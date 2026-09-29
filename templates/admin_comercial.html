@@ -184,7 +184,7 @@
           {% for relacionado in productos_relacionables if relacionado.id != i.id %}<div><strong>{{ relacionado.sku_comercial }} · {{ relacionado.nombre_comercial }}</strong>{% for tipo, etiqueta in [('complementario','Complementario'),('accesorio','Accesorio'),('sustituto','Sustituto'),('repuesto','Repuesto')] %}<label><input type="checkbox" name="relaciones" value="{{ tipo }}:{{ relacionado.id }}" {% if {'tipo': tipo, 'catalogo_producto_id': relacionado.id} in relaciones %}checked{% endif %}> {{ etiqueta }}</label>{% endfor %}</div>{% else %}<p>No hay otros productos disponibles para relacionar.</p>{% endfor %}
         </div></fieldset>
         <div class="catalog-completeness"><strong>Completitud actual: {{ i.completitud_visual }}%</strong><span>{{ i.faltantes_visual and ('Falta completar: ' ~ i.faltantes_visual) or 'La ficha tiene todos los datos mínimos.' }}</span></div>
-        <div class="catalog-dialog-actions"><span>Los cambios quedan registrados en la auditoría administrativa.</span><button class="comercial-primary" type="submit">Guardar ficha</button></div>
+        <div class="catalog-dialog-actions"><span>Los cambios quedan registrados en la auditoría administrativa.</span><button class="table-action" type="button" data-close-catalog-dialog>Cancelar</button><button class="comercial-primary" type="submit">Guardar ficha</button></div>
       </form>
     </dialog>
     {% endfor %}

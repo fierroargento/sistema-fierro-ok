@@ -246,6 +246,8 @@
       const filasVariantes = dialogo.querySelector("[data-variant-rows]");
       if (filasAtributos) prepararEditor(filasAtributos);
       if (filasVariantes) prepararEditor(filasVariantes);
+      const atributosIniciales = filasAtributos ? filasAtributos.innerHTML : "";
+      const variantesIniciales = filasVariantes ? filasVariantes.innerHTML : "";
       const entradaImagenes = dialogo.querySelector("[data-catalog-images-input]");
       const vistaImagenes = dialogo.querySelector("[data-catalog-images-preview]");
       if (entradaImagenes && vistaImagenes) {
@@ -343,7 +345,11 @@
         }, { passive: true });
       }
       dialogo.addEventListener("close", function () {
-        if (formulario) formulario.scrollTop = 0;
+        if (formulario) { formulario.reset(); formulario.scrollTop = 0; }
+        if (filasAtributos) filasAtributos.innerHTML = atributosIniciales;
+        if (filasVariantes) filasVariantes.innerHTML = variantesIniciales;
+        if (entradaImagenes) entradaImagenes.setCustomValidity("");
+        if (vistaImagenes) vistaImagenes.replaceChildren();
         activarPestana("identidad");
       });
       activarPestana("identidad");

@@ -29,3 +29,11 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);
   else iniciar();
 })();
+
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll("[data-confirm-import]").forEach(function (formulario) {
+    formulario.addEventListener("submit", function (evento) {
+      if (!window.confirm("¿Confirmar la importación con los datos de la vista previa?")) evento.preventDefault();
+    });
+  });
+});

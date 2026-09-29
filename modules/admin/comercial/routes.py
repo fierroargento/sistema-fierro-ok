@@ -100,7 +100,6 @@ from services.importacion_productos_costeo import (
     deserializar,
     leer_archivo,
     previsualizar,
-    exigir_confirmacion_importacion,
     serializar,
     sugerir_mapeo,
 )
@@ -1755,9 +1754,6 @@ def crear_blueprint_comercial(*, dependencias):
                     lote.estado = "mapeado"
                     db.session.commit()
                 elif accion == "confirmar":
-                    exigir_confirmacion_importacion(
-                        request.form.get("confirmacion"), "IMPORTAR PRODUCTOS",
-                    )
                     if lote.estado != "mapeado":
                         raise ValueError("Primero validá el mapeo.")
                     if lote.modo == "validar":

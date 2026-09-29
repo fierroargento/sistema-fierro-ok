@@ -70,3 +70,18 @@ def test_servicio_es_exclusivamente_de_lectura():
     servicio = Path("services/control_integral_compras.py").read_text(encoding="utf-8")
     for prohibido in ("db.session", "requests.", "urlopen", "http://", "https://"):
         assert prohibido not in servicio
+
+
+def test_control_distingue_indicadores_y_mediciones_no_disponibles():
+    partes = datos()
+    partes[1][0].impacta_stock = True
+    partes[4][0].ejecutada = True
+    resultado = controlar(*partes)
+    assert resultado["aprobado"] is False
+    assert resultado["controles"]["propuestas_ejecutadas"] == 1
+    assert resultado["controles"]["recepciones_con_indicador_stock"] == 1
+    assert resultado["controles"]["movimientos_stock"] is None
+    assert resultado["controles"]["conexiones_externas"] is None
+    assert resultado["detalle"]["ordenes"][0]["items"][0]["cantidad"] == "2"
+    assert resultado["detalle"]["propuestas"][0]["ejecutada"] is True
+    assert any(h["codigo"] == "recepcion_con_impacto_indebido" for h in resultado["hallazgos"])
