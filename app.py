@@ -355,7 +355,7 @@ def agregar_cabeceras_seguridad(response):
     )
     response.headers.setdefault(
         "Content-Security-Policy",
-        "default-src 'self'; img-src 'self' data: https:; "
+        "default-src 'self'; img-src 'self' data: blob: https:; "
         "style-src 'self' 'unsafe-inline'; script-src 'self' "
         f"'nonce-{getattr(g, 'csp_nonce', '')}'; "
         "script-src-attr 'unsafe-inline'; "

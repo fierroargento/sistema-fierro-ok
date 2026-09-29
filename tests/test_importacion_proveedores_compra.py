@@ -57,6 +57,7 @@ def test_importador_se_integra_en_compras_sin_tabla_duplicada():
     modelo = Path("models/compras.py").read_text(encoding="utf-8")
     assert 'tipo_lote = "proveedores_compra"' in rutas
     assert 'modelos["ProveedorCompra"]' in rutas
-    assert "IMPORTAR PROVEEDORES" in rutas and "IMPORTAR PROVEEDORES" in plantilla
+    assert "IMPORTAR PROVEEDORES" not in rutas and "Escribí <strong>IMPORTAR PROVEEDORES</strong>" not in plantilla
+    assert plantilla.count('method="post"') == plantilla.count('name="_csrf_token"')
     assert "No crea órdenes, recepciones, pagos ni conexiones externas" in plantilla
     assert modelo.count("class ProveedorCompra") == 1

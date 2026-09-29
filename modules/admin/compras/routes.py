@@ -16,7 +16,7 @@ from services.mapeos_compras_inventario import crear_mapeo, habilitar_propuestas
 from services.conciliacion_facturas_compra import registrar_factura_preparatoria
 from services.control_integral_compras import controlar_compras, exportar_control
 from services.importacion_productos_costeo import (
-    deserializar, exigir_confirmacion_importacion, leer_archivo, serializar,
+    deserializar, leer_archivo, serializar,
 )
 from services.importacion_proveedores_compra import (
     CAMPOS_PROVEEDORES, aplicar_proveedores, previsualizar_proveedores,
@@ -129,9 +129,6 @@ def crear_blueprint_compras(*, dependencias):
                     lote.estado = "mapeado"
                     db.session.commit()
                 elif accion == "confirmar":
-                    exigir_confirmacion_importacion(
-                        request.form.get("confirmacion"), "IMPORTAR PROVEEDORES",
-                    )
                     if lote.estado != "mapeado":
                         raise ValueError("Primero validá el mapeo.")
                     vista_guardada = deserializar(lote.vista_previa_json, [])

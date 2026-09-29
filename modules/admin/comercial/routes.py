@@ -2449,9 +2449,6 @@ def crear_blueprint_comercial(*, dependencias):
                     vista = aplicar_modo_vista_fuentes(vista, lote.modo)
                     lote.mapeo_json, lote.vista_previa_json, lote.estado = serializar(mapeo), serializar(vista), "mapeado"; db.session.commit()
                 elif accion == "confirmar":
-                    exigir_confirmacion_importacion(
-                        request.form.get("confirmacion"), "IMPORTAR COSTOS",
-                    )
                     if lote.estado != "mapeado" or lote.modo == "solo_validar": raise ValueError("El lote no admite confirmación.")
                     vista_guardada = deserializar(lote.vista_previa_json, [])
                     vista_actual = previsualizar_fuentes(

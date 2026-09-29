@@ -38,7 +38,7 @@ PRUEBAS_DATOS = (
     {
         "codigo": "DAT-04", "area": "costos",
         "objetivo": "Cargar las cuatro fuentes productivas",
-        "recorrido": "Importar 03_insumos.csv, 04_empleados.csv, 05_maquinas.csv y 06_costos_fijos.csv; confirmar cada lote con IMPORTAR COSTOS.",
+        "recorrido": "Importar 03_insumos.csv, 04_empleados.csv, 05_maquinas.csv y 06_costos_fijos.csv; confirmar cada lote con el botón y el diálogo de reconfirmación.",
         "criterio": "Las cuatro fuentes aparecen sin rechazos, con alcance exclusivo de la unidad UAT.",
     },
     {
@@ -50,7 +50,7 @@ PRUEBAS_DATOS = (
     {
         "codigo": "DAT-06", "area": "compras",
         "objetivo": "Incorporar el proveedor sintético",
-        "recorrido": "Importar 08_proveedores.csv y escribir IMPORTAR PROVEEDORES después de revisar la vista previa.",
+        "recorrido": "Importar 08_proveedores.csv y confirmar con el botón y el diálogo después de revisar la vista previa.",
         "criterio": "UAT-PROV-001 queda visible sólo en la organización UAT y no genera comunicaciones.",
     },
     {
