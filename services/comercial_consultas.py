@@ -109,6 +109,7 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         control_comercial, reglas_validacion, observaciones_canal,
         promociones, propuestas_comerciales,
     )
+    propuestas_comerciales.sort(key=lambda p: (p.id in propuestas_obsoletas, -(p.depende_de.id if p.depende_de is not None else p.id), p.orden, p.id))
     listas = Lista.query.filter_by(
         organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id
     ).order_by(Lista.nombre).all()
@@ -136,6 +137,7 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         "catalogo_numero": numero_visual,
         "presentar_atributos": presentar_atributos,
         "presentar_variantes": presentar_variantes,
+        "inclusiones_preparatorias": inclusiones,
         "inclusiones_activas": [
             inclusion for inclusion in inclusiones if inclusion.activo
         ],

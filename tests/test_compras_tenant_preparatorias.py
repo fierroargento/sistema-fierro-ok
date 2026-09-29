@@ -56,7 +56,7 @@ class RecepcionItem(Obj):
 def test_proveedor_nace_dentro_del_tenant():
     sesion = Session()
     proveedor = crear_proveedor(
-        {"codigo": " codimat ", "razon_social": "Codimat SRL", "cuit": "30-1"},
+        {"codigo": " codimat ", "razon_social": "Codimat SRL", "cuit": "30-70000000-1"},
         organizacion_id=7, ProveedorCompra=Proveedor, db_session=sesion,
     )
     assert proveedor.organizacion_id == 7

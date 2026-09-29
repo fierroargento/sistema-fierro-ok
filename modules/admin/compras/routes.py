@@ -207,6 +207,18 @@ def crear_blueprint_compras(*, dependencias):
                     ProveedorCompra=modelos["ProveedorCompra"], db_session=db.session,
                 )
                 mensaje = f"Proveedor {creado.codigo} creado."
+            elif accion == "editar_proveedor":
+                proveedor = modelos["ProveedorCompra"].query.filter_by(id=int(request.form.get("proveedor_id")), organizacion_id=organizacion.id).first()
+                if proveedor is None: raise ValueError("El proveedor no pertenece a la organización activa.")
+                campos = list(CAMPOS_PROVEEDORES)
+                datos_proveedor = dict(request.form)
+                datos_proveedor["codigo"] = proveedor.codigo
+                proveedores = modelos["ProveedorCompra"].query.filter_by(organizacion_id=organizacion.id).all()
+                vista = previsualizar_proveedores([{"numero": 1, "valores": [datos_proveedor.get(campo, "") for campo in campos]}], {str(i): campo for i, campo in enumerate(campos)}, proveedores=proveedores)
+                if vista[0]["errores"]: raise ValueError("; ".join(vista[0]["errores"]))
+                if vista[0]["proveedor_id"] != proveedor.id: raise ValueError("La identidad del proveedor cambió.")
+                aplicar_proveedores(vista, organizacion_id=organizacion.id, ProveedorCompra=modelos["ProveedorCompra"], db_session=db.session)
+                mensaje = f"Proveedor {proveedor.codigo} actualizado."
             elif accion == "crear_orden":
                 proveedor = modelos["ProveedorCompra"].query.filter_by(
                     id=int(request.form.get("proveedor_id")), organizacion_id=organizacion.id,

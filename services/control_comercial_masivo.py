@@ -102,12 +102,14 @@ def construir_bandeja(simulaciones, items, promociones=(), observaciones=()):
         precio_base = item.precio_final_centavos if item else None
         clave_base = (simulacion["regla_canal"].lista_precio_id, inclusion.id if inclusion else None)
         precio_observado = observaciones_por_clave.get((*clave_base, "precio"))
+        precio_base = activa.precio_base_centavos if activa else precio_observado.precio_publicado_centavos if precio_observado else precio_base
         precio_efectivo = activa.precio_promocional_centavos if activa else precio_observado.precio_publicado_centavos if precio_observado else precio_base
         fila = evaluar_control(
             simulacion, precio_efectivo,
             "promocion_observada" if activa else "precio_importado" if precio_observado else "lista_interna" if item else None,
             promocion=activa, precio_base_centavos=precio_base,
         )
+        fila["promocion_observada"] = promocion is not None
         cargo_observado = observaciones_por_clave.get((*clave_base, "cargo"))
         envio_observado = observaciones_por_clave.get((*clave_base, "envio"))
         desvios = []
@@ -138,7 +140,7 @@ def exportar_bandeja_excel(filas):
             actual["liquidacion_centavos"] / 100 if actual else None,
             fila["minimo"]["piso_liquidacion_centavos"] / 100,
             fila["diferencia_precio_centavos"] / 100 if fila["diferencia_precio_centavos"] is not None else None,
-            fila["diferencia_pct"], "SI" if fila["promocion_activa"] else "NO",
+            fila["diferencia_pct"], "SI" if fila["promocion_activa"] else "NO" if fila.get("promocion_observada", fila.get("promocion") is not None) else "NO_OBSERVADA",
             fila["accion_recomendada"], "SI" if fila["cambia_cargo"] else "NO",
             "SI" if fila["cambia_envio"] else "NO",
             ", ".join(fila.get("desvios_observados", [])),

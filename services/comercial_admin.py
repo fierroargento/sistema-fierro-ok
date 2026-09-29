@@ -19,7 +19,7 @@ def _id(formulario, campo, opcional=False):
     if opcional and not valor:
         return None
     if not valor.isdigit():
-        raise ValueError(f"{campo} no es valido.")
+        raise ValueError("Elegí un producto del catálogo." if campo == "catalogo_producto_id" else f"Seleccioná un valor válido para {campo.replace('_', ' ')}.")
     return int(valor)
 
 

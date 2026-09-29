@@ -61,3 +61,12 @@ def test_importador_se_integra_en_compras_sin_tabla_duplicada():
     assert plantilla.count('method="post"') == plantilla.count('name="_csrf_token"')
     assert "No crea órdenes, recepciones, pagos ni conexiones externas" in plantilla
     assert modelo.count("class ProveedorCompra") == 1
+
+
+def test_importacion_antigua_preserva_domicilio_y_contacto():
+    from types import SimpleNamespace
+    proveedor=SimpleNamespace(id=1,codigo="UAT",razon_social="Proveedor",cuit=None,email=None,telefono=None,estado="activo",observacion=None,domicilio="Calle 123",localidad="Viedma",provincia="Río Negro",codigo_postal="8500",persona_contacto="Contacto UAT")
+    vista=previsualizar_proveedores([{"numero":2,"valores":["UAT","Proveedor"]}],{"0":"codigo","1":"razon_social"},proveedores=[proveedor])
+    assert vista[0]["accion"] == "sin_cambios"
+    assert vista[0]["datos"]["domicilio"] == "Calle 123"
+    assert vista[0]["datos"]["persona_contacto"] == "Contacto UAT"

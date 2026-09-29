@@ -102,8 +102,10 @@ def decidir_propuesta(propuesta, accion, motivo, *, usuario, db_session,
     if accion not in destinos: raise ValueError("La decisión no es válida.")
     if accion in {"aprobar", "completar_manual"} and not propuesta_esta_vigente(propuesta, fila_actual):
         raise ValueError("La propuesta quedo obsoleta porque cambiaron sus datos de origen.")
-    if accion in {"aprobar", "rechazar", "archivar"} and propuesta.estado != "preparada":
+    if accion in {"aprobar", "rechazar"} and propuesta.estado != "preparada":
         raise ValueError("La propuesta ya fue decidida.")
+    if accion == "archivar" and not (propuesta.estado == "preparada" or (propuesta.estado == "aprobada" and not propuesta_esta_vigente(propuesta, fila_actual))):
+        raise ValueError("Solo se pueden archivar propuestas preparadas o aprobadas obsoletas.")
     if accion == "completar_manual":
         if propuesta.estado != "aprobada": raise ValueError("Solo se puede completar manualmente una propuesta aprobada.")
         if propuesta.depende_de is not None and propuesta.depende_de.estado != "completada_manual":

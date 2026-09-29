@@ -20,6 +20,12 @@ class ProveedorCompra(db.Model):
     cuit = db.Column(db.String(16), index=True)
     email = db.Column(db.String(200))
     telefono = db.Column(db.String(80))
+    domicilio = db.Column(db.String(250))
+    localidad = db.Column(db.String(100))
+    provincia = db.Column(db.String(100))
+    codigo_postal = db.Column(db.String(20))
+    persona_contacto = db.Column(db.String(150))
+
     estado = db.Column(db.String(20), default="activo", nullable=False, index=True)
     observacion = db.Column(db.String(500))
     fecha_creacion = db.Column(db.DateTime, default=ahora_utc_naive, nullable=False)

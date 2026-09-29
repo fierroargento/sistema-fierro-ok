@@ -1,6 +1,6 @@
 "use strict";
 document.addEventListener("DOMContentLoaded", function () {
-  const destinos = {crear_proveedor:"proveedores", crear_orden:"ordenes", agregar_item:"ordenes", quitar_item:"ordenes", cambiar_estado:"ordenes", preparar_recepcion:"recepciones", registrar_factura:"facturas", preparar_impactos:"propuestas", crear_mapeo_inventario:"mapeos", decidir_impacto:"propuestas"};
+  const destinos = {crear_proveedor:"proveedores", editar_proveedor:"proveedores", crear_orden:"ordenes", agregar_item:"ordenes", quitar_item:"ordenes", cambiar_estado:"ordenes", preparar_recepcion:"recepciones", registrar_factura:"facturas", preparar_impactos:"propuestas", crear_mapeo_inventario:"mapeos", decidir_impacto:"propuestas"};
   document.querySelectorAll('.compras-page a[href^="#orden-editor-"], .compras-page a[href^="#recepcion-editor-"]').forEach(function (enlace) {
     enlace.addEventListener("click", function () {
       const fila = document.getElementById(enlace.hash.slice(1));

@@ -11,6 +11,11 @@ CAMPOS_PROVEEDORES = {
     "cuit": {"nombre": "CUIT", "obligatorio": False, "alias": {"cuit", "cuil"}},
     "email": {"nombre": "Email", "obligatorio": False, "alias": {"email", "correo"}},
     "telefono": {"nombre": "Telefono", "obligatorio": False, "alias": {"telefono", "tel"}},
+    "domicilio": {"nombre": "Domicilio", "obligatorio": False, "alias": {"domicilio", "domicilio"}},
+    "localidad": {"nombre": "Localidad", "obligatorio": False, "alias": {"localidad", "localidad"}},
+    "provincia": {"nombre": "Provincia", "obligatorio": False, "alias": {"provincia", "provincia"}},
+    "codigo_postal": {"nombre": "Código postal", "obligatorio": False, "alias": {"código postal", "codigo postal"}},
+    "persona_contacto": {"nombre": "Persona de contacto", "obligatorio": False, "alias": {"persona de contacto", "persona contacto"}},
     "estado": {"nombre": "Estado", "obligatorio": False, "alias": {"estado"}},
     "observacion": {"nombre": "Observacion", "obligatorio": False, "alias": {"observacion", "notas"}},
 }
@@ -51,6 +56,11 @@ def _datos_normalizados(datos):
         "cuit": _cuit(datos.get("cuit")) or None,
         "email": str(datos.get("email") or "").strip().lower() or None,
         "telefono": str(datos.get("telefono") or "").strip() or None,
+        "domicilio": str(datos.get("domicilio") or "").strip() or None,
+        "localidad": str(datos.get("localidad") or "").strip() or None,
+        "provincia": str(datos.get("provincia") or "").strip() or None,
+        "codigo_postal": str(datos.get("codigo_postal") or "").strip() or None,
+        "persona_contacto": str(datos.get("persona_contacto") or "").strip() or None,
         "estado": estado,
         "observacion": str(datos.get("observacion") or "").strip() or None,
     }
@@ -107,6 +117,12 @@ def previsualizar_proveedores(filas, mapeo, *, proveedores):
         if existente_codigo and existente_cuit and existente_codigo.id != existente_cuit.id:
             errores.append("El codigo y el CUIT pertenecen a proveedores distintos")
         existente = existente_codigo or existente_cuit
+        if existente:
+            for campo in CAMPOS_PROVEEDORES:
+                if campo not in destinos and not CAMPOS_PROVEEDORES[campo]["obligatorio"]:
+                    datos[campo] = _datos_existentes(existente)[campo]
+        for campo, limite in (("domicilio",250),("localidad",100),("provincia",100),("codigo_postal",20),("persona_contacto",150)):
+            if len(datos.get(campo) or "") > limite: errores.append(f"{CAMPOS_PROVEEDORES[campo]['nombre']} demasiado largo")
         accion = "rechazado" if errores else "actualizar" if existente else "crear"
         if existente and not errores and _datos_existentes(existente) == datos:
             accion = "sin_cambios"

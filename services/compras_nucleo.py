@@ -33,6 +33,11 @@ def _centavos(valor):
 
 
 def crear_proveedor(datos, *, organizacion_id, ProveedorCompra, db_session):
+    from services.importacion_proveedores_compra import CAMPOS_PROVEEDORES, previsualizar_proveedores
+    campos = list(CAMPOS_PROVEEDORES)
+    vista = previsualizar_proveedores([{"numero": 1, "valores": [datos.get(campo, "") for campo in campos]}], {str(i): campo for i, campo in enumerate(campos)}, proveedores=[])
+    if vista[0]["errores"]: raise ValueError("; ".join(vista[0]["errores"]))
+    if vista[0]["proveedor_id"] is not None: raise ValueError("El proveedor ya existe. Usá Editar datos.")
     proveedor = ProveedorCompra(
         organizacion_id=organizacion_id,
         codigo=_texto(datos.get("codigo"), "El código", 80).upper(),
@@ -42,6 +47,7 @@ def crear_proveedor(datos, *, organizacion_id, ProveedorCompra, db_session):
         telefono=str(datos.get("telefono") or "").strip() or None,
         observacion=str(datos.get("observacion") or "").strip() or None,
     )
+    for campo, valor in vista[0]["datos"].items(): setattr(proveedor, campo, valor)
     db_session.add(proveedor)
     db_session.commit()
     return proveedor

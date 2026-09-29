@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260813-4') }}">
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260813-4') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260929-uat2') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260929-uat2') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -43,25 +43,25 @@
   <section class="comercial-section" id="productos-costeo">
     <div class="section-heading"><div><span class="section-number">1</span><h2>Tipos de producto</h2></div><div class="section-heading-actions"><p>Simple comprado, producto fabricado o combo de productos.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_productos_costeo') }}">Importar productos</a><a class="section-link" href="{{ url_for('admin_comercial.importar_combos_costeo') }}">Importar combos</a></div></div>
     {% if inclusiones_costeo %}
-    <form class="comercial-form form-cost-profile" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+    <details class="source-catalog uat-form-editor"><summary>Guardar clasificación</summary><form class="comercial-form form-cost-profile" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="configurar_perfil_costeo">
       <label><span>Producto y unidad</span><select name="catalogo_producto_id" required><option value="">Seleccionar</option>{% for item in inclusiones_costeo %}<option value="{{ item.id }}">{{ item.catalogo.unidad_negocio.nombre if item.catalogo.unidad_negocio else 'Compartido' }} · {{ item.sku_comercial }} · {{ item.nombre_comercial }}</option>{% endfor %}</select></label>
       <label><span>Tipo de producto</span><select name="tipo" required><option value="simple">Simple</option><option value="produccion">De producción</option><option value="combo">Combo</option></select></label>
       <label><span>Observación <small>opcional</small></span><input name="observacion" maxlength="500"></label>
       <button class="comercial-primary" type="submit">Guardar clasificación</button>
-    </form>
+    </form></details>
     {% else %}<div class="prerequisite-warning">Primero incorporá y activá productos en un catálogo.</div>{% endif %}
 
     {% if perfiles_combo and perfiles_componentes %}
     <h3 class="subsection-title subsection-spaced">Composición de combos</h3>
-    <form class="comercial-form form-combo" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+    <details class="source-catalog uat-form-editor"><summary>Agregar componente</summary><form class="comercial-form form-combo" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="agregar_componente_combo">
       <label><span>Combo</span><select name="combo_perfil_id" required>{% for perfil in perfiles_combo %}<option value="{{ perfil.id }}">{{ perfil.producto.sku }} · {{ perfil.producto.descripcion }}</option>{% endfor %}</select></label>
       <label><span>Componente</span><select name="componente_perfil_id" required>{% for perfil in perfiles_componentes %}<option value="{{ perfil.id }}">{{ perfil.producto.sku }} · {{ perfil.producto.descripcion }}</option>{% endfor %}</select></label>
       <label><span>Cantidad</span><input name="cantidad" inputmode="decimal" value="1" required></label>
       <label><span>Observación <small>opcional</small></span><input name="observacion" maxlength="500"></label>
       <button class="comercial-primary" type="submit">Agregar componente</button>
-    </form>
+    </form></details>
     {% endif %}
 
     {% if perfiles_costeo %}<details class="source-catalog"><summary><span>Ver productos clasificados</span><strong>{{ perfiles_costeo|length }}</strong></summary>
@@ -100,10 +100,10 @@
     {% set costos_fijos_productivos = costos_fijos|selectattr('integra_costo_produccion')|list %}
     {% set hay_recursos_laborales = recursos_productivos or empleados %}
     <div class="cost-sheet-forms">
-      <form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_insumo"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }} · {{ p.producto.descripcion }}</option>{% endfor %}</select></label><label><span>Insumo</span><select name="insumo_id" required {% if not insumos %}disabled{% endif %}>{% if insumos %}{% for i in insumos %}<option value="{{ i.id }}">{{ i.codigo }} · {{ i.nombre }}</option>{% endfor %}{% else %}<option selected>Primero cargá un insumo productivo</option>{% endif %}</select></label><label><span>Cantidad</span><input name="cantidad" inputmode="decimal" required {% if not insumos %}disabled{% endif %}></label><label><span>Merma %</span><input name="merma" inputmode="decimal" value="0" {% if not insumos %}disabled{% endif %}></label><button class="comercial-primary" {% if not insumos %}disabled title="Primero cargá un insumo productivo"{% endif %}>Agregar insumo</button></form>
-      <form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_operacion"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }}</option>{% endfor %}</select></label><label><span>Recurso laboral</span><select name="recurso_laboral_id" required {% if not hay_recursos_laborales %}disabled{% endif %}>{% if recursos_productivos %}<optgroup label="Equipos productivos">{% for r in recursos_productivos %}<option value="{{ r.id }}">{{ r.nombre }} · tarifa ponderada</option>{% endfor %}</optgroup>{% endif %}{% if empleados %}<optgroup label="Empleados específicos">{% for e in empleados %}<option value="{{ e.id }}">{{ e.nombre }} · {{ e.puesto or e.sector }}</option>{% endfor %}</optgroup>{% endif %}{% if not hay_recursos_laborales %}<option selected>Primero cargá un empleado o recurso</option>{% endif %}</select></label><label><span>Operación</span><input name="nombre_operacion" placeholder="Ej. Soldadura" required {% if not hay_recursos_laborales %}disabled{% endif %}></label><label><span>Minutos</span><input name="minutos" inputmode="decimal" required {% if not hay_recursos_laborales %}disabled{% endif %}></label><button class="comercial-primary" {% if not hay_recursos_laborales %}disabled title="Primero cargá un empleado o recurso"{% endif %}>Agregar operación</button></form>
-      <form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_maquina"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }}</option>{% endfor %}</select></label><label><span>Máquina</span><select name="maquina_id" required {% if not maquinas %}disabled{% endif %}>{% for maquina in maquinas %}<option value="{{ maquina.id }}">{{ maquina.codigo }} · {{ maquina.nombre }}</option>{% else %}<option>Primero cargá una máquina</option>{% endfor %}</select></label><label><span>Operación</span><input name="nombre_operacion" placeholder="Ej. Corte" required {% if not maquinas %}disabled{% endif %}></label><label><span>Minutos</span><input name="minutos" inputmode="decimal" required {% if not maquinas %}disabled{% endif %}></label><button class="comercial-primary" {% if not maquinas %}disabled{% endif %}>Agregar uso de máquina</button></form>
-      <form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_costo_fijo"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }}</option>{% endfor %}</select></label><label><span>Costo fijo productivo</span><select name="costo_fijo_id" required {% if not costos_fijos_productivos %}disabled{% endif %}>{% if costos_fijos_productivos %}{% for c in costos_fijos_productivos %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}{% else %}<option selected>No hay costos fijos productivos</option>{% endif %}</select></label><label><span>Asignación %</span><input name="porcentaje" inputmode="decimal" required {% if not costos_fijos_productivos %}disabled{% endif %}></label><label><span>Unidades mensuales</span><input name="unidades_mensuales" inputmode="decimal" required {% if not costos_fijos_productivos %}disabled{% endif %}></label><button class="comercial-primary" {% if not costos_fijos_productivos %}disabled title="Primero cargá un costo fijo productivo"{% endif %}>Aplicar costo fijo</button></form>
+      <details class="source-catalog uat-form-editor"><summary>Agregar insumo</summary><form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_insumo"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }} · {{ p.producto.descripcion }}</option>{% endfor %}</select></label><label><span>Insumo</span><select name="insumo_id" required {% if not insumos %}disabled{% endif %}>{% if insumos %}{% for i in insumos %}<option value="{{ i.id }}">{{ i.codigo }} · {{ i.nombre }}</option>{% endfor %}{% else %}<option selected>Primero cargá un insumo productivo</option>{% endif %}</select></label><label><span>Cantidad</span><input name="cantidad" inputmode="decimal" required {% if not insumos %}disabled{% endif %}></label><label><span>Merma %</span><input name="merma" inputmode="decimal" value="0" {% if not insumos %}disabled{% endif %}></label><button class="comercial-primary" {% if not insumos %}disabled title="Primero cargá un insumo productivo"{% endif %}>Agregar insumo</button></form></details>
+      <details class="source-catalog uat-form-editor"><summary>Agregar operación</summary><form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_operacion"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }}</option>{% endfor %}</select></label><label><span>Recurso laboral</span><select name="recurso_laboral_id" required {% if not hay_recursos_laborales %}disabled{% endif %}>{% if recursos_productivos %}<optgroup label="Equipos productivos">{% for r in recursos_productivos %}<option value="{{ r.id }}">{{ r.nombre }} · tarifa ponderada</option>{% endfor %}</optgroup>{% endif %}{% if empleados %}<optgroup label="Empleados específicos">{% for e in empleados %}<option value="{{ e.id }}">{{ e.nombre }} · {{ e.puesto or e.sector }}</option>{% endfor %}</optgroup>{% endif %}{% if not hay_recursos_laborales %}<option selected>Primero cargá un empleado o recurso</option>{% endif %}</select></label><label><span>Operación</span><input name="nombre_operacion" placeholder="Ej. Soldadura" required {% if not hay_recursos_laborales %}disabled{% endif %}></label><label><span>Minutos</span><input name="minutos" inputmode="decimal" required {% if not hay_recursos_laborales %}disabled{% endif %}></label><button class="comercial-primary" {% if not hay_recursos_laborales %}disabled title="Primero cargá un empleado o recurso"{% endif %}>Agregar operación</button></form></details>
+      <details class="source-catalog uat-form-editor"><summary>Agregar uso de máquina</summary><form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_maquina"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }}</option>{% endfor %}</select></label><label><span>Máquina</span><select name="maquina_id" required {% if not maquinas %}disabled{% endif %}>{% for maquina in maquinas %}<option value="{{ maquina.id }}">{{ maquina.codigo }} · {{ maquina.nombre }}</option>{% else %}<option>Primero cargá una máquina</option>{% endfor %}</select></label><label><span>Operación</span><input name="nombre_operacion" placeholder="Ej. Corte" required {% if not maquinas %}disabled{% endif %}></label><label><span>Minutos</span><input name="minutos" inputmode="decimal" required {% if not maquinas %}disabled{% endif %}></label><button class="comercial-primary" {% if not maquinas %}disabled{% endif %}>Agregar uso de máquina</button></form></details>
+      <details class="source-catalog uat-form-editor"><summary>Asignar costo fijo</summary><form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="ficha_costo_fijo"><label><span>Producto</span><select name="perfil_costeo_id" required>{% for p in perfiles_produccion %}<option value="{{ p.id }}">{{ p.producto.sku }}</option>{% endfor %}</select></label><label><span>Costo fijo productivo</span><select name="costo_fijo_id" required {% if not costos_fijos_productivos %}disabled{% endif %}>{% if costos_fijos_productivos %}{% for c in costos_fijos_productivos %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}{% else %}<option selected>No hay costos fijos productivos</option>{% endif %}</select></label><label><span>Asignación %</span><input name="porcentaje" inputmode="decimal" required {% if not costos_fijos_productivos %}disabled{% endif %}></label><label><span>Unidades mensuales</span><input name="unidades_mensuales" inputmode="decimal" required {% if not costos_fijos_productivos %}disabled{% endif %}></label><button class="comercial-primary" {% if not costos_fijos_productivos %}disabled title="Primero cargá un costo fijo productivo"{% endif %}>Aplicar costo fijo</button></form></details>
     </div>
     <details class="source-catalog"><summary><span>Ver fichas técnicas</span><strong>{{ perfiles_produccion|length }}</strong></summary><div class="source-catalog-content">
     {% for perfil in perfiles_produccion %}
@@ -115,7 +115,7 @@
 
   <section class="comercial-section" id="insumos">
     <div class="section-heading"><div><span class="section-number">2</span><h2>Insumos y precios</h2></div><div class="section-heading-actions"><p>Materias primas, consumibles, servicios y embalajes propios de producción.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='insumos') }}">Importar insumos</a></div></div>
-    <form class="comercial-form form-source-insumo" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+    <details class="source-catalog uat-form-editor"><summary>Crear insumo</summary><form class="comercial-form form-source-insumo" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_insumo">
       <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
       <label><span>Código</span><input name="codigo" maxlength="80" placeholder="Ej. hierro-6mm" required></label>
@@ -125,7 +125,7 @@
       <label><span>Precio unitario</span><div class="money-input"><span>$</span><input name="precio_unitario" inputmode="decimal" placeholder="0,00" required></div></label>
       <label><span>Proveedor <small>opcional</small></span><input name="proveedor_referencia" maxlength="200"></label>
       <button class="comercial-primary" type="submit">Crear insumo</button>
-    </form>
+    </form></details>
     {% if insumos %}
     <details class="source-catalog">
       <summary><span>Ver insumos cargados</span><strong>{{ insumos|length }}</strong></summary>
@@ -153,7 +153,7 @@
       <label><span>Observación <small>opcional</small></span><input name="observacion" placeholder="Ej. estimación agosto"></label>
       <button class="table-action" type="submit">Guardar nueva versión</button>
     </form>
-    <form class="comercial-form form-source-employee" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+    <details class="source-catalog uat-form-editor"><summary>Crear empleado</summary><form class="comercial-form form-source-employee" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_empleado">
       <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
       <label><span>Código o legajo</span><input name="codigo" maxlength="80" required></label>
@@ -170,18 +170,18 @@
       <label><span>Horas mensuales</span><input name="horas_mensuales" inputmode="decimal" placeholder="176" required></label>
       <label><span>Horas productivas</span><input name="horas_productivas" inputmode="decimal" placeholder="160" required></label>
       <button class="comercial-primary" type="submit">Crear empleado</button>
-    </form>
+    </form></details>
     <details class="labor-resources source-catalog">
       <summary><span>Configurar equipos o recursos productivos</span><strong>{{ recursos_productivos|length }}</strong></summary>
       <div class="labor-resources-content">
-        <form class="comercial-form form-labor-resource" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+        <details class="source-catalog uat-form-editor"><summary>Crear recurso</summary><form class="comercial-form form-labor-resource" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
           <input type="hidden" name="accion" value="crear_recurso_productivo"><input type="hidden" name="unidad_negocio_id" value="{{ unidad_activa.id }}">
           <label><span>Código</span><input name="codigo" placeholder="Ej. herreria" maxlength="80" required></label>
           <label><span>Nombre del recurso</span><input name="nombre" placeholder="Ej. Equipo de Herrería" maxlength="200" required></label>
           <label><span>Sector</span><input name="sector" placeholder="Ej. Herrería" maxlength="120" required></label>
           <label><span>Tiempos indirectos %</span><input name="porcentaje_indirecto" inputmode="decimal" value="0" required></label>
           <button class="comercial-primary" type="submit">Crear recurso</button>
-        </form>
+        </form></details>
         {% if recursos_productivos %}<div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Código</th><th>Recurso</th><th>Sector</th><th>Integrantes</th><th>Indirectos</th><th>Tarifa vigente</th><th>Acciones</th></tr></thead><tbody>
         {% for recurso in recursos_productivos %}{% set tarifa = recurso.versiones_costo|selectattr('vigente')|first %}
         <tr><td><strong>{{ recurso.codigo }}</strong></td><td>{{ recurso.nombre }}</td><td>{{ recurso.sector }}</td><td>{{ recurso.miembros_recurso|length }}</td><td>{{ numero_decimal_limpio(recurso.porcentaje_indirecto) }}%</td><td>{% if tarifa %}<strong>$ {{ formatear_centavos_ars(tarifa.costo_hora_productiva_centavos) }}/h</strong>{% else %}Sin calcular{% endif %}</td><td><button class="source-dialog-trigger" type="button" data-source-dialog>Gestionar</button><dialog class="source-dialog resource-team-dialog"><button class="source-dialog-close" type="button" aria-label="Cerrar">×</button><div class="source-row-panel">
@@ -249,20 +249,20 @@
 
   <section class="comercial-section" id="maquinas">
     <div class="section-heading"><div><span class="section-number">4</span><h2>Máquinas y equipos</h2></div><div class="section-heading-actions"><p>Tarifas históricas por hora y minuto, separando amortización, energía y mantenimiento.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='maquinas') }}">Importar máquinas</a></div></div>
-    <form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+    <details class="source-catalog uat-form-editor"><summary>Crear máquina y tarifa</summary><form class="comercial-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_maquina"><input type="hidden" name="unidad_negocio_id" value="{{ unidad_activa.id }}"><input type="hidden" name="moneda" value="ARS">
       <label><span>Código</span><input name="codigo" maxlength="80" required></label><label><span>Nombre</span><input name="nombre" maxlength="200" required></label><label><span>Categoría</span><input name="categoria" maxlength="100" required></label>
       <label><span>Valor de adquisición</span><div class="money-input"><span>$</span><input name="valor_adquisicion" inputmode="decimal" required></div></label><label><span>Valor residual</span><div class="money-input"><span>$</span><input name="valor_residual" inputmode="decimal" value="0"></div></label><label><span>Vida útil (horas)</span><input name="vida_util_horas" inputmode="decimal" required></label>
       <label><span>Potencia kW</span><input name="potencia_kw" inputmode="decimal" value="0"></label><label><span>Factor de carga %</span><input name="factor_carga_pct" inputmode="decimal" value="100"></label><label><span>Costo por kWh</span><div class="money-input"><span>$</span><input name="costo_kwh" inputmode="decimal" value="0"></div></label>
       <label><span>Mantenimiento mensual</span><div class="money-input"><span>$</span><input name="mantenimiento_mensual" inputmode="decimal" value="0"></div></label><label><span>Otros costos mensuales</span><div class="money-input"><span>$</span><input name="otros_costos_mensuales" inputmode="decimal" value="0"></div></label><label><span>Horas productivas mensuales</span><input name="horas_productivas_mensuales" inputmode="decimal" required></label>
       <button class="comercial-primary" type="submit">Crear máquina y tarifa</button>
-    </form>
+    </form></details>
     {% if maquinas %}<details class="source-catalog"><summary><span>Ver máquinas cargadas</span><strong>{{ maquinas|length }}</strong></summary><div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Código</th><th>Máquina</th><th>Categoría</th><th>Estado</th><th>Costo hora</th><th>Costo minuto</th><th>Versión</th></tr></thead><tbody>{% for maquina in maquinas %}{% set vigente = maquina.versiones_costo|selectattr('vigente')|first %}<tr><td><strong>{{ maquina.codigo }}</strong></td><td>{{ maquina.nombre }}</td><td>{{ maquina.categoria }}</td><td><span class="status status-draft">{{ 'Activa' if maquina.activo else 'Preparada' }}</span></td><td>{% if vigente %}$ {{ formatear_centavos_ars(vigente.costo_hora_centavos) }}{% else %}—{% endif %}</td><td>{% if vigente %}$ {{ formatear_centavos_ars(vigente.costo_minuto_centavos) }}{% else %}—{% endif %}</td><td>{{ 'v' ~ vigente.numero_version if vigente else '—' }}</td></tr>{% endfor %}</tbody></table></div></details>{% else %}<p class="empty-card">Todavía no hay máquinas cargadas.</p>{% endif %}
   </section>
 
   <section class="comercial-section" id="costos-fijos">
     <div class="section-heading"><div><span class="section-number">5</span><h2>Costos indirectos productivos</h2></div><div class="section-heading-actions"><p>Costos fijos, variables y provisiones; solo la parte productiva integra fabricación.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='costos-fijos') }}">Importar costos indirectos</a></div></div>
-    <form class="comercial-form form-source-fixed" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+    <details class="source-catalog uat-form-editor"><summary>Crear costo indirecto</summary><form class="comercial-form form-source-fixed" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_costo_fijo">
       <div class="fixed-cost-row fixed-cost-identity">
         <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
@@ -282,7 +282,7 @@
         <label><span>Comprobante <small>opcional</small></span><input name="comprobante_referencia" maxlength="120"></label>
         <button class="comercial-primary" type="submit">Crear costo indirecto</button>
       </div>
-    </form>
+    </form></details>
     {% if costos_fijos %}<details class="source-catalog"><summary><span>Ver costos indirectos cargados</span><strong>{{ costos_fijos|length }}</strong></summary><div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Código</th><th>Concepto</th><th>Categoría</th><th>Tratamiento</th><th>Distribución</th><th>Importe mensual</th><th>Versión</th><th>Acciones</th></tr></thead><tbody>
       {% for costo in costos_fijos %}
       {% set vigente = costo.versiones|selectattr('vigente')|first %}

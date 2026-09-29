@@ -43,6 +43,7 @@ def inicializar_base_datos_saas(
         asegurar_recursos_mano_obra,
         asegurar_unidad_importacion_costos,
         asegurar_subtotal_recepciones_compra,
+        asegurar_datos_contacto_proveedores,
     )
     from services.modulos_organizacion import (
         asegurar_modulos_iniciales,
@@ -74,6 +75,8 @@ def inicializar_base_datos_saas(
                     "Otra inicialización de la base SaaS está en ejecución."
                 )
         db.create_all()
+
+        asegurar_datos_contacto_proveedores(db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn)
 
         asegurar_subtotal_recepciones_compra(
             db=db, inspect_fn=inspect_fn, text_fn=text_fn, logger_fn=logger_fn,

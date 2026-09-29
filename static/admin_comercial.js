@@ -519,3 +519,10 @@
     iniciar();
   }
 })();
+
+document.addEventListener("DOMContentLoaded",function(){
+ const key="uat-continuar:"+location.pathname;
+ document.querySelectorAll(".comercial-page form[method=post]").forEach(function(form){form.addEventListener("submit",function(event){if(event.defaultPrevented)return;const section=form.closest("section[id]");try{sessionStorage.setItem(key,JSON.stringify({y:window.scrollY,offset:section?window.scrollY-(section.getBoundingClientRect().top+window.scrollY):0,id:section?section.id:null}));}catch(_){}});});
+ let saved;try{saved=JSON.parse(sessionStorage.getItem(key));sessionStorage.removeItem(key);}catch(_){}
+ if(saved&&(location.search.includes("ok=")||location.search.includes("error="))){const section=saved.id&&document.getElementById(saved.id);const feedback=document.querySelector(".comercial-message,.feedback");if(section&&feedback)section.prepend(feedback);requestAnimationFrame(function(){window.scrollTo(0,section?section.getBoundingClientRect().top+window.scrollY+Math.min(saved.offset,Math.max(0,section.offsetHeight-window.innerHeight/2)):saved.y);});}
+});

@@ -113,3 +113,18 @@ def test_contrato_persistente_y_panel_permanecen_desconectados():
     assert "Aprobar no ejecuta nada" in panel
     for prohibido in ("requests", "OAuth", "Webhook", "MercadoLibre", "access_token"):
         assert prohibido not in servicio
+
+
+def test_obsoleta_no_se_completa_pero_se_archiva_con_motivo():
+    import pytest
+    actual = fila("sin_accion")
+    viejo = planificar_fila(fila())[0]
+    propuesta = Obj(estado="aprobada", puede_ejecutar=False, depende_de=None, tipo_accion=viejo["tipo_accion"], huella_calculo=viejo["huella_calculo"])
+    with pytest.raises(ValueError, match="obsoleta"):
+        decidir_propuesta(propuesta,"completar_manual","ticket",usuario=Obj(),db_session=Sesion(),fila_actual=actual)
+    assert propuesta.estado == "aprobada"
+    with pytest.raises(ValueError, match="motivo"):
+        decidir_propuesta(propuesta,"archivar","",usuario=Obj(),db_session=Sesion(),fila_actual=actual)
+    decidir_propuesta(propuesta,"archivar","Cambio de observación UAT",usuario=Obj(username="admin"),db_session=Sesion(),fila_actual=actual)
+    assert propuesta.estado == "archivada" and propuesta.puede_ejecutar is False
+    assert propuesta.decidido_por_username == "admin"

@@ -85,3 +85,21 @@ def test_contrato_es_diagnostico_saas_y_permanece_desconectado():
     assert "Exportar seleccionados" in panel
     for prohibido in ("requests", "OAuth", "Webhook", "MercadoLibre", "Pedido.query"):
         assert prohibido not in servicio
+
+
+def test_precio_base_importado_y_promocion_no_observada_en_excel(monkeypatch):
+    from datetime import datetime
+    class Hoja:
+        def __init__(self): self.filas=[]
+        def append(self,fila): self.filas.append(fila)
+    class Libro:
+        ultimo=None
+        def __init__(self): self.active=Hoja();Libro.ultimo=self
+        def save(self,salida): salida.write(b"xlsx")
+    monkeypatch.setattr(modulo_control,"Workbook",Libro)
+    obs=Obj(lista_precio_id=3,catalogo_producto_id=11,tipo="precio",fecha_observacion=datetime(2026,9,29),precio_publicado_centavos=712500)
+    filas,_=construir_bandeja([simulacion()],[],observaciones=[obs])
+    assert filas[0]["precio_base_centavos"] == 712500
+    exportar_bandeja_excel(filas)
+    assert Libro.ultimo.active.filas[1][4] == 7125
+    assert Libro.ultimo.active.filas[1][13] == "NO_OBSERVADA"

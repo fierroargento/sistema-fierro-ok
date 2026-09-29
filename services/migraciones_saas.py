@@ -1191,3 +1191,17 @@ def asegurar_codigos_unicos_por_tenant(
             )
 
     return resultados
+
+
+def asegurar_datos_contacto_proveedores(*, db, inspect_fn, text_fn, logger_fn=print):
+    """Amplía el maestro existente sin inferir ni reemplazar datos fiscales."""
+    inspector = inspect_fn(db.engine)
+    if "proveedor_compra" not in inspector.get_table_names(): return {"columnas_creadas": []}
+    existentes = {col["name"] for col in inspector.get_columns("proveedor_compra")}
+    creadas = []
+    for nombre, longitud in (("domicilio",250),("localidad",100),("provincia",100),("codigo_postal",20),("persona_contacto",150)):
+        if nombre not in existentes:
+            db.session.execute(text_fn(f"ALTER TABLE proveedor_compra ADD COLUMN {nombre} VARCHAR({longitud})"))
+            creadas.append(nombre)
+    if creadas: db.session.commit()
+    return {"columnas_creadas": creadas}
