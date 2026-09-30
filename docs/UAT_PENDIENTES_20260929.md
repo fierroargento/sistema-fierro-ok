@@ -47,3 +47,10 @@ Validación local del bloque: 57 pruebas de gestión, aislamiento, tarifas, cuen
 ### Ajuste tras capturas del 30/09 20:04 UTC
 
 La emergente funciona, pero su presentación anterior no queda aprobada. Se cambia Ver detalle por Gestionar y se organiza la ficha en datos fiscales (incluye CUIT y estado), contacto y domicilio; las observaciones aparecen cuando existen. Editar proveedor se presenta como acción destacada y conserva formulario, token CSRF y Cancelar. Sin cambios de servidor o datos. Validación visual en staging pendiente.
+
+
+### Cancelación de edición, 30/09
+
+Hallazgo: Cancelar cerraba la ventana, pero dejaba los valores escritos en el formulario en memoria. Al reabrir parecían modificados. Se restaura el formulario a los valores iniciales al cancelar y al cerrar por X, Cerrar, Escape o fondo; también se recupera el estado inicial de las secciones de edición y se sincronizan controles dependientes. No se cambia la ruta de guardado ni se escribe en la base al cancelar. Renovada la URL del script compartido en Compras, Fuentes y Cuentas a pagar. UAT: modificar contacto, cancelar, reabrir y refrescar; debe conservar Contacto UAT.
+
+Validación de la cancelación: 44 pruebas relacionadas, compilación de tres plantillas y sintaxis JavaScript. Prueba DOM ejecutando el script real: Cancelar, X, Cerrar, evento close y alta cancelada recuperan los valores iniciales; cero envíos submit y token CSRF conservado. Confirmación en navegador de staging pendiente.

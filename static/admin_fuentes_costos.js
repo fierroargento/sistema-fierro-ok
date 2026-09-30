@@ -116,11 +116,29 @@
     cancelar.type = "button";
     cancelar.className = "table-action dialog-cancel";
     cancelar.textContent = "Cancelar";
-    cancelar.addEventListener("click", cerrar);
+    cancelar.addEventListener("click", function () {
+      descartarEdicion(form);
+      cerrar();
+    });
     acciones.append(cancelar, ...botones);
   }
 
+  function descartarEdicion(form) {
+    form.reset();
+    form.querySelectorAll("[data-production-cost], [data-cost-periodicity], [data-team-member]").forEach(function (control) {
+      control.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
   function prepararDialogo(dialogo, fila) {
+    const seccionesIniciales = Array.from(dialogo.querySelectorAll("details")).map(function (detalle) {
+      return { detalle: detalle, abierta: detalle.open };
+    });
+    dialogo.addEventListener("close", function () {
+      dialogo.querySelectorAll("form").forEach(descartarEdicion);
+      seccionesIniciales.forEach(function (seccion) { seccion.detalle.open = seccion.abierta; });
+      dialogo.scrollTop = 0;
+    });
     if (!dialogo.querySelector(".payment-management-heading")) {
       const titulo = document.createElement("header");
       titulo.className = "source-dialog-heading";
