@@ -38,14 +38,21 @@
   }
 
   function abrirDialogosDeGestion() {
-    document.querySelectorAll(".source-row-action").forEach(function (detalle) {
-      const panel = detalle.querySelector(":scope > .source-row-panel");
-      if (!panel) return;
+    document.querySelectorAll(".source-row-action, .compras-page td > details").forEach(function (detalle) {
+      if (detalle.closest("dialog, .compras-editor-row")) return;
+      const resumen = detalle.querySelector(":scope > summary");
+      const panel = detalle.querySelector(":scope > .source-row-panel") || document.createElement("div");
+      panel.classList.add("source-row-panel");
+      if (!panel.parentElement) {
+        Array.from(detalle.children).forEach(function (hijo) {
+          if (hijo !== resumen) panel.append(hijo);
+        });
+      }
       const boton = document.createElement("button");
       boton.type = "button";
       boton.className = "source-dialog-trigger";
       boton.setAttribute("data-source-dialog", "");
-      boton.textContent = "Gestionar";
+      boton.textContent = resumen ? resumen.textContent.trim() : "Gestionar";
       const dialogo = document.createElement("dialog");
       dialogo.className = "source-dialog";
       const cerrar = document.createElement("button");
@@ -60,14 +67,87 @@
     document.querySelectorAll("[data-source-dialog]").forEach(function (boton) {
       const dialogo = boton.nextElementSibling;
       if (!dialogo || !dialogo.matches("dialog.source-dialog")) return;
+      prepararDialogo(dialogo, boton.closest("tr"));
       boton.addEventListener("click", function () {
         precargarCostoEmpleado(dialogo);
         dialogo.showModal();
       });
       dialogo.querySelector(".source-dialog-close").addEventListener("click", function () { dialogo.close(); });
-      dialogo.addEventListener("click", function (evento) {
-        if (evento.target === dialogo) dialogo.close();
+    });
+
+    document.querySelectorAll('.compras-page .compras-editor-row').forEach(function (fila) {
+      const celda = fila.querySelector("td");
+      if (!celda) return;
+      const dialogo = document.createElement("dialog");
+      dialogo.className = "source-dialog";
+      const cerrar = document.createElement("button");
+      cerrar.type = "button";
+      cerrar.className = "source-dialog-close";
+      cerrar.setAttribute("aria-label", "Cerrar");
+      cerrar.textContent = "×";
+      const panel = document.createElement("div");
+      panel.className = "source-row-panel";
+      while (celda.firstChild) panel.append(celda.firstChild);
+      panel.querySelectorAll("details.compras-editor").forEach(function (detalle) { detalle.open = true; });
+      dialogo.append(cerrar, panel);
+      document.querySelector(".compras-page").append(dialogo);
+      prepararDialogo(dialogo, fila.previousElementSibling);
+      cerrar.addEventListener("click", function () { dialogo.close(); });
+      document.querySelectorAll('a[href="#' + fila.id + '"]').forEach(function (enlace) {
+        enlace.addEventListener("click", function (evento) { evento.preventDefault(); dialogo.showModal(); });
       });
+      fila.hidden = true;
+    });
+    document.querySelectorAll(".uat-form-editor > form, .compras-editor > form, .payable-create").forEach(function (form) {
+      if (form.closest("dialog")) return;
+      agregarCancelar(form, function () { form.closest("details").open = false; });
+    });
+  }
+
+  function agregarCancelar(form, cerrar) {
+    const botones = Array.from(form.querySelectorAll('button:not([type="button"])'));
+    const guardar = botones[0];
+    if (!guardar || form.querySelector(".dialog-cancel")) return;
+    const acciones = document.createElement("div");
+    acciones.className = "dialog-actions";
+    guardar.replaceWith(acciones);
+    const cancelar = document.createElement("button");
+    cancelar.type = "button";
+    cancelar.className = "table-action dialog-cancel";
+    cancelar.textContent = "Cancelar";
+    cancelar.addEventListener("click", cerrar);
+    acciones.append(cancelar, ...botones);
+  }
+
+  function prepararDialogo(dialogo, fila) {
+    if (!dialogo.querySelector(".payment-management-heading")) {
+      const titulo = document.createElement("header");
+      titulo.className = "source-dialog-heading";
+      const nombre = document.createElement("h2");
+      const codigo = document.createElement("small");
+      nombre.textContent = fila && fila.cells[1] ? fila.cells[1].textContent.trim() : "Gestionar registro";
+      codigo.textContent = fila && fila.cells[0] ? fila.cells[0].textContent.trim() : "";
+      titulo.append(nombre, codigo);
+      dialogo.prepend(titulo);
+    }
+    dialogo.querySelectorAll("form").forEach(function (form) {
+      if (form.querySelector('[name="accion"][value="anular_pago_costo"]')) return;
+      agregarCancelar(form, function () { dialogo.close(); });
+    });
+    const pie = document.createElement("div");
+    pie.className = "dialog-actions dialog-footer";
+    const cerrar = document.createElement("button");
+    cerrar.type = "button";
+    cerrar.className = "table-action";
+    cerrar.textContent = "Cerrar";
+    cerrar.addEventListener("click", function () { dialogo.close(); });
+    pie.append(cerrar);
+    dialogo.append(pie);
+    dialogo.setAttribute("aria-label", dialogo.querySelector(".source-dialog-heading, .payment-management-heading").textContent.trim());
+    dialogo.addEventListener("click", function (evento) {
+      if (evento.target !== dialogo) return;
+      const limites = dialogo.getBoundingClientRect();
+      if (evento.clientX < limites.left || evento.clientX > limites.right || evento.clientY < limites.top || evento.clientY > limites.bottom) dialogo.close();
     });
   }
 

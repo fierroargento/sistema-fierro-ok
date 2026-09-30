@@ -866,12 +866,19 @@ def procesar_accion_fuente_costo(
                 _id(formulario, "maquina_id"), organizacion.id,
                 "La maquina", unidad_activa.id,
             )
-            if formulario.get("nombre") is not None:
-                maquina.nombre = str(formulario.get("nombre") or "").strip()
-            if formulario.get("categoria") is not None:
-                maquina.categoria = str(
-                    formulario.get("categoria") or ""
-                ).strip()
+            cambios_maquina = {}
+            for campo, limite in (("nombre", 200), ("categoria", 100)):
+                if formulario.get(campo) is not None:
+                    valor = str(formulario.get(campo) or "").strip()
+                    if not valor or len(valor) > limite:
+                        raise ValueError(f"{campo.capitalize()} es obligatorio y admite hasta {limite} caracteres.")
+                    cambios_maquina[campo] = valor
+            if formulario.get("activo") is not None:
+                if formulario.get("activo") not in {"0", "1"}:
+                    raise ValueError("El estado interno de la máquina no es válido.")
+                cambios_maquina["activo"] = formulario.get("activo") == "1"
+            for campo, valor in cambios_maquina.items():
+                setattr(maquina, campo, valor)
         version = registrar_costo_maquina(
             maquina,
             moneda=formulario.get("moneda", "ARS"),
@@ -1029,7 +1036,8 @@ def obtener_fuentes_costo(
     ).filter(
         modelos["ObligacionCostoProductivo"].costo_fijo_id.in_(ids_costos_visibles),
     ).order_by(
-        modelos["ObligacionCostoProductivo"].fecha_vencimiento.desc(),
+        modelos["ObligacionCostoProductivo"].fecha_vencimiento.asc(),
+        modelos["ObligacionCostoProductivo"].id.asc(),
     ).all() if ids_costos_visibles else []
     reconciliar_estados_obligaciones(
         obligaciones,

@@ -25,3 +25,20 @@ Producción main queda fuera de alcance. Sin llamadas a canales, scheduler ni ca
 4. Editar UAT-PROV-001 con domicilio y contacto ficticios, guardar y abrir detalle. Reimportar una plantilla antigua sin esas columnas y confirmar que conserva esos datos y no duplica proveedor.
 
 La validación visual y PostgreSQL del deploy queda pendiente de UAT en staging. No confirmar gestiones manuales externas que no se realizaron. Barra lateral ya validada, no se altera su integración.
+
+
+## Bloque preparado el 30/09: gestión y presentación
+
+Base oficial b89140c806fb4fbcb0b070332b7da59ac54ea613. Cambios locales, pendientes de deploy y validación visual en staging.
+
+- Proveedores y editores de Compras abren emergentes reutilizando los formularios y validadores existentes. Cancelar cierra sin guardar; se conserva Cerrar y Escape.
+- Máquinas incorporan Gestionar, precarga de tarifa vigente e historial. Guardar usa la actualización existente que crea una nueva versión. Identidad y estado interno se validan dentro del ámbito de organización/unidad.
+- Formularios generales colapsados; botones compactos con altura, colores y alineación comunes. Diálogos con encabezado separado de la X, acciones agrupadas y adaptación a pantallas pequeñas.
+- Compras reutiliza la restauración de posición compartida; se elimina el manejador duplicado.
+- Vencimientos ordenados de más próximo a más lejano. Calendarios conservan la frecuencia seleccionada y aclaran que la anticipación se expresa en meses. Fechas de historial de importación de proveedores en hora argentina.
+
+UAT siguiente: abrir/cancelar proveedor sin cambios; gestionar UAT-MAQ-001 y verificar historial y aislamiento; comprobar pago parcial y anulado conservados; verificar vencimientos de octubre antes de noviembre, frecuencia persistida y ausencia de duplicados; revisar diálogos y botones en escritorio y móvil.
+
+La barra lateral ya está validada. No se modifican producción, integraciones, scheduler ni estados de pedidos. La cobertura visual de fichas técnicas y otros formularios no incluidos aquí sigue pendiente de revisión; no se da por resuelta por estas reglas compartidas.
+
+Validación local del bloque: 57 pruebas de gestión, aislamiento, tarifas, cuentas a pagar y Compras; sintaxis JavaScript y compilación Python/Jinja correctas. El navegador de pruebas no pudo instalarse en este entorno; no se afirma validación visual ni deploy.

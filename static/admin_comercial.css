@@ -1027,3 +1027,53 @@
 .channel-tier-form{display:flex;flex-wrap:wrap;gap:6px;max-width:320px}.channel-tier-form input{width:90px;min-width:0}
 .uat-form-editor{margin:12px 0}.uat-form-editor>form{padding:14px}
 .queue-decision{display:flex;flex-wrap:wrap;gap:6px}.queue-decision input{min-width:0;max-width:210px}
+
+/* Edición UAT: mismos espacios, acciones y diálogos en compras, costos y pagos. */
+.comercial-page .header-actions { align-items:flex-end; gap:10px; flex-wrap:wrap; }
+.comercial-page .secondary-link,.comercial-page .section-link,.comercial-page .header-payables-link { display:inline-flex; align-items:center; justify-content:center; min-height:36px; height:auto; padding:8px 12px; border:1px solid #8ac4da; border-radius:8px; background:#edf8fc; color:#176b89; font-size:12px; font-weight:700; line-height:1.3; text-decoration:none; width:auto; align-self:auto; }
+.comercial-page .section-heading { align-items:center; gap:12px; flex-wrap:wrap; }
+.comercial-page .section-heading-actions { margin-left:auto; display:flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
+.source-catalog.uat-form-editor > summary { justify-content:flex-start; }
+.source-dialog { overflow:auto; white-space:normal; }
+.source-dialog-heading { padding:22px 66px 16px 22px; border-bottom:1px solid #e4e9ef; }
+.source-dialog-heading h2 { margin:0 0 5px; font-size:18px; color:#102a43; }
+.source-dialog-heading small { color:#667085; }
+.source-dialog .source-row-panel { padding:18px 22px; max-height:none; overflow:visible; }
+.source-dialog .payment-management { min-width:0; padding:22px; }
+.source-dialog .payment-management-heading { padding-right:48px; align-items:flex-start; }
+.source-dialog .payment-management-heading strong { font-size:15px; }
+.source-dialog form label:not(.resource-team-row) { display:flex; flex-direction:column; gap:6px; min-width:0; font-size:12px; color:#35485a; }
+.source-dialog form label > span { min-height:18px; }
+.source-dialog input:not([type=hidden]):not([type=checkbox]),.source-dialog select { min-width:0; width:100%; box-sizing:border-box; min-height:38px; border:1px solid #cbd2dc; border-radius:8px; padding:8px 10px; background:#fff; }
+.source-dialog .money-input input { border:0!important; min-height:36px; }
+.source-dialog .source-table-update,.source-dialog .employee-table-update,.source-dialog .machine-table-update { grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:end; }
+.source-dialog .compras-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:14px 0; }
+.source-dialog .compras-form label { max-width:none; }
+.dialog-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:10px; grid-column:1/-1; width:100%; margin-top:6px; }
+.comercial-page .dialog-actions button { width:auto; flex:0 0 auto; min-height:36px; grid-column:auto; padding:8px 14px; }
+.dialog-footer { margin:0; padding:14px 22px; border-top:1px solid #e4e9ef; }
+.source-dialog .payment-note { grid-column:1/-1; }
+.source-dialog .payment-history form { display:grid; gap:8px; }
+.source-dialog .payment-history form button { justify-self:start; }
+.source-dialog dl { display:grid; grid-template-columns:minmax(120px,.5fr) minmax(0,1fr); gap:8px 16px; margin:0; }
+.source-dialog dt { font-weight:700; color:#35485a; }
+.source-dialog dd { margin:0; }
+.payable-tool-form { align-items:end; gap:14px; padding:16px; }
+.payable-tool-form > strong { align-self:center; }
+.payable-create { padding:16px; gap:14px; }
+.comercial-page .inline-remove { display:inline-flex; align-items:center; min-height:30px; padding:5px 10px; border:1px solid #e5a7a7; border-radius:7px; color:#a61b1b; background:#fff; width:auto; }
+.source-dialog-trigger { min-height:36px; font-size:12px; }
+@media(max-width:760px) {
+ .source-dialog .source-table-update,.source-dialog .employee-table-update,.source-dialog .machine-table-update,.source-dialog .compras-form { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .source-dialog .payment-management,.source-dialog .source-row-panel { padding:16px; }
+ .source-dialog-heading { padding-left:16px; }
+ .comercial-page .section-heading-actions { margin-left:0; justify-content:flex-start; }
+}
+@media(max-width:560px) {
+ .source-dialog .source-table-update,.source-dialog .employee-table-update,.source-dialog .machine-table-update,.source-dialog .compras-form { grid-template-columns:1fr; }
+ .source-dialog dl { grid-template-columns:1fr; gap:4px; }
+ .source-dialog dd { margin-bottom:10px; }
+ .source-dialog .payment-management-heading { flex-direction:column; }
+ .source-dialog .payment-management-heading > div:last-child { text-align:left; }
+ .comercial-page .header-payables-link { width:auto; }
+}

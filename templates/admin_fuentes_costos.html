@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260929-uat2') }}">
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260929-uat2') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260930-uat-ui') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260930-uat-ui') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -23,7 +23,7 @@
       </form>
       <a class="secondary-link" href="{{ url_for('admin_comercial.panel') }}#costos">Volver a Costos y precios</a>
       <a class="secondary-link" href="{{ url_for('admin_compras.panel') }}">Proveedores y compras</a>
-      <a class="comercial-primary header-payables-link" href="{{ url_for('admin_comercial.cuentas_pagar') }}">Pagos y vencimientos</a>
+      <a class="secondary-link header-payables-link" href="{{ url_for('admin_comercial.cuentas_pagar') }}">Pagos y vencimientos</a>
       <div class="comercial-safe"><strong>Entorno interno</strong><span>No publica ni sincroniza canales.</span></div>
     </div>
   </header>
@@ -146,13 +146,13 @@
 
   <section class="comercial-section" id="empleados">
     <div class="section-heading"><div><span class="section-number">3</span><h2>Empleados y mano de obra</h2></div><div class="section-heading-actions"><p>La tarifa se calcula con el costo laboral mensual y las horas realmente productivas.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='empleados') }}">Importar empleados</a><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='recursos') }}">Importar recursos</a></div></div>
-    <form class="labor-general-config" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+    <details class="source-catalog uat-form-editor"><summary>Estimación general del costo laboral</summary>    <form class="labor-general-config" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="configurar_porcentaje_costo_laboral">
       <div class="labor-general-copy"><strong>Estimación general del costo laboral</strong><span>Se aplica sobre el sueldo base y queda versionada para {{ unidad_activa.nombre }}.</span></div>
       <label><span>Porcentaje general</span><div class="percent-input"><input name="porcentaje_cargas_general" inputmode="decimal" value="{{ numero_decimal_limpio(configuracion_costo_laboral.porcentaje_cargas) if configuracion_costo_laboral else 0 }}" required><span>%</span></div></label>
       <label><span>Observación <small>opcional</small></span><input name="observacion" placeholder="Ej. estimación agosto"></label>
       <button class="table-action" type="submit">Guardar nueva versión</button>
-    </form>
+    </form></details>
     <details class="source-catalog uat-form-editor"><summary>Crear empleado</summary><form class="comercial-form form-source-employee" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
       <input type="hidden" name="accion" value="crear_empleado">
       <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
@@ -257,7 +257,14 @@
       <label><span>Mantenimiento mensual</span><div class="money-input"><span>$</span><input name="mantenimiento_mensual" inputmode="decimal" value="0"></div></label><label><span>Otros costos mensuales</span><div class="money-input"><span>$</span><input name="otros_costos_mensuales" inputmode="decimal" value="0"></div></label><label><span>Horas productivas mensuales</span><input name="horas_productivas_mensuales" inputmode="decimal" required></label>
       <button class="comercial-primary" type="submit">Crear máquina y tarifa</button>
     </form></details>
-    {% if maquinas %}<details class="source-catalog"><summary><span>Ver máquinas cargadas</span><strong>{{ maquinas|length }}</strong></summary><div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Código</th><th>Máquina</th><th>Categoría</th><th>Estado</th><th>Costo hora</th><th>Costo minuto</th><th>Versión</th></tr></thead><tbody>{% for maquina in maquinas %}{% set vigente = maquina.versiones_costo|selectattr('vigente')|first %}<tr><td><strong>{{ maquina.codigo }}</strong></td><td>{{ maquina.nombre }}</td><td>{{ maquina.categoria }}</td><td><span class="status status-draft">{{ 'Activa' if maquina.activo else 'Preparada' }}</span></td><td>{% if vigente %}$ {{ formatear_centavos_ars(vigente.costo_hora_centavos) }}{% else %}—{% endif %}</td><td>{% if vigente %}$ {{ formatear_centavos_ars(vigente.costo_minuto_centavos) }}{% else %}—{% endif %}</td><td>{{ 'v' ~ vigente.numero_version if vigente else '—' }}</td></tr>{% endfor %}</tbody></table></div></details>{% else %}<p class="empty-card">Todavía no hay máquinas cargadas.</p>{% endif %}
+    {% if maquinas %}<details class="source-catalog"><summary><span>Ver máquinas cargadas</span><strong>{{ maquinas|length }}</strong></summary><div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Código</th><th>Máquina</th><th>Categoría</th><th>Estado</th><th>Costo hora</th><th>Costo minuto</th><th>Versión</th><th>Acciones</th></tr></thead><tbody>{% for maquina in maquinas %}{% set vigente = maquina.versiones_costo|selectattr('vigente')|first %}<tr><td><strong>{{ maquina.codigo }}</strong></td><td>{{ maquina.nombre }}</td><td>{{ maquina.categoria }}</td><td><span class="status status-draft">{{ 'Activa' if maquina.activo else 'Preparada' }}</span></td><td>{% if vigente %}$ {{ formatear_centavos_ars(vigente.costo_hora_centavos) }}{% else %}—{% endif %}</td><td>{% if vigente %}$ {{ formatear_centavos_ars(vigente.costo_minuto_centavos) }}{% else %}—{% endif %}</td><td>{{ 'v' ~ vigente.numero_version if vigente else '—' }}</td><td><button class="source-dialog-trigger" type="button" data-source-dialog>Gestionar</button><dialog class="source-dialog"><button class="source-dialog-close" type="button" aria-label="Cerrar">×</button><div class="source-row-panel"><form class="source-table-update machine-table-update" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
+      <input type="hidden" name="accion" value="actualizar_costo_maquina"><input type="hidden" name="unidad_negocio_id" value="{{ unidad_activa.id }}"><input type="hidden" name="moneda" value="ARS">
+      <input type="hidden" name="maquina_id" value="{{ maquina.id }}"><label><span>Nombre</span><input name="nombre" value="{{ maquina.nombre }}" maxlength="200" required></label><label><span>Categoría</span><input name="categoria" value="{{ maquina.categoria }}" maxlength="100" required></label>
+      <label><span>Valor de adquisición</span><div class="money-input"><span>$</span><input name="valor_adquisicion" inputmode="decimal" required value="{{ numero_decimal_limpio(vigente.valor_adquisicion_centavos / 100) if vigente else "" }}"></div></label><label><span>Valor residual</span><div class="money-input"><span>$</span><input name="valor_residual" inputmode="decimal" value="{{ numero_decimal_limpio(vigente.valor_residual_centavos / 100) if vigente else "" }}"></div></label><label><span>Vida útil (horas)</span><input name="vida_util_horas" inputmode="decimal" required value="{{ numero_decimal_limpio(vigente.vida_util_horas) if vigente else "" }}"></label>
+      <label><span>Potencia kW</span><input name="potencia_kw" inputmode="decimal" value="{{ numero_decimal_limpio(vigente.potencia_kw) if vigente else "" }}"></label><label><span>Factor de carga %</span><input name="factor_carga_pct" inputmode="decimal" value="{{ numero_decimal_limpio(vigente.factor_carga_pct) if vigente else "" }}"></label><label><span>Costo por kWh</span><div class="money-input"><span>$</span><input name="costo_kwh" inputmode="decimal" value="{{ numero_decimal_limpio(vigente.costo_kwh_centavos / 100) if vigente else "" }}"></div></label>
+      <label><span>Mantenimiento mensual</span><div class="money-input"><span>$</span><input name="mantenimiento_mensual" inputmode="decimal" value="{{ numero_decimal_limpio(vigente.mantenimiento_mensual_centavos / 100) if vigente else "" }}"></div></label><label><span>Otros costos mensuales</span><div class="money-input"><span>$</span><input name="otros_costos_mensuales" inputmode="decimal" value="{{ numero_decimal_limpio(vigente.otros_costos_mensuales_centavos / 100) if vigente else "" }}"></div></label><label><span>Horas productivas mensuales</span><input name="horas_productivas_mensuales" inputmode="decimal" required value="{{ numero_decimal_limpio(vigente.horas_productivas_mensuales) if vigente else "" }}"></label>
+      <label><span>Estado interno</span><select name="activo"><option value="0" {% if not maquina.activo %}selected{% endif %}>Preparada</option><option value="1" {% if maquina.activo %}selected{% endif %}>Activa</option></select></label><label><span>Observación de la versión</span><input name="observacion" maxlength="500"></label><button class="table-action" type="submit">Guardar nueva versión</button>
+    </form><details class="source-table-history"><summary>Historial de tarifas ({{ maquina.versiones_costo|length }})</summary><div class="mini-history">{% for version in maquina.versiones_costo|sort(attribute="numero_version", reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.vigente_desde.strftime("%d/%m/%Y") }} · {{ "Vigente" if version.vigente else "Histórica" }}</span><strong>$ {{ formatear_centavos_ars(version.costo_hora_centavos) }}/h · $ {{ formatear_centavos_ars(version.costo_minuto_centavos) }}/min</strong></div>{% endfor %}</div></details></div></dialog></td></tr>{% endfor %}</tbody></table></div></details>{% else %}<p class="empty-card">Todavía no hay máquinas cargadas.</p>{% endif %}
   </section>
 
   <section class="comercial-section" id="costos-fijos">
@@ -361,7 +368,7 @@
         {% endfor %}
       </div>
     </details>
-    <div class="payables-shortcut" id="cuentas-pagar"><div><strong>Pagos, saldos y vencimientos</strong><span>{{ obligaciones_costos|length }} obligaciones · gestión administrativa independiente</span></div><a class="comercial-primary" href="{{ url_for('admin_comercial.cuentas_pagar') }}">Abrir cuentas a pagar</a></div>
+    <div class="payables-shortcut" id="cuentas-pagar"><div><strong>Pagos, saldos y vencimientos</strong><span>{{ obligaciones_costos|length }} obligaciones · gestión administrativa independiente</span></div><a class="secondary-link" href="{{ url_for('admin_comercial.cuentas_pagar') }}">Abrir cuentas a pagar</a></div>
     <details class="source-catalog payable-costs legacy-payables" id="cuentas-pagar-detalle">
       <summary><span>Pagos, saldos y vencimientos</span><strong>{{ obligaciones_costos|length }}</strong></summary>
       <div class="payable-cost-body">
