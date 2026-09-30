@@ -55,6 +55,7 @@
       boton.textContent = resumen ? resumen.textContent.trim() : "Gestionar";
       const dialogo = document.createElement("dialog");
       dialogo.className = "source-dialog";
+      if (detalle.classList.contains("proveedor-detalle")) dialogo.classList.add("provider-dialog");
       const cerrar = document.createElement("button");
       cerrar.type = "button";
       cerrar.className = "source-dialog-close";
@@ -127,6 +128,12 @@
       const codigo = document.createElement("small");
       nombre.textContent = fila && fila.cells[1] ? fila.cells[1].textContent.trim() : "Gestionar registro";
       codigo.textContent = fila && fila.cells[0] ? fila.cells[0].textContent.trim() : "";
+      if (dialogo.classList.contains("provider-dialog")) {
+        const etiqueta = document.createElement("span");
+        etiqueta.className = "provider-dialog-eyebrow";
+        etiqueta.textContent = "Proveedor";
+        titulo.append(etiqueta);
+      }
       titulo.append(nombre, codigo);
       dialogo.prepend(titulo);
     }

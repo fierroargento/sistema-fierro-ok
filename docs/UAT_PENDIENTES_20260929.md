@@ -42,3 +42,8 @@ UAT siguiente: abrir/cancelar proveedor sin cambios; gestionar UAT-MAQ-001 y ver
 La barra lateral ya está validada. No se modifican producción, integraciones, scheduler ni estados de pedidos. La cobertura visual de fichas técnicas y otros formularios no incluidos aquí sigue pendiente de revisión; no se da por resuelta por estas reglas compartidas.
 
 Validación local del bloque: 57 pruebas de gestión, aislamiento, tarifas, cuentas a pagar y Compras; sintaxis JavaScript y compilación Python/Jinja correctas. El navegador de pruebas no pudo instalarse en este entorno; no se afirma validación visual ni deploy.
+
+
+### Ajuste tras capturas del 30/09 20:04 UTC
+
+La emergente funciona, pero su presentación anterior no queda aprobada. Se cambia Ver detalle por Gestionar y se organiza la ficha en datos fiscales (incluye CUIT y estado), contacto y domicilio; las observaciones aparecen cuando existen. Editar proveedor se presenta como acción destacada y conserva formulario, token CSRF y Cancelar. Sin cambios de servidor o datos. Validación visual en staging pendiente.

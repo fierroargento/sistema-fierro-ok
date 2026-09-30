@@ -1077,3 +1077,35 @@
  .source-dialog .payment-management-heading > div:last-child { text-align:left; }
  .comercial-page .header-payables-link { width:auto; }
 }
+
+/* Ficha de proveedor: jerarquía propia sin heredar la letra de la tabla. */
+.source-dialog.provider-dialog { width:min(780px,calc(100vw - 32px)); font-size:14px; line-height:1.5; color:#243b53; }
+.provider-dialog .source-dialog-heading { background:linear-gradient(120deg,#eef8fc,#f8fafc); border-top:4px solid #278fb2; padding-top:18px; }
+.provider-dialog-eyebrow { display:block; color:#176b89; font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px; }
+.provider-dialog .source-dialog-heading h2 { font-size:21px; line-height:1.3; overflow-wrap:anywhere; }
+.provider-dialog .source-dialog-heading small { font-size:13px; }
+.provider-dialog .source-row-panel { background:#f8fafc; }
+.provider-overview { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.provider-dialog .provider-info-card { margin:0; padding:16px; background:#fff; border:1px solid #dce6ee; border-radius:10px; min-width:0; }
+.provider-info-card h3 { margin:0 0 13px; font-size:14px; color:#176b89; }
+.provider-dialog .provider-info-card dl { grid-template-columns:minmax(82px,.4fr) minmax(0,1fr); gap:10px 12px; font-size:13px; }
+.provider-info-card dt { font-size:12px; color:#62758a; }
+.provider-info-card dd { color:#243b53; overflow-wrap:anywhere; }
+.provider-address,.provider-note { grid-column:1/-1; }
+.provider-info-card p { margin:0; font-size:13px; overflow-wrap:anywhere; }
+.provider-state { display:inline-flex; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:700; }
+.provider-state.is-active { background:#e8f5ec; color:#25633a; }
+.provider-state.is-inactive { background:#edf0f4; color:#526173; }
+.provider-dialog .provider-editor { margin-top:18px; }
+.provider-dialog .provider-editor > summary { display:inline-flex; align-items:center; gap:8px; padding:9px 14px; border:1px solid #176b89; border-radius:8px; background:#176b89; color:#fff; font-size:13px; font-weight:700; cursor:pointer; list-style:none; }
+.provider-dialog .provider-editor > summary::before { content:"+"; font-size:18px; line-height:1; }
+.provider-dialog .provider-editor[open] > summary::before { content:"−"; }
+.provider-dialog .provider-editor > summary::-webkit-details-marker { display:none; }
+.provider-dialog .provider-editor[open] > form { padding:16px; background:#fff; border:1px solid #dce6ee; border-radius:10px; }
+.provider-dialog .dialog-footer { background:#fff; }
+@media(max-width:620px) {
+ .provider-overview { grid-template-columns:1fr; }
+ .provider-dialog .source-dialog-heading h2 { font-size:18px; }
+ .provider-dialog .provider-info-card dl { grid-template-columns:minmax(82px,.4fr) minmax(0,1fr); }
+ .provider-dialog .provider-info-card dd { margin-bottom:0; }
+}
