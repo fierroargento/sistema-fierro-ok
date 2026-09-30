@@ -6,6 +6,7 @@ from flask import Blueprint, redirect, render_template, request, send_file, sess
 
 from services.comercial_admin import procesar_accion_comercial
 from services.comercial_consultas import obtener_datos_panel_comercial
+from services.historial_costos_productos import obtener_historial_costo_producto
 from services.control_comercial_masivo import exportar_bandeja_excel
 from services.control_motores_comerciales import exportar_control_motores
 from services.plan_transicion_motores_comerciales import exportar_plan_transicion
@@ -219,6 +220,25 @@ def crear_blueprint_comercial(*, dependencias):
             ),
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(),
+        )
+
+    @blueprint.route("/admin/comercial/costos/<int:producto_id>")
+    @dependencias["login_required"]
+    def detalle_costo_producto(producto_id):
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        versiones = obtener_historial_costo_producto(
+            organizacion.id, unidad_activa.id, producto_id,
+            Costo=modelos["CostoProductoVersion"],
+        )
+        if not versiones:
+            return "No hay versiones de costo para este producto en la unidad seleccionada.", 404
+        return render_template(
+            "partials/costo_producto_historial.html", versiones=versiones,
+            producto=versiones[0].producto, unidad_activa=unidad_activa,
+            formatear_centavos_ars=formatear_centavos_ars,
         )
 
     @blueprint.route("/admin/comercial/guardar", methods=["POST"])

@@ -1,0 +1,15 @@
+{% macro numero(value) %}{{ ('%f'|format(value)).rstrip('0').rstrip('.') }}{% endmacro %}
+<div class="cost-product-overview"><strong>{{ producto.sku }} · {{ producto.descripcion }}</strong><span>{{ unidad_activa.nombre }}</span><p>Versiones guardadas y su desglose original. Los cambios en las fuentes no alteran estos importes.</p></div>
+<h3>Historial de costos ({{ versiones|length }})</h3>
+{% for version in versiones %}
+<details class="cost-product-version" {% if loop.first %}open{% endif %}>
+  <summary><span><strong>v{{ version.numero_version }}</strong> · {{ version.estado|capitalize }}<small>{{ version.fecha_creacion.strftime('%d/%m/%Y') }} · {{ version.tipo|capitalize }}</small></span><strong>{{ version.moneda }} $ {{ formatear_centavos_ars(version.costo_total_centavos) }}</strong></summary>
+  <div class="cost-product-version-body">
+  {% if version.vigente_desde %}<p>Vigente desde {{ version.vigente_desde.strftime('%d/%m/%Y') }}{% if version.vigente_hasta %} hasta {{ version.vigente_hasta.strftime('%d/%m/%Y') }}{% endif %}.</p>{% endif %}
+  {% if version.observacion %}<p>{{ version.observacion }}</p>{% endif %}
+  {% if version.detalles %}<div class="cost-product-table-wrap"><table class="comercial-table"><thead><tr><th>Concepto</th><th>Cantidad</th><th>Costo unitario</th><th>Merma</th><th>Subtotal</th></tr></thead><tbody>
+  {% for detalle in version.detalles %}<tr><td><strong>{{ detalle.concepto }}</strong><small>{{ detalle.tipo|replace('_', ' ')|capitalize }}{% if detalle.codigo %} · {{ detalle.codigo }}{% endif %}</small>{% if detalle.observacion %}<small>{{ detalle.observacion }}</small>{% endif %}</td><td>{{ numero(detalle.cantidad) }} {{ detalle.unidad_medida }}</td><td>$ {{ formatear_centavos_ars(detalle.costo_unitario_centavos) }}</td><td>{{ numero(detalle.porcentaje_merma) }}%</td><td>$ {{ formatear_centavos_ars(detalle.subtotal_centavos) }}</td></tr>{% endfor %}
+  </tbody></table></div>{% else %}<p>Esta versión no tiene desglose guardado.</p>{% endif %}
+  </div>
+</details>
+{% endfor %}

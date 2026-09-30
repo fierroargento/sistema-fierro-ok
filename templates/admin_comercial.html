@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='costo_producto_dialog.css', v='20260930-history') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='costo_producto_dialog.js', v='20260930-history') }}" defer></script>
+
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260929-uat2') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_comercial.js', v='20260929-uat2') }}" defer></script>
 {% endblock %}
@@ -200,9 +203,9 @@
       <label><span>Costo base</span><div class="money-input"><span>$</span><input name="costo_base" inputmode="decimal" placeholder="0,00" required></div></label>
       <button class="comercial-primary" type="submit">Crear versión</button>
     </form></details>
-    {% else %}<div class="prerequisite-warning">Incorporá y activá al menos un producto en un catálogo antes de registrar costos.</div>{% endif %}
+    {% else %}<div class="prerequisite-warning">La carga manual requiere un producto activo en un catálogo de esta unidad. Esto no bloquea el cálculo desde una ficha técnica.{% if costos %} Podés consultar las versiones existentes con Gestionar.{% endif %}</div>{% endif %}
     <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Producto</th><th>Unidad</th><th>Versión</th><th class="numeric">Costo</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
-      {% for c in costos %}<tr><td><strong>{{ c.producto.sku }}</strong></td><td>{{ c.unidad_negocio.nombre if c.unidad_negocio else 'General' }}</td><td>v{{ c.numero_version }}</td><td class="numeric">${{ '%.2f'|format(c.costo_total_centavos / 100) }}</td><td><span class="status status-{{ 'active' if c.vigente else 'draft' }}">{{ c.estado }}</span></td><td>{% if not c.vigente %}<form method="post" action="{{ url_for('admin_comercial.guardar') }}"><input type="hidden" name="accion" value="activar_costo"><input type="hidden" name="costo_id" value="{{ c.id }}"><button class="table-action">Activar</button></form>{% else %}<span class="current-label">Vigente</span>{% endif %}</td></tr>{% else %}<tr><td class="empty-state" colspan="6">Todavía no hay versiones de costos.</td></tr>{% endfor %}
+      {% for c in costos %}<tr><td><strong>{{ c.producto.sku }}</strong></td><td>{{ c.unidad_negocio.nombre if c.unidad_negocio else 'General' }}</td><td>v{{ c.numero_version }}</td><td class="numeric">${{ '%.2f'|format(c.costo_total_centavos / 100) }}</td><td><span class="status status-{{ 'active' if c.vigente else 'draft' }}">{{ c.estado }}</span></td><td><div class="cost-product-actions"><button type="button" class="table-action" data-cost-history-url="{{ url_for('admin_comercial.detalle_costo_producto', producto_id=c.producto_id) }}">Gestionar</button>{% if not c.vigente %}<form method="post" action="{{ url_for('admin_comercial.guardar') }}"><input type="hidden" name="accion" value="activar_costo"><input type="hidden" name="costo_id" value="{{ c.id }}"><button class="table-action">Activar</button></form>{% else %}<span class="current-label">Vigente</span>{% endif %}</div></td></tr>{% else %}<tr><td class="empty-state" colspan="6">Todavía no hay versiones de costos.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
 
@@ -307,5 +310,6 @@
       {% for i in items %}<tr><td><strong>{{ i.lista_precio.nombre }}</strong></td><td>{{ i.catalogo_producto.nombre_comercial }}</td><td class="numeric">${{ '%.2f'|format(i.precio_neto_sugerido_centavos / 100) }}</td><td class="numeric">${{ '%.2f'|format(i.precio_elegido_centavos / 100) }}</td><td class="numeric">${{ '%.2f'|format(i.impuestos_centavos / 100) }}</td><td class="numeric price-final">${{ '%.2f'|format(i.precio_final_centavos / 100) }}</td><td class="numeric">${{ '%.2f'|format(i.margen_centavos / 100) }}<small>{{ ('%.2f'|format(i.margen_pct|float)).rstrip('0').rstrip('.') }}%</small></td><td><span class="status status-{{ 'active' if i.vigente else 'draft' }}">{{ i.estado }}</span></td><td>{% if not i.vigente %}<form method="post" action="{{ url_for('admin_comercial.guardar') }}"><input type="hidden" name="accion" value="activar_precio"><input type="hidden" name="lista_precio_id" value="{{ i.lista_precio_id }}"><input type="hidden" name="item_id" value="{{ i.id }}"><button class="table-action">Activar</button></form>{% else %}<span class="current-label">Vigente</span>{% endif %}</td></tr>{% else %}<tr><td class="empty-state" colspan="9">Todavía no hay precios calculados.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
+{% include "partials/costo_producto_dialog.html" %}
 </main>
 {% endblock %}

@@ -1,0 +1,24 @@
+.cost-product-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.cost-product-dialog { width:min(880px,calc(100vw - 32px)); max-height:calc(100dvh - 40px); padding:0; border:1px solid #cbd8e5; border-radius:16px; color:#203c54; background:#fff; box-shadow:0 24px 70px #102f4f40; }
+.cost-product-dialog[open] { display:flex; flex-direction:column; }
+.cost-product-dialog::backdrop { background:#102b4566; }
+.cost-product-dialog-head { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:20px 24px; background:#edf6fc; border-bottom:1px solid #d5e3ef; }
+.cost-product-dialog-head small { color:#397394; }
+.cost-product-dialog-head h2 { margin:4px 0 0; font-size:22px; }
+.cost-product-close { flex:0 0 36px; width:36px; height:36px; padding:0; border:1px solid #bdd3e4; border-radius:9px; background:white; color:#234c69; font-size:24px; cursor:pointer; }
+.cost-product-dialog-body { padding:22px 24px; overflow:auto; min-height:0; font-size:14px; }
+.cost-product-overview strong { display:block; font-size:18px; overflow-wrap:anywhere; }
+.cost-product-overview span { display:block; margin-top:6px; color:#60758b; }
+.cost-product-overview p { line-height:1.5; }
+.cost-product-version { margin:12px 0; border:1px solid #d7e2ec; border-radius:10px; overflow:hidden; }
+.cost-product-version summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; background:#f4f8fc; cursor:pointer; }
+.cost-product-version summary small,.cost-product-version td small { display:block; margin-top:5px; color:#61768b; }
+.cost-product-version-body { padding:12px 16px; }
+.cost-product-table-wrap { max-width:100%; overflow-x:auto; }
+.cost-product-table-wrap table { min-width:560px; }
+.cost-product-table-wrap td:first-child { min-width:160px; max-width:280px; white-space:normal; overflow-wrap:anywhere; }
+.cost-product-dialog-foot { padding:14px 24px; border-top:1px solid #d7e2ec; display:flex; justify-content:flex-end; }
+.cost-product-dialog .table-action { width:auto; }
+@media(max-width:600px) { .cost-product-dialog-head,.cost-product-dialog-body { padding:16px; } .cost-product-version summary { align-items:flex-start; flex-direction:column; gap:8px; } }
+
+.cost-product-actions > button { width:auto; flex:0 0 auto; }
