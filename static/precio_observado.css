@@ -1,0 +1,12 @@
+#observed-price-dialog { width:min(640px,calc(100vw - 32px)); }
+#observed-price-form { display:flex; flex-direction:column; min-height:0; overflow:hidden; margin:0; }
+.observed-price-fields { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.observed-price-fields label { display:flex; flex-direction:column; gap:7px; color:#405a70; font-weight:700; }
+.observed-price-fields input { box-sizing:border-box; width:100%; min-width:0; padding:11px 12px; border:1px solid #bccddb; border-radius:8px; font-size:15px; }
+.observed-price-fields label:last-child { grid-column:1/-1; }
+#observed-price-dialog .cost-product-dialog-foot { gap:10px; }
+.return-control-form { margin:0; flex:0 0 auto; }
+.return-control-form button { cursor:pointer; }
+@media(max-width:600px) { .observed-price-fields { grid-template-columns:1fr; } }
+
+[data-observed-price] { display:block; margin-top:8px; width:auto; }

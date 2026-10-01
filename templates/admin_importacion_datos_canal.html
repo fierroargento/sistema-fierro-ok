@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260929-uat2') }}"><script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_importacion_costos.js') }}" defer></script>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='precio_observado.css', v='20261001-price') }}"><link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260929-uat2') }}"><script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_importacion_costos.js') }}" defer></script>{% endblock %}
 {% block content %}
 <main class="comercial-page import-page">
-  <header class="comercial-header"><div><p class="comercial-eyebrow">Importación comercial · {{ unidad_activa.nombre }}</p><h1>Datos del canal: {{ tipo }}</h1><p class="comercial-intro">Carga observaciones históricas por publicación sin modificar reglas ni conectarse al canal.</p></div><a class="secondary-link" href="{{ url_for('admin_comercial.panel') }}#control-comercial">Volver</a></header>
+  <header class="comercial-header"><div><p class="comercial-eyebrow">Importación comercial · {{ unidad_activa.nombre }}</p><h1>Datos del canal: {{ tipo }}</h1><p class="comercial-intro">Carga observaciones históricas por publicación sin modificar reglas ni conectarse al canal.</p></div><form class="return-control-form" method="get" action="{{ url_for('admin_comercial.panel') }}"><button class="secondary-link" type="submit" name="seccion" value="control-comercial">Volver al control comercial</button></form></header>
   {% if error %}<div class="comercial-message comercial-message-error">{{ error }}</div>{% endif %}
   <div class="export-actions"><a class="section-link" href="{{ url_for('admin_comercial.plantilla_importacion_datos_comerciales_canal', tipo=tipo) }}">Descargar plantilla de {{ tipo }}</a></div>
   <div class="comercial-safe"><strong>Importación interna desconectada</strong><span>No actualiza publicaciones, precios, promociones ni políticas del canal.</span></div>

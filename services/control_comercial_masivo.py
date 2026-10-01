@@ -106,7 +106,7 @@ def construir_bandeja(simulaciones, items, promociones=(), observaciones=()):
         precio_efectivo = activa.precio_promocional_centavos if activa else precio_observado.precio_publicado_centavos if precio_observado else precio_base
         fila = evaluar_control(
             simulacion, precio_efectivo,
-            "promocion_observada" if activa else "precio_importado" if precio_observado else "lista_interna" if item else None,
+            "promocion_observada" if activa else ("precio_manual" if getattr(precio_observado, "origen", "importacion") == "manual" else "precio_importado") if precio_observado else "lista_interna" if item else None,
             promocion=activa, precio_base_centavos=precio_base,
         )
         fila["promocion_observada"] = promocion is not None

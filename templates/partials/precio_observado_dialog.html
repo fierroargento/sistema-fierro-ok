@@ -1,0 +1,16 @@
+<dialog id="observed-price-dialog" class="cost-product-dialog" aria-labelledby="observed-price-title">
+  <header class="cost-product-dialog-head"><div><small>Datos del canal</small><h2 id="observed-price-title">Actualizar precio observado</h2></div><button type="button" class="cost-product-close" data-price-close aria-label="Cerrar">×</button></header>
+  <form method="post" action="{{ url_for('admin_comercial.guardar_precio_observado') }}" id="observed-price-form">
+    <div class="cost-product-dialog-body">
+      <div class="cost-product-overview"><strong data-price-context></strong><p>Registrá el precio que observaste en el canal. Se conserva el historial y no se modifica la publicación externa.</p></div>
+      <input type="hidden" name="unidad_negocio_id" value="{{ unidad_activa.id }}">
+      <input type="hidden" name="lista_precio_id"><input type="hidden" name="catalogo_producto_id"><input type="hidden" name="observacion_id">
+      <div class="observed-price-fields">
+        <label>Cuenta del canal<input name="cuenta_codigo" maxlength="100" required></label>
+        <label>Referencia de publicación<input name="referencia_publicacion" maxlength="160" required></label>
+        <label>Precio publicado ($)<input name="precio_publicado" inputmode="decimal" required autocomplete="off"></label>
+      </div>
+    </div>
+    <footer class="cost-product-dialog-foot"><button type="button" class="table-action" data-price-close>Cancelar</button><button type="submit" class="comercial-primary">Confirmar precio observado</button></footer>
+  </form>
+</dialog>

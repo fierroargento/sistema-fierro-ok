@@ -65,6 +65,7 @@ def _centavos(valor, nombre, errores):
     else: texto = texto.replace(",", ".")
     try: numero = Decimal(texto)
     except InvalidOperation: errores.append(f"{nombre} no es valido"); return None
+    if not numero.is_finite(): errores.append(f"{nombre} no es valido"); return None
     if numero < 0: errores.append(f"{nombre} no puede ser negativo"); return None
     return int((numero * 100).quantize(Decimal("1")))
 
@@ -119,7 +120,7 @@ def previsualizar(filas, mapeo, tipo, *, organizacion_id, unidad_negocio_id, mod
     return resultado
 
 
-def aplicar(vista, tipo, *, organizacion_id, unidad_negocio_id, lote_id, usuario, modelos, db_session):
+def aplicar(vista, tipo, *, organizacion_id, unidad_negocio_id, lote_id, usuario, modelos, db_session, origen="importacion"):
     conteos = {"creados": 0, "actualizados": 0, "sin_cambios": 0, "rechazados": 0}
     try:
         for fila in vista:
@@ -139,7 +140,7 @@ def aplicar(vista, tipo, *, organizacion_id, unidad_negocio_id, lote_id, usuario
                 registro = modelos["ObservacionComercialCanal"](
                     organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
                     lista_precio_id=fila["lista_id"], catalogo_producto_id=fila["inclusion_id"],
-                    tipo=TIPOS_MODELO[tipo], origen="importacion", lote_importacion_id=lote_id,
+                    tipo=TIPOS_MODELO[tipo], origen=origen, lote_importacion_id=lote_id,
                     creado_por_usuario_id=getattr(usuario, "id", None), creado_por_username=getattr(usuario, "username", None),
                     **datos,
                 )

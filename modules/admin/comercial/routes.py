@@ -6,6 +6,7 @@ from flask import Blueprint, redirect, render_template, request, send_file, sess
 
 from services.comercial_admin import procesar_accion_comercial
 from services.comercial_consultas import obtener_datos_panel_comercial
+from services.precio_observado_manual import registrar_precio_manual
 from services.historial_costos_productos import obtener_historial_costo_producto
 from services.control_comercial_masivo import exportar_bandeja_excel
 from services.control_motores_comerciales import exportar_control_motores
@@ -221,6 +222,23 @@ def crear_blueprint_comercial(*, dependencias):
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(),
         )
+
+    @blueprint.route("/admin/comercial/precio-observado", methods=["POST"])
+    @dependencias["login_required"]
+    def guardar_precio_observado():
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        try:
+            unidad_activa, _unidades = contexto_comercial(organizacion)
+            creado = registrar_precio_manual(request.form, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, usuario=usuario, modelos=modelos, db_session=db.session)
+            if creado:
+                dependencias["registrar_auditoria"]("Registró precio observado manual", entidad="catalogo_producto", entidad_id=int(request.form["catalogo_producto_id"]), detalle=f"Unidad {unidad_activa.id}; lista {request.form['lista_precio_id']}; sin publicación externa.")
+            mensaje = "Precio observado registrado. El historial anterior se conserva." if creado else "El precio observado ya tenía esos datos. No se creó otro registro."
+            return redirect(url_for("admin_comercial.panel", ok=mensaje, _anchor="control-comercial"))
+        except (ValueError, TypeError) as error:
+            db.session.rollback()
+            return redirect(url_for("admin_comercial.panel", error=str(error), _anchor="control-comercial"))
 
     @blueprint.route("/admin/comercial/costos/<int:producto_id>")
     @dependencias["login_required"]
