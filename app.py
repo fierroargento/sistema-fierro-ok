@@ -5521,6 +5521,22 @@ def ml_upsert_pedido_desde_order(
     )
 
     if not prevalidacion.get("continuar"):
+        # Un pack ya enviado puede seguir incompleto en Fierro.
+        # Completar solo artículos del pedido existente, sin recrearlo
+        # ni alterar su estado, envío, etiqueta o contacto.
+        if prevalidacion.get("motivo") == "Mercado Envíos ya enviado":
+            existente = ml_pedido_existente_operativo(order, shipment)
+            if existente is not None:
+                from services.ml_pack_items import ml_completar_order_pack
+                order_completo = ml_completar_order_pack(
+                    order, api_context.get, api_context.seller_id,
+                    (order.get("shipping") or {}).get("id") or shipment.get("id") or "",
+                )
+                ml_sincronizar_items_pedido_service(
+                    existente, order_completo, shipment, PedidoItem, db,
+                    ml_es_mercado_envios_order,
+                )
+                return existente, False, "Artículos del envío existente sincronizados"
         return (
             prevalidacion.get("pedido"),
             prevalidacion.get("creado", False),
@@ -5542,6 +5558,15 @@ def ml_upsert_pedido_desde_order(
 
         if pack_operativo:
             id_operativo_ml = pack_operativo
+
+    if ml_es_mercado_envios_order(order, shipment) and order.get("pack_id"):
+        from services.ml_pack_items import ml_completar_order_pack
+        order = ml_completar_order_pack(
+            order,
+            api_context.get,
+            api_context.seller_id,
+            (order.get("shipping") or {}).get("id") or shipment.get("id") or "",
+        )
 
     billing_info = ml_obtener_billing_info(
         order_id,
@@ -8984,9 +9009,11 @@ def resync_ml_pedido(id):
             or ""
         ).strip()
         if order_id:
-            order = ml_obtener_order_de_pedido(
+            from services.ml_pack_items import ml_obtener_order_para_pedido
+            order = ml_obtener_order_para_pedido(
                 pedido,
-                order_id,
+                api_context.get,
+                api_context.seller_id,
             )
             if order:
                 print(
@@ -12107,3 +12134,4 @@ try:
         print("[SCHEDULER] Deshabilitado por SCHEDULER_ENABLED=false")
 except Exception as e:
     print("[SCHEDULER] No se pudo iniciar:", e)
+
