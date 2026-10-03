@@ -10,3 +10,7 @@
 @media(max-width:600px) { .observed-price-fields { grid-template-columns:1fr; } }
 
 [data-observed-price] { display:block; margin-top:8px; width:auto; }
+
+.observed-price-fields input[aria-invalid="true"] { border-color:#b42318; outline-color:#b42318; }
+.observed-price-error { color:#b42318; font-weight:600; line-height:1.4; }
+.observed-price-error[hidden] { display:none; }

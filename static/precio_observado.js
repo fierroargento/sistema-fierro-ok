@@ -4,6 +4,22 @@
   const form = document.getElementById("observed-price-form");
   let trigger;
   if (dialog && form) {
+    const price = form.elements.namedItem("precio_publicado");
+    const error = document.getElementById("observed-price-error");
+    function validPrice(value) {
+      let number = value.trim().replace(/ /g, "");
+      number = number.includes(",") && number.includes(".")
+        ? number.replace(/\./g, "").replace(/,/g, ".")
+        : number.replace(/,/g, ".");
+      return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(number)
+        && Number.isFinite(Number(number)) && Number(number) >= 0;
+    }
+    function clearPriceError() {
+      price.removeAttribute("aria-invalid");
+      if (error) error.hidden = true;
+    }
+    form.addEventListener("reset", clearPriceError);
+    price.addEventListener("input", clearPriceError);
     document.querySelectorAll("[data-observed-price]").forEach(function (button) {
       button.addEventListener("click", function () {
         trigger = button;
@@ -24,6 +40,14 @@
     });
     dialog.addEventListener("close", function () { form.reset(); if (trigger) trigger.focus({ preventScroll: true }); });
     form.addEventListener("submit", function (event) {
+      if (!validPrice(price.value)) {
+        event.preventDefault();
+        price.setAttribute("aria-invalid", "true");
+        if (error) error.hidden = false;
+        price.focus();
+        return;
+      }
+      clearPriceError();
       if (!window.confirm("¿Confirmás el nuevo precio observado? Se guardará en el historial interno.")) event.preventDefault();
     });
   }

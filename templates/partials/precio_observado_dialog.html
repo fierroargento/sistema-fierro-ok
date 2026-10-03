@@ -8,7 +8,7 @@
       <div class="observed-price-fields">
         <label>Cuenta del canal<input name="cuenta_codigo" maxlength="100" required></label>
         <label>Referencia de publicación<input name="referencia_publicacion" maxlength="160" required></label>
-        <label>Precio publicado ($)<input name="precio_publicado" inputmode="decimal" required autocomplete="off"></label>
+        <label>Precio publicado ($)<input name="precio_publicado" inputmode="decimal" required autocomplete="off" aria-describedby="observed-price-error"><small id="observed-price-error" class="observed-price-error" role="alert" hidden>Ingresá un precio válido, igual o mayor que cero.</small></label>
       </div>
     </div>
     <footer class="cost-product-dialog-foot"><button type="button" class="table-action" data-price-close>Cancelar</button><button type="submit" class="comercial-primary">Confirmar precio observado</button></footer>
