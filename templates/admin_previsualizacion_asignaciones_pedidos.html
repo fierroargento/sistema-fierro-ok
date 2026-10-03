@@ -43,8 +43,7 @@
         <button type="submit">Aprobar lote completo</button>
         {% else %}
         <input type="hidden" name="accion" value="aplicar_lote_asignaciones">
-        <input name="confirmacion" required autocomplete="off"
-               placeholder="Escribí ASIGNAR LOTE">
+        <input type="hidden" name="confirmacion" data-confirm-word="ASIGNAR LOTE" data-confirm-message="¿Aplicar el lote completo de asignaciones revisadas?">
         <button type="submit">Aplicar lote completo</button>
         {% endif %}
     </form>

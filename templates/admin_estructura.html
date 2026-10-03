@@ -220,7 +220,7 @@
                                   style="display:inline;">
                                 <input type="hidden" name="accion" value="aplicar_asignacion_pedido">
                                 <input type="hidden" name="propuesta_id" value="{{ propuesta.id }}">
-                                <input name="confirmacion" required placeholder="Escribí ASIGNAR">
+                                <input type="hidden" name="confirmacion" data-confirm-word="ASIGNAR" data-confirm-message="¿Aplicar la asignación aprobada a este pedido?">
                                 <button type="submit">Aplicar al pedido</button>
                             </form>
                             {% endif %}

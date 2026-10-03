@@ -12,7 +12,8 @@ def test_panel_permite_administrar_politicas_desconectadas():
     assert 'value="actualizar_politica_disponibilidad"' in panel
     assert 'value="politicas-disponibilidad"' in panel
     assert '"politicas-disponibilidad"' in rutas
-    assert "Escribí PREVISUALIZAR" in panel
+    assert 'data-confirm-word="PREVISUALIZAR"' in panel
+    assert "Escribí PREVISUALIZAR" not in panel
     assert 'name="vinculo_canal_comercial_id"' in panel
     assert "Cuenta empresarial exacta" in panel
     assert 'id="buscar-producto-politica"' in panel

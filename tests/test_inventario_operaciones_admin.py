@@ -62,7 +62,8 @@ def test_automatizacion_de_pedidos_queda_preparada_pero_bloqueada():
     servicio = Path("services/inventario_pedidos.py").read_text(encoding="utf-8")
     assert "Automatización de pedidos" in plantilla
     assert "Preparada, sin conexión productiva" in plantilla
-    assert "Escribí AUTOMATIZAR" in plantilla
+    assert 'data-confirm-word="AUTOMATIZAR"' in plantilla
+    assert "Escribí AUTOMATIZAR" not in plantilla
     assert "inventario físico inicial" in servicio
     assert "automatizacion_puede_mutar" in servicio
     assert "Simulador de pedidos" in plantilla
@@ -75,7 +76,8 @@ def test_ciclo_de_vida_del_inventario_es_explicito_y_seguro():
     plantilla = leer("templates/admin_inventario.html")
     servicio = leer("services/inventario_operaciones_admin.py")
     assert "actualizar_modulo_inventario" in plantilla
-    assert "Escribí ACTIVAR" in plantilla
+    assert 'data-confirm-word="ACTIVAR"' in plantilla
+    assert "Escribí ACTIVAR" not in plantilla
     assert "actualizar_ubicacion" in plantilla
     assert "actualizar_item" in plantilla
     assert '!= "ACTIVAR"' in servicio
