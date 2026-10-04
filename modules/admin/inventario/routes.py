@@ -154,6 +154,8 @@ def crear_blueprint_inventario(
             "configuracion-inventario",
             "operaciones-inventario",
             "existencias-inventario",
+            "movimientos-inventario",
+            "transferencias-inventario",
             "reservas-inventario",
             "conteos-inventario",
             "automatizacion-pedidos",
