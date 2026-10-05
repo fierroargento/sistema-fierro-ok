@@ -5926,6 +5926,25 @@ def ml_upsert_pedido_desde_order(
     )
 
     if not prevalidacion.get("continuar"):
+        if prevalidacion.get("motivo") == "Mercado Envíos ya enviado":
+            existente = ml_pedido_existente_operativo(
+                order, shipment,
+                organizacion_id=organizacion_id,
+                unidad_negocio_id=unidad_negocio_id,
+            )
+            if existente is not None:
+                from services.acceso_tenant_pedidos import validar_pedido_en_tenant
+                from services.ml_pack_items import ml_completar_order_pack
+                validar_pedido_en_tenant(existente, organizacion_id, unidad_negocio_id)
+                order_completo = ml_completar_order_pack(
+                    order, api_context.get, api_context.seller_id,
+                    (order.get("shipping") or {}).get("id") or shipment.get("id") or "",
+                )
+                ml_sincronizar_items_pedido_service(
+                    existente, order_completo, shipment, PedidoItem, db,
+                    ml_es_mercado_envios_order,
+                )
+                return existente, False, "Artículos del envío existente sincronizados"
         return (
             prevalidacion.get("pedido"),
             prevalidacion.get("creado", False),
@@ -5947,6 +5966,24 @@ def ml_upsert_pedido_desde_order(
 
         if pack_operativo:
             id_operativo_ml = pack_operativo
+
+    if ml_es_mercado_envios_order(order, shipment) and order.get("pack_id"):
+        from services.ml_pack_items import ml_completar_order_pack
+        order = ml_completar_order_pack(
+            order, api_context.get, api_context.seller_id,
+            (order.get("shipping") or {}).get("id") or shipment.get("id") or "",
+        )
+
+    existente = ml_pedido_existente_operativo(
+        order, shipment,
+        organizacion_id=organizacion_id,
+        unidad_negocio_id=unidad_negocio_id,
+    )
+    if existente is not None:
+        from services.acceso_tenant_pedidos import validar_pedido_en_tenant
+        validar_pedido_en_tenant(existente, organizacion_id, unidad_negocio_id)
+    estado_existente = existente.estado if existente is not None else None
+    etiqueta_existente = existente.etiqueta_archivo if existente is not None else None
 
     billing_info = ml_obtener_billing_info(
         order_id,
@@ -5977,6 +6014,9 @@ def ml_upsert_pedido_desde_order(
 
     pedido.organizacion_id = organizacion_id
     pedido.unidad_negocio_id = vinculo_cuenta.unidad_negocio_id
+    if existente is not None:
+        pedido.estado = estado_existente
+        pedido.etiqueta_archivo = etiqueta_existente
 
     cuenta_asignada = (
         ml_asignar_cuenta_ml_a_pedido_service(
@@ -6006,7 +6046,7 @@ def ml_upsert_pedido_desde_order(
     estado_anterior = pedido.estado
     actualizar_estado_automatico(pedido)
 
-    if not creado and estado_anterior != pedido.estado and estado_anterior != "Cargando Pedido":
+    if not creado and estado_anterior != pedido.estado:
         pedido.estado = estado_anterior
 
     ml_intentar_contacto_inicial_acordas_service(
@@ -9852,9 +9892,18 @@ def resync_ml_pedido(id):
             or ""
         ).strip()
         if order_id:
-            order = ml_obtener_order_de_pedido(
+            from services.acceso_tenant_pedidos import validar_pedido_en_tenant
+            from services.ml_pack_items import ml_obtener_order_para_pedido
+            vinculo = ml_vinculo_activo_cuenta(
+                api_context.cuenta, organizacion_id=pedido.organizacion_id,
+            )
+            validar_pedido_en_tenant(
+                pedido, vinculo.organizacion_id, vinculo.unidad_negocio_id,
+            )
+            order = ml_obtener_order_para_pedido(
                 pedido,
-                order_id,
+                api_context.get,
+                api_context.seller_id,
             )
             if order:
                 print(
