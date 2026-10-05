@@ -7,7 +7,7 @@
     <div class="internal-note"><strong>Solo lectura</strong><br>No consulta DUX, no modifica stock o precios y no publica en ningún canal.</div>
   </header>
   <nav class="inventory-tool-links" aria-label="Navegación de inventario"><a class="table-action" href="{{ url_for('admin_inventario.panel') }}">Volver a Inventario</a></nav>
-  {% if error %}<div class="alerta alerta-error" role="alert">{{ error }}</div>{% endif %}
+  {% if error %}<div class="alerta alerta-error alerta-roja" role="alert"><div><strong>Comparación rechazada:</strong><br>{{ error }}</div></div>{% endif %}
   <section class="source-section">
     <div class="section-heading"><div><h2>1. Cargar exportación DUX</h2></div><span class="status-pill">CSV · Solo lectura</span></div>
     <p>Columnas reconocidas: SKU/Código, Nombre/Producto, Stock/Existencia y Precio/Precio venta. Acepta CSV separado por punto y coma, coma o tabulación.</p>
