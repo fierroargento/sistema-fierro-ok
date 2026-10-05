@@ -1109,3 +1109,36 @@
  .provider-dialog .provider-info-card dl { grid-template-columns:minmax(82px,.4fr) minmax(0,1fr); }
  .provider-dialog .provider-info-card dd { margin-bottom:0; }
 }
+
+/* Certificación de Inventario: resultado, cobertura y evidencia. */
+.inventory-certification .certification-back { display:inline-flex; align-items:center; justify-content:center; min-height:38px; padding:8px 14px; text-decoration:none; white-space:nowrap; }
+.inventory-certification .certification-result { display:flex; align-items:center; gap:18px; margin-bottom:20px; padding:24px; border:1px solid #b8e4d0; border-radius:16px; background:#eefbf5; color:#176345; }
+.inventory-certification .certification-symbol { display:flex; align-items:center; justify-content:center; width:52px; height:52px; flex:0 0 52px; border-radius:50%; background:#d0efdf; font-size:28px; font-weight:800; }
+.inventory-certification .certification-result .eyebrow { margin:0 0 5px; font-size:11px; color:inherit; }
+.inventory-certification .certification-result h2 { margin:0 0 5px; font-size:26px; }
+.inventory-certification .certification-result p { margin:0; font-size:13px; line-height:1.5; }
+.inventory-certification .certification-total { margin-left:auto; min-width:88px; display:grid; text-align:center; gap:3px; }
+.inventory-certification .certification-total strong { font-size:32px; line-height:1; }
+.inventory-certification .certification-total span { font-size:12px; font-weight:700; }
+.inventory-certification .certification-result.needs-review { border-color:#f0c6c2; background:#fff7f6; color:#a32b20; }
+.inventory-certification .needs-review .certification-symbol { background:#fce0dc; }
+.inventory-certification .certification-events { display:flex; flex-wrap:wrap; gap:10px 24px; margin-top:16px; padding-top:14px; border-top:1px solid #e1e7ec; color:#667085; font-size:12px; }
+.inventory-certification .certification-events strong { margin-left:8px; color:#173248; }
+.inventory-certification .certification-description { margin:0 0 16px; color:#52657a; font-size:13px; line-height:1.6; }
+.inventory-certification .certification-boundaries { display:flex; flex-wrap:wrap; gap:10px; }
+.inventory-certification .certification-boundaries span { display:inline-flex; gap:8px; align-items:center; padding:9px 12px; border:1px solid #dce5ec; border-radius:9px; background:#f7f9fb; color:#52657a; font-size:12px; }
+.inventory-certification .certification-boundaries strong { color:#124e64; font-size:16px; }
+.inventory-certification .certification-note { margin:14px 0 0; color:#667085; font-size:12px; line-height:1.5; }
+.inventory-certification .certification-empty { padding:18px; border:1px solid #bfe5d1; border-radius:10px; background:#f2fbf6; color:#17633d; }
+.inventory-certification .certification-empty p { margin:5px 0 0; font-size:13px; }
+.inventory-certification .table-shell { margin:0; }
+.inventory-certification td { overflow-wrap:anywhere; }
+.inventory-certification .certification-evidence { display:flex; flex-wrap:wrap; align-items:center; gap:16px; }
+.inventory-certification .certification-evidence h2 { margin:0 0 6px; font-size:20px; }
+.inventory-certification .certification-evidence p { margin:0; font-size:13px; color:#667085; line-height:1.5; }
+.inventory-certification .certification-evidence form { margin:0 0 0 auto; }
+.inventory-certification .certification-fingerprint { flex-basis:100%; padding-top:14px; border-top:1px solid #e1e7ec; color:#667085; font-size:12px; }
+.inventory-certification .certification-fingerprint summary { cursor:pointer; }
+.inventory-certification .certification-fingerprint code { display:block; margin-top:10px; overflow-wrap:anywhere; }
+@media(max-width:900px) { .inventory-certification .summary-strip { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(max-width:600px) { .inventory-certification .admin-hero { align-items:flex-start; flex-direction:column; } .inventory-certification .certification-result { flex-wrap:wrap; padding:18px; } .inventory-certification .certification-result>div:not(.certification-total) { flex:1; min-width:150px; } .inventory-certification .certification-total { margin-left:70px; text-align:left; } .inventory-certification .summary-strip { grid-template-columns:repeat(2,minmax(0,1fr)); } .inventory-certification .section-heading { flex-wrap:wrap; gap:10px; } .inventory-certification .section-heading p { text-align:left; } .inventory-certification .certification-evidence form { margin-left:0; } }
