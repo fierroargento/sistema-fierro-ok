@@ -1150,3 +1150,9 @@
 
 .inventory-admin .inventory-tool-links { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 20px; }
 .inventory-admin .inventory-tool-links a { display:inline-flex; align-items:center; justify-content:center; min-height:38px; padding:8px 14px; text-decoration:none; font-size:12px; line-height:1.3; }
+
+/* Las acciones de Compras conservan aspecto de botón en todos sus estados. */
+.compras-page a.table-action,
+.compras-page a.table-action:hover,
+.compras-page a.table-action:focus,
+.compras-page a.table-action:active { text-decoration: none; }

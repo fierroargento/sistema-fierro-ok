@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260930-provider-dialog') }}"><script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260930-cancel-reset') }}" defer></script>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261006-compras-actions') }}"><script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20260930-cancel-reset') }}" defer></script>{% endblock %}
 {% block content %}<main class="comercial-page compras-page">
   <header class="comercial-header"><div><span class="eyebrow">ADMINISTRACIÓN · COMPRAS</span><h1>Proveedores y órdenes de compra</h1><p>Preparación interna tenant. Las recepciones todavía no impactan stock ni costos.</p></div><div><a class="secondary-link" href="{{ url_for('admin_compras.control_integral') }}">Descargar control integral</a><a class="secondary-link" href="{{ url_for('inicio') }}">Volver al inicio</a></div></header>
   {% if ok_feedback %}<div class="feedback feedback-ok">{{ ok_feedback }}</div>{% endif %}{% if error %}<div class="feedback feedback-error">{{ error }}</div>{% endif %}
