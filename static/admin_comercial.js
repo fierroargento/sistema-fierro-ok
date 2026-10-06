@@ -483,6 +483,9 @@
       });
     });
     document.querySelectorAll("dialog.inventory-dialog").forEach(function (dialogo) {
+      dialogo.addEventListener("close", function () {
+        dialogo.querySelectorAll("form").forEach(function (formulario) { formulario.reset(); });
+      });
       dialogo.addEventListener("click", function (evento) {
         if (evento.target === dialogo) dialogo.close();
       });
