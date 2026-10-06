@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Fierro App</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261006-treasury-menu') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261006-admin-tree') }}">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -30,7 +30,19 @@
             <a href="{{ url_for('historico') }}">Histórico</a>
             {% endif %}
             {% if rol_actual == "admin" %}
-            <div class="menu-section-label">Administración</div>
+            {% set tesoreria_abierta = request.endpoint == 'admin_comercial.cuentas_pagar' or (request.endpoint or '').startswith('admin_tesoreria.') %}
+            <details class="menu-group"{% if tesoreria_abierta %} open{% endif %}>
+                <summary>Administración</summary>
+                <div class="menu-children">
+                    <details class="menu-group menu-group-secondary"{% if tesoreria_abierta %} open{% endif %}>
+                        <summary>Tesorería</summary>
+                        <div class="menu-children">
+                            <a href="{{ url_for('admin_tesoreria.panel') }}">Panel de tesorería</a>
+                            <a href="{{ url_for('admin_comercial.cuentas_pagar') }}"{% if request.endpoint == 'admin_comercial.cuentas_pagar' %} aria-current="page"{% endif %}>Pagos y vencimientos</a>
+                        </div>
+                    </details>
+                </div>
+            </details>
             <a href="{{ url_for('admin_productos.panel') }}">Productos</a>
             <a href="{{ url_for('admin_estructura.panel') }}">Estructura</a>
             <a href="{{ url_for('admin_comercial.panel') }}">Comercial</a>
@@ -38,8 +50,6 @@
             <a href="{{ url_for('admin_inventario.panel') }}">Inventario</a>
             <a href="{{ url_for('admin_compras.panel') }}">Compras</a>
             <a href="{{ url_for('admin_produccion.panel') }}">Producción</a>
-            <a href="{{ url_for('admin_tesoreria.panel') }}">Tesorería</a>
-            <a class="menu-subitem" href="{{ url_for('admin_comercial.cuentas_pagar') }}">Pagos y vencimientos</a>
             <a href="{{ url_for('admin_contabilidad.panel') }}">Contabilidad</a>
             <a href="{{ url_for('admin_mantenimiento.panel') }}">Mantenimiento</a>
             <a href="{{ url_for('admin_personas.panel') }}">Personas</a>

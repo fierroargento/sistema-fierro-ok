@@ -2150,21 +2150,23 @@ a.btn-danger:hover {
     border-color: #e2e8f0;
 }
 
-/* Navegación administrativa: acceso directo a la pantalla existente de pagos. */
-.menu-section-label {
-    margin: 10px 8px 2px;
-    padding-top: 10px;
-    border-top: 1px solid rgba(255,255,255,0.20);
-    color: var(--fierro-sidebar-text-soft);
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: .04em;
-    text-transform: uppercase;
+/* Menú jerárquico de Administración y Tesorería. */
+.menu .menu-group { margin: 0; padding: 0; border: 0; background: transparent; }
+.menu .menu-group > summary {
+    padding: 10px 8px;
+    border-radius: 8px;
+    color: var(--fierro-sidebar-text);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
 }
-.menu a.menu-subitem {
-    margin-left: 8px;
-    padding: 8px 8px 8px 14px;
-    border-left: 2px solid rgba(255,255,255,0.35);
-    border-radius: 0 8px 8px 0;
-    font-size: 13px;
+.menu .menu-group > summary:hover { background: rgba(255,255,255,0.18); }
+.menu .menu-group > summary:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.menu .menu-children {
+    margin: 2px 0 4px 12px;
+    padding-left: 8px;
+    border-left: 1px solid rgba(255,255,255,0.35);
 }
+.menu .menu-group-secondary > summary,
+.menu .menu-children a { font-size: 13px; padding: 8px; }
+.menu .menu-children a[aria-current="page"] { background: rgba(255,255,255,0.18); }
