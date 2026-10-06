@@ -11,7 +11,10 @@
       const controller = new AbortController();
       pending = controller;
       trigger = button;
-      content.textContent = "Cargando versiones de costo…";
+      const priceHistory = button.dataset.historyKind === "precio";
+      dialog.querySelector("#cost-product-title").textContent = priceHistory ? "Historial de precios observados" : "Detalle e historial";
+      dialog.querySelector(".cost-product-dialog-head small").textContent = priceHistory ? "Control comercial · Solo lectura" : "Costos de producto";
+      content.textContent = priceHistory ? "Cargando precios observados…" : "Cargando versiones de costo…";
       dialog.showModal();
       try {
         const response = await fetch(button.dataset.costHistoryUrl, {
@@ -19,6 +22,7 @@
           headers: { "X-Requested-With": "XMLHttpRequest" }
         });
         if (response.redirected) throw new Error("La sesión venció. Volvé a iniciar sesión.");
+        if (response.status === 409) throw new Error("Cambió la unidad activa. Cerrá y volvé a abrir el historial.");
         if (response.status === 404) throw new Error("No hay versiones de costo en esta unidad. La ficha todavía no tiene un cálculo guardado.");
         if (!response.ok) throw new Error("No se pudo cargar el historial. Cerrá y volvé a intentar.");
         const html = await response.text();

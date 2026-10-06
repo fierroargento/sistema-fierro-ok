@@ -8,6 +8,7 @@ from services.comercial_admin import procesar_accion_comercial
 from services.comercial_consultas import obtener_datos_panel_comercial
 from services.precio_observado_manual import registrar_precio_manual
 from services.historial_costos_productos import obtener_historial_costo_producto
+from services.historial_precios_observados import obtener_historial_precio
 from services.control_comercial_masivo import exportar_bandeja_excel
 from services.control_motores_comerciales import exportar_control_motores
 from services.plan_transicion_motores_comerciales import exportar_plan_transicion
@@ -239,6 +240,25 @@ def crear_blueprint_comercial(*, dependencias):
         except (ValueError, TypeError) as error:
             db.session.rollback()
             return redirect(url_for("admin_comercial.panel", error=str(error), _anchor="control-comercial"))
+
+    @blueprint.route("/admin/comercial/precios/<int:lista_id>/<int:inclusion_id>/historial")
+    @dependencias["login_required"]
+    def historial_precio_observado(lista_id, inclusion_id):
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        unidad_activa, _unidades = contexto_comercial(organizacion)
+        if request.args.get("unidad_negocio_id", type=int) != unidad_activa.id:
+            return "Cambió la unidad activa. Cerrá y volvé a abrir el historial.", 409
+        observaciones = obtener_historial_precio(
+            organizacion.id, unidad_activa.id, lista_id, inclusion_id,
+            Observacion=modelos["ObservacionComercialCanal"],
+        )
+        return render_template(
+            "partials/precio_observado_historial.html",
+            observaciones=observaciones, unidad_activa=unidad_activa,
+            formatear_centavos_ars=formatear_centavos_ars,
+        )
 
     @blueprint.route("/admin/comercial/costos/<int:producto_id>")
     @dependencias["login_required"]

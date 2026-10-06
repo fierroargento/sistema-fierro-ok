@@ -1,0 +1,11 @@
+<div class="cost-product-overview">
+  {% if observaciones %}<strong>{{ observaciones[0].catalogo_producto.sku_comercial }} · {{ observaciones[0].lista_precio.nombre }}</strong>{% endif %}
+  <span>{{ unidad_activa.nombre }}</span>
+  <p>Precios registrados en Fierro, del más reciente al más antiguo. Esta consulta no modifica precios ni publicaciones externas.</p>
+</div>
+{% for registro in observaciones %}
+<details class="cost-product-version" {% if loop.first %}open{% endif %}>
+  <summary><span><strong>{{ 'Más reciente' if loop.first else 'Registro anterior' }}</strong><small>{{ fecha_argentina(registro.fecha_observacion).strftime('%d/%m/%Y %H:%M') if registro.fecha_observacion else 'Sin fecha' }} · {{ registro.origen|capitalize }}</small></span><strong>$ {{ formatear_centavos_ars(registro.precio_publicado_centavos) if registro.precio_publicado_centavos is not none else '—' }}</strong></summary>
+  <div class="cost-product-version-body"><p><strong>Cuenta:</strong> {{ registro.cuenta_codigo }}<br><strong>Publicación:</strong> {{ registro.referencia_publicacion }}<br><strong>Registrado por:</strong> {{ registro.creado_por_username or 'Sin usuario registrado' }}{% if registro.lote_importacion_id %}<br><strong>Lote de importación:</strong> #{{ registro.lote_importacion_id }}{% endif %}</p></div>
+</details>
+{% else %}<p>Todavía no hay precios observados para este producto y lista en la unidad seleccionada.</p>{% endfor %}
