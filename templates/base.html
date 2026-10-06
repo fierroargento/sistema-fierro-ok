@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Fierro App</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261006-treasury-menu') }}">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -30,6 +30,7 @@
             <a href="{{ url_for('historico') }}">Histórico</a>
             {% endif %}
             {% if rol_actual == "admin" %}
+            <div class="menu-section-label">Administración</div>
             <a href="{{ url_for('admin_productos.panel') }}">Productos</a>
             <a href="{{ url_for('admin_estructura.panel') }}">Estructura</a>
             <a href="{{ url_for('admin_comercial.panel') }}">Comercial</a>
@@ -38,6 +39,7 @@
             <a href="{{ url_for('admin_compras.panel') }}">Compras</a>
             <a href="{{ url_for('admin_produccion.panel') }}">Producción</a>
             <a href="{{ url_for('admin_tesoreria.panel') }}">Tesorería</a>
+            <a class="menu-subitem" href="{{ url_for('admin_comercial.cuentas_pagar') }}">Pagos y vencimientos</a>
             <a href="{{ url_for('admin_contabilidad.panel') }}">Contabilidad</a>
             <a href="{{ url_for('admin_mantenimiento.panel') }}">Mantenimiento</a>
             <a href="{{ url_for('admin_personas.panel') }}">Personas</a>
