@@ -1156,3 +1156,26 @@
 .compras-page a.table-action:hover,
 .compras-page a.table-action:focus,
 .compras-page a.table-action:active { text-decoration: none; }
+
+/* Resumen de Compras: una franja compacta con pendientes destacados. */
+.compras-page .compras-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 10px 14px;
+  border: 1px solid #d9dee7;
+  border-radius: 10px;
+  background: #fff;
+}
+.compras-page .compras-summary > div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.compras-page .compras-summary strong { font-size: 14px; }
+.compras-page .compras-summary .compras-summary-pending strong,
+.compras-page .compras-summary .compras-summary-pending span { color: #93610b; font-weight: 800; }
