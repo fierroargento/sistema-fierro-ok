@@ -61,3 +61,47 @@ def test_control_detecta_totales_de_cabecera_inconsistentes():
     c,a,l=datos();a[0].total_debe_centavos=999;a[0].total_haber_centavos=999
     r=generar_reportes(organizacion_id=7,unidad_negocio_id=9,cuentas=c,asientos=a,lineas=l)
     assert r["aprobado"] is False and "totales_inconsistentes" in r["control_asientos"][0]["hallazgos"]
+
+@pytest.mark.parametrize("desde,hasta", [
+    ("2026-09-30", "2026-09-30"),
+    ("2026-10-02", None),
+    (None, "2026-09-30"),
+])
+def test_periodo_vacio_no_marca_lineas_de_otras_fechas(desde, hasta):
+    c, a, l = datos()
+    r = generar_reportes(organizacion_id=7, unidad_negocio_id=9,
+        cuentas=c, asientos=a, lineas=l, desde=desde, hasta=hasta)
+    assert r["aprobado"] is True and r["hallazgos"] == []
+    for campo in ("diario_borrador", "mayor_auxiliar", "balance_sumas_saldos", "control_asientos"):
+        assert r[campo] == []
+    assert r["totales"] == {"debe_centavos": 0, "haber_centavos": 0, "balanceado": True}
+
+
+def test_periodo_mixto_incluye_solo_fecha_seleccionada():
+    c, a, l = datos()
+    anterior = Obj(**{**a[0].__dict__, "id": 11, "fecha": date(2026, 9, 30)})
+    anteriores = [Obj(**{**x.__dict__, "id": x.id + 2, "asiento_borrador_id": 11}) for x in l]
+    r = generar_reportes(organizacion_id=7, unidad_negocio_id=9,
+        cuentas=c, asientos=a + [anterior], lineas=l + anteriores,
+        desde="2026-10-01", hasta="2026-10-01")
+    assert r["aprobado"] is True and r["hallazgos"] == []
+    assert len(r["diario_borrador"]) == 2
+    assert {x["asiento_id"] for x in r["diario_borrador"]} == {10}
+    assert r["totales"]["debe_centavos"] == r["totales"]["haber_centavos"] == 10000
+
+
+@pytest.mark.parametrize("contexto", ["sin_cabecera", "otra_organizacion", "otra_unidad", "cuenta_invalida"])
+def test_periodo_conserva_deteccion_de_lineas_fuera_contexto(contexto):
+    c, a, l = datos()
+    if contexto == "sin_cabecera":
+        a = []
+    elif contexto == "otra_organizacion":
+        a[0].organizacion_id = 8
+    elif contexto == "otra_unidad":
+        a[0].unidad_negocio_id = 8
+    else:
+        l[0].cuenta_contable_id = 999
+    r = generar_reportes(organizacion_id=7, unidad_negocio_id=9,
+        cuentas=c, asientos=a, lineas=l, desde="2026-10-01", hasta="2026-10-01")
+    assert r["aprobado"] is False
+    assert any(x["codigo"] == "linea_fuera_contexto" for x in r["hallazgos"])

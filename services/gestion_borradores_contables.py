@@ -27,11 +27,15 @@ def generar_reportes(*,organizacion_id,unidad_negocio_id,cuentas,asientos,lineas
     desde=_fecha_limite(desde);hasta=_fecha_limite(hasta)
     if desde and hasta and desde>hasta:raise ValueError("El inicio del periodo no puede ser posterior al cierre.")
     mapa={int(c.id):c for c in cuentas if int(c.organizacion_id)==int(organizacion_id) and int(c.unidad_negocio_id)==int(unidad_negocio_id)}
-    cabeceras={int(a.id):a for a in asientos if int(a.organizacion_id)==int(organizacion_id) and int(a.unidad_negocio_id)==int(unidad_negocio_id)
-        and (desde is None or a.fecha>=desde) and (hasta is None or a.fecha<=hasta)}
+    cabeceras_contexto={int(a.id):a for a in asientos if int(a.organizacion_id)==int(organizacion_id) and int(a.unidad_negocio_id)==int(unidad_negocio_id)}
+    cabeceras={asiento_id:a for asiento_id,a in cabeceras_contexto.items()
+        if (desde is None or a.fecha>=desde) and (hasta is None or a.fecha<=hasta)}
     diario=[];saldos=defaultdict(lambda:{"debe_centavos":0,"haber_centavos":0,"movimientos":[]});hallazgos=[];por_asiento=defaultdict(list)
     for linea in sorted(lineas,key=lambda x:(int(x.asiento_borrador_id),int(x.renglon))):
-        asiento=cabeceras.get(int(linea.asiento_borrador_id));cuenta=mapa.get(int(linea.cuenta_contable_id))
+        asiento_id=int(linea.asiento_borrador_id)
+        # Las líneas de asientos del contexto excluidos por fecha no son inconsistencias.
+        if asiento_id in cabeceras_contexto and asiento_id not in cabeceras:continue
+        asiento=cabeceras.get(asiento_id);cuenta=mapa.get(int(linea.cuenta_contable_id))
         if asiento is None or cuenta is None:
             hallazgos.append({"codigo":"linea_fuera_contexto","linea_id":linea.id});continue
         if linea.afecta_saldos or asiento.contabilizado or asiento.afecta_saldos:
