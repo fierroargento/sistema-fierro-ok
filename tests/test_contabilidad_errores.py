@@ -68,3 +68,47 @@ def test_ruta_rechaza_duplicado_con_rollback_y_aviso_publico(monkeypatch, import
     assert response.status_code == 302 and db_session.rollbacks == 1 and auditorias == []
     assert parse_qs(urlparse(response.location).query)["error"] == ["Este asiento borrador ya existe. No se creó un duplicado."]
     assert "INSERT" not in response.location and "parametros" not in response.location
+
+
+@pytest.mark.parametrize("desde,hasta,mensaje", [
+    ("2026-10-08", "2026-10-07", "El inicio del periodo no puede ser posterior al cierre."),
+    ("fecha-invalida", "2026-10-07", "El periodo contable no es valido."),
+    ("2026-10-07", "2026-02-30", "El periodo contable no es valido."),
+    ("2026-10-07", "2026-10-07", None),
+])
+def test_reporte_valida_periodo_sin_error_500_ni_escrituras(monkeypatch, desde, hasta, mensaje):
+    tenant = ModuleType("services.tenant_context")
+    tenant.TenantError = type("TenantError", (Exception,), {})
+    tenant.resolver_tenant_usuario = lambda *args, **kwargs: O(rol="admin", organizacion_id=1, organizacion=O(id=1))
+    monkeypatch.setitem(sys.modules, "services.tenant_context", tenant)
+    spec = importlib.util.spec_from_file_location("contabilidad_reporte_prueba", Path("modules/admin/contabilidad/routes.py"))
+    rutas = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rutas)
+    class Query:
+        def filter_by(self, **kwargs):return self
+        def first(self):return O(id=3)
+        def all(self):return []
+    modelo = O(query=Query())
+    class Session:
+        def __getattr__(self, nombre):
+            raise AssertionError("El reporte no debe escribir ni alterar la sesión: " + nombre)
+    app = Flask(__name__)
+    app.secret_key = "prueba-local"
+    def auditar(*args, **kwargs):
+        raise AssertionError("La consulta no debe registrar una operación contable.")
+    app.register_blueprint(rutas.crear_blueprint_contabilidad(dependencias={
+        "db": O(session=Session()), "modelos": {nombre:modelo for nombre in ["UnidadNegocio", "CuentaContable", "AsientoContableBorrador", "LineaAsientoContableBorrador"]},
+        "usuario_actual": lambda:O(id=1), "UsuarioOrganizacion":object, "login_required":lambda f:f,
+        "registrar_auditoria":auditar,
+    }))
+    response = app.test_client().get("/admin/contabilidad/reportes-borrador",
+        query_string={"desde":desde, "hasta":hasta})
+    if mensaje:
+        assert response.status_code == 302
+        assert urlparse(response.location).path == "/admin/contabilidad"
+        assert parse_qs(urlparse(response.location).query)["error"] == [mensaje]
+    else:
+        assert response.status_code == 200
+        assert response.json["aprobado"] is True
+        assert response.json["periodo"] == {"desde":desde, "hasta":hasta}
+        assert "attachment" in response.headers["Content-Disposition"]

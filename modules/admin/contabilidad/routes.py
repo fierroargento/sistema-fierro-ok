@@ -56,8 +56,11 @@ def crear_blueprint_contabilidad(*,dependencias):
         cuentas=modelos["CuentaContable"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all()
         asientos=modelos["AsientoContableBorrador"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all()
         lineas=modelos["LineaAsientoContableBorrador"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).all()
-        resultado=generar_reportes(organizacion_id=o.id,unidad_negocio_id=u.id,cuentas=cuentas,asientos=asientos,lineas=lineas,
-            desde=request.args.get("desde"),hasta=request.args.get("hasta"))
+        try:
+            resultado=generar_reportes(organizacion_id=o.id,unidad_negocio_id=u.id,cuentas=cuentas,asientos=asientos,lineas=lineas,
+                desde=request.args.get("desde"),hasta=request.args.get("hasta"))
+        except ValueError as error:
+            return redirect(url_for("admin_contabilidad.panel",error=mensaje_error_contable(error)))
         return send_file(exportar_reportes(resultado),as_attachment=True,download_name="reportes_contables_borrador.json",mimetype="application/json")
     @bp.route("/admin/contabilidad/importar-borradores",methods=["POST"])
     @dependencias["login_required"]
