@@ -30,8 +30,9 @@
             <a href="{{ url_for('historico') }}">Histórico</a>
             {% endif %}
             {% if rol_actual == "admin" %}
+            {% set contabilidad_abierta = (request.endpoint or '').startswith('admin_contabilidad.') %}
             {% set tesoreria_abierta = request.endpoint == 'admin_comercial.cuentas_pagar' or (request.endpoint or '').startswith('admin_tesoreria.') %}
-            <details class="menu-group"{% if tesoreria_abierta %} open{% endif %}>
+            <details class="menu-group"{% if tesoreria_abierta or contabilidad_abierta %} open{% endif %}>
                 <summary>Administración</summary>
                 <div class="menu-children">
                     <details class="menu-group menu-group-secondary"{% if tesoreria_abierta %} open{% endif %}>
@@ -41,6 +42,7 @@
                             <a href="{{ url_for('admin_comercial.cuentas_pagar') }}"{% if request.endpoint == 'admin_comercial.cuentas_pagar' %} aria-current="page"{% endif %}>Pagos y vencimientos</a>
                         </div>
                     </details>
+                    <a href="{{ url_for('admin_contabilidad.panel') }}"{% if contabilidad_abierta %} aria-current="page"{% endif %}>Contabilidad</a>
                 </div>
             </details>
             <a href="{{ url_for('admin_productos.panel') }}">Productos</a>
@@ -50,7 +52,6 @@
             <a href="{{ url_for('admin_inventario.panel') }}">Inventario</a>
             <a href="{{ url_for('admin_compras.panel') }}">Compras</a>
             <a href="{{ url_for('admin_produccion.panel') }}">Producción</a>
-            <a href="{{ url_for('admin_contabilidad.panel') }}">Contabilidad</a>
             <a href="{{ url_for('admin_mantenimiento.panel') }}">Mantenimiento</a>
             <a href="{{ url_for('admin_personas.panel') }}">Personas</a>
             <a href="{{ url_for('admin_postventa.panel') }}">Postventa</a>
