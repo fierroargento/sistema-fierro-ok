@@ -1,0 +1,30 @@
+/* Presentation scoped to the preparatory accounting panel. */
+.accounting-page .control-summary { display:flex; flex-wrap:wrap; gap:8px 20px; padding:12px 16px; background:#fff; border:1px solid #dce5ec; border-radius:10px; margin-bottom:20px; }
+.accounting-page .control-summary > div { display:flex; align-items:baseline; gap:7px; padding:0; border:0; background:transparent; }
+.accounting-page .control-summary strong { font-size:15px; }
+.accounting-page .control-summary span { font-size:12px; }
+.accounting-page .comercial-form { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); margin:12px 0; }
+.accounting-page .comercial-form > span { grid-column:1 / -1; font-size:14px; font-weight:700; line-height:1.5; }
+.accounting-page label { display:grid; gap:6px; min-width:0; color:#445064; font-size:12px; font-weight:700; }
+.accounting-page input,.accounting-page select { box-sizing:border-box; width:100%; min-width:0; min-height:40px; margin:0; padding:8px 10px; border:1px solid #cbd2dc; border-radius:8px; background:#fff; color:#1f2937; font-size:14px; }
+.accounting-page input:focus,.accounting-page select:focus { outline:2px solid #8ac4da; outline-offset:2px; }
+.accounting-page button { width:auto; justify-self:start; min-height:38px; padding:8px 14px; border:1px solid #124e64; border-radius:8px; background:#124e64; color:white; font-size:12px; font-weight:800; cursor:pointer; }
+.accounting-page button:disabled { opacity:.5; cursor:not-allowed; }
+.accounting-page button:focus-visible { outline:2px solid #2c92b8; outline-offset:3px; }
+.accounting-page .accounting-cancel { display:flex; align-items:center; justify-content:flex-end; }
+.accounting-page .accounting-cancel button { color:#176b89; border-color:#8ac4da; background:#edf8fc; }
+.accounting-page .muted { color:#667085; font-size:13px; line-height:1.5; }
+.accounting-page .comercial-table form { display:flex; flex-wrap:wrap; align-items:end; gap:8px; min-width:230px; }
+.accounting-page .comercial-table form input { max-width:210px; }
+.accounting-page .comercial-table { min-width:720px; }
+.accounting-page .section-heading p { max-width:420px; }
+.accounting-page .comercial-table .accounting-editor { margin-top:0; min-width:230px; }
+.accounting-page .comercial-table .accounting-editor form { padding:12px 0 0; }
+.accounting-page .comercial-table .accounting-editor label { width:100%; }
+.accounting-page .comercial-table .accounting-cancel { margin-left:auto; }
+.accounting-page .comercial-table td:nth-child(5) { white-space:nowrap; font-variant-numeric:tabular-nums; }
+@media(max-width:700px) {
+ .accounting-page .comercial-header,.accounting-page .section-heading { flex-direction:column; align-items:flex-start; gap:8px; }
+ .accounting-page .comercial-header h1 { font-size:25px; }
+ .accounting-page .comercial-form { grid-template-columns:1fr; padding:12px; }
+}
