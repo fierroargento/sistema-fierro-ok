@@ -35,7 +35,7 @@ def crear_blueprint_contabilidad(*,dependencias):
                 debe=modelos["CuentaContable"].query.filter_by(id=int(request.form.get("cuenta_debe_id")),organizacion_id=o.id,unidad_negocio_id=u.id).first()
                 haber=modelos["CuentaContable"].query.filter_by(id=int(request.form.get("cuenta_haber_id")),organizacion_id=o.id,unidad_negocio_id=u.id).first()
                 if debe is None or haber is None:raise ValueError("Las cuentas no pertenecen al contexto activo.")
-                objeto=crear_borrador(request.form,cuenta_debe=debe,cuenta_haber=haber,organizacion_id=o.id,unidad_negocio_id=u.id,Asiento=modelos["AsientoContableBorrador"],db_session=db.session,usuario_id=getattr(usuario,"id",None));mensaje=f"Asiento {objeto.id} guardado solo como borrador."
+                objeto=crear_borrador(request.form,cuenta_debe=debe,cuenta_haber=haber,organizacion_id=o.id,unidad_negocio_id=u.id,Asiento=modelos["AsientoContableBorrador"],Linea=modelos["LineaAsientoContableBorrador"],db_session=db.session,usuario_id=getattr(usuario,"id",None));mensaje=f"Asiento {objeto.id} guardado solo como borrador."
             elif request.form.get("accion")=="anular_borrador":
                 objeto=modelos["AsientoContableBorrador"].query.filter_by(id=int(request.form.get("asiento_id")),organizacion_id=o.id,unidad_negocio_id=u.id).first()
                 if objeto is None:raise ValueError("El asiento no pertenece al contexto activo.")
@@ -71,3 +71,4 @@ def crear_blueprint_contabilidad(*,dependencias):
             return redirect(url_for("admin_contabilidad.panel",ok=mensaje))
         except Exception as error:db.session.rollback();return redirect(url_for("admin_contabilidad.panel",error=str(error)))
     return bp
+

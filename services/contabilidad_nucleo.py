@@ -18,7 +18,7 @@ def crear_cuenta(datos,*,organizacion_id,unidad_negocio_id,Cuenta,db_session,usu
         naturaleza=naturaleza,imputable=True,activa=False,creado_por_usuario_id=usuario_id)
     db_session.add(cuenta);db_session.commit();return cuenta
 
-def crear_borrador(datos,*,cuenta_debe,cuenta_haber,organizacion_id,unidad_negocio_id,Asiento,db_session,usuario_id=None):
+def crear_borrador(datos,*,cuenta_debe,cuenta_haber,organizacion_id,unidad_negocio_id,Asiento,Linea,db_session,usuario_id=None):
     for cuenta in (cuenta_debe,cuenta_haber):
         if int(cuenta.organizacion_id)!=int(organizacion_id) or int(cuenta.unidad_negocio_id)!=int(unidad_negocio_id):raise ValueError("La cuenta no pertenece al contexto activo.")
         if not cuenta.imputable:raise ValueError("La cuenta debe ser imputable.")
@@ -32,4 +32,12 @@ def crear_borrador(datos,*,cuenta_debe,cuenta_haber,organizacion_id,unidad_negoc
         cuenta_debe_id=cuenta_debe.id,cuenta_haber_id=cuenta_haber.id,total_debe_centavos=importe,total_haber_centavos=importe,
         referencia=referencia or None,clave_idempotencia=hashlib.sha256(base.encode()).hexdigest(),estado="borrador",
         contabilizado=False,afecta_saldos=False,creado_por_usuario_id=usuario_id)
-    db_session.add(asiento);db_session.commit();return asiento
+    try:
+        db_session.add(asiento);db_session.flush()
+        for renglon,cuenta,debe,haber in ((1,cuenta_debe,importe,0),(2,cuenta_haber,0,importe)):
+            db_session.add(Linea(organizacion_id=organizacion_id,unidad_negocio_id=unidad_negocio_id,
+                asiento_borrador_id=asiento.id,renglon=renglon,cuenta_contable_id=cuenta.id,
+                concepto=concepto,debe_centavos=debe,haber_centavos=haber,afecta_saldos=False))
+        db_session.commit();return asiento
+    except Exception:
+        db_session.rollback();raise
