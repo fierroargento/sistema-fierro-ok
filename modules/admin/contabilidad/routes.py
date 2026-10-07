@@ -1,4 +1,5 @@
-from flask import Blueprint,redirect,render_template,request,send_file,session,url_for
+from flask import Blueprint,current_app,redirect,render_template,request,send_file,session,url_for
+from services.contabilidad_errores import mensaje_error_contable
 from services.tenant_context import TenantError,resolver_tenant_usuario
 from services.contabilidad_nucleo import crear_cuenta,crear_borrador
 from services.contabilidad_consultas import obtener_panel
@@ -43,7 +44,10 @@ def crear_blueprint_contabilidad(*,dependencias):
             else:raise ValueError("Accion contable invalida.")
             dependencias["registrar_auditoria"]("Contabilidad preparatoria",entidad="contabilidad",detalle=mensaje)
             return redirect(url_for("admin_contabilidad.panel",ok=mensaje))
-        except Exception as error:db.session.rollback();return redirect(url_for("admin_contabilidad.panel",error=str(error)))
+        except Exception as error:
+            db.session.rollback()
+            if not isinstance(error, ValueError):current_app.logger.exception("Error en operación contable preparatoria")
+            return redirect(url_for("admin_contabilidad.panel",error=mensaje_error_contable(error)))
     @bp.route("/admin/contabilidad/reportes-borrador")
     @dependencias["login_required"]
     def reportes_borrador():
@@ -69,6 +73,9 @@ def crear_blueprint_contabilidad(*,dependencias):
             mensaje=f"{len(creados)} asientos importados exclusivamente como borradores."
             dependencias["registrar_auditoria"]("Importacion contable preparatoria",entidad="contabilidad",detalle=mensaje)
             return redirect(url_for("admin_contabilidad.panel",ok=mensaje))
-        except Exception as error:db.session.rollback();return redirect(url_for("admin_contabilidad.panel",error=str(error)))
+        except Exception as error:
+            db.session.rollback()
+            if not isinstance(error, ValueError):current_app.logger.exception("Error en operación contable preparatoria")
+            return redirect(url_for("admin_contabilidad.panel",error=mensaje_error_contable(error)))
     return bp
 
