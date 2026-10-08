@@ -1,2 +1,16 @@
 {% extends "base.html" %}
-{% block content %}<div class="card"><h1>Certificación fiscal offline</h1><p>Control integral de la estructura multi-CUIT de la organización activa.</p><div class="alerta {{ 'alerta-ok' if certificacion.aprobada else 'alerta-error' }}"><strong>{{ 'APROBADA' if certificacion.aprobada else 'BLOQUEADA' }}</strong>. La emisión real permanece deshabilitada.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0;">{% for clave, valor in certificacion.resumen.items() %}<div class="card"><strong>{{ valor }}</strong><br>{{ clave|replace('_',' ') }}</div>{% endfor %}</div><form method="post"><button type="submit">Descargar evidencia JSON</button></form><p>Firma SHA-256: <code>{{ certificacion.firma_certificacion }}</code></p><h2>Hallazgos</h2><table style="width:100%;"><thead><tr><th>Nivel</th><th>Código</th><th>Entidad</th><th>Detalle</th></tr></thead><tbody>{% for item in certificacion.hallazgos %}<tr><td>{{ item.nivel }}</td><td>{{ item.codigo }}</td><td>{{ item.entidad }} #{{ item.id }}</td><td>{{ item.detalle }}</td></tr>{% else %}<tr><td colspan="4">Sin bloqueos detectados.</td></tr>{% endfor %}</tbody></table><p><a href="{{ url_for('admin_facturacion.panel') }}">Volver a Facturación</a></p></div>{% endblock %}
+{% block title %}Certificación fiscal offline{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}?v=20261008-fiscal">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_facturacion.css') }}?v=20261008-fiscal">
+{% endblock %}
+{% block content %}
+<main class="comercial-page fiscal-page">
+<header class="comercial-header"><div><span class="comercial-eyebrow">ADMINISTRACIÓN · FACTURACIÓN</span><h1>Certificación fiscal offline</h1><p class="comercial-intro">Control de la estructura multi-CUIT de la organización activa.</p></div></header>
+<div class="comercial-message {{ 'comercial-message-ok' if certificacion.aprobada else 'comercial-message-error' }}"><strong>{{ 'APROBADA' if certificacion.aprobada else 'BLOQUEADA' }}</strong> · La emisión real permanece deshabilitada.</div>
+<div class="fiscal-summary">{% for clave, valor in certificacion.resumen.items() %}<div><strong>{{ valor }}</strong><span>{{ clave|replace('_',' ') }}</span></div>{% endfor %}</div>
+<section class="comercial-section"><div class="section-heading"><div><h2>Hallazgos de la revisión</h2></div></div><div class="table-wrap"><table class="comercial-table"><thead><tr><th>Nivel</th><th>Código</th><th>Entidad</th><th>Detalle</th></tr></thead><tbody>{% for item in certificacion.hallazgos %}<tr><td>{{ item.nivel }}</td><td>{{ item.codigo }}</td><td>{{ item.entidad }} #{{ item.id }}</td><td>{{ item.detalle }}</td></tr>{% else %}<tr><td colspan="4">Sin bloqueos detectados.</td></tr>{% endfor %}</tbody></table></div>
+<div class="fiscal-actions"><form method="post"><button type="submit">Descargar evidencia JSON</button></form><a href="{{ url_for('admin_facturacion.panel') }}">Volver a Facturación</a></div>
+<details class="source-catalog fiscal-evidence"><summary><span>Ver firma de la evidencia</span></summary><p class="muted">SHA-256</p><code>{{ certificacion.firma_certificacion }}</code></details>
+</section></main>
+{% endblock %}

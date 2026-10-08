@@ -1,0 +1,48 @@
+/* Presentation scoped to fiscal configuration and offline certification. */
+.fiscal-page .fiscal-summary { display:flex; flex-wrap:wrap; gap:8px 20px; padding:12px 16px; background:#fff; border:1px solid #dce5ec; border-radius:10px; margin-bottom:20px; }
+.fiscal-page .fiscal-summary > div { display:flex; align-items:baseline; gap:7px; padding:0; border:0; background:transparent; }
+.fiscal-page .fiscal-summary strong { font-size:15px; }
+.fiscal-page .fiscal-summary span { font-size:12px; }
+.fiscal-page .comercial-form { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); margin:12px 0; }
+.fiscal-page .comercial-form > span { grid-column:1 / -1; font-size:14px; font-weight:700; line-height:1.5; }
+.fiscal-page label { display:grid; gap:6px; min-width:0; color:#445064; font-size:12px; font-weight:700; }
+.fiscal-page input,.fiscal-page select { box-sizing:border-box; width:100%; min-width:0; min-height:40px; margin:0; padding:8px 10px; border:1px solid #cbd2dc; border-radius:8px; background:#fff; color:#1f2937; font-size:14px; }
+.fiscal-page input:focus,.fiscal-page select:focus { outline:2px solid #8ac4da; outline-offset:2px; }
+.fiscal-page button { width:auto; justify-self:start; min-height:38px; padding:8px 14px; border:1px solid #124e64; border-radius:8px; background:#124e64; color:white; font-size:12px; font-weight:800; cursor:pointer; }
+.fiscal-page button:disabled { opacity:.5; cursor:not-allowed; }
+.fiscal-page button:focus-visible { outline:2px solid #2c92b8; outline-offset:3px; }
+.fiscal-page .fiscal-cancel { display:flex; align-items:center; justify-content:flex-end; }
+.fiscal-page .fiscal-cancel button { color:#176b89; border-color:#8ac4da; background:#edf8fc; }
+.fiscal-page .muted { color:#667085; font-size:13px; line-height:1.5; }
+.fiscal-page .comercial-table form { display:flex; flex-wrap:wrap; align-items:end; gap:8px; min-width:230px; }
+.fiscal-page .comercial-table form input { max-width:210px; }
+.fiscal-page .comercial-table { min-width:720px; }
+.fiscal-page .section-heading p { max-width:420px; }
+.fiscal-page .comercial-table .fiscal-editor { margin-top:0; min-width:230px; }
+.fiscal-page .comercial-table .fiscal-editor form { padding:12px 0 0; }
+.fiscal-page .comercial-table .fiscal-editor label { width:100%; }
+.fiscal-page .comercial-table .fiscal-cancel { margin-left:auto; }
+.fiscal-page .comercial-table td:nth-child(5) { white-space:nowrap; font-variant-numeric:tabular-nums; }
+@media(max-width:700px) {
+ .fiscal-page .comercial-header,.fiscal-page .section-heading { flex-direction:column; align-items:flex-start; gap:8px; }
+ .fiscal-page .comercial-header h1 { font-size:25px; }
+ .fiscal-page .comercial-form { grid-template-columns:1fr; padding:12px; }
+}
+
+.fiscal-page .fiscal-status { display:flex; flex-wrap:wrap; align-items:center; gap:8px 24px; padding:12px 16px; margin-bottom:16px; border:1px solid #cbdce4; border-radius:10px; background:#f3f8fb; color:#31566a; font-size:13px; }
+.fiscal-page .fiscal-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:16px 0 22px; }
+.fiscal-page .fiscal-actions a { display:inline-flex; align-items:center; justify-content:center; min-height:38px; box-sizing:border-box; padding:8px 14px; border:1px solid #8ac4da; border-radius:8px; background:#edf8fc; color:#176b89; font-size:12px; font-weight:800; text-decoration:none; }
+.fiscal-page .fiscal-actions a:hover { background:#dceff6; }
+.fiscal-page .fiscal-actions a:focus-visible { outline:2px solid #2c92b8; outline-offset:3px; }
+.fiscal-page .fiscal-actions form { margin:0; }
+.fiscal-page .comercial-message { display:block; line-height:1.6; }
+.fiscal-page .comercial-table { width:100%; min-width:640px; }
+.fiscal-page .comercial-table td { overflow-wrap:anywhere; }
+.fiscal-page .comercial-table form { margin:0; }
+.fiscal-page .comercial-table .fiscal-editor { min-width:240px; }
+.fiscal-page .comercial-table .fiscal-editor form { display:grid; grid-template-columns:1fr; }
+.fiscal-page .comercial-table .fiscal-editor form input { max-width:none; }
+.fiscal-page .comercial-table td > form { min-width:0; }
+.fiscal-page .fiscal-evidence code { display:block; overflow-wrap:anywhere; padding:12px; background:#f3f7fa; border-radius:8px; color:#445064; font-size:12px; }
+.fiscal-page .section-heading h2 { font-size:19px; }
+@media(max-width:700px) { .fiscal-page .fiscal-actions { gap:8px; } .fiscal-page .fiscal-summary { gap:8px 16px; } }

@@ -1,76 +1,80 @@
 {% extends "base.html" %}
+{% block title %}Facturación{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}?v=20261008-fiscal">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_facturacion.css') }}?v=20261008-fiscal">
+<script defer src="{{ url_for('static', filename='admin_facturacion.js') }}?v=20261008-fiscal"></script>
+{% endblock %}
 {% block content %}
-<div class="card">
-    <h1>Facturación multi-CUIT</h1>
+<main class="comercial-page fiscal-page">
+    <header class="comercial-header"><div><span class="comercial-eyebrow">ADMINISTRACIÓN · FACTURACIÓN</span><h1>Facturación multi-CUIT</h1>
 
-    <p>
+    <p class="comercial-intro">
         Configuración y borradores internos. No existe todavía
         conexión con ARCA ni emisión real de comprobantes.
-    </p>
+    </p></div></header>
 
-    <div class="alerta alerta-error">
-        Módulo:
+    <div class="fiscal-status">
+        <span>Módulo:
         <strong>
             {{ modulo_facturacion.estado if modulo_facturacion else "desactivado" }}
-        </strong>.
-        La emisión real está bloqueada por código en todos los ambientes.
+        </strong></span><span>Emisión real bloqueada</span>
     </div>
 
-    <p><a href="{{ url_for('admin_facturacion.certificacion_offline') }}">Abrir certificación integral offline</a></p>
-    <p><a href="{{ url_for('admin_facturacion.importacion_offline') }}">Previsualizar importación masiva de borradores</a></p>
-    <p><a href="{{ url_for('admin_facturacion.lotes_fiscales') }}">Consultar historial de lotes fiscales</a></p>
-    <p><a href="{{ url_for('admin_facturacion.expedientes_fiscales') }}">Certificar expedientes fiscales internos</a></p>
-    <p><a href="{{ url_for('admin_facturacion.control_integral') }}">Abrir control integral final de facturación</a></p>
+    <nav class="fiscal-actions" aria-label="Herramientas de facturación">    <a href="{{ url_for('admin_facturacion.certificacion_offline') }}">Certificación offline</a>
+    <a href="{{ url_for('admin_facturacion.importacion_offline') }}">Importar borradores</a>
+    <a href="{{ url_for('admin_facturacion.lotes_fiscales') }}">Historial de lotes</a>
+    <a href="{{ url_for('admin_facturacion.expedientes_fiscales') }}">Expedientes fiscales</a>
+    <a href="{{ url_for('admin_facturacion.control_integral') }}">Control integral</a></nav>
 
     {% if ok_feedback %}
-    <div class="alerta alerta-ok">{{ ok_feedback }}</div>
+    <div class="comercial-message comercial-message-ok">{{ ok_feedback }}</div>
     {% endif %}
 
     {% if error %}
-    <div class="alerta alerta-error">{{ error }}</div>
+    <div class="comercial-message comercial-message-error">{{ error }}</div>
     {% endif %}
 
-    <div class="card" style="margin-top:16px;">
-        <h2>Configuraciones por entidad fiscal</h2>
+    <section class="comercial-section">
+        <div class="section-heading"><div><h2>Configuraciones por entidad fiscal</h2></div></div>
 
         {% if entidades_fiscales %}
-        <form method="post"
-              action="{{ url_for('admin_facturacion.guardar') }}"
-              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+        <details class="source-catalog fiscal-editor"><summary><span>Crear configuración fiscal</span></summary><form class="comercial-form" method="post"
+              action="{{ url_for('admin_facturacion.guardar') }}">
             <input type="hidden" name="accion" value="crear_configuracion">
 
-            <select required name="entidad_fiscal_id">
+            <label>Entidad fiscal<select required name="entidad_fiscal_id">
                 <option value="">Entidad fiscal</option>
                 {% for entidad in entidades_fiscales %}
                 <option value="{{ entidad.id }}">
                     {{ entidad.razon_social }} — {{ entidad.cuit or "sin CUIT" }}
                 </option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <select required name="ambiente">
+            <label>Ambiente<select required name="ambiente">
                 <option value="homologacion">Homologación</option>
                 <option value="produccion">Producción bloqueada</option>
-            </select>
+            </select></label>
 
-            <input name="certificado_env"
+            <label>Variable del certificado<input name="certificado_env"
                    maxlength="120"
-                   placeholder="Variable del certificado">
-            <input name="clave_privada_env"
+                   placeholder="Variable del certificado"></label>
+            <label>Variable de clave privada<input name="clave_privada_env"
                    maxlength="120"
-                   placeholder="Variable de clave privada">
-            <input name="token_env"
+                   placeholder="Variable de clave privada"></label>
+            <label>Variable de token<input name="token_env"
                    maxlength="120"
-                   placeholder="Variable de token">
-            <input name="detalle"
+                   placeholder="Variable de token"></label>
+            <label>Detalle<input name="detalle"
                    maxlength="500"
-                   placeholder="Detalle">
+                   placeholder="Detalle"></label>
             <button type="submit">Crear desactivada</button>
-        </form>
+        <div class="fiscal-cancel"><button type="button" data-fiscal-cancel>Cancelar</button></div></form></details>
         {% endif %}
 
-        <div style="overflow-x:auto;margin-top:12px;">
-            <table style="width:100%;">
+        <div class="table-wrap">
+            <table class="comercial-table">
                 <thead>
                     <tr>
                         <th>Entidad</th>
@@ -91,7 +95,7 @@
                         </td>
                         <td>{{ configuracion.estado }}</td>
                         <td>
-                            <form method="post"
+                            <details class="source-catalog fiscal-editor"><summary><span>Gestionar</span></summary><form class="comercial-form" method="post"
                                   action="{{ url_for('admin_facturacion.guardar') }}">
                                 <input type="hidden"
                                        name="accion"
@@ -99,16 +103,16 @@
                                 <input type="hidden"
                                        name="configuracion_id"
                                        value="{{ configuracion.id }}">
-                                <select name="estado">
+                                <label>Estado<select name="estado">
                                     <option value="desactivada">Desactivada</option>
                                     <option value="configurada">Configurada</option>
                                     <option value="prueba">Prueba</option>
-                                </select>
-                                <input name="detalle"
+                                </select></label>
+                                <label>Detalle<input name="detalle"
                                        maxlength="500"
-                                       value="{{ configuracion.detalle or '' }}">
+                                       value="{{ configuracion.detalle or '' }}"></label>
                                 <button type="submit">Guardar</button>
-                            </form>
+                            <div class="fiscal-cancel"><button type="button" data-fiscal-cancel>Cancelar</button></div></form></details>
                         </td>
                     </tr>
                     {% else %}
@@ -117,18 +121,17 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </section>
 
     {% if configuraciones %}
-    <div class="card" style="margin-top:16px;">
-        <h2>Puntos de venta</h2>
+    <section class="comercial-section">
+        <div class="section-heading"><div><h2>Puntos de venta</h2></div></div>
 
-        <form method="post"
-              action="{{ url_for('admin_facturacion.guardar') }}"
-              style="display:flex;gap:8px;flex-wrap:wrap;">
+        <details class="source-catalog fiscal-editor"><summary><span>Crear punto de venta</span></summary><form class="comercial-form" method="post"
+              action="{{ url_for('admin_facturacion.guardar') }}">
             <input type="hidden" name="accion" value="crear_punto_venta">
 
-            <select required name="configuracion_fiscal_id">
+            <label>Configuración fiscal<select required name="configuracion_fiscal_id">
                 <option value="">Configuración</option>
                 {% for configuracion in configuraciones %}
                 <option value="{{ configuracion.id }}">
@@ -136,21 +139,21 @@
                     / {{ configuracion.ambiente }}
                 </option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <input required
+            <label>Número<input required
                    type="number"
                    min="1"
                    name="numero"
-                   placeholder="Número">
-            <input required
+                   placeholder="Número"></label>
+            <label>Nombre<input required
                    name="nombre"
                    maxlength="150"
-                   placeholder="Nombre">
+                   placeholder="Nombre"></label>
             <button type="submit">Crear desactivado</button>
-        </form>
+        <div class="fiscal-cancel"><button type="button" data-fiscal-cancel>Cancelar</button></div></form></details>
 
-        <table style="width:100%;margin-top:12px;">
+        <div class="table-wrap"><table class="comercial-table">
             <thead>
                 <tr>
                     <th>Entidad</th>
@@ -170,7 +173,7 @@
                     <td>{{ punto.estado }}</td>
                     <td><strong>bloqueada</strong></td>
                     <td>
-                        <form method="post"
+                        <form class="comercial-form" method="post"
                               action="{{ url_for('admin_facturacion.guardar') }}">
                             <input type="hidden"
                                    name="accion"
@@ -188,22 +191,21 @@
                 <tr><td colspan="6">No hay puntos de venta.</td></tr>
                 {% endfor %}
             </tbody>
-        </table>
-    </div>
+        </table></div>
+    </section>
     {% endif %}
 
     {% if puntos_venta %}
-    <div class="card" style="margin-top:16px;">
-        <h2>Tipos de comprobante</h2>
+    <section class="comercial-section">
+        <div class="section-heading"><div><h2>Tipos de comprobante</h2></div></div>
 
-        <form method="post"
-              action="{{ url_for('admin_facturacion.guardar') }}"
-              style="display:flex;gap:8px;flex-wrap:wrap;">
+        <details class="source-catalog fiscal-editor"><summary><span>Crear tipo de comprobante</span></summary><form class="comercial-form" method="post"
+              action="{{ url_for('admin_facturacion.guardar') }}">
             <input type="hidden"
                    name="accion"
                    value="crear_tipo_comprobante">
 
-            <select required name="punto_venta_fiscal_id">
+            <label>Punto de venta<select required name="punto_venta_fiscal_id">
                 <option value="">Punto de venta</option>
                 {% for punto in puntos_venta %}
                 <option value="{{ punto.id }}">
@@ -211,25 +213,25 @@
                     / {{ "%05d"|format(punto.numero) }}
                 </option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <input required
+            <label>Código ARCA<input required
                    type="number"
                    min="1"
                    name="codigo_arca"
-                   placeholder="Código ARCA">
-            <input required
+                   placeholder="Código ARCA"></label>
+            <label>Nombre<input required
                    name="nombre"
                    maxlength="150"
-                   placeholder="Nombre">
-            <input required
+                   placeholder="Nombre"></label>
+            <label>Letra<input required
                    name="letra"
                    maxlength="5"
-                   placeholder="Letra">
+                   placeholder="Letra"></label>
             <button type="submit">Crear desactivado</button>
-        </form>
+        <div class="fiscal-cancel"><button type="button" data-fiscal-cancel>Cancelar</button></div></form></details>
 
-        <table style="width:100%;margin-top:12px;">
+        <div class="table-wrap"><table class="comercial-table">
             <thead>
                 <tr>
                     <th>Punto de venta</th>
@@ -249,7 +251,7 @@
                     <td>{{ tipo.ultimo_numero_autorizado }}</td>
                     <td>{{ "activo" if tipo.activo else "desactivado" }}</td>
                     <td>
-                        <form method="post"
+                        <form class="comercial-form" method="post"
                               action="{{ url_for('admin_facturacion.guardar') }}">
                             <input type="hidden"
                                    name="accion"
@@ -267,27 +269,26 @@
                 <tr><td colspan="6">No hay tipos configurados.</td></tr>
                 {% endfor %}
             </tbody>
-        </table>
-    </div>
+        </table></div>
+    </section>
     {% endif %}
 
     {% if puntos_venta and tipos_comprobante %}
-    <div class="card" style="margin-top:16px;">
-        <h2>Borradores fiscales</h2>
+    <section class="comercial-section">
+        <div class="section-heading"><div><h2>Borradores fiscales</h2></div></div>
 
-        <form method="post"
-              action="{{ url_for('admin_facturacion.guardar') }}"
-              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+        <details class="source-catalog fiscal-editor"><summary><span>Crear borrador fiscal</span></summary><form class="comercial-form" method="post"
+              action="{{ url_for('admin_facturacion.guardar') }}">
             <input type="hidden" name="accion" value="crear_borrador">
 
-            <select required name="entidad_fiscal_id">
+            <label>Entidad fiscal<select required name="entidad_fiscal_id">
                 <option value="">Entidad fiscal</option>
                 {% for entidad in entidades_fiscales %}
                 <option value="{{ entidad.id }}">{{ entidad.razon_social }}</option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <select required name="punto_venta_fiscal_id">
+            <label>Punto de venta<select required name="punto_venta_fiscal_id">
                 <option value="">Punto de venta</option>
                 {% for punto in puntos_venta %}
                 <option value="{{ punto.id }}">
@@ -295,43 +296,43 @@
                     / {{ "%05d"|format(punto.numero) }}
                 </option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <select required name="tipo_comprobante_fiscal_id">
+            <label>Tipo de comprobante<select required name="tipo_comprobante_fiscal_id">
                 <option value="">Tipo de comprobante</option>
                 {% for tipo in tipos_comprobante %}
                 <option value="{{ tipo.id }}">
                     {{ tipo.nombre }} {{ tipo.letra }}
                 </option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <select name="cliente_crm_id">
+            <label>Cliente CRM<select name="cliente_crm_id">
                 <option value="">Sin cliente CRM</option>
                 {% for cliente in clientes_crm %}
                 <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <input required
+            <label>Receptor<input required
                    name="receptor_nombre"
                    maxlength="200"
-                   placeholder="Receptor">
-            <input name="receptor_documento"
+                   placeholder="Receptor"></label>
+            <label>DNI / CUIT<input name="receptor_documento"
                    maxlength="30"
-                   placeholder="DNI / CUIT">
-            <input name="receptor_condicion_iva"
+                   placeholder="DNI / CUIT"></label>
+            <label>Condición IVA<input name="receptor_condicion_iva"
                    maxlength="80"
-                   placeholder="Condición IVA">
-            <input name="moneda"
+                   placeholder="Condición IVA"></label>
+            <label>Moneda<input name="moneda"
                    maxlength="10"
                    value="ARS"
-                   placeholder="Moneda">
+                   placeholder="Moneda"></label>
             <button type="submit">Crear borrador</button>
-        </form>
+        <div class="fiscal-cancel"><button type="button" data-fiscal-cancel>Cancelar</button></div></form></details>
 
-        <div style="overflow-x:auto;margin-top:12px;">
-            <table style="width:100%;">
+        <div class="table-wrap">
+            <table class="comercial-table">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -359,7 +360,7 @@
                         <td>$ {{ "%.2f"|format(borrador.total_centavos / 100) }}</td>
                         <td>
                             {% if borrador.estado in ["borrador", "listo"] %}
-                            <form method="post"
+                            <details class="source-catalog fiscal-editor"><summary><span>Gestionar</span></summary><form class="comercial-form" method="post"
                                   action="{{ url_for('admin_facturacion.guardar') }}">
                                 <input type="hidden"
                                        name="accion"
@@ -367,16 +368,16 @@
                                 <input type="hidden"
                                        name="borrador_id"
                                        value="{{ borrador.id }}">
-                                <select name="estado">
+                                <label>Estado<select name="estado">
                                     {% if borrador.estado == "borrador" %}
                                     <option value="listo">Listo</option>
                                     {% else %}
                                     <option value="borrador">Reabrir</option>
                                     {% endif %}
                                     <option value="cancelado">Cancelar</option>
-                                </select>
+                                </select></label>
                                 <button type="submit">Actualizar</button>
-                            </form>
+                            <div class="fiscal-cancel"><button type="button" data-fiscal-cancel>Cancelar</button></div></form></details>
                             {% else %}
                             Cerrado
                             {% endif %}
@@ -388,21 +389,20 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </section>
     {% endif %}
 
     {% if borradores %}
-    <div class="card" style="margin-top:16px;">
-        <h2>Agregar ítem a borrador</h2>
+    <section class="comercial-section">
+        <div class="section-heading"><div><h2>Agregar ítem a borrador</h2></div></div>
 
-        <form method="post"
-              action="{{ url_for('admin_facturacion.guardar') }}"
-              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+        <details class="source-catalog fiscal-editor"><summary><span>Agregar ítem a borrador</span></summary><form class="comercial-form" method="post"
+              action="{{ url_for('admin_facturacion.guardar') }}">
             <input type="hidden"
                    name="accion"
                    value="agregar_item_borrador">
 
-            <select required name="borrador_id">
+            <label>Detalle<select required name="borrador_id">
                 <option value="">Borrador abierto</option>
                 {% for borrador in borradores %}
                 {% if borrador.estado == "borrador" %}
@@ -411,38 +411,38 @@
                 </option>
                 {% endif %}
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <input required
+            <label>Descripción<input required
                    name="descripcion"
                    maxlength="300"
-                   placeholder="Descripción">
-            <input name="sku"
+                   placeholder="Descripción"></label>
+            <label>SKU opcional<input name="sku"
                    maxlength="100"
-                   placeholder="SKU opcional">
-            <input required
+                   placeholder="SKU opcional"></label>
+            <label>Cantidad<input required
                    name="cantidad"
                    inputmode="decimal"
                    value="1"
-                   placeholder="Cantidad">
-            <input required
+                   placeholder="Cantidad"></label>
+            <label>Precio final unitario<input required
                    name="precio_unitario"
                    inputmode="decimal"
-                   placeholder="Precio final unitario">
-            <input required
+                   placeholder="Precio final unitario"></label>
+            <label>IVA %<input required
                    name="alicuota_iva"
                    inputmode="decimal"
                    value="21"
-                   placeholder="IVA %">
+                   placeholder="IVA %"></label>
             <button type="submit">Agregar ítem</button>
-        </form>
-    </div>
+        <div class="fiscal-cancel"><button type="button" data-fiscal-cancel>Cancelar</button></div></form></details>
+    </section>
     {% endif %}
 
-    <div class="card" style="margin-top:16px;">
-        <h2>Eventos fiscales recientes</h2>
+    <section class="comercial-section">
+        <div class="section-heading"><div><h2>Eventos fiscales recientes</h2></div></div>
 
-        <table style="width:100%;">
+        <div class="table-wrap"><table class="comercial-table">
             <thead>
                 <tr>
                     <th>Fecha</th>
@@ -469,7 +469,7 @@
                 <tr><td colspan="5">No hay eventos fiscales.</td></tr>
                 {% endfor %}
             </tbody>
-        </table>
-    </div>
-</div>
+        </table></div>
+    </section>
+</main>
 {% endblock %}
