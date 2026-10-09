@@ -13,7 +13,8 @@ def controlar(*,organizacion_id,modulo,entidades,configuraciones,puntos,tipos,bo
     if not modulo or modulo.estado not in {"prueba","activo"}:agregar("modulo_no_preparado","modulo",None,"El módulo fiscal no está en prueba.")
     for e in entidades:
         if not e.activa or not e.facturacion_habilitada:agregar("entidad_no_habilitada","entidad_fiscal",e.id,"La entidad no está habilitada administrativamente.")
-        if len(str(e.cuit or ""))!=11 or not str(e.cuit or "").isdigit():agregar("cuit_invalido","entidad_fiscal",e.id,"El CUIT no tiene once dígitos.")
+        cuit = str(e.cuit or "").strip().replace("-", "").replace(" ", "")
+        if len(cuit) != 11 or not cuit.isascii() or not cuit.isdigit():agregar("cuit_invalido","entidad_fiscal",e.id,"El CUIT debe contener once dígitos; puede incluir guiones o espacios.")
     for c in configs:
         if c.entidad_fiscal_id not in entidad_ids:agregar("configuracion_huerfana","configuracion_fiscal",c.id,"La configuración no pertenece a una entidad del tenant.")
         if c.estado not in {"configurada","prueba"}:agregar("configuracion_incompleta","configuracion_fiscal",c.id,"La configuración aún no está preparada.")

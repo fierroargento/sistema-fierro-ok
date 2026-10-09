@@ -1,1 +1,61 @@
-{% extends "base.html" %}{% block content %}<div class="card"><h1>Control integral de facturación</h1><p>Diagnóstico final multi-CUIT de solo lectura. No solicita CAE, no emite y no se conecta con ARCA.</p><div class="alerta {{ 'alerta-ok' if control.aprobado else 'alerta-error' }}">{{ 'CONTROL APROBADO' if control.aprobado else 'CONTROL BLOQUEADO' }} · {{ control.resumen.hallazgos }} hallazgos</div><form method="post"><button>Descargar informe firmado</button></form><h2>Cobertura</h2><table><tr><th>Entidades</th><th>Configuraciones</th><th>Puntos</th><th>Tipos</th><th>Borradores</th><th>Lotes</th><th>Expedientes</th></tr><tr><td>{{ control.resumen.entidades }}</td><td>{{ control.resumen.configuraciones }}</td><td>{{ control.resumen.puntos_venta }}</td><td>{{ control.resumen.tipos }}</td><td>{{ control.resumen.borradores }}</td><td>{{ control.resumen.lotes }}</td><td>{{ control.resumen.expedientes }}</td></tr></table><h2>Hallazgos</h2><table><thead><tr><th>Código</th><th>Entidad</th><th>ID</th><th>Detalle</th></tr></thead><tbody>{% for h in control.hallazgos %}<tr><td>{{ h.codigo }}</td><td>{{ h.entidad }}</td><td>{{ h.id or '-' }}</td><td>{{ h.detalle }}</td></tr>{% else %}<tr><td colspan="4">Sin hallazgos.</td></tr>{% endfor %}</tbody></table><p>Huella: <code>{{ control.huella }}</code></p></div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Control integral de facturación{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}?v=20261009-control">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_facturacion.css') }}?v=20261009-control">
+{% endblock %}
+{% block content %}
+<main class="comercial-page fiscal-page">
+    <header class="comercial-header"><div>
+        <span class="comercial-eyebrow">ADMINISTRACIÓN · FACTURACIÓN</span>
+        <h1>Control integral de facturación</h1>
+        <p class="comercial-intro">Diagnóstico multi-CUIT de solo lectura. Revisá la configuración y la integridad de los registros antes de continuar.</p>
+    </div></header>
+    <nav class="fiscal-actions" aria-label="Herramientas de control fiscal">
+        <a href="{{ url_for('admin_facturacion.panel') }}">Volver a Facturación</a>
+        <form method="post"><button type="submit">Descargar JSON</button></form>
+    </nav>
+    <div class="fiscal-status"><span>Emisión real bloqueada</span><span>Sin conexión con ARCA</span><span>Diagnóstico sin cambios en los datos</span></div>
+    <div class="comercial-message {{ 'comercial-message-ok' if control.aprobado else 'comercial-message-error' }}" role="status">
+        <strong>{{ 'CONTROL APROBADO' if control.aprobado else 'CONTROL BLOQUEADO' }}</strong> · {{ control.resumen.hallazgos }} hallazgos.
+        {% if not control.aprobado %}Revisá los detalles indicados debajo.{% endif %}
+    </div>
+    <section class="comercial-section">
+        <div class="section-heading"><div><h2>Cobertura</h2><p class="muted">Registros incluidos en este diagnóstico.</p></div></div>
+        <div class="fiscal-summary">
+            {% for clave, etiqueta in [('entidades','Entidades'),('configuraciones','Configuraciones'),('puntos_venta','Puntos de venta'),('tipos','Tipos'),('borradores','Borradores'),('borradores_listos','Borradores listos'),('lotes','Lotes'),('expedientes','Expedientes'),('eventos','Eventos')] %}
+            <div><strong>{{ control.resumen[clave] }}</strong><span>{{ etiqueta }}</span></div>
+            {% endfor %}
+        </div>
+    </section>
+    <section class="comercial-section">
+        <div class="section-heading"><div><h2>Controles</h2></div></div>
+        <div class="table-wrap"><table class="comercial-table">
+            <thead><tr><th>Control</th><th>Resultado</th></tr></thead>
+            <tbody>
+                {% for clave, etiqueta in [('aislamiento_tenant','Aislamiento de la organización'),('integridad_cadena','Integridad de la cadena fiscal'),('borradores_cubiertos','Cobertura de borradores listos'),('autorizaciones_consistentes','Consistencia de autorizaciones'),('emision_real_bloqueada','Emisión real bloqueada')] %}
+                <tr><td>{{ etiqueta }}</td><td>{{ 'Correcto' if control.controles[clave] else 'Revisar' }}</td></tr>
+                {% endfor %}
+                <tr><td>Acciones externas</td><td>{{ control.controles.acciones_externas }}</td></tr>
+                <tr><td>Escrituras del diagnóstico</td><td>{{ control.controles.escrituras }}</td></tr>
+            </tbody>
+        </table></div>
+    </section>
+    <section class="comercial-section">
+        <div class="section-heading"><div><h2>Hallazgos</h2></div></div>
+        <div class="table-wrap"><table class="comercial-table">
+            <thead><tr><th>Código</th><th>Entidad</th><th>ID</th><th>Detalle</th></tr></thead>
+            <tbody>
+                {% for h in control.hallazgos %}
+                <tr><td>{{ h.codigo }}</td><td>{{ h.entidad }}</td><td>{{ h.id if h.id is not none else '-' }}</td><td>{{ h.detalle }}</td></tr>
+                {% else %}<tr><td colspan="4">Sin hallazgos.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+    </section>
+    <details class="source-catalog fiscal-evidence">
+        <summary><span>Huella del informe</span></summary>
+        <p class="muted">Permite comparar la integridad del diagnóstico exportado.</p>
+        <code>{{ control.huella }}</code>
+    </details>
+</main>
+{% endblock %}

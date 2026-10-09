@@ -21,3 +21,32 @@ def test_panel_es_solo_lectura_y_sin_query():
  ruta=Path("modules/admin/facturacion/routes.py").read_text(encoding="utf-8");html=Path("templates/admin_control_integral_facturacion.html").read_text(encoding="utf-8");assert ".query" not in ruta and "CONTROL APROBADO" in html and "solo lectura" in html
 def test_servicio_sin_transporte_ni_persistencia():
  s=Path("services/control_integral_facturacion.py").read_text(encoding="utf-8").lower();assert not any(x in s for x in ("requests","urlopen","http://","https://","db.session","commit(","rollback(","access_token","client_secret"))
+
+def test_cuit_con_guiones_o_espacios_equivale_al_formato_continuo():
+    _, entidad, *_ = datos()
+    esperado = ejecutar()
+    for cuit in ("30-71234567-8", " 30 71234567 8 "):
+        entidad.cuit = cuit
+        assert ejecutar(entidades=[entidad]) == esperado
+
+def test_cuit_invalido_sigue_bloqueado():
+    _, entidad, *_ = datos()
+    for cuit in (None, "", "30-123-4", "307123456789", "30A712345678", "３０７１２３４５６７８"):
+        entidad.cuit = cuit
+        resultado = ejecutar(entidades=[entidad])
+        assert not resultado["aprobado"]
+        assert "cuit_invalido" in {h["codigo"] for h in resultado["hallazgos"]}
+
+def test_formato_cuit_no_elimina_bloqueos_del_laboratorio():
+    modulo, entidad, configuracion, *_ = datos()
+    modulo.estado = "desactivado"
+    entidad.cuit = "30-00000000-7"
+    entidad.facturacion_habilitada = False
+    configuracion.estado = "desactivada"
+    resultado = ejecutar(modulo=modulo, entidades=[entidad], configuraciones=[configuracion])
+    assert not resultado["aprobado"]
+    assert {h["codigo"] for h in resultado["hallazgos"]} == {
+        "modulo_no_preparado", "entidad_no_habilitada", "configuracion_incompleta"
+    }
+    assert resultado["emision_real"] is False
+    assert resultado["controles"]["acciones_externas"] == resultado["controles"]["escrituras"] == 0
