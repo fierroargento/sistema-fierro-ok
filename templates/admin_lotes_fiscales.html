@@ -1,9 +1,65 @@
 {% extends "base.html" %}
-{% block content %}<div class="card">
-<h1>Historial de lotes fiscales</h1>
-<p>Gestión interna por tenant. La anulación cancela borradores no autorizados; no borra registros ni se comunica con ARCA.</p>
-{% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
-<table style="width:100%"><thead><tr><th>Lote</th><th>Archivo</th><th>Fecha</th><th>Borradores</th><th>Ítems</th><th>Estado</th><th>Evidencia</th><th>Acción</th></tr></thead><tbody>
-{% for lote in lotes %}<tr><td>#{{ lote.id }}</td><td>{{ lote.nombre_archivo }}</td><td>{{ lote.fecha_creacion }}</td><td>{{ lote.comprobantes_creados }}</td><td>{{ lote.items_creados }}</td><td>{{ lote.estado }}</td><td><a href="{{ url_for('admin_facturacion.exportar_lote_fiscal', lote_id=lote.id) }}">Descargar JSON</a></td><td>{% if lote.estado == 'confirmado' %}<form method="post" action="{{ url_for('admin_facturacion.anular_lote_fiscal', lote_id=lote.id) }}"><input required name="motivo" maxlength="1500" placeholder="Motivo de anulación"><button type="submit">Anular internamente</button></form>{% else %}Cerrado{% endif %}</td></tr>
-{% else %}<tr><td colspan="8">No hay lotes fiscales.</td></tr>{% endfor %}</tbody></table>
-</div>{% endblock %}
+{% block title %}Historial de lotes fiscales{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}?v=20261009-lotes">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_facturacion.css') }}?v=20261009-lotes">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_lotes_fiscales.css') }}?v=20261009-lotes">
+<script defer src="{{ url_for('static', filename='admin_facturacion.js') }}?v=20261008-fiscal"></script>
+{% endblock %}
+{% block content %}
+<main class="comercial-page fiscal-page fiscal-lotes-page">
+    <header class="comercial-header">
+        <div>
+            <span class="comercial-eyebrow">ADMINISTRACIÓN · FACTURACIÓN</span>
+            <h1>Historial de lotes fiscales</h1>
+            <p class="comercial-intro">Consultá las importaciones y descargá su evidencia. La anulación interna conserva los registros y cancela los borradores del lote.</p>
+        </div>
+    </header>
+    <nav class="fiscal-actions" aria-label="Navegación de lotes fiscales">
+        <a href="{{ url_for('admin_facturacion.panel') }}">Volver a Facturación</a>
+        <a href="{{ url_for('admin_facturacion.importacion_offline') }}">Importar borradores</a>
+    </nav>
+    <div class="fiscal-status"><span>Emisión real bloqueada</span><span>Sin comunicación con ARCA</span></div>
+    {% if error %}
+    <div class="comercial-message comercial-message-error" role="alert">{{ error }}</div>
+    {% endif %}
+    <section class="comercial-section">
+        <div class="section-heading">
+            <div><h2>Lotes importados</h2><p class="muted">Fechas en horario argentino (UTC−3).</p></div>
+        </div>
+        <div class="table-wrap">
+            <table class="comercial-table fiscal-lotes-table">
+                <thead><tr><th>Lote</th><th>Archivo</th><th>Fecha</th><th>Borradores</th><th>Ítems</th><th>Estado</th><th>Evidencia</th><th>Acción</th></tr></thead>
+                <tbody>
+                    {% for lote in lotes %}
+                    <tr>
+                        <td class="lote-id">#{{ lote.id }}</td>
+                        <td>{{ lote.nombre_archivo }}</td>
+                        <td class="lote-fecha">{{ fecha_argentina(lote.fecha_creacion).strftime("%d/%m/%Y %H:%M") if lote.fecha_creacion else "-" }}</td>
+                        <td class="lote-cantidad">{{ lote.comprobantes_creados }}</td>
+                        <td class="lote-cantidad">{{ lote.items_creados }}</td>
+                        <td><span class="lote-estado {% if lote.estado == 'confirmado' %}lote-confirmado{% elif lote.estado == 'anulado' %}lote-anulado{% endif %}">{{ lote.estado }}</span></td>
+                        <td><a class="lote-button" href="{{ url_for('admin_facturacion.exportar_lote_fiscal', lote_id=lote.id) }}">Descargar JSON</a></td>
+                        <td>
+                            {% if lote.estado == 'confirmado' %}
+                            <details class="source-catalog fiscal-editor">
+                                <summary><span>Gestionar</span></summary>
+                                <form class="comercial-form" method="post" action="{{ url_for('admin_facturacion.anular_lote_fiscal', lote_id=lote.id) }}" onsubmit="return window.confirm('¿Anular internamente este lote y cancelar sus borradores? Los registros y sus importes se conservarán.');">
+                                    <label>Motivo de anulación<input required name="motivo" maxlength="1500" placeholder="Indicá el motivo"></label>
+                                    <p class="muted">Cancela los borradores no autorizados de este lote.</p>
+                                    <div class="lote-form-actions">
+                                        <button class="lote-danger" type="submit">Anular internamente</button>
+                                        <div class="fiscal-cancel"><button type="button" data-fiscal-cancel>Cancelar</button></div>
+                                    </div>
+                                </form>
+                            </details>
+                            {% else %}<span class="lote-cerrado">Cerrado</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% else %}<tr><td colspan="8" class="lote-empty">No hay lotes fiscales.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+{% endblock %}
