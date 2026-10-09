@@ -1,1 +1,52 @@
-{% extends "base.html" %}{% block content %}<div class="card"><h1>Expedientes fiscales internos</h1><p>Certificación previa y desconectada. No solicita CAE ni habilita emisión real.</p>{% if ok %}<div class="alerta alerta-ok">{{ ok }}</div>{% endif %}{% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}<h2>Borradores listos</h2><table><thead><tr><th>Borrador</th><th>Receptor</th><th>Total</th><th>Acción</th></tr></thead><tbody>{% for b in candidatos %}<tr><td>#{{ b.id }}</td><td>{{ b.receptor_nombre }}</td><td>{{ b.total_centavos }}</td><td><form method="post"><input type="hidden" name="borrador_id" value="{{ b.id }}"><button>Certificar expediente</button></form></td></tr>{% else %}<tr><td colspan="4">No hay borradores listos.</td></tr>{% endfor %}</tbody></table><h2>Expedientes certificados</h2><table><thead><tr><th>ID</th><th>Borrador</th><th>Estado</th><th>Huella</th><th>Evidencia</th></tr></thead><tbody>{% for e in expedientes %}<tr><td>#{{ e.id }}</td><td>#{{ e.borrador_comprobante_fiscal_id }}</td><td>{{ e.estado }}</td><td>{{ e.huella[:12] }}</td><td><a href="{{ url_for('admin_facturacion.exportar_expediente_fiscal',expediente_id=e.id) }}">Descargar JSON</a></td></tr>{% else %}<tr><td colspan="5">No hay expedientes certificados.</td></tr>{% endfor %}</tbody></table></div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Expedientes fiscales internos{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}?v=20261009-expedientes">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_facturacion.css') }}?v=20261009-expedientes">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_expedientes_fiscales.css') }}?v=20261009-expedientes">
+{% endblock %}
+{% macro importe(centavos) -%}
+$ {{ "{:,.2f}".format(centavos / 100).replace(",", "X").replace(".", ",").replace("X", ".") }}
+{%- endmacro %}
+{% block content %}
+<main class="comercial-page fiscal-page fiscal-expedientes-page">
+    <header class="comercial-header"><div>
+        <span class="comercial-eyebrow">ADMINISTRACIÓN · FACTURACIÓN</span>
+        <h1>Expedientes fiscales internos</h1>
+        <p class="comercial-intro">Certificación interna de los borradores listos y descarga de su evidencia.</p>
+    </div></header>
+    <nav class="fiscal-actions" aria-label="Navegación de expedientes">
+        <a href="{{ url_for('admin_facturacion.panel') }}">Volver a Facturación</a>
+        <a href="{{ url_for('admin_facturacion.control_integral') }}">Control integral</a>
+    </nav>
+    <div class="fiscal-status"><span>Emisión real bloqueada</span><span>Sin solicitud de CAE ni conexión con ARCA</span></div>
+    {% if ok %}<div class="comercial-message comercial-message-ok" role="status">{{ ok }}</div>{% endif %}
+    {% if error %}<div class="comercial-message comercial-message-error" role="alert">{{ error }}</div>{% endif %}
+    <section class="comercial-section">
+        <div class="section-heading"><div><h2>Borradores listos</h2><p class="muted">La certificación comprueba la configuración y registra un expediente interno si supera los controles.</p></div></div>
+        <div class="table-wrap"><table class="comercial-table">
+            <thead><tr><th>Borrador</th><th>Receptor</th><th>Total (ARS)</th><th>Acción</th></tr></thead>
+            <tbody>
+                {% for b in candidatos %}
+                <tr><td>#{{ b.id }}</td><td>{{ b.receptor_nombre }}</td><td class="expediente-importe">{{ importe(b.total_centavos) }}</td>
+                    <td><form method="post"><input type="hidden" name="borrador_id" value="{{ b.id }}"><button type="submit">Certificar expediente</button></form></td>
+                </tr>
+                {% else %}<tr><td colspan="4" class="expediente-empty">No hay borradores listos.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+    </section>
+    <section class="comercial-section">
+        <div class="section-heading"><div><h2>Expedientes certificados</h2></div></div>
+        <div class="table-wrap"><table class="comercial-table">
+            <thead><tr><th>ID</th><th>Borrador</th><th>Estado</th><th>Huella</th><th>Evidencia</th></tr></thead>
+            <tbody>
+                {% for e in expedientes %}
+                <tr><td>#{{ e.id }}</td><td>#{{ e.borrador_comprobante_fiscal_id }}</td><td><span class="expediente-estado">{{ e.estado }}</span></td><td><code title="{{ e.huella }}">{{ e.huella[:12] }}</code></td>
+                    <td><a class="expediente-download" href="{{ url_for('admin_facturacion.exportar_expediente_fiscal', expediente_id=e.id) }}">Descargar JSON</a></td>
+                </tr>
+                {% else %}<tr><td colspan="5" class="expediente-empty">No hay expedientes certificados.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+    </section>
+</main>
+{% endblock %}

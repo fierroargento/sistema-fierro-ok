@@ -1,0 +1,7 @@
+/* Presentación limitada a expedientes fiscales internos. */
+.fiscal-expedientes-page .expediente-importe { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.fiscal-expedientes-page .expediente-estado { display:inline-flex; padding:5px 9px; border-radius:6px; background:#e8f6ee; color:#21633e; font-size:12px; font-weight:800; }
+.fiscal-expedientes-page .expediente-empty { text-align:center; padding:24px; color:#667085; }
+.fiscal-expedientes-page .expediente-download { display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; min-height:38px; padding:8px 14px; border:1px solid #8ac4da; border-radius:8px; background:#edf8fc; color:#176b89; font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }
+.fiscal-expedientes-page .expediente-download:hover { background:#dceff6; }
+.fiscal-expedientes-page .expediente-download:focus-visible { outline:2px solid #2c92b8; outline-offset:3px; }
