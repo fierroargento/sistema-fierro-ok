@@ -1,0 +1,14 @@
+/* Import preview presentation only. */
+.fiscal-import-page .fiscal-upload { grid-template-columns:minmax(0,1fr) auto; align-items:end; }
+.fiscal-import-page input[type="file"] { padding:7px; cursor:pointer; }
+.fiscal-import-page input[type="file"]::file-selector-button { margin-right:12px; padding:8px 12px; border:0; border-radius:6px; background:#edf8fc; color:#176b89; font:inherit; font-weight:700; cursor:pointer; }
+.fiscal-import-page .fiscal-import-table { min-width:900px; }
+.fiscal-import-page .fiscal-import-table th:nth-child(n+3):nth-child(-n+6),
+.fiscal-import-page .fiscal-import-table td:nth-child(n+3):nth-child(-n+6) { text-align:right; }
+.fiscal-import-page .fiscal-import-table .fiscal-amount { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.fiscal-import-page .fiscal-import-state { display:inline-block; padding:4px 8px; border-radius:6px; background:#ecf8f0; color:#246240; font-weight:700; }
+.fiscal-import-page .fiscal-import-state-error { background:#fff0f0; color:#9c3030; }
+.fiscal-import-page .fiscal-import-errors { margin:8px 0 0; padding-left:18px; color:#9c3030; line-height:1.5; }
+.fiscal-import-page .fiscal-import-actions { margin:18px 0 0; }
+.fiscal-import-page .fiscal-secondary { border-color:#8ac4da; background:#edf8fc; color:#176b89; }
+@media(max-width:700px) { .fiscal-import-page .fiscal-upload { grid-template-columns:1fr; } }
