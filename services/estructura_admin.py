@@ -5,6 +5,8 @@ Este servicio administra únicamente tablas nuevas.
 No conecta sus datos con pedidos, canales ni facturación.
 """
 
+from services.eliminacion_entidad_fiscal import eliminar_entidad_fiscal_sin_uso
+
 from services.catalogos_comerciales import (
     cambiar_estado_catalogo,
     configurar_precio_catalogo,
@@ -313,6 +315,15 @@ def procesar_accion_estructura_admin(
         return (
             "Entidad fiscal creada sin habilitar "
             "facturación."
+        )
+
+    if accion == "eliminar_entidad_fiscal":
+        return eliminar_entidad_fiscal_sin_uso(
+            organizacion_id=organizacion.id,
+            entidad_fiscal_id=_id_entero(formulario, "entidad_fiscal_id"),
+            confirmacion=_texto(formulario, "confirmar_eliminacion", 10),
+            modelo=EntidadFiscal,
+            sesion=db_session,
         )
 
     if accion == "toggle_entidad_fiscal":

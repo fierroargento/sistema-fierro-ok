@@ -32,3 +32,13 @@
 .estructura-page .alerta-ok{background:#ebfbf1;border-color:#ade0c0;color:#176344}
 .estructura-page .alerta-error{background:#fff0f1;border-color:#f0bcc2;color:#a12436}
 @media(max-width:700px){.estructura-page{padding:0 12px 24px;margin:16px auto}.estructura-page .card{padding:14px}.estructura-page h1{font-size:24px}.estructura-tools a{flex:1}.estructura-diagnosticos>.card{margin:10px 8px 0}}
+
+.estructura-page button.estructura-delete {
+  background: #fff1f2;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
+}
+.estructura-page button.estructura-delete:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
+}

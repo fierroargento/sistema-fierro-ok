@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260821-2') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css', v='20261010-2') }}">
-<script defer src="{{ url_for('static', filename='admin_estructura.js', v='20261010-2') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css', v='20261010-3') }}">
+<script defer src="{{ url_for('static', filename='admin_estructura.js', v='20261010-3') }}"></script>
 {% endblock %}
 {% block content %}
 <main class="estructura-admin estructura-page">
@@ -504,6 +504,20 @@
                                     {{ "Deshabilitar facturación" if entidad.facturacion_habilitada else "Habilitar facturación" }}
                                 </button>
                             </form>
+                            {% if not entidad.activa and not entidad.facturacion_habilitada %}
+                            <form method="post"
+                                  action="{{ url_for('admin_estructura.guardar') }}"
+                                  style="display:inline;"
+                                  data-estructura-delete>
+                                <input type="hidden" name="accion" value="eliminar_entidad_fiscal">
+                                <input type="hidden" name="entidad_fiscal_id" value="{{ entidad.id }}">
+                                <input type="hidden" name="confirmar_eliminacion" value="">
+                                <button type="submit" class="estructura-delete"
+                                        title="Eliminar solamente si no tiene vínculos ni historial">
+                                    Eliminar
+                                </button>
+                            </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

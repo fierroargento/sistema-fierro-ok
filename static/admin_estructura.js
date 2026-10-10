@@ -28,3 +28,15 @@ document.addEventListener("submit", (event) => {
     event.preventDefault();
   }
 });
+
+document.addEventListener("submit", (event) => {
+  const form = event.target;
+  if (!form.matches("[data-estructura-delete]") || event.defaultPrevented) return;
+  const confirmation = form.querySelector('input[name="confirmar_eliminacion"]');
+  confirmation.value = "";
+  if (!window.confirm("¿Eliminar esta entidad fiscal? La eliminación es definitiva y solo se permite si no tiene vínculos ni historial.")) {
+    event.preventDefault();
+    return;
+  }
+  confirmation.value = "1";
+});
