@@ -1,0 +1,34 @@
+/* Estilos exclusivos de Estructura; no alteran otras pantallas. */
+.estructura-page{max-width:1200px;margin:24px auto;padding:0 24px 32px;color:#183548;box-sizing:border-box}
+.estructura-page h1{font-size:28px;margin:0 0 10px}
+.estructura-page h2{font-size:19px;margin:0 0 14px}
+.estructura-page h3{font-size:16px}
+.estructura-page p{line-height:1.5;color:#526778}
+.estructura-page .card{max-width:none;margin:16px 0 0;padding:20px;border:1px solid #dce5ed;border-radius:14px;background:#fff;box-shadow:none}
+.estructura-tools{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
+.estructura-tools a,.estructura-page button{display:inline-flex;align-items:center;justify-content:center;width:auto;max-width:100%;min-height:36px;padding:8px 14px;box-sizing:border-box;border:1px solid #14546a;border-radius:7px;background:#14546a;color:#fff;font-family:inherit;font-weight:600;font-size:13px;line-height:1.3;text-decoration:none;cursor:pointer}
+.estructura-tools a{background:#edf8fc;color:#14546a;border-color:#a4d6e6;font-size:13px}
+.estructura-page button:hover{background:#0c4054}
+.estructura-page button:disabled{opacity:.5;cursor:not-allowed}
+.estructura-page :is(button,a,summary,input,select):focus-visible{outline:3px solid #80c8e0;outline-offset:2px}
+.estructura-diagnosticos,.estructura-editor{border:1px solid #dce5ed;border-radius:9px;background:#f7fafc;margin:12px 0}
+.estructura-page summary{cursor:pointer;padding:12px 14px;color:#14546a;font-size:13px;font-weight:700}
+.estructura-diagnosticos[open]{padding-bottom:14px}
+.estructura-diagnosticos>.card{margin:12px 14px 0}
+.estructura-help{padding:0 14px;font-size:13px}
+.estructura-editor[open]>summary{border-bottom:1px solid #dce5ed}
+.estructura-page .estructura-editor>form{display:flex!important;gap:10px!important;flex-wrap:wrap!important;align-items:center!important;padding:14px;margin:0!important}
+.estructura-page :is(input:not([type=hidden]):not([type=checkbox]),select){box-sizing:border-box;min-height:38px;max-width:100%;padding:8px 10px;border:1px solid #cbd9e4;border-radius:7px;background:#fff;color:#183548;font:inherit;font-size:13px;min-width:0}
+.estructura-editor :is(input:not([type=hidden]),select){flex:1 1 180px}
+.estructura-form-actions{flex-basis:100%;display:flex;justify-content:flex-end}
+.estructura-form-actions button{background:#fff;color:#526778;border-color:#cbd9e4}
+.estructura-form-actions button:hover{background:#eaf0f5}
+.estructura-page table{border-collapse:collapse;width:100%;font-size:13px}
+.estructura-page th{text-align:left;background:#f5f8fb;color:#607487;font-size:11px;padding:12px;white-space:nowrap}
+.estructura-page td{padding:12px;border-bottom:1px solid #e2eaf0;vertical-align:top;overflow-wrap:anywhere}
+.estructura-page td form{margin:0 0 6px}
+.estructura-page td .estructura-editor{min-width:180px;margin:0 0 8px}
+.estructura-page .alerta{box-shadow:none;border:1px solid #dce5ed;border-radius:8px;padding:12px;background:#f2f7fa;font-size:13px}
+.estructura-page .alerta-ok{background:#ebfbf1;border-color:#ade0c0;color:#176344}
+.estructura-page .alerta-error{background:#fff0f1;border-color:#f0bcc2;color:#a12436}
+@media(max-width:700px){.estructura-page{padding:0 12px 24px;margin:16px auto}.estructura-page .card{padding:14px}.estructura-page h1{font-size:24px}.estructura-tools a{flex:1}.estructura-diagnosticos>.card{margin:10px 8px 0}}

@@ -1,14 +1,21 @@
 {% extends "base.html" %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260821-2') }}">{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260821-2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css', v='20261010-1') }}">
+<script defer src="{{ url_for('static', filename='admin_estructura.js', v='20261010-1') }}"></script>
+{% endblock %}
 {% block content %}
-<p><a href="{{ url_for('admin_estructura.control_integral') }}">Abrir control integral de estructura SaaS</a></p>
-<div class="card estructura-admin">
+<main class="estructura-admin estructura-page">
     <h1>Estructura empresarial</h1>
     <p>
         Configuración interna de {{ organizacion.nombre }}. Los registros nuevos
         no se conectan automáticamente con pedidos, canales ni facturación.
     </p>
 
+    <nav class="estructura-tools" aria-label="Herramientas de estructura">
+        <a href="{{ url_for('admin_estructura.control_integral') }}">Control integral</a>
+        <a href="#estructura-configuracion">Configuración empresarial</a>
+    </nav>
     {% if ok_feedback %}
     <div class="alerta alerta-ok">{{ ok_feedback }}</div>
     {% endif %}
@@ -17,6 +24,9 @@
     <div class="alerta alerta-error">{{ error }}</div>
     {% endif %}
 
+    <details class="estructura-diagnosticos">
+        <summary>Diagnósticos y preparación de la organización</summary>
+        <p class="estructura-help">Certificaciones, hallazgos y propuestas de asignación. Abrí este panel para revisar los controles; las integraciones externas siguen bloqueadas.</p>
     <div class="card" style="margin-top:16px;">
         <h2>Certificación del maestro de productos</h2>
         <p>
@@ -243,7 +253,9 @@
         </form>
     </div>
 
-    <div class="card" style="margin-top:16px;">
+    </details>
+
+    <div id="estructura-configuracion" class="card" style="margin-top:16px;">
         <h2>Organizaciones disponibles</h2>
         <div style="display:grid;gap:8px;">
             {% for membresia_item in membresias_tenant %}
@@ -271,7 +283,7 @@
 
         {% if puede_crear_tenant %}
         <h3>Crear organización SaaS</h3>
-        <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+        <details class="estructura-editor"><summary>Crear organización</summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_organizacion">
             <input name="nombre" required maxlength="150" placeholder="Organización">
@@ -279,29 +291,29 @@
             <input name="unidad_nombre" required maxlength="150" placeholder="Primera unidad de negocio">
             <input name="unidad_codigo" maxlength="80" placeholder="Código opcional">
             <button type="submit">Crear desactivada</button>
-        </form>
+        <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
         {% endif %}
 
         <h3>Tenant activo</h3>
-        <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+        <details class="estructura-editor"><summary>Gestionar organización</summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
               style="display:flex;gap:8px;flex-wrap:wrap;">
             <input type="hidden" name="accion" value="editar_organizacion">
             <input name="nombre" required maxlength="150" value="{{ organizacion.nombre }}">
             <input name="slug" required maxlength="80" value="{{ organizacion.slug }}">
             <button type="submit">Guardar organización</button>
-        </form>
+        <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
 
         <h3>Unidades de negocio</h3>
-        <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+        <details class="estructura-editor"><summary>Crear unidad de negocio</summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
               style="display:flex;gap:8px;flex-wrap:wrap;">
             <input type="hidden" name="accion" value="crear_unidad">
             <input name="nombre" required maxlength="150" placeholder="Nueva unidad">
             <input name="codigo" maxlength="80" placeholder="Código opcional">
             <button type="submit">Crear desactivada</button>
-        </form>
+        <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
         <div style="display:grid;gap:8px;margin-top:12px;">
             {% for unidad in unidades %}
-            <form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+            <details class="estructura-editor"><summary>Gestionar unidad de negocio</summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
                   style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <input type="hidden" name="unidad_id" value="{{ unidad.id }}">
                 <input name="nombre" required maxlength="150" value="{{ unidad.nombre }}">
@@ -311,7 +323,7 @@
                 <button type="submit" name="accion" value="toggle_unidad">
                     {{ "Desactivar" if unidad.activa else "Activar" }}
                 </button>
-            </form>
+            <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
             {% endfor %}
         </div>
     </div>
@@ -340,7 +352,7 @@
                         <td><strong>{{ modulo.estado }}</strong></td>
                         <td>{{ modulo.detalle or "-" }}</td>
                         <td>
-                            <form method="post"
+                            <details class="estructura-editor"><summary>Gestionar</summary><form method="post"
                                   action="{{ url_for('admin_estructura.guardar') }}">
                                 <input type="hidden" name="accion" value="estado_modulo">
                                 <input type="hidden" name="modulo_id" value="{{ modulo.id }}">
@@ -357,7 +369,7 @@
                                        value="{{ modulo.detalle or '' }}"
                                        placeholder="Detalle interno">
                                 <button type="submit">Guardar</button>
-                            </form>
+                            <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
                         </td>
                     </tr>
                     {% endfor %}
@@ -369,7 +381,7 @@
     <div class="card" style="margin-top:16px;">
         <h2>Sucursales operativas</h2>
 
-        <form method="post"
+        <details class="estructura-editor"><summary>Crear sucursal</summary><form method="post"
               action="{{ url_for('admin_estructura.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_sucursal">
@@ -380,7 +392,7 @@
             <input name="provincia" maxlength="120" placeholder="Provincia">
             <input name="codigo_postal" maxlength="20" placeholder="Código postal">
             <button type="submit">Crear desactivada</button>
-        </form>
+        <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
 
         <div style="overflow-x:auto;margin-top:12px;">
             <table style="width:100%;">
@@ -427,7 +439,7 @@
     <div class="card" style="margin-top:16px;">
         <h2>Entidades fiscales</h2>
 
-        <form method="post"
+        <details class="estructura-editor"><summary>Crear entidad fiscal</summary><form method="post"
               action="{{ url_for('admin_estructura.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_entidad_fiscal">
@@ -441,7 +453,7 @@
                    maxlength="20"
                    placeholder="Punto de venta futuro">
             <button type="submit">Crear desactivada</button>
-        </form>
+        <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
 
         <div style="overflow-x:auto;margin-top:12px;">
             <table style="width:100%;">
@@ -510,7 +522,7 @@
             ni factura consulta esta tabla.
         </p>
 
-        <form method="post"
+        <details class="estructura-editor"><summary>Crear vínculo de canal</summary><form method="post"
               action="{{ url_for('admin_estructura.guardar') }}"
               class="channel-create-form">
             <input type="hidden"
@@ -594,7 +606,7 @@
             <button type="submit">
                 Crear vínculo desactivado
             </button>
-        </form>
+        <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
 
         <div class="channel-table-shell">
             <table class="channel-table">
@@ -636,7 +648,7 @@
                         </td>
                         <td><span class="channel-status">{{ vinculo.estado }}</span></td>
                         <td class="channel-actions-cell">
-                            <form method="post"
+                            <details class="estructura-editor"><summary>Gestionar asignación</summary><form method="post"
                                   action="{{ url_for('admin_estructura.guardar') }}"
                                   class="channel-assignment-form">
                                 <input type="hidden"
@@ -664,8 +676,8 @@
                                     {% endfor %}
                                 </select>
                                 <button type="submit">Asignar operación</button>
-                            </form>
-                            <form method="post"
+                            <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
+                            <details class="estructura-editor"><summary>Gestionar estado</summary><form method="post"
                                   action="{{ url_for('admin_estructura.guardar') }}"
                                   class="channel-state-form">
                                 <input type="hidden"
@@ -687,7 +699,7 @@
                                        value="{{ vinculo.detalle or '' }}"
                                        placeholder="Detalle">
                                 <button type="submit">Guardar</button>
-                            </form>
+                            <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
                         </td>
                     </tr>
                     {% else %}
@@ -705,7 +717,7 @@
     <div class="card" style="margin-top:16px;">
         <h2>Catálogos comerciales</h2>
 
-        <form method="post"
+        <details class="estructura-editor"><summary>Crear catálogo</summary><form method="post"
               action="{{ url_for('admin_estructura.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="crear_catalogo">
@@ -720,7 +732,7 @@
             <input name="moneda" maxlength="10" value="ARS" placeholder="Moneda">
             <input name="descripcion" maxlength="500" placeholder="Descripción">
             <button type="submit">Crear desactivado</button>
-        </form>
+        <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
 
         <div style="overflow-x:auto;margin-top:12px;">
             <table style="width:100%;">
@@ -746,7 +758,7 @@
                         <td>{{ catalogo.moneda }}</td>
                         <td>{{ catalogo.estado }}</td>
                         <td>
-                            <form method="post"
+                            <details class="estructura-editor"><summary>Gestionar</summary><form method="post"
                                   action="{{ url_for('admin_estructura.guardar') }}">
                                 <input type="hidden" name="accion" value="estado_catalogo">
                                 <input type="hidden" name="catalogo_id" value="{{ catalogo.id }}">
@@ -759,7 +771,7 @@
                                     {% endfor %}
                                 </select>
                                 <button type="submit">Guardar estado</button>
-                            </form>
+                            <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
                         </td>
                     </tr>
                     {% else %}
@@ -772,7 +784,7 @@
         {% if catalogos and productos %}
         <h3 style="margin-top:20px;">Agregar producto a un catálogo</h3>
 
-        <form method="post"
+        <details class="estructura-editor"><summary>Agregar producto a catálogo</summary><form method="post"
               action="{{ url_for('admin_estructura.guardar') }}"
               style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <input type="hidden" name="accion" value="agregar_producto_catalogo">
@@ -807,7 +819,7 @@
                    inputmode="decimal"
                    placeholder="Precio de lista (opcional)">
             <button type="submit">Agregar inactivo</button>
-        </form>
+        <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
         {% endif %}
 
         <div style="overflow-x:auto;margin-top:12px;">
@@ -870,5 +882,5 @@
             </table>
         </div>
     </div>
-</div>
+</main>
 {% endblock %}
