@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Control integral de estructura SaaS{% endblock %}
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css') }}?v=20261010-control-1">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css') }}?v=20261010-control-2">
 {% endblock %}
 {% block content %}
 <main class="estructura-page estructura-control">
@@ -19,10 +19,10 @@
         <span>{{ 'No se detectaron inconsistencias estructurales.' if control.aprobado else 'Revisá los hallazgos indicados debajo antes de continuar.' }}</span></div>
         <span class="estructura-control-count">{{ control.resumen.hallazgos }} {{ 'hallazgo' if control.resumen.hallazgos == 1 else 'hallazgos' }}</span>
     </div>
-    <section class="card">
+    <section class="card estructura-control-overview">
         <h2>Estructura relevada</h2>
         <dl class="estructura-control-summary">
-            {% for clave, etiqueta in [('unidades','Unidades de negocio'),('sucursales','Sucursales'),('entidades_fiscales','Entidades fiscales'),('catalogos','Catálogos'),('modulos','Módulos'),('vinculos_canales','Vínculos de canales')] %}
+            {% for clave, etiqueta in [('unidades','Unidades'),('sucursales','Sucursales'),('entidades_fiscales','Entidades fiscales'),('catalogos','Catálogos'),('modulos','Módulos'),('vinculos_canales','Vínculos')] %}
             <div><dt>{{ etiqueta }}</dt><dd>{{ control.resumen[clave] }}</dd></div>
             {% endfor %}
         </dl>

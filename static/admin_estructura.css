@@ -55,10 +55,12 @@
 .estructura-control-status span { font-size:13px;line-height:1.5; }
 .estructura-control-status.is-approved { background:#ebfbf1;border-color:#ade0c0;color:#176344; }
 .estructura-control-count { flex-shrink:0;font-weight:700; }
-.estructura-control-summary { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 24px;margin:0; }
-.estructura-control-summary>div { display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #e2eaf0; }
-.estructura-control-summary dt { font-size:13px;color:#607487; }
-.estructura-control-summary dd { margin:0;color:#183548;font-size:18px;font-weight:700; }
+.estructura-control .estructura-control-overview { display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 20px;padding:12px 16px; }
+.estructura-control-overview h2 { margin:0;font-size:13px; }
+.estructura-control-summary { display:flex;flex-wrap:wrap;gap:6px 18px;margin:0; }
+.estructura-control-summary>div { display:flex;align-items:baseline;gap:6px;padding:0;border:0; }
+.estructura-control-summary dt { font-size:12px;color:#607487; }
+.estructura-control-summary dd { margin:0;color:#183548;font-size:13px;font-weight:700; }
 .estructura-control-table { overflow-x:auto; }
 .estructura-control-table p { margin:0 0 5px;color:#183548; }
 .estructura-control-table small { color:#607487;overflow-wrap:anywhere; }
@@ -72,10 +74,8 @@
 .estructura-control-evidence code { display:block;margin:12px 14px;padding:12px;border:1px solid #dce5ed;border-radius:7px;background:#fff;overflow-wrap:anywhere;font-size:12px;line-height:1.6; }
 .estructura-control-more nav { padding:0 14px;margin:8px 0 0; }
 @media(max-width:700px) {
- .estructura-control-summary { grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px; }
  .estructura-control-status { align-items:flex-start;flex-direction:column;gap:8px; }
  .estructura-control>.estructura-tools a { flex:0 1 auto; }
  .estructura-control-more nav { flex-direction:column;align-items:stretch!important; }
  .estructura-control-more nav a { justify-content:flex-start; }
 }
-@media(max-width:420px) { .estructura-control-summary { grid-template-columns:1fr; } }
