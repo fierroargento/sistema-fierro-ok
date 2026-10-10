@@ -1,9 +1,71 @@
 {% extends "base.html" %}
+{% block title %}Control integral de estructura SaaS{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css') }}?v=20261010-control-1">
+{% endblock %}
 {% block content %}
-<main class="card"><h1>Control integral de estructura SaaS</h1><p>Diagnóstico de solo lectura para {{ organizacion.nombre }}. No activa módulos, conecta cuentas, modifica pedidos ni emite facturas.</p>
-<div class="alerta {{ 'alerta-ok' if control.aprobado else 'alerta-error' }}"><strong>{{ 'APROBADO' if control.aprobado else 'REQUIERE REVISIÓN' }}</strong> · {{ control.resumen.hallazgos }} hallazgos</div>
-<section class="card"><h2>Estructura</h2><p>Unidades: {{ control.resumen.unidades }} · Sucursales: {{ control.resumen.sucursales }} · Entidades fiscales: {{ control.resumen.entidades_fiscales }} · Catálogos: {{ control.resumen.catalogos }} · Módulos: {{ control.resumen.modulos }} · Vínculos: {{ control.resumen.vinculos_canales }}</p></section>
-<section class="card"><h2>Fronteras</h2><p>Módulos activados: 0 · Cuentas conectadas: 0 · Pedidos modificados: 0 · Facturas emitidas: 0 · Escrituras: 0</p></section>
-<section class="card"><h2>Hallazgos</h2><ul>{% for item in control.hallazgos %}<li><strong>{{ item.codigo }}</strong>: {{ item.detalle }}</li>{% else %}<li>No se detectaron inconsistencias estructurales.</li>{% endfor %}</ul></section>
-<p><code>{{ control.huella_control }}</code></p><form method="post"><button type="submit">Descargar control JSON</button></form><p><a href="{{ url_for('admin_estructura.certificacion_consolidada') }}">Consolidar certificaciones SaaS</a> · <a href="{{ url_for('admin_estructura.plan_corte_dux') }}">Preparar plan de corte DUX</a> · <a href="{{ url_for('admin_estructura.convertir_snapshot_dux') }}">Convertir CSV de DUX</a> · <a href="{{ url_for('admin_estructura.expediente_transicion_dux') }}">Cerrar expediente de transición</a> · <a href="{{ url_for('admin_estructura.expediente_maestro') }}">Expediente maestro de preparación</a> · <a href="{{ url_for('admin_estructura.panel') }}">Volver a estructura</a></p></main>
+<main class="estructura-page estructura-control">
+    <header>
+        <span class="estructura-control-eyebrow">ESTRUCTURA EMPRESARIAL · CONTROL INTEGRAL</span>
+        <h1>Control integral de estructura SaaS</h1>
+        <p>Diagnóstico de solo lectura para {{ organizacion.nombre }}.</p>
+    </header>
+    <nav class="estructura-tools" aria-label="Acciones del control integral">
+        <a href="{{ url_for('admin_estructura.panel') }}">Volver a Estructura</a>
+        <form method="post"><button type="submit">Descargar control JSON</button></form>
+    </nav>
+    <div class="estructura-control-status {{ 'is-approved' if control.aprobado else 'needs-review' }}" role="status">
+        <div><strong>{{ 'Control aprobado' if control.aprobado else 'Requiere revisión' }}</strong>
+        <span>{{ 'No se detectaron inconsistencias estructurales.' if control.aprobado else 'Revisá los hallazgos indicados debajo antes de continuar.' }}</span></div>
+        <span class="estructura-control-count">{{ control.resumen.hallazgos }} {{ 'hallazgo' if control.resumen.hallazgos == 1 else 'hallazgos' }}</span>
+    </div>
+    <section class="card">
+        <h2>Estructura relevada</h2>
+        <dl class="estructura-control-summary">
+            {% for clave, etiqueta in [('unidades','Unidades de negocio'),('sucursales','Sucursales'),('entidades_fiscales','Entidades fiscales'),('catalogos','Catálogos'),('modulos','Módulos'),('vinculos_canales','Vínculos de canales')] %}
+            <div><dt>{{ etiqueta }}</dt><dd>{{ control.resumen[clave] }}</dd></div>
+            {% endfor %}
+        </dl>
+    </section>
+    <section class="card">
+        <h2>Hallazgos</h2>
+        {% if control.hallazgos %}
+        <div class="estructura-control-table">
+            <table>
+                <thead><tr><th>Revisión requerida</th><th>Registro</th></tr></thead>
+                <tbody>{% for item in control.hallazgos %}
+                    <tr><td><p>{{ item.detalle }}</p><small>Código: {{ item.codigo }}</small></td>
+                        <td>{{ item.entidad }}{% if item.id is not none %} · ID {{ item.id }}{% endif %}</td></tr>
+                {% endfor %}</tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="estructura-control-empty">No se detectaron inconsistencias estructurales.</p>
+        {% endif %}
+    </section>
+    <section class="card">
+        <h2>Alcance del diagnóstico</h2>
+        <p>No activa módulos, conecta cuentas, modifica pedidos ni emite facturas.</p>
+        <div class="estructura-control-boundaries">
+            {% for clave, etiqueta in [('modulos_activados','Módulos activados'),('cuentas_conectadas','Cuentas conectadas'),('pedidos_modificados','Pedidos modificados'),('facturas_emitidas','Facturas emitidas'),('escrituras','Escrituras')] %}
+            <span>{{ etiqueta }} <strong>{{ control.controles[clave] }}</strong></span>
+            {% endfor %}
+        </div>
+    </section>
+    <details class="estructura-diagnosticos estructura-control-evidence">
+        <summary>Huella del informe</summary>
+        <p>Permite verificar la integridad del diagnóstico descargado.</p>
+        <code>{{ control.huella_control }}</code>
+    </details>
+    <details class="estructura-diagnosticos estructura-control-more">
+        <summary>Certificaciones y preparación de la transición</summary>
+        <nav class="estructura-tools" aria-label="Herramientas de preparación SaaS">
+            <a href="{{ url_for('admin_estructura.certificacion_consolidada') }}">Consolidar certificaciones SaaS</a>
+            <a href="{{ url_for('admin_estructura.plan_corte_dux') }}">Preparar plan de corte DUX</a>
+            <a href="{{ url_for('admin_estructura.convertir_snapshot_dux') }}">Convertir CSV de DUX</a>
+            <a href="{{ url_for('admin_estructura.expediente_transicion_dux') }}">Cerrar expediente de transición</a>
+            <a href="{{ url_for('admin_estructura.expediente_maestro') }}">Expediente maestro de preparación</a>
+        </nav>
+    </details>
+</main>
 {% endblock %}
