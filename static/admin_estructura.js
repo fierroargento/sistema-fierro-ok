@@ -40,3 +40,16 @@ document.addEventListener("submit", (event) => {
   }
   confirmation.value = "1";
 });
+
+document.addEventListener("submit", (event) => {
+  const form = event.target;
+  if (!form.matches("[data-sucursal-principal]") || event.defaultPrevented) return;
+  const confirmation = form.querySelector('input[name="confirmar_principal"]');
+  confirmation.value = "";
+  const name = form.dataset.sucursalPrincipal;
+  if (!window.confirm(`¿Establecer "${name}" como sucursal principal? Reemplazará la principal anterior de esta organización.`)) {
+    event.preventDefault();
+    return;
+  }
+  confirmation.value = "1";
+});

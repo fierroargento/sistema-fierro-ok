@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260821-2') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css', v='20261010-3') }}">
-<script defer src="{{ url_for('static', filename='admin_estructura.js', v='20261010-3') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css', v='20261013-principal-1') }}">
+<script defer src="{{ url_for('static', filename='admin_estructura.js', v='20261013-principal-1') }}"></script>
 {% endblock %}
 {% block content %}
 <main class="estructura-admin estructura-page">
@@ -402,7 +402,8 @@
                         <th>Nombre</th>
                         <th>Ubicación</th>
                         <th>Estado</th>
-                        <th>Acción</th>
+                        <th>Principal</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -417,7 +418,18 @@
                         <td>
                             {{ "activa" if sucursal.activa else "desactivada" }}
                         </td>
+                        <td>{{ "Sí" if sucursal.es_principal else "No" }}</td>
                         <td>
+                            {% if sucursal.activa and not sucursal.es_principal %}
+                            <form method="post"
+                                  action="{{ url_for('admin_estructura.guardar') }}"
+                                  data-sucursal-principal="{{ sucursal.nombre }}">
+                                <input type="hidden" name="accion" value="establecer_sucursal_principal">
+                                <input type="hidden" name="sucursal_id" value="{{ sucursal.id }}">
+                                <input type="hidden" name="confirmar_principal" value="">
+                                <button type="submit">Establecer principal</button>
+                            </form>
+                            {% endif %}
                             <form method="post"
                                   action="{{ url_for('admin_estructura.guardar') }}">
                                 <input type="hidden" name="accion" value="toggle_sucursal">
@@ -429,7 +441,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5">No hay sucursales creadas.</td></tr>
+                    <tr><td colspan="6">No hay sucursales creadas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

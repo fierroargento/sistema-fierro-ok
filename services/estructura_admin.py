@@ -5,6 +5,8 @@ Este servicio administra únicamente tablas nuevas.
 No conecta sus datos con pedidos, canales ni facturación.
 """
 
+from services.sucursal_principal import establecer_sucursal_principal
+
 from services.eliminacion_entidad_fiscal import eliminar_entidad_fiscal_sin_uso
 
 from services.catalogos_comerciales import (
@@ -200,6 +202,16 @@ def procesar_accion_estructura_admin(
 
         return (
             "Sucursal creada en estado desactivado."
+        )
+
+    if accion == "establecer_sucursal_principal":
+        return establecer_sucursal_principal(
+            organizacion_id=organizacion.id,
+            sucursal_id=_id_entero(formulario, "sucursal_id"),
+            confirmacion=_texto(formulario, "confirmar_principal", 10),
+            modelo_organizacion=modelos["Organizacion"],
+            modelo_sucursal=SucursalOperativa,
+            sesion=db_session,
         )
 
     if accion == "toggle_sucursal":
