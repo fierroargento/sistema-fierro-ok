@@ -1,7 +1,10 @@
 {% extends "base.html" %}
+{% macro mostrar_estado(valor) -%}
+<span class="estructura-status" data-estado="{{ valor }}">{{ valor }}</span>
+{%- endmacro %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260821-2') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css', v='20261014-canales-1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css', v='20261014-uniforme-1') }}">
 <script defer src="{{ url_for('static', filename='admin_estructura.js', v='20261013-principal-1') }}"></script>
 {% endblock %}
 {% block content %}
@@ -262,7 +265,7 @@
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <strong>{{ membresia_item.organizacion.nombre }}</strong>
                 <span>{{ membresia_item.organizacion.slug }}</span>
-                <span>{{ "activa" if membresia_item.organizacion.activa else "desactivada" }}</span>
+                {{ mostrar_estado("activa" if membresia_item.organizacion.activa else "desactivada") }}
                 {% if membresia_item.organizacion.activa and membresia_item.organizacion_id != organizacion.id %}
                 <form method="post" action="{{ url_for('admin_estructura.guardar') }}">
                     <input type="hidden" name="accion" value="seleccionar_organizacion">
@@ -318,7 +321,7 @@
                 <input type="hidden" name="unidad_id" value="{{ unidad.id }}">
                 <input name="nombre" required maxlength="150" value="{{ unidad.nombre }}">
                 <input name="codigo" required maxlength="80" value="{{ unidad.codigo }}">
-                <span>{{ "activa" if unidad.activa else "desactivada" }}</span>
+                {{ mostrar_estado("activa" if unidad.activa else "desactivada") }}
                 <button type="submit" name="accion" value="editar_unidad">Guardar</button>
                 <button type="submit" name="accion" value="toggle_unidad">
                     {{ "Desactivar" if unidad.activa else "Activar" }}
@@ -349,7 +352,7 @@
                     {% for modulo in modulos %}
                     <tr>
                         <td>{{ modulo.nombre }}</td>
-                        <td><strong>{{ modulo.estado }}</strong></td>
+                        <td>{{ mostrar_estado(modulo.estado) }}</td>
                         <td>{{ modulo.detalle or "-" }}</td>
                         <td>
                             <details class="estructura-editor"><summary>Gestionar</summary><form method="post"
@@ -416,7 +419,7 @@
                             / {{ sucursal.localidad or "-" }}
                         </td>
                         <td>
-                            {{ "activa" if sucursal.activa else "desactivada" }}
+                            {{ mostrar_estado("activa" if sucursal.activa else "desactivada") }}
                         </td>
                         <td>{{ "Sí" if sucursal.es_principal else "No" }}</td>
                         <td>
@@ -486,10 +489,10 @@
                         <td>{{ entidad.razon_social }}</td>
                         <td>{{ entidad.cuit or "-" }}</td>
                         <td>
-                            {{ "activa" if entidad.activa else "desactivada" }}
+                            {{ mostrar_estado("activa" if entidad.activa else "desactivada") }}
                         </td>
                         <td>
-                            {{ "habilitada" if entidad.facturacion_habilitada else "deshabilitada" }}
+                            {{ mostrar_estado("habilitada" if entidad.facturacion_habilitada else "deshabilitada") }}
                         </td>
                         <td>
                             <form method="post"
@@ -672,9 +675,9 @@
                         <td>
                             {{ vinculo.entidad_fiscal.razon_social if vinculo.entidad_fiscal else "-" }}
                         </td>
-                        <td><span class="channel-status">{{ vinculo.estado }}</span></td>
+                        <td>{{ mostrar_estado(vinculo.estado) }}</td>
                         <td class="channel-actions-cell">
-                            <details class="estructura-editor"><summary>Gestionar asignación</summary><form method="post"
+                            <details class="estructura-editor channel-management"><summary>Gestionar</summary><h3>Asignación operativa</h3><form method="post"
                                   action="{{ url_for('admin_estructura.guardar') }}"
                                   class="channel-assignment-form">
                                 <input type="hidden"
@@ -702,8 +705,8 @@
                                     {% endfor %}
                                 </select>
                                 <button type="submit">Asignar operación</button>
-                            <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
-                            <details class="estructura-editor"><summary>Gestionar estado</summary><form method="post"
+                            <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form>
+                            <h3>Estado del vínculo</h3><form method="post"
                                   action="{{ url_for('admin_estructura.guardar') }}"
                                   class="channel-state-form">
                                 <input type="hidden"
@@ -782,7 +785,7 @@
                             {{ catalogo.unidad_negocio.nombre if catalogo.unidad_negocio else "Compartido" }}
                         </td>
                         <td>{{ catalogo.moneda }}</td>
-                        <td>{{ catalogo.estado }}</td>
+                        <td>{{ mostrar_estado(catalogo.estado) }}</td>
                         <td>
                             <details class="estructura-editor"><summary>Gestionar</summary><form method="post"
                                   action="{{ url_for('admin_estructura.guardar') }}">
