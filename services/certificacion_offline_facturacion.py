@@ -92,7 +92,26 @@ def certificar_facturacion(*, organizacion_id, modulo, entidades, configuracione
     }
     base = {"organizacion_id": organizacion_id, "modulo_estado": getattr(modulo, "estado", "desactivado") if modulo else "desactivado", "resumen": resumen, "borradores": filas_borrador, "hallazgos": hallazgos}
     firma = hashlib.sha256(json.dumps(base, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")).hexdigest()
-    return {**base, "firma_certificacion": firma, "aprobada": resumen["bloqueos"] == 0, "emision_real": False, "acciones_externas": 0, "escrituras": 0}
+    # Conserva la firma histórica y agrega una huella de todo el informe
+    # para el mismo contrato que consumen las otras certificaciones SaaS.
+    resultado = {
+        **base,
+        "firma_certificacion": firma,
+        "aprobada": resumen["bloqueos"] == 0,
+        "emision_real": False,
+        "acciones_externas": 0,
+        "escrituras": 0,
+        "modo": "offline",
+        "controles": {
+            "emision_real": False,
+            "acciones_externas": 0,
+            "escrituras": 0,
+        },
+    }
+    resultado["huella_control"] = hashlib.sha256(
+        json.dumps(resultado, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    ).hexdigest()
+    return resultado
 
 
 def exportar_certificacion(resultado):

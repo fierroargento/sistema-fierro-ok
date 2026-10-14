@@ -86,3 +86,59 @@ def test_panel_y_servicio_permanecen_desconectados():
         assert prohibido not in servicio
     assert "certificacion_offline" in ruta
     assert "La emisión real permanece deshabilitada" in html
+
+
+def test_informe_fiscal_se_integra_al_consolidado_sin_adaptarlo():
+    from services.certificacion_consolidada_saas import consolidar_certificaciones
+    resultado = ejecutar()
+    consolidado = consolidar_certificaciones(
+        [exportar_certificacion(resultado)], organizacion_id=7,
+    )
+    componente = consolidado["componentes"][0]
+    assert componente["componente"] == "facturacion"
+    assert componente["aprobado"] and componente["modo"] == "offline"
+    assert componente["huella"] == resultado["huella_control"]
+    assert {h["codigo"] for h in consolidado["hallazgos"]} == {"componente_faltante"}
+    assert consolidado["resumen"]["faltantes"] == 4
+
+
+def test_huella_completa_rechaza_alterar_aprobacion_o_limites():
+    import copy
+    import pytest
+    from services.certificacion_consolidada_saas import consolidar_certificaciones
+    original = ejecutar()
+    for campo, valor in (("aprobada", False), ("modo", "produccion"),
+                         ("emision_real", True), ("acciones_externas", 1),
+                         ("escrituras", 1), ("firma_certificacion", "alterada")):
+        alterado = copy.deepcopy(original)
+        alterado[campo] = valor
+        with pytest.raises(ValueError, match="huella digital"):
+            consolidar_certificaciones([exportar_certificacion(alterado)], organizacion_id=7)
+
+
+def test_informe_con_bloqueos_no_se_aprueba_en_consolidado():
+    from services.certificacion_consolidada_saas import consolidar_certificaciones
+    entidad, *_ = datos()
+    entidad.cuit = "123"
+    resultado = ejecutar(entidades=[entidad])
+    consolidado = consolidar_certificaciones(
+        [exportar_certificacion(resultado)], organizacion_id=7,
+    )
+    assert not consolidado["aprobada"]
+    assert not consolidado["componentes"][0]["aprobado"]
+    assert "componente_no_aprobado" in {h["codigo"] for h in consolidado["hallazgos"]}
+
+
+def test_firma_historica_se_conserva_y_rechaza_otro_tenant():
+    import hashlib
+    import pytest
+    from services.certificacion_consolidada_saas import consolidar_certificaciones
+    resultado = ejecutar()
+    base = {k: resultado[k] for k in (
+        "organizacion_id", "modulo_estado", "resumen", "borradores", "hallazgos",
+    )}
+    assert resultado["firma_certificacion"] == hashlib.sha256(
+        json.dumps(base, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    ).hexdigest()
+    with pytest.raises(ValueError, match="otro tenant"):
+        consolidar_certificaciones([exportar_certificacion(resultado)], organizacion_id=99)
