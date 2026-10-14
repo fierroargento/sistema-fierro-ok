@@ -1,14 +1,62 @@
 {% extends "base.html" %}
+{% block title %}Certificación de accesos SaaS{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css') }}?v=20261014-accesos-1">
+{% endblock %}
 {% block content %}
-<main class="card">
-  <h1>Certificación de accesos SaaS</h1>
-  <p>Diagnóstico de solo lectura para {{ organizacion.nombre }}. No cambia roles, contraseñas, sesiones ni membresías y no envía invitaciones.</p>
-  <div class="alerta {{ 'alerta-ok' if certificacion.aprobada else 'alerta-error' }}"><strong>{{ 'APROBADA' if certificacion.aprobada else 'REQUIERE REVISIÓN' }}</strong> · {{ certificacion.resumen.hallazgos }} hallazgos</div>
-  <section class="card"><h2>Accesos</h2><p>Membresías: {{ certificacion.resumen.membresias }} · Activas: {{ certificacion.resumen.activas }} · Inactivas: {{ certificacion.resumen.inactivas }}</p><p>Administradores: {{ certificacion.resumen.administradores_activos }} · Carga: {{ certificacion.resumen.carga_activos }} · Despacho: {{ certificacion.resumen.despacho_activos }}</p></section>
-  <section class="card"><h2>Fronteras</h2><p>Credenciales expuestas: 0 · Sesiones modificadas: 0 · Membresías modificadas: 0 · Invitaciones enviadas: 0 · Escrituras: 0</p></section>
-  <section class="card"><h2>Hallazgos</h2><ul>{% for item in certificacion.hallazgos %}<li><strong>{{ item.codigo }}</strong>: {{ item.detalle }}</li>{% else %}<li>No se detectaron inconsistencias de acceso.</li>{% endfor %}</ul></section>
-  <p><code>{{ certificacion.huella_control }}</code></p>
-  <form method="post"><button type="submit">Descargar certificación JSON</button></form>
-  <p><a href="{{ url_for('admin_usuarios.panel') }}">Volver a usuarios</a></p>
+<main class="estructura-page estructura-control">
+    <header>
+        <span class="estructura-control-eyebrow">ADMINISTRACIÓN · ACCESOS</span>
+        <h1>Certificación de accesos SaaS</h1>
+        <p>Diagnóstico de solo lectura para {{ organizacion.nombre }}.</p>
+    </header>
+    <nav class="estructura-tools" aria-label="Acciones de la certificación">
+        <a href="{{ url_for('admin_usuarios.panel') }}">Volver a Usuarios</a>
+        <form method="post"><button type="submit">Descargar certificación JSON</button></form>
+    </nav>
+    <div class="estructura-control-status {{ 'is-approved' if certificacion.aprobada else 'needs-review' }}" role="status">
+        <div>
+            <strong>{{ 'Certificación aprobada' if certificacion.aprobada else 'Requiere revisión' }}</strong>
+            <span>{{ 'No se detectaron inconsistencias de acceso.' if certificacion.aprobada else 'Revisá los hallazgos indicados debajo.' }}</span>
+        </div>
+        <span class="estructura-control-count">{{ certificacion.resumen.hallazgos }} {{ 'hallazgo' if certificacion.resumen.hallazgos == 1 else 'hallazgos' }}</span>
+    </div>
+    <section class="card estructura-control-overview">
+        <h2>Accesos relevados</h2>
+        <dl class="estructura-control-summary">
+            {% for clave, etiqueta in [('membresias','Membresías'),('activas','Activas'),('inactivas','Inactivas'),('administradores_activos','Administradores'),('carga_activos','Carga'),('despacho_activos','Despacho')] %}
+            <div><dt>{{ etiqueta }}</dt><dd>{{ certificacion.resumen[clave] }}</dd></div>
+            {% endfor %}
+        </dl>
+    </section>
+    <section class="card">
+        <h2>Hallazgos</h2>
+        {% if certificacion.hallazgos %}
+        <div class="estructura-control-table">
+            <table>
+                <thead><tr><th>Revisión requerida</th><th>Código</th></tr></thead>
+                <tbody>{% for item in certificacion.hallazgos %}
+                <tr><td>{{ item.detalle }}</td><td>{{ item.codigo }}</td></tr>
+                {% endfor %}</tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="estructura-control-empty">No se detectaron inconsistencias de acceso.</p>
+        {% endif %}
+    </section>
+    <section class="card">
+        <h2>Alcance del diagnóstico</h2>
+        <p>No cambia roles, contraseñas, sesiones ni membresías y no envía invitaciones.</p>
+        <div class="estructura-control-boundaries">
+            {% for clave, etiqueta in [('credenciales_expuestas','Credenciales expuestas'),('sesiones_modificadas','Sesiones modificadas'),('membresias_modificadas','Membresías modificadas'),('invitaciones_enviadas','Invitaciones enviadas'),('escrituras','Escrituras')] %}
+            <span>{{ etiqueta }} <strong>{{ certificacion.controles[clave] }}</strong></span>
+            {% endfor %}
+        </div>
+    </section>
+    <details class="estructura-diagnosticos estructura-control-evidence">
+        <summary>Huella de la certificación</summary>
+        <p>Permite verificar la integridad del diagnóstico descargado.</p>
+        <code>{{ certificacion.huella_control }}</code>
+    </details>
 </main>
 {% endblock %}
