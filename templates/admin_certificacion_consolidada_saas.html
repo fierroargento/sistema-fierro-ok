@@ -1,10 +1,80 @@
 {% extends "base.html" %}
+{% block title %}Expediente consolidado SaaS{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css') }}?v=20261014-consolidado-1">
+{% endblock %}
 {% block content %}
-<main class="card"><h1>Expediente consolidado SaaS</h1><p>Combina certificaciones JSON firmadas del mismo tenant completamente en memoria. No persiste documentos, modifica configuraciones ni activa módulos.</p>
-{% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
-<form method="post" enctype="multipart/form-data"><input type="file" name="certificaciones" accept=".json,application/json" multiple required><button name="accion" value="previsualizar" type="submit">Validar expediente</button><button name="accion" value="exportar" type="submit">Descargar consolidado</button></form>
-{% if resultado %}<div class="alerta {{ 'alerta-ok' if resultado.aprobada else 'alerta-error' }}"><strong>{{ 'APROBADO' if resultado.aprobada else 'INCOMPLETO' }}</strong> · {{ resultado.resumen.componentes_identificados }}/{{ resultado.resumen.componentes_requeridos }} componentes requeridos</div>
-<table style="width:100%"><thead><tr><th>Componente</th><th>Estado</th><th>Modo</th><th>Huella</th></tr></thead><tbody>{% for item in resultado.componentes %}<tr><td>{{ item.componente }}</td><td>{{ 'aprobado' if item.aprobado else 'revisar' }}</td><td>{{ item.modo }}</td><td><code>{{ item.huella }}</code></td></tr>{% endfor %}</tbody></table>
-<ul>{% for item in resultado.hallazgos %}<li><strong>{{ item.componente }}</strong>: {{ item.detalle }}</li>{% else %}<li>Expediente completo y coherente.</li>{% endfor %}</ul><p><code>{{ resultado.huella_expediente }}</code></p>{% endif %}
-<p><a href="{{ url_for('admin_estructura.control_integral') }}">Volver al control estructural</a></p></main>
+{% set etiquetas = {'estructura':'Estructura','accesos':'Accesos','inventario':'Inventario','crm':'CRM','facturacion':'Facturación','mercado_pago':'Mercado Pago','mercado_libre':'Mercado Libre','whatsapp':'WhatsApp','pedidos':'Pedidos','integraciones':'Integraciones'} %}
+<main class="estructura-page estructura-control estructura-consolidado">
+    <header>
+        <span class="estructura-control-eyebrow">ESTRUCTURA EMPRESARIAL · CERTIFICACIONES</span>
+        <h1>Expediente consolidado SaaS</h1>
+        <p>Reuní las certificaciones de {{ organizacion.nombre }} y verificá su integridad.</p>
+    </header>
+    <nav class="estructura-tools" aria-label="Navegación del expediente">
+        <a href="{{ url_for('admin_estructura.control_integral') }}">Volver al control estructural</a>
+    </nav>
+    {% if error %}
+    <div class="alerta alerta-error" role="alert">{{ error }}</div>
+    {% endif %}
+    <section class="card">
+        <h2>Cargar certificaciones</h2>
+        <p>Seleccioná uno o varios archivos JSON del mismo tenant. El expediente requiere Estructura, Accesos, Inventario, CRM y Facturación.</p>
+        <form method="post" enctype="multipart/form-data" class="estructura-certification-form">
+            <label for="certificaciones-saas">Archivos de certificación</label>
+            <input id="certificaciones-saas" type="file" name="certificaciones" accept=".json,application/json" multiple required aria-describedby="certificaciones-ayuda">
+            <p id="certificaciones-ayuda">Entre 1 y 20 archivos, de hasta 2 MB cada uno.</p>
+            <div class="estructura-certification-actions">
+                <button name="accion" value="previsualizar" type="submit">Validar expediente</button>
+                <button name="accion" value="exportar" type="submit" class="estructura-certification-secondary">Descargar consolidado</button>
+            </div>
+        </form>
+    </section>
+    {% if resultado %}
+    <div class="estructura-control-status {{ 'is-approved' if resultado.aprobada else 'needs-review' }}" role="status">
+        <div>
+            <strong>{{ 'Expediente aprobado' if resultado.aprobada else 'Expediente incompleto' }}</strong>
+            <span>{{ 'Las certificaciones están completas y son coherentes.' if resultado.aprobada else 'Revisá los componentes y hallazgos indicados debajo.' }}</span>
+        </div>
+        <span class="estructura-control-count">{{ resultado.resumen.componentes_identificados }}/{{ resultado.resumen.componentes_requeridos }} componentes requeridos</span>
+    </div>
+    <section class="card">
+        <h2>Componentes identificados</h2>
+        <div class="estructura-control-table">
+            <table>
+                <thead><tr><th>Componente</th><th>Estado</th><th>Modo</th><th>Evidencia</th></tr></thead>
+                <tbody>{% for item in resultado.componentes %}
+                <tr>
+                    <td>{{ etiquetas.get(item.componente, item.componente) }}</td>
+                    <td><span class="estructura-status" data-estado="{{ 'activo' if item.aprobado else 'prueba' }}">{{ 'Aprobado' if item.aprobado else 'Revisar' }}</span></td>
+                    <td>{{ 'Solo lectura' if item.modo == 'solo_lectura' else 'Offline' if item.modo == 'offline' else item.modo or '-' }}</td>
+                    <td><details class="estructura-consolidado-huella"><summary>Ver huella</summary><code>{{ item.huella }}</code></details></td>
+                </tr>
+                {% endfor %}</tbody>
+            </table>
+        </div>
+    </section>
+    <section class="card">
+        <h2>Hallazgos</h2>
+        {% if resultado.hallazgos %}
+        <div class="estructura-control-table">
+            <table>
+                <thead><tr><th>Componente</th><th>Detalle</th></tr></thead>
+                <tbody>{% for item in resultado.hallazgos %}
+                <tr><td>{{ etiquetas.get(item.componente, item.componente) }}</td><td>{{ item.detalle }}</td></tr>
+                {% endfor %}</tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="estructura-control-empty">Expediente completo y coherente.</p>
+        {% endif %}
+    </section>
+    <details class="estructura-diagnosticos estructura-control-evidence">
+        <summary>Huella del expediente</summary>
+        <p>Permite verificar la integridad del consolidado descargado.</p>
+        <code>{{ resultado.huella_expediente }}</code>
+    </details>
+    {% endif %}
+    <p class="estructura-certification-note">La validación se realiza en memoria. No guarda documentos, modifica configuraciones ni activa módulos.</p>
+</main>
 {% endblock %}
