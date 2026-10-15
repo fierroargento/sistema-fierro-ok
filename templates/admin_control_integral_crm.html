@@ -1,12 +1,75 @@
 {% extends "base.html" %}
+{% block title %}Control integral offline del CRM{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css') }}?v=20261015-crm-control-1">
+{% endblock %}
 {% block content %}
-<main class="card">
-  <h1>Control integral offline del CRM</h1>
-  <p>Diagnóstico final del tenant activo. Es de solo lectura: no crea pedidos, no envía mensajes y no ejecuta automatizaciones.</p>
-  <div class="alerta {{ 'alerta-ok' if control.aprobado else 'alerta-error' }}"><strong>{{ 'APROBADO' if control.aprobado else 'REVISAR' }}</strong> · Huella {{ control.huella_control }}</div>
-  <section class="card"><h2>Resumen</h2><p>Clientes: {{ control.resumen.clientes }} · Identidades: {{ control.resumen.identidades }} · Oportunidades: {{ control.resumen.oportunidades }} · Actividades: {{ control.resumen.actividades }}</p><p>Lotes: {{ control.resumen.lotes }} · Confirmados: {{ control.resumen.lotes_confirmados }} · Anulados: {{ control.resumen.lotes_anulados }}</p></section>
-  <section class="card"><h2>Fronteras verificadas</h2><p>Pedidos creados: 0 · Mensajes enviados: 0 · Acciones externas: 0 · Escrituras del control: 0 · Automatizaciones: bloqueadas</p></section>
-  <form method="post"><button type="submit">Descargar control firmado JSON</button></form>
-  <p><a href="{{ url_for('admin_crm.panel') }}">Volver al CRM</a></p>
+<main class="estructura-page estructura-control">
+    <header>
+        <span class="estructura-control-eyebrow">CRM · REGISTROS Y LOTES</span>
+        <h1>Control integral offline del CRM</h1>
+        <p>Revisión de los registros y la trazabilidad de los lotes del tenant activo. Diagnóstico de solo lectura.</p>
+    </header>
+    <nav class="estructura-tools" aria-label="Acciones del control integral">
+        <a href="{{ url_for('admin_crm.panel') }}">Volver a CRM</a>
+        <form method="post"><button type="submit">Descargar control firmado JSON</button></form>
+    </nav>
+    <div class="estructura-control-status {{ 'is-approved' if control.aprobado else 'needs-review' }}" role="status">
+        <div>
+            <strong>{{ 'Control aprobado' if control.aprobado else 'Requiere revisión' }}</strong>
+            <span>{{ 'Los registros y los lotes no presentan inconsistencias.' if control.aprobado else 'Revisá los hallazgos indicados debajo.' }}</span>
+        </div>
+        {% set total_hallazgos = control.resumen.hallazgos + control.resumen.inconsistencias_lotes %}
+        <span class="estructura-control-count">{{ total_hallazgos }} {{ 'hallazgo' if total_hallazgos == 1 else 'hallazgos' }}</span>
+    </div>
+    <section class="card estructura-control-overview">
+        <h2>Registros relevados</h2>
+        <dl class="estructura-control-summary">
+            {% for clave, etiqueta in [('unidades','Unidades'),('etapas','Etapas'),('clientes','Clientes'),('identidades','Identidades'),('oportunidades','Oportunidades'),('actividades','Actividades')] %}
+            <div><dt>{{ etiqueta }}</dt><dd>{{ control.resumen[clave] }}</dd></div>
+            {% endfor %}
+        </dl>
+    </section>
+    <section class="card estructura-control-overview">
+        <h2>Lotes de importación</h2>
+        <dl class="estructura-control-summary">
+            {% for clave, etiqueta in [('lotes','Total'),('lotes_confirmados','Confirmados'),('lotes_anulados','Anulados')] %}
+            <div><dt>{{ etiqueta }}</dt><dd>{{ control.resumen[clave] }}</dd></div>
+            {% endfor %}
+        </dl>
+    </section>
+    {% if control.hallazgos_crm or control.inconsistencias_lotes %}
+    <section class="card">
+        <h2>Hallazgos</h2>
+        <div class="estructura-control-table">
+            <table>
+                <thead><tr><th>Revisión requerida</th><th>Registro</th><th>Código</th></tr></thead>
+                <tbody>
+                    {% for item in control.hallazgos_crm %}
+                    <tr><td>{{ item.detalle }}</td><td>{{ item.entidad }} · {{ item.id if item.id is not none else '-' }}</td><td>{{ item.codigo }}</td></tr>
+                    {% endfor %}
+                    {% set motivos = {'huella_lote_duplicada':'El archivo aparece en más de un lote.', 'lote_con_automatizaciones':'El lote tiene automatizaciones habilitadas.', 'estado_lote_invalido':'El estado del lote no es válido.'} %}
+                    {% for item in control.inconsistencias_lotes %}
+                    <tr><td>{{ motivos.get(item.codigo, 'Revisar la inconsistencia del lote.') }}</td><td>Lote #{{ item.lote_id }}</td><td>{{ item.codigo }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+    <section class="card">
+        <h2>Alcance del diagnóstico</h2>
+        <p>No crea pedidos, no envía mensajes y no ejecuta automatizaciones.</p>
+        <div class="estructura-control-boundaries">
+            {% for clave, etiqueta in [('pedidos_creados','Pedidos creados'),('mensajes_enviados','Mensajes enviados'),('acciones_externas','Acciones externas'),('escrituras','Escrituras')] %}
+            <span>{{ etiqueta }} <strong>{{ control.controles[clave] }}</strong></span>
+            {% endfor %}
+        </div>
+    </section>
+    <details class="estructura-diagnosticos estructura-control-evidence">
+        <summary>Huella del control</summary>
+        <p>Permite verificar la integridad del diagnóstico descargado.</p>
+        <code>{{ control.huella_control }}</code>
+    </details>
 </main>
 {% endblock %}
