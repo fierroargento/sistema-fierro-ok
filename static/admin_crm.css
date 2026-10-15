@@ -7,7 +7,7 @@
 .crm-page .crm-create{margin:12px 0 16px}
 .crm-page .crm-create>form.crm-create-form{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:14px!important;align-items:start!important}
 .crm-page .crm-field{display:flex;flex-direction:column;gap:6px;min-width:0;color:#526778;font-size:12px;font-weight:600}
-.crm-page .crm-field :is(input,select){width:100%;min-width:0;min-height:38px;font-weight:400}
+.crm-page .crm-create-form .crm-field :is(input,select){flex:0 0 auto;width:100%;min-width:0;height:38px;min-height:38px;max-height:38px;font-weight:400}
 .crm-page .crm-field input[type=color]{height:38px;padding:4px}
 .crm-page .crm-form-actions{grid-column:1/-1;display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:2px}
 .crm-page button.crm-cancel{background:#fff;color:#526778;border-color:#cbd9e4}
