@@ -82,4 +82,32 @@ def test_ruta_delega_y_no_consulta_modelos():
     html = Path("templates/admin_importacion_crm_offline.html").read_text(encoding="utf-8")
     assert ".query" not in ruta
     assert "previsualizar_importacion(" in ruta
-    assert "No confirma registros" in html and "Confirmación bloqueada" in html
+    assert "La previsualización no guarda registros ni envía mensajes." in html
+    assert 'value="previsualizar"' in html and 'value="exportar"' in html
+
+
+@pytest.mark.parametrize("importe", ["NaN", "sNaN", "Infinity", "-Infinity", "1e9999"])
+def test_importe_no_representable_rechaza_fila_sin_romper_previsualizacion(importe):
+    resultado = base(
+        "tipo;codigo;nombre;referencia;importe;probabilidad\n"
+        "cliente;C-1;Cliente UAT;;;\n"
+        f"oportunidad;C-1;Venta UAT;OP-1;{importe};30\n"
+    )
+    assert resultado["resumen"]["preparados"] == 1
+    assert resultado["resumen"]["rechazados"] == 1
+    assert resultado["filas"][1]["resultado"] == "rechazado"
+    assert "Importe o probabilidad inválidos" in resultado["filas"][1]["errores"]
+    assert resultado["resumen"]["escrituras"] == 0
+    assert resultado["resumen"]["acciones_externas"] == 0
+    assert resultado["resumen"]["mensajes_enviados"] == 0
+
+
+@pytest.mark.parametrize("importe, esperado", [("0", 0), ("12500", 1250000), ("12500,50", 1250050), ("12.500,50", 1250050), ("1.005", 101)])
+def test_importes_validos_conservan_conversion_a_centavos(importe, esperado):
+    resultado = base(
+        "tipo;codigo;nombre;referencia;importe;probabilidad\n"
+        "cliente;C-1;Cliente UAT;;;\n"
+        f"oportunidad;C-1;Venta UAT;OP-1;{importe};30\n"
+    )
+    assert resultado["resumen"]["rechazados"] == 0
+    assert resultado["filas"][1]["importe_estimado_centavos"] == esperado

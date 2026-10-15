@@ -74,9 +74,14 @@ def _centavos(valor):
         numero = Decimal(texto or "0")
     except InvalidOperation as error:
         raise ValueError("El importe no es válido.") from error
+    if not numero.is_finite():
+        raise ValueError("El importe debe ser un número finito.")
     if numero < 0:
         raise ValueError("El importe no puede ser negativo.")
-    return int((numero * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    try:
+        return int((numero * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    except (InvalidOperation, OverflowError, ValueError) as error:
+        raise ValueError("El importe está fuera del rango permitido.") from error
 
 
 def previsualizar_importacion(contenido, *, organizacion_id, unidades, etapas, clientes, identidades):
