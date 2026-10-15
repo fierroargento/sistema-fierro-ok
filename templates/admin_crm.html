@@ -1,23 +1,27 @@
 {% extends "base.html" %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css') }}?v=20261015-crm-panel-1">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_crm.css') }}?v=20261015-crm-panel-1">
+{% endblock %}
 {% block content %}
-<div class="card">
-    <h1>CRM interno</h1>
+<main class="estructura-page crm-page">
+    <header><span class="estructura-control-eyebrow">GESTIÓN COMERCIAL</span><h1>CRM interno</h1>
 
     <p>
         Preparación comercial de {{ organizacion.nombre }}. Este módulo todavía
         no importa pedidos, no sincroniza canales y no envía mensajes.
-    </p>
+    </p></header>
 
-    <div class="alerta {% if modulo_crm and modulo_crm.estado == 'activo' %}alerta-ok{% else %}alerta-error{% endif %}">
+    <div class="alerta crm-module-status {% if modulo_crm and modulo_crm.estado == 'activo' %}alerta-ok{% else %}alerta-error{% endif %}">
         Estado del módulo CRM:
         <strong>{{ modulo_crm.estado if modulo_crm else "desactivado" }}</strong>.
         Las automatizaciones permanecen bloqueadas en todos los estados.
     </div>
-    <p>
-        <a href="{{ url_for('admin_crm.certificacion_offline') }}">Abrir certificación integral offline del CRM</a>
-        · <a href="{{ url_for('admin_crm.importacion_offline') }}">Previsualizar importación masiva offline</a>
-        · <a href="{{ url_for('admin_crm.control_integral') }}">Control integral del CRM</a>
-    </p>
+    <nav class="estructura-tools" aria-label="Controles del CRM">
+        <a href="{{ url_for('admin_crm.certificacion_offline') }}">Certificación del CRM</a>
+        <a href="{{ url_for('admin_crm.importacion_offline') }}">Importación offline</a>
+        <a href="{{ url_for('admin_crm.control_integral') }}">Control integral del CRM</a>
+    </nav>
 
     {% if ok_feedback %}
     <div class="alerta alerta-ok">{{ ok_feedback }}</div>
@@ -27,21 +31,20 @@
     <div class="alerta alerta-error">{{ error }}</div>
     {% endif %}
 
-    <div class="card" style="margin-top:16px;">
+    <section class="card crm-section">
         <h2>Etapas comerciales</h2>
 
-        <form method="post"
-              action="{{ url_for('admin_crm.guardar') }}"
-              style="display:flex;gap:8px;flex-wrap:wrap;">
+        <details class="estructura-editor crm-create"><summary>Nueva etapa</summary><form class="crm-create-form" method="post"
+              action="{{ url_for('admin_crm.guardar') }}">
             <input type="hidden" name="accion" value="crear_etapa">
-            <input required name="codigo" maxlength="80" placeholder="Código">
-            <input required name="nombre" maxlength="150" placeholder="Nombre">
-            <input name="orden" type="number" value="0" placeholder="Orden">
-            <input name="color" type="color" value="#64748b">
-            <button type="submit">Crear desactivada</button>
-        </form>
+            <label class="crm-field"><span>Código</span><input required name="codigo" maxlength="80" placeholder="Código"></label>
+            <label class="crm-field"><span>Nombre</span><input required name="nombre" maxlength="150" placeholder="Nombre"></label>
+            <label class="crm-field"><span>Orden</span><input name="orden" type="number" value="0" placeholder="Orden"></label>
+            <label class="crm-field"><span>Color</span><input name="color" type="color" value="#64748b"></label>
+            <div class="crm-form-actions"><button type="submit">Crear desactivada</button><button class="crm-cancel" type="button" data-crm-cancel>Cancelar</button></div>
+        </form></details>
 
-        <table style="width:100%;margin-top:12px;">
+        <div class="crm-table"><table style="width:100%;margin-top:12px;">
             <thead>
                 <tr>
                     <th>Orden</th>
@@ -55,10 +58,10 @@
                 <tr>
                     <td>{{ etapa.orden }}</td>
                     <td>
-                        <span style="display:inline-block;width:12px;height:12px;background:{{ etapa.color }};"></span>
+                        <span class="crm-stage-color" style="background:{{ etapa.color }};"></span>
                         {{ etapa.nombre }}
                     </td>
-                    <td>{{ "activa" if etapa.activa else "desactivada" }}</td>
+                    <td><span class="estructura-status" data-estado="{{ "activa" if etapa.activa else "desactivada" }}">{{ "activa" if etapa.activa else "desactivada" }}</span></td>
                     <td>
                         <form method="post" action="{{ url_for('admin_crm.guardar') }}">
                             <input type="hidden" name="accion" value="toggle_etapa">
@@ -73,50 +76,49 @@
                 <tr><td colspan="4">No hay etapas creadas.</td></tr>
                 {% endfor %}
             </tbody>
-        </table>
-    </div>
+        </table></div>
+    </section>
 
-    <div class="card" style="margin-top:16px;">
+    <section class="card crm-section">
         <h2>Clientes CRM</h2>
 
-        <form method="post"
-              action="{{ url_for('admin_crm.guardar') }}"
-              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+        <details class="estructura-editor crm-create"><summary>Nuevo cliente</summary><form class="crm-create-form" method="post"
+              action="{{ url_for('admin_crm.guardar') }}">
             <input type="hidden" name="accion" value="crear_cliente">
-            <input required name="codigo" maxlength="80" placeholder="Código interno">
-            <input required name="nombre" maxlength="200" placeholder="Nombre o razón social">
+            <label class="crm-field"><span>Código</span><input required name="codigo" maxlength="80" placeholder="Código interno"></label>
+            <label class="crm-field"><span>Nombre</span><input required name="nombre" maxlength="200" placeholder="Nombre o razón social"></label>
 
-            <select name="tipo">
+            <label class="crm-field"><span>Tipo</span><select name="tipo">
                 <option value="persona">Persona</option>
                 <option value="empresa">Empresa</option>
-            </select>
+            </select></label>
 
-            <select name="unidad_negocio_id">
+            <label class="crm-field"><span>Unidad de negocio</span><select name="unidad_negocio_id">
                 <option value="">Sin unidad definida</option>
                 {% for unidad in unidades %}
                 <option value="{{ unidad.id }}">{{ unidad.nombre }}</option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <input name="documento" maxlength="30" placeholder="DNI / CUIT">
-            <input name="email" type="email" maxlength="200" placeholder="Email">
-            <input name="telefono" maxlength="50" placeholder="Teléfono">
-            <input name="localidad" maxlength="120" placeholder="Localidad">
-            <input name="provincia" maxlength="120" placeholder="Provincia">
-            <input name="origen" maxlength="50" placeholder="Origen">
+            <label class="crm-field"><span>DNI / CUIT</span><input name="documento" maxlength="30" placeholder="DNI / CUIT"></label>
+            <label class="crm-field"><span>Email</span><input name="email" type="email" maxlength="200" placeholder="Email"></label>
+            <label class="crm-field"><span>Teléfono</span><input name="telefono" maxlength="50" placeholder="Teléfono"></label>
+            <label class="crm-field"><span>Localidad</span><input name="localidad" maxlength="120" placeholder="Localidad"></label>
+            <label class="crm-field"><span>Provincia</span><input name="provincia" maxlength="120" placeholder="Provincia"></label>
+            <label class="crm-field"><span>Origen</span><input name="origen" maxlength="50" placeholder="Origen"></label>
 
-            <select name="estado">
+            <label class="crm-field"><span>Estado comercial</span><select name="estado">
                 <option value="potencial">Potencial</option>
                 <option value="cliente">Cliente</option>
                 <option value="inactivo">Inactivo</option>
-            </select>
+            </select></label>
 
-            <input name="observaciones" maxlength="2000" placeholder="Observaciones">
-            <button type="submit">Crear desactivado</button>
-        </form>
+            <label class="crm-field"><span>Observaciones</span><input name="observaciones" maxlength="2000" placeholder="Observaciones"></label>
+            <div class="crm-form-actions"><button type="submit">Crear desactivado</button><button class="crm-cancel" type="button" data-crm-cancel>Cancelar</button></div>
+        </form></details>
 
         <div style="overflow-x:auto;margin-top:12px;">
-            <table style="width:100%;">
+            <div class="crm-table"><table style="width:100%;">
                 <thead>
                     <tr>
                         <th>Código</th>
@@ -140,8 +142,8 @@
                         <td>
                             {{ cliente.unidad_negocio.nombre if cliente.unidad_negocio else "-" }}
                         </td>
-                        <td>{{ cliente.estado }}</td>
-                        <td>{{ "activo" if cliente.activo else "desactivado" }}</td>
+                        <td><span class="estructura-status" data-estado="{{ cliente.estado }}">{{ cliente.estado }}</span></td>
+                        <td><span class="estructura-status" data-estado="{{ "activo" if cliente.activo else "desactivado" }}">{{ "activo" if cliente.activo else "desactivado" }}</span></td>
                         <td>
                             <form method="post" action="{{ url_for('admin_crm.guardar') }}">
                                 <input type="hidden" name="accion" value="toggle_cliente">
@@ -156,27 +158,26 @@
                     <tr><td colspan="7">No hay clientes CRM.</td></tr>
                     {% endfor %}
                 </tbody>
-            </table>
+            </table></div>
         </div>
-    </div>
+    </section>
 
     {% if clientes %}
-    <div class="card" style="margin-top:16px;">
+    <section class="card crm-section">
         <h2>Identidades por canal</h2>
 
-        <form method="post"
-              action="{{ url_for('admin_crm.guardar') }}"
-              style="display:flex;gap:8px;flex-wrap:wrap;">
+        <details class="estructura-editor crm-create"><summary>Nueva identidad de canal</summary><form class="crm-create-form" method="post"
+              action="{{ url_for('admin_crm.guardar') }}">
             <input type="hidden" name="accion" value="agregar_identidad">
 
-            <select required name="cliente_id">
+            <label class="crm-field"><span>Cliente</span><select required name="cliente_id">
                 <option value="">Cliente</option>
                 {% for cliente in clientes %}
                 <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <select required name="canal">
+            <label class="crm-field"><span>Canal</span><select required name="canal">
                 <option value="">Canal</option>
                 <option value="mercadolibre">Mercado Libre</option>
                 <option value="tiendanube">Tienda Nube</option>
@@ -184,18 +185,18 @@
                 <option value="presencial">Presencial</option>
                 <option value="mayorista">Mayorista</option>
                 <option value="otro">Otro</option>
-            </select>
+            </select></label>
 
-            <input required
+            <label class="crm-field"><span>Identificador externo</span><input required
                    name="identificador_externo"
                    maxlength="150"
-                   placeholder="Identificador externo">
-            <input name="alias" maxlength="150" placeholder="Alias">
-            <input name="detalle" maxlength="500" placeholder="Detalle">
-            <button type="submit">Agregar desactivada</button>
-        </form>
+                   placeholder="Identificador externo"></label>
+            <label class="crm-field"><span>Alias</span><input name="alias" maxlength="150" placeholder="Alias"></label>
+            <label class="crm-field"><span>Detalle</span><input name="detalle" maxlength="500" placeholder="Detalle"></label>
+            <div class="crm-form-actions"><button type="submit">Agregar desactivada</button><button class="crm-cancel" type="button" data-crm-cancel>Cancelar</button></div>
+        </form></details>
 
-        <table style="width:100%;margin-top:12px;">
+        <div class="crm-table"><table style="width:100%;margin-top:12px;">
             <thead>
                 <tr>
                     <th>Cliente</th>
@@ -211,7 +212,7 @@
                     <td>{{ identidad.cliente.nombre }}</td>
                     <td>{{ identidad.canal }}</td>
                     <td>{{ identidad.identificador_externo }}</td>
-                    <td>{{ "activa" if identidad.activo else "desactivada" }}</td>
+                    <td><span class="estructura-status" data-estado="{{ "activa" if identidad.activo else "desactivada" }}">{{ "activa" if identidad.activo else "desactivada" }}</span></td>
                     <td>
                         <form method="post" action="{{ url_for('admin_crm.guardar') }}">
                             <input type="hidden" name="accion" value="toggle_identidad">
@@ -226,59 +227,58 @@
                 <tr><td colspan="5">No hay identidades registradas.</td></tr>
                 {% endfor %}
             </tbody>
-        </table>
-    </div>
+        </table></div>
+    </section>
 
-    <div class="card" style="margin-top:16px;">
+    <section class="card crm-section">
         <h2>Oportunidades</h2>
 
-        <form method="post"
-              action="{{ url_for('admin_crm.guardar') }}"
-              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+        <details class="estructura-editor crm-create"><summary>Nueva oportunidad</summary><form class="crm-create-form" method="post"
+              action="{{ url_for('admin_crm.guardar') }}">
             <input type="hidden" name="accion" value="crear_oportunidad">
 
-            <select required name="cliente_id">
+            <label class="crm-field"><span>Cliente</span><select required name="cliente_id">
                 <option value="">Cliente</option>
                 {% for cliente in clientes %}
                 <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <input required name="titulo" maxlength="200" placeholder="Oportunidad">
+            <label class="crm-field"><span>Oportunidad</span><input required name="titulo" maxlength="200" placeholder="Oportunidad"></label>
 
-            <select name="unidad_negocio_id">
+            <label class="crm-field"><span>Unidad de negocio</span><select name="unidad_negocio_id">
                 <option value="">Sin unidad</option>
                 {% for unidad in unidades %}
                 <option value="{{ unidad.id }}">{{ unidad.nombre }}</option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <select name="etapa_crm_id">
+            <label class="crm-field"><span>Etapa</span><select name="etapa_crm_id">
                 <option value="">Sin etapa</option>
                 {% for etapa in etapas %}
                 <option value="{{ etapa.id }}">{{ etapa.nombre }}</option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <input name="importe_estimado"
+            <label class="crm-field"><span>Importe estimado</span><input name="importe_estimado"
                    inputmode="decimal"
                    value="0"
-                   placeholder="Importe">
-            <input name="probabilidad"
+                   placeholder="Importe"></label>
+            <label class="crm-field"><span>Probabilidad (%)</span><input name="probabilidad"
                    type="number"
                    min="0"
                    max="100"
                    value="0"
-                   placeholder="Probabilidad">
-            <input name="fecha_cierre_estimada" type="date">
-            <input name="responsable" maxlength="100" placeholder="Responsable">
-            <input name="origen" maxlength="50" placeholder="Origen">
-            <input name="detalle" maxlength="2000" placeholder="Detalle">
-            <button type="submit">Crear desactivada</button>
-        </form>
+                   placeholder="Probabilidad"></label>
+            <label class="crm-field"><span>Cierre estimado</span><input name="fecha_cierre_estimada" type="date"></label>
+            <label class="crm-field"><span>Responsable</span><input name="responsable" maxlength="100" placeholder="Responsable"></label>
+            <label class="crm-field"><span>Origen</span><input name="origen" maxlength="50" placeholder="Origen"></label>
+            <label class="crm-field"><span>Detalle</span><input name="detalle" maxlength="2000" placeholder="Detalle"></label>
+            <div class="crm-form-actions"><button type="submit">Crear desactivada</button><button class="crm-cancel" type="button" data-crm-cancel>Cancelar</button></div>
+        </form></details>
 
         <div style="overflow-x:auto;margin-top:12px;">
-            <table style="width:100%;">
+            <div class="crm-table"><table style="width:100%;">
                 <thead>
                     <tr>
                         <th>Oportunidad</th>
@@ -301,8 +301,8 @@
                             $ {{ "%.2f"|format(oportunidad.importe_estimado_centavos / 100) }}
                         </td>
                         <td>{{ oportunidad.probabilidad }}%</td>
-                        <td>{{ oportunidad.estado }}</td>
-                        <td>{{ "activa" if oportunidad.activa else "desactivada" }}</td>
+                        <td><span class="estructura-status" data-estado="{{ oportunidad.estado }}">{{ oportunidad.estado }}</span></td>
+                        <td><span class="estructura-status" data-estado="{{ "activa" if oportunidad.activa else "desactivada" }}">{{ "activa" if oportunidad.activa else "desactivada" }}</span></td>
                         <td>
                             <form method="post"
                                   action="{{ url_for('admin_crm.guardar') }}"
@@ -337,50 +337,49 @@
                     <tr><td colspan="8">No hay oportunidades.</td></tr>
                     {% endfor %}
                 </tbody>
-            </table>
+            </table></div>
         </div>
-    </div>
+    </section>
 
-    <div class="card" style="margin-top:16px;">
+    <section class="card crm-section">
         <h2>Actividades y tareas</h2>
 
-        <form method="post"
-              action="{{ url_for('admin_crm.guardar') }}"
-              style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+        <details class="estructura-editor crm-create"><summary>Nueva actividad</summary><form class="crm-create-form" method="post"
+              action="{{ url_for('admin_crm.guardar') }}">
             <input type="hidden" name="accion" value="crear_actividad">
 
-            <select required name="cliente_id">
+            <label class="crm-field"><span>Cliente</span><select required name="cliente_id">
                 <option value="">Cliente</option>
                 {% for cliente in clientes %}
                 <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <select name="oportunidad_crm_id">
+            <label class="crm-field"><span>Oportunidad</span><select name="oportunidad_crm_id">
                 <option value="">Sin oportunidad</option>
                 {% for oportunidad in oportunidades %}
                 <option value="{{ oportunidad.id }}">
                     {{ oportunidad.titulo }}
                 </option>
                 {% endfor %}
-            </select>
+            </select></label>
 
-            <select name="tipo">
+            <label class="crm-field"><span>Tipo</span><select name="tipo">
                 <option value="nota">Nota</option>
                 <option value="tarea">Tarea</option>
                 <option value="llamada">Llamada</option>
                 <option value="reunion">Reunión</option>
                 <option value="email">Email</option>
                 <option value="whatsapp">WhatsApp</option>
-            </select>
+            </select></label>
 
-            <input required name="asunto" maxlength="200" placeholder="Asunto">
-            <input name="fecha_vencimiento" type="date">
-            <input name="detalle" maxlength="2000" placeholder="Detalle">
-            <button type="submit">Crear actividad</button>
-        </form>
+            <label class="crm-field"><span>Asunto</span><input required name="asunto" maxlength="200" placeholder="Asunto"></label>
+            <label class="crm-field"><span>Vencimiento</span><input name="fecha_vencimiento" type="date"></label>
+            <label class="crm-field"><span>Detalle</span><input name="detalle" maxlength="2000" placeholder="Detalle"></label>
+            <div class="crm-form-actions"><button type="submit">Crear actividad</button><button class="crm-cancel" type="button" data-crm-cancel>Cancelar</button></div>
+        </form></details>
 
-        <table style="width:100%;margin-top:12px;">
+        <div class="crm-table"><table style="width:100%;margin-top:12px;">
             <thead>
                 <tr>
                     <th>Cliente</th>
@@ -400,7 +399,7 @@
                     <td>
                         {{ actividad.fecha_vencimiento.strftime("%d/%m/%Y") if actividad.fecha_vencimiento else "-" }}
                     </td>
-                    <td>{{ actividad.estado }}</td>
+                    <td><span class="estructura-status" data-estado="{{ actividad.estado }}">{{ actividad.estado }}</span></td>
                     <td>
                         <form method="post" action="{{ url_for('admin_crm.guardar') }}">
                             <input type="hidden" name="accion" value="completar_actividad">
@@ -415,8 +414,9 @@
                 <tr><td colspan="6">No hay actividades.</td></tr>
                 {% endfor %}
             </tbody>
-        </table>
-    </div>
+        </table></div>
+    </section>
     {% endif %}
-</div>
+</main>
+<script src="{{ url_for('static', filename='admin_crm.js') }}?v=20261015-crm-panel-1" defer></script>
 {% endblock %}
