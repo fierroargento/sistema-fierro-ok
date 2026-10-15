@@ -1,42 +1,49 @@
 {% extends "base.html" %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css') }}?v=20261015-crm-importacion-1">
+{% endblock %}
 {% block content %}
-<main class="card">
-  <h1>Importación masiva offline del CRM</h1>
-  <p>Previsualiza clientes, oportunidades y actividades de {{ organizacion.nombre }}. No confirma registros, importa pedidos, envía mensajes ni ejecuta automatizaciones.</p>
-  {% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
-  <form method="post" enctype="multipart/form-data">
-    <input type="file" name="archivo" accept=".csv,text/csv" required>
-    <button name="accion" value="previsualizar" type="submit">Previsualizar sin guardar</button>
-    <button name="accion" value="exportar" type="submit">Exportar diagnóstico JSON</button>
-  </form>
-  <section class="card" style="margin-top:16px">
-    <h2>Confirmar plan firmado</h2>
+<main class="estructura-page estructura-control estructura-consolidado">
+  <header><span class="estructura-control-eyebrow">CRM · IMPORTACIÓN OFFLINE</span><h1>Importación masiva offline del CRM</h1>
+  <p>Previsualiza clientes, oportunidades y actividades de {{ organizacion.nombre }}. La previsualización no guarda registros ni envía mensajes.</p></header>
+  <nav class="estructura-tools" aria-label="Navegación de importación"><a href="{{ url_for('admin_crm.panel') }}">Volver al CRM</a></nav>
+  {% if error %}<div class="alerta alerta-error" role="alert">{{ error }}</div>{% endif %}
+  {% if ok_feedback %}<div class="alerta alerta-ok" role="status">{{ ok_feedback }}</div>{% endif %}
+  <section class="card"><h2>Previsualizar archivo CSV</h2>
+  <form class="estructura-certification-form" method="post" enctype="multipart/form-data">
+    <label for="crm-archivo">Archivo CSV</label>
+    <input type="file" id="crm-archivo" name="archivo" accept=".csv,text/csv" required>
+    <div class="estructura-certification-actions"><button name="accion" value="previsualizar" type="submit">Previsualizar sin guardar</button>
+    <button name="accion" value="exportar" class="estructura-certification-secondary" type="submit">Exportar diagnóstico JSON</button></div>
+  </form></section>
+  <details class="estructura-diagnosticos"><summary>Confirmar plan firmado</summary><section class="card">
     <p>La confirmación crea únicamente registros CRM desactivados y un lote auditable. No crea pedidos ni inicia contactos.</p>
-    <form method="post" enctype="multipart/form-data" action="{{ url_for('admin_crm.confirmar_importacion_offline') }}">
-      <input type="file" name="plan" accept=".json,application/json" required>
+    <form class="estructura-certification-form" method="post" enctype="multipart/form-data" action="{{ url_for('admin_crm.confirmar_importacion_offline') }}">
+      <label for="crm-plan">Plan JSON exportado</label>
+      <input type="file" id="crm-plan" name="plan" accept=".json,application/json" required>
       <button type="submit">Confirmar transacción interna</button>
     </form>
-  </section>
+  </section></details>
   {% if resultado %}
   <section class="card" style="margin-top:16px">
     <h2>Resumen firmado</h2>
     <p>Filas: {{ resultado.resumen.filas }} · Preparadas: {{ resultado.resumen.preparados }} · Rechazadas: {{ resultado.resumen.rechazados }}</p>
     <p>Clientes: {{ resultado.resumen.clientes }} · Oportunidades: {{ resultado.resumen.oportunidades }} · Actividades: {{ resultado.resumen.actividades }}</p>
-    <p><strong>Confirmación bloqueada:</strong> esta etapa mantiene cero escrituras y cero acciones externas.</p>
-    <code>{{ resultado.huella_plan }}</code>
+    <p>Esta previsualización no guardó registros. Para importarlos, usá el plan JSON exportado en «Confirmar plan firmado».</p>
+    <details class="estructura-diagnosticos estructura-control-evidence"><summary>Huella del plan</summary><code>{{ resultado.huella_plan }}</code></details>
   </section>
-  <div style="overflow:auto">
+  <div class="estructura-control-table">
     <table style="width:100%;margin-top:16px">
       <thead><tr><th>Fila</th><th>Tipo</th><th>Cliente</th><th>Nombre</th><th>Estado</th><th>Resultado</th><th>Detalle</th></tr></thead>
-      <tbody>{% for fila in resultado.filas %}<tr><td>{{ fila.numero }}</td><td>{{ fila.tipo }}</td><td>{{ fila.codigo_cliente }}</td><td>{{ fila.nombre }}</td><td>{{ fila.estado }}</td><td>{{ fila.resultado }}</td><td>{{ fila.errores|join('; ') if fila.errores else 'Lista para una futura confirmación auditable' }}</td></tr>{% endfor %}</tbody>
+      <tbody>{% for fila in resultado.filas %}<tr><td>{{ fila.numero }}</td><td>{{ fila.tipo }}</td><td>{{ fila.codigo_cliente }}</td><td>{{ fila.nombre }}</td><td>{{ fila.estado }}</td><td>{{ fila.resultado }}</td><td>{{ fila.errores|join('; ') if fila.errores else 'Preparada para confirmación interna' }}</td></tr>{% endfor %}</tbody>
     </table>
   </div>
   {% endif %}
   <section class="card" style="margin-top:16px">
     <h2>Últimos lotes confirmados</h2>
-    <table style="width:100%"><thead><tr><th>Lote</th><th>Archivo</th><th>Clientes</th><th>Oportunidades</th><th>Actividades</th><th>Estado</th><th>Acciones</th></tr></thead>
-    <tbody>{% for lote in lotes %}<tr><td>#{{ lote.id }}</td><td>{{ lote.nombre_archivo }}</td><td>{{ lote.clientes_creados }}</td><td>{{ lote.oportunidades_creadas }}</td><td>{{ lote.actividades_creadas }}</td><td>{{ lote.estado }}</td><td><a href="{{ url_for('admin_crm.evidencia_lote', lote_id=lote.id) }}">Evidencia</a>{% if lote.estado == 'confirmado' %}<form method="post" action="{{ url_for('admin_crm.anular_lote_importacion', lote_id=lote.id) }}" style="display:inline"><button type="submit">Anular sin borrar</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="7">Todavía no hay lotes CRM confirmados.</td></tr>{% endfor %}</tbody></table>
+    <div class="estructura-control-table"><table style="width:100%"><thead><tr><th>Lote</th><th>Archivo</th><th>Clientes</th><th>Oportunidades</th><th>Actividades</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <tbody>{% for lote in lotes %}<tr><td>#{{ lote.id }}</td><td>{{ lote.nombre_archivo }}</td><td>{{ lote.clientes_creados }}</td><td>{{ lote.oportunidades_creadas }}</td><td>{{ lote.actividades_creadas }}</td><td>{{ lote.estado }}</td><td><a href="{{ url_for('admin_crm.evidencia_lote', lote_id=lote.id) }}">Evidencia</a>{% if lote.estado == 'confirmado' %}<form method="post" action="{{ url_for('admin_crm.anular_lote_importacion', lote_id=lote.id) }}" style="display:inline"><button type="submit">Anular sin borrar</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="7">Todavía no hay lotes CRM confirmados.</td></tr>{% endfor %}</tbody></table></div>
   </section>
-  <p><a href="{{ url_for('admin_crm.panel') }}">Volver al CRM</a></p>
+
 </main>
 {% endblock %}

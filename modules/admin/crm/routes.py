@@ -200,8 +200,11 @@ def crear_blueprint_crm(
             return respuesta
         datos = obtener_datos_panel_crm(organizacion.id, modelos=modelos)
         resultado = None
-        error = ""
+        error = (request.args.get("error") or "").strip()
+        ok_feedback = (request.args.get("ok") or "").strip()
         if request.method == "POST":
+            error = ""
+            ok_feedback = ""
             try:
                 archivo = request.files.get("archivo")
                 if archivo is None or not archivo.filename:
@@ -227,6 +230,7 @@ def crear_blueprint_crm(
             "admin_importacion_crm_offline.html",
             resultado=resultado,
             error=error,
+            ok_feedback=ok_feedback,
             organizacion=organizacion,
             lotes=datos["lotes_importacion"],
         )
