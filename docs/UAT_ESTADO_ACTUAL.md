@@ -69,7 +69,7 @@ La documentación de remediación de septiembre cita riesgos pendientes de canal
 
 Hay tres bloques de cierre definidos; el primero es breve. El esfuerzo de los otros dos depende de la conciliación y de los defectos que efectivamente subsistan. No se asigna un porcentaje de SaaS terminado ni un plazo de producción sin ese inventario.
 
-Siguiente acción concreta: desplegar el ajuste de alineación de la gestión de máquinas y verificar una sola captura de esa emergente. Continuar luego con los pendientes por conciliar del bloque 2.
+Siguiente acción concreta: verificar el subtítulo de la emergente de UAT-OC-001 tras el próximo deploy. Continuar luego con los pendientes por conciliar del bloque 2.
 
 ### Conciliación visual del 16/10/2026
 
@@ -77,5 +77,16 @@ Siguiente acción concreta: desplegar el ajuste de alineación de la gestión de
 - Historial del producto: emergente contenida, desglose legible, v2 desplegada y v1 plegada. Se cierra el pendiente visual del historial; evidencia `image(20261016-131109).png`.
 - Fuentes de costo: captura general con formularios plegados, insuficiente resolución para cerrar todos los detalles de presentación; `image(20261016-153012).png`.
 - Máquinas: Gestionar disponible, datos precargados e historial de dos tarifas visible y contenido. Evidencias `image(20261016-153141).png` y `image(20261016-153248).png`. No se vuelve a declarar ausente Gestionar ni el historial.
-- Pendiente visual concreto MUI-01: etiquetas y campos monetarios desalineados respecto de los demás controles de la máquina. Ajuste limitado al CSS del formulario de gestión de máquinas y actualización de su caché; cierre visual pendiente de la próxima captura.
+- MUI-01 cerrado: etiquetas y campos monetarios alineados en la captura posterior al ajuste, `image(20261016-160030).png`. Gestionar e historial de Máquinas visualmente verificados.
 - Estas capturas no acreditan nuevas pruebas de guardado, cancelación o cálculo; sus pruebas funcionales anteriores no se repiten por este ajuste de presentación.
+
+### Continuación del 16/10/2026: Pagos, Proveedores y cruce documental de Compras
+
+- Pagos y vencimientos: tabla contenida, configuración plegada y botones uniformes; tres obligaciones visibles, dos vencidas. La parcial conserva $40.000 aplicados y $80.000 pendientes. Evidencia `image(20261016-160155).png`.
+- Gestión de pago: tres movimientos, uno aplicado por $40.000 y dos anulados ($80.000 y $1.000); acceso Ver archivo presente. La captura verifica presentación y valores visibles, no una nueva descarga o anulación. Evidencia `image(20261016-160232).png`.
+- Proveedor UAT-PROV-001: ficha con datos fiscales, contacto, domicilio y observaciones, y editor con campos alineados. Cerrados esos pendientes visuales. Evidencias `image(20261016-160357).png` y `image(20261016-160437).png`.
+- Orden UAT-OC-001: aprobada, total $3.000; recepción parcial UAT-REC-001 por $1.500, preparatoria. Evidencias `image(20261016-160545).png` y `image(20261016-160650).png`.
+- Factura A 00001-00900001: vinculada a UAT-REC-001, total $1.500, diferencia $0, conciliada. Evidencia `image(20261016-160803).png`.
+- Tres propuestas de UAT-REC-001: cuenta a pagar rechazada con motivo «Prueba UAT sin obligación real»; stock bloqueado, requiere mapeo de inventario; costo aprobado. Las tres muestran ejecución bloqueada. Evidencia `image(20261016-160839).png`.
+- Queda conciliado el estado visible del cruce documental existente orden → recepción → factura → propuestas. No se crearon nuevas recepciones/facturas ni se repitieron aprobaciones, y estas capturas no miden impactos en otros módulos.
+- Pendiente CH-01: el subtítulo de Gestionar orden concatenaba número, cantidad de ítems y detalle. Se separan los bloques con « · » y se excluye texto de controles, usando texto DOM seguro. Ajuste visual compartido, sin cambiar formularios ni acciones; una captura posterior al deploy cerrará este pendiente.

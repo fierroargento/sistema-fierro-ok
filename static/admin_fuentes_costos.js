@@ -1,6 +1,18 @@
 (function () {
   "use strict";
 
+  function contextoDeFila(fila) {
+    if (!fila || !fila.cells[0]) return "";
+    const celda = fila.cells[0].cloneNode(true);
+    celda.querySelectorAll("form, button, input, select, textarea").forEach(function (control) {
+      control.remove();
+    });
+    return Array.from(celda.childNodes).map(function (nodo) {
+      return nodo.textContent.replace(/\s+/g, " ").trim();
+    }).filter(Boolean).join(" · ");
+  }
+
+
   function iniciarCriteriosDistribucion() {
     document.querySelectorAll("[data-production-cost]").forEach(function (control) {
       const distribucion = control.form.querySelector("[data-distribution]");
@@ -145,7 +157,7 @@
       const nombre = document.createElement("h2");
       const codigo = document.createElement("small");
       nombre.textContent = fila && fila.cells[1] ? fila.cells[1].textContent.trim() : "Gestionar registro";
-      codigo.textContent = fila && fila.cells[0] ? fila.cells[0].textContent.trim() : "";
+      codigo.textContent = contextoDeFila(fila);
       if (dialogo.classList.contains("provider-dialog")) {
         const etiqueta = document.createElement("span");
         etiqueta.className = "provider-dialog-eyebrow";
