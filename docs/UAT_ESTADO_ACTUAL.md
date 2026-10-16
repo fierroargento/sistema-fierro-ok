@@ -115,3 +115,9 @@ Siguiente acción concreta: verificar feedback de Simular escenario y alineació
 - NUI-01: el usuario pide retirar el aviso permanente y acceder a notificaciones bajo demanda. Se reemplaza el contenedor flotante global por «Notificaciones» con campana y contador en la barra lateral, cerrado por defecto. Se reutiliza `alertas_operativas()` una sola vez, con los mismos avisos y enlaces, sin modificar consultas ni permisos. La cantidad indica avisos agrupados, no cantidad de obligaciones.
 - Panel en flujo de la barra lateral, sin posicionamiento flotante ni apertura automática; estado vacío explícito. Se conserva el feedback temporal de las acciones.
 - Pendiente UAT tras deploy: no aparece el cartel sobre el encabezado; Notificaciones abre/cierra y muestra el aviso de obligaciones con acceso a Revisar pagos. Las obligaciones no se marcan resueltas ni se altera su estado.
+
+### Acceso a aceptación UAT y cierre de notificaciones
+
+- NUI-01 cerrado: Notificaciones se ve plegado con contador y desplegado con aviso y enlace, capturas `image(20261016-194137).png` y `image(20261016-194149).png`. El usuario confirmó «perfecto» al verificar acceso a Pagos y vencimientos.
+- NAV-01: el acceso a Aceptación por usuarios y roles estaba anidado en Preparación para reemplazar DUX. Se agrega enlace directo en la navegación superior de Estructura, junto a Control integral, a la ruta existente `admin_estructura.aceptacion_usuarios_operativos`. No se duplica pantalla ni se cambia validación/permisos. Pendiente validación tras deploy.
+- Captura `image(20261016-194459).png`: aceptación abre por URL, sin resultado cargado; queda por uniformar su presentación antes de completar ese bloque de UAT.
