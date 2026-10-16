@@ -99,3 +99,12 @@ Siguiente acción concreta: verificar feedback de Simular escenario y alineació
 - SIM-01: usuario confirma recálculo pero no percibe la acción. Se agrega estado de envío, confirmación tras POST exitoso, foco/desplazamiento al resultado o error y restauración al volver desde caché del navegador. Pendiente validación visual tras deploy.
 - SIM-02: se alinea la casilla Promoción vigente y se explicita que la evaluación económica corresponde a liquidación esperada; aviso para ventas canceladas/devueltas sin alterar el motor. Pendiente validación visual tras deploy.
 - Aviso global de vencimientos superpuesto al encabezado: pendiente de revisión; este ajuste local del simulador no lo modifica.
+
+### Continuación: simulador, control y ficha comercial
+
+- SIM-01 cerrado con `image(20261016-165108).png`: confirmación visible, foco sobre el resultado y valores conservados. La captura no acredita el estado transitorio del botón.
+- Alineación Promoción vigente cerrada con `image(20261016-165205).png`; la aclaración sobre liquidación esperada se ve en el resultado.
+- Control: Actualizar observado e Historial de precios disponibles. Emergente precarga $7.200, cuenta-uat y UAT-PUB-001. Historial legible, último registro del 03/10, registros manuales e importados conservados. No se guarda otro precio. Evidencias `image(20261016-165307).png`, `image(20261016-165356).png` y `image(20261016-165432).png`.
+- Preparación bloqueada por precio/cargos/envío vencidos y advertencia de promoción vencida. Regla UAT-VALIDACION-001 v1 vigente: 168 horas para los cuatro datos. Configuración conservada; capturas `image(20261016-165529).png` y `image(20261016-165611).png`. Rentabilidad y vigencia son controles distintos.
+- Ficha comercial: emergente con navegación y acciones fijas, producto sintético en borrador/no disponible, imagen visible y completitud 27%. Evidencias `image(20261016-165722).png`, `image(20261016-165733).png`, `image(20261016-165745).png` y `image(20261016-165756).png`. No se completan faltantes ni se activan canales.
+- FUI-01: unificar tipografía y casillas de Imágenes/Canales/Relaciones, y ampliar espacio del selector de archivos recortado. CSS exclusivo de la ficha, sin modificar nombres, valores ni acciones. Pendiente validación visual después del deploy.
