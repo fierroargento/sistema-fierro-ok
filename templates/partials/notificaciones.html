@@ -1,0 +1,19 @@
+{% set notificaciones = alertas_operativas() or [] %}
+<details class="notification-center">
+    <summary id="notification-center-title">
+        <svg class="notification-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 21h4"/></svg>
+        <span>Notificaciones</span>
+        {% if notificaciones %}<span class="notification-count" aria-label="{{ notificaciones|length }} notificaciones">{{ notificaciones|length }}</span>{% endif %}
+    </summary>
+    <div class="notification-panel" role="region" aria-labelledby="notification-center-title">
+        <p class="notification-help">Avisos actuales. Abrí cada gestión para revisar el detalle.</p>
+        {% for alerta in notificaciones %}
+        <article class="notification-item notification-{{ alerta.tipo }}">
+            <p>{{ alerta.texto }}</p>
+            {% if alerta.url %}<a href="{{ alerta.url }}">{{ alerta.boton or 'Abrir' }}</a>{% endif %}
+        </article>
+        {% else %}
+        <p class="notification-empty">No hay notificaciones pendientes.</p>
+        {% endfor %}
+    </div>
+</details>

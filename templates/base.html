@@ -6,6 +6,7 @@
     <title>Fierro App</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261006-admin-tree') }}">
+    {% if usuario_logueado %}<link rel="stylesheet" href="{{ url_for('static', filename='notificaciones.css', v='20261016-panel') }}">{% endif %}
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -19,6 +20,7 @@
         </div>
 
         <div class="menu">
+            {% include "partials/notificaciones.html" %}
             <a href="{{ url_for('inicio') }}">Inicio</a>
             {% if rol_actual in ["admin", "carga"] %}
             <a href="{{ url_for('pedidos_preparacion') }}">Pedidos en preparación</a>
@@ -90,20 +92,6 @@
 <div class="layout">
     <div class="main login-main">
 {% endif %}
-
-        {% if usuario_logueado and alertas_operativas() %}
-        <div class="alerta-popup-contenedor">
-            {% for alerta in alertas_operativas() %}
-            <div class="alerta alerta-{{ alerta.tipo }} alerta-popup">
-                <button type="button" class="alerta-cerrar" onclick="this.parentElement.style.display='none'">×</button>
-                <span>{{ alerta.texto }}</span>
-                {% if alerta.url %}
-                <a href="{{ alerta.url }}" target="_blank" class="alerta-accion-mini">{{ alerta.boton or 'Abrir' }}</a>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
 
         {% if ok_feedback %}
         <div id="toast-feedback" class="toast-feedback">

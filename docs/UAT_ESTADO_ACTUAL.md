@@ -108,3 +108,10 @@ Siguiente acción concreta: verificar feedback de Simular escenario y alineació
 - Preparación bloqueada por precio/cargos/envío vencidos y advertencia de promoción vencida. Regla UAT-VALIDACION-001 v1 vigente: 168 horas para los cuatro datos. Configuración conservada; capturas `image(20261016-165529).png` y `image(20261016-165611).png`. Rentabilidad y vigencia son controles distintos.
 - Ficha comercial: emergente con navegación y acciones fijas, producto sintético en borrador/no disponible, imagen visible y completitud 27%. Evidencias `image(20261016-165722).png`, `image(20261016-165733).png`, `image(20261016-165745).png` y `image(20261016-165756).png`. No se completan faltantes ni se activan canales.
 - FUI-01: unificar tipografía y casillas de Imágenes/Canales/Relaciones, y ampliar espacio del selector de archivos recortado. CSS exclusivo de la ficha, sin modificar nombres, valores ni acciones. Pendiente validación visual después del deploy.
+
+### Notificaciones bajo demanda — 16/10/2026
+
+- FUI-01 cerrado con `image(20261016-192313).png`: selector de archivos completo, casillas alineadas y presentación consistente en Imágenes/Canales/Relaciones. No se guarda otra ficha.
+- NUI-01: el usuario pide retirar el aviso permanente y acceder a notificaciones bajo demanda. Se reemplaza el contenedor flotante global por «Notificaciones» con campana y contador en la barra lateral, cerrado por defecto. Se reutiliza `alertas_operativas()` una sola vez, con los mismos avisos y enlaces, sin modificar consultas ni permisos. La cantidad indica avisos agrupados, no cantidad de obligaciones.
+- Panel en flujo de la barra lateral, sin posicionamiento flotante ni apertura automática; estado vacío explícito. Se conserva el feedback temporal de las acciones.
+- Pendiente UAT tras deploy: no aparece el cartel sobre el encabezado; Notificaciones abre/cierra y muestra el aviso de obligaciones con acceso a Revisar pagos. Las obligaciones no se marcan resueltas ni se altera su estado.

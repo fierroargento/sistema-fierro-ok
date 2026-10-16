@@ -1,0 +1,33 @@
+/* Panel bajo demanda: no se superpone al contenido de las pantallas. */
+.notification-center { min-width:0;margin:0 0 6px;border:1px solid #cbd8e1;border-radius:10px;background:#f7fafc; }
+.notification-center > summary {
+ display:flex;align-items:center;gap:8px;min-height:42px;padding:8px 10px;
+ box-sizing:border-box;list-style:none;cursor:pointer;color:#174f68;font-size:13px;font-weight:800;
+}
+.notification-center > summary::-webkit-details-marker { display:none; }
+.notification-center > summary:hover { background:#e8f3f8;border-radius:10px; }
+.notification-center > summary:focus-visible { outline:2px solid #14718b;outline-offset:2px; }
+.notification-center .notification-bell { width:20px;height:20px;flex:0 0 20px; }
+.notification-center .notification-count {
+ margin-left:auto;display:inline-flex;align-items:center;justify-content:center;
+ min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;border-radius:999px;
+ background:#174f68;color:#fff;font-size:11px;
+}
+.notification-center .notification-panel {
+ max-height:320px;overflow-y:auto;overflow-wrap:anywhere;padding:10px;
+ border-top:1px solid #d8e1ea;overscroll-behavior:contain;
+}
+.notification-center .notification-help,.notification-center .notification-empty {
+ margin:0;color:#526173;font-size:11px;line-height:1.5;
+}
+.notification-center .notification-item { margin-top:8px;padding:10px;border:1px solid #d8e1ea;border-radius:8px;background:#fff;color:#344054; }
+.notification-center .notification-item p { margin:0;font-size:12px;line-height:1.5;font-weight:700; }
+.notification-center .notification-roja { border-left:3px solid #b42318; }
+.notification-center .notification-amarilla { border-left:3px solid #b77900; }
+.notification-center .notification-item a {
+ display:inline-flex;align-items:center;min-height:32px;margin:8px 0 0;padding:5px 8px;
+ box-sizing:border-box;border:1px solid #8ac4da;border-radius:7px;
+ background:#edf8fc;color:#176b89;font-size:11px;font-weight:800;text-decoration:none;
+}
+.notification-center .notification-item a:hover { background:#dff3f8; }
+.notification-center .notification-item a:focus-visible { outline:2px solid #14718b;outline-offset:2px; }
