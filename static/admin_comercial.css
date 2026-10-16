@@ -1179,3 +1179,19 @@
 .compras-page .compras-summary strong { font-size: 14px; }
 .compras-page .compras-summary .compras-summary-pending strong,
 .compras-page .compras-summary .compras-summary-pending span { color: #93610b; font-weight: 800; }
+
+/* Gestión de máquinas: etiquetas y controles alineados, incluidos los importes. */
+.cost-sources-page .source-dialog form.machine-table-update { align-items:stretch; }
+.cost-sources-page .source-dialog form.machine-table-update > label {
+  display:grid;grid-template-rows:minmax(18px,1fr) 38px;gap:6px;align-self:stretch;
+}
+.cost-sources-page .source-dialog form.machine-table-update > label > span { line-height:18px; }
+.cost-sources-page .source-dialog form.machine-table-update > label > input,
+.cost-sources-page .source-dialog form.machine-table-update > label > select,
+.cost-sources-page .source-dialog form.machine-table-update .money-input {
+  box-sizing:border-box;height:38px;min-height:38px;max-height:38px;margin:0;
+}
+.cost-sources-page .source-dialog form.machine-table-update .money-input { width:100%; }
+.cost-sources-page .source-dialog form.machine-table-update .money-input input {
+  flex:1 1 0;width:0;height:36px;min-height:36px;max-height:36px;margin:0;border-radius:0;
+}

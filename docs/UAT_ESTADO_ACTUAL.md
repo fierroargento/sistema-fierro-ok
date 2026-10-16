@@ -1,5 +1,5 @@
 # Estado único de UAT — staging
-Fecha de corte: 15/10/2026, Argentina.
+Fecha de corte: 16/10/2026, Argentina.
 Rama: `integracion-saas-2026-09`.
 Base de código revisada: `379b6f6a86b80742064efbdc77706d979a526670`.
 
@@ -34,9 +34,9 @@ Huella del consolidado: `b18bbd0d6f81f00d424f37c0c9d6ce7de294cd9bfbdb885fcc7db6c
 
 ## Bloque 1 — cerrar la última corrección CRM
 
-- [ ] Confirmar deploy en staging de `379b6f6a86b80742064efbdc77706d979a526670`.
-- [ ] Una prueba negativa de CSV con importe no representable: la oportunidad debe aparecer rechazada con aviso, la pantalla debe responder normalmente y no debe crearse ningún lote.
-- [ ] Marcar el bloque cerrado con esa evidencia. No volver a ejecutar el circuito completo de importación/anulación ni descargar otra vez los cinco controles por este cambio aislado.
+- [x] Corrección de importes no representables verificada en la pantalla de staging el 16/10/2026. La captura no acredita por sí sola el SHA exacto de Render.
+- [x] Prueba negativa con `uat_crm_importe_invalido.csv`: dos filas, una preparada y una rechazada, mensaje «Importe o probabilidad inválidos»; respuesta normal y únicamente el lote #1 anulado visible.
+- [x] Bloque CRM cerrado con `image(20261016-130852).png`. No repetir el circuito de importación/anulación ni los cinco controles por este cambio aislado.
 
 Ya verificado localmente: 26 pruebas de previsualización y confirmación aprobadas. Casos no representables NaN, sNaN, Infinity, -Infinity y exponente excesivo se rechazan por fila; importes válidos conservan su conversión y redondeo. Se comprobaron además rechazos de importe alterado sin huella actualizada, plan de otra organización, unidad ajena aun con huella recalculada y archivo repetido de lote anulado. Son verificaciones locales, no pruebas ejecutadas contra la base de staging.
 
@@ -69,4 +69,13 @@ La documentación de remediación de septiembre cita riesgos pendientes de canal
 
 Hay tres bloques de cierre definidos; el primero es breve. El esfuerzo de los otros dos depende de la conciliación y de los defectos que efectivamente subsistan. No se asigna un porcentaje de SaaS terminado ni un plazo de producción sin ese inventario.
 
-Siguiente acción concreta: deploy de `379b6f6a86b80742064efbdc77706d979a526670` y una única prueba negativa del bloque 1. Este documento por sí solo no requiere deploy.
+Siguiente acción concreta: desplegar el ajuste de alineación de la gestión de máquinas y verificar una sola captura de esa emergente. Continuar luego con los pendientes por conciliar del bloque 2.
+
+### Conciliación visual del 16/10/2026
+
+- Costos base: tabla contenida y acciones presentes. Producto UAT-PROD-001 con v2 vigente $4.933,65 y v1 archivada $4.932,25. Evidencia `image(20261016-131010).png`.
+- Historial del producto: emergente contenida, desglose legible, v2 desplegada y v1 plegada. Se cierra el pendiente visual del historial; evidencia `image(20261016-131109).png`.
+- Fuentes de costo: captura general con formularios plegados, insuficiente resolución para cerrar todos los detalles de presentación; `image(20261016-153012).png`.
+- Máquinas: Gestionar disponible, datos precargados e historial de dos tarifas visible y contenido. Evidencias `image(20261016-153141).png` y `image(20261016-153248).png`. No se vuelve a declarar ausente Gestionar ni el historial.
+- Pendiente visual concreto MUI-01: etiquetas y campos monetarios desalineados respecto de los demás controles de la máquina. Ajuste limitado al CSS del formulario de gestión de máquinas y actualización de su caché; cierre visual pendiente de la próxima captura.
+- Estas capturas no acreditan nuevas pruebas de guardado, cancelación o cálculo; sus pruebas funcionales anteriores no se repiten por este ajuste de presentación.
