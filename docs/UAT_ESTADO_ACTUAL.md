@@ -69,7 +69,7 @@ La documentación de remediación de septiembre cita riesgos pendientes de canal
 
 Hay tres bloques de cierre definidos; el primero es breve. El esfuerzo de los otros dos depende de la conciliación y de los defectos que efectivamente subsistan. No se asigna un porcentaje de SaaS terminado ni un plazo de producción sin ese inventario.
 
-Siguiente acción concreta: verificar el subtítulo de la emergente de UAT-OC-001 tras el próximo deploy. Continuar luego con los pendientes por conciliar del bloque 2.
+Siguiente acción concreta: verificar feedback de Simular escenario y alineación de Promoción vigente tras el deploy, sin persistir datos.
 
 ### Conciliación visual del 16/10/2026
 
@@ -89,4 +89,13 @@ Siguiente acción concreta: verificar el subtítulo de la emergente de UAT-OC-00
 - Factura A 00001-00900001: vinculada a UAT-REC-001, total $1.500, diferencia $0, conciliada. Evidencia `image(20261016-160803).png`.
 - Tres propuestas de UAT-REC-001: cuenta a pagar rechazada con motivo «Prueba UAT sin obligación real»; stock bloqueado, requiere mapeo de inventario; costo aprobado. Las tres muestran ejecución bloqueada. Evidencia `image(20261016-160839).png`.
 - Queda conciliado el estado visible del cruce documental existente orden → recepción → factura → propuestas. No se crearon nuevas recepciones/facturas ni se repitieron aprobaciones, y estas capturas no miden impactos en otros módulos.
-- Pendiente CH-01: el subtítulo de Gestionar orden concatenaba número, cantidad de ítems y detalle. Se separan los bloques con « · » y se excluye texto de controles, usando texto DOM seguro. Ajuste visual compartido, sin cambiar formularios ni acciones; una captura posterior al deploy cerrará este pendiente.
+- CH-01 cerrado con `image(20261016-163634).png`: subtítulo separado y legible. Antecedente: el subtítulo de Gestionar orden concatenaba número, cantidad de ítems y detalle. Se separan los bloques con « · » y se excluye texto de controles, usando texto DOM seguro. Ajuste visual compartido, sin cambiar formularios ni acciones; captura posterior al deploy verificada.
+
+### Simulador comercial integral — 16/10/2026
+
+- Promoción: piso $1.025, no cumple, propuesta cancelar promoción y actualizar precio; captura `image(20261016-164015).png`.
+- Venta devuelta: conciliación devuelta, liquidación observada $0; la evaluación del precio usa liquidación esperada. Captura `image(20261016-164119).png`.
+- Precio alto con envío: piso $33.800, liquidación esperada $29.200, observada $28.000, conciliación pago parcial y propuesta actualizar precio; `image(20261016-164213).png`.
+- SIM-01: usuario confirma recálculo pero no percibe la acción. Se agrega estado de envío, confirmación tras POST exitoso, foco/desplazamiento al resultado o error y restauración al volver desde caché del navegador. Pendiente validación visual tras deploy.
+- SIM-02: se alinea la casilla Promoción vigente y se explicita que la evaluación económica corresponde a liquidación esperada; aviso para ventas canceladas/devueltas sin alterar el motor. Pendiente validación visual tras deploy.
+- Aviso global de vencimientos superpuesto al encabezado: pendiente de revisión; este ajuste local del simulador no lo modifica.

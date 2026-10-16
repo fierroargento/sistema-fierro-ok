@@ -1,0 +1,17 @@
+.simulator-page .simulator-form > .inventory-switch {
+  display:flex;flex-direction:row;align-items:center;justify-content:flex-start;
+  gap:8px;align-self:end;min-height:38px;
+}
+.simulator-page .simulator-form > .inventory-switch > input {
+  width:18px;height:18px;min-height:18px;margin:0;flex:0 0 18px;
+}
+.simulator-page .simulator-form > .inventory-switch > span { margin:0; }
+.simulator-page .simulation-progress { align-self:center;color:#405566;font-size:13px; }
+.simulator-page [data-simulation-submit]:disabled { opacity:.7;cursor:wait; }
+.simulator-page #respuesta-simulacion { scroll-margin-top:24px; }
+.simulator-page .simulation-response:focus { outline:2px solid #14718b;outline-offset:4px; }
+.simulator-page .simulation-state-note { padding:12px;border-radius:8px;background:#eef6fa;color:#405566; }
+@media (max-width:600px) {
+  .simulator-page .simulator-form,.simulator-page .simulator-results { grid-template-columns:minmax(0,1fr); }
+  .simulator-page .simulator-verdict { flex-direction:column; }
+}
