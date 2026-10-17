@@ -121,3 +121,10 @@ Siguiente acción concreta: verificar feedback de Simular escenario y alineació
 - NUI-01 cerrado: Notificaciones se ve plegado con contador y desplegado con aviso y enlace, capturas `image(20261016-194137).png` y `image(20261016-194149).png`. El usuario confirmó «perfecto» al verificar acceso a Pagos y vencimientos.
 - NAV-01: el acceso a Aceptación por usuarios y roles estaba anidado en Preparación para reemplazar DUX. Se agrega enlace directo en la navegación superior de Estructura, junto a Control integral, a la ruta existente `admin_estructura.aceptacion_usuarios_operativos`. No se duplica pantalla ni se cambia validación/permisos. Pendiente validación tras deploy.
 - Captura `image(20261016-194459).png`: aceptación abre por URL, sin resultado cargado; queda por uniformar su presentación antes de completar ese bloque de UAT.
+
+### Presentación de aceptación UAT — 17/10/2026
+
+- NAV-01 cerrado: usuario confirmó «perfecto» después del acceso directo publicado en `87250f04ddc0fc179dbd56e8d987102625f17e72`.
+- AUI-01 confirmado por captura `image(20261017-135628).png`: controles nativos sin formato y acciones sin jerarquía. Se ordena la pantalla con encabezado, navegación, dos tarjetas de archivo, botones consistentes, estado/resumen, tablas contenidas, brechas y huella plegable. CSS limitado a esta pantalla. No cambia el contrato POST, validación, exportación ni permisos.
+- `plantilla_resultados_uat.json`: organización 1, unidad 3, nueve casos por área y ocho pruebas DAT, todos pendientes y sin participantes. Es una plantilla inicial, no evidencia de casos fallidos ni aprobación; no se modifican sus resultados. El texto heredado de DAT-03 aún menciona confirmación escrita: conciliarlo antes de usar ese recorrido, sin repetir pruebas aprobadas.
+- Pendiente tras deploy: revisar presentación inicial y luego resultados/error con archivos válidos de la campaña; no validar la plantilla vacía como si fuera un resultado completo.

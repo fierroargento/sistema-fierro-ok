@@ -1,1 +1,51 @@
-{% extends "base.html" %}{% block content %}<main class="card"><h1>Aceptación por usuarios y roles</h1><p>Valida una campaña UAT de nueve áreas y el recorrido visual de datos sintéticos contra la evaluación firmada de preparación. Procesa archivos en memoria y no crea pedidos, movimientos, comprobantes ni conexiones.</p>{% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}<p><a href="{{ url_for('admin_estructura.aceptacion_usuarios_operativos',plantilla='1') }}">Descargar plantilla UAT con recorrido guiado</a></p><form method="post" enctype="multipart/form-data"><label>Evaluación de preparación <input type="file" name="evaluacion" accept=".json" required></label><label>Resultados UAT <input type="file" name="resultados" accept=".json" required></label><button name="accion" value="validar">Validar campaña</button><button name="accion" value="exportar">Descargar acta firmada</button></form>{% if resultado %}<div class="alerta {{ 'alerta-ok' if resultado.estado == 'uat_aprobada_para_revision_humana' else 'alerta-error' }}"><strong>{{ resultado.estado|replace('_',' ')|upper }}</strong> · {{ resultado.resumen.casos_aprobados }}/{{ resultado.resumen.casos_requeridos }} casos · {{ resultado.resumen.pruebas_datos_aprobadas }}/{{ resultado.resumen.pruebas_datos_requeridas }} pruebas de datos · {{ resultado.resumen.brechas }} brechas</div><h2>Casos por rol</h2><table style="width:100%"><thead><tr><th>Área</th><th>Caso</th><th>Resultado</th><th>Responsable</th></tr></thead><tbody>{% for x in resultado.casos %}<tr><td>{{ x.area }}</td><td>{{ x.codigo }}</td><td>{{ x.resultado }}</td><td>{{ x.responsable }}</td></tr>{% endfor %}</tbody></table><h2>Recorrido visual de datos sintéticos</h2><table style="width:100%"><thead><tr><th>Paso</th><th>Objetivo y criterio</th><th>Resultado</th><th>Evidencia</th></tr></thead><tbody>{% for x in resultado.pruebas_datos %}<tr><td><strong>{{ x.codigo }}</strong><br>{{ x.area }}</td><td><strong>{{ x.objetivo }}</strong><br>{{ x.criterio }}</td><td>{{ x.resultado }}<br>{{ x.responsable }}</td><td>{{ x.evidencia or '—' }}</td></tr>{% endfor %}</tbody></table><h2>Brechas</h2><ul>{% for x in resultado.hallazgos %}<li><strong>{{ x.area }} / {{ x.codigo }}</strong>: {{ x.detalle }}</li>{% else %}<li>Todos los casos y pruebas de datos están aprobados; corresponde revisión humana del acta.</li>{% endfor %}</ul><p><strong>Corte DUX autorizado:</strong> NO · <strong>Integraciones autorizadas:</strong> NO</p><p><code>{{ resultado.huella_acta_uat }}</code></p>{% endif %}<p><a href="{{ url_for('admin_estructura.evaluacion_preparacion_dux') }}">Volver a evaluación de preparación</a></p></main>{% endblock %}
+{% extends "base.html" %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='aceptacion_uat.css', v='20261017-visual') }}">
+{% endblock %}
+{% block content %}
+<main class="uat-acceptance">
+  <header class="uat-header">
+    <div><p class="uat-eyebrow">Estructura · Aceptación UAT</p><h1>Aceptación por usuarios y roles</h1><p class="uat-intro">Revisá la campaña de nueve áreas y el recorrido de datos sintéticos contra la evaluación de preparación.</p></div>
+    <a class="uat-button uat-secondary" href="{{ url_for('admin_estructura.panel') }}">Volver a Estructura</a>
+  </header>
+  <div class="uat-notice">La validación procesa archivos en memoria. No crea pedidos, movimientos ni comprobantes, y no activa conexiones.</div>
+  {% if error %}<div class="uat-error" role="alert"><strong>No se pudo validar la campaña</strong><p>{{ error }}</p></div>{% endif %}
+  <section class="uat-card" aria-labelledby="uat-files-title">
+    <div class="uat-section-heading"><div><h2 id="uat-files-title">Documentación de la campaña</h2><p>Seleccioná los dos archivos JSON para validar o descargar el acta.</p></div><a class="uat-button uat-secondary" href="{{ url_for('admin_estructura.aceptacion_usuarios_operativos', plantilla='1') }}">Descargar plantilla UAT con recorrido guiado</a></div>
+    <form method="post" enctype="multipart/form-data" class="uat-form">
+      <div class="uat-file-grid">
+        <label class="uat-file-card" for="uat-evaluacion"><span class="uat-step">1</span><strong>Evaluación de preparación</strong><span>Informe de preparación correspondiente a esta organización y unidad.</span><input id="uat-evaluacion" type="file" name="evaluacion" accept=".json" required></label>
+        <label class="uat-file-card" for="uat-resultados"><span class="uat-step">2</span><strong>Resultados UAT</strong><span>Plantilla completada con resultados, responsables y evidencias.</span><input id="uat-resultados" type="file" name="resultados" accept=".json" required></label>
+      </div>
+      <div class="uat-actions"><button class="uat-button uat-primary" type="submit" name="accion" value="validar">Validar campaña</button><button class="uat-button uat-secondary" type="submit" name="accion" value="exportar">Descargar acta firmada</button></div>
+    </form>
+  </section>
+  {% if resultado %}
+  <section class="uat-card" aria-labelledby="uat-result-title">
+    <div class="uat-section-heading"><h2 id="uat-result-title">Resultado de la campaña</h2></div>
+    <div class="uat-verdict {{ 'uat-approved' if resultado.estado == 'uat_aprobada_para_revision_humana' else 'uat-gaps' }}" role="status">{{ resultado.estado|replace('_',' ')|capitalize }}</div>
+    <dl class="uat-metrics">
+      <div><dt>Casos por rol aprobados</dt><dd>{{ resultado.resumen.casos_aprobados }}<small> / {{ resultado.resumen.casos_requeridos }}</small></dd></div>
+      <div><dt>Pruebas de datos aprobadas</dt><dd>{{ resultado.resumen.pruebas_datos_aprobadas }}<small> / {{ resultado.resumen.pruebas_datos_requeridas }}</small></dd></div>
+      <div><dt>Brechas</dt><dd>{{ resultado.resumen.brechas }}</dd></div>
+    </dl>
+  </section>
+  <section class="uat-card"><h2>Casos por rol</h2>
+    <div class="uat-table-wrap" tabindex="0" role="region" aria-label="Casos por rol"><table><thead><tr><th>Área</th><th>Caso</th><th>Resultado</th><th>Responsable</th></tr></thead><tbody>
+    {% for x in resultado.casos %}<tr><td>{{ x.area|replace('_',' ') }}</td><td><strong>{{ x.codigo }}</strong></td><td><span class="uat-status {{ 'is-approved' if x.resultado == 'aprobado' else 'needs-review' }}">{{ x.resultado|replace('_',' ') }}</span></td><td>{{ x.responsable or '—' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="uat-card"><h2>Recorrido visual de datos sintéticos</h2>
+    <div class="uat-table-wrap" tabindex="0" role="region" aria-label="Pruebas de datos sintéticos"><table class="uat-data-table"><thead><tr><th>Paso</th><th>Objetivo y criterio</th><th>Resultado</th><th>Evidencia</th></tr></thead><tbody>
+    {% for x in resultado.pruebas_datos %}<tr><td><strong>{{ x.codigo }}</strong><small>{{ x.area|replace('_',' ') }}</small></td><td><strong>{{ x.objetivo }}</strong><p>{{ x.criterio }}</p></td><td><span class="uat-status {{ 'is-approved' if x.resultado == 'aprobado' else 'needs-review' }}">{{ x.resultado|replace('_',' ') }}</span><small>{{ x.responsable or '—' }}</small></td><td>{{ x.evidencia or '—' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="uat-card"><h2>Brechas</h2>
+    <ul class="uat-findings">{% for x in resultado.hallazgos %}<li><strong>{{ x.area }} / {{ x.codigo }}</strong><p>{{ x.detalle }}</p></li>{% else %}<li class="uat-finding-ok">Todos los casos y pruebas de datos están aprobados; corresponde revisión humana del acta.</li>{% endfor %}</ul>
+    <div class="uat-boundaries"><span>Corte DUX autorizado <strong>NO</strong></span><span>Integraciones autorizadas <strong>NO</strong></span></div>
+    <details class="uat-evidence"><summary>Huella del acta</summary><code>{{ resultado.huella_acta_uat }}</code></details>
+  </section>
+  {% endif %}
+  <footer class="uat-footer"><a class="uat-button uat-secondary" href="{{ url_for('admin_estructura.evaluacion_preparacion_dux') }}">Volver a evaluación de preparación</a></footer>
+</main>
+{% endblock %}
