@@ -67,3 +67,22 @@
  .uat-acceptance .uat-card { padding:16px; }
  .uat-acceptance h1 { font-size:23px; }
 }
+
+/* Controles propios de la evaluación de preparación; comparte el estilo UAT. */
+.uat-acceptance.uat-preparation .uat-file-grid-three { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.uat-acceptance.uat-preparation .uat-check-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
+.uat-acceptance.uat-preparation .uat-check {
+ display:flex;align-items:center;gap:10px;min-width:0;min-height:52px;padding:12px 14px;
+ border:1px solid #dce6ed;border-radius:9px;background:#f8fafc;color:#43556a;font-size:12px;font-weight:700;cursor:pointer;
+}
+.uat-acceptance.uat-preparation .uat-check input[type="checkbox"] {
+ width:17px;height:17px;min-height:17px;flex:0 0 17px;margin:0;padding:0;accent-color:#176b89;
+}
+.uat-acceptance.uat-preparation .uat-check:focus-within { outline:2px solid #17718d;outline-offset:2px; }
+.uat-acceptance.uat-preparation .uat-footer-links { display:flex;flex-wrap:wrap;gap:10px; }
+@media (max-width:1000px) {
+ .uat-acceptance.uat-preparation .uat-file-grid-three { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:760px) {
+ .uat-acceptance.uat-preparation .uat-check-grid { grid-template-columns:minmax(0,1fr); }
+}

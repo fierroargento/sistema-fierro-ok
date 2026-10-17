@@ -128,3 +128,9 @@ Siguiente acción concreta: verificar feedback de Simular escenario y alineació
 - AUI-01 confirmado por captura `image(20261017-135628).png`: controles nativos sin formato y acciones sin jerarquía. Se ordena la pantalla con encabezado, navegación, dos tarjetas de archivo, botones consistentes, estado/resumen, tablas contenidas, brechas y huella plegable. CSS limitado a esta pantalla. No cambia el contrato POST, validación, exportación ni permisos.
 - `plantilla_resultados_uat.json`: organización 1, unidad 3, nueve casos por área y ocho pruebas DAT, todos pendientes y sin participantes. Es una plantilla inicial, no evidencia de casos fallidos ni aprobación; no se modifican sus resultados. El texto heredado de DAT-03 aún menciona confirmación escrita: conciliarlo antes de usar ese recorrido, sin repetir pruebas aprobadas.
 - Pendiente tras deploy: revisar presentación inicial y luego resultados/error con archivos válidos de la campaña; no validar la plantilla vacía como si fuera un resultado completo.
+
+### Presentación de preparación DUX — 17/10/2026
+
+- AUI-01: visual inicial de aceptación cerrada con `image(20261017-140430).png`; archivos y acciones uniformes. Resultados y errores verificados solo con fixtures locales, aún sin evidencia visual de campaña en staging.
+- PUI-01 confirmado con `image(20261017-140608).png`: selectores sin formato, casillas separadas de sus etiquetas y acciones nativas. Se reutiliza el estilo de aceptación UAT para las tres tarjetas de archivos, seis controles humanos, botones y resultado/brechas/huella.
+- Se conservan archivos, nombres/valores de controles, POST y exportación, sin modificar el servicio ni marcar condiciones como confirmadas. Pendiente revisión visual inicial después del deploy.
