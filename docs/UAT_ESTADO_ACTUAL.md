@@ -134,3 +134,10 @@ Siguiente acción concreta: verificar feedback de Simular escenario y alineació
 - AUI-01: visual inicial de aceptación cerrada con `image(20261017-140430).png`; archivos y acciones uniformes. Resultados y errores verificados solo con fixtures locales, aún sin evidencia visual de campaña en staging.
 - PUI-01 confirmado con `image(20261017-140608).png`: selectores sin formato, casillas separadas de sus etiquetas y acciones nativas. Se reutiliza el estilo de aceptación UAT para las tres tarjetas de archivos, seis controles humanos, botones y resultado/brechas/huella.
 - Se conservan archivos, nombres/valores de controles, POST y exportación, sin modificar el servicio ni marcar condiciones como confirmadas. Pendiente revisión visual inicial después del deploy.
+
+### Expediente maestro — 17/10/2026
+
+- PUI-01 cerrado con `image(20261017-143512).png`: tres archivos alineados, seis casillas junto a sus etiquetas y acciones uniformes. No se confirman controles humanos ni se genera una evaluación nueva.
+- EMUI-01: `image(20261017-144705).png` muestra presentación antigua en expediente maestro. Se reutiliza CSS UAT para encabezado, selector múltiple, acciones, ayuda plegada, resumen, tabla contenida, hallazgos y huella. Se conservan formulario, controles y destinos existentes. Pendiente captura tras deploy.
+- Revisión local de adjuntos con el servicio oficial: se identifican informes con huella válida para SaaS base, Compras, Tesorería y Contabilidad (organización 1; unidad 3 cuando se declara). Para Producción, Mantenimiento, Personas, Postventa y Transición DUX no se identificaron informes entre los JSON adjuntos actuales; esto no prueba falta de pruebas funcionales ni fallo. Conciliar antes de pedir nuevas pruebas.
+- No cargar certificaciones individuales donde se requiere un expediente de dominio ni completar aprobaciones sin evidencia. La plantilla UAT sigue siendo un documento inicial por conciliar.

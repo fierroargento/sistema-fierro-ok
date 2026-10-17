@@ -1,24 +1,35 @@
 {% extends "base.html" %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='aceptacion_uat.css', v='20261017-maestro') }}">{% endblock %}
 {% block content %}
-<main class="card">
-  <h1>Expediente maestro de preparación</h1>
-  <p>Valida conjuntamente las evidencias firmadas de los dominios construidos. Se procesa en memoria: no autoriza el corte de DUX, no persiste documentos y no ejecuta efectos externos.</p>
-  {% if error %}<div class="alerta alerta-error">{{ error }}</div>{% endif %}
-  <form method="post" enctype="multipart/form-data">
-    <input type="file" name="evidencias" accept=".json,application/json" multiple required>
-    <button name="accion" value="validar" type="submit">Validar expediente</button>
-    <button name="accion" value="exportar" type="submit">Descargar expediente</button>
-  </form>
+<main class="uat-acceptance uat-master">
+  <header class="uat-header"><div><p class="uat-eyebrow">Estructura · Evidencias de preparación</p><h1>Expediente maestro de preparación</h1><p class="uat-intro">Reuní las evidencias de los nueve dominios y revisá sus resultados en un único expediente.</p></div><a class="uat-button uat-secondary" href="{{ url_for('admin_estructura.control_integral') }}">Volver al control estructural</a></header>
+  <div class="uat-notice">La revisión se procesa en memoria. No autoriza el corte de DUX, no persiste documentos ni ejecuta acciones externas.</div>
+  {% if error %}<div class="uat-error" role="alert"><strong>No se pudo validar el expediente</strong><p>{{ error }}</p></div>{% endif %}
+  <section class="uat-card" aria-labelledby="master-files-title">
+    <div class="uat-section-heading"><div><h2 id="master-files-title">Evidencias del expediente</h2><p>Seleccioná los informes JSON que querés revisar. El resultado indicará qué dominios faltan.</p></div></div>
+    <form method="post" enctype="multipart/form-data" class="uat-form">
+      <label class="uat-file-card" for="master-evidencias"><strong>Informes de los dominios</strong><span>Podés seleccionar varios archivos a la vez: entre 1 y 20 JSON, de hasta 3 MB cada uno.</span><input id="master-evidencias" type="file" name="evidencias" accept=".json,application/json" multiple required></label>
+      <div class="uat-actions"><button class="uat-button uat-primary" name="accion" value="validar" type="submit">Validar expediente</button><button class="uat-button uat-secondary" name="accion" value="exportar" type="submit">Descargar expediente</button></div>
+    </form>
+    <details class="uat-evidence uat-domain-help"><summary>¿Qué evidencias reúne este expediente?</summary><p>Una evidencia por dominio: SaaS base, Compras, Producción, Tesorería, Contabilidad, Mantenimiento, Personas, Postventa y Transición DUX. El sistema verifica el tipo de informe, su huella y su organización/unidad.</p></details>
+  </section>
   {% if resultado %}
-  <div class="alerta {{ 'alerta-ok' if resultado.estado == 'preparado_para_revision_humana' else 'alerta-error' }}">
-    <strong>{{ resultado.estado|replace('_', ' ')|upper }}</strong> · {{ resultado.resumen.dominios_identificados }}/{{ resultado.resumen.dominios_requeridos }} dominios
-  </div>
-  <table style="width:100%"><thead><tr><th>Dominio</th><th>Estado</th><th>Modo</th><th>Huella</th></tr></thead><tbody>
-  {% for item in resultado.dominios %}<tr><td>{{ item.dominio }}</td><td>{{ 'aprobado' if item.aprobado else 'revisar' }}</td><td>{{ item.modo }}</td><td><code>{{ item.huella }}</code></td></tr>{% endfor %}
-  </tbody></table>
-  <h2>Hallazgos</h2><ul>{% for item in resultado.hallazgos %}<li><strong>{{ item.dominio }}</strong>: {{ item.detalle }}</li>{% else %}<li>Todos los dominios requeridos están presentes y aprobados.</li>{% endfor %}</ul>
-  <p><strong>Autorización de corte real:</strong> NO</p><p><code>{{ resultado.huella_expediente_maestro }}</code></p>
+  <section class="uat-card" aria-labelledby="master-result-title">
+    <div class="uat-section-heading"><h2 id="master-result-title">Resultado del expediente</h2></div>
+    <div class="uat-verdict {{ 'uat-approved' if resultado.estado == 'preparado_para_revision_humana' else 'uat-gaps' }}" role="status">{{ resultado.estado|replace('_',' ')|capitalize }}</div>
+    <dl class="uat-metrics"><div><dt>Dominios identificados</dt><dd>{{ resultado.resumen.dominios_identificados }}<small> / {{ resultado.resumen.dominios_requeridos }}</small></dd></div><div><dt>Dominios aprobados</dt><dd>{{ resultado.resumen.dominios_aprobados }}</dd></div><div><dt>Dominios faltantes</dt><dd>{{ resultado.resumen.faltantes }}</dd></div></dl>
+  </section>
+  <section class="uat-card"><h2>Evidencias identificadas</h2>
+    <div class="uat-table-wrap" tabindex="0" role="region" aria-label="Dominios del expediente"><table class="uat-domain-table"><thead><tr><th>Dominio</th><th>Estado</th><th>Modo</th><th>Huella</th></tr></thead><tbody>
+    {% for item in resultado.dominios %}<tr><td><strong>{{ item.dominio|replace('_',' ') }}</strong></td><td><span class="uat-status {{ 'is-approved' if item.aprobado else 'needs-review' }}">{{ 'aprobado' if item.aprobado else 'revisar' }}</span></td><td>{{ item.modo }}</td><td><code>{{ item.huella }}</code></td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="uat-card"><h2>Hallazgos</h2>
+    <ul class="uat-findings">{% for item in resultado.hallazgos %}<li><strong>{{ item.dominio|replace('_',' ') }}</strong><p>{{ item.detalle }}</p></li>{% else %}<li class="uat-finding-ok">Todos los dominios requeridos están presentes y aprobados.</li>{% endfor %}</ul>
+    <div class="uat-boundaries"><span>Autorización de corte real <strong>NO</strong></span></div>
+    <details class="uat-evidence"><summary>Huella del expediente</summary><code>{{ resultado.huella_expediente_maestro }}</code></details>
+  </section>
   {% endif %}
-  <p><a href="{{ url_for('admin_estructura.evaluacion_preparacion_dux') }}">Evaluar preparación para reemplazar DUX</a> · <a href="{{ url_for('admin_estructura.aceptacion_operativa_integral') }}">Ejecutar aceptación operativa integral</a> · <a href="{{ url_for('admin_estructura.ensayo_respaldo_restauracion') }}">Ensayar respaldo y restauración</a> · <a href="{{ url_for('admin_estructura.control_integral') }}">Volver al control estructural</a></p>
+  <footer class="uat-footer uat-master-links"><a class="uat-button uat-secondary" href="{{ url_for('admin_estructura.evaluacion_preparacion_dux') }}">Evaluar preparación para reemplazar DUX</a><a class="uat-button uat-secondary" href="{{ url_for('admin_estructura.aceptacion_operativa_integral') }}">Ejecutar aceptación operativa integral</a><a class="uat-button uat-secondary" href="{{ url_for('admin_estructura.ensayo_respaldo_restauracion') }}">Ensayar respaldo y restauración</a></footer>
 </main>
 {% endblock %}
