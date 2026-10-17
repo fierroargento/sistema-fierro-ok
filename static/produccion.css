@@ -1,4 +1,4 @@
-/* Presentación exclusiva del panel de Producción. */
+/* Presentación compartida de paneles preparatorios de Producción y Mantenimiento. */
 .production-page { display:block;box-sizing:border-box;width:100%;max-width:1240px;min-width:0;margin:0 auto;color:#243548;font:13px/1.5 Arial,sans-serif; }
 .production-page *, .production-page *::before, .production-page *::after { box-sizing:border-box; }
 .production-page .comercial-shell { display:block;min-width:0;width:100%; }
