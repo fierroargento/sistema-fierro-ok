@@ -208,3 +208,9 @@ Siguiente acción concreta: verificar feedback de Simular escenario y alineació
 - Campos, restricciones, opciones, enlaces, acciones y condiciones de visibilidad conservados. Sin cambios de rutas, servicios, esquema, datos, nómina o fichajes. Solo presentación y documentación; producción/main fuera de alcance.
 - Verificación local: render sin empleados, con empleado/turnos planificado y cancelado/novedad/competencia, y con error escapado. Contratos originales de formularios/campos/opciones/enlaces idénticos; etiquetas presentes, formularios sin anidar, detalles cerrados y botones de retorno type=button. Sin prueba visual automatizada contra Render.
 - Pendiente tras deploy: visual inicial y apertura/cancelación de Nuevo turno; continuar UAT funcional con empleado existente, sin duplicarlo. Se conservan pendientes de Producción/calidad/stock/fracciones y visual DUX.
+
+### Personas: acción de cancelación compacta — 17/10/2026
+
+- Captura image(20261017-195741).png confirma turno 1 planificado sin fichaje para uat-emp-001, 20/10/2026 08:00–12:00, sector Producción UAT; una fila y cero novedades/conflictos. No acredita por sí sola la cancelación del formulario de alta.
+- PERS-UI-02: desplegable Cancelar turno agranda la fila y desentona con las acciones. Se reemplaza por botón compacto Cancelar y dialog nativo con motivo, Confirmar cancelación, Volver y cierre X/Escape. Reutiliza CSS/JS de ventanas existentes; restablece el formulario al cerrar, sin envío al volver/cerrar. No cambia ruta, campos, motivo mínimo de cinco caracteres ni servicio de cancelación.
+- Render local vacío y con dos turnos planificados y uno cancelado: identificadores únicos, destinos de ventanas correctos, ventanas cerradas inicialmente, sin formularios anidados, retorno type=button, cancelado sin acción y texto escapado. Pendiente revisión visual y cancelación en Render; mantener el turno para completar evidencia antes de cancelarlo.
