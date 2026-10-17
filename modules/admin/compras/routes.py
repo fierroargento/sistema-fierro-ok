@@ -2,6 +2,7 @@
 
 from flask import Blueprint, redirect, render_template, request, send_file, session, url_for
 
+from services.materias_primas_inventario import preparar_materia_prima, validar_existencia_insumo
 from services.compras_consultas import obtener_panel_compras
 from services.compras_nucleo import (
     agregar_item_orden,
@@ -332,6 +333,18 @@ def crear_blueprint_compras(*, dependencias):
                     db_session=db.session, usuario_id=getattr(usuario, "id", None),
                 )
                 mensaje = f"Factura {factura.punto_venta}-{factura.numero} registrada como {factura.estado}, sin impacto."
+            elif accion == "preparar_materia_prima":
+                insumo = modelos["InsumoProductivo"].query.filter_by(
+                    id=int(request.form.get("insumo_id")), organizacion_id=organizacion.id,
+                ).first()
+                item, creado = preparar_materia_prima(
+                    insumo=insumo, sku=request.form.get("sku"),
+                    organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+                    Producto=modelos["Producto"], ItemInventario=modelos["ItemInventario"],
+                    db_session=db.session,
+                )
+                mensaje = (f"SKU {item.sku} preparado desactivado, sin existencias ni stock."
+                           if creado else f"El insumo ya está preparado como {item.sku}; no se duplicó.")
             elif accion == "crear_mapeo_inventario":
                 insumo = modelos["InsumoProductivo"].query.filter_by(
                     id=int(request.form.get("insumo_id")), organizacion_id=organizacion.id,
@@ -342,6 +355,7 @@ def crear_blueprint_compras(*, dependencias):
                 ).first()
                 if insumo is None or existencia is None:
                     raise ValueError("El insumo o la existencia no pertenecen al tenant activo.")
+                validar_existencia_insumo(insumo, existencia, organizacion.id, unidad.id)
                 mapeo = crear_mapeo(
                     organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
                     insumo=insumo, existencia=existencia,
@@ -375,10 +389,10 @@ def crear_blueprint_compras(*, dependencias):
             dependencias["registrar_auditoria"](
                 f"Compras: {accion}", entidad="compras", detalle=mensaje,
             )
-            return redirect(url_for("admin_compras.panel", ok=mensaje))
+            return redirect(url_for("admin_compras.panel", ok=mensaje, _anchor="compras-mapeos" if accion in {"preparar_materia_prima", "crear_mapeo_inventario"} else None))
         except Exception as error:
             db.session.rollback()
-            return redirect(url_for("admin_compras.panel", error=str(error)))
+            return redirect(url_for("admin_compras.panel", error=str(error), _anchor="compras-mapeos" if request.form.get("accion") in {"preparar_materia_prima", "crear_mapeo_inventario"} else None))
 
     @blueprint.route("/admin/compras/control-integral")
     @dependencias["login_required"]

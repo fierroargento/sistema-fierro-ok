@@ -3,6 +3,7 @@
 from flask import Blueprint, redirect, render_template, request, send_file, session, url_for
 
 from services.produccion_consultas import obtener_panel
+from services.destino_produccion import guardar_destino, leer_destino, validar_destino
 from services.produccion_nucleo import cambiar_estado, crear_orden_preparatoria
 from services.avances_produccion import registrar_parte
 from services.simulacion_cierre_produccion import exportar_simulacion, simular_cierre
@@ -45,15 +46,35 @@ def crear_blueprint_produccion(*, dependencias):
         session["unidad_negocio_id"] = unidad.id
         return usuario, membresia.organizacion, unidad, None
 
+    def destinos_guardados(ordenes, organizacion_id, unidad_negocio_id):
+        return {orden.id: leer_destino(
+            orden=orden, organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
+            ConfiguracionSistema=modelos["ConfiguracionSistema"],
+        ) for orden in ordenes}
+
     @blueprint.route("/admin/produccion")
     @dependencias["login_required"]
     def panel():
         _usuario, organizacion, unidad, respuesta = acceso()
         if respuesta is not None: return respuesta
+        datos = obtener_panel(organizacion.id, unidad.id, modelos=modelos)
+        existencias = modelos["ExistenciaSucursal"].query.filter_by(
+            organizacion_id=organizacion.id,
+        ).all()
+        opciones = {}
+        for orden in datos["ordenes_produccion"]:
+            opciones[orden.id] = []
+            for existencia in existencias:
+                try:
+                    validar_destino(orden, existencia, organizacion.id, unidad.id)
+                except ValueError:
+                    continue
+                opciones[orden.id].append(existencia)
         return render_template(
             "admin_produccion.html", organizacion=organizacion, unidad_activa=unidad,
             ok_feedback=request.args.get("ok"), error=request.args.get("error"),
-            **obtener_panel(organizacion.id, unidad.id, modelos=modelos),
+            destinos_por_orden=destinos_guardados(datos["ordenes_produccion"], organizacion.id, unidad.id),
+            opciones_destino_por_orden=opciones, **datos,
         )
 
     @blueprint.route("/admin/produccion/guardar", methods=["POST"])
@@ -79,6 +100,22 @@ def crear_blueprint_produccion(*, dependencias):
                     modelos=modelos, db_session=db.session, usuario_id=getattr(usuario, "id", None),
                 )
                 mensaje = f"Orden {orden.numero} preparada sin ejecución."
+            elif accion == "guardar_destino":
+                orden = modelos["OrdenProduccion"].query.filter_by(
+                    id=int(request.form.get("orden_id")), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id,
+                ).first()
+                existencia = modelos["ExistenciaSucursal"].query.filter_by(
+                    id=int(request.form.get("destino_existencia_id")), organizacion_id=organizacion.id,
+                ).first()
+                if orden is None:
+                    raise ValueError("La orden no pertenece al contexto activo.")
+                guardar_destino(
+                    orden=orden, existencia=existencia, organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad.id, ConfiguracionSistema=modelos["ConfiguracionSistema"],
+                    db_session=db.session,
+                )
+                mensaje = f"Destino preparatorio de {orden.numero} guardado. Sin movimientos de stock."
             elif accion == "cambiar_estado":
                 orden = modelos["OrdenProduccion"].query.filter_by(
                     id=int(request.form.get("orden_id")), organizacion_id=organizacion.id,
@@ -133,10 +170,10 @@ def crear_blueprint_produccion(*, dependencias):
             else:
                 raise ValueError("La acción productiva no es válida.")
             dependencias["registrar_auditoria"]("Producción preparatoria", entidad="produccion", detalle=mensaje)
-            return redirect(url_for("admin_produccion.panel", ok=mensaje))
+            return redirect(url_for("admin_produccion.panel", ok=mensaje, _anchor="destinos-produccion" if accion == "guardar_destino" else None))
         except Exception as error:
             db.session.rollback()
-            return redirect(url_for("admin_produccion.panel", error=str(error)))
+            return redirect(url_for("admin_produccion.panel", error=str(error), _anchor="destinos-produccion" if request.form.get("accion") == "guardar_destino" else None))
 
     @blueprint.route("/admin/produccion/orden/<int:orden_id>/simulacion")
     @dependencias["login_required"]
@@ -196,6 +233,10 @@ def crear_blueprint_produccion(*, dependencias):
             resultado = preparar_propuesta_inventario(
                 orden, organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
                 mapeos_insumo=mapeos, existencias_producto=existencias,
+                destino_existencia_id=leer_destino(
+                    orden=orden, organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+                    ConfiguracionSistema=modelos["ConfiguracionSistema"],
+                ),
             )
             return send_file(
                 exportar_propuesta(resultado), as_attachment=True,
@@ -321,6 +362,7 @@ def crear_blueprint_produccion(*, dependencias):
             organizacion_id=organizacion.id,unidad_negocio_id=unidad.id,ordenes=ordenes,
             mapeos_insumo=mapeos,existencias_producto=existencias,
             versiones_empleado=empleados,versiones_maquina=maquinas,lotes=lotes,
+            destinos_por_orden=destinos_guardados(ordenes, organizacion.id, unidad.id),
         )
         return send_file(exportar_expediente(resultado),as_attachment=True,
                          download_name="expediente_habilitacion_produccion.json",mimetype="application/json")

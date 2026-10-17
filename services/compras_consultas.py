@@ -22,6 +22,7 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
     insumos = Insumo.query.filter_by(
         organizacion_id=organizacion_id, activo=True,
     ).order_by(Insumo.nombre.asc()).all()
+    insumos = [item for item in insumos if item.unidad_negocio_id in (None, unidad_negocio_id)]
     propuestas = Propuesta.query.filter_by(
         organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
     ).order_by(Propuesta.fecha_creacion.desc()).all()
@@ -41,7 +42,10 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
         "insumos_compra": insumos,
         "propuestas_impacto_compra": propuestas,
         "mapeos_insumo_inventario": mapeos,
-        "existencias_para_compras": existencias,
+        "existencias_para_compras": [item for item in existencias
+            if item.item_inventario is not None and item.item_inventario.tipo == "insumo"
+            and item.item_inventario.activo and item.control_activo
+            and item.sucursal.activa],
         "facturas_proveedor_compra": facturas,
         "resumen_compras": {
             "proveedores_activos": sum(item.estado == "activo" for item in proveedores),

@@ -6,6 +6,7 @@ import json
 from decimal import Decimal
 
 from services.simulacion_cierre_produccion import simular_cierre
+from services.destino_produccion import validar_destino
 
 
 def _decimal(valor):
@@ -14,6 +15,7 @@ def _decimal(valor):
 
 def preparar_propuesta_inventario(
     orden, *, organizacion_id, unidad_negocio_id, mapeos_insumo, existencias_producto,
+    destino_existencia_id=None,
 ):
     """Compone consumos e ingreso teóricos sin escribir ni ejecutar movimientos."""
     simulacion = simular_cierre(
@@ -76,6 +78,17 @@ def preparar_propuesta_inventario(
     ]
     if ajenos:
         hallazgos.append({"codigo": "destino_producto_otro_tenant", "cantidad": len(ajenos)})
+    if destino_existencia_id is not None:
+        elegidos = [item for item in destinos if int(item.id) == int(destino_existencia_id)]
+        if len(elegidos) == 1:
+            try:
+                validar_destino(orden, elegidos[0], organizacion_id, unidad_negocio_id)
+            except ValueError:
+                elegidos = []
+        if not elegidos:
+            hallazgos.append({"codigo": "destino_seleccionado_no_valido",
+                              "existencia_sucursal_id": destino_existencia_id})
+        destinos = elegidos
     ingreso = None
     if len(destinos) != 1:
         hallazgos.append({

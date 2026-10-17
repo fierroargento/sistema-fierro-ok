@@ -8,6 +8,7 @@ def registrar_modulos_web(
     *,
     dependencias,
 ):
+    from models.configuracion_sistema import ConfiguracionSistema
     from services.presentacion_monetaria import formatear_centavos_ars
     from modules.admin.comercial.routes import crear_blueprint_comercial
     from modules.admin.compras.routes import crear_blueprint_compras
@@ -40,7 +41,7 @@ def registrar_modulos_web(
     )
 
     db = dependencias["db"]
-    modelos = dependencias["modelos"]
+    modelos = {**dependencias["modelos"], "ConfiguracionSistema": ConfiguracionSistema}
 
     app.jinja_env.filters["moneda_centavos"] = formatear_centavos_ars
 
@@ -146,7 +147,7 @@ def registrar_modulos_web(
                         "PropuestaImpactoCompra",
                         "FacturaProveedorCompra",
                         "MapeoInsumoInventario", "ExistenciaSucursal",
-                        "ImportacionMasivaCosto",
+                        "Producto", "ItemInventario", "ImportacionMasivaCosto",
                     )
                 },
             },
@@ -166,7 +167,7 @@ def registrar_modulos_web(
                         "ParteProduccion", "MapeoInsumoInventario", "ExistenciaSucursal",
                         "EmpleadoProductivo", "EmpleadoCostoVersion",
                         "MaquinaProductiva", "MaquinaCostoVersion",
-                        "LoteProduccion", "ControlCalidadProduccion",
+                        "LoteProduccion", "ControlCalidadProduccion", "ConfiguracionSistema",
                     )
                 },
             },

@@ -60,3 +60,16 @@ def test_expediente_no_persiste_ni_ejecuta():
     texto=Path("services/expediente_habilitacion_produccion.py").read_text(encoding="utf-8")
     for prohibido in ("db.session",".commit(",".add(","MovimientoInventario","requests.","urlopen","http://","https://"):
         assert prohibido not in texto
+
+
+def test_expediente_usa_destino_guardado_de_la_misma_orden(monkeypatch):
+    instalar_falsos(monkeypatch)
+    recibidos = []
+    def propuesta(*args, **kwargs):
+        recibidos.append(kwargs["destino_existencia_id"])
+        return {"aprobada": True, "huella_propuesta": "i" * 64}
+    monkeypatch.setattr(servicio, "preparar_propuesta_inventario", propuesta)
+    servicio.construir_expediente(organizacion_id=7, unidad_negocio_id=9,
+        ordenes=[orden()], mapeos_insumo=[], existencias_producto=[],
+        versiones_empleado=[], versiones_maquina=[], lotes=[], destinos_por_orden={1:13, 2:99})
+    assert recibidos == [13]

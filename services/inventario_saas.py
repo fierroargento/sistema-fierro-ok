@@ -66,6 +66,8 @@ def preparar_items_catalogo(
                 )
                 db_session.add(item)
                 creados += 1
+            elif item.tipo == "insumo":
+                raise ValueError("El SKU está reservado para una materia prima; no puede convertirse en producto de catálogo.")
             else:
                 item.nombre = str(fila["nombre"] or sku)[:220]
                 item.catalogo_producto_id = inclusion.id

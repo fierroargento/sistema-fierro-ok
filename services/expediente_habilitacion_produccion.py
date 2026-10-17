@@ -14,7 +14,7 @@ from services.propuestas_inventario_produccion import preparar_propuesta_inventa
 
 def construir_expediente(
     *, organizacion_id, unidad_negocio_id, ordenes, mapeos_insumo,
-    existencias_producto, versiones_empleado, versiones_maquina, lotes,
+    existencias_producto, versiones_empleado, versiones_maquina, lotes, destinos_por_orden=None,
 ):
     materiales = planificar_materiales(
         organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
@@ -46,6 +46,7 @@ def construir_expediente(
             propuesta = preparar_propuesta_inventario(
                 orden, organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
                 mapeos_insumo=mapeos_insumo,
+                destino_existencia_id=(destinos_por_orden or {}).get(orden.id),
                 existencias_producto=[x for x in existencias_producto if int(x.producto_id) == int(orden.producto_id)],
             )
             costeo = costear_resultado(
