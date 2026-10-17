@@ -1,4 +1,6 @@
-{% extends "base.html" %}{% block title %}Producción{% endblock %}{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='produccion.css') }}?v=20261017-visual">{% endblock %}{% block content %}
+{% extends "base.html" %}{% block title %}Producción{% endblock %}{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='produccion.css') }}?v=20261017-lotes"><script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='produccion.js') }}?v=20261017-lotes" defer></script>{% endblock %}{% block content %}
+{% macro cantidad_limpia(valor) -%}{{ ('%.6f'|format(valor|float)).rstrip('0').rstrip('.') }}{%- endmacro %}
+
 <main class="production-page">
 <div class="comercial-shell"><header class="comercial-header"><div><span class="eyebrow">ADMINISTRACIÓN · PRODUCCIÓN</span><h1>Planificación productiva</h1><p>Órdenes basadas en fichas técnicas y costos vigentes. La ejecución física permanece bloqueada.</p></div><a class="secondary-link" href="{{ url_for('admin_comercial.fuentes_costos') }}">Fichas y costos</a></header>
 {% if ok_feedback %}<div class="feedback feedback-ok">{{ ok_feedback }}</div>{% endif %}{% if error %}<div class="feedback feedback-error">{{ error }}</div>{% endif %}
@@ -13,9 +15,45 @@
 <details class="comercial-section production-downloads"><summary>Informes y controles</summary><div class="production-report-links"><p><a class="secondary-link" href="{{ url_for('admin_produccion.control_integral') }}">Descargar control integral de Producción</a></p>
 <p><a class="secondary-link" href="{{ url_for('admin_produccion.plan_materiales') }}">Descargar planificación agregada de materiales</a></p>
 <p><a class="secondary-link" href="{{ url_for('admin_produccion.plan_capacidad') }}">Descargar planificación de personas y máquinas</a></p></div></details>
-<section class="comercial-section"><div class="section-heading"><div><span class="section-number">4</span><h2>Lotes y calidad</h2></div><p>Trazabilidad interna en cuarentena; nunca libera inventario.</p></div>
-{% for orden in ordenes_produccion %}{% for parte in orden.partes_informados %}{% if parte.estado != 'anulado' %}<form class="comercial-form" method="post" action="{{ url_for('admin_produccion.guardar') }}"><input type="hidden" name="accion" value="crear_lote"><input type="hidden" name="orden_id" value="{{ orden.id }}"><input type="hidden" name="parte_id" value="{{ parte.id }}"><span>{{ orden.numero }} · Parte {{ parte.numero }} · Buenas {{ parte.cantidad_buena }}</span><input name="codigo" required placeholder="Código de lote"><input name="cantidad" required placeholder="Cantidad"><input name="observacion" placeholder="Observación"><button>Crear en cuarentena</button></form>{% endif %}{% endfor %}{% endfor %}
-{% for lote in lotes_produccion %}<div class="card"><strong>{{ lote.codigo }}</strong><p>{{ lote.cantidad }} unidades · {{ lote.estado }} · Stock: bloqueado</p><form method="post" action="{{ url_for('admin_produccion.guardar') }}"><input type="hidden" name="accion" value="control_calidad"><input type="hidden" name="lote_id" value="{{ lote.id }}"><input name="numero" required placeholder="Número de control"><input name="muestra" required placeholder="Muestra"><input name="aprobadas" required placeholder="Aprobadas"><input name="rechazadas" required placeholder="Rechazadas"><input name="observacion" placeholder="Observación"><button>Registrar control interno</button></form></div>{% else %}<div class="empty-state">No hay lotes productivos.</div>{% endfor %}</section>
+<section class="comercial-section" id="lotes-calidad"><div class="section-heading"><div><span class="section-number">4</span><h2>Lotes y calidad</h2></div><p>Creá lotes con las unidades buenas disponibles y registrá su control desde Gestionar. El stock permanece bloqueado.</p></div>
+{% set disponibilidad = namespace(partes=0) %}
+{% for orden in ordenes_produccion %}{% for parte in orden.partes_informados %}{% if parte.estado != 'anulado' %}
+{% set asignada = parte.lotes_preparatorios|sum(attribute='cantidad') %}
+{% set disponible = parte.cantidad_buena - asignada %}
+{% if disponible > 0 %}{% set disponibilidad.partes = disponibilidad.partes + 1 %}
+<details class="production-lot-create"><summary>Crear lote · {{ parte.numero }} <span>{{ cantidad_limpia(disponible) }} unidades disponibles</span></summary>
+<p>Orden {{ orden.numero }} · Buenas: {{ cantidad_limpia(parte.cantidad_buena) }} · Ya asignadas: {{ cantidad_limpia(asignada) }}</p>
+<form class="comercial-form" method="post" action="{{ url_for('admin_produccion.guardar') }}">
+<input type="hidden" name="accion" value="crear_lote"><input type="hidden" name="orden_id" value="{{ orden.id }}"><input type="hidden" name="parte_id" value="{{ parte.id }}">
+<label><span>Código de lote</span><input name="codigo" required placeholder="Ej.: UAT-LOTE-003"></label>
+<label><span>Cantidad a asignar</span><input name="cantidad" inputmode="decimal" value="{{ cantidad_limpia(disponible) }}" required><small>Máximo disponible: {{ cantidad_limpia(disponible) }}</small></label>
+<label class="production-field-wide"><span>Observación (opcional)</span><input name="observacion"></label>
+<div class="production-actions production-field-wide"><button class="comercial-primary" type="submit">Crear en cuarentena</button><button type="button" data-lot-create-cancel>Cancelar</button></div>
+</form></details>
+{% endif %}{% endif %}{% endfor %}{% endfor %}
+{% if disponibilidad.partes == 0 %}<p class="production-lot-note">No hay unidades buenas pendientes de asignar a lotes.</p>{% endif %}
+{% if lotes_produccion %}<div class="table-wrap"><table class="production-lot-table"><thead><tr><th>Lote / origen</th><th>Cantidad</th><th>Calidad</th><th>Inventario</th><th>Acciones</th></tr></thead><tbody>
+{% for lote in lotes_produccion %}<tr><td><strong>{{ lote.codigo }}</strong><small class="table-subline">Orden #{{ lote.orden_produccion_id }} · Parte #{{ lote.parte_produccion_id }}</small></td><td>{{ cantidad_limpia(lote.cantidad) }}</td><td>{{ {'cuarentena':'En cuarentena', 'aprobado_interno':'Aprobado internamente', 'rechazado_interno':'Rechazado internamente'}.get(lote.estado, lote.estado) }}</td><td>Stock bloqueado</td><td><button type="button" data-production-dialog="production-lot-{{ lote.id }}">Gestionar</button></td></tr>{% endfor %}
+</tbody></table></div>
+{% for lote in lotes_produccion %}
+<dialog class="production-dialog" id="production-lot-{{ lote.id }}" aria-labelledby="production-lot-title-{{ lote.id }}">
+<header class="production-dialog-header"><div><span class="eyebrow">LOTES Y CALIDAD</span><h2 id="production-lot-title-{{ lote.id }}">{{ lote.codigo }}</h2></div><button type="button" data-production-close aria-label="Cerrar">×</button></header>
+<p>{{ cantidad_limpia(lote.cantidad) }} unidades · {{ {'cuarentena':'En cuarentena', 'aprobado_interno':'Aprobado internamente', 'rechazado_interno':'Rechazado internamente'}.get(lote.estado, lote.estado) }} · Stock bloqueado</p>
+<h3>Registrar control de calidad</h3><p>La muestra es la cantidad inspeccionada. Aprobadas y rechazadas deben sumar la muestra.</p>
+<form class="comercial-form" method="post" action="{{ url_for('admin_produccion.guardar') }}">
+<input type="hidden" name="accion" value="control_calidad"><input type="hidden" name="lote_id" value="{{ lote.id }}">
+<label><span>Número de control</span><input name="numero" required placeholder="Ej.: UAT-CAL-001"></label>
+<label><span>Unidades de la muestra</span><input name="muestra" inputmode="decimal" required><small>Máximo: {{ cantidad_limpia(lote.cantidad) }} unidades</small></label>
+<label><span>Unidades aprobadas</span><input name="aprobadas" inputmode="decimal" required></label>
+<label><span>Unidades rechazadas</span><input name="rechazadas" inputmode="decimal" required></label>
+<label class="production-field-wide"><span>Observación (opcional)</span><input name="observacion"></label>
+<div class="production-actions production-field-wide"><button class="comercial-primary" type="submit">Registrar control interno</button><button type="button" data-production-close>Cancelar</button></div>
+</form>
+{% if lote.controles_calidad %}<details class="production-quality-history"><summary>Historial de controles ({{ lote.controles_calidad|length }})</summary>
+{% for control in lote.controles_calidad %}<div class="card"><strong>{{ control.numero }}</strong><p>Muestra: {{ cantidad_limpia(control.muestra) }} · Aprobadas: {{ cantidad_limpia(control.aprobadas) }} · Rechazadas: {{ cantidad_limpia(control.rechazadas) }}</p>{% if control.observacion %}<p>{{ control.observacion }}</p>{% endif %}</div>{% endfor %}</details>{% endif %}
+</dialog>{% endfor %}
+{% else %}<div class="empty-state">Todavía no hay lotes. Desplegá Crear lote sobre un parte con unidades disponibles.</div>{% endif %}
+</section>
 <p><a class="secondary-link" href="{{ url_for('admin_produccion.descargar_evidencia_calidad') }}">Descargar evidencia de lotes y calidad</a></p>
 <p><a class="secondary-link" href="{{ url_for('admin_produccion.expediente_habilitacion') }}">Descargar expediente integral de habilitación</a></p>
 </main>

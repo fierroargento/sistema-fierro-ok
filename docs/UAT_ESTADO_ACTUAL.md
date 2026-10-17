@@ -150,3 +150,12 @@ Siguiente acción concreta: verificar feedback de Simular escenario y alineació
 - PRUI-01: `image(20261017-153007).png` confirma secciones fuera del contenedor principal, distribución horizontal y controles sin estilo. Se incorpora contenedor único para toda la página, CSS exclusivo, tarjetas verticales, métricas compactas, alta plegada por defecto, formularios adaptables, acciones consistentes y tablas con desplazamiento interno. Informes agregados agrupados en panel plegado. Se mantienen campos, valores, condiciones, destinos y servicios existentes.
 - Pendiente tras deploy: presentación de Producción vacía y con datos, apertura del alta, decisiones, avances y calidad. No se crea ninguna orden en este ajuste. Próximo UAT funcional: revisar contexto unidad 3 y registros antes de crear datos sintéticos.
 - Pendiente visual confirmado: Plan de corte DUX, Ensayo offline y Expediente final de transición conservan controles nativos; aplicar formato común en un bloque posterior.
+
+### Producción funcional y gestión de lotes — 17/10/2026
+
+- PRUI-01: contenedor y alta verificados con capturas 154706, 161112 y 161631. Máquina sintética activada internamente para permitir planificación; no ejecución física.
+- UAT-OP-001: revisión y aprobación interna verificadas; cantidad 10, costo congelado $49.336,50. Partes UAT-PARTE-001 (6 buenas, 1 rechazada, 90 minutos) y UAT-PARTE-002 (3 buenas, 45 minutos): acumulado 9 buenas, 1 rechazada, 0 pendientes, 135 minutos. Exceso de cantidad rechazado sin alterar acumulado.
+- Simulación completa, propuesta de inventario bloqueada por mapeo de insumo faltante y destino ambiguo, y costeo sin hallazgos; huellas de los tres adjuntos verificadas. Costo unitario por buena $5.481,83. No cerrar la orden aún.
+- Captura image(20261017-174659).png: UAT-LOTE-001 con 6 y UAT-LOTE-002 con 3, ambos en cuarentena y stock bloqueado. Los formularios abiertos, campos sin etiquetas y controles apretados motivan PRUI-02.
+- PRUI-02: creación de lote plegada y visible solo con saldo de unidades buenas del parte, cantidad disponible precargada, tabla compacta y Gestionar en dialog nativo con etiquetas, ayuda, historial y Cancelar/X/Escape sin envío. Se conservan rutas, campos y validaciones del servicio. Pendiente deploy y UAT visual/cancelación/control.
+- Pendientes conservados: etiquetas de avances preparatorios, presentación numérica general, gramática «El máquina», continuidad de scroll y visual de Plan de corte DUX, Ensayo offline y Expediente final de transición DUX.

@@ -49,3 +49,21 @@
  .production-page .comercial-section { padding:16px; }
  .production-page h1 { font-size:23px; }
 }
+
+/* Lotes: creación bajo demanda y gestión en ventana modal. */
+.production-page .production-lot-create { margin:12px 0;padding:14px;border:1px solid #dce6ed;border-radius:10px;background:#f8fafc; }
+.production-page .production-lot-create summary span { display:block;margin-top:4px;color:#66788b;font-size:12px;font-weight:400; }
+.production-page .production-lot-note { padding:10px 0; }
+.production-page .production-field-wide { grid-column:1/-1; }
+.production-page .production-actions { display:flex;flex-wrap:wrap;gap:10px; }
+.production-page .production-actions button { flex:0 0 auto;width:auto; }
+.production-page .production-lot-table { min-width:610px; }
+.production-page .production-dialog { width:min(680px,calc(100vw - 32px));max-height:calc(100dvh - 40px);padding:24px;border:1px solid #dce6ed;border-radius:16px;background:white;color:#243548;box-shadow:0 24px 80px #162a4050;overflow-y:auto; }
+.production-page .production-dialog::backdrop { background:rgba(20,35,50,.55); }
+.production-page .production-dialog-header { display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:1px solid #e1e7ed; }
+.production-page .production-dialog-header h2 { margin-top:4px;overflow-wrap:anywhere; }
+.production-page .production-dialog-header button { min-width:36px;padding:4px;font-size:22px; }
+.production-page .production-dialog h3 { margin:20px 0 8px;font-size:15px; }
+.production-page .production-quality-history { margin-top:20px;padding-top:16px;border-top:1px solid #e1e7ed; }
+.production-page label small { color:#66788b;font-weight:400; }
+@media(max-width:760px) { .production-page .production-dialog { padding:18px; } }
