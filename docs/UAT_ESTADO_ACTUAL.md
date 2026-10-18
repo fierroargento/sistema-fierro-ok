@@ -225,7 +225,7 @@ Siguiente bloque propuesto por prioridad del usuario (18/10): PML-0, contrato y 
 
 ## Ampliación del plan: Rentabilidad y publicaciones de Mercado Libre — 18/10/2026
 
-Estado: auditoría y propuesta autorizadas para registro documental el 18/10/2026; funcionalidad nueva todavía no implementada.
+Estado: propuesta registrada el 18/10/2026. Primer ensayo PML-0A implementado con alcance y pendientes detallados al final; conectores y operación real todavía no implementados.
 Prioridad indicada por el usuario: rentabilidad real antes de revisión de publicaciones, competencia e IA.
 Base auditada: f90ffc0cf0f517aa85ad9b19fd82b186d4e96c6c, rama integracion-saas-2026-09. GitHub es fuente oficial.
 Este bloque amplía el plan vigente; no reemplaza pendientes de calidad/materiales de Producción, fracciones de Inventario, visual DUX, Postventa y aceptación final. Mantener un único seguimiento aquí.
@@ -474,3 +474,34 @@ El objetivo no es reproducir todas las pantallas de ML/MP, sino resolver en Fier
 | PML-UAT-24 | Generación de reporte, cambio de PxQ y actualización externa simulados: barreras de red intactas; no crear jobs, conexiones, cobros, retiros, publicaciones ni efectos durante el UAT. |
 
 Se conservan PML-UAT-01 a 12 y todos los pendientes previos. Este bloque no declara implementado ni aprobado ninguno de los casos nuevos.
+
+### PML-0A implementado: ensayo de resultado por línea — 18/10/2026
+
+- Base de implementación: 1ce5c77009988175267b0aba742e6316472675ae. El usuario indicó avanzar después de aprobar el plan y confirmar el cálculo de precio según objetivo.
+- Nuevo servicio puro services/rentabilidad_ml_offline.py. Contrato v1 por operación/pack con contexto organización/unidad/cuenta, moneda ARS, corte con zona horaria, líneas originales, costo histórico identificado y previsión congelada, cobertura y hechos normalizados. Sin DB, red ni escrituras.
+- Reutiliza conciliar_venta para la conciliación financiera. Los ejemplos usan liquidar_precio y calcular_precio_minimo_canal existentes; no se crea otro motor de precios. El objetivo mostrado en Venta simple/Neto es un recargo ilustrativo del 20% sobre producto y embalaje, explícitamente distinto de margen sobre venta; no cambia la configuración comercial real.
+- Mantiene orden/publicación/línea aunque el SKU se repita. Gastos compartidos se reparten proporcionalmente al ingreso por mayor resto, conservando cada centavo y mostrando que son asignaciones. El total de envío no se multiplica por unidad.
+- Resultado económico = ingreso efectivo y ajustes − costo histórico − gastos identificados. Neto de cobro se presenta aparte. El neto reemplaza bruto y cargos ya contenidos solo dentro de sus líneas; una mezcla de bruto con neto de alcance parcial se rechaza. Dos fuentes del mismo hecho coincidentes se vinculan sin sumarse; importes incompatibles se rechazan para revisión.
+- Falta de costo da no_calculable, sin reemplazo por cero/costo actual. Fuentes/cobertura incompletas, estimaciones, diferencia entre cobro y reconstrucción o retención sin clasificación dan parcial. Cero confirmado es distinto de cobro ausente. Costo que ya incluye embalaje no admite otro débito de embalaje. Pérdidas y previsiones negativas se conservan; ingreso cero no produce margen inventado.
+- Huellas de entrada/resultado permiten comprobar reproducción; son controles de integridad, no firma ni autorización del contenido.
+- Nuevo blueprint GET /admin/comercial/rentabilidad-ml. Usa login, resolver_tenant_usuario y membresía admin, exige unidad activa de la organización y no selecciona una unidad ajena como fallback. La query no cambia contexto ni cuenta. No tiene POST, importación de archivos, selección de cuenta real ni efectos.
+- Acceso agregado al panel Comercial existente: Rentabilidad ML · Ensayo offline. No se modifica sidebar ni menú global. La vista extiende base.html y reutiliza CSS/JS de paneles y diálogos; resumen compacto, tabla contenida, detalle modal, cierre sin envío y exportación JSON de entrada/resultado. Solo CSS específico nuevo para métricas y cobertura.
+- Siete ejemplos internos: venta simple, cuatro órdenes con SKU repetido, neto/cargos repetidos, publicidad pendiente, costo histórico faltante, precio B2B ya aplicado y devolución parcial. Todos son sintéticos. No crean productos, ventas, cuentas, movimientos ni registros.
+- Resultados de referencia: Venta simple, ingreso $10.000, costo $4.000, comisión $1.500, envío $1.000 y embalaje $300: resultado $3.200, margen 32%, neto $7.500. Pack: cuatro órdenes, cinco unidades comerciales, ingreso $54.000, envío único $4.000 y resultado $20.400. B2B sintético: cinco unidades a $8.550, resultado $12.837,50; no se re-aplican los descuentos al precio ya efectivo. Devolución parcial de $2.500: resultado $700, sin recuperar costo/reponer stock automáticamente.
+- Verificación local: 83 pruebas focalizadas aprobadas de servicio, Flask y motores existentes; una prueba estática preexistente que lee app.py quedó fuera de la selección local de archivos. Se probaron cálculos independientes, pérdidas, neto/bruto/detalle, fuente repetida/incompatible, alcance parcial, costo histórico/faltante/fuera de fecha, embalaje duplicado, ceros, contexto/rol/unidad ajenos, importes inválidos, endpoints GET/exportación, reproducibilidad/huellas y efectos cero.
+- Compilación Python y parseo completo de las dos plantillas aprobados. Render de las siete vistas mediante Flask; comprobados IDs de modales únicos, detalles cerrados, sin formularios anidados y retorno type=button. El navegador headless no pudo instalarse por descarga incompleta; no se afirma inspección visual automatizada ni prueba real de teclado contra Render.
+- Sin cambios de modelos, migraciones, app.py, domain.estados, datos, credenciales, permisos, flags, scheduler, webhooks ni producción/main.
+
+Alcance pendiente, conservado del plan:
+- No es todavía importación/conciliación de ventas reales ni adaptador de respuestas de la API. El contrato recibe hechos offline ya normalizados; no acredita por sí solo propiedad/elegibilidad de una publicación externa.
+- El ejemplo B2B usa un precio efectivo sintético conocido. Elegibilidad, lectura/selección/versionado de tramos, recomendaciones ML, promociones cofinanciadas y migración de cardinalidad siguen pendientes.
+- Faltan conectores, tratamiento completo de saldo de cuenta MP/reportes solapados/movimientos sin venta y recuperación de costo por devoluciones. No se declara resuelto el conjunto PML-UAT-01 a 24 por tener ejemplos.
+- La liquidación prevista se recibe congelada; el ejemplo descuenta una sola vez el envío compartido. No se cambia el motor anterior que calcula una expectativa por unidad, ni se aplica ese comportamiento sin normalizar al nuevo circuito.
+- El precio objetivo de referencia se muestra solo con fuentes completas en esos ejemplos; la adaptación del objetivo de precio a tramos/pack y métodos de margen requiere la etapa siguiente. La función actual de cálculo de precios existente se conserva.
+
+Próximo UAT tras deploy:
+1. Abrir Comercial → Rentabilidad ML · Ensayo offline, con unidad Ensayo UAT.
+2. Seleccionar Venta simple y pulsar Analizar ejemplo. Debe verse feedback, resultado $3.200, margen sobre venta 32%, diferencia $0 y liquidación $7.500; detalle contiene comisión/envío/embalaje y costo histórico.
+3. Abrir/cerrar Ver detalle mediante Cerrar/X/Escape, sin cambios ni guardado; revisar presentación y sidebar.
+4. Descargar evidencia del ensayo y verificar huellas/alcance. Después pasar a Pack, Neto repetido y ejemplos de fuentes faltantes; no repetir altas previas ni subir archivos reales.
+Este bloque sí requiere deploy de integración para revisar la pantalla. Mantener laboratorio desconectado; no hacer deploy de producción.

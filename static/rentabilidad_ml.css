@@ -1,0 +1,15 @@
+/* Solo la vista de ensayos; componentes base compartidos con los paneles internos. */
+.profitability-page .profitability-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.profitability-page .profitability-metrics article{padding:15px;border:1px solid #dce6ed;border-radius:10px;background:#f5f9fc;min-width:0}
+.profitability-page .profitability-metrics span{display:block;color:#66788b;font-size:12px}
+.profitability-page .profitability-metrics strong{display:block;margin-top:6px;font-size:21px;overflow-wrap:anywhere}
+.profitability-page .profitability-pending{background:#fff8e8;border-color:#ead9a9;color:#74591b}
+.profitability-page .profitability-coverage{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.profitability-page .profitability-coverage>div{padding:12px;border:1px solid #e1e7ed;border-radius:8px;min-width:0}
+.profitability-page .profitability-coverage span{display:block;margin-top:4px;color:#66788b;font-size:12px}
+.profitability-page .profitability-liquidation{display:flex;flex-wrap:wrap;gap:12px 24px}
+.profitability-page .production-report-links,.profitability-page .production-dialog .production-actions{margin-top:16px}
+.profitability-page .profitability-detail-table{min-width:480px}
+.profitability-page .production-dialog p{overflow-wrap:anywhere}
+@media(max-width:900px){.profitability-page .profitability-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.profitability-page .profitability-metrics,.profitability-page .profitability-coverage{grid-template-columns:minmax(0,1fr)}}

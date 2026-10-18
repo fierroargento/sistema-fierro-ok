@@ -11,6 +11,7 @@ def registrar_modulos_web(
     from models.configuracion_sistema import ConfiguracionSistema
     from services.presentacion_monetaria import formatear_centavos_ars
     from modules.admin.comercial.routes import crear_blueprint_comercial
+    from modules.admin.rentabilidad_ml.routes import crear_blueprint_rentabilidad_ml
     from modules.admin.compras.routes import crear_blueprint_compras
     from modules.admin.crm.routes import (
         crear_blueprint_crm,
@@ -132,6 +133,12 @@ def registrar_modulos_web(
                 },
             },
         )
+    )
+
+    app.register_blueprint(
+        crear_blueprint_rentabilidad_ml(dependencias={
+            **comunes, "UnidadNegocio": modelos["UnidadNegocio"],
+        })
     )
 
     app.register_blueprint(
