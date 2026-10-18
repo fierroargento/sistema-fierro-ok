@@ -1,7 +1,7 @@
 # Estado único de UAT — staging
-Fecha de corte: 16/10/2026, Argentina.
+Seguimiento iniciado: 16/10/2026, Argentina. Última incorporación: 18/10/2026.
 Rama: `integracion-saas-2026-09`.
-Base de código revisada: `379b6f6a86b80742064efbdc77706d979a526670`.
+Base inicial: `379b6f6a86b80742064efbdc77706d979a526670`. Base de la ampliación ML del 18/10: `f90ffc0cf0f517aa85ad9b19fd82b186d4e96c6c`.
 
 Este documento concentra el seguimiento desde esta fecha. Los documentos UAT de septiembre conservan su valor histórico; sus frases «pendiente de deploy» o «pendiente de validación» no prueban que el pendiente siga abierto hoy.
 
@@ -69,7 +69,7 @@ La documentación de remediación de septiembre cita riesgos pendientes de canal
 
 Hay tres bloques de cierre definidos; el primero es breve. El esfuerzo de los otros dos depende de la conciliación y de los defectos que efectivamente subsistan. No se asigna un porcentaje de SaaS terminado ni un plazo de producción sin ese inventario.
 
-Siguiente acción concreta: verificar feedback de Simular escenario y alineación de Promoción vigente tras el deploy, sin persistir datos.
+Siguiente bloque propuesto por prioridad del usuario (18/10): PML-0, contrato y ensayo offline de rentabilidad ML, definido al final de este documento. Las verificaciones anteriores se concilian con la evidencia de las secciones siguientes; no repetirlas por esta ampliación documental.
 
 ### Conciliación visual del 16/10/2026
 
@@ -214,3 +214,263 @@ Siguiente acción concreta: verificar feedback de Simular escenario y alineació
 - Captura image(20261017-195741).png confirma turno 1 planificado sin fichaje para uat-emp-001, 20/10/2026 08:00–12:00, sector Producción UAT; una fila y cero novedades/conflictos. No acredita por sí sola la cancelación del formulario de alta.
 - PERS-UI-02: desplegable Cancelar turno agranda la fila y desentona con las acciones. Se reemplaza por botón compacto Cancelar y dialog nativo con motivo, Confirmar cancelación, Volver y cierre X/Escape. Reutiliza CSS/JS de ventanas existentes; restablece el formulario al cerrar, sin envío al volver/cerrar. No cambia ruta, campos, motivo mínimo de cinco caracteres ni servicio de cancelación.
 - Render local vacío y con dos turnos planificados y uno cancelado: identificadores únicos, destinos de ventanas correctos, ventanas cerradas inicialmente, sin formularios anidados, retorno type=button, cancelado sin acción y texto escapado. Pendiente revisión visual y cancelación en Render; mantener el turno para completar evidencia antes de cancelarlo.
+
+### Personas: evidencia funcional posterior — 17/10/2026
+
+- Usuario confirmó retorno desde Cancelar turno mediante Volver conservando el turno, y alta de novedad de 30 minutos extra propuestos. No hay captura aislada de X/Escape.
+- control_personas_preparatorio.json: organización 1/unidad 3, turno el 20/10/2026 de 240 minutos; aprobado, sin hallazgos, controles en cero. Huella fd38a20a1b53c2854ffcddad8f0b0612f1c5e93d63b0f3a9bae13a46e600b1c2 verificada.
+- expediente_personas_preparatorio (1).json: un empleado en Producción UAT con 240 minutos de cobertura, 30 minutos extra propuestos y competencia 1 próxima a vencer el 20/10/2026. Sin asignaciones habilitadas, fichajes, novedades aprobadas, liquidaciones, cambios de costos ni conexiones. Huella 7ee342c421fd08ffad46dc82718321ef2574bd38389b1e84931d6c130216ec93 válida.
+- Tras indicación de cancelar el turno con motivo Cierre de ensayo UAT sin fichaje, expediente_personas_preparatorio (2).json muestra cobertura vacía, mantiene 30 minutos propuestos y competencia; sin hallazgos y controles cero. Huella ea392ff0623c4616261c32ed86eb0ecadcfa4596b3d5aa77dff0fd9addc45eb8 válida. El agregado no prueba por sí solo el texto del motivo ni el detalle histórico del turno.
+- Alcance validado: recorrido preparatorio turno/novedad/competencia y retiro de cobertura al cancelar. No equivale a validar todos los rechazos ni a habilitar operaciones laborales. Novedad sigue propuesta y competencia no habilitante.
+
+## Ampliación del plan: Rentabilidad y publicaciones de Mercado Libre — 18/10/2026
+
+Estado: auditoría y propuesta autorizadas para registro documental el 18/10/2026; funcionalidad nueva todavía no implementada.
+Prioridad indicada por el usuario: rentabilidad real antes de revisión de publicaciones, competencia e IA.
+Base auditada: f90ffc0cf0f517aa85ad9b19fd82b186d4e96c6c, rama integracion-saas-2026-09. GitHub es fuente oficial.
+Este bloque amplía el plan vigente; no reemplaza pendientes de calidad/materiales de Producción, fracciones de Inventario, visual DUX, Postventa y aceptación final. Mantener un único seguimiento aquí.
+Solo se cambia documentación en esta incorporación. Sin cambios de producción/main, esquema, estados operativos, OAuth, permisos, scheduler, webhooks ni conexiones. Laboratorio desconectado y bootstrap deshabilitado.
+
+### Qué existe y debe reutilizarse
+
+| Capacidad | Evidencia en código | Decisión |
+| --- | --- | --- |
+| Producto/SKU, ficha técnica, variantes, imágenes y texto por canal | models/catalogo_producto.py; services/catalogo_ficha_integral.py | Mantener el maestro existente. La completitud y validación local de imágenes ya existen; agregar diferencias frente a la publicación, sin segundo catálogo. |
+| Costos de compra/producción/combos e historial | models/perfil_costeo_producto.py; models/costo_producto_version.py; models/costo_producto_detalle.py; services/costos_productos.py; services/composicion_costo_producto.py | Reutilizar versiones y detalles. No sustituir una venta histórica por el costo vigente de hoy ni confundir costo calculado con costo realizado. |
+| Reglas de canal, piso, comisión, cargo fijo, envío, publicidad, financiación y devolución estimados | services/motor_comercial_canal.py; services/reglas_economicas.py | Reutilizar cálculo previsto. Las reglas configuradas no son cargos reales de ML. No volver a restar la utilidad objetivo como gasto. |
+| Simulación prevista y comparación con liquidación informada | services/simulador_integral_comercial.py | Mantener simulador como escenario; no convertir sus entradas manuales en liquidaciones verificadas. |
+| Venta observada, costo congelado y movimientos financieros | models/conciliacion_ventas_canal.py: VentaCanalItem, MovimientoLiquidacionCanal, GestionConciliacionCanal; services/conciliacion_liquidaciones_canal.py | Ampliar este circuito como núcleo del resultado observado. Ya hay costo snapshot, expectativa y neto observado; falta desglose económico completo y trazabilidad por línea ML. |
+| Importación de ventas/movimientos y extracto MP, lotes, gestión y cierres | services/importacion_conciliacion_canal.py; services/importacion_extracto_mp.py; /admin/comercial/conciliacion y sus rutas | Mantener importación y conciliación existentes. El extracto MP actual ingresa netos; no garantiza por sí mismo el detalle de todos los gastos. |
+| Identidad de publicación/variante/cuenta y precios/cargos/envíos observados | models/mapeo_publicacion_canal.py; models/observacion_comercial_canal.py; services/inventario_mapeos_publicacion.py; services/importacion_datos_comerciales_canal.py | Reutilizar cuenta exacta, mapeos e historial. Precio actual/observación comercial no reemplaza precio efectivo de una venta histórica. |
+| ML multicuenta y packs completos | services/ml_api_context.py; modules/bot_ml/orders_api.py; services/ml_pack_items.py; models/pedido.py | Usar contexto explícito de cuenta y validar seller, organización y unidad. No cambiar la importación operativa para obtener rentabilidad. |
+| Ensayos sin red y barreras | services/certificacion_offline_mercado_libre.py; services/certificacion_offline_mercado_pago.py; services/seguridad_entorno.py | Extender ensayos con archivos sintéticos, sin crear una conexión paralela. billing.py y /orders/{id}/billing_info actuales tratan datos del comprador, no conciliación de cargos facturados. |
+
+### Brechas y riesgos confirmados del cálculo actual
+
+1. PML-01 — Mapeo de varias publicaciones al mismo SKU. MapeoPublicacionCanal impone unicidad por organización/vínculo/inclusión y por identidad externa. La primera restricción impide varias publicaciones del mismo producto en un vínculo. Diseñar ampliación compatible y migración explícita, revisar consumidores de Inventario y cola antes de cambiarla. No resolver duplicando productos ni inclusiones artificiales. Mantener identidad externa y variante únicas dentro de cuenta; la unidad se valida a través del vínculo.
+2. PML-02 — Detalle financiero sin agrupar prematuramente. PedidoItem conserva SKU/cantidad/devolución, sin precio ni cargo por línea. ml_agrupar_items suma por SKU y conserva precio/cargo de la primera fila: correcto como proyección operativa de cantidades, insuficiente como libro financiero. En memoria, dos líneas del mismo SKU con precios 100/200 y cargos 10/30 se convierten en una fila con cantidad 2, precio 100 y cargo 10. Conservar órdenes/líneas originales y obtener totales financieros antes de cualquier agregado; incluir cancelaciones/devoluciones excluidas del importador operativo.
+3. PML-03 — Ámbito de cargos y asignación. calcular_expectativa aplica el motor por unidad y multiplica también el envío. En memoria, envío unitario configurado 10000 centavos y cantidad 2 genera envío esperado 20000. No prueba error del caso UAT previo; sí falta tratamiento de un único shipment/pack compartido. Separar unidad, línea, orden, pack/envío y período. El total del envío se cuenta una sola vez; cualquier reparto por SKU se identifica como asignación, con regla versionada y suma exacta al total.
+4. PML-04 — Neto y detalle sin doble descuento. conciliar_venta suma los movimientos marcados impacta_saldo. En memoria, neto 90000 más débito de comisión 10000 produce 80000. Si esa comisión ya integraba el neto, debe ser informativa, no otro impacto. Definir relación de documentos/movimientos y precedencia antes de mezclar extracto, orden y facturación; no sumar sale_fee y cargo facturado como gastos independientes del mismo concepto.
+5. PML-05 — Margen económico distinto de conciliación. El control actual compara liquidación esperada con piso económico. No calcula un margen observado completo por publicación ni resta en ese informe el costo snapshot, embalaje y gastos externos identificados. Costo snapshot existe, pero no incluye identificador de versión; ampliar procedencia.
+6. PML-06 — Datos faltantes y vigencia. Algunos normalizadores offline usan cero para campos opcionales ausentes y el simulador distingue pagos pendientes a partir de real=0. En rentabilidad, ausente no puede equivaler a cero confirmado; neto cero puede ser un resultado real. Necesitamos presencia, procedencia, fecha, cobertura y estado financiero explícitos.
+
+Son comprobaciones locales en memoria contra el código de la base auditada; no se consultó ML ni se escribió en una base.
+No se ejecutó la suite pytest en esta auditoría: el runtime local no tenía pytest. No se declaran pruebas completas aprobadas.
+La búsqueda global de GitHub devolvió incomplete_results=true; no se usa para demostrar ausencia total de endpoints. Las conclusiones se limitan a archivos y rutas inspeccionados.
+
+### Viabilidad de la API oficial: documentado frente a comprobado en cuenta
+
+Consulta documental: 18/10/2026, mediante páginas oficiales indexadas. Algunas aperturas directas devolvieron HTTP 403 del sitio de documentación; no son respuestas de la API de la cuenta.
+No se usaron credenciales, no se inspeccionaron tokens ni grants, no se probaron endpoints de vendedor. Disponibilidad documental no equivale a acceso autorizado/efectivo del usuario.
+
+| Necesidad | Recurso documentado | Alcance y límite de la propuesta |
+| --- | --- | --- |
+| Publicación, variante, SKU, cantidades y precio efectivo por venta | GET /orders/{id}; GET /packs/{id}; GET /items/{id} | Orden/línea como base financiera; pack conserva pertenencia. SKU externo es indicio validable, no coincidencia automática por título. Leer SELLER_SKU/variación y contrastar mapeo. |
+| Comisión observada y descuentos | order_items.sale_fee; GET /orders/{id}/discounts | Separar cargo por unidad y cantidad. Distinguir descuento del vendedor y aporte ML; no descontar de nuevo lo ya incluido en precio efectivo. Descuentos no cubren cargos adicionales o devoluciones posteriores. |
+| Envío a cargo de cada parte | GET /shipments/{id}/costs | Usar sender correspondiente a la cuenta; separar receiver. Un shipment compartido no se multiplica por línea. En Acordás/transporte externo, costo y cobro deben venir del registro/comprobante propio; si faltan, resultado parcial. |
+| Cargos y bonificaciones facturados, pagos y ajustes | GET /billing/integration/group/ML/order/details?order_ids=... o pack_id=...; detalles por período/documento | Conciliar cargos y referencias, detectar datos tardíos y revisión de períodos. Hasta 60 órdenes por consulta en el recurso documentado; paginar. No suponer para Argentina bloques que la documentación marca exclusivos de Brasil. |
+| Precio previsto/cotización de cargos | GET /sites/MLA/listing_prices; /items/{id}/sale_price para precio observado actual | Cotización fechada, no gasto realizado. Listing prices requiere contexto de categoría, tipo, logística, shipping_mode y peso facturable en Argentina; no fijar umbrales ni porcentajes universales. |
+| Ficha pública y requisitos | /items/{id}, /items/{id}/description, /categories/{id}/attributes | Comparar contra ficha existente y requisitos de categoría. Metadatos/cantidad/medidas de imágenes no prueban calidad visual ni conversión; revisión humana. |
+| Competencia | /items/{id}/price_to_win para catálogo; datos de ítems/búsquedas permitidos | Catálogo no equivale a todo el mercado. Acceso/condiciones/equivalencia por verificar; solo observaciones fechadas, sin prometer ventas reales o márgenes de competidores ni scraping como sustituto automático. |
+| Publicidad | Recursos Advertising según permiso y versión vigente | Documentación de Product Ads publica inversión y atribución; varias rutas de métricas antiguas figuran deprecadas. Confirmar Ad Groups vigente al implementarlo. No se acredita costo publicitario exacto por venta: reparto por publicación/período es asignación explícita. |
+| Permisos y acceso | Permisos funcionales: ventas/envíos, publicación, facturación y publicidad según recurso | Tratar 401/403/429, datos no disponibles y fuentes pendientes; no activar permisos ni conexiones como parte del UAT desconectado. No prometer histórico ilimitado. |
+
+Referencias oficiales utilizadas:
+- Órdenes y descuentos: https://developers.mercadolibre.com.ar/es_ar/metricas/gestiona-ventas y https://developers.mercadolibre.com.ar/es_ar/trabajar-con-imagenes/gestiona-ventas
+- Packs: https://developers.mercadolibre.com.ar/gestion-packs
+- Provisiones/cargos por orden y pack: https://developers.mercadolibre.com.ar/es_ar/pagos/provisiones
+- Costos previstos: https://developers.mercadolibre.com.ar/comision-por-vender
+- Envíos: https://developers.mercadolibre.com.ar/es_ar/envios
+- Atributos y descripción: https://developers.mercadolibre.com.ar/atributos y https://developers.mercadolibre.com.ar/descripcion-de-articulos
+- Competencia: https://developers.mercadolibre.com.ar/competencia-en-catalogo
+- Advertising: https://developers.mercadolibre.com.ar/product-ads-para-catalogo-y-user-products-lectura
+- Permisos: https://developers.mercadolibre.com.ar/permisos-funcionales
+- Productos/User Products: https://developers.mercadolibre.com.ar/en_us/api-docs/list-products
+- Búsquedas y migración bulk: https://developers.mercadolibre.com.ar/es_ar/guia-para-carrito-de-compras/items-y-busquedas
+
+Documentación reciente señala migración a /items/bulk para consultas múltiples antes del 25/10/2026. Revalidar al construir el lector; no extender consultas antiguas /items?ids=. Esto no afirma que el código actual las use.
+Para IA, verificar modelo de publicación tradicional/catálogo/User Products: la documentación ya distingue comportamiento del título. No prometer edición universal de título ni aplicar una sugerencia automáticamente.
+
+### Definición del resultado y de su evidencia
+
+Propuesta de cálculo económico: ingreso de la venta atribuible al vendedor, después de descuentos financiados por él y con aportes/bonificaciones acreditados, menos cargos efectivos, logística a su cargo, costo del producto y embalaje no incluidos antes. Cada evento tiene una única incorporación contable al resultado; no reconstruirlo restando descuentos dos veces al precio final.
+Mostrar separadamente flujo de cobros/liberaciones y resultado económico. Retenciones/percepciones y tratamiento de impuestos recuperables requieren clasificación explícita; no llamar a todo débito gasto ni deducir tasas fiscales genéricas del margen. Mantener base monetaria/impositiva comparable.
+No usar solamente neto depositado menos costo para afirmar ganancia final: puede faltar un cargo, haber saldo retenido, reembolso, publicidad, transporte externo o componente ya incluido.
+Margen sobre venta = resultado / ingreso económico de venta; denominador cero => no calculable. Mostrar importe, porcentaje y diferencia respecto del previsto; no confundir con recargo sobre costo ni con excedente del piso objetivo.
+
+Por componente guardar: concepto, moneda y centavos, cantidad/alcance, fuente y referencia externa, fecha del hecho/consulta, evidencia o huella, estado (observado, estimado, asignado, faltante o cero confirmado), versión/costo/política y relación con otros cargos. No guardar tokens ni datos personales innecesarios.
+Costo de producto: enlazar versión/detalles aplicables a la fecha de la venta; si se usa costo histórico aprobado pero calculado, decirlo. Sin versión histórica suficiente, mostrar pendiente o reconstrucción identificada, nunca sustituir silenciosamente por la actual.
+Embalaje: comprobar primero si integra detalles del costo existente; cargar solo diferencia separada cuando corresponda. Materiales de embalaje y gastos propios son información interna, no promesa de la API.
+La publicidad estimada y provisiones de devoluciones del motor previsto no se suman a un gasto real equivalente sin reemplazo o conciliación.
+Estados separados:
+- Previsto: usa reglas/cotizaciones y costo identificado.
+- Observado parcial: hay movimientos efectivos pero faltan conceptos o solo hay imputaciones.
+- Conciliado al corte y con alcance declarado: referencias, importes y gastos aplicables reconciliados; se detallan los costos históricos/calculados y asignaciones.
+- No calculable: falta identidad/costo esencial o hay incompatibilidad de moneda.
+No presentar Rentabilidad real completa en verde cuando falte una fuente obligatoria. Un control estructural aprobado o una venta pagada no certifican ganancia final.
+
+### Incorporación por etapas
+
+| Etapa | Entrega | Condición de cierre |
+| --- | --- | --- |
+| 0 — Contrato económico y datos, siguiente bloque | Identidad y cardinalidad, fuentes, ámbitos de gasto, precedencia de netos/desgloses, snapshots y conjuntos de ensayo. Servicio puro de análisis offline que use el motor previsto y conciliación existentes. | Casos PML-UAT de abajo aprobados y reporte exportable; cero red/efectos externos. |
+| 1 — Rentabilidad por publicación y venta, prioridad inicial | Vista de previsto/observado/diferencia y detalle de incluidos/faltantes; agregados por SKU, publicación, cuenta y período; comparación congelada. Ampliar VentaCanalItem/MovimientoLiquidacionCanal mediante migración revisada solo donde falte trazabilidad. | Coinciden importes y referencias, sin duplicación; presentación y cierre sin guardar validados. Primero archivos sintéticos; datos reales solo en futuro bloque autorizado y por cuenta exacta. |
+| 2 — Revisión de publicaciones | Diferencias entre ficha de catálogo y snapshot de publicación, atributos requeridos, títulos e imágenes; oportunidades explicadas. | Sin duplicar el editor ni confundir completitud local con ranking/calidad ML; propuestas revisables. |
+| 3 — Competencia | Comparación de equivalentes, precio/condiciones/logística/fecha y fuente; soporte de catálogo donde aplique. | Indicar observado/estimado/no disponible y universo comparado. No prometer datos financieros privados de terceros. |
+| 4 — IA con revisión | Propuestas de títulos/descripciones a partir de ficha validada; diferencias y respaldo de cada característica. | No inventar materiales, dimensiones, certificaciones, stock o promesas. Borrador/revisión; proveedor IA y publicación siguen desconectados durante UAT. |
+
+Diseño propuesto: Comercial → Mercado Libre → Rentabilidad y publicaciones, sujeto a consolidación del menú comercial existente. No es una ruta implementada.
+Pestaña inicial Rentabilidad; Publicaciones, Competencia y Propuestas IA se incorporan cuando estén listas, sin pantallas vacías simulando funciones.
+Reutilizar estilos/componentes de Comercial y Conciliación: barra lateral, filtros compactos por unidad/cuenta/período, tablas paginadas contenidas, importe y margen previsto/observado/diferencia, estado de integridad y botón Gestionar/Ver detalle en modal.
+En detalle: desglose de conceptos, incluidos/faltantes, documento de origen y fecha de corte; sin formularios permanentemente abiertos. Cancelar/X/Escape sin envío, confirmación simple, retorno al registro y feedback visible. No segundo editor de productos, segundo historial de costos o segunda caja de conciliación.
+Arquitectura: consulta acotada por contexto; servicio de resultado separado del acceso ML; adaptador de lectura futuro detrás del contexto existente; snapshots/evidencia sin modificar Pedido ni la proyección logística. La sesión de usuario no reemplaza verificar propiedad de cada dato importado.
+Vínculos orden–pack–línea–pago–movimiento conservan todos sus identificadores. Múltiples pagos y actualizaciones no deben entrar en el único campo referencia_pago como si fueran un solo evento; diseñar relación complementaria compatible con los registros existentes.
+Cambios de esquema/cardinalidad se implementarán y probarán por separado, con migración explícita. No usar bootstrap para agregar columnas a ciegas.
+
+### Próximo UAT seguro: PML-0, todavía por implementar
+
+Solo organización 1/unidad 3 y cuenta de ensayo existente validada por el sistema. Fixtures con IDs inequívocamente ficticios, sin abrir conexión ML/MP/IA. No pedir al usuario que copie tokens ni ejecute scripts sobre producción. Datos de negocio previamente aceptados se reutilizan por referencia, sin duplicar altas.
+No declarar ninguna de estas pruebas ejecutada por estar escrita aquí:
+
+| Caso | Verificación y resultado esperado |
+| --- | --- |
+| PML-UAT-01 | Venta simple con costo/embalaje/cargos documentados: reconstrucción exacta, margen y diferencia explicados, ninguna deducción repetida. |
+| PML-UAT-02 | Cuatro órdenes en un pack, SKU repetido con distinto precio/cargo: todas las líneas originales suman correctamente; envío compartido contado una vez. |
+| PML-UAT-03 | Dos unidades y un envío; reparto por SKU visible como asignado, redondeo conservando el total del comprobante. |
+| PML-UAT-04 | Neto con cargos ya incluidos y el mismo detalle de facturación: conserva neto sin otro débito. Cobertura incompleta/movimientos sin clasificar => pendiente. |
+| PML-UAT-05 | Promoción cofinanciada y descuento en precio: distingue aportes ML/vendedor, no suma ni resta el mismo descuento dos veces. |
+| PML-UAT-06 | Cambiar costo vigente después de la venta: resultado histórico no cambia; costo sin versión a esa fecha => faltante, sin cero automático. Embalaje ya dentro del costo no se duplica. |
+| PML-UAT-07 | Anulación/reembolso/devolución parcial y nota de crédito posterior: reconciliar eventos sin borrar historial; no confundir devolución de dinero con reposición automática de producto. |
+| PML-UAT-08 | Publicidad asignada, transporte externo faltante y retención sin clasificación: declarar alcance parcial, no certificar ganancia neta final. Neto cero confirmado distinto de ausencia de pagos. |
+| PML-UAT-09 | Mismo SKU o ID en otra cuenta/organización/unidad, variante no mapeada o pack incompleto: bloquear cruces y evitar fallback a primera cuenta; varios anuncios del mismo SKU sin duplicar el maestro. |
+| PML-UAT-10 | Archivo/movimiento repetido, páginas repetidas o evento corregido: idempotencia y trazabilidad; 401/403/429/respuesta incompleta simulados dejan fuente pendiente, no importes cero. |
+| PML-UAT-11 | Moneda incompatible, NaN/infinito/importe no representable, cantidad inválida, evidencia alterada: rechazo legible sin registros parciales. |
+| PML-UAT-12 | Pantalla vacía/con datos/móvil, abrir detalle y cerrar Cancelar/X/Escape: sin escrituras accidentales; feedback visible y posición conservada. |
+
+Antes de construir, cerrar el contrato de precedencia/ámbitos y compatibilidad de mapeos. Después implementar únicamente PML-0/1 offline con pruebas unitarias e integración centradas en estas brechas, y recién entonces pedir pruebas de pantalla. No corresponde deploy por este documento.
+
+## Ampliación autorizada: mayoristas ML y centralización operativa ML/MP — 18/10/2026
+
+El usuario autorizó registrar la propuesta anterior en este documento y pidió revisar mayoristas y centralizar publicación, venta, costos, envíos, cobros, liquidaciones y control de MP. Esta autorización se aplica al registro documental; este commit no implementa conectores ni habilita operaciones externas.
+Mantener rentabilidad como primera entrega. Mayoristas B2B y control de cuenta MP pasan a ser requisitos del contrato de datos inicial, no motores separados.
+
+### Mayoristas: hechos documentados y límites de Argentina
+
+Fuentes oficiales consultadas el 18/10/2026; no se consultó una cuenta de vendedor.
+- Mercado Libre documenta PxQ B2B para MLA con habilitación controlada del vendedor (tag business); no acredita que Fierro ya sea elegible. La modalidad mayorista interna de Fierro no acredita elegibilidad ML.
+- Documenta transición de importes absolutos a porcentajes el 27/10/2026. El recurso anterior se conserva para precios netos, funcionalidad que su guía limita a Brasil; no ofrecerla como disponible en Argentina.
+- PxQ B2C tiene alcance documentado restringido a neumáticos: no asumir su aplicación al catálogo de Fierro.
+- La página comercial anuncia beneficios de envío y cargo fijo con condiciones y excepciones. No convertirlos en descuento universal ni en cargo cero fijo en el motor; contrastar cotización, logística y cargo observado.
+- En el modelo porcentual se documentan hasta cinco tramos, lectura con show-all-prices: true en /items/{id}/prices, consulta /sale_price con contexto business y quantity, marca b2b en órdenes, recomendaciones previas y escritura en /items/{id}/prices/price-per-quantity. Las recomendaciones no incorporan el costo interno completo del producto.
+- La guía presenta una discrepancia entre los límites de cantidad de Consideraciones y el body de configuración; revalidar antes de implementar el validador de escritura. No derivar un contrato definitivo de ejemplos de otro site.
+
+Referencias:
+- Elegibilidad y cambio de modelo: https://developers.mercadolibre.com.ar/es_ar/precio-por-cantidad
+- Porcentajes, recursos, marcas y recomendaciones: https://developers.mercadolibre.com.ar/es_ar/categorias-y-atributos-inmuebles/pxq-porcentaje-b2b
+- B2C limitado por dominio: https://developers.mercadolibre.com.ar/es_ar/feedback-sobre-venta/precios-por-cantidad-b2c
+- Precios netos exclusivos de Brasil: https://developers.mercadolibre.com.ar/es_ar/pagos/precios-netos
+- Beneficios comerciales condicionados: https://vendedores.mercadolibre.com.ar/aprender/nota/precios-mayoristas-vendes-mas-pagas-menos?guideKeyId=GE79
+
+### Auditoría adicional de lo existente
+
+| Elemento revisado | Existe | Falta para este objetivo |
+| --- | --- | --- |
+| ListaPrecio | Tipo mayorista y listas por organización/unidad. | No equivale a tabla PxQ de ML. Reutilizar listas y políticas; agregar contrato versionado de tramos/contexto sobre publicación, sin segundo SKU/producto por umbral. |
+| ListaPrecioItem | Precio histórico enlazado con versión de costo y política. | Un precio vigente por lista/inclusión; sin tramo mínimo de cantidad en este modelo. Diseñar relación compatible para tramos, no sobrescribir precio minorista. |
+| ReglaCanalVersion/ReglaCanalCargoTramo | Comisiones y costos previstos; tramos por precio. | Tramo de cargo según precio no es tramo de descuento según cantidad. Mantener separados los conceptos usando el mismo motor económico. |
+| Pedido/PedidoItem y sincronización de ítems | Identidad operativa ML y proyección SKU/cantidad para logística. | En los modelos y sincronizadores inspeccionados no hay snapshot explícito de tabla PxQ, tramo ganador o flujo B2B. No concluir ausencia en todo el repositorio a partir de búsquedas parciales. |
+| VentaCanalItem/MovimientoLiquidacionCanal | Venta económica y movimientos por referencia_venta obligatoria. | Lectura financiera de todas las líneas, múltiples pagos, tramos B2B y movimientos de cuenta sin venta. No inventar referencia de venta para retiros/transferencias. |
+| CierresConciliacionMP/legajo/certificación integral | Snapshots, decisiones, cierres y exportación de evidencia sin red. | Extender los mismos cierres a cobertura por período/tipo de reporte, integridad de cuenta y hechos tardíos. Un cierre técnico no certifica la totalidad del saldo MP. |
+| CuentaTesoreria y MovimientoTesoreriaProyectado | Cuentas internas, billetera_virtual, saldo inicial y proyecciones con restricciones offline. | No son libro real de MP: las proyecciones impiden afectar saldo y las cuentas impiden conexión externa. No levantar esas restricciones para importar reportes ni llamar saldo real a una proyección. |
+| Conciliación offline de Tesorería | Lectura de extractos y candidatos por tipo/importe/fecha, sin efectos. | Candidato no es coincidencia financiera confirmada. Relacionar con identidad de pago/operación/documento antes de vincular entre módulos. |
+
+Archivos adicionales leídos: models/lista_precio.py, lista_precio_item.py, politica_comercial_lista.py, regla_canal.py, vinculo_canal_comercial.py, tesoreria.py; services/ml_items.py, ml_importacion_cuentas.py, cierres_conciliacion_mp.py, certificacion_integral_mp.py, legajo_rendicion_mp.py, conciliacion_offline_tesoreria.py y control_liquidez_tesoreria.py.
+No se alteran los campos ml_* ni domain.estados/app.py: el dato financiero se vincula al pedido, sin dirigir su estado operativo.
+
+### Contrato propuesto para B2B dentro de Rentabilidad
+
+Guardar por cuenta/publicación/variante y versión: tipo de tabla (legado absoluto, porcentaje, neto fuera de alcance MLA), fuente, sitio/moneda, fecha, elegibilidad desconocida/confirmada/no disponible, tramos y contexto de comprador. El dato no disponible se conserva como tal; no activar business desde Fierro ni crear una cuenta alternativa.
+Guardar snapshot de la orden sin inferir mayorista por tener CUIT o por comprar varias unidades. Marcas/contexto de ML, cantidad adquirida, unidad comercial, price_id y evidencia de tabla aplicable permiten explicar la clasificación. Precio cobrado de la orden tiene prioridad para el hecho histórico; no recalcular una venta pasada con la tabla actual.
+No confundir pack de carrito con producto comercial vendido como pack. Un SKU que representa diez unidades físicas cuenta como una unidad comercial al aplicar la tabla de esa publicación, salvo contrato explícito distinto. Registrar factor físico para costeo/embalaje, sin multiplicar cantidad financiera dos veces.
+Para cada tramo propuesto, calcular importe y margen por unidad y por operación, envío compartido, embalaje incremental, descuento vigente y costo histórico. Marcar ahorro logístico como cotizado o observado según evidencia; una estimación ML de ganancia no equivale al resultado Fierro después de producto/embalaje/cargos/impuestos.
+La revisión de precio mayorista debe evaluar combinación con promociones y cambios del precio base, y mostrar rango que incumpla el margen mínimo interno. No aplicar cambios a ML en esta etapa, aun cuando la recomendación parezca rentable.
+No convertir automáticamente una lista interna mayorista, ni un transporte Vía Cargo, en venta B2B de Mercado Libre.
+
+### Centralización propuesta: un expediente conectado, sin duplicar maestros
+
+Objetivo de producto: desde una publicación o venta, recorrer su ficha/SKU y costo, precio minorista/mayorista, operación, envío, cobros, cargos y conciliación de MP con evidencia compartida. Cada módulo conserva su responsabilidad y los accesos navegan al mismo registro.
+La pantalla nueva se apoya en Comercial; conciliación y control MP siguen vinculados a Administración/Tesorería y a las rutas ya existentes. Resolver menú y enlaces durante implementación sin duplicar pantallas por cada acceso.
+
+| Proceso | Qué centralizar en Fierro | Base a reutilizar / dato adicional | Límite |
+| --- | --- | --- | --- |
+| Publicación | Estado, contenido, variantes, ficha e imágenes, diferencias, precio vigente y contexto B2B. Borradores de cambios revisables. | Catálogo/ficha, mapeos, observaciones y cola/propuestas comerciales existentes. | Lectura/contexto primero. Aplicar contenido/precio/pausa/stock requiere futura habilitación y validaciones por tipo de publicación; no promesa de edición universal. |
+| Precio/costo | Costo histórico y actual separados, margen por tramo, cargos previstos/observados y explicación del cambio. | Costos versionados, listas, reglas, simulador y conciliación. | No crear segundo motor ni reemplazar rentabilidad real por precio sugerido. |
+| Venta | Orden/líneas, pack, variantes, cantidad y contexto B2B, cancelación/devolución. | Pedido operativo por referencia y registro económico por línea. | Mantener identidades originales; proyección logística por SKU no es fuente de importes de todas las líneas. |
+| Envío | Modalidad, bultos/datos disponibles, etiquetas, seguimiento, incidencias, costo cotizado/cobrado y responsable. | Integración de etiquetas y logística existente; shipments/costos y transportes propios según permisos. | Full no se activa; no equiparar ME2, Acordás y transporte externo. Datos ausentes no se completan por suposición. |
+| Cobro | Pagos asociados, estado, devoluciones/contracargos y vínculos con orden/documentos. | Movimiento/venta observados, reportes autorizados y adaptador MP a verificar. | Pago aprobado, dinero liberado, saldo disponible y transferencia bancaria son hechos distintos. |
+| Liquidación | Esperado frente a cargos/neto observado, fecha de liberación, notas de crédito y gastos tardíos. | Conciliación/cierres/legajo existentes y detalle de facturación ML. | Cargo y neto relacionados no impactan dos veces; reabrir revisión por nueva evidencia sin borrar el cierre anterior. |
+| Cuenta MP | Reportes por cuenta/moneda/período; créditos, débitos, retiros, saldos documentados y partidas sin venta. | Adaptar importación actual por formato de reporte y enlazar con Tesorería offline. | Hace falta representación de movimientos de cuenta sin venta; no forzar el modelo actual ni escribir retiros reales. |
+| Control | Excepciones, fuentes vencidas/faltantes, pendientes de vincular, diferencias y exportación. | Notificaciones, auditoría, cierres y controles compartidos. | No banners permanentes ni conciliación automática por importe/fecha solamente. |
+
+Identidad transversal propuesta: organización + vínculo/cuenta externa + sitio; unidad asignada por vínculo validado; publicación + variante/unidad comercial; order_id + línea; pack_id; shipment_id; payment_id; movimiento/documento externo. IDs externos como texto, preservando valores alfanuméricos; nunca acoplarlos a un entero de 32 bits.
+Una billetera MP puede contener actividad de varios canales/unidades. Conciliar saldo por cuenta real y luego asignar operaciones a la unidad correspondiente, con pendientes explícitos cuando no haya correspondencia. No copiar el mismo saldo total de cuenta en cada unidad y luego sumarlo.
+Las referencias externas no se interpretan todas como order_id; una referencia de envío o retiro requiere su propio vínculo. El código de cuenta interno no sustituye validar dueño/seller/collector.
+Capa de evidencia original sanitizada y versionada → normalización y clasificación → resultado/conciliación → presentación y propuestas. Evitar una segunda fuente de verdad y conservar exportaciones/huellas.
+Para futura lectura conectada: adaptador central ML/MP, permisos verificables por cuenta/recurso, límites de consulta, paginación y reintentos acotados; evento como aviso seguido de lectura del recurso autorizado, no verdad financiera por sí solo. Jobs grandes fuera del request de pantalla, sin nuevos schedulers paralelos.
+Para futura escritura conectada: vista previa del cambio exacto, revisión, comprobación de que la fuente no cambió, registro idempotente, resultado y auditoría. No activar nuevas suscripciones, publicaciones, reembolsos, retiros ni emisión fiscal por registrar este plan.
+
+### MP: recursos documentados y frontera del control de cuenta
+
+- MP publica reportes de Liquidaciones/Liberaciones, Dinero en cuenta y Actividades. Cubren perspectivas distintas; no se concatenan como si cada fila fuera otro cobro.
+- Dinero en cuenta utiliza la familia /v1/account/settlement_report. Su API permite solicitar generación asíncrona, listar y descargar archivos. Release report utiliza /v1/account/release_report para la perspectiva de liberaciones; conservar tipo de reporte y versión de columnas al importar.
+- El recurso de listado/descarga no garantiza que todos los campos necesarios hayan sido configurados ni que el reporte abarque toda la cuenta. Antes de interpretar saldo, comprobar período, moneda, alcance, filas de saldo y configuración.
+- En reportes pueden aparecer referencias de orden/envío/operación y tipos como retiro o contracargo. Guardar identificadores y vínculo de origen, sin tratarlos como nuevas ventas. Fechas de movimiento, venta y liberación requieren ejes separados.
+- Pagos específicos y búsquedas (/v1/payments/{id}, /v1/payments/search) son recursos candidatos, sujetos a autorización de esa cuenta/producto. No se acredita que la credencial ML actual permita acceder a toda la cuenta MP ni al historial completo.
+- No se ha verificado un endpoint de saldo universal para Fierro. Saldo disponible/retenido/a liberar deben mostrarse solo si existe fuente que cubra cada concepto, con corte y origen. Si solo hay movimientos parciales, mostrar saldo calculado parcial y diferencia, no saldo bancario confirmado.
+- Generar un reporte o configurar su periodicidad requiere llamadas externas, algunas POST. No se ejecutan en laboratorio ni se etiquetan como lectura sin efecto por no mover dinero. Inicialmente se ensaya con archivos sintéticos.
+
+Control de consistencia propuesto para una misma cuenta/moneda/alcance/período: saldo inicial documentado + créditos que afectan ese saldo − débitos que afectan ese saldo = saldo final documentado. No sumar venta + liquidación + liberación del mismo ingreso como tres entradas; no sumar saldos de distinto alcance (disponible y total) como cuentas independientes.
+Separar: dinero pendiente de liberación, dinero disponible documentado, reservas/bloqueos documentados, retiros y transferencias, cargos/impuestos, partidas no clasificadas. Ausencia de fuente => no disponible.
+Movimientos sin referencia comercial se admiten en la futura capa de cuenta sin crear una venta ficticia; adaptaciones de esquema tienen su revisión y migración, sin levantar las barreras offline de Tesorería.
+Importación: conservar tipo/período/cuenta/archivo/huella; reimportación exacta idempotente; solapamientos entre reportes se vinculan por hecho económico y fuente, no solo por payment_id (un pago puede tener cargos, devolución y liberación distintos). No borrar hechos tardíos para igualar saldos.
+El lector de extractos actual reconoce un conjunto de encabezados y normaliza a liquidacion_neta; no debe aceptar silenciosamente un reporte de cuenta completo que requiera tipos y referencias diferentes.
+
+Referencias oficiales MP:
+- Tipos de reporte: https://www.mercadopago.com.ar/developers/es/docs/reports/introduction
+- Generación/listado/descarga de Dinero en cuenta: https://www.mercadopago.com.ar/developers/es/reference/settlements-report/create-report/post ; https://www.mercadopago.com.ar/developers/es/reference/settlements-report/query-report/get ; https://www.mercadopago.com.ar/developers/es/reference/settlements-report/download-report/get
+- Liberaciones y campos: https://www.mercadopago.com.ar/developers/es/docs/reports/released-money/api ; https://www.mercadopago.com.ar/developers/es/docs/links-and-debts/additional-content/reports/released-money/report-use
+- Tipos de movimientos de cuenta: https://www.mercadopago.com.ar/developers/es/docs/mp-point/resources/reports/account-money/how-to-use
+- Pagos: https://www.mercadopago.com.ar/developers/es/docs/subscriptions/additional-content/payment-management
+- Etiquetas ME2: https://developers.mercadolibre.com.ar/es_ar/es_ar/mercadoenvios-modo-2
+- Notificaciones: https://developers.mercadolibre.com.ar/api-docs/productos-recibe-notificaciones
+Nuevas funciones conectadas se revalidan contra documentación y permisos al implementarlas; documentos de otros productos/sites no acreditan cobertura específica de Fierro.
+La documentación reciente señala cambios en shipments (header y referencias retiradas) y ME1 V2; revisar únicamente consumidores aplicables antes de ampliar, sin modificar el flujo estable por anticipado.
+
+### Priorización dentro de la construcción actual
+
+1. PML-0: cerrar contrato económico, identidad de líneas/pack/cuenta y ensayos de rentabilidad offline. Incorporar clasificación B2B, tramos y formatos MP como entradas del contrato.
+2. PML-1A: rentabilidad prevista/observada por venta y publicación, minorista y mayorista donde haya evidencia; costo histórico, embalaje, envío/cargos y estado de completitud.
+3. PML-1B: extender el control MP existente a reportes de cuenta y liberaciones, enlazando cierres/Tesorería sin convertir proyecciones en operaciones reales. Filtros B2B/B2C/no determinado y detalle de diferencias.
+4. PML-2/3/4: revisión de publicaciones, competencia e IA conservan el orden y condiciones anteriores. La ficha única y el estado financiero se navegan desde el mismo expediente.
+5. Operación conectada futura: validar accesos de lectura de cuentas ya autorizadas en una etapa separada, después de aprobar offline. Gestión externa de contenido, precios por cantidad, promociones o stock se habilita por función, no por encender todo el canal. No incluye operar dinero ni habilitar Full automáticamente.
+
+El objetivo no es reproducir todas las pantallas de ML/MP, sino resolver en Fierro la mayor parte del trabajo cotidiano con trazabilidad y enlaces al origen para excepciones. Criterio de cobertura por tarea: disponible con evidencia, parcial, requiere gestión externa o no habilitada; no prometer centralización del 100%.
+
+### Casos adicionales de UAT a implementar (no ejecutados)
+
+| Caso | Resultado exigido |
+| --- | --- |
+| PML-UAT-13 | Cuenta/publicación sin elegibilidad B2B o permiso desconocido: estado no disponible/pendiente, sin activación ni tabla mayorista ficticia. |
+| PML-UAT-14 | Tramos B2B y precio vigente que cambia por promoción/base: simular límites inferior/exacto/superior, mantener versión y margen por tramo; descuento compuesto, no suma automática de porcentajes. |
+| PML-UAT-15 | Una unidad comercial tipo pack frente a varias unidades de una publicación: cantidad comercial y costo físico correctos; no aplicar tramos sobre número físico inferido. |
+| PML-UAT-16 | Beneficio de envío/cargo fijo no acreditado: no asumir ahorro ni cargo cero. Recomendación ML contrastada con costo/embalaje propios. |
+| PML-UAT-17 | Snapshot legado de precios absolutos y tabla porcentual: lectura histórica explicada, no escritura nueva por endpoint obsoleto. Rechazar funciones exclusivas de otro site y no tratar B2C restringido como B2B general. |
+| PML-UAT-18 | Misma operación en venta, facturación, extracto y liberación: cada hecho impacta una sola vez en su dimensión; cargos/devolución/liberación del mismo pago siguen como eventos distintos. |
+| PML-UAT-19 | Retiro o transferencia sin venta: clasificar movimiento de cuenta sin forzar VentaCanalItem; no alterar rentabilidad del producto por retirar dinero. |
+| PML-UAT-20 | Saldo inicial/final y créditos/débitos por período: ecuación consistente o diferencia visible; distinguir saldo total de disponible y de proyección de Tesorería. |
+| PML-UAT-21 | Reportes solapados, evento tardío, archivo incompleto, moneda distinta o referencia alfanumérica: no duplicar, conservar corte/versiones, no marcar cobertura total. |
+| PML-UAT-22 | Billetera con varias unidades/canales: saldo de cuenta contado una sola vez; asignación comercial validada, pendientes sin asignación y sin mezclar tenants. |
+| PML-UAT-23 | Día argentino con cambio de fecha UTC: filtros y totales correctos según eje venta/movimiento/liberación; mostrar zona local conservando instante original. |
+| PML-UAT-24 | Generación de reporte, cambio de PxQ y actualización externa simulados: barreras de red intactas; no crear jobs, conexiones, cobros, retiros, publicaciones ni efectos durante el UAT. |
+
+Se conservan PML-UAT-01 a 12 y todos los pendientes previos. Este bloque no declara implementado ni aprobado ninguno de los casos nuevos.
