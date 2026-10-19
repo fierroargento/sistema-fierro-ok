@@ -696,3 +696,25 @@ Integración al plan vigente:
 - Reutilizar los mecanismos existentes de notificaciones y control/conciliación, auditando antes su encaje; evitar otro centro paralelo. Prever agrupación por publicación/cuenta, deduplicación y actualización/resolución al cambiar la evidencia, sin avisos persistentes invasivos.
 - Umbrales, tolerancias y frecuencia aún por definir/validar; no inventar un porcentaje global. Mantener visible el acceso al desglose para revisar causas.
 - Ningún ajuste automático de precio, pausa de publicación ni conexión/notificación externa se autoriza por este requisito. La futura activación sobre cuentas reales requiere su etapa de integración/UAT.
+
+
+### REGLA INSALVABLE — precio mínimo para alcanzar el neto definido en Fierro
+
+Confirmada expresamente por Martín el 19/10/2026. Es requisito obligatorio de diseño, implementación y UAT; prevalece sobre ejemplos de recargo o margen que pudieran interpretarse como su sustituto.
+
+**El precio a publicar debe ser el menor precio admisible que produzca un neto a percibir mayor o igual al mínimo definido en Fierro para el alcance de esa publicación/operación. No se permite aprobar ni presentar como válido un precio cuyo neto previsto quede por debajo de ese mínimo.**
+
+Definiciones y cálculo:
+- El mínimo a percibir es el valor definido en el sistema. No se reemplaza por un porcentaje arbitrario, un recargo sobre costo, el precio de un competidor ni el saldo disponible en Mercado Pago.
+- La composición de ese mínimo debe quedar explícita: si ya incorpora costo del producto, embalaje u otros componentes, no volver a deducirlos. El neto y el mínimo se comparan con igual moneda, cantidad, alcance y tratamiento de gastos.
+- Las comisiones y cargos variables dependen del precio final. Reutilizar el motor vigente y evaluar precios candidatos recalculando todos los cargos/gastos que correspondan a cada candidato, incluidos cargos fijos, envío a cargo del vendedor, descuentos/promociones asumidos por el vendedor, cambios de tramo y redondeos.
+- Buscar el menor precio admisible que satisface neto(precio) >= mínimo_a_percibir. No aplicar un colchón arbitrario que encarezca de más ni suponer una función continua/monótona al cruzar tramos sin validarlo. La estrategia de búsqueda debe contemplar esos cortes y la precisión/paso permitido del precio.
+- Verificar nuevamente el precio final y su desglose con los mismos criterios de cargos y redondeo. La aproximación no puede justificar un neto inferior al mínimo; el candidato inmediatamente inferior admisible debe incumplir o existir evidencia equivalente de minimalidad en los tramos evaluados.
+- Si el precio mínimo viable resulta poco competitivo, mostrar el conflicto para decisión comercial. No bajar silenciosamente el mínimo ni publicar por debajo para acompañar el mercado.
+- Si faltan costos/cargos, vigencia o cobertura, mostrar estimación pendiente de validar y bloquear su aprobación como precio que cumple el mínimo. No llamar asegurado a un cálculo con fuentes incompletas.
+- El cumplimiento calculado corresponde al alcance y datos vigentes utilizados; no garantiza que una liquidación futura carezca de ajustes. Las alertas posteriores contrastan lo previsto con lo efectivamente percibido y detectan desvíos, sin sustituir esta validación previa.
+- Persistir/reproducir, cuando corresponda esa etapa, mínimo aplicado, precio final, cargos incluidos, fuentes/vigencia y versión del cálculo para explicar la decisión. Los ensayos actuales siguen transitorios y desconectados.
+
+Criterios obligatorios de aceptación futura: igualdad exacta del neto mínimo; candidato inferior que no cumple; redondeo al centavo/paso permitido sin quedar por debajo; límites y saltos de tramos; gastos incluidos una sola vez; faltantes que impiden declarar cumplimiento; precio viable fuera de mercado sin rebajar el mínimo; conservación de la previsión histórica para contraste posterior.
+
+Estado: regla registrada, pendiente completar su implementación y UAT en el cálculo de precio objetivo reutilizando lo existente. No se declara resuelta por el simulador de recargo ni por los ejemplos de rentabilidad. Este registro no modifica producción ni habilita publicaciones, cambios de precio o conexiones externas.
