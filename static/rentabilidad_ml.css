@@ -16,3 +16,5 @@
 
 /* El destino del salto conserva el foco; los controles mantienen su indicador de teclado. */
 .profitability-page #resultado:focus{outline:none}
+
+.profitability-page .profitability-source-hash{overflow-wrap:anywhere}

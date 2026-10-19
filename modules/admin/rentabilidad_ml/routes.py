@@ -8,6 +8,7 @@ from flask import Blueprint, abort, redirect, render_template, request, send_fil
 from services.escenarios_rentabilidad_ml import CUENTA_ENSAYO, ESCENARIOS, escenario_rentabilidad
 from services.rentabilidad_ml_offline import analizar_rentabilidad
 from services.archivo_rentabilidad_ml import MAX_ARCHIVO_BYTES, analizar_archivo
+from services.ejemplo_snapshot_ml_rentabilidad import ejemplo_snapshot_ml
 from werkzeug.exceptions import RequestEntityTooLarge
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
@@ -50,6 +51,9 @@ def crear_blueprint_rentabilidad_ml(*, dependencias):
         if not isinstance(contexto, tuple):
             return contexto
         membresia, unidad = contexto
+        if request.args.get("descargar_snapshot_ml") == "1":
+            return exportacion(ejemplo_snapshot_ml(organizacion_id=membresia.organizacion_id,
+                unidad_negocio_id=unidad.id), "rentabilidad_ml_snapshot_pack_demo.json")
         clave = request.args.get("caso", "simple")
         resultado = meta = None
         error = None
@@ -91,7 +95,7 @@ def crear_blueprint_rentabilidad_ml(*, dependencias):
             entrada, resultado = analizar_archivo(request.stream.read(MAX_ARCHIVO_BYTES + 1),
                 organizacion_id=membresia.organizacion_id, unidad_negocio_id=unidad.id,
                 cuenta_codigo=CUENTA_ENSAYO)
-            meta = {"nombre": "Archivo offline", "descripcion": resultado["referencia_venta"],
+            meta = {"nombre": "Snapshot ML offline" if entrada.get("trazabilidad_ml") else "Archivo offline", "descripcion": resultado["referencia_venta"],
                 "contexto": "Datos declarados; fuente no verificada con ML/MP",
                 "precio_objetivo_centavos": None, "criterio_objetivo": None}
             evidencia = {"entrada": entrada, "resultado": resultado, "escenario": meta}
@@ -103,6 +107,7 @@ def crear_blueprint_rentabilidad_ml(*, dependencias):
             estado_http = 413
         return render_template("admin_rentabilidad_ml.html", unidad_activa=unidad,
             escenarios=ESCENARIOS, clave="simple", resultado=resultado, meta=meta,
-            error=error, desde_archivo=True, evidencia_archivo=evidencia), estado_http
+            error=error, desde_archivo=True, evidencia_archivo=evidencia,
+            trazabilidad_ml=entrada.get("trazabilidad_ml") if evidencia else None), estado_http
 
     return bp

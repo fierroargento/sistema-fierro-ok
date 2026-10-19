@@ -558,3 +558,55 @@ Próximo UAT en staging tras deploy:
 2. Seleccionar el archivo ya disponible rentabilidad_ml_ensayo_simple.json y tocar Analizar archivo. Debe mostrar $3.200, 32,00% y liquidación $7.500; título Archivo offline y aviso de datos declarados.
 3. Abrir/cerrar Ver detalle y descargar evidencia recalculada para verificarla. No hace falta reconstruir ni editar el JSON de prueba.
 4. Comprobar Cancelar antes del envío: restablece el selector y cierra el formulario sin registrar operaciones. Rechazos técnicos ya cubiertos localmente; los avisos y descarga requieren revisión real de navegador.
+
+### PML-0B validado en UAT y PML-0C: lectura de snapshots ML — 19/10/2026
+
+Cierre acotado de PML-0B:
+- Captura image(20261019-131755).png: archivo DEMO-SIMPLE analizado, $3.200, margen 32,00%, neto $7.500 y etiquetas de datos declarados.
+- rentabilidad_ml_archivo_recalculado.json aportado: entrada y resultado idénticos a rentabilidad_ml_ensayo_simple.json. Ambas huellas canónicas válidas; huella del resultado a73b5b14138eca5227347c92976bb79189f25eed31a48de26ef3c717579a95ef. Cambian solo metadatos de presentación, sin precio objetivo importado.
+- Cancelar antes del envío: el usuario confirmó el comportamiento solicitado (cierre y selección limpia, resultado previo conservado). No acredita por sí solo todas las carreras de red o teclas del navegador.
+- Captura image(20261019-132107).png: DEMO-FALTANTES conserva $3.200 identificados como parciales; aviso amarillo y publicidad pendiente. No se recibió otra exportación de este caso por la carga nueva.
+
+Base de PML-0C: ee2792e6ac66db74ac091455bcf18a552cdec681.
+Auditoría de reutilización:
+- Se reutiliza adaptar_fixture de services/adaptadores_offline_canales.py para las líneas de venta, luego de exigir cantidad/precio/moneda válidos. No se usa el normalizador legado de comisiones de publicación ni sus ceros por ausencia.
+- El lector operativo ml_pack_items agrupa por SKU y filtra estados; se conserva intacto y no se usa para reconstruir historia financiera. Importación de conciliación escribe registros y consulta costos vigentes: tampoco se llama en este circuito transitorio.
+- Resultado y conciliación siguen siendo los existentes; no se crean catálogo, maestro de publicaciones, motor de precios ni libro MP paralelos.
+
+Contrato de archivo nuevo (envoltorio propio, no respuesta literal de un endpoint):
+- formato = ml_rentabilidad_offline_v1; organización/unidad/cuenta y fecha_corte; seller_id declarado.
+- pack opcional con id y orders; ordenes contiene respuestas con id, status, seller, contexto MLA, moneda ARS, date_created y order_items; shipping.id identifica alcance si está disponible.
+- publicaciones contiene snapshots por id/vendedor/moneda, con título solo referencial. Su precio actual no sustituye unit_price histórico ni se utiliza para margen.
+- datos_locales enlaza costo_snapshot y previsión por order_id + posición original (referencia_linea desde 1), declara cobertura, gastos previstos, hechos complementarios y cargos_ml_incluidos_en_neto (booleano obligatorio). El archivo original y esa posición deben conservarse; reordenamientos de order_items requieren otra revisión.
+- costos_envio reúne shipment_id, fecha y respuesta del recurso de costos. Se toma únicamente el costo del vendedor declarado, una vez por envío y con sus líneas; receiver.cost y gross_amount no se imputan al vendedor.
+- Los cobros/netos y gastos complementarios siguen entrando como hechos normalizados existentes. No se adapta todavía una respuesta cruda de MP ni facturación de cargos finales. paid_amount/payments de orden no generan neto ni acreditan disponibilidad.
+- Se rechaza un hecho complementario de comisión/envío que intentaría duplicar lo extraído de esos snapshots. La relación con el neto se declara expresamente y las diferencias siguen visibles en conciliación.
+
+Implementación y límites:
+- services/lectura_ml_rentabilidad.py traduce a contrato v1, conservando orden, posición, publicación, variante, SKU, cantidad y precio. Se valida manifiesto completo sin órdenes repetidas/ajenas, vendedor, sitio y moneda declarados. No acredita propiedad ni autenticidad externa.
+- Solo status paid; canceladas/invalid/devoluciones no se omiten silenciosamente, se rechazan para revisión. El contrato normalizado anterior conserva sus casos de devolución; la traducción de estados ML restantes sigue pendiente.
+- sale_fee se interpreta por unidad. Ausencia queda pendiente; cero explícito se conserva. Importes negativos/no finitos/fuera de rango o con fracción de centavo no se redondean para aceptar datos inválidos.
+- Si hay indicios de descuento en discounts/gross_price, se marca descuentos pendiente sin volver a restarlos del precio efectivo. Cofinanciación, compensaciones y detalle de promociones requieren etapa adicional.
+- Sin costo histórico se conserva no_calculable. Sin costo de envío/fee/cobro se conserva parcial. Los costos/previsiones locales son declarados y no se reemplazan por el costo o regla actual de DB.
+- Trazabilidad en entrada: huella canónica del snapshot declarado, vendedor, pack, clasificación B2B/no determinado por orden y publicaciones referenciales. No se exportan compradores, direcciones, pagos crudos ni credenciales a la entrada normalizada. La huella no es firma ni prueba de titularidad.
+- B2B solo indica contexto/tags declarados. No acredita elegibilidad, tramos ni precios por cantidad; ausencia de b2b se muestra no determinado, no B2C por defecto.
+- El mismo formulario acepta ambos contratos y exportaciones previas. Se incorpora Descargar ejemplo ML · Pack de cuatro órdenes, generado en contexto activo por GET; no requiere confeccionar archivos ni ZIP.
+- Resultado usa la misma vista/modales, con origen y alcance ML plegados y huella que ajusta al ancho. Cuenta sigue limitada a demo-rentabilidad-sin-conexion; mismo límite de 2 MB, CSRF, memoria transitoria, no-store y sin persistencia.
+- El ejemplo reutiliza los datos del pack ya aprobado: 4 órdenes, 5 unidades, ingreso $54.000, comisión $8.100, envío $4.000, embalaje $1.500, costo $20.000; resultado $20.400, margen 37,78%, neto $41.900. price actual de publicación $99.999 y receiver.cost $9.999 son deliberadamente distintos y no se usan en ese cálculo.
+
+Verificación final: 135 pruebas focalizadas aprobadas (97 previas y 38 casos nuevos parametrizados). Incluyen cuatro órdenes/SKU repetido/precios distintos, varias líneas y variantes, alcance de dos envíos, fee por unidad, importes extremos, faltantes y ceros, contexto/moneda/estado/vendedor ajenos, coherencia del manifiesto, descuentos pendientes, relación con neto, relectura de exportación normalizada sin reaplicar cargos, GET de ejemplo y POST de archivo/render/rechazo. Compilación Python aprobada. No se realizó inspección visual de navegador ni prueba con API/DB reales para esta traducción.
+
+Documentación oficial consultada 19/10/2026 para los campos y sus límites:
+- Órdenes: https://developers.mercadolibre.com.ar/es_ar/metricas/gestiona-ventas
+- Tarifa por unidad y separación de orden/pack/envío: https://developers.mercadolibre.com.ar/es_ar/envio/provisiones
+- Costos por usuario en senders y receiver: https://developers.mercadolibre.com.ar/es_ar/envios
+La consulta de documentación no llamó a cuentas ML/MP ni habilitó conexiones. Cambios de formatos/permisos conectados se revalidan antes de su futura implementación.
+
+Pendientes conservados: lectura de cuentas reales/autenticación externa, vínculo de envíos que no venga en la orden, normalización de facturación final ML, pagos/reportes/cuenta MP completos, elegibilidad/tramos/promociones cofinanciadas, resto de estados de orden y conciliación de devoluciones ML. Se mantienen PML-UAT-01 a 24 y pendientes de otros módulos; este lector no los declara resueltos.
+Sin modificaciones de app.py, modelos, migraciones, estados operativos, sincronizador de packs, scheduler, webhooks, flags, credenciales, permisos externos ni producción.
+
+Próximo UAT tras deploy de integración:
+1. Comercial → Rentabilidad ML · Ensayo offline → Analizar un archivo offline.
+2. Descargar ejemplo ML · Pack de cuatro órdenes. Seleccionar ese rentabilidad_ml_snapshot_pack_demo.json en el mismo formulario y Analizar archivo.
+3. Verificar Snapshot ML offline, cuatro filas/cinco unidades, $20.400, 37,78% y neto $41.900; abrir Ver detalle y Origen y alcance del archivo ML.
+4. Descargar evidencia recalculada para comprobar huellas, fuentes y envío único. No se repiten las siete pruebas anteriores ni se usan datos reales.

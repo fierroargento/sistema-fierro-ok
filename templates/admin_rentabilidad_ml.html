@@ -2,7 +2,7 @@
 {% block title %}Rentabilidad ML · Ensayo offline{% endblock %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='produccion.css', v='20261018-rentabilidad') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='rentabilidad_ml.css', v='20261019-1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='rentabilidad_ml.css', v='20261019-ml-1') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='produccion.js', v='20261018-rentabilidad') }}" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='rentabilidad_ml.js', v='20261019-archivo-1') }}" defer></script>
 {% endblock %}
@@ -20,7 +20,8 @@
   <section class="comercial-section">
     <details class="production-lot-create" {% if desde_archivo and error %}open{% endif %}>
       <summary>Analizar un archivo offline</summary>
-      <p>JSON del ensayo descargado o contrato normalizado v1, hasta 2 MB. Solo cuenta ficticia <strong>demo-rentabilidad-sin-conexion</strong>, organización y unidad activas. No admite respuestas crudas de ML/MP ni acredita que los datos declarados sean reales.</p>
+      <p>Archivo del ensayo o paquete offline de Mercado Libre, hasta 2 MB. Solo cuenta ficticia <strong>demo-rentabilidad-sin-conexion</strong>, organización y unidad activas. El paquete ML requiere órdenes, publicaciones y datos locales vinculados; no admite respuestas sueltas ni acredita autenticidad externa.</p>
+      <p><a class="secondary-link" href="{{ url_for('admin_rentabilidad_ml.panel', descargar_snapshot_ml='1') }}">Descargar ejemplo ML · Pack de cuatro órdenes</a></p>
       <form class="comercial-form" method="post" action="{{ url_for('admin_rentabilidad_ml.archivo') }}" data-profitability-upload>
         <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}">
         <label class="production-field-wide"><span>Archivo JSON</span><input type="file" name="archivo" accept=".json,application/json" required></label>
@@ -60,6 +61,14 @@
     <p>Cuenta simulada · no se verifica elegibilidad B2B, no se aplican precios en ML y no se generan cobros, liquidaciones ni movimientos.</p>
   </section>
   {% else %}<p>Seleccioná un ejemplo y pulsá Analizar ejemplo para ver el desglose.</p>{% endif %}
+  {% if trazabilidad_ml %}
+  <section class="comercial-section"><details class="production-lot-create"><summary>Origen y alcance del archivo ML</summary>
+    <p>Vendedor declarado: {{ trazabilidad_ml.seller_declarado }} · Pack: {{ trazabilidad_ml.pack_id or 'Orden individual' }}.</p>
+    <ul>{% for aviso in trazabilidad_ml.advertencias %}<li>{{ aviso }}</li>{% endfor %}</ul>
+    <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Orden</th><th>Contexto declarado</th></tr></thead><tbody>{% for orden in trazabilidad_ml.ordenes %}<tr><td>{{ orden.order_id }}</td><td>{{ 'B2B (sin verificar elegibilidad)' if orden.tipo == 'b2b' else 'No determinado' }}</td></tr>{% endfor %}</tbody></table></div>
+    <p class="table-subline profitability-source-hash">Huella del snapshot original: {{ trazabilidad_ml.huella_snapshot }}</p>
+  </details></section>
+  {% endif %}
   {% if evidencia_archivo %}<script type="application/json" id="evidencia-archivo" nonce="{{ csp_nonce }}">{{ evidencia_archivo|tojson }}</script>{% endif %}
 </main>
 {% endblock %}
