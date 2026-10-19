@@ -1340,3 +1340,35 @@ Deploy/UAT pendiente:
 3. Base de Datos → Productos → Gestionar UAT-MAESTRO-001: actualmente No stockeable. Destildarlo, marcar Permitir stock negativo, guardar/confirmar y reabrir; verificar persistencia sin cambiar tipo ni cuatro usos.
 4. Sin guardar, marcar No stockeable: la nueva casilla debe quedar desmarcada/deshabilitada. Cancelar y reabrir debe conservar la configuración guardada del paso anterior.
 5. Movimientos con saldo insuficiente y regularización: pendientes de UAT en un inventario ficticio aislado; no ejecutar sobre existencias reales. No importar todavía la planilla real.
+
+
+## 2026-10-19 — Combo completo desde el maestro de Productos
+
+Corrección solicitada por Martín:
+- El paso de UAT propuesto creaba primero un Combo sin elegir componentes. Martín rechazó ese flujo: el alta debe permitir elegir productos y cantidades, y no debe guardar un combo vacío.
+- Se reemplaza esa instrucción. No se da por creado ni validado UAT-COMBO-001 por la respuesta anterior.
+
+Implementación:
+- Al seleccionar Combo, Nuevo/Gestionar muestra una sección de productos componentes con selector de SKU/nombre/unidad, cantidad y Quitar; botón Agregar componente. Se exige al menos una fila completa con cantidad positiva, finita, con hasta seis decimales y dentro del rango Numeric(18,6).
+- Se ofrecen productos del tenant con ficha activa, Simple/De producción y Componente de combo habilitado. El servidor vuelve a comprobar identidad, tipo, uso, actividad y cantidades; no confía en las opciones del navegador. Rechaza duplicados, autorreferencia, otro combo, SKU inexistente/ambiguo y registros de otra organización.
+- Reutiliza PerfilCosteoProducto y ComboProductoComponente, con los servicios existentes de Costos en modo sin commit intermedio. No crea otra tabla de recetas ni otra identidad para los componentes.
+- El ámbito predeterminado es General. Si se elige una unidad de negocio del tenant se usa su perfil; los perfiles y composiciones de otras unidades se preservan. Solo se guarda la composición del ámbito seleccionado; la interfaz lo aclara.
+- Reutiliza perfiles existentes sin cambiar su observación ni actividad. Crea los perfiles necesarios del combo/componentes cuando faltan en el ámbito elegido; no copia costos, rendimientos, operaciones ni recetas entre unidades.
+- Producto, ficha, perfiles y componentes se guardan en una transacción. Validaciones principales antes del alta; cualquier fallo posterior revierte todo desde la ruta o el lote. Cancelar continúa sin POST y sin altas.
+- Gestionar precarga la receta existente del ámbito elegido; cambiar cantidades o quitar filas actualiza esas mismas relaciones. No permite guardar la última fila eliminada. Las observaciones de componentes conservados no se borran.
+- La huella del maestro incluye las composiciones por ámbito, también al configurar una ficha antigua: una modificación previa desde Costos invalida un formulario abierto. Lectura agrupada de perfiles/líneas para la lista, sin una consulta por cada producto.
+- Importación del maestro: columna componentes_combo con formato SKU=2|OTRO-SKU=1 y unidad_combo_id opcional. Un alta Combo sin composición es rechazada en vista previa y en confirmación. Los componentes deben existir previamente; no se crean dependencias desde otras filas del mismo lote. En ediciones, columnas/celdas omitidas conservan el estado actual; cantidades se normalizan a seis decimales. Los cambios se muestran como SKU × cantidad y nombres de unidad, no como objetos internos.
+- Los perfiles preparatorios anteriores de Costos no se eliminan ni rellenan por inferencia. Un combo antiguo vacío debe completarse al guardar su ficha en Productos; se identifica Completar composición en la lista. No se cambia el funcionamiento de los borradores anteriores del módulo de Costos.
+
+Verificación:
+- 49 pruebas del maestro aprobadas, incluidas 13 nuevas: nueve entradas inválidas sin alta parcial, reutilización/actualización/ámbitos/huella de Costos, tenant/roles/actividad/combo anidado, lote con composición obligatoria y rollback completo, ruta real y preservación del formulario ante error inducido.
+- Cuatro casos anteriores que suponían crear un Combo vacío fueron adaptados para crearlo con componentes desde el inicio, conservando sus comprobaciones de tipos, usos y SKU propio.
+- 25 pruebas anteriores de perfiles, composición, DB/administración de productos: 74 aprobadas en conjunto, con las tres exclusiones estáticas antiguas ya documentadas. Después de los ajustes finales de presentación, 25 casos relacionados con ruta, combos y lotes aprobados.
+- Sintaxis JavaScript y compilación Python aprobadas. Render real Flask/Jinja en pruebas; sin QA visual de navegador ni ejecución PostgreSQL/Render. No se cambian inventario, canales, flags, scheduler, pagos ni producción.
+
+Deploy/UAT:
+1. Desplegar solo el nuevo commit de integración/staging. Este bloque no cambia el esquema ni necesita repetir preparación de ficha si ya está actualizado con Permitir stock negativo. Requiere las tablas de Costos ya existentes; si faltan bloquea el alta Combo.
+2. Base de Datos → Productos → Nuevo producto: SKU UAT-COMBO-001, nombre Combo de prueba, tipo Combo, unidad unidad y Disponible para venta.
+3. Debe aparecer la composición. Intentar guardar vacía debe impedir el alta con aviso visible; también se rechaza una petición sin componentes en el servidor.
+4. Agregar UAT-MAESTRO-001, cantidad 2, ámbito General; guardar/confirmar y reabrir. Debe conservar cantidad 2 y SKU propio, usando las mismas relaciones de Costos. Si ya existe ese SKU, usar Gestionar para completarlo; no recrearlo.
+5. Probar quitar la única fila: debe impedir guardar. Cancelar y reabrir conserva la composición anterior. No usar productos/existencias reales ni cargar todavía la planilla real.

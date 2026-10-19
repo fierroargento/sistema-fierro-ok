@@ -128,7 +128,8 @@ def test_tenant_sku_inmutable_y_ficha_obsoleta(entorno):
 def test_tipo_de_costeo_coherente_y_componente_no_habilitado(entorno):
     _, org, _, unidad = entorno
     preparar(db.engine)
-    p=crear(org); combo=crear(org,sku='COMBO',tipo='combo')
+    p=crear(org); base=crear(org,sku='BASE')
+    combo=crear(org,sku='COMBO',tipo='combo',componentes_combo=[{'sku':base.sku,'cantidad':'1'}],unidad_combo_id=unidad.id)
     def perfil(producto,tipo):
         return crear_o_actualizar_perfil(organizacion_id=org.id,unidad_negocio_id=unidad.id,
             producto_id=producto.id,tipo=tipo,Producto=Producto,UnidadNegocio=UnidadNegocio,
@@ -141,11 +142,11 @@ def test_tipo_de_costeo_coherente_y_componente_no_habilitado(entorno):
     cambiar(p,habilita_componente=False)
     with pytest.raises(ValueError,match='Componente de combo'):
         agregar_componente_combo(cp,simple,cantidad='1',ComboProductoComponente=ComboProductoComponente,db_session=db.session)
-    assert ComboProductoComponente.query.count()==0
+    assert ComboProductoComponente.query.count()==1
     cambiar(p,habilita_componente=True)
     agregar_componente_combo(cp,simple,cantidad='2',ComboProductoComponente=ComboProductoComponente,db_session=db.session)
     cambiar(p,habilita_componente=False)
-    assert ComboProductoComponente.query.one().cantidad == 2
+    assert ComboProductoComponente.query.filter_by(combo_perfil_id=cp.id,componente_perfil_id=simple.id).one().cantidad == 2
 
 
 def test_insumo_vinculado_no_duplica_y_respeta_compra_consumo(entorno):
@@ -441,24 +442,28 @@ def test_preparacion_actualiza_esquema_anterior_sin_perder_roles(entorno):
 def test_combo_exige_otro_sku_en_edicion_e_importacion(entorno,tipo_origen,tipo_destino):
     _,org,_,_=entorno
     preparar(db.engine)
-    p=crear(org,tipo=tipo_origen)
+    extra = {}
+    if tipo_origen == 'combo':
+        crear(org,sku='BASE')
+        extra = {'componentes_combo':[{'sku':'BASE','cantidad':'1'}]}
+    p=crear(org,tipo=tipo_origen,**extra)
     with pytest.raises(ValueError,match='SKU propios'):
         cambiar(p,tipo=tipo_destino)
     v=preview(org,[{'sku':p.sku,'tipo':tipo_destino}])
     assert v[0]['accion']=='rechazado' and 'SKU propios' in v[0]['errores'][0]
-    assert ProductoFichaMaestra.query.one().tipo==tipo_origen
+    assert ProductoFichaMaestra.query.filter_by(producto_id=p.id).one().tipo==tipo_origen
 
 
 def test_combo_y_componente_tienen_sku_diferentes_sin_duplicar_componente(entorno):
     _,org,_,unidad=entorno
     preparar(db.engine)
     simple=crear(org,sku='ART-001')
-    combo=crear(org,sku='COMBO-001',tipo='combo')
+    combo=crear(org,sku='COMBO-001',tipo='combo',componentes_combo=[{'sku':simple.sku,'cantidad':'3'}],unidad_combo_id=unidad.id)
     def perfil(p,tipo):
         return crear_o_actualizar_perfil(organizacion_id=org.id,unidad_negocio_id=unidad.id,producto_id=p.id,tipo=tipo,
             Producto=Producto,UnidadNegocio=UnidadNegocio,PerfilCosteoProducto=PerfilCosteoProducto,db_session=db.session)
     ps=perfil(simple,'simple');pc=perfil(combo,'combo')
-    agregar_componente_combo(pc,ps,cantidad='3',ComboProductoComponente=ComboProductoComponente,db_session=db.session)
+    assert ComboProductoComponente.query.filter_by(combo_perfil_id=pc.id,componente_perfil_id=ps.id).one().cantidad == 3
     assert Producto.query.count()==2
     assert pc.producto.sku=='COMBO-001' and pc.componentes_combo[0].componente.producto.sku=='ART-001'
 
@@ -573,3 +578,118 @@ def test_ruta_casilla_stock_negativo_guarda_y_reabre(entorno):
     assert respuesta.status_code == 200
     assert not ProductoFichaMaestra.query.one().permitir_stock_negativo
     assert Producto.query.count() == 1
+
+
+@pytest.mark.parametrize('componentes', [None, [], [{'sku':'BASE','cantidad':'0'}], [{'sku':'BASE','cantidad':'-1'}], [{'sku':'BASE','cantidad':'NaN'}], [{'sku':'BASE','cantidad':'0.0000001'}], [{'sku':'BASE','cantidad':'1'},{'sku':'BASE','cantidad':'2'}], [{'sku':'COMBO-NUEVO','cantidad':'1'}], [{'sku':'NO-EXISTE','cantidad':'1'}]])
+def test_combo_invalido_no_crea_producto_ficha_ni_perfiles(entorno, componentes):
+    _, org, _, _ = entorno
+    preparar(db.engine); crear(org, sku='BASE')
+    extra = {} if componentes is None else {'componentes_combo':componentes}
+    with pytest.raises(ValueError):
+        crear(org, sku='COMBO-NUEVO', tipo='combo', **extra)
+    assert Producto.query.count() == 1
+    assert ProductoFichaMaestra.query.count() == 1
+    assert PerfilCosteoProducto.query.count() == 0
+    assert ComboProductoComponente.query.count() == 0
+
+
+def test_combo_comparte_composicion_con_costos_y_preserva_otros_ambitos(entorno):
+    _, org, _, unidad = entorno
+    preparar(db.engine)
+    a=crear(org,sku='PARTE-A');b=crear(org,sku='PARTE-B',tipo='produccion')
+    c=crear(org,sku='COMBO',tipo='combo',componentes_combo=[{'sku':a.sku,'cantidad':'2'},{'sku':b.sku,'cantidad':'1.5'}])
+    general=PerfilCosteoProducto.query.filter_by(producto_id=c.id,unidad_negocio_id=None).one()
+    assert len(general.componentes_combo)==2 and PerfilCosteoProducto.query.count()==3
+    antes=ComboProductoComponente.query.filter_by(combo_perfil_id=general.id).order_by(ComboProductoComponente.id).all()
+    id_a=antes[0].id
+    cambiar(c,componentes_combo=[{'sku':a.sku,'cantidad':'4'}])
+    assert ComboProductoComponente.query.one().id==id_a
+    assert ComboProductoComponente.query.one().cantidad==4
+    cambiar(c,unidad_combo_id=unidad.id,componentes_combo=[{'sku':b.sku,'cantidad':'3'}])
+    assert ComboProductoComponente.query.count()==2
+    # General y la unidad son los perfiles originales de Costos, no otra receta.
+    _,filas=construir_filas([c],db.session,org.id)
+    assert len(filas[0]['composiciones'])==2
+    assert filas[0]['datos']['componentes_combo']==[{'sku':a.sku,'cantidad':'4.000000'}]
+    assert PerfilCosteoProducto.query.filter_by(producto_id=c.id).count()==2
+    with pytest.raises(ValueError,match='no puede quedar vacío'):
+        cambiar(c,componentes_combo=[])
+    assert ComboProductoComponente.query.count()==2
+    # Una modificación desde Costos invalida el formulario abierto del maestro.
+    abierta=filas[0]
+    linea=ComboProductoComponente.query.filter_by(combo_perfil_id=general.id).one()
+    linea.cantidad=5;db.session.commit()
+    with pytest.raises(ValueError,match='cambió'):
+        guardar_ficha(abierta['datos'],Producto=Producto,db_session=db.session,organizacion_id=org.id,
+            producto_id=c.id,huella_esperada=abierta['huella'])
+    assert linea.cantidad==5
+
+
+def test_combo_rechaza_componente_ajeno_no_habilitado_inactivo_y_otro_combo(entorno):
+    _,org,otra,_=entorno
+    preparar(db.engine)
+    a=crear(org,sku='BASE');crear(otra,sku='AJENO')
+    otro=crear(org,sku='OTRO-COMBO',tipo='combo',componentes_combo=[{'sku':a.sku,'cantidad':'1'}])
+    for sku in ('AJENO',otro.sku):
+        with pytest.raises(ValueError):
+            crear(org,sku='INVALIDO',tipo='combo',componentes_combo=[{'sku':sku,'cantidad':'1'}])
+    cambiar(a,habilita_componente=False)
+    with pytest.raises(ValueError,match='Componente de combo'):
+        crear(org,sku='INVALIDO',tipo='combo',componentes_combo=[{'sku':a.sku,'cantidad':'1'}])
+    cambiar(a,habilita_componente=True,activo=False)
+    with pytest.raises(ValueError,match='Componente de combo'):
+        crear(org,sku='INVALIDO',tipo='combo',componentes_combo=[{'sku':a.sku,'cantidad':'1'}])
+    assert Producto.query.filter_by(organizacion_id=org.id).count()==2
+
+
+def test_lote_combo_obliga_composicion_previsualiza_y_guarda_atomico(entorno):
+    _,org,_,_=entorno
+    preparar(db.engine);crear(org,sku='BASE')
+    entrada=datos(sku='COMBO-LOTE',tipo='combo')
+    v=preview(org,[entrada])
+    assert v[0]['accion']=='rechazado' and 'al menos un producto' in v[0]['errores'][0]
+    with pytest.raises(ValueError,match='filas rechazadas'):
+        aplicar(org,v)
+    assert Producto.query.count()==1
+    v=preview(org,[entrada|{'componentes_combo':'BASE=2'}]);aplicar(org,v)
+    c=Producto.query.filter_by(sku='COMBO-LOTE').one()
+    assert ComboProductoComponente.query.one().cantidad==2
+    v=preview(org,[{'sku':c.sku,'nombre':'Nombre actualizado'}]);aplicar(org,v)
+    assert ComboProductoComponente.query.count()==1
+    assert ComboProductoComponente.query.one().cantidad==2
+    v=preview(org,[{'sku':c.sku,'componentes_combo':'BASE=3'}]);aplicar(org,v)
+    assert ComboProductoComponente.query.one().cantidad==3
+    # Un fallo posterior de otra fila revierte también el combo del lote.
+    v=preview(org,[datos(sku='COMBO-ATOMIC',tipo='combo')|{'componentes_combo':'BASE=1'},datos(sku='SEGUNDO')])
+    crear(org,sku='SEGUNDO')
+    with pytest.raises(ValueError):
+        aplicar(org,v)
+    assert Producto.query.filter_by(sku='COMBO-ATOMIC').count()==0
+    assert PerfilCosteoProducto.query.filter_by(producto_id=c.id).count()==1
+    assert ComboProductoComponente.query.count()==1
+
+
+def test_ruta_combo_exige_componentes_y_restaura_datos_ante_error(entorno,monkeypatch):
+    import json
+    import services.productos_ficha_maestra as servicio
+    app,org,_,_=entorno
+    preparar(db.engine);crear(org,sku='BASE');configurar_rutas(app,org)
+    cliente=app.test_client()
+    formulario=form_datos(sku='COMBO-UI',tipo='combo')
+    respuesta=cliente.post('/admin/productos',data=formulario,follow_redirects=True)
+    assert respuesta.status_code==200 and 'Un combo no puede quedar vacío' in respuesta.text
+    assert Producto.query.count()==1
+    formulario['componentes_combo_json']=json.dumps([{'sku':'BASE','cantidad':'2'}])
+    # Falla en la misma transacción luego de insertar maestro/ficha.
+    guardar_original=servicio.guardar_composicion
+    def fallar(*args): raise ValueError('Prueba de rollback completo')
+    monkeypatch.setattr(servicio,'guardar_composicion',fallar)
+    respuesta=cliente.post('/admin/productos',data=formulario)
+    assert 'Prueba de rollback completo' in respuesta.text
+    assert Producto.query.count()==1 and ProductoFichaMaestra.query.count()==1
+    assert PerfilCosteoProducto.query.count()==0
+    monkeypatch.setattr(servicio,'guardar_composicion',guardar_original)
+    respuesta=cliente.post('/admin/productos',data=formulario,follow_redirects=True)
+    assert respuesta.status_code==200 and 'ficha guardada correctamente' in respuesta.text
+    assert Producto.query.count()==2 and ComboProductoComponente.query.one().cantidad==2
+    assert 'Productos que componen el combo' in respuesta.text and 'Agregar componente' in respuesta.text

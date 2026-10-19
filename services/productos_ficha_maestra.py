@@ -6,6 +6,7 @@ import math
 from sqlalchemy import inspect, select
 
 from services.producto_habilitaciones import CAMPOS_FICHA, TIPOS, USOS, esquema_ficha_disponible
+from services.productos_combo_maestro import normalizar_componentes, preparar_composicion, guardar_composicion, leer_composiciones
 
 CAMPOS_LOGISTICA = ("peso_gr", "alto_cm", "ancho_cm", "largo_cm", "permite_correo",
     "permite_via_cargo", "requiere_revision_logistica", "observacion_logistica")
@@ -79,22 +80,40 @@ def normalizar_ficha(datos):
         raise ValueError("La referencia de insumo no es válida.")
     else:
         salida["insumo_id"] = int(ident)
+    if "componentes_combo" in datos:
+        salida["componentes_combo"] = normalizar_componentes(datos["componentes_combo"])
+    unidad_combo = datos.get("unidad_combo_id")
+    if unidad_combo in (None, ""):
+        salida["unidad_combo_id"] = None
+    elif isinstance(unidad_combo, bool) or not str(unidad_combo).isdigit() or int(unidad_combo) <= 0:
+        raise ValueError("La unidad del combo no es válida.")
+    else:
+        salida["unidad_combo_id"] = int(unidad_combo)
     return salida
 
 
 def datos_de_formulario(formulario):
     datos = dict(formulario)
+    if datos.get("tipo") == "combo":
+        try:
+            datos["componentes_combo"] = json.loads(formulario.get("componentes_combo_json", "[]"))
+        except (ValueError, TypeError) as error:
+            raise ValueError("La composición del combo no es válida.") from error
     for campo in ("activo", "no_stockeable", "permitir_stock_negativo", "permite_correo", "permite_via_cargo", "requiere_revision_logistica") + tuple("habilita_" + uso for uso in USOS):
         datos[campo] = "1" if formulario.get(campo) == "1" else "0"
     return normalizar_ficha(datos)
 
 
-def huella(producto, ficha):
+def huella(producto, ficha, composiciones=None):
     if producto is None:
         return "nuevo"
     datos = {c: getattr(producto, c) for c in CAMPOS_BASE}
     datos["producto_id"] = producto.id
     datos["ficha"] = ({c: getattr(ficha, c) for c in CAMPOS_FICHA} | {"revision": ficha.revision}) if ficha else None
+    if (ficha and ficha.tipo == "combo") or ficha is None:
+        if composiciones is None:
+            composiciones = leer_composiciones([producto], inspect(producto).session, producto.organizacion_id).get(producto.id, [])
+        datos["composiciones_combo"] = composiciones
     return sha256(json.dumps(datos, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()
 
 
@@ -181,6 +200,7 @@ def guardar_ficha(datos, *, Producto, db_session, organizacion_id, producto_id=N
             raise ValueError("Ese SKU ya existe. El combo necesita otro SKU propio; sus componentes conservan los suyos.")
         raise ValueError("Ya existe un producto con ese SKU. Usá Gestionar.")
     validar_vinculos(producto, datos, db_session, organizacion_id)
+    plan_combo = preparar_composicion(producto, datos, db_session, organizacion_id)
     if producto is None:
         producto = Producto(organizacion_id=organizacion_id, sku=datos["sku"], descripcion=datos["descripcion"])
         db_session.add(producto)
@@ -195,6 +215,7 @@ def guardar_ficha(datos, *, Producto, db_session, organizacion_id, producto_id=N
     for campo in CAMPOS_FICHA:
         setattr(ficha, campo, datos[campo])
     db_session.flush()
+    guardar_composicion(producto, plan_combo, db_session)
     if commit:
         db_session.commit()
     return producto
@@ -214,6 +235,7 @@ def construir_filas(productos, db_session, organizacion_id):
                 tabla.c.organizacion_id == organizacion_id,
                 tabla.c.producto_id.in_([p.id for p in productos]))).mappings():
             perfiles_por_producto.setdefault(registro["producto_id"], set()).add(registro["tipo"])
+    composiciones = leer_composiciones(productos, db_session, organizacion_id)
     filas = []
     for producto in productos:
         ficha = fichas.get(producto.id)
@@ -224,7 +246,12 @@ def construir_filas(productos, db_session, organizacion_id):
             "tipo": tipos[0] if len(tipos) == 1 else "", "activo": True, "no_stockeable": False, "permitir_stock_negativo": False,
             **{"habilita_" + uso: False for uso in USOS}, "insumo_id": None,
         })
-        filas.append({"id": producto.id, "configurado": ficha is not None,
-            "datos": datos, "huella": huella(producto, ficha), "tipos_previos": tipos,
+        recetas = composiciones.get(producto.id, [])
+        if datos["tipo"] == "combo":
+            receta = next((r for r in recetas if r["unidad_combo_id"] is None), recetas[0] if recetas else None)
+            datos["componentes_combo"] = [{"sku": c["sku"], "cantidad": c["cantidad"]} for c in receta["componentes_combo"]] if receta else []
+            datos["unidad_combo_id"] = receta["unidad_combo_id"] if receta else None
+        filas.append({"id": producto.id, "composiciones": recetas, "configurado": ficha is not None,
+            "datos": datos, "huella": huella(producto, ficha, recetas), "tipos_previos": tipos,
             "usos": [etiqueta for uso, etiqueta in USOS.items() if ficha and getattr(ficha, "habilita_" + uso)]})
     return preparado, filas

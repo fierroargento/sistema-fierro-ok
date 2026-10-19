@@ -11,10 +11,11 @@ from services.productos_ficha_maestra import (
     normalizar_ficha, validar_vinculos,
 )
 from services.producto_habilitaciones import CAMPOS_FICHA
+from services.productos_combo_maestro import preparar_composicion
 
 MAX_FILAS = 500
 CAMPOS = ("sku", "nombre", "linea", "descripcion", "tipo", "unidad_medida", "activo", "no_stockeable", "permitir_stock_negativo",
-    "habilita_compra", "habilita_venta", "habilita_insumo", "habilita_componente", "insumo_id") + CAMPOS_LOGISTICA
+    "habilita_compra", "habilita_venta", "habilita_insumo", "habilita_componente", "insumo_id", "componentes_combo", "unidad_combo_id") + CAMPOS_LOGISTICA
 ALIASES = {"id_producto": "sku", "codigo": "sku", "codigo_producto": "sku",
     "activo_si_no": "activo", "tipo_de_producto": "tipo", "unidad": "unidad_medida",
     "compra": "habilita_compra", "venta": "habilita_venta", "insumo": "habilita_insumo",
@@ -114,6 +115,7 @@ def previsualizar_lote(filas, *, Producto, db_session, organizacion_id):
                 raise ValueError("La fila contiene fórmulas. Pegá los datos verificados como valores.")
             datos = normalizar_ficha(base)
             validar_vinculos(modelos.get(anterior["id"]) if anterior else None, datos, db_session, organizacion_id)
+            preparar_composicion(modelos.get(anterior["id"]) if anterior else None, datos, db_session, organizacion_id)
             for campo in CAMPOS:
                 antes = anterior["datos"].get(campo) if anterior else None
                 if campo == "sku" and antes is not None:

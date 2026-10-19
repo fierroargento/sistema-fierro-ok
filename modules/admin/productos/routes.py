@@ -99,7 +99,17 @@ def crear_blueprint_productos(*, dependencias):
                 InsumoProductivo.organizacion_id == organizacion.id,
                 InsumoProductivo.tipo != "servicio_productivo",
             ).order_by(InsumoProductivo.codigo).all()
-        return render_template("admin_productos.html", mensaje=mensaje, error=error,
+        componentes, unidades = [], []
+        if preparado:
+            from models.producto_ficha_maestra import ProductoFichaMaestra as Ficha
+            from models.unidad_negocio import UnidadNegocio
+            componentes = db.session.query(Producto, Ficha).join(Ficha, Ficha.producto_id == Producto.id).filter(
+                Producto.organizacion_id == organizacion.id, Ficha.organizacion_id == organizacion.id,
+                Ficha.activo.is_(True), Ficha.habilita_componente.is_(True),
+                Ficha.tipo.in_(["simple", "produccion"]),
+            ).order_by(Producto.sku).all()
+            unidades = db.session.query(UnidadNegocio).filter_by(organizacion_id=organizacion.id).order_by(UnidadNegocio.nombre).all()
+        return render_template("admin_productos.html", componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
             organizacion=organizacion, preparado=preparado, filas=filas,
             tipos=TIPOS, usos=USOS, vista=vista, lote_token=token, insumos=insumos,
             formulario_error=formulario_error, **datos)

@@ -11,6 +11,73 @@
   let pendiente = null;
   let enviando = false;
 
+  const comboPanel = document.getElementById("producto-combo");
+  const comboFilas = document.getElementById("producto-combo-filas");
+  let recetas = [];
+  let borradores = {};
+  let unidadAnterior = "";
+  function componentesActuales() {
+    return Array.from(comboFilas.children).map(f => ({
+      sku: f.querySelector("[data-componente-sku]").value,
+      cantidad: f.querySelector("[data-componente-cantidad]").value
+    }));
+  }
+  function estadoCombo() {
+    const esCombo = form.elements.tipo.value === "combo";
+    comboPanel.hidden = !esCombo;
+    comboPanel.querySelectorAll("input,select,button").forEach(c => { c.disabled = !esCombo; });
+    document.getElementById("producto-combo-vacio").hidden = comboFilas.children.length > 0;
+  }
+  function agregarComponente(dato) {
+    const fila = document.getElementById("producto-componente-template").content.firstElementChild.cloneNode(true);
+    const selector = fila.querySelector("[data-componente-sku]");
+    const sku = dato ? dato.sku : "";
+    if (sku && !Array.from(selector.options).some(o => o.value === sku)) {
+      const o = new Option(sku + " · Revisar habilitación en Productos", sku);
+      selector.add(o);
+    }
+    selector.value = sku;
+    Array.from(selector.options).forEach(o => { if (o.value && o.value === form.elements.sku.value) o.disabled = true; });
+    fila.querySelector("[data-componente-cantidad]").value = dato ? String(dato.cantidad).replace(/(\.\d*?[1-9])0+$|\.0+$/, "$1") : "1";
+    fila.querySelector("[data-componente-quitar]").addEventListener("click", () => { fila.remove(); estadoCombo(); });
+    comboFilas.appendChild(fila);
+    estadoCombo();
+    return selector;
+  }
+  function cargarComposicion(filas) {
+    comboFilas.replaceChildren();
+    (filas || []).forEach(agregarComponente);
+    estadoCombo();
+  }
+  form.elements.tipo.addEventListener("change", estadoCombo);
+  document.getElementById("producto-combo-agregar").addEventListener("click", () => {
+    if (comboFilas.children.length < 100) agregarComponente(null).focus();
+  });
+  form.elements.unidad_combo_id.addEventListener("change", () => {
+    borradores[unidadAnterior] = componentesActuales();
+    unidadAnterior = form.elements.unidad_combo_id.value;
+    const receta = recetas.find(r => String(r.unidad_combo_id || "") === unidadAnterior);
+    cargarComposicion(borradores[unidadAnterior] || (receta && receta.componentes_combo) || []);
+  });
+  function validarCombo() {
+    const aviso = document.getElementById("producto-combo-error");
+    aviso.hidden = true;
+    if (form.elements.tipo.value !== "combo") return true;
+    const filas = componentesActuales();
+    const skus = filas.map(f => f.sku);
+    let error = filas.length ? "" : "Agregá al menos un producto y su cantidad para guardar el combo.";
+    if (new Set(skus).size !== skus.length) error = "Hay componentes repetidos. Dejá una sola fila por producto.";
+    if (skus.includes(form.elements.sku.value.trim().toUpperCase())) error = "El combo no puede contener su propio SKU.";
+    if (error) {
+      aviso.textContent = error; aviso.hidden = false;
+      aviso.scrollIntoView({block:"nearest"});
+      document.getElementById("producto-combo-agregar").focus();
+      return false;
+    }
+    form.elements.componentes_combo_json.value = JSON.stringify(filas);
+    return true;
+  }
+
   function ajustarNoStockeable() {
     const noStockeable = form.elements.no_stockeable.checked;
     if (noStockeable) form.elements.permitir_stock_negativo.checked = false;
@@ -50,6 +117,16 @@
     const aviso = document.getElementById("producto-form-error");
     aviso.hidden = !fallido;
     aviso.textContent = fallido ? datos.error : "";
+    recetas = filaGuardada ? (filaGuardada.composiciones || []) : [];
+    borradores = {};
+    unidadAnterior = String(valores.unidad_combo_id || "");
+    form.elements.unidad_combo_id.value = unidadAnterior;
+    let componentes = valores.componentes_combo || [];
+    if (fallido) {
+      try { componentes = JSON.parse(fallido.componentes_combo_json || "[]"); } catch (_) { componentes = []; }
+    }
+    document.getElementById("producto-combo-error").hidden = true;
+    cargarComposicion(Array.isArray(componentes) ? componentes : []);
     ajustarNoStockeable();
     dialogo.showModal();
     (edicion ? form.elements.nombre : form.elements.sku).focus();
@@ -77,7 +154,7 @@
   });
   document.querySelectorAll("[data-confirm-save]").forEach(f => f.addEventListener("submit", e => {
     e.preventDefault();
-    if (enviando || !f.reportValidity()) return;
+    if (enviando || (f === form && !validarCombo()) || !f.reportValidity()) return;
     pendiente = f;
     document.getElementById("producto-confirm-text").textContent = f.dataset.confirmSave;
     confirmar.showModal();
