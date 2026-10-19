@@ -758,3 +758,45 @@ Dependencias que siguen abiertas antes de iniciar el caso integral:
 | Operación conectada posterior | Permisos/cobertura de cuentas reales, reportes MP, promociones/B2B, acciones de publicación y logística externa. | Etapa separada; no se activa para satisfacer el ensayo desconectado. |
 
 Siguiente trabajo: resolver Fabricación + inventario + calidad como bloque, conservando UAT-OP-001 y sus antecedentes sin usarlos como permiso para ejecutarla. No se pide al usuario cargar un producto nuevo ni repetir las siete pruebas de rentabilidad. Las dos variantes MP del commit anterior siguen pendientes de UAT de interfaz y pueden revisarse junto con el siguiente despliegue; no bloquean el desarrollo por pedir otra ronda aislada.
+
+
+### Bloque conjunto: fabricación, materiales y elegibilidad por calidad — 19/10/2026
+
+El usuario confirmó deploy listo después de 01c49c28180dadd1b1602929226b2dafd313a6ac. Se registra la confirmación sin atribuirle una prueba funcional ni una verificación independiente del SHA desplegado.
+
+Base: 01c49c28180dadd1b1602929226b2dafd313a6ac. Desarrollo exclusivo de integración, sin cargar un producto nuevo ni modificar UAT-OP-001.
+
+Correcciones:
+- Propuesta Producción–Inventario: el ingreso teórico deja de tomar todas las unidades buenas de los partes. Reutiliza lotes/controles existentes y suma únicamente lotes aprobados internamente cuyo último control coherente corresponda al mismo lote/orden/parte/organización/unidad.
+- Cuarentena, en control, rechazo, falta de control, parte anulado/ajeno, controles contradictorios, impactos previos y sobreasignación del parte bloquean la aprobación de la propuesta. Las unidades sin lote se exponen; no pasan automáticamente como aprobadas.
+- El control por muestra conserva la semántica existente de aprobación interna del lote; no se afirma inspección del 100% de las unidades ni certificación externa. La cantidad elegible sigue sin ser stock liberado.
+- Con lotes mixtos puede verse un ingreso teórico solo por la cantidad elegible, pero la propuesta queda observada por las unidades retenidas/rechazadas. Los consumos teóricos conservan todo el avance informado, incluido rechazo: no se reducen para ocultar pérdidas.
+- Los consumos evalúan stock neto luego de reservas y bloqueos. Cantidades faltantes, no finitas, negativas o desconocidas bloquean; no se reemplazan por cero. Varios insumos no reutilizan virtualmente el mismo saldo de una existencia.
+- El destino único también se valida con la guardia existente de SKU principal, ubicación, producto, organización y control activos.
+- Plan agregado: se distinguen consistente, disponibilidad_suficiente y compatible_con_inventario. Tener mapeos consistentes no aprueba un plan con faltantes. Sin demanda pendiente no acredita disponibilidad para los consumos del avance ya informado.
+- Las fracciones se conservan como Decimal, hasta seis decimales, sin convertirlas a enteros. Como el inventario operativo sigue almacenando enteros, el plan/propuesta con cantidades fraccionarias queda incompatible/no aprobado para ese alcance. No se implementa una conversión implícita ni se trunca/redondea para hacerlo pasar.
+- Expediente consolidado: utiliza los resultados corregidos y agrega la disponibilidad compartida de los consumos de todas las órdenes, para no presentar como apto un conjunto que use dos veces el mismo stock.
+- Se conserva el estado no ejecutable: cero movimientos, reservas, compras, cierres o liberaciones reales; sin cambio de versiones de costo.
+
+Presentación:
+- En /admin/produccion se agrega Disponibilidad de materiales y calidad, plegado, con faltantes de demanda pendiente y buenas/elegibles/no elegibles/sin lote por orden aprobada.
+- Se aclara que la propuesta comprueba por separado los consumos del avance. Los informes existentes siguen accesibles y mantienen sus rutas; no se duplica un expediente ni una pantalla.
+- Se normaliza el texto Stock: bloqueado. Se reutiliza CSS existente, tablas contenidas, sidebar y formularios.
+
+Verificación: 66 pruebas focalizadas aprobadas y compilación Python aprobada.
+- Incluye los servicios reales de materiales, calidad, propuesta, capacidad, costeo y expediente; casos de control más reciente contradictorio/ajeno, cuarentena/rechazo, sin lote, sobreasignación, reservas/bloqueos, faltantes de stock, fracción exacta 2,1 y stock desconocido.
+- Caso de dos órdenes con consumo 16 cada una y disponibilidad compartida 20: faltante acumulado 12, expediente no apto; no se modifica el saldo.
+- Caso de fracción 2,1 con stock 3: consistente y disponibilidad suficiente, pero incompatible con inventario entero/no aprobado. Con stock 2: faltante exacto 0,1, sin truncamiento.
+- Render Jinja de plantilla real con layout mínimo comprueba sección plegada y avisos; no es inspección visual en navegador. Las pruebas existentes usan objetos de dominio de prueba, sin Postgres ni cuenta conectada.
+- No se inicia la aplicación completa ni se prueba el ORM de staging. Se conservan filtros de sesión/rol/contexto existentes; no se cambian esquema, migraciones, app.py, scheduler, webhooks, flags, credenciales ni producción.
+
+Límites y trabajo que continúa:
+1. Sigue pendiente resolver la representación/unidades de cantidades fraccionarias en todo el inventario (existencias, reservas, movimientos y consumidores). El control nuevo bloquea esa incompatibilidad; no la declara implementada. Evaluar una solución coherente y migración aislada antes de habilitar consumos.
+2. La disponibilidad es una fotografía de lectura y asignación virtual, no una reserva transaccional ni prueba de consumos físicos. La ejecución sigue deshabilitada aun con un expediente apto para ensayo.
+3. Costeo de avance conserva absorción teórica del plan, no costeo de consumos reales. Conexión producto/costo/regla/canal y futuros ajustes de ML/MP siguen pendientes como se indicó en el bloque anterior.
+4. Se conservan las pruebas y pendientes visuales históricos. No se declara todo Producción terminado ni habilitado el caso integral.
+
+UAT agrupado cuando se despliegue este bloque:
+- Producción → Planificación productiva → Disponibilidad de materiales y calidad. Revisar órdenes existentes; no crear ni ejecutar otra.
+- Captura de la sección y descarga de la Propuesta Producción–Inventario de UAT-OP-001 / expediente actualizado para comprobar calidad, consumos y bloqueos del mismo circuito. El informe nuevo puede cambiar su aptitud respecto al histórico porque ahora verifica faltantes y calidad que antes no incidían.
+- No ingresar stock, aprobar lotes rechazados ni modificar cantidades solo para obtener un indicador verde. No repetir las altas previas ni las siete pruebas de rentabilidad.

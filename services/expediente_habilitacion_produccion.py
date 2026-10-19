@@ -3,6 +3,7 @@
 import hashlib
 import io
 import json
+from decimal import Decimal
 
 from services.avances_produccion import resumir_orden
 from services.calidad_produccion import evidencia_calidad
@@ -30,6 +31,9 @@ def construir_expediente(
     )
     ordenes_controladas = []
     hallazgos = []
+    consumos_acumulados = {}
+    disponibilidad_original = {}
+    disponibilidad_compartida = []
     for orden in sorted(ordenes, key=lambda item: int(item.id)):
         if int(orden.organizacion_id) != int(organizacion_id) or int(orden.unidad_negocio_id) != int(unidad_negocio_id):
             hallazgos.append({"codigo": "orden_fuera_contexto", "orden_id": orden.id})
@@ -58,7 +62,23 @@ def construir_expediente(
                 "huella_inventario": propuesta["huella_propuesta"],
                 "huella_costeo": costeo["huella_costeo"],
             })
-            if not propuesta["aprobada"]:
+            for movimiento in propuesta.get("movimientos_propuestos", []):
+                if movimiento["tipo"] != "salida_teorica": continue
+                existencia_id = movimiento["existencia_sucursal_id"]
+                previa = consumos_acumulados.get(existencia_id, Decimal("0"))
+                requerida = Decimal(movimiento["cantidad"])
+                neta = disponibilidad_original.setdefault(existencia_id, Decimal(movimiento["disponible_antes"]))
+                falta = max(Decimal("0"), previa + requerida - neta)
+                consumos_acumulados[existencia_id] = previa + requerida
+                disponibilidad_compartida.append({"orden_id":orden.id,
+                    "existencia_sucursal_id":existencia_id,
+                    "consumo_acumulado":format(previa+requerida,"f"),
+                    "disponible":format(neta,"f"),"faltante":format(falta,"f")})
+                if falta:
+                    item["inventario_aprobado"] = False
+                    hallazgos.append({"codigo":"stock_compartido_insuficiente",
+                        "orden_id":orden.id,"existencia_sucursal_id":existencia_id})
+            if not item["inventario_aprobado"]:
                 hallazgos.append({"codigo": "inventario_no_apto", "orden_id": orden.id})
             if not costeo["aprobado"]:
                 hallazgos.append({"codigo": "costeo_no_apto", "orden_id": orden.id})
@@ -77,6 +97,7 @@ def construir_expediente(
         "modo": "expediente_no_habilitante", "apto_para_ensayo": apto,
         "habilitacion_ejecucion": False, "componentes": componentes,
         "ordenes": ordenes_controladas, "hallazgos": hallazgos,
+        "disponibilidad_compartida": disponibilidad_compartida,
         "controles": {"persistencia": False, "ordenes_iniciadas": 0, "cierres_ejecutados": 0,
                       "movimientos_stock": 0, "costos_modificados": 0, "conexiones_externas": 0},
     }

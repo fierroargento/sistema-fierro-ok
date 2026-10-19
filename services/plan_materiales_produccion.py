@@ -6,6 +6,7 @@ import json
 from decimal import Decimal, ROUND_HALF_UP
 
 from services.avances_produccion import resumir_orden
+from services.disponibilidad_productiva import disponibilidad_neta
 
 
 SEIS = Decimal("0.000001")
@@ -69,13 +70,11 @@ def planificar_materiales(*, organizacion_id, unidad_negocio_id, ordenes, mapeos
             existencia = mapeos[0].existencia
             clave = int(existencia.id)
             if clave not in disponibilidad:
-                neta = max(
-                    Decimal("0"),
-                    Decimal(str(existencia.stock_actual))
-                    - Decimal(str(existencia.stock_reservado))
-                    - Decimal(str(existencia.stock_bloqueado)),
-                )
-                disponibilidad[clave] = neta
+                try:
+                    disponibilidad[clave] = disponibilidad_neta(existencia)
+                except ValueError:
+                    hallazgos.append({"codigo":"stock_no_verificable","existencia_sucursal_id":clave})
+                    continue
             requerida = (Decimal(str(item.cantidad_planificada)) * proporcion).quantize(SEIS, rounding=ROUND_HALF_UP)
             asignada = min(requerida, disponibilidad[clave])
             falta = requerida - asignada
@@ -105,9 +104,16 @@ def planificar_materiales(*, organizacion_id, unidad_negocio_id, ordenes, mapeos
             "orden_compra_creada": False,
         })
 
+    requiere_fracciones = any(Decimal(x["requerida"]) != Decimal(x["requerida"]).to_integral_value() for x in asignaciones)
     resultado = {
         "organizacion_id": organizacion_id, "unidad_negocio_id": unidad_negocio_id,
-        "modo": "planificacion_no_ejecutable", "aprobado": not hallazgos,
+        "modo": "planificacion_no_ejecutable", "aprobado": not hallazgos and not sugerencias and not requiere_fracciones,
+        "consistente": not hallazgos,
+        "disponibilidad_suficiente": not hallazgos and not sugerencias,
+        "demanda_pendiente": any(Decimal(x["requerida"]) > 0 for x in asignaciones),
+        "requiere_fracciones": requiere_fracciones,
+        "compatible_con_inventario": not requiere_fracciones,
+        "habilita_ejecucion": False,
         "resumen": {
             "ordenes_consideradas": len(ordenes_validas), "asignaciones": len(asignaciones),
             "insumos_con_faltante": len(sugerencias),

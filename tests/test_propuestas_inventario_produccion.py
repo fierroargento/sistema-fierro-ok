@@ -11,19 +11,27 @@ class Obj:
 def orden():
     insumo=Obj(insumo_id=3, cantidad_planificada="20")
     operacion=Obj(minutos_planificados="50")
-    parte=Obj(id=4, estado="informado", cantidad_buena="6", cantidad_rechazada="2", minutos_reales="40",
+    parte=Obj(id=4, organizacion_id=7, unidad_negocio_id=9, orden_produccion_id=1, estado="informado", cantidad_buena="6", cantidad_rechazada="2", minutos_reales="40",
               impacta_inventario=False, consume_insumos=False, crea_producto_terminado=False)
+    lote=Obj(id=20, organizacion_id=7, unidad_negocio_id=9, orden_produccion_id=1,
+        parte_produccion_id=4,codigo="L-1",cantidad="6",estado="aprobado_interno",
+        liberado_inventario=False,movimiento_creado=False,controles_calidad=[Obj(id=21,
+            organizacion_id=7,unidad_negocio_id=9,lote_produccion_id=20,libera_stock=False,
+            muestra="3",aprobadas="3",rechazadas="0",resultado="aprobado_interno")])
     return Obj(id=1, numero="OP-1", organizacion_id=7, unidad_negocio_id=9, producto_id=30,
                estado="aprobada", cantidad_planificada="10", costo_planificado_centavos=100000,
-               insumos_planificados=[insumo], operaciones_planificadas=[operacion], partes_informados=[parte])
+               insumos_planificados=[insumo], operaciones_planificadas=[operacion], partes_informados=[parte],lotes_preparatorios=[lote])
 
 
 def datos():
-    existencia_insumo=Obj(id=11, organizacion_id=7, producto_id=20, control_activo=True)
+    existencia_insumo=Obj(id=11, organizacion_id=7, producto_id=20, control_activo=True,
+        stock_actual=100,stock_reservado=0,stock_bloqueado=0)
     insumo=Obj(organizacion_id=7, unidad_negocio_id=9, activo=True)
     mapeo=Obj(id=5, organizacion_id=7, unidad_negocio_id=9, insumo_id=3,
               activo=True, insumo=insumo, existencia=existencia_insumo)
-    destino=Obj(id=12, organizacion_id=7, producto_id=30, control_activo=True)
+    destino=Obj(id=12, organizacion_id=7, producto_id=30, control_activo=True,
+        item_inventario=Obj(activo=True,tipo="producto",organizacion_id=7,producto_id=30),
+        sucursal=Obj(activa=True,organizacion_id=7))
     return [mapeo], [destino]
 
 

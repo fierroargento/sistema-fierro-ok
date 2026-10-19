@@ -11,7 +11,7 @@ from services.control_integral_produccion import controlar_produccion, exportar_
 from services.propuestas_inventario_produccion import preparar_propuesta_inventario, exportar_propuesta
 from services.plan_materiales_produccion import planificar_materiales, exportar_plan
 from services.plan_capacidad_produccion import planificar_capacidad, exportar_capacidad
-from services.calidad_produccion import crear_lote, registrar_control, evidencia_calidad, exportar_evidencia
+from services.calidad_produccion import crear_lote, registrar_control, evidencia_calidad, exportar_evidencia, elegibilidad_inventario
 from services.costeo_resultado_produccion import costear_resultado, exportar_costeo
 from services.expediente_habilitacion_produccion import construir_expediente, exportar_expediente
 from services.tenant_context import TenantError, resolver_tenant_usuario
@@ -70,11 +70,20 @@ def crear_blueprint_produccion(*, dependencias):
                 except ValueError:
                     continue
                 opciones[orden.id].append(existencia)
+        mapeos = modelos["MapeoInsumoInventario"].query.filter_by(
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
+        ).all()
+        materiales = planificar_materiales(organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad.id, ordenes=datos["ordenes_produccion"], mapeos_insumo=mapeos)
+        calidad_ordenes = {orden.id: elegibilidad_inventario(orden,
+            organizacion_id=organizacion.id, unidad_negocio_id=unidad.id)
+            for orden in datos["ordenes_produccion"] if orden.estado == "aprobada"}
         return render_template(
             "admin_produccion.html", organizacion=organizacion, unidad_activa=unidad,
             ok_feedback=request.args.get("ok"), error=request.args.get("error"),
             destinos_por_orden=destinos_guardados(datos["ordenes_produccion"], organizacion.id, unidad.id),
-            opciones_destino_por_orden=opciones, **datos,
+            opciones_destino_por_orden=opciones, materiales_preparacion=materiales,
+            calidad_por_orden=calidad_ordenes, **datos,
         )
 
     @blueprint.route("/admin/produccion/guardar", methods=["POST"])

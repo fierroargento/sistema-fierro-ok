@@ -7,6 +7,8 @@ from decimal import Decimal
 
 from services.simulacion_cierre_produccion import simular_cierre
 from services.destino_produccion import validar_destino
+from services.calidad_produccion import elegibilidad_inventario
+from services.disponibilidad_productiva import disponibilidad_neta, cantidad_exacta
 
 
 def _decimal(valor):
@@ -21,7 +23,8 @@ def preparar_propuesta_inventario(
     simulacion = simular_cierre(
         orden, organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
     )
-    hallazgos = []
+    calidad = elegibilidad_inventario(orden, organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id)
+    hallazgos = list(calidad["hallazgos"])
     mapeos_activos = {}
     for mapeo in mapeos_insumo:
         if int(mapeo.organizacion_id) != int(organizacion_id) or int(mapeo.unidad_negocio_id) != int(unidad_negocio_id):
@@ -49,6 +52,7 @@ def preparar_propuesta_inventario(
         mapeos_activos.setdefault(int(mapeo.insumo_id), []).append(mapeo)
 
     consumos = []
+    disponible = {}
     for consumo in simulacion["consumos_teoricos"]:
         candidatos = mapeos_activos.get(int(consumo["insumo_id"]), [])
         if len(candidatos) != 1:
@@ -59,7 +63,22 @@ def preparar_propuesta_inventario(
             continue
         existencia = candidatos[0].existencia
         cantidad = consumo["cantidad_teorica"]
+        requerida = cantidad_exacta(cantidad)
+        try:
+            if existencia.id not in disponible:
+                disponible[existencia.id] = disponibilidad_neta(existencia)
+        except ValueError:
+            hallazgos.append({"codigo":"stock_no_verificable","existencia_sucursal_id":existencia.id})
+            continue
+        neta = disponible[existencia.id]
+        falta = max(Decimal("0"), requerida-neta)
+        disponible[existencia.id] = max(Decimal("0"), neta-requerida)
+        if falta:
+            hallazgos.append({"codigo":"material_insuficiente","insumo_id":consumo["insumo_id"],"faltante":_decimal(falta)})
+        if requerida != requerida.to_integral_value():
+            hallazgos.append({"codigo":"consumo_fraccionario_no_ejecutable","insumo_id":consumo["insumo_id"]})
         consumos.append({
+            "disponible_antes":_decimal(neta),"faltante":_decimal(falta),
             "tipo": "salida_teorica", "insumo_id": consumo["insumo_id"],
             "existencia_sucursal_id": existencia.id, "cantidad": cantidad,
             "clave_idempotencia": f"produccion:{orden.id}:consumo:{consumo['insumo_id']}:{cantidad}",
@@ -96,7 +115,13 @@ def preparar_propuesta_inventario(
             "producto_id": orden.producto_id, "candidatos": len(destinos),
         })
     else:
-        cantidad = simulacion["propuestas"]["ingreso_producto_terminado"]
+        try:
+            validar_destino(orden, destinos[0], organizacion_id, unidad_negocio_id)
+        except ValueError:
+            hallazgos.append({"codigo":"destino_producto_no_valido","existencia_sucursal_id":destinos[0].id})
+        cantidad = calidad["elegibles"]
+        if Decimal(cantidad) != Decimal(cantidad).to_integral_value():
+            hallazgos.append({"codigo":"ingreso_fraccionario_no_ejecutable"})
         ingreso = {
             "tipo": "entrada_teorica", "producto_id": orden.producto_id,
             "existencia_sucursal_id": destinos[0].id, "cantidad": cantidad,
@@ -104,7 +129,7 @@ def preparar_propuesta_inventario(
             "ejecutado": False,
         }
 
-    movimientos = consumos + ([ingreso] if ingreso else [])
+    movimientos = consumos + ([ingreso] if ingreso and Decimal(ingreso["cantidad"]) > 0 else [])
     reversion = [
         {
             **movimiento,
@@ -118,6 +143,8 @@ def preparar_propuesta_inventario(
         "orden_id": orden.id, "numero": orden.numero,
         "modo": "propuesta_no_ejecutable", "aprobada": not hallazgos,
         "huella_simulacion": simulacion["huella_simulacion"],
+        "calidad": calidad,
+        "habilita_ejecucion": False,
         "movimientos_propuestos": movimientos, "reversion_teorica": reversion,
         "hallazgos": hallazgos,
         "controles": {
