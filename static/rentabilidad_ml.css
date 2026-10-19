@@ -18,3 +18,9 @@
 .profitability-page #resultado:focus{outline:none}
 
 .profitability-page .profitability-source-hash{overflow-wrap:anywhere}
+.profitability-price-bridge { margin: 1rem 0; padding: 1rem; border: 1px solid #dbe6ed; border-radius: 12px; background: #f8fbfd; }
+.profitability-price-bridge .profitability-metrics { margin-bottom: 1rem; }
+.profitability-snapshot-sources { display: grid; grid-template-columns: minmax(140px, 1fr) 2fr; gap: .4rem 1rem; font-size: .9rem; }
+.profitability-snapshot-sources dt { font-weight: 600; color: #526779; }
+.profitability-snapshot-sources dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .profitability-snapshot-sources { grid-template-columns: 1fr; } }

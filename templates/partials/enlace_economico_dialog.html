@@ -36,6 +36,7 @@
       <p>Estado: {{ traza.get('cobertura_estado','pendiente')|replace('_',' ') }}. La cuenta y publicación son referencias declaradas; no se conectan ni se habilitan.</p>
     </fieldset>
     {% if traza.get('contraste') %}<fieldset><legend>Observaciones de la cuenta y publicación</legend><p>{{ traza.contraste.estado|replace('_',' ') }}</p>{% for motivo in traza.contraste.motivos %}<p>{{ motivo }}</p>{% endfor %}{% if traza.contraste.get('precio_observado_centavos') is not none %}<p>Precio observado: ${{ '%.2f'|format(traza.contraste.precio_observado_centavos / 100) }}. La coincidencia solo corresponde a ese precio y a comisión, cargo y envío; no verifica todas las deducciones.</p>{% endif %}</fieldset>{% endif %}
+    {% if traza.get('cobertura_estado') == 'declarada_vigente' %}<fieldset><legend>Continuar con una venta de prueba</legend><p>Usa la evidencia ya guardada y una unidad. Los cambios sin guardar de este formulario no se trasladan al ensayo.</p><a class="table-action" href="{{ url_for('admin_comercial.venta_prueba_precio', unidad_negocio_id=traza.unidad_negocio_id, catalogo_producto_id=traza.catalogo_producto_id, lista_precio_id=traza.politica_canal.lista_precio_id, huella_calculo=traza.huella_enlace, _anchor='resultado') }}">Preparar venta de prueba</a></fieldset>{% endif %}
     <div class="catalog-dialog-actions"><button class="comercial-primary" type="submit">Guardar evidencia y recalcular</button><button class="table-action" type="button" data-close-catalog-dialog>Cerrar</button></div>
   </form>
 </dialog>

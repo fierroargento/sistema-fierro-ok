@@ -285,5 +285,8 @@ def analizar_rentabilidad(documento, *, organizacion_id, unidad_negocio_id, cuen
              "reconstruida_centavos": saldo_reconstruido, "diferencia_detalle_centavos": diferencia_evidencia,
              "estado": conciliacion["estado_conciliacion"] if esperado else "sin_prevision"},
          "controles": {"persistencia": False, "conexiones_externas": 0, "stock": 0, "pagos": 0, "publicaciones": 0}}
+    if "enlace_precio" in d:
+        from services.venta_prueba_precio import evaluar_enlace_venta
+        r["enlace_precio"] = evaluar_enlace_venta(d, r)
     r["huella_rentabilidad"] = sha256(json.dumps(r, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     return r

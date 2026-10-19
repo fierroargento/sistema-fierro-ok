@@ -932,3 +932,58 @@ Pendientes conservados:
 - La última evidencia por inclusión/lista es la que aplica; versiones anteriores se conservan. No resuelve políticas simultáneas para varias cuentas/variantes de la misma inclusión/lista.
 - Identidad real, cobertura completa de deducciones/promociones, venta offline y snapshot de costos/cargos/embalaje de esa venta, conciliación ML/MP y demás etapas del plan siguen pendientes. No declarar rentabilidad real asegurada.
 - Pendientes históricos de interfaz/negativos MP y prueba física integral siguen abiertos. No cargar todavía un producto integral nuevo; continuar sobre el ejemplo UAT existente.
+
+
+## 2026-10-19 — Del cálculo guardado a la venta de prueba y su comparación
+
+UAT anterior confirmado:
+- Captura image(20261019-173153).png inspeccionada localmente: UAT-PROD-001 muestra precio mínimo $6.690, neto/piso $5.921 y objetivo $7.238 después del embalaje adicional de $100.
+- Tras pedir refrescar/reabrir y cambiar a $200 cerrando sin guardar, Martín respondió perfecto. Se registra como confirmación del usuario de persistencia y descarte local; no como inspección automatizada de su sesión.
+- El bloque de embalaje quedó desplegado por el usuario; no se ejecuta un despliegue desde estas herramientas.
+
+Auditoría y alcance:
+- Ya existen rentabilidad_ml_offline.analizar_rentabilidad, conciliar_venta, escenarios sintéticos, lectura de archivos ML/MP, exportación/relectura y la pantalla de rentabilidad con sidebar. Se reutilizan.
+- Este bloque enlaza la simulación económica de un producto con ese analizador. No crea otro motor de rentabilidad ni otro libro financiero.
+- Solo una unidad y operación sintética. No representa la venta real, una liquidación/cobro MP, el circuito operativo de pedidos ni un precio mayorista. El caso integral físico y la conciliación de datos reales siguen pendientes.
+
+Implementación:
+- Gestionar, con evidencia de embalaje declarada vigente, ofrece Preparar venta de prueba. Usa exclusivamente lo ya guardado; el texto aclara que los cambios sin guardar no se trasladan.
+- Ruta GET de lectura con login/admin/contexto existentes, unidad explícita, inclusión/lista inequívocas y huella del cálculo actual. Cambios de fuentes, identificadores ajenos o evidencia obsoleta redirigen con motivo, sin preparar otra combinación por aproximación.
+- La ruta reconstruye el cálculo con la consulta actual y congela costo/version/composición, regla económica, política/tramos, embalaje, cuenta/publicación/variante declaradas y fecha UTC. Sin escritura en DB ni cambios a app.py.
+- Dos casos: gastos según lo previsto y envío $500 más caro. El segundo modifica hechos sintéticos y su cobro, manteniendo la previsión: no recalcula el esperado para borrar la diferencia.
+- La cuenta técnica continúa demo-rentabilidad-sin-conexion; la cuenta/publicación declaradas se conservan en las fuentes. No se amplía la importación para aceptar cuentas reales.
+- El previsto del analizador es la liquidación de canal ANTES del embalaje local. El gasto local previsto se descuenta una sola vez. La comparación con el mínimo usa el neto económico DESPUÉS de gastos/embalaje, no confunde saldo cobrado con resultado económico.
+- Ejemplo actual: precio $6.690, costo $4.933,65, liquidación de canal $6.021, embalaje $100, mínimo/neto $5.921; resultado económico previsto y de ensayo $987,35. Con envío extra $500: neto económico $5.421, resultado $487,35 y diferencia -$500 respecto del previsto y del mínimo.
+- Aviso bajo mínimo dentro del resultado, con los componentes comparados. No hay nuevas notificaciones persistentes ni scheduler. El caso base solo cubre los conceptos simulados; impuestos y fuentes externas siguen pendientes. No se presenta como margen asegurado ni alerta definitiva.
+- No se multiplican envíos/cargos de un pack, no se infieren descuentos mayoristas, no se confunde una previsión de devoluciones con evidencia real: todos los hechos del nuevo ensayo están rotulados como sintéticos.
+
+Archivo e integridad:
+- La exportación existente incluye entrada, resultado y fotografía del cálculo. Al releer, se ignora el resultado exportado y se recalcula con el analizador existente.
+- La fotografía conserva sus fuentes históricas y no consulta costos actuales al releer. No se aplica el costo actual a una venta anterior a la fecha del snapshot. Las fuentes debían estar vigentes cuando se congelaron y el costo debe corresponder a la fecha de la operación.
+- Se comprueban huella del snapshot y del enlace, contexto, SKU/publicación/variante, cantidad única, versión/importe/fechas de costo, modo de embalaje, previsión de canal y gastos locales. Se vuelve a usar el motor y regla económica compartidos para reproducir el primer precio admisible y su piso.
+- Tasas ausentes no se convierten en cero. Reutiliza la validación de cobertura de cargos y limita el ensayo a 1..200 tramos. La huella detecta cambios y comprueba coherencia, no es firma de autenticidad ni certifica origen externo.
+- El enlace solo admite origen sintético. No habilita importar ventas reales bajo una previsión rehecha. Archivos antiguos sin enlace conservan su contrato y sus validaciones previas.
+
+Presentación:
+- Reutiliza la pantalla Rentabilidad por venta y publicación, componentes y diálogos existentes. Caso selector arriba, resultado con mínimo/neto previsto/neto del ensayo/diferencia y fuentes plegadas.
+- Elegir otros ejemplos se pliega cuando ya existe resultado; las fuentes extensas se mantienen plegadas. Descarga usa el botón/JS ya existentes. Volver al cálculo retorna a Políticas.
+- No hay nuevos diálogos de confirmación escrita, accesos laterales, formularios operativos ni persistencia del ensayo en sesión.
+
+Verificación:
+- 281 pruebas focalizadas aprobadas: las 141 del bloque previo, 97 regresiones existentes del analizador/archivo/rutas offline incorporadas a la ejecución, y 43 casos nuevos del puente.
+- Nuevas pruebas: importes UAT exactos, envío extra y alarma, embalaje incluido/sin costo sin doble descuento, exportación/relectura conservando fuentes al cambiar el costo actual, resultado exportado ignorado, contexto/fecha/versión/identidad/previsión incoherentes rechazados, huellas rehechas con cálculo no reproducible rechazadas, ausencia de tasas/tramos y embalaje contradictorio, vigencia de evidencia y límite del caso de envío.
+- Ruta real extraída por AST y ejecutada por HTTP Flask con dobles de acceso/ORM; renderiza la plantilla real y extrae el JSON para reanalizarlo. Comprueba rechazo de acceso/contexto, no-store, enlaces, selector, descarga, avisos y popup sin formularios anidados. El decorador login_required se verifica en el AST; no equivale a prueba del middleware ni del ORM PostgreSQL.
+- Regresiones de archivo y rentabilidad sintética, multiórdenes, cargos, retenciones, devolución, costos históricos y rutas autorizadas siguen aprobadas. Compilación Python aprobada.
+- No se inicia app/scheduler ni se ejecuta la suite completa. Sin prueba visual de navegador real. Pendiente UAT en staging.
+- Sin modelos/migraciones/bootstrap, flags, credenciales, webhooks, publicación externa, conexiones nuevas, reservas, stock, pagos ni producción.
+
+UAT agrupado tras desplegar:
+1. Costos y precios → 5. Políticas comerciales → Simulación sin publicar → Gestionar de UAT-PROD-001 → Preparar venta de prueba, con embalaje $100 ya guardado.
+2. Caso Gastos según lo previsto: mínimo/neto $5.921 y resultado $987,35 con fuentes actuales sin cambios. Se informa alcance parcial, no rentabilidad real certificada.
+3. Caso Envío $500 más caro → Comparar venta de prueba: neto $5.421, diferencia -$500 y aviso bajo mínimo. La previsión debe permanecer $5.921.
+4. Descargar ensayo con cálculo congelado, analizarlo en el formulario offline de esa misma pantalla y comprobar importes/alerta/fuentes conservados. No editar JSON ni descargar otros archivos para este caso.
+
+Pendientes:
+- Venta real/offline con su fecha y snapshot aprobado antes de vender, cobros y gastos efectivamente documentados, deducciones/promociones completas y conciliación de cuenta ML/MP. No se considera terminado el módulo ML ni la fabricación/envío físico integral.
+- Varias unidades, packs con envío/cargos compartidos, variantes y precios por cantidad deben enlazarse sin extrapolar el caso de una unidad.
+- Pendientes históricos, negativos MP de interfaz y estética no revalidados continúan abiertos. No cargar todavía el nuevo producto integral.

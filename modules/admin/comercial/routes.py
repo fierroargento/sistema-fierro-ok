@@ -8,6 +8,9 @@ from services.comercial_admin import procesar_accion_comercial
 from services.comercial_consultas import obtener_datos_panel_comercial
 from services.precio_observado_manual import registrar_precio_manual
 from services.cobertura_precio_publicacion import guardar_cobertura
+from services.venta_prueba_precio import CASOS as CASOS_VENTA_PRECIO, preparar_venta_prueba
+from services.rentabilidad_ml_offline import analizar_rentabilidad
+from services.escenarios_rentabilidad_ml import CUENTA_ENSAYO, ESCENARIOS as ESCENARIOS_RENTABILIDAD
 from services.historial_costos_productos import obtener_historial_costo_producto
 from services.historial_precios_observados import obtener_historial_precio
 from services.control_comercial_masivo import exportar_bandeja_excel
@@ -259,6 +262,39 @@ def crear_blueprint_comercial(*, dependencias):
         except Exception as error:
             db.session.rollback()
             return redirect(url_for("admin_comercial.panel",error=str(error),_anchor="politicas"))
+
+    @blueprint.route("/admin/comercial/venta-prueba-precio", methods=["GET"])
+    @dependencias["login_required"]
+    def venta_prueba_precio():
+        _usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        try:
+            unidad_activa, _unidades = contexto_comercial(organizacion)
+            if request.args.get("unidad_negocio_id", type=int) != unidad_activa.id:
+                raise ValueError("Cambió la unidad activa. Volvé a abrir Gestionar.")
+            inclusion_id = request.args.get("catalogo_producto_id", type=int)
+            lista_id = request.args.get("lista_precio_id", type=int)
+            datos = obtener_datos_panel_comercial(organizacion.id, unidad_activa.id, modelos=modelos)
+            filas = [f for f in datos["simulaciones_canal"] if f["inclusion"].id == inclusion_id and f["regla_canal"].lista_precio_id == lista_id]
+            if len(filas) != 1 or request.args.get("huella_calculo") != filas[0]["trazabilidad_economica"]["huella_enlace"]:
+                raise ValueError("Cambió el cálculo. Volvé a abrir Gestionar antes de preparar el ensayo.")
+            caso = request.args.get("caso_enlace", "previsto")
+            entrada = preparar_venta_prueba(filas[0], caso=caso)
+            resultado = analizar_rentabilidad(entrada, organizacion_id=organizacion.id,
+                unidad_negocio_id=unidad_activa.id, cuenta_codigo=CUENTA_ENSAYO)
+            meta = {"nombre": "Venta de prueba del producto", "descripcion": CASOS_VENTA_PRECIO[caso],
+                "contexto": "Una unidad · venta y cobro sintéticos · fuentes internas congeladas",
+                "precio_objetivo_centavos": None, "criterio_objetivo": None}
+            evidencia = {"entrada": entrada, "resultado": resultado, "escenario": meta}
+            response = render_template("admin_rentabilidad_ml.html", unidad_activa=unidad_activa,
+                escenarios=ESCENARIOS_RENTABILIDAD, clave="simple", resultado=resultado, meta=meta,
+                evidencia_archivo=evidencia, desde_enlace=True, casos_enlace=CASOS_VENTA_PRECIO,
+                caso_enlace=caso, enlace_parametros={k: request.args[k] for k in
+                    ("unidad_negocio_id", "catalogo_producto_id", "lista_precio_id", "huella_calculo")})
+            return response, 200, {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
+        except (ValueError, TypeError) as error:
+            return redirect(url_for("admin_comercial.panel", error=str(error), _anchor="politicas"))
 
     @blueprint.route("/admin/comercial/precio-observado", methods=["POST"])
     @dependencias["login_required"]
