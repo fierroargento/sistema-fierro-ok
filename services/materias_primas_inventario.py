@@ -29,6 +29,8 @@ def preparar_materia_prima(*, insumo, sku, organizacion_id, unidad_negocio_id,
                           Producto, ItemInventario, db_session, precision_inventario="unidad"):
     """Crea identidad interna inactiva, sin catálogo comercial ni existencias."""
     validar_insumo(insumo, organizacion_id, unidad_negocio_id)
+    from services.producto_habilitaciones import exigir_insumo_stockeable
+    exigir_insumo_stockeable(insumo, db_session)
     unidad = definir_unidad(insumo.unidad_medida, precision_inventario)
     sku = str(sku or "").strip().upper()
     if not re.fullmatch(r"[A-Z0-9][A-Z0-9._-]{0,79}", sku):

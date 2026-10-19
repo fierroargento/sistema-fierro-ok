@@ -46,6 +46,7 @@ def normalizar_ficha(datos):
         salida["tipo"] = "produccion"
     if salida["tipo"] not in TIPOS:
         raise ValueError("Elegí Simple, De producción o Combo.")
+    salida["no_stockeable"] = booleano(datos.get("no_stockeable", False), "No stockeable")
     salida["descripcion"] = salida["descripcion"] or salida["nombre"]
     for campo in ("activo",) + tuple("habilita_" + uso for uso in USOS):
         salida[campo] = booleano(datos.get(campo), campo.replace("_", " "))
@@ -66,6 +67,8 @@ def normalizar_ficha(datos):
             salida[campo] = texto(valor, "observación logística", 300)
         else:
             salida[campo] = booleano(valor, campo.replace("_", " "))
+    if salida["no_stockeable"] and (salida["permite_correo"] or salida["permite_via_cargo"]):
+        raise ValueError("Un producto No stockeable no admite envío físico. Destildá Permite Correo y Permite Vía Cargo.")
     ident = datos.get("insumo_id")
     if ident in (None, ""):
         salida["insumo_id"] = None
@@ -78,7 +81,7 @@ def normalizar_ficha(datos):
 
 def datos_de_formulario(formulario):
     datos = dict(formulario)
-    for campo in ("activo", "permite_correo", "permite_via_cargo", "requiere_revision_logistica") + tuple("habilita_" + uso for uso in USOS):
+    for campo in ("activo", "no_stockeable", "permite_correo", "permite_via_cargo", "requiere_revision_logistica") + tuple("habilita_" + uso for uso in USOS):
         datos[campo] = "1" if formulario.get(campo) == "1" else "0"
     return normalizar_ficha(datos)
 
@@ -104,6 +107,26 @@ def perfiles_del_producto(producto, db_session):
 
 def validar_vinculos(producto, datos, db_session, organizacion_id):
     if producto is not None:
+        from models.producto_ficha_maestra import ProductoFichaMaestra
+        anterior = db_session.query(ProductoFichaMaestra).filter_by(
+            producto_id=producto.id, organizacion_id=organizacion_id,
+        ).first()
+        if anterior and anterior.tipo != datos["tipo"] and "combo" in {anterior.tipo, datos["tipo"]}:
+            raise ValueError("El combo necesita un producto y SKU propios. No se puede convertir un producto simple o de producción en combo, ni el combo en otro tipo, conservando su SKU. Creá otro producto.")
+        if datos["no_stockeable"]:
+            inspector = inspect(db_session.connection())
+            for nombre in ("existencia_sucursal", "item_inventario"):
+                tabla = producto.metadata.tables.get(nombre)
+                if tabla is None or not inspector.has_table(nombre):
+                    continue
+                consulta = select(tabla.c.id).where(
+                    tabla.c.organizacion_id == organizacion_id,
+                    tabla.c.producto_id == producto.id,
+                )
+                if nombre == "item_inventario":
+                    consulta = consulta.where(tabla.c.activo.is_(True))
+                if db_session.execute(consulta.limit(1)).first() is not None:
+                    raise ValueError("El producto ya tiene existencias o un SKU de inventario activo. No se puede convertir a No stockeable sin revisar su historial y compromisos.")
         tipos = {p["tipo"] for p in perfiles_del_producto(producto, db_session)}
         if tipos and tipos != {datos["tipo"]}:
             raise ValueError("El producto tiene perfiles de costeo de otro tipo. Revisalos antes de cambiar el tipo maestro; no se transforma su composición automáticamente.")
@@ -141,6 +164,8 @@ def guardar_ficha(datos, *, Producto, db_session, organizacion_id, producto_id=N
         raise ValueError("La referencia de insumo ya guardada se conserva para mantener su identidad e historial.")
     existente = db_session.query(Producto).filter(Producto.organizacion_id == organizacion_id, Producto.sku.ilike(datos["sku"])).first()
     if existente is not None and (producto is None or existente.id != producto.id):
+        if datos["tipo"] == "combo":
+            raise ValueError("Ese SKU ya existe. El combo necesita otro SKU propio; sus componentes conservan los suyos.")
         raise ValueError("Ya existe un producto con ese SKU. Usá Gestionar.")
     validar_vinculos(producto, datos, db_session, organizacion_id)
     if producto is None:
@@ -183,7 +208,7 @@ def construir_filas(productos, db_session, organizacion_id):
         datos = {c: getattr(producto, c) for c in CAMPOS_BASE}
         datos.update({c: getattr(ficha, c) for c in CAMPOS_FICHA} if ficha else {
             "nombre": producto.descripcion or "", "linea": "", "unidad_medida": "",
-            "tipo": tipos[0] if len(tipos) == 1 else "", "activo": True,
+            "tipo": tipos[0] if len(tipos) == 1 else "", "activo": True, "no_stockeable": False,
             **{"habilita_" + uso: False for uso in USOS}, "insumo_id": None,
         })
         filas.append({"id": producto.id, "configurado": ficha is not None,

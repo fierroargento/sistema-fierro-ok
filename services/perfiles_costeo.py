@@ -50,6 +50,8 @@ def crear_o_actualizar_perfil(
         else PerfilCosteoProducto.unidad_negocio_id == unidad_negocio_id
     )
     perfil = consulta.first()
+    if perfil is not None and perfil.tipo != tipo_normalizado and "combo" in {perfil.tipo, tipo_normalizado}:
+        raise ValueError("El combo debe tener un producto y SKU propios. No se cambia entre combo y otro tipo conservando el SKU.")
     if perfil is None:
         perfil = PerfilCosteoProducto(
             organizacion_id=organizacion_id,

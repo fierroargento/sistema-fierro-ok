@@ -6,8 +6,14 @@ USOS = {
     "insumo": "Insumo de producción", "componente": "Componente de combo",
 }
 TIPOS = {"simple": "Simple", "produccion": "De producción", "combo": "Combo"}
+
+
+class ProductoNoStockeable(ValueError):
+    """El artículo no participa en el inventario físico."""
+
+
 CAMPOS_FICHA = (
-    "nombre", "linea", "unidad_medida", "tipo", "activo",
+    "nombre", "linea", "unidad_medida", "tipo", "activo", "no_stockeable",
     "habilita_compra", "habilita_venta", "habilita_insumo", "habilita_componente", "insumo_id",
 )
 
@@ -48,6 +54,36 @@ def exigir_tipo_producto(producto, tipo, db_session):
     ficha = leer_ficha(producto, db_session)
     if ficha is not None and ficha.tipo != tipo:
         raise ValueError(f"El tipo de {producto.sku} es {TIPOS[ficha.tipo]} en Productos. Revisá su ficha maestra.")
+
+
+def exigir_producto_stockeable(producto, db_session):
+    ficha = leer_ficha(producto, db_session)
+    if ficha is not None and ficha.no_stockeable:
+        raise ProductoNoStockeable(f"{producto.sku}: es No stockeable. No admite existencias, reservas ni movimientos de inventario.")
+
+
+def exigir_recurso_stockeable(recurso, db_session):
+    if inspect(recurso, raiseerr=False) is None:
+        return
+    from models.producto import Producto
+    producto = db_session.query(Producto).filter_by(
+        id=recurso.producto_id, organizacion_id=recurso.organizacion_id,
+    ).first()
+    if producto is None:
+        raise ValueError("El registro de inventario no tiene un producto maestro válido.")
+    exigir_producto_stockeable(producto, db_session)
+
+
+def exigir_insumo_stockeable(insumo, db_session):
+    if inspect(insumo, raiseerr=False) is None or not esquema_ficha_disponible(db_session):
+        return
+    from models.producto_ficha_maestra import ProductoFichaMaestra
+    ficha = db_session.query(ProductoFichaMaestra).filter_by(
+        organizacion_id=insumo.organizacion_id, insumo_id=insumo.id,
+        no_stockeable=True,
+    ).first()
+    if ficha is not None:
+        raise ProductoNoStockeable("El insumo está vinculado a un producto No stockeable. No se crea otro SKU de inventario para la misma identidad.")
 
 
 def motivo_venta_item(item):

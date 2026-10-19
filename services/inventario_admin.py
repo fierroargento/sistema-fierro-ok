@@ -175,6 +175,8 @@ def procesar_accion_inventario_admin(
             "El producto",
         )
 
+        from services.producto_habilitaciones import exigir_producto_stockeable
+        exigir_producto_stockeable(producto, db_session)
         existente = (
             ExistenciaSucursal.query
             .filter_by(
@@ -252,6 +254,9 @@ def procesar_accion_inventario_admin(
             "La existencia",
         )
 
+        if not existencia.control_activo:
+            from services.producto_habilitaciones import exigir_recurso_stockeable
+            exigir_recurso_stockeable(existencia, db_session)
         existencia.control_activo = not bool(
             existencia.control_activo
         )

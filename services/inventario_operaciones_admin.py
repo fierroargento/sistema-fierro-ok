@@ -160,6 +160,9 @@ def procesar_operacion_inventario(
         item = _registro(Item, _entero(formulario, "item_inventario_id"), "el SKU")
         _tenant(organizacion, item, "El SKU")
         activo = _texto(formulario, "activo", 1) == "1"
+        if activo:
+            from services.producto_habilitaciones import exigir_recurso_stockeable
+            exigir_recurso_stockeable(item, db_session)
         modulo = Modulo.query.filter_by(
             organizacion_id=organizacion.id, codigo="inventario-sucursales",
         ).first()
@@ -220,6 +223,8 @@ def procesar_operacion_inventario(
         item = _registro(Item, item_id, "el SKU")
         _tenant(organizacion, sucursal, "La ubicación")
         _tenant(organizacion, item, "El SKU")
+        from services.producto_habilitaciones import exigir_recurso_stockeable
+        exigir_recurso_stockeable(item, db_session)
         if not sucursal.activa or not item.activo:
             raise ValueError("La ubicación y el SKU deben estar activos.")
         if Existencia.query.filter_by(
@@ -252,6 +257,9 @@ def procesar_operacion_inventario(
         if minimo < 0 or (maximo is not None and maximo < minimo):
             raise ValueError("Revisá los límites mínimo y máximo.")
         control_activo = _texto(formulario, "control_activo", 1) == "1"
+        if control_activo:
+            from services.producto_habilitaciones import exigir_recurso_stockeable
+            exigir_recurso_stockeable(existencia, db_session)
         modulo = Modulo.query.filter_by(
             organizacion_id=organizacion.id,
             codigo="inventario-sucursales",

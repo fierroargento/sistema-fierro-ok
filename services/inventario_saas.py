@@ -25,6 +25,13 @@ def preparar_items_catalogo(
         catalogo = getattr(inclusion, "catalogo", None)
         if int(getattr(catalogo, "organizacion_id", 0) or 0) != int(organizacion_id):
             continue
+        from services.producto_habilitaciones import ProductoNoStockeable, exigir_producto_stockeable
+        try:
+            from sqlalchemy import inspect
+            if inspect(inclusion, raiseerr=False) is not None:
+                exigir_producto_stockeable(inclusion.producto, db_session)
+        except ProductoNoStockeable:
+            continue
         filas = [{
             "sku": inclusion.sku_comercial,
             "nombre": inclusion.nombre_comercial,
@@ -107,6 +114,8 @@ def crear_reserva(
     ReservaInventario, MovimientoInventario, db_session, vence_en=None,
     motivo="Reserva por canal", usuario="sistema",
 ):
+    from services.producto_habilitaciones import exigir_recurso_stockeable
+    exigir_recurso_stockeable(existencia, db_session)
     validar_existencia_operativa(existencia)
     clave = str(clave_idempotencia or "").strip()
     if not clave:

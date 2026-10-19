@@ -222,6 +222,8 @@ def registrar_movimiento(
             "El movimiento necesita un motivo."
         )
 
+    from services.producto_habilitaciones import exigir_recurso_stockeable
+    exigir_recurso_stockeable(existencia, db_session)
     fotografia = aplicar_movimiento(
         existencia,
         tipo,

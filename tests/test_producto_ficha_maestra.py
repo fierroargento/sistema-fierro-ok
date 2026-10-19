@@ -346,3 +346,130 @@ def test_rechazo_venta_en_alta_de_catalogo_y_disponibilidad(entorno):
     assert resultado['cantidad_propuesta']==0
     assert any('Disponible para venta' in m for m in resultado['motivos'])
     assert CatalogoProducto.query.count()==0
+
+
+def test_no_stockeable_admite_compra_venta_y_se_reimporta(entorno):
+    _,org,_,_=entorno
+    preparar(db.engine)
+    p=crear(org,no_stockeable=True,permite_correo=False,permite_via_cargo=False)
+    f=ProductoFichaMaestra.query.one()
+    assert f.no_stockeable and f.tipo=='simple'
+    exigir_uso_producto(p,'compra',db.session)
+    exigir_uso_producto(p,'venta',db.session)
+    _,filas=construir_filas([p],db.session,org.id)
+    assert filas[0]['datos']['no_stockeable'] is True
+    v=preview(org,[{'sku':p.sku,'nombre':'Servicio'}]);aplicar(org,v)
+    assert ProductoFichaMaestra.query.one().no_stockeable
+    v=preview(org,[{'sku':p.sku,'no_stockeable':'No'}]);aplicar(org,v)
+    assert not ProductoFichaMaestra.query.one().no_stockeable
+    assert Producto.query.count()==1
+
+
+def test_no_stockeable_rechaza_transporte_y_stock_antes_de_mutar(entorno):
+    from services.producto_habilitaciones import exigir_producto_stockeable, exigir_recurso_stockeable
+    from models.inventario_saas import ItemInventario
+    from models.existencia_sucursal import ExistenciaSucursal
+    from models.sucursal_operativa import SucursalOperativa
+    from services.inventario_nucleo import registrar_movimiento
+    _,org,_,_=entorno
+    preparar(db.engine)
+    with pytest.raises(ValueError,match='envío físico'):
+        crear(org,no_stockeable=True)
+    p=crear(org,no_stockeable=True,permite_correo=False,permite_via_cargo=False)
+    with pytest.raises(ValueError,match='No stockeable'):
+        exigir_producto_stockeable(p,db.session)
+    # Registro ORM sintético sin guardar para comprobar el punto de entrada
+    # del movimiento antes de modificar saldos o crear una reserva.
+    e=ExistenciaSucursal(organizacion_id=org.id,producto_id=p.id,stock_actual=0,stock_reservado=0,stock_bloqueado=0)
+    with pytest.raises(ValueError,match='No stockeable'):
+        registrar_movimiento(e,tipo='ingreso',cantidad=1,motivo='Prueba',MovimientoInventario=None,db_session=db.session)
+    assert e.stock_actual==0 and e.stock_reservado==0
+
+
+def test_no_stockeable_no_se_prepara_como_sku_de_inventario(entorno):
+    from models.catalogo import Catalogo
+    from models.catalogo_producto import CatalogoProducto
+    from models.inventario_saas import ItemInventario
+    from services.inventario_saas import preparar_items_catalogo
+    _,org,_,unidad=entorno
+    preparar(db.engine)
+    db.metadata.create_all(db.engine,tables=[Catalogo.__table__,CatalogoProducto.__table__,ItemInventario.__table__])
+    p=crear(org,no_stockeable=True,permite_correo=False,permite_via_cargo=False)
+    c=Catalogo(organizacion_id=org.id,unidad_negocio_id=unidad.id,codigo='SERV',nombre='Servicios',moneda='ARS',estado='desactivado')
+    db.session.add(c);db.session.flush()
+    inclusion=CatalogoProducto(catalogo_id=c.id,producto_id=p.id,sku_comercial=p.sku,nombre_comercial='Servicio',precio_centavos=0,activo=False,disponible=False)
+    db.session.add(inclusion);db.session.commit()
+    assert preparar_items_catalogo(org.id,[inclusion],ItemInventario=ItemInventario,db_session=db.session)==0
+    assert ItemInventario.query.count()==0
+
+
+def test_no_stockeable_no_convierte_producto_con_existencias_aun_en_cero(entorno):
+    from models.inventario_saas import ItemInventario
+    from models.existencia_sucursal import ExistenciaSucursal
+    from models.sucursal_operativa import SucursalOperativa
+    _,org,_,_=entorno
+    preparar(db.engine)
+    db.metadata.create_all(db.engine,tables=[SucursalOperativa.__table__,ItemInventario.__table__,ExistenciaSucursal.__table__])
+    p=crear(org)
+    s=SucursalOperativa(organizacion_id=org.id,codigo='uat',nombre='UAT',activa=False)
+    db.session.add(s);db.session.flush()
+    e=ExistenciaSucursal(organizacion_id=org.id,producto_id=p.id,sucursal_operativa_id=s.id,stock_actual=0,stock_reservado=0,stock_bloqueado=0,control_activo=False)
+    db.session.add(e);db.session.commit()
+    with pytest.raises(ValueError,match='ya tiene existencias'):
+        cambiar(p,no_stockeable=True,permite_correo=False,permite_via_cargo=False)
+    db.session.rollback()
+    assert not ProductoFichaMaestra.query.one().no_stockeable
+    assert ExistenciaSucursal.query.one().stock_actual==0
+
+
+def test_preparacion_actualiza_esquema_anterior_sin_perder_roles(entorno):
+    from scripts.preparar_ficha_productos import DDL
+    from sqlalchemy import text
+    _,org,_,_=entorno
+    p=Producto(organizacion_id=org.id,sku='ANTERIOR',descripcion='Anterior')
+    db.session.add(p);db.session.commit()
+    with db.engine.begin() as c:
+        c.execute(text(DDL.replace('no_stockeable BOOLEAN NOT NULL DEFAULT FALSE,','')))
+        c.execute(text("INSERT INTO producto_ficha_maestra (producto_id,organizacion_id,nombre,linea,unidad_medida,tipo,activo,habilita_compra,habilita_venta,habilita_insumo,habilita_componente,revision) VALUES (:p,:o,'Anterior','','unidad','simple',1,1,0,1,0,1)"),{'p':p.id,'o':org.id})
+    assert 'actualizada con No stockeable' in preparar(db.engine)
+    f=ProductoFichaMaestra.query.one()
+    assert f.habilita_compra and not f.habilita_venta and f.habilita_insumo and not f.no_stockeable
+    assert 'ya preparada' in preparar(db.engine)
+
+
+@pytest.mark.parametrize('tipo_origen,tipo_destino',[('simple','combo'),('produccion','combo'),('combo','simple'),('combo','produccion')])
+def test_combo_exige_otro_sku_en_edicion_e_importacion(entorno,tipo_origen,tipo_destino):
+    _,org,_,_=entorno
+    preparar(db.engine)
+    p=crear(org,tipo=tipo_origen)
+    with pytest.raises(ValueError,match='SKU propios'):
+        cambiar(p,tipo=tipo_destino)
+    v=preview(org,[{'sku':p.sku,'tipo':tipo_destino}])
+    assert v[0]['accion']=='rechazado' and 'SKU propios' in v[0]['errores'][0]
+    assert ProductoFichaMaestra.query.one().tipo==tipo_origen
+
+
+def test_combo_y_componente_tienen_sku_diferentes_sin_duplicar_componente(entorno):
+    _,org,_,unidad=entorno
+    preparar(db.engine)
+    simple=crear(org,sku='ART-001')
+    combo=crear(org,sku='COMBO-001',tipo='combo')
+    def perfil(p,tipo):
+        return crear_o_actualizar_perfil(organizacion_id=org.id,unidad_negocio_id=unidad.id,producto_id=p.id,tipo=tipo,
+            Producto=Producto,UnidadNegocio=UnidadNegocio,PerfilCosteoProducto=PerfilCosteoProducto,db_session=db.session)
+    ps=perfil(simple,'simple');pc=perfil(combo,'combo')
+    agregar_componente_combo(pc,ps,cantidad='3',ComboProductoComponente=ComboProductoComponente,db_session=db.session)
+    assert Producto.query.count()==2
+    assert pc.producto.sku=='COMBO-001' and pc.componentes_combo[0].componente.producto.sku=='ART-001'
+
+
+def test_no_stockeable_no_genera_otro_sku_desde_fuente_de_insumo(entorno):
+    from services.materias_primas_inventario import preparar_materia_prima
+    _,org,_,unidad=entorno
+    preparar(db.engine)
+    insumo=InsumoProductivo(organizacion_id=org.id,codigo='FUENTE-NS',nombre='Artículo',tipo='consumible',unidad_medida='unidad',activo=True)
+    db.session.add(insumo);db.session.commit()
+    crear(org,no_stockeable=True,insumo_id=insumo.id,permite_correo=False,permite_via_cargo=False)
+    with pytest.raises(ValueError,match='No stockeable'):
+        preparar_materia_prima(insumo=insumo,sku='DUP-NS',organizacion_id=org.id,unidad_negocio_id=unidad.id,Producto=Producto,ItemInventario=None,db_session=db.session)
+    assert Producto.query.count()==1

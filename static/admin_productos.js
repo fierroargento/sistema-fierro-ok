@@ -11,6 +11,15 @@
   let pendiente = null;
   let enviando = false;
 
+  function ajustarNoStockeable() {
+    const noStockeable = form.elements.no_stockeable.checked;
+    [form.elements.permite_correo, form.elements.permite_via_cargo].forEach(c => {
+      if (noStockeable) c.checked = false;
+      c.disabled = noStockeable;
+    });
+  }
+  form.elements.no_stockeable.addEventListener("change", ajustarNoStockeable);
+
   function abrir(fila, fallido) {
     form.reset();
     form.querySelectorAll("details").forEach(d => { d.open = false; });
@@ -28,12 +37,18 @@
     form.elements.producto_id.value = fallido ? (fallido.producto_id || "") : (fila ? fila.id : "");
     form.elements.huella.value = fallido ? fallido.huella : (fila ? fila.huella : "nuevo");
     form.elements.sku.readOnly = edicion;
+    const filaGuardada = fila || datos.filas.find(f => String(f.id) === String(form.elements.producto_id.value));
+    const tipoGuardado = filaGuardada && filaGuardada.configurado ? filaGuardada.datos.tipo : "";
+    Array.from(form.elements.tipo.options).forEach(o => {
+      o.disabled = edicion && !!tipoGuardado && o.value !== tipoGuardado && (tipoGuardado === "combo" || o.value === "combo");
+    });
     const referencia = String(form.elements.insumo_id.value || "");
     Array.from(form.elements.insumo_id.options).forEach(o => { o.disabled = edicion && !!referencia && o.value !== referencia; });
     document.getElementById("producto-dialog-title").textContent = edicion ? "Gestionar · " + valores.sku : "Nuevo producto";
     const aviso = document.getElementById("producto-form-error");
     aviso.hidden = !fallido;
     aviso.textContent = fallido ? datos.error : "";
+    ajustarNoStockeable();
     dialogo.showModal();
     (edicion ? form.elements.nombre : form.elements.sku).focus();
   }

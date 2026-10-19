@@ -1258,3 +1258,38 @@ Captura de Martín image(20261019-212841).png inspeccionada: Nuevo Producto, pas
 - CatalogoProducto ya conserva variantes y atributos; el inventario distingue ítems. LoteProduccion ya existe, retenido/preparatorio y sin impacto. La revisión de esos archivos no acredita un circuito individual por serie listo para operación.
 - Estas tres capacidades adicionales se registran como siguiente ampliación funcional; NO aparecen como casillas operativas ficticias en este primer commit. El bloque entregado mantiene tipo, cuatro usos, estado, referencia de insumo, logística y alta/importación.
 - Revisar el resultado de Productos primero y agregar esas capacidades con validaciones e integración de sus módulos. Esta nueva referencia no habilita conexiones ni el caso integral aún pendiente.
+
+
+## 2026-10-19 — Sustituir el deploy pendiente: No stockeable y SKU propio de Combo
+
+Aclaraciones de Martín, incorporadas al mismo bloque de Productos antes del despliegue:
+- La denominación de la opción es exactamente No stockeable. No se llama sin stock: cantidad cero y ausencia de control de existencias son conceptos distintos.
+- Un combo tiene otro producto y un SKU propio, diferentes de los artículos simples o de producción que lo componen. Los componentes conservan sus identidades y SKU; no se copian para usarlos en el combo.
+- Se entrega un commit nuevo que incluye el bloque anterior y estas correcciones. No hace falta desplegar primero 36d60544dea16b028d2a8f2ed700fa0455669402.
+
+Implementación:
+- No stockeable es un booleano independiente en la extensión de Producto, visible en la ficha y en el listado. No agrega un cuarto tipo ni sustituye ninguna de las cuatro habilitaciones.
+- Puede habilitarse para compra y venta sin inventario. La opción se persiste por alta manual o lote, con validación común; columna omitida conserva el valor existente. La plantilla agrega no_stockeable con Sí/No.
+- En un producto No stockeable no se permiten permisos de envío físico. La interfaz los destilda y deshabilita; el servidor también valida y la importación informa el conflicto si recibe permisos de transporte habilitados. No se borran medidas ni datos anteriores por esta opción.
+- Preparar ítems de catálogo omite los artículos No stockeables y sus variantes de inventario. Los caminos administrativos de alta/activación de existencias/SKU y el registro de movimientos los rechazan. Crear reserva controla el bloqueo antes de agregar la reserva o alterar saldos.
+- Preparar materia prima desde una fuente ya vinculada a un producto No stockeable también se rechaza; no se elude la regla inventando un segundo SKU para esa identidad.
+- Si el producto ya tiene una existencia, incluso en cero e inactiva, o un SKU de inventario activo, no se permite convertirlo a No stockeable. Se pide revisar historial/compromisos; no se desactivan controles, ajustan cantidades ni eliminan registros automáticamente.
+- Los productos anteriores sin esta opción conservan el comportamiento previo. No se considera un saldo cero como evidencia para marcar No stockeable.
+- El esquema sigue siendo aditivo y se detecta antes de leerlo. El mismo script de preparación crea la extensión completa o agrega no_stockeable con default FALSE a la versión inmediatamente anterior, preservando tipos y roles. Segunda ejecución sin cambios. No se habilita bootstrap.
+- En ficha e importación se rechaza cambiar de simple/producción a combo o de combo a otro tipo conservando producto/SKU. El mensaje pide crear otro producto con SKU propio; en la ficha se deshabilita esa selección incompatible para productos ya configurados.
+- Los perfiles de costeo también rechazan el cambio entre combo y otro tipo manteniendo el producto, aun sin componentes. Se conserva la restricción de SKU único por organización y de no autorreferencia.
+- Marcar un simple como Componente de combo solo habilita su selección como componente: no lo convierte en combo ni cambia su SKU. Un combo nuevo se crea como otra ficha, con composición referenciada.
+- Las ampliaciones de variantes y seguimiento individual por serie siguen pendientes. Este cambio adelanta No stockeable del alcance DUX; no declara implementado todo ese circuito.
+
+Verificación y límites:
+- 32 pruebas nuevas/acumuladas del maestro aprobadas: las 21 anteriores y 11 casos adicionales de No stockeable, envío, movimiento antes de mutar, omisión en preparación de SKU, preservación de inventario previo, actualización del esquema anterior, cuatro direcciones de cambio de tipo con Combo, SKU distinto de componentes y bloqueo de identidad duplicada desde la fuente de insumo.
+- 25 pruebas anteriores de perfiles/composición/administración y DB de productos, 18 de disponibilidad/inclusiones/compras y 14 del núcleo de inventario y reservas/transferencias: 89 aprobadas en total.
+- Se mantienen los mismos límites de checkout reducido, exclusiones de aserciones estáticas antiguas y ausencia de QA visual en Chromium documentados en el bloque anterior. Sintaxis JS y compilación Python aprobadas; sin ejecución en PostgreSQL/Render ni DB externa.
+- No se importó la planilla real, no se crearon productos operativos ni se cambió main, flags, scheduler, conexiones, movimientos o dinero.
+
+Despliegue/UAT:
+1. Desplegar únicamente el nuevo commit en integración/staging.
+2. Shell de staging: python -m scripts.preparar_ficha_productos --staging. Es el mismo comando para preparación inicial o actualización de la extensión anterior.
+3. Base de Datos → Productos: nuevo artículo ficticio Simple con No stockeable y compra/venta habilitadas; guardar, reabrir, comprobar casilla y permisos físicos deshabilitados. No debe prepararse un SKU/existencia para él.
+4. Crear otro artículo stockeable y un Combo con SKU diferente. El simple mantiene su SKU al seleccionarlo como componente. Intentar transformar la ficha existente de simple a combo debe quedar impedido; no probarlo sobre datos reales.
+5. Revisar primero el orden visual y las casillas; conservar los demás pendientes y continuar por partes desde Productos.
