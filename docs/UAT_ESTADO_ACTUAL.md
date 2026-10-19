@@ -1119,3 +1119,61 @@ Estado:
 - Esta sección registra la decisión de arquitectura y el alcance confirmado; no declara implementada la ficha maestra integral.
 - Siguiente desarrollo: organizar la ficha y los campos con sus fuentes existentes, resolver datos generales faltantes y adaptar alta manual/masiva con preservación de relaciones e históricos.
 - Todo se prepara en integración/staging. Sin cambios a producción, flags o conexiones, sin nuevas cargas de productos ni migraciones ejecutadas por esta definición.
+
+
+## 2026-10-19 — Planilla real como referencia del maestro y usos combinables
+
+Solicitud de Martín:
+- Tomar PLANILLA GENERAL(2).xlsm como referencia de los campos y relaciones necesarios. El mismo producto puede venderse individualmente, participar en combos y utilizarse como insumo, incluidos usos simultáneos.
+- Esta precisión complementa la ficha maestra única anterior. No equivale a importar automáticamente el libro ni a ejecutar sus macros.
+- Fuente inspeccionada en lectura: SHA-256 d0e9bcfc86a287f66e3c7715e5421b9d5a853ad466335a00158cec30f0fba095. Libro original conservado. Comparación con código oficial de integración 309db38fffd8a877edb387939c30d50fe4b8fe08.
+
+Relevamiento verificable:
+- 14 hojas. Productos tiene 372 filas con ID informado, 371 IDs distintos; Línea contiene Laser y Herrería.
+- Productos!A1:E1: ID Producto, Nombre, Línea, Descripción, Activo (Sí/No). Nombre y descripción son datos diferentes y deben preservarse.
+- Componentes!A1:L1: producto padre, código de proveedor, nombres consultados, descripción de la pieza/uso, medida en cm, cantidad, unidad, total calculado, rendimiento por placa, tiempo de 1/4 de placa y cantidad por cartón.
+- Insumos!A1:G1 resume consumos y costos por producto/código de proveedor. Sus cantidades y nombres provienen de Componentes y Lista Proveedores; no es otro maestro independiente.
+- Lista Proveedores!A1:G1 contiene código del artículo del proveedor, nombre de insumo, proveedor, unidad, precio, bulto y lista. Ese código no identifica por sí solo a la persona/proveedor ni reemplaza el SKU interno.
+- Tareas!A1:C1 vincula producto, tarea y segundos. Sueldos y Costos Laser aportan las tarifas y parámetros compartidos. No copiar sueldos, cotización o vida útil a cada ficha.
+- Resumen Producto reúne resultados y supuestos; Lista Laser, Lista Herreria y Consulta Componentes son vistas derivadas. Calculo Competencia contiene escenarios de cargos/descuentos/precios; no acredita consultas reales de competidores. Utilidades mdf tiene un código y detalle, con utilidad vacía en la fila existente.
+
+Mapa de propiedad de datos y brechas:
+| Fuente/campos de la planilla | Destino funcional desde Productos | Base existente y adaptación requerida |
+| --- | --- | --- |
+| Productos: ID, Nombre, Línea, Descripción, Activo | Identidad estable por organización, nombre interno, línea/clasificación, descripción y estado general | Producto tiene SKU y una descripción, sin nombre/línea/activo propios. CatalogoProducto tiene nombre y estados comerciales por catálogo; no usar el primer catálogo como fuente general automática. Completar la ficha general y resolver diferencias explícitamente. |
+| Usos simultáneos indicados por Martín | Vendible individualmente y utilizable como insumo, con pertenencia a combos mediante relaciones | Falta contrato común de usos. No confundirlo con PerfilCosteoProducto.tipo ni ItemInventario.tipo. No deducirlo de que una fila esté en una hoja. |
+| Componentes: producto, componente, descripción, cantidad, medida, unidad y rendimientos | Composición del producto, consumo por unidad, conversiones/rendimientos y notas de operación | ProductoInsumoCosteo ya relaciona perfil e insumo con cantidad/merma; ComboProductoComponente relaciona perfiles con cantidad. Reutilizar esas estructuras, completar parámetros que no están representados y el vínculo al producto maestro cuando el componente también sea vendible. |
+| Lista Proveedores: artículo, proveedor, unidad, bulto, precio/lista | Proveedores vinculados, códigos externos, presentación de compra y costo con moneda/vigencia/base de impuestos | Reutilizar ProveedorCompra, InsumoProductivo e InsumoPrecioVersion. No identificar por nombre ni crear otra persona/proveedor por cada artículo. Verificar vínculo explícito y alcance antes de migrar; no atribuir al modelo actual equivalencias que todavía no tiene. |
+| Tareas: tarea y segundos | Ruta/operaciones y tiempo por producto | ProductoOperacionCosteo y ProductoMaquinaCosteo ya manejan minutos y orden. Convertir segundos/minutos explícitamente, sin asumir que Tiempo 1/4 placa tiene la misma unidad que Tareas. |
+| Sueldos y Costos Laser | Recurso laboral, máquina, consumibles, amortización y tarifas vigentes vinculadas | Reutilizar fuentes laborales y maquinaria existentes. Evitar doble imputación si una tarifa de máquina ya incluye mano de obra. |
+| Resumen Producto: costo, margen, impuestos, comisiones y precios; Calculo Competencia | Costos versionados y simulación comercial por contexto, accesibles desde la ficha | Reutilizar motor y versiones de costo, reglas económicas y simulación ML. Los importes calculados no son campos generales editables ni precios universales. |
+| Medidas/embalaje/permisos logísticos actuales; ficha comercial existente | Secciones de características y logística de la misma identidad | Conservar datos actuales. Separar producto físico, pieza consumida, rendimiento de placa/cartón y paquete de envío. No inventar estas equivalencias a partir de Medida Cm. |
+
+Regla de identidad y roles:
+- Un producto conserva un único producto_id y SKU interno por organización aunque se venda, se fabrique, integre un combo y se consuma en otra fabricación.
+- Ser insumo es un uso del artículo material, no exige una copia con otro SKU. Servicios productivos y recursos laborales no se convierten automáticamente en productos inventariables.
+- Ser componente de un combo no convierte al componente en combo. Un combo tiene composición propia y también puede venderse o utilizarse como componente de otra estructura válida.
+- La estructura de costeo simple/producción/combo se mantiene diferenciada de la habilitación comercial y del uso como insumo. No cambiar el tipo de costeo para habilitar venta, ni marcar insumo borrando venta.
+- InsumoProductivo actual es una entidad separada sin producto_id; existe MapeoInsumoInventario y el SKU de ItemInventario apunta a Producto. Ese enlace cubre contextos de inventario, pero no acredita todavía un contrato universal producto/insumo de doble uso. Resolver su adaptación sin duplicar identidad, stock ni costo.
+- Deben validarse tenant/unidad, unidades de compra/consumo/stock, cantidades positivas, conversiones explícitas y ciclos directos o indirectos entre composiciones. El costo de un subproducto se toma de su versión correspondiente, sin volver a sumar los insumos ya incluidos.
+- La centralización no altera reservas ni movimientos ni reescribe costos o ventas históricas. Un cambio relevante deja pendientes las revisiones de costo/precio que correspondan.
+
+Observaciones para importación:
+- Productos!A153 y A340 repiten CJ-MDF-000 con nombres/descripciones diferentes. Bloquear ese conflicto en previsualización, mostrando ambas filas. No elegir primera/última ni fusionar por similitud. No se corrigió el libro.
+- Los códigos padre de Componentes, Insumos, Tareas y Resumen Producto se encuentran en Productos; los códigos de componente consultados en Componentes/Insumos se encuentran en Lista Proveedores. Esto verifica referencias por código, no precisión de fórmulas, costos o unidades.
+- Productos e insumos del libro usan espacios de códigos distintos; no hay coincidencia entre IDs de Productos y códigos de Componentes. No demuestra ausencia del uso doble: esa capacidad viene de la regla explícita de Martín, no debe inferirse por coincidencias de códigos.
+- Componentes!I calcula consumo: cm a metros, cantidad/rendimiento por placa o cantidad/cartón según datos presentes. Preservar parámetros y unidad, no copiar el Total calculado como dato manual sin trazabilidad.
+- Resumen Producto!H2 usa F2*(1+G2): el campo Margen % representa recargo sobre costo en esa fórmula. No es el margen sobre precio de venta de N2. La carga y la interfaz deben distinguir recargo, rentabilidad y mínimo neto, conservando la regla de precio ML ya acordada.
+- Lista Proveedores tiene fórmulas que quitan IVA en algunas filas y en otras solo dividen lista/bulto. No aplicar IVA fijo a toda la importación ni asumir importes netos homogéneos. Requieren base tributaria explícita.
+- Hay notas y cálculos auxiliares sin encabezados en Lista Proveedores!H:R. No transformarlos en campos generales por posición. Las fórmulas que dependen de posición de fila tampoco reemplazan relaciones por identidad.
+- No importar fórmulas como valores confirmados por tener un resultado cacheado. Si faltan parámetros, vigencia o resultado verificable, mostrar pendiente. No tratar un vacío como cero.
+- Alta manual y masiva deben compartir contrato y validaciones; columnas ausentes conservan datos actuales. Borrado de un dato requiere acción explícita, previsualización de diferencias y confirmación normal con popup, sin frase escrita.
+
+Siguiente bloque concreto:
+1. Completar la ficha general en Base de Datos → Productos con nombre, línea, descripción, estado, unidades y usos combinables. Reutilizar SKU e identidad existentes.
+2. Mostrar desde Gestionar las secciones vinculadas de proveedores, composición, tareas, costos, características y logística; seleccionar contexto cuando haya más de uno, sin nuevos maestros paralelos. Diálogo compacto, secciones plegables y acciones consistentes.
+3. Adaptar alta manual e importación masiva de los campos generales con previsualización, errores por fila y preservación de relaciones/datos omitidos. La planilla completa sirve de referencia, no se envía al importador logístico actual como si ya fuera compatible.
+4. Resolver con migración explícita y reversible el vínculo artículo/insumo y los datos generales faltantes; verificar esquema antes de cambiar consultas. No depender del bootstrap deshabilitado ni repetir un despliegue que consulte columnas inexistentes.
+5. UAT inicial en staging: mismo artículo vendible/insumo, componente usado en combo sin duplicarlo, combinación comprada/fabricada con estructura explícita, duplicado CJ-MDF-000 rechazado, reimportación sin cambios, columna omitida preservada y cancelar sin guardar. Después continuar con fabricación/costos del caso integral.
+
+Estado: relevamiento y contrato registrados. No se declara implementada la ampliación del maestro, no se importó el libro ni se ejecutaron macros, migraciones, altas o movimientos. Este registro no requiere deploy de aplicación. Producción y conexiones quedan fuera del cambio.
