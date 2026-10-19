@@ -166,6 +166,7 @@ def crear_blueprint_crm(
             return redirect(url_for(
                 "admin_crm.panel",
                 ok=mensaje,
+                vista="clientes" if request.args.get("vista") == "clientes" else None,
             ))
 
         except Exception as error:
@@ -180,6 +181,7 @@ def crear_blueprint_crm(
             return redirect(url_for(
                 "admin_crm.panel",
                 error=str(error),
+                vista="clientes" if request.args.get("vista") == "clientes" else None,
             ))
 
     @blueprint.route("/admin/crm/certificacion-offline",methods=["GET","POST"])

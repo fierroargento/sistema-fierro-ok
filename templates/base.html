@@ -32,6 +32,17 @@
             <a href="{{ url_for('historico') }}">Histórico</a>
             {% endif %}
             {% if rol_actual == "admin" %}
+            {% set productos_abiertos = (request.endpoint or '').startswith('admin_productos.') %}
+            {% set proveedores_abiertos = (request.endpoint == 'admin_compras.panel' and request.args.get('vista') == 'proveedores') or request.endpoint == 'admin_compras.importar_proveedores' %}
+            {% set clientes_abiertos = request.endpoint == 'admin_crm.panel' and request.args.get('vista') == 'clientes' %}
+            <details class="menu-group"{% if productos_abiertos or proveedores_abiertos or clientes_abiertos %} open{% endif %}>
+                <summary>Base de Datos</summary>
+                <div class="menu-children">
+                    <a href="{{ url_for('admin_productos.panel') }}"{% if productos_abiertos %} aria-current="page"{% endif %}>Productos</a>
+                    <a href="{{ url_for('admin_compras.panel', vista='proveedores') }}"{% if proveedores_abiertos %} aria-current="page"{% endif %}>Proveedores</a>
+                    <a href="{{ url_for('admin_crm.panel', vista='clientes') }}"{% if clientes_abiertos %} aria-current="page"{% endif %}>Clientes</a>
+                </div>
+            </details>
             {% set contabilidad_abierta = (request.endpoint or '').startswith('admin_contabilidad.') %}
             {% set tesoreria_abierta = request.endpoint == 'admin_comercial.cuentas_pagar' or (request.endpoint or '').startswith('admin_tesoreria.') %}
             <details class="menu-group"{% if tesoreria_abierta or contabilidad_abierta %} open{% endif %}>
@@ -47,7 +58,6 @@
                     <a href="{{ url_for('admin_contabilidad.panel') }}"{% if contabilidad_abierta %} aria-current="page"{% endif %}>Contabilidad</a>
                 </div>
             </details>
-            <a href="{{ url_for('admin_productos.panel') }}">Productos</a>
             <a href="{{ url_for('admin_estructura.panel') }}">Estructura</a>
             <a href="{{ url_for('admin_comercial.panel') }}">Comercial</a>
             <a href="{{ url_for('admin_crm.panel') }}">CRM</a>

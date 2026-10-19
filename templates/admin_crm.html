@@ -4,7 +4,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_crm.css') }}?v=20261015-crm-panel-2">
 {% endblock %}
 {% block content %}
+{% set vista_clientes = request.args.get("vista") == "clientes" %}
 <main class="estructura-page crm-page">
+    {% if vista_clientes %}
+    <header><span class="estructura-control-eyebrow">BASE DE DATOS</span><h1>Clientes</h1><p>Maestro de clientes de {{ organizacion.nombre }}.</p></header>
+    <nav class="estructura-tools" aria-label="Clientes"><a href="{{ url_for('admin_crm.panel') }}">Abrir CRM</a></nav>
+    {% else %}
     <header><span class="estructura-control-eyebrow">GESTIÓN COMERCIAL</span><h1>CRM interno</h1>
 
     <p>
@@ -23,6 +28,8 @@
         <a href="{{ url_for('admin_crm.control_integral') }}">Control integral del CRM</a>
     </nav>
 
+    {% endif %}
+
     {% if ok_feedback %}
     <div class="alerta alerta-ok">{{ ok_feedback }}</div>
     {% endif %}
@@ -31,6 +38,7 @@
     <div class="alerta alerta-error">{{ error }}</div>
     {% endif %}
 
+    {% if not vista_clientes %}
     <section class="card crm-section">
         <h2>Etapas comerciales</h2>
 
@@ -79,11 +87,12 @@
         </table></div>
     </section>
 
-    <section class="card crm-section">
-        <h2>Clientes CRM</h2>
+    {% endif %}
+    <section id="crm-clientes" class="card crm-section">
+        <h2>{{ "Clientes" if vista_clientes else "Clientes CRM" }}</h2>
 
         <details class="estructura-editor crm-create"><summary>Nuevo cliente</summary><form class="crm-create-form" method="post"
-              action="{{ url_for('admin_crm.guardar') }}">
+              action="{{ url_for('admin_crm.guardar', vista='clientes' if vista_clientes else none) }}">
             <input type="hidden" name="accion" value="crear_cliente">
             <label class="crm-field"><span>Código</span><input required name="codigo" maxlength="80" placeholder="Código interno"></label>
             <label class="crm-field"><span>Nombre</span><input required name="nombre" maxlength="200" placeholder="Nombre o razón social"></label>
@@ -145,7 +154,7 @@
                         <td><span class="estructura-status" data-estado="{{ cliente.estado }}">{{ cliente.estado }}</span></td>
                         <td><span class="estructura-status" data-estado="{{ "activo" if cliente.activo else "desactivado" }}">{{ "activo" if cliente.activo else "desactivado" }}</span></td>
                         <td>
-                            <form method="post" action="{{ url_for('admin_crm.guardar') }}">
+                            <form method="post" action="{{ url_for('admin_crm.guardar', vista='clientes' if vista_clientes else none) }}">
                                 <input type="hidden" name="accion" value="toggle_cliente">
                                 <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
                                 <button type="submit">
@@ -167,7 +176,7 @@
         <h2>Identidades por canal</h2>
 
         <details class="estructura-editor crm-create"><summary>Nueva identidad de canal</summary><form class="crm-create-form" method="post"
-              action="{{ url_for('admin_crm.guardar') }}">
+              action="{{ url_for('admin_crm.guardar', vista='clientes' if vista_clientes else none) }}">
             <input type="hidden" name="accion" value="agregar_identidad">
 
             <label class="crm-field"><span>Cliente</span><select required name="cliente_id">
@@ -214,7 +223,7 @@
                     <td>{{ identidad.identificador_externo }}</td>
                     <td><span class="estructura-status" data-estado="{{ "activa" if identidad.activo else "desactivada" }}">{{ "activa" if identidad.activo else "desactivada" }}</span></td>
                     <td>
-                        <form method="post" action="{{ url_for('admin_crm.guardar') }}">
+                        <form method="post" action="{{ url_for('admin_crm.guardar', vista='clientes' if vista_clientes else none) }}">
                             <input type="hidden" name="accion" value="toggle_identidad">
                             <input type="hidden" name="identidad_id" value="{{ identidad.id }}">
                             <button type="submit">
@@ -230,6 +239,7 @@
         </table></div>
     </section>
 
+    {% if not vista_clientes %}
     <section class="card crm-section">
         <h2>Oportunidades</h2>
 
@@ -416,6 +426,7 @@
             </tbody>
         </table></div>
     </section>
+    {% endif %}
     {% endif %}
 </main>
 <script src="{{ url_for('static', filename='admin_crm.js') }}?v=20261015-crm-panel-2" defer></script>

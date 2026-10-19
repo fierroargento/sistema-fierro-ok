@@ -389,10 +389,10 @@ def crear_blueprint_compras(*, dependencias):
             dependencias["registrar_auditoria"](
                 f"Compras: {accion}", entidad="compras", detalle=mensaje,
             )
-            return redirect(url_for("admin_compras.panel", ok=mensaje, _anchor="compras-mapeos" if accion in {"preparar_materia_prima", "crear_mapeo_inventario"} else None))
+            return redirect(url_for("admin_compras.panel", ok=mensaje, vista="proveedores" if request.args.get("vista") == "proveedores" else None, _anchor="compras-mapeos" if accion in {"preparar_materia_prima", "crear_mapeo_inventario"} else None))
         except Exception as error:
             db.session.rollback()
-            return redirect(url_for("admin_compras.panel", error=str(error), _anchor="compras-mapeos" if request.form.get("accion") in {"preparar_materia_prima", "crear_mapeo_inventario"} else None))
+            return redirect(url_for("admin_compras.panel", error=str(error), vista="proveedores" if request.args.get("vista") == "proveedores" else None, _anchor="compras-mapeos" if request.form.get("accion") in {"preparar_materia_prima", "crear_mapeo_inventario"} else None))
 
     @blueprint.route("/admin/compras/control-integral")
     @dependencias["login_required"]

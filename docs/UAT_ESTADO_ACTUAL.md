@@ -1042,3 +1042,49 @@ Pendientes conservados:
 - No se considera terminada la importación de operaciones reales ni la conciliación completa de cuenta/liberaciones/transferencias/contracargos/reintegros MP. Sin saldo disponible consultado.
 - Falta el circuito operativo con producto físico, fabricación, venta/envío reales, todas sus deducciones documentadas y snapshot aprobado antes de vender. No cargar todavía el nuevo producto integral.
 - Packs, más unidades, mayoristas y varias cuentas/variantes no se deducen del caso de una unidad; siguen pendientes de su vínculo explícito. Continúa el resto del plan y los pendientes históricos no revalidados.
+
+
+## 2026-10-19 — Nuevo orden de trabajo y Base de Datos en la barra lateral
+
+Decisión explícita de Martín:
+- Avanzar por partes para simplificar el recorrido, empezando por creación de productos manual o masiva y ordenando el mapa del sitio.
+- Nuevo principal Base de Datos, con secundarios en este orden: Productos, Proveedores, Clientes.
+- Se pospone la continuación del bloque fabricación → costo obtenido hasta ordenar/revisar el alta de productos. No iniciar otro desarrollo financiero en paralelo ni cargar aún el producto integral.
+
+UAT del bloque ML/MP anterior:
+- Captura 203000: contraste coincidente, neto cobrado menos gastos locales $5.921,50; costo $4.933,65 y resultado parcial $987,85. Diferencia frente al previsto cero y frente al mínimo $0,50.
+- Captura 203016: MP sin neto informado, cobro pendiente; diferencia frente al mínimo Pendiente y frente al previsto No disponible.
+- Captura 203031: MP con $100 más de comisión, neto cobrado menos gastos locales $5.821,50; detalle ML conservado como parcial y comparación pendiente, sin otro descuento automático.
+- Captura 203207: relectura del paquete ML/MP conserva cobro $5.821,50, fuentes y pendientes. Se cierra ese UAT específico de tres casos y relectura; no se declara operación real ni cobertura completa de MP.
+
+Navegación implementada:
+| Ruta natural | Destino existente reutilizado | Alcance |
+| --- | --- | --- |
+| Base de Datos → Productos | admin_productos.panel | Maestro tenant actual, con entradas manual y Excel existentes. |
+| Base de Datos → Proveedores | admin_compras.panel?vista=proveedores | Solo maestro de proveedores, alta y gestión existentes; acceso a importación y enlace Abrir Compras. |
+| Base de Datos → Clientes | admin_crm.panel?vista=clientes | Maestro de clientes e identidades de canal existentes; enlace Abrir CRM. |
+
+- Se reutiliza details/menu-group/menu-children del menú actual. Grupo abierto y opción activa al visitar un hijo. Productos deja de estar duplicado como principal independiente.
+- Base de Datos conserva visibilidad admin; no amplía permisos a Carga/Despacho. Los manejadores mantienen autenticación, resolución de tenant y controles actuales.
+- Administración → Tesorería y Contabilidad se mantienen como estaban aceptados. Compras y CRM completos conservan sus accesos y funciones; solo los accesos desde Base de Datos muestran la vista de maestro.
+- Proveedores no muestra órdenes, recepciones, facturas, mapeos o propuestas en esta vista. Clientes no muestra etapas, oportunidades o actividades. No se duplica una tabla, modelo o formulario de negocio: se reutilizan las plantillas y servicios originales.
+- Guardar desde cada vista conserva su destino tanto en éxito como en error. Solo se admiten valores de vista conocidos, no URLs de retorno externas. Cancelación y diálogos usan los controles existentes.
+- Importar proveedores conserva el proceso existente y vuelve a Proveedores, con la misma sección lateral activa.
+- Este cambio de presentación no modifica consultas, altas, importaciones, validaciones de datos, estados o activaciones de los maestros.
+
+Verificación:
+- 25 verificaciones locales de render/navegación y retorno: menú en los cuatro destinos, orden, opción activa, ausencia de Productos duplicado, visibilidad por rol, vistas completas frente a vistas de maestros, clientes con/sin registros y retorno de éxito/error de los manejadores reales extraídos por AST con servicios simulados.
+- 12 pruebas existentes de Compras/CRM aprobadas. Una prueba de composición de app.py no se ejecutó en el checkout reducido; app.py/bootstrap no cambiaron. Se actualiza únicamente el delimitador de extracción del fragmento Proveedores en la prueba existente para que tolere la condición de presentación.
+- Compilación Python aprobada. Render con Flask/Jinja real y dobles de datos, sin escrituras de DB, arranque del sistema ni inspección visual de navegador. No se repiten las 398 pruebas económicas por este cambio de navegación.
+- Sin cambios a modelos, servicios de dominio, scheduler, webhooks, credenciales, flags, conexiones, stock, pagos o producción. No se crean productos, proveedores o clientes durante la verificación.
+
+UAT acotado tras desplegar:
+1. Abrir Base de Datos y verificar orden Productos / Proveedores / Clientes.
+2. Productos: comprobar que abre el maestro actual y se ven las opciones manual y masiva; no cargar todavía un archivo ni producto.
+3. Proveedores y Clientes: comprobar que abren sus maestros, sin el resto del circuito de Compras/CRM, y conservan la barra lateral y opción activa.
+4. Los enlaces Abrir Compras/Abrir CRM permiten volver a las pantallas completas.
+
+Siguiente trabajo, según la nueva prioridad:
+- Revisar el alta manual y la importación masiva de productos, qué campos pertenecen al maestro único y cómo se enlazan luego con ficha comercial, fabricación y costo. Auditar las validaciones y evitar duplicar el producto por completar su ficha.
+- La vista Productos actual corresponde al maestro interno/logístico. La existencia de botones no acredita que toda la creación integral y masiva esté aceptada; su presentación y flujo se revisarán en el siguiente bloque antes de pedir nuevas cargas.
+- Conservar todos los pendientes históricos y la separación staging/producción. Este ajuste del mapa del sitio no habilita el producto integral ni cierra los pendientes de fabricación o cuentas reales.

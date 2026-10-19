@@ -36,7 +36,7 @@ def test_ficha_proveedor_renderiza_datos_y_conserva_edicion_segura():
     from html.parser import HTMLParser
     source = Path("templates/admin_compras.html").read_text()
     start = source.index('<section id="compras-proveedores"')
-    end = source.index('</section>\n  <section id="compras-ordenes"', start)
+    end = source.rfind('</section>', start, source.index('<section id="compras-ordenes"', start)) + len('</section>')
     supplier = O(id=1, codigo="UAT-001", razon_social='Proveedor <UAT>', cuit="30700000001",
                  estado="activo", persona_contacto="Contacto", email="uat@example.invalid",
                  telefono="123", domicilio="Calle 123", localidad="Viedma", provincia="Río Negro",
