@@ -657,3 +657,42 @@ Próximo UAT tras deploy de integración:
 2. Descargar ejemplo ML + MP · Cobros y cargos; seleccionar rentabilidad_ml_mp_snapshot_demo.json y Analizar archivo.
 3. Verificar Snapshot ML + MP offline, resultado $20.400, margen 37,78% y neto $41.900.
 4. Desplegar Contraste de cobros y cargos MP: cuatro pagos, cinco grupos coincidentes y Saldo disponible: no consultado. Descargar evidencia recalculada para comprobar importes/huellas y cargos únicos. No repetir los siete escenarios previos ni usar datos reales.
+
+
+### PML-0D validado y UAT de faltantes/diferencias MP — 19/10/2026
+
+Evidencia recibida del despliegue 855da1afabe0a8e24700aee3cdb018cb6213e8ba:
+- image(20261019-144715).png: Snapshot ML + MP offline, cuatro órdenes/cinco unidades, resultado $20.400, margen 37,78%, diferencia prevista cero y liquidación $41.900.
+- image(20261019-144802).png: cuatro pagos aprobados declarados, cinco grupos coincidentes con diferencia cero y Saldo disponible: no consultado. Tablas alineadas/contenidas y huella visible.
+- rentabilidad_ml_archivo_recalculado (2).json: huellas canónicas de entrada y resultado válidas, recálculo idéntico al exportado y entrada idéntica al generador de ejemplo en organización 1/unidad 3.
+- Huella de entrada: 912d0b8168c835d766ded469cdc47a057b0ee09a1d15373dd26e9432e99c0731.
+- Huella de resultado: 6705017975882254a4cb8a77af7d3406e4622e0b52af1249cb02d2cb72f08ff1.
+- Huella del paquete MP original reconstruido: 73ad8d004266b2532b29421ffd10402820981e082f7806f7998974b8cb9efbf2, coincide con captura/trazabilidad.
+- Cuatro comisiones únicas ($8.100) y un envío único ($4.000), con dos fuentes por hecho. Cinco fuentes duplicadas no sumadas. Reparto del envío conserva exactamente 400000 centavos. Cobro neto total 4190000, resultado 2040000, controles de ejecución/persistencia en cero.
+- Cierre limitado a datos sintéticos declarados; no acredita rentabilidad real, titularidad de cuentas ni saldo disponible. No amplía validación de teclas/cancelación.
+
+Siguiente bloque acotado:
+- Se extiende el generador MP existente con casos completo (sin cambios), sin_neto y cargo_diferente. No se incorpora otro motor ni se modifican lector, cálculos o estados operativos.
+- En el formulario actual, Más pruebas MP · Faltantes y diferencias permanece plegado y ofrece dos descargas. No exige editar JSON. Casos desconocidos se rechazan con aviso del sistema.
+- Neto pendiente: retira net_received_amount de los cuatro pagos conservando bruto/cargos; deben mostrarse netos Pendiente, liquidación observada Pendiente y resultado parcial $20.400/37,78%. No interpreta falta como cero o bruto.
+- Cargo con diferencia: primera comisión MP $1.600 frente a $1.500 ML; primer neto MP $7.659,26. El neto total es $41.800, diferencia de cargo +$100 y diferencia de reconstrucción -$100. Resultado económico identificado $20.400/37,78% se conserva parcial, con grupo Requiere revisión; no se sobrescribe ML ni se agrega otro gasto para ocultar discrepancia.
+- 183 pruebas focalizadas aprobadas (178 previas + 5 casos nuevos parametrizados): descargas/contexto, resultado parcial/avisos, netos ausentes, diferencia visible, exportación/relectura y caso inválido. Compilación Python aprobada. Sin prueba de navegador real para estas dos variantes.
+- Sin cambios de CSS/JS, core, modelos, DB, credenciales, flags, conexiones externas ni producción. Todos los pendientes previos conservados.
+
+Próximo UAT tras deploy:
+1. Comercial → Rentabilidad ML · Ensayo offline → Analizar un archivo offline → Más pruebas MP · Faltantes y diferencias.
+2. Descargar MP · Neto pendiente, seleccionar el archivo y Analizar archivo. Verificar aviso amarillo/Resultado parcial, faltantes de neto y liquidación observada Pendiente.
+3. Descargar MP · Cargo con diferencia y analizarlo igual. Verificar Resultado parcial, neto $41.800 y, en Contraste de cobros y cargos MP, grupo 1 Requiere revisión con $100 de diferencia.
+4. Captura y evidencia recalculada de cada variante para verificar el UAT. No repetir escenario completo ya validado.
+
+### Alertas de rentabilidad — requisito explícito, pendiente de implementación
+
+Consulta del usuario 19/10/2026: avisar automáticamente sobre publicaciones con rentabilidad inferior a la esperada. El precio objetivo no garantiza el margen posterior: costos, cargos, envíos, promociones y ajustes pueden variar. No se declara implementado ni activado un monitoreo por este registro.
+
+Integración al plan vigente:
+- Publicación: comparar margen previsto recalculado con objetivo/mínimo configurado por cuenta/canal; mostrar motivo, vigencia/fuente y gastos incluidos. Evaluar con costos actuales para decisiones futuras, sin reescribir costos históricos de ventas.
+- Venta: comparar margen/resultado obtenido con la previsión congelada de esa operación y tolerancia a definir. Separar resultado económico de cobro neto/disponibilidad. Margen sobre venta no equivale a recargo sobre costo.
+- Datos incompletos: alerta Rentabilidad pendiente de confirmar, sin afirmar cumplimiento del objetivo ni pérdida definitiva.
+- Reutilizar los mecanismos existentes de notificaciones y control/conciliación, auditando antes su encaje; evitar otro centro paralelo. Prever agrupación por publicación/cuenta, deduplicación y actualización/resolución al cambiar la evidencia, sin avisos persistentes invasivos.
+- Umbrales, tolerancias y frecuencia aún por definir/validar; no inventar un porcentaje global. Mantener visible el acceso al desglose para revisar causas.
+- Ningún ajuste automático de precio, pausa de publicación ni conexión/notificación externa se autoriza por este requisito. La futura activación sobre cuentas reales requiere su etapa de integración/UAT.

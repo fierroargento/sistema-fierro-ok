@@ -6,7 +6,16 @@ from services.lectura_mp_rentabilidad import FORMATO_MP
 from services.rentabilidad_ml_offline import _repartir
 
 
-def ejemplo_snapshot_mp(*, organizacion_id, unidad_negocio_id):
+CASOS_SNAPSHOT_MP = {
+    'completo': 'Cobros y cargos',
+    'sin_neto': 'Neto pendiente',
+    'cargo_diferente': 'Cargo con diferencia',
+}
+
+
+def ejemplo_snapshot_mp(*, organizacion_id, unidad_negocio_id, caso='completo'):
+    if caso not in CASOS_SNAPSHOT_MP:
+        raise ValueError('Elegí uno de los ejemplos MP disponibles.')
     ml=ejemplo_snapshot_ml(organizacion_id=organizacion_id,unidad_negocio_id=unidad_negocio_id)
     ml['datos_locales']['eventos']=[e for e in ml['datos_locales']['eventos'] if e['tipo'] not in {'pago_bruto','liquidacion_neta'}]
     normal=normalizar_snapshot_ml(ml,organizacion_id=organizacion_id,
@@ -29,4 +38,14 @@ def ejemplo_snapshot_mp(*, organizacion_id, unidad_negocio_id):
                     {'type':'financing_fee','fee_payer':'payer','amount':'1.23'}]},
             'relaciones_cargos':[{'indice':0,'hechos_ml':[comision['hecho_id']], 'referencia':'Mismo cargo sintético de comisión'},
                 {'indice':1,'hechos_ml':[envio['hecho_id']], 'referencia':'Porción sintética del único envío compartido'}]})
+    if caso == 'sin_neto':
+        # Ausencia de evidencia, no un cobro de cero ni el importe bruto.
+        for pago in pagos:
+            pago['respuesta']['transaction_details'].pop('net_received_amount')
+    elif caso == 'cargo_diferente':
+        # MP declara $100 más de comisión y $100 menos de neto en la primera orden.
+        # El lector mantiene la evidencia ML para revisión; no fuerza su coincidencia.
+        pago = pagos[0]['respuesta']
+        pago['fee_details'][0]['amount'] = '1600.00'
+        pago['transaction_details']['net_received_amount'] = '7659.26'
     return {'formato':FORMATO_MP,'snapshot_ml':ml,'collector_id':'DEMO-SELLER','pagos_mp':pagos}

@@ -219,3 +219,61 @@ def test_division_de_un_pago_en_dos_con_mismo_alcance_conserva_total():
 def test_fuentes_ajenas_no_compensan_cargos_de_otra_orden():
     d=ejemplo();d['pagos_mp'][0]['relaciones_cargos'][0]['hechos_ml']=['ml-comision:DEMO-ORD-2:1']
     with pytest.raises(ValueError,match='líneas'): analizar(d)
+
+
+@pytest.mark.parametrize('caso,neto,duplicados',[
+    ('sin_neto',None,5), ('cargo_diferente',4180000,4),
+])
+def test_ejemplos_mp_de_revision_preservan_costos_y_no_completan_faltantes(caso,neto,duplicados):
+    d=ejemplo_snapshot_mp(organizacion_id=1,unidad_negocio_id=3,caso=caso)
+    entrada,resultado=analizar(d)
+    assert resultado['estado']=='parcial'
+    assert resultado['totales']['resultado_centavos']==2040000
+    assert resultado['totales']['gastos_centavos']==1360000
+    assert resultado['liquidacion']['observada_centavos']==neto
+    assert resultado['fuentes_duplicadas_no_sumadas']==duplicados
+    assert len([h for h in resultado['hechos'] if h['tipo'] in ('comision','envio')])==5
+    otra,rr=analizar({'entrada':entrada,'resultado':{'estado':'alcance_declarado_completo'}})
+    assert otra==entrada and rr==resultado
+    if caso=='sin_neto':
+        assert all(p['neto_centavos'] is None for p in entrada['trazabilidad_mp']['pagos'])
+        assert len([x for x in resultado['faltantes'] if 'Neto no informado' in x])==4
+    else:
+        discrepancias=[x for x in entrada['trazabilidad_mp']['cargos'] if x['estado']=='requiere_revision']
+        assert len(discrepancias)==1 and discrepancias[0]['diferencia_centavos']==10000
+        assert resultado['liquidacion']['diferencia_detalle_centavos']==-10000
+    assert ejemplo_snapshot_mp(organizacion_id=1,unidad_negocio_id=3)==ejemplo()
+
+
+@pytest.mark.parametrize('caso,textos',[
+    ('sin_neto',['Neto no informado del pago DEMO-MP-1','>Pendiente<']),
+    ('cargo_diferente',['Requiere revisión','41.800,00','100,00']),
+])
+def test_descargar_y_analizar_ejemplos_mp_parciales_con_avisos_visibles(app,caso,textos):
+    c=app.test_client();ingresar(c)
+    panel=c.get('/admin/comercial/rentabilidad-ml')
+    assert 'Más pruebas MP · Faltantes y diferencias' in panel.text
+    for clave in ('sin_neto','cargo_diferente'):
+        assert 'caso_mp='+clave in panel.text
+    archivo=c.get('/admin/comercial/rentabilidad-ml?descargar_snapshot_mp=1&caso_mp='+caso+'&organizacion_id=99&unidad_negocio_id=99')
+    assert archivo.status_code==200 and archivo.headers['Cache-Control']=='no-store'
+    assert f'rentabilidad_ml_mp_{caso}_demo.json' in archivo.headers['Content-Disposition']
+    assert archivo.json['snapshot_ml']['organizacion_id']==1
+    assert archivo.json['snapshot_ml']['unidad_negocio_id']==3
+    respuesta=c.post('/admin/comercial/rentabilidad-ml/archivo',data=archivo.data,content_type='application/json')
+    assert respuesta.status_code==200 and 'Resultado parcial' in respuesta.text
+    assert 'feedback profitability-pending' in respuesta.text and 'Falta completar' in respuesta.text
+    assert 'El archivo tiene completos los conceptos declarados' not in respuesta.text
+    assert all(texto in respuesta.text for texto in textos)
+    assert '20.400,00' in respuesta.text and '37,78%' in respuesta.text
+    assert 'evidencia-archivo' in respuesta.text
+
+
+def test_caso_mp_desconocido_se_rechaza_con_el_aviso_del_sistema(app):
+    with pytest.raises(ValueError,match='ejemplos MP'):
+        ejemplo_snapshot_mp(organizacion_id=1,unidad_negocio_id=3,caso='inexistente')
+    c=app.test_client();ingresar(c)
+    respuesta=c.get('/admin/comercial/rentabilidad-ml?descargar_snapshot_mp=1&caso_mp=inexistente')
+    assert respuesta.status_code==400 and 'feedback-error' in respuesta.text
+    assert 'Elegí uno de los ejemplos MP disponibles.' in respuesta.text
+    assert respuesta.headers['Cache-Control']=='no-store'

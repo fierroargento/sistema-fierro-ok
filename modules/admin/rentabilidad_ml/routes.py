@@ -9,7 +9,7 @@ from services.escenarios_rentabilidad_ml import CUENTA_ENSAYO, ESCENARIOS, escen
 from services.rentabilidad_ml_offline import analizar_rentabilidad
 from services.archivo_rentabilidad_ml import MAX_ARCHIVO_BYTES, analizar_archivo
 from services.ejemplo_snapshot_ml_rentabilidad import ejemplo_snapshot_ml
-from services.ejemplo_snapshot_mp_rentabilidad import ejemplo_snapshot_mp
+from services.ejemplo_snapshot_mp_rentabilidad import CASOS_SNAPSHOT_MP, ejemplo_snapshot_mp
 from werkzeug.exceptions import RequestEntityTooLarge
 from services.tenant_context import TenantError, resolver_tenant_usuario
 
@@ -53,8 +53,14 @@ def crear_blueprint_rentabilidad_ml(*, dependencias):
             return contexto
         membresia, unidad = contexto
         if request.args.get("descargar_snapshot_mp") == "1":
+            caso_mp = request.args.get("caso_mp", "completo")
+            if caso_mp not in CASOS_SNAPSHOT_MP:
+                return render_template("admin_rentabilidad_ml.html", unidad_activa=unidad,
+                    escenarios=ESCENARIOS, clave="simple", resultado=None, meta=None,
+                    error="Elegí uno de los ejemplos MP disponibles."), 400
+            nombre = "rentabilidad_ml_mp_snapshot_demo.json" if caso_mp == "completo" else f"rentabilidad_ml_mp_{caso_mp}_demo.json"
             return exportacion(ejemplo_snapshot_mp(organizacion_id=membresia.organizacion_id,
-                unidad_negocio_id=unidad.id), "rentabilidad_ml_mp_snapshot_demo.json")
+                unidad_negocio_id=unidad.id, caso=caso_mp), nombre)
         if request.args.get("descargar_snapshot_ml") == "1":
             return exportacion(ejemplo_snapshot_ml(organizacion_id=membresia.organizacion_id,
                 unidad_negocio_id=unidad.id), "rentabilidad_ml_snapshot_pack_demo.json")

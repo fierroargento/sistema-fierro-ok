@@ -23,6 +23,14 @@
       <p>Archivo del ensayo o paquete offline ML/MP, hasta 2 MB. Solo cuenta ficticia <strong>demo-rentabilidad-sin-conexion</strong>, organización y unidad activas. El paquete ML requiere órdenes, publicaciones y datos locales vinculados; no admite respuestas sueltas ni acredita autenticidad externa.</p>
       <p><a class="secondary-link" href="{{ url_for('admin_rentabilidad_ml.panel', descargar_snapshot_ml='1') }}">Descargar ejemplo ML · Pack de cuatro órdenes</a></p>
       <p><a class="secondary-link" href="{{ url_for('admin_rentabilidad_ml.panel', descargar_snapshot_mp='1') }}">Descargar ejemplo ML + MP · Cobros y cargos</a></p>
+      <details class="production-lot-create">
+        <summary>Más pruebas MP · Faltantes y diferencias</summary>
+        <p>Archivos ficticios para comprobar los avisos. Descargá uno y analizalo en el mismo formulario.</p>
+        <div class="production-actions">
+          <a class="secondary-link" href="{{ url_for('admin_rentabilidad_ml.panel', descargar_snapshot_mp='1', caso_mp='sin_neto') }}">Descargar MP · Neto pendiente</a>
+          <a class="secondary-link" href="{{ url_for('admin_rentabilidad_ml.panel', descargar_snapshot_mp='1', caso_mp='cargo_diferente') }}">Descargar MP · Cargo con diferencia</a>
+        </div>
+      </details>
       <form class="comercial-form" method="post" action="{{ url_for('admin_rentabilidad_ml.archivo') }}" data-profitability-upload>
         <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}">
         <label class="production-field-wide"><span>Archivo JSON</span><input type="file" name="archivo" accept=".json,application/json" required></label>
