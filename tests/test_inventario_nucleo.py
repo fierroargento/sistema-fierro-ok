@@ -178,3 +178,33 @@ def test_runtime_no_importa_inventario():
         )
         assert "ExistenciaSucursal" not in contenido
         assert "MovimientoInventario" not in contenido
+
+
+def test_stock_negativo_explicito_egreso_ajuste_y_recuperacion():
+    e = existencia(stock_actual=0, stock_reservado=0)
+    aplicar_movimiento(e, 'egreso', 2, permitir_stock_negativo=True)
+    assert e.stock_actual == -2
+    aplicar_movimiento(e, 'ajuste', -3, permitir_stock_negativo=True)
+    assert e.stock_actual == -5
+    aplicar_movimiento(e, 'ingreso', 6, permitir_stock_negativo=True)
+    assert e.stock_actual == 1
+
+
+def test_negativo_no_relaja_reservas_bloqueos_ni_publicable():
+    e = existencia(stock_actual=-2, stock_reservado=0, stock_bloqueado=0, control_activo=True)
+    with pytest.raises(ValueError, match='suficiente'):
+        aplicar_movimiento(e, 'reserva', 1, permitir_stock_negativo=True)
+    assert e.stock_actual == -2 and e.stock_reservado == 0
+    politica = SimpleNamespace(activa=True, permite_sin_stock=False, umbral_publicacion=0, maximo_publicable=None)
+    assert cantidad_publicable(e, politica) == 0
+    e.stock_bloqueado = -1
+    with pytest.raises(ValueError, match='bloqueado no puede ser negativo'):
+        aplicar_movimiento(e, 'ingreso', 3, permitir_stock_negativo=True)
+    assert e.stock_actual == -2
+
+
+def test_ajuste_rechazado_preserva_saldo_en_memoria():
+    e = existencia(stock_actual=2, stock_reservado=0)
+    with pytest.raises(ValueError, match='no puede ser negativo'):
+        aplicar_movimiento(e, 'ajuste', -3)
+    assert e.stock_actual == 2

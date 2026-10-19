@@ -65,7 +65,7 @@ def stock_disponible(existencia):
     return actual - reservado - bloqueado
 
 
-def validar_existencia(existencia):
+def validar_existencia(existencia, *, permitir_stock_negativo=False):
     if existencia is None:
         raise ValueError(
             "No se recibió la existencia."
@@ -92,7 +92,7 @@ def validar_existencia(existencia):
         "El stock bloqueado",
     )
 
-    if actual < 0:
+    if actual < 0 and not permitir_stock_negativo:
         raise ValueError(
             "El stock actual no puede ser negativo."
         )
@@ -105,7 +105,7 @@ def validar_existencia(existencia):
     if bloqueado < 0:
         raise ValueError("El stock bloqueado no puede ser negativo.")
 
-    if reservado + bloqueado > actual:
+    if reservado + bloqueado > actual and not permitir_stock_negativo:
         raise ValueError(
             "El stock reservado y bloqueado no puede superar el stock actual."
         )
@@ -117,6 +117,8 @@ def aplicar_movimiento(
     existencia,
     tipo,
     cantidad,
+    *,
+    permitir_stock_negativo=False,
 ):
     """
     Aplica en memoria un movimiento validado.
@@ -124,7 +126,7 @@ def aplicar_movimiento(
     Devuelve la fotografía anterior y posterior para
     crear el registro de auditoría en la misma transacción.
     """
-    validar_existencia(existencia)
+    validar_existencia(existencia, permitir_stock_negativo=permitir_stock_negativo)
 
     tipo = str(
         tipo or ""
@@ -161,7 +163,7 @@ def aplicar_movimiento(
         existencia.stock_actual += cantidad
 
     elif tipo == TIPO_EGRESO:
-        if stock_disponible(existencia) < cantidad:
+        if stock_disponible(existencia) < cantidad and not permitir_stock_negativo:
             raise ValueError(
                 "No hay stock disponible suficiente "
                 "para el egreso."
@@ -187,7 +189,12 @@ def aplicar_movimiento(
             )
         existencia.stock_reservado -= cantidad
 
-    validar_existencia(existencia)
+    try:
+        validar_existencia(existencia, permitir_stock_negativo=permitir_stock_negativo)
+    except ValueError:
+        existencia.stock_actual = actual_anterior
+        existencia.stock_reservado = reservado_anterior
+        raise
 
     return {
         "stock_actual_anterior": actual_anterior,
@@ -223,11 +230,12 @@ def registrar_movimiento(
         )
 
     from services.producto_habilitaciones import exigir_recurso_stockeable
-    exigir_recurso_stockeable(existencia, db_session)
+    ficha = exigir_recurso_stockeable(existencia, db_session)
     fotografia = aplicar_movimiento(
         existencia,
         tipo,
         cantidad,
+        permitir_stock_negativo=bool(ficha and ficha.permitir_stock_negativo),
     )
 
     movimiento = MovimientoInventario(

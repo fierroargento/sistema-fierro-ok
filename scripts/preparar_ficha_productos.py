@@ -14,6 +14,7 @@ DDL = """CREATE TABLE producto_ficha_maestra (
     unidad_medida VARCHAR(30) NOT NULL,
     tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('simple','produccion','combo')),
     activo BOOLEAN NOT NULL, no_stockeable BOOLEAN NOT NULL DEFAULT FALSE,
+    permitir_stock_negativo BOOLEAN NOT NULL DEFAULT FALSE,
     habilita_compra BOOLEAN NOT NULL,
     habilita_venta BOOLEAN NOT NULL, habilita_insumo BOOLEAN NOT NULL,
     habilita_componente BOOLEAN NOT NULL,
@@ -29,11 +30,15 @@ def preparar(engine):
             from services.producto_habilitaciones import CAMPOS_FICHA
             columnas = {c["name"] for c in inspector.get_columns("producto_ficha_maestra")}
             requeridas = set(CAMPOS_FICHA) | {"producto_id", "organizacion_id", "revision"}
-            if not requeridas - {"no_stockeable"} <= columnas:
+            if not requeridas - {"no_stockeable", "permitir_stock_negativo"} <= columnas:
                 raise ValueError("La ficha existente tiene otro esquema; requiere revisión. No se modificó.")
-            if "no_stockeable" not in columnas:
-                conexion.execute(text("ALTER TABLE producto_ficha_maestra ADD COLUMN no_stockeable BOOLEAN NOT NULL DEFAULT FALSE"))
-                return "Ficha actualizada con No stockeable. Configuración anterior conservada."
+            agregadas = []
+            for campo, etiqueta in (("no_stockeable", "No stockeable"), ("permitir_stock_negativo", "Permitir stock negativo")):
+                if campo not in columnas:
+                    conexion.execute(text(f"ALTER TABLE producto_ficha_maestra ADD COLUMN {campo} BOOLEAN NOT NULL DEFAULT FALSE"))
+                    agregadas.append(etiqueta)
+            if agregadas:
+                return "Ficha actualizada con " + " y ".join(agregadas) + ". Configuración anterior conservada."
             return "Ficha ya preparada. Sin cambios."
         if not all(inspector.has_table(t) for t in ("producto", "organizacion", "insumo_productivo")):
             raise ValueError("Faltan tablas base. No se preparó la ficha.")

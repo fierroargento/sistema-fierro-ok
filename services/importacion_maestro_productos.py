@@ -13,7 +13,7 @@ from services.productos_ficha_maestra import (
 from services.producto_habilitaciones import CAMPOS_FICHA
 
 MAX_FILAS = 500
-CAMPOS = ("sku", "nombre", "linea", "descripcion", "tipo", "unidad_medida", "activo", "no_stockeable",
+CAMPOS = ("sku", "nombre", "linea", "descripcion", "tipo", "unidad_medida", "activo", "no_stockeable", "permitir_stock_negativo",
     "habilita_compra", "habilita_venta", "habilita_insumo", "habilita_componente", "insumo_id") + CAMPOS_LOGISTICA
 ALIASES = {"id_producto": "sku", "codigo": "sku", "codigo_producto": "sku",
     "activo_si_no": "activo", "tipo_de_producto": "tipo", "unidad": "unidad_medida",
@@ -185,7 +185,7 @@ def plantilla_csv():
     # Ejemplo completo y desconectado, sin permisos logísticos por defecto.
     ejemplo = {"sku": "UAT-PRODUCTO-001", "nombre": "Producto de prueba", "linea": "Pruebas",
         "descripcion": "Producto de prueba", "tipo": "simple", "unidad_medida": "unidad",
-        "activo": "si", "no_stockeable": "no", "habilita_compra": "si", "habilita_venta": "si",
+        "activo": "si", "no_stockeable": "no", "permitir_stock_negativo": "no", "habilita_compra": "si", "habilita_venta": "si",
         "habilita_insumo": "si", "habilita_componente": "si", "permite_correo": "no",
         "permite_via_cargo": "no", "requiere_revision_logistica": "si"}
     escritor.writerow([ejemplo.get(c, "") for c in CAMPOS])

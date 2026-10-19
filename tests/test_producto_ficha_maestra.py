@@ -473,3 +473,103 @@ def test_no_stockeable_no_genera_otro_sku_desde_fuente_de_insumo(entorno):
     with pytest.raises(ValueError,match='No stockeable'):
         preparar_materia_prima(insumo=insumo,sku='DUP-NS',organizacion_id=org.id,unidad_negocio_id=unidad.id,Producto=Producto,ItemInventario=None,db_session=db.session)
     assert Producto.query.count()==1
+
+
+def test_stock_negativo_manual_lote_y_opciones_incompatibles(entorno):
+    _, org, _, _ = entorno
+    preparar(db.engine)
+    p = crear(org)
+    assert not ProductoFichaMaestra.query.one().permitir_stock_negativo
+    cambiar(p, permitir_stock_negativo=True)
+    assert ProductoFichaMaestra.query.one().permitir_stock_negativo
+    v = preview(org, [{'sku': p.sku, 'nombre': 'Nuevo nombre'}]); aplicar(org, v)
+    assert ProductoFichaMaestra.query.one().permitir_stock_negativo
+    v = preview(org, [{'sku': p.sku, 'permitir_stock_negativo': 'No'}]); aplicar(org, v)
+    assert not ProductoFichaMaestra.query.one().permitir_stock_negativo
+    with pytest.raises(ValueError, match='incompatibles'):
+        cambiar(p, no_stockeable=True, permitir_stock_negativo=True, permite_correo=False)
+    assert not ProductoFichaMaestra.query.one().no_stockeable
+    assert 'permitir_stock_negativo' in plantilla_csv().splitlines()[0]
+
+
+def test_guardias_anteriores_continuan_antes_de_migrar_columna_negativo(entorno):
+    from sqlalchemy import text
+    from scripts.preparar_ficha_productos import DDL
+    from services.producto_habilitaciones import leer_ficha, esquema_ficha_disponible, exigir_producto_stockeable
+    _, org, _, _ = entorno
+    p = Producto(organizacion_id=org.id, sku='ANTERIOR-NS', descripcion='Anterior')
+    db.session.add(p); db.session.commit()
+    with db.engine.begin() as c:
+        c.execute(text(DDL.replace('permitir_stock_negativo BOOLEAN NOT NULL DEFAULT FALSE,', '')))
+        c.execute(text("INSERT INTO producto_ficha_maestra (producto_id,organizacion_id,nombre,linea,unidad_medida,tipo,activo,no_stockeable,habilita_compra,habilita_venta,habilita_insumo,habilita_componente,revision) VALUES (:p,:o,'Anterior','','unidad','simple',1,1,1,0,1,0,1)"), {'p':p.id,'o':org.id})
+    assert not esquema_ficha_disponible(db.session)
+    assert not leer_ficha(p, db.session).permitir_stock_negativo
+    with pytest.raises(ValueError, match='Disponible para venta'):
+        exigir_uso_producto(p, 'venta', db.session)
+    with pytest.raises(ValueError, match='No stockeable'):
+        exigir_producto_stockeable(p, db.session)
+    db.session.rollback()
+    assert 'Permitir stock negativo' in preparar(db.engine)
+    f = ProductoFichaMaestra.query.one()
+    assert f.no_stockeable and not f.habilita_venta and not f.permitir_stock_negativo
+    assert 'ya preparada' in preparar(db.engine)
+
+
+def test_movimientos_usan_regla_maestra_y_no_permiten_desactivar_con_saldo_negativo(entorno):
+    from models.inventario_saas import ItemInventario
+    from models.existencia_sucursal import ExistenciaSucursal
+    from models.sucursal_operativa import SucursalOperativa
+    from models.movimiento_inventario import MovimientoInventario
+    from services.inventario_nucleo import registrar_movimiento
+    _, org, otra, _ = entorno
+    preparar(db.engine)
+    db.metadata.create_all(db.engine, tables=[SucursalOperativa.__table__, ItemInventario.__table__, ExistenciaSucursal.__table__, MovimientoInventario.__table__])
+    p = crear(org)
+    s = SucursalOperativa(organizacion_id=org.id, codigo='NEG', nombre='Prueba', activa=False)
+    db.session.add(s); db.session.flush()
+    e = ExistenciaSucursal(organizacion_id=org.id, producto_id=p.id, sucursal_operativa_id=s.id, stock_actual=0, stock_reservado=0, stock_bloqueado=0)
+    db.session.add(e); db.session.commit()
+    def mover(tipo, cantidad):
+        return registrar_movimiento(e, tipo=tipo, cantidad=cantidad, motivo='UAT aislado', MovimientoInventario=MovimientoInventario, db_session=db.session)
+    with pytest.raises(ValueError, match='suficiente'):
+        mover('egreso', 2)
+    assert e.stock_actual == 0 and MovimientoInventario.query.count() == 0
+    cambiar(p, permitir_stock_negativo=True)
+    movimiento = mover('egreso', 2)
+    assert e.stock_actual == -2
+    assert movimiento.stock_actual_anterior == 0 and movimiento.stock_actual_nuevo == -2
+    with pytest.raises(ValueError, match='Regularizá'):
+        cambiar(p, permitir_stock_negativo=False)
+    v = preview(org, [{'sku':p.sku, 'permitir_stock_negativo':'No'}])
+    assert v[0]['accion'] == 'rechazado'
+    mover('ajuste', -1)
+    assert e.stock_actual == -3
+    with pytest.raises(ValueError, match='suficiente'):
+        mover('reserva', 1)
+    assert e.stock_reservado == 0
+    mover('ingreso', 3)
+    cambiar(p, permitir_stock_negativo=False)
+    assert not ProductoFichaMaestra.query.one().permitir_stock_negativo and e.stock_actual == 0
+    # Un permiso de otra organización no autoriza este producto.
+    crear(otra, sku=p.sku, permitir_stock_negativo=True)
+    with pytest.raises(ValueError, match='suficiente'):
+        mover('egreso', 1)
+    assert e.stock_actual == 0
+
+
+def test_ruta_casilla_stock_negativo_guarda_y_reabre(entorno):
+    app, org, _, _ = entorno
+    preparar(db.engine)
+    configurar_rutas(app, org)
+    cliente = app.test_client()
+    respuesta = cliente.post('/admin/productos', data=form_datos(permitir_stock_negativo=True), follow_redirects=True)
+    assert respuesta.status_code == 200 and 'Permite stock negativo' in respuesta.text
+    assert 'name="permitir_stock_negativo"' in respuesta.text
+    p = Producto.query.one()
+    assert ProductoFichaMaestra.query.one().permitir_stock_negativo
+    _, filas = construir_filas([p], db.session, org.id)
+    formulario = form_datos() | {'accion':'editar_producto', 'producto_id':p.id, 'huella':filas[0]['huella']}
+    respuesta = cliente.post('/admin/productos', data=formulario, follow_redirects=True)
+    assert respuesta.status_code == 200
+    assert not ProductoFichaMaestra.query.one().permitir_stock_negativo
+    assert Producto.query.count() == 1

@@ -1309,3 +1309,34 @@ Corrección de presentación:
 - Sin cambios de JS, modelos, migración, permisos, servicios o datos. No hace falta repetir la preparación de la ficha.
 - Verificación: render de la ruta real con Flask/Jinja aprobado (1 prueba funcional existente); revisión de la cascada y especificidad de CSS frente a la regla compartida. No se repite la batería de 89 pruebas por este ajuste de presentación ni se declara QA visual de Chromium.
 - La verificación final de alineación y altura queda pendiente de refrescar staging con Ctrl+F5 tras este commit. No cargar todavía la planilla real ni avanzar al caso integral.
+
+
+## 2026-10-19 — Productos: Permitir stock negativo
+
+Evidencia UAT anterior:
+- Martín confirmó la cancelación del alta ficticia, el guardado de UAT-MAESTRO-001 y la independencia de Venta respecto de Compra/Insumo/Componente.
+- Captura 222651: Producto de prueba, Simple, No stockeable, cuatro usos y Activo visibles en la lista. No acredita movimientos de inventario.
+- A solicitud de Martín se incorpora Permitir stock negativo como atributo independiente de la ficha principal, sin crear otra política por SKU ni duplicar inventario.
+
+Cambio:
+- Casilla Permitir stock negativo en Nuevo/Gestionar, con la misma alineación; default FALSE, incompatible con No stockeable. Al marcar No stockeable la interfaz desmarca/deshabilita la nueva casilla y el servidor rechaza la combinación contradictoria, incluso en lotes.
+- Misma regla para alta/edición e importación; la plantilla agrega la columna, las omisiones en actualizaciones conservan el valor y Sí/No explícitos lo cambian. Se incluye en huella de concurrencia y vista previa.
+- El núcleo registrar_movimiento resuelve la autorización desde el producto del tenant; no recibe una autorización desde el formulario de movimientos. Sin ficha/autorización se mantiene el bloqueo anterior. Se serializa contra edición de la ficha mediante bloqueo del producto.
+- Con permiso explícito, egresos y ajustes internos pueden dejar stock actual negativo o compromisos sin cobertura. Ingresos posteriores regularizan el saldo. Reservado/bloqueado nunca admiten valores negativos, liberar más de lo reservado sigue rechazado y nuevas reservas exigen stock disponible.
+- No se permite destildar mientras alguna existencia del producto tenga stock negativo o compromisos sin cobertura. Se rechaza antes del guardado manual o del lote; no se corrigen saldos automáticamente.
+- Un ajuste rechazado restaura el saldo en memoria antes de devolver el error. Los movimientos aceptados conservan evidencia anterior/nueva en el historial.
+- No se modifica la configuración de automatización de pedidos: conserva su prohibición de stock negativo, ni se cambia el cálculo/publicación de disponibilidad. El permiso no habilita conexiones ni ventas automáticas.
+- Preparación aditiva e idempotente: el mismo comando agrega permitir_stock_negativo BOOLEAN NOT NULL DEFAULT FALSE; conserva fichas, roles y valores previos. Entre deploy y preparación las guardias anteriores de Venta/No stockeable siguen vigentes leyendo solo columnas existentes; el permiso nuevo se considera FALSE. La edición ampliada queda deshabilitada hasta preparar.
+- Alcance de pruebas: SQLite aislado y servicios comunes, no PostgreSQL/Render ni conexiones reales. No se declara validación visual de navegador para esta casilla antes del UAT.
+
+Verificación:
+- 36 pruebas del maestro (32 anteriores + cuatro de permiso/preservación/importación, compatibilidad antes de migrar, movimientos reales aislados/regularización/tenant y ruta real de casilla).
+- Tres casos adicionales del núcleo: egreso/ajuste/recuperación explícitos, reservas/publicable/bloqueado y restauración del ajuste rechazado. Batería anterior del maestro, perfiles, composición, compras, disponibilidad y núcleo/reservas/transferencias aprobada; se conservan las exclusiones estáticas antiguas documentadas, sin afirmar ejecución del monolito.
+- Sintaxis JS y compilación de módulos Python aprobadas.
+
+Deploy/UAT pendiente:
+1. Desplegar este commit solo en integracion-saas-2026-09.
+2. Shell de staging: python -m scripts.preparar_ficha_productos --staging.
+3. Base de Datos → Productos → Gestionar UAT-MAESTRO-001: actualmente No stockeable. Destildarlo, marcar Permitir stock negativo, guardar/confirmar y reabrir; verificar persistencia sin cambiar tipo ni cuatro usos.
+4. Sin guardar, marcar No stockeable: la nueva casilla debe quedar desmarcada/deshabilitada. Cancelar y reabrir debe conservar la configuración guardada del paso anterior.
+5. Movimientos con saldo insuficiente y regularización: pendientes de UAT en un inventario ficticio aislado; no ejecutar sobre existencias reales. No importar todavía la planilla real.

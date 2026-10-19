@@ -47,6 +47,9 @@ def normalizar_ficha(datos):
     if salida["tipo"] not in TIPOS:
         raise ValueError("Elegí Simple, De producción o Combo.")
     salida["no_stockeable"] = booleano(datos.get("no_stockeable", False), "No stockeable")
+    salida["permitir_stock_negativo"] = booleano(datos.get("permitir_stock_negativo", False), "Permitir stock negativo")
+    if salida["no_stockeable"] and salida["permitir_stock_negativo"]:
+        raise ValueError("No stockeable y Permitir stock negativo son opciones incompatibles. Elegí una sola.")
     salida["descripcion"] = salida["descripcion"] or salida["nombre"]
     for campo in ("activo",) + tuple("habilita_" + uso for uso in USOS):
         salida[campo] = booleano(datos.get(campo), campo.replace("_", " "))
@@ -81,7 +84,7 @@ def normalizar_ficha(datos):
 
 def datos_de_formulario(formulario):
     datos = dict(formulario)
-    for campo in ("activo", "no_stockeable", "permite_correo", "permite_via_cargo", "requiere_revision_logistica") + tuple("habilita_" + uso for uso in USOS):
+    for campo in ("activo", "no_stockeable", "permitir_stock_negativo", "permite_correo", "permite_via_cargo", "requiere_revision_logistica") + tuple("habilita_" + uso for uso in USOS):
         datos[campo] = "1" if formulario.get(campo) == "1" else "0"
     return normalizar_ficha(datos)
 
@@ -113,6 +116,16 @@ def validar_vinculos(producto, datos, db_session, organizacion_id):
         ).first()
         if anterior and anterior.tipo != datos["tipo"] and "combo" in {anterior.tipo, datos["tipo"]}:
             raise ValueError("El combo necesita un producto y SKU propios. No se puede convertir un producto simple o de producción en combo, ni el combo en otro tipo, conservando su SKU. Creá otro producto.")
+        if not datos["permitir_stock_negativo"]:
+            tabla = producto.metadata.tables.get("existencia_sucursal")
+            if tabla is not None and inspect(db_session.connection()).has_table(tabla.name):
+                pendiente = select(tabla.c.id).where(
+                    tabla.c.organizacion_id == organizacion_id, tabla.c.producto_id == producto.id,
+                    (tabla.c.stock_actual < 0) |
+                    (tabla.c.stock_actual < tabla.c.stock_reservado + tabla.c.stock_bloqueado),
+                )
+                if db_session.execute(pendiente.limit(1)).first() is not None:
+                    raise ValueError("No se puede desactivar Permitir stock negativo mientras haya saldos negativos o compromisos sin cobertura. Regularizá las existencias primero.")
         if datos["no_stockeable"]:
             inspector = inspect(db_session.connection())
             for nombre in ("existencia_sucursal", "item_inventario"):
@@ -208,7 +221,7 @@ def construir_filas(productos, db_session, organizacion_id):
         datos = {c: getattr(producto, c) for c in CAMPOS_BASE}
         datos.update({c: getattr(ficha, c) for c in CAMPOS_FICHA} if ficha else {
             "nombre": producto.descripcion or "", "linea": "", "unidad_medida": "",
-            "tipo": tipos[0] if len(tipos) == 1 else "", "activo": True, "no_stockeable": False,
+            "tipo": tipos[0] if len(tipos) == 1 else "", "activo": True, "no_stockeable": False, "permitir_stock_negativo": False,
             **{"habilita_" + uso: False for uso in USOS}, "insumo_id": None,
         })
         filas.append({"id": producto.id, "configurado": ficha is not None,

@@ -1,5 +1,6 @@
 """Reglas comunes de la ficha maestra. Sin activar canales ni movimientos."""
-from sqlalchemy import inspect, select
+from types import SimpleNamespace
+from sqlalchemy import inspect, select, false
 
 USOS = {
     "compra": "Disponible para compra", "venta": "Disponible para venta",
@@ -13,17 +14,20 @@ class ProductoNoStockeable(ValueError):
 
 
 CAMPOS_FICHA = (
-    "nombre", "linea", "unidad_medida", "tipo", "activo", "no_stockeable",
+    "nombre", "linea", "unidad_medida", "tipo", "activo", "no_stockeable", "permitir_stock_negativo",
     "habilita_compra", "habilita_venta", "habilita_insumo", "habilita_componente", "insumo_id",
 )
 
 
-def esquema_ficha_disponible(db_session):
+def esquema_ficha_disponible(db_session, *, admitir_anterior=False):
     inspector = inspect(db_session.connection())
     if not inspector.has_table("producto_ficha_maestra"):
         return False
     columnas = {c["name"] for c in inspector.get_columns("producto_ficha_maestra")}
-    return set(CAMPOS_FICHA) | {"producto_id", "organizacion_id", "revision"} <= columnas
+    requeridas = set(CAMPOS_FICHA) | {"producto_id", "organizacion_id", "revision"}
+    if admitir_anterior:
+        requeridas.discard("permitir_stock_negativo")
+    return requeridas <= columnas
 
 
 def leer_ficha(producto, db_session):
@@ -31,12 +35,19 @@ def leer_ficha(producto, db_session):
     # En ejecución real se exige un modelo mapeado y sesión real.
     if inspect(producto, raiseerr=False) is None:
         return None
-    if not esquema_ficha_disponible(db_session):
+    if not esquema_ficha_disponible(db_session, admitir_anterior=True):
         return None
     from models.producto_ficha_maestra import ProductoFichaMaestra
-    return db_session.query(ProductoFichaMaestra).filter_by(
-        producto_id=producto.id, organizacion_id=producto.organizacion_id,
-    ).populate_existing().first()
+    tabla = ProductoFichaMaestra.__table__
+    columnas = {c["name"] for c in inspect(db_session.connection()).get_columns(tabla.name)}
+    # Durante el deploy previo a preparar la columna se conservan todas las
+    # guardias existentes y la nueva autorización permanece en FALSE.
+    seleccion = [c if c.name in columnas else false().label(c.name) for c in tabla.c]
+    fila = db_session.execute(select(*seleccion).where(
+        tabla.c.producto_id == producto.id,
+        tabla.c.organizacion_id == producto.organizacion_id,
+    )).mappings().first()
+    return SimpleNamespace(**fila) if fila else None
 
 
 def exigir_uso_producto(producto, uso, db_session):
@@ -60,6 +71,7 @@ def exigir_producto_stockeable(producto, db_session):
     ficha = leer_ficha(producto, db_session)
     if ficha is not None and ficha.no_stockeable:
         raise ProductoNoStockeable(f"{producto.sku}: es No stockeable. No admite existencias, reservas ni movimientos de inventario.")
+    return ficha
 
 
 def exigir_recurso_stockeable(recurso, db_session):
@@ -68,17 +80,17 @@ def exigir_recurso_stockeable(recurso, db_session):
     from models.producto import Producto
     producto = db_session.query(Producto).filter_by(
         id=recurso.producto_id, organizacion_id=recurso.organizacion_id,
-    ).first()
+    ).with_for_update().populate_existing().first()
     if producto is None:
         raise ValueError("El registro de inventario no tiene un producto maestro válido.")
-    exigir_producto_stockeable(producto, db_session)
+    return exigir_producto_stockeable(producto, db_session)
 
 
 def exigir_insumo_stockeable(insumo, db_session):
-    if inspect(insumo, raiseerr=False) is None or not esquema_ficha_disponible(db_session):
+    if inspect(insumo, raiseerr=False) is None or not esquema_ficha_disponible(db_session, admitir_anterior=True):
         return
     from models.producto_ficha_maestra import ProductoFichaMaestra
-    ficha = db_session.query(ProductoFichaMaestra).filter_by(
+    ficha = db_session.query(ProductoFichaMaestra.producto_id).filter_by(
         organizacion_id=insumo.organizacion_id, insumo_id=insumo.id,
         no_stockeable=True,
     ).first()
@@ -106,7 +118,7 @@ def motivo_venta_item(item):
 
 def exigir_uso_insumo(insumo, uso, db_session, unidad_negocio_id=None):
     """Resuelve identidades verificadas, nunca por coincidencia de códigos."""
-    if inspect(insumo, raiseerr=False) is None or not esquema_ficha_disponible(db_session):
+    if inspect(insumo, raiseerr=False) is None or not esquema_ficha_disponible(db_session, admitir_anterior=True):
         return
     from models.producto import Producto
     from models.producto_ficha_maestra import ProductoFichaMaestra

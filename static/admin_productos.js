@@ -13,6 +13,8 @@
 
   function ajustarNoStockeable() {
     const noStockeable = form.elements.no_stockeable.checked;
+    if (noStockeable) form.elements.permitir_stock_negativo.checked = false;
+    form.elements.permitir_stock_negativo.disabled = noStockeable;
     [form.elements.permite_correo, form.elements.permite_via_cargo].forEach(c => {
       if (noStockeable) c.checked = false;
       c.disabled = noStockeable;

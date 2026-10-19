@@ -22,6 +22,7 @@ class ProductoFichaMaestra(db.Model):
     tipo = db.Column(db.String(20), nullable=False)
     activo = db.Column(db.Boolean, nullable=False)
     no_stockeable = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    permitir_stock_negativo = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     habilita_compra = db.Column(db.Boolean, nullable=False)
     habilita_venta = db.Column(db.Boolean, nullable=False)
     habilita_insumo = db.Column(db.Boolean, nullable=False)
