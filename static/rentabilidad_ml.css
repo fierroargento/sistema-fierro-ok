@@ -13,3 +13,6 @@
 .profitability-page .production-dialog p{overflow-wrap:anywhere}
 @media(max-width:900px){.profitability-page .profitability-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.profitability-page .profitability-metrics,.profitability-page .profitability-coverage{grid-template-columns:minmax(0,1fr)}}
+
+/* El destino del salto conserva el foco; los controles mantienen su indicador de teclado. */
+.profitability-page #resultado:focus{outline:none}

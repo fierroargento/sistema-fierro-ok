@@ -505,3 +505,29 @@ Próximo UAT tras deploy:
 3. Abrir/cerrar Ver detalle mediante Cerrar/X/Escape, sin cambios ni guardado; revisar presentación y sidebar.
 4. Descargar evidencia del ensayo y verificar huellas/alcance. Después pasar a Pack, Neto repetido y ejemplos de fuentes faltantes; no repetir altas previas ni subir archivos reales.
 Este bloque sí requiere deploy de integración para revisar la pantalla. Mantener laboratorio desconectado; no hacer deploy de producción.
+
+### PML-0A: evidencias de los siete ejemplos y ajustes de presentación — 19/10/2026
+
+Base desplegada del bloque: a195b76be9f47ffc4b29bf0f54325f498ff0b03e (referencia del código; las capturas no acreditan por sí solas el SHA ejecutado en Render).
+Se revisaron las siete exportaciones aportadas por el usuario. Ambas huellas canónicas de entrada y resultado coinciden en cada archivo. Contexto organización 1 / unidad 3 / cuenta sintética. Los controles de los documentos declaran persistencia false y conexiones, stock, pagos y publicaciones en cero; no son una auditoría independiente del servidor.
+
+| Evidencia | Resultado comprobado | Huella del resultado |
+| --- | --- | --- |
+| rentabilidad_ml_ensayo_simple.json | $3.200; 32%; neto $7.500. Modal con costo histórico y comisión/envío/embalaje. | a73b5b14138eca5227347c92976bb79189f25eed31a48de26ef3c717579a95ef |
+| rentabilidad_ml_ensayo_pack.json | Cuatro órdenes, cinco unidades, SKU repetido con precios diferentes. Envío único $4.000, reparto exacto; resultado $20.400, neto $41.900. | b35f4cb1e5efbc8f9474e5edc9c124b3c24db382d393913e2b783b3b688b0dd4 |
+| rentabilidad_ml_ensayo_neto.json | Una fuente duplicada vinculada sin sumarse. Comisión única $1.500; resultado $3.200, neto $7.500. | 16b01dfd01101c3a2d92c42470ed8a615078af471256cfb6b80cc8ee19b48a44 |
+| rentabilidad_ml_ensayo_faltantes.json | Estado parcial, publicidad pendiente; $3.200 solo con conceptos conocidos. Avisos amarillos visibles. | 5cb34da858387cab89614fc1ef5847f7872af0a6297c330ca211ceed11701399 |
+| rentabilidad_ml_ensayo_sin_costo.json | no_calculable: costo, ganancia, margen y objetivo null. Sin captura aportada para este caso. | 97cd209dd675e26f227215f445bb5471ce6a5bc1038a024cab1529ea92dbdf3d |
+| rentabilidad_ml_ensayo_mayorista.json | Cinco unidades a $8.550 efectivos. Descuentos no restados nuevamente; resultado $12.837,50, margen 30,03%, neto $34.337,50. | 1cb744da07cdcfbf31e6093a234c109745a13ba28de8e0ba1d069a058fd17c68 |
+| rentabilidad_ml_ensayo_devolucion.json | Reintegro $2.500, costo original $4.000; resultado $700, margen 9,33%, neto $5.000. Sin recuperación automática de costo/stock. | 22103847eda0ebbee697f5004801af8ccf0251e6620a55f9acd12a2c0fba0f2d |
+
+Ajustes realizados tras este UAT:
+- Margen con coma decimal en HTML; el dato decimal canónico del JSON no se modifica.
+- Se elimina únicamente el contorno de foco del contenedor #resultado, conservando tabindex, salto al resultado e indicadores de foco de los controles.
+- criterio_objetivo queda null cuando no se calcula precio objetivo. Corrige la descripción contradictoria de publicidad no aplicable en Gastos pendientes y evita describir un objetivo inexistente en otros casos. Los archivos anteriores conservan sus huellas y no se reescriben; futuras descargas actualizan ese metadato externo a entrada/resultado.
+- Cache de CSS actualizada para que Render solicite la versión nueva.
+- Verificación de esta corrección: compilación Python, render Jinja de las siete evidencias con layout mínimo de prueba y filtro monetario, coma decimal, null y visibilidad condicional del objetivo. Sin cambios en el motor ni repetición de las 83 pruebas del bloque original. No se afirma prueba de navegador/teclado o DB de Render.
+
+Estado: siete casos sintéticos comprobados en evidencia; queda revisar estos ajustes visuales después del deploy. El modal se vio abierto en captura; Cerrar/X/Escape y sidebar completo no quedan acreditados individualmente por estas capturas.
+No valida ventas reales, elegibilidad B2B, lectura de tramos, reportes MP ni el conjunto PML-UAT-01 a 24. Se mantienen las limitaciones y pendientes anteriores, producción fuera de alcance y laboratorio desconectado.
+Próximo bloque seguro propuesto: ingreso offline de evidencia normalizada con vista previa y validación de organización/unidad/cuenta/moneda/corte, sin guardar ni consultar ML/MP. Reutilizar este contrato, los costos y la conciliación existentes; no crear otro catálogo ni motor.

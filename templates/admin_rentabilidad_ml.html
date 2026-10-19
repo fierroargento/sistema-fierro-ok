@@ -2,7 +2,7 @@
 {% block title %}Rentabilidad ML · Ensayo offline{% endblock %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='produccion.css', v='20261018-rentabilidad') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='rentabilidad_ml.css', v='20261018-1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='rentabilidad_ml.css', v='20261019-1') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='produccion.js', v='20261018-rentabilidad') }}" defer></script>
 {% endblock %}
 {% block content %}
@@ -23,7 +23,7 @@
     <div class="profitability-metrics">
       <article><span>Resultado previsto</span><strong>{% if resultado.totales.resultado_previsto_centavos is not none %}${{ resultado.totales.resultado_previsto_centavos|moneda_centavos }}{% else %}No disponible{% endif %}</strong></article>
       <article><span>Resultado {% if resultado.estado == 'parcial' %}parcial{% else %}del ejemplo{% endif %}</span><strong>{% if resultado.totales.resultado_centavos is not none %}${{ resultado.totales.resultado_centavos|moneda_centavos }}{% else %}No calculable{% endif %}</strong></article>
-      <article><span>Margen sobre venta</span><strong>{{ resultado.totales.margen_pct ~ '%' if resultado.totales.margen_pct is not none else 'No calculable' }}</strong></article>
+      <article><span>Margen sobre venta</span><strong>{{ (resultado.totales.margen_pct|replace('.', ',')) ~ '%' if resultado.totales.margen_pct is not none else 'No calculable' }}</strong></article>
       <article><span>Diferencia frente al previsto</span><strong>{% if resultado.totales.diferencia_resultado_centavos is not none %}${{ resultado.totales.diferencia_resultado_centavos|moneda_centavos }}{% else %}No disponible{% endif %}</strong></article>
     </div>
     {% if resultado.faltantes %}<div class="feedback profitability-pending"><strong>Falta completar</strong><ul>{% for faltante in resultado.faltantes %}<li>{{ faltante }}</li>{% endfor %}</ul></div>{% endif %}

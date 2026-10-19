@@ -91,7 +91,7 @@ def escenario_rentabilidad(clave, *, organizacion_id, unidad_negocio_id):
         objetivo = calcular_precio_minimo_canal(piso["piso_liquidacion_centavos"], regla)["precio_final_centavos"]
     return documento, {"nombre": ESCENARIOS[clave][0], "descripcion": ESCENARIOS[clave][1],
         "precio_objetivo_centavos": objetivo,
-        "criterio_objetivo": "Recargo objetivo del 20% sobre costo de producto y embalaje; cargo de canal y envío previstos. Sin impuestos/publicidad aplicables en este ejemplo.",
+        "criterio_objetivo": ("Recargo objetivo del 20% sobre costo de producto y embalaje; cargo de canal y envío previstos. Sin impuestos/publicidad aplicables en este ejemplo." if objetivo is not None else None),
         "contexto": "B2B sintético" if clave == "mayorista" else "Ejemplo sintético"}
 
 
