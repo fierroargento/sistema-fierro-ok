@@ -198,12 +198,16 @@ def normalizar_snapshot_ml(documento, *, organizacion_id, unidad_negocio_id, cue
             "Se conserva posición original por orden; cambios de orden del array requieren otra revisión.",
             "Precio histórico desde unit_price; precio actual de publicación y paid_amount no son precio histórico ni neto.",
             "sale_fee observado en el snapshot no acredita todos los cargos finales ni cobertura de facturación/MP."]}
-    return {"version": 1, "organizacion_id": organizacion_id, "unidad_negocio_id": unidad_negocio_id,
+    entrada = {"version": 1, "organizacion_id": organizacion_id, "unidad_negocio_id": unidad_negocio_id,
         "cuenta_codigo": cuenta_codigo, "moneda": "ARS", "origen": "archivo_offline",
         "referencia_venta": pack_id or ids[0], "fecha_corte": d["fecha_corte"],
         "lineas": filas, "eventos": eventos, "cobertura": cobertura,
         "gastos_locales_previstos_centavos": locales.get("gastos_locales_previstos_centavos"),
         "trazabilidad_ml": traza}
+    if "enlace_precio" in locales:
+        entrada["enlace_precio"] = deepcopy(locales["enlace_precio"])
+        entrada["pendientes_fuente"] = ["Fotografía interna vinculada a un snapshot ML declarado; sin autenticación externa"]
+    return entrada
 
 
 def _hecho(ident, tipo, importe, lineas, fecha, fuente, incluido):

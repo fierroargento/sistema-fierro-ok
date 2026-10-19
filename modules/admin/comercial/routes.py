@@ -11,6 +11,8 @@ from services.cobertura_precio_publicacion import guardar_cobertura
 from services.venta_prueba_precio import CASOS as CASOS_VENTA_PRECIO, preparar_venta_prueba
 from services.rentabilidad_ml_offline import analizar_rentabilidad
 from services.escenarios_rentabilidad_ml import CUENTA_ENSAYO, ESCENARIOS as ESCENARIOS_RENTABILIDAD
+from services.snapshot_venta_prueba import CASOS as CASOS_MP_PRECIO, snapshot_venta_prueba
+from services.archivo_rentabilidad_ml import analizar_archivo
 from services.historial_costos_productos import obtener_historial_costo_producto
 from services.historial_precios_observados import obtener_historial_precio
 from services.control_comercial_masivo import exportar_bandeja_excel
@@ -283,13 +285,24 @@ def crear_blueprint_comercial(*, dependencias):
             entrada = preparar_venta_prueba(filas[0], caso=caso)
             resultado = analizar_rentabilidad(entrada, organizacion_id=organizacion.id,
                 unidad_negocio_id=unidad_activa.id, cuenta_codigo=CUENTA_ENSAYO)
+            caso_mp = request.args.get("comparar_mp")
+            payload = entrada
+            if caso_mp is not None:
+                payload = snapshot_venta_prueba(entrada, caso=caso_mp)
+                entrada, resultado = analizar_archivo(json.dumps(payload).encode(), organizacion_id=organizacion.id,
+                    unidad_negocio_id=unidad_activa.id, cuenta_codigo=CUENTA_ENSAYO)
             meta = {"nombre": "Venta de prueba del producto", "descripcion": CASOS_VENTA_PRECIO[caso],
                 "contexto": "Una unidad · venta y cobro sintéticos · fuentes internas congeladas",
                 "precio_objetivo_centavos": None, "criterio_objetivo": None}
-            evidencia = {"entrada": entrada, "resultado": resultado, "escenario": meta}
+            if caso_mp is not None:
+                meta.update(nombre="Venta de prueba · Contraste ML + MP",
+                    descripcion=CASOS_MP_PRECIO[caso_mp], contexto="Una unidad · snapshots ficticios del mismo producto · sin conexión")
+            evidencia = {"entrada": payload, "resultado": resultado, "escenario": meta}
             response = render_template("admin_rentabilidad_ml.html", unidad_activa=unidad_activa,
                 escenarios=ESCENARIOS_RENTABILIDAD, clave="simple", resultado=resultado, meta=meta,
                 evidencia_archivo=evidencia, desde_enlace=True, casos_enlace=CASOS_VENTA_PRECIO,
+                casos_mp_enlace=CASOS_MP_PRECIO, caso_mp_enlace=caso_mp,
+                trazabilidad_ml=entrada.get("trazabilidad_ml"), trazabilidad_mp=entrada.get("trazabilidad_mp"),
                 caso_enlace=caso, enlace_parametros={k: request.args[k] for k in
                     ("unidad_negocio_id", "catalogo_producto_id", "lista_precio_id", "huella_calculo")})
             return response, 200, {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}

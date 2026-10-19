@@ -22,6 +22,8 @@ def normalizar_snapshot_mp(documento, *, organizacion_id, unidad_negocio_id, cue
     entrada=normalizar_snapshot_ml(ml, organizacion_id=organizacion_id,
         unidad_negocio_id=unidad_negocio_id, cuenta_codigo=cuenta_codigo)
     collector=_id(d.get('collector_id'),'Cobrador declarado')
+    if 'enlace_precio' in entrada and collector != entrada['trazabilidad_ml']['seller_declarado']:
+        raise ValueError('El cobrador MP no coincide con el vendedor ML del ensayo enlazado.')
     corte=_fecha(entrada['fecha_corte'])
     filas={f['linea_id']:f for f in entrada['lineas']}
     ordenes={f['order_id'] for f in filas.values()}
@@ -71,6 +73,8 @@ def normalizar_snapshot_mp(documento, *, organizacion_id, unidad_negocio_id, cue
                 raise ValueError('Los alcances de pagos se solapan de forma ambigua; requiere revisión.')
             propietario_orden[ref]=grupo
         lineas=sorted(i for i,f in filas.items() if f['order_id'] in refs)
+        if 'enlace_precio' in entrada and any(_fecha(filas[i]['fecha_venta']) > aprobacion for i in lineas):
+            raise ValueError('El cobro MP es anterior a una orden vinculada; requiere revisar las fechas.')
         bruto=_centavos(p.get('transaction_amount'))
         grupos_cobro[grupo]=grupos_cobro.get(grupo,0)+bruto
         detalle=p.get('transaction_details')
@@ -151,7 +155,7 @@ def normalizar_snapshot_mp(documento, *, organizacion_id, unidad_negocio_id, cue
         traza_cargos.append({'grupo':pos,'hechos_ml':list(hechos),'importe_ml_centavos':esperado,
             'importe_mp_centavos':g['importe'],'diferencia_centavos':g['importe']-esperado,
             'estado':'coincidente' if coincide else 'requiere_revision','fuentes':g['fuentes']})
-    entrada['pendientes_fuente']=sorted(set(pendientes))
+    entrada['pendientes_fuente']=sorted(set(entrada.get('pendientes_fuente',[]) + pendientes))
     entrada['trazabilidad_mp']={'formato':FORMATO_MP,'collector_declarado':collector,
         'huella_snapshot':sha256(json.dumps(d,ensure_ascii=False,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest(),
         'pagos':traza_pagos,'cargos':traza_cargos,'saldo_disponible':'no_consultado',

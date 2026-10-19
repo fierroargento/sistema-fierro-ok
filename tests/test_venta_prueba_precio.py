@@ -176,7 +176,7 @@ def test_caso_desconocido_y_envio_imposible_se_rechazan():
 
 
 @pytest.mark.parametrize('cambio', ['base', 'envio_mayor', 'unidad', 'inclusion', 'lista', 'huella',
-    'duplicado', 'embalaje_pendiente', 'caso_invalido', 'sin_acceso'])
+    'duplicado', 'embalaje_pendiente', 'caso_invalido', 'sin_acceso', 'mp_completo', 'mp_sin_neto', 'mp_cargo_diferente', 'mp_invalido'])
 def test_ruta_real_renderiza_el_ensayo_o_rechaza_contexto_sin_escrituras(cambio):
     import ast
     from pathlib import Path
@@ -185,6 +185,7 @@ def test_ruta_real_renderiza_el_ensayo_o_rechaza_contexto_sin_escrituras(cambio)
     from jinja2 import ChoiceLoader, DictLoader, FileSystemLoader
     from services.escenarios_rentabilidad_ml import ESCENARIOS
     from services.venta_prueba_precio import CASOS
+    from services.snapshot_venta_prueba import CASOS as CASOS_MP, snapshot_venta_prueba
     from services.presentacion_monetaria import formatear_centavos_ars
     codigo = ast.parse(Path('modules/admin/comercial/routes.py').read_text())
     funcion = next(n for n in ast.walk(codigo) if isinstance(n, ast.FunctionDef) and n.name == 'venta_prueba_precio')
@@ -204,6 +205,8 @@ def test_ruta_real_renderiza_el_ensayo_o_rechaza_contexto_sin_escrituras(cambio)
         obtener_datos_panel_comercial=consultar,
         preparar_venta_prueba=lambda *a,**kw:preparar_venta_prueba(*a,ahora=AHORA,**kw),
         analizar_rentabilidad=analizar_rentabilidad, CUENTA_ENSAYO=CUENTA,
+        json=json, analizar_archivo=analizar_archivo,
+        CASOS_MP_PRECIO=CASOS_MP, snapshot_venta_prueba=snapshot_venta_prueba,
         CASOS_VENTA_PRECIO=CASOS, ESCENARIOS_RENTABILIDAD=ESCENARIOS)
     exec(compile(ast.Module(body=[funcion],type_ignores=[]),'ruta','exec'),contexto)
     app = Flask(__name__)
@@ -221,17 +224,26 @@ def test_ruta_real_renderiza_el_ensayo_o_rechaza_contexto_sin_escrituras(cambio)
     if cambio=='huella':params['huella_calculo']='vieja'
     if cambio=='envio_mayor':params['caso_enlace']='envio_mayor'
     if cambio=='caso_invalido':params['caso_enlace']='cobro_real'
+    if cambio.startswith('mp_'):params['comparar_mp']=cambio[3:]
     r = app.test_client().get('/ensayo',query_string=params)
-    if cambio in {'base','envio_mayor'}:
+    if cambio in {'base','envio_mayor','mp_completo','mp_sin_neto','mp_cargo_diferente'}:
         assert r.status_code==200 and r.headers['Cache-Control']=='no-store'
         assert 'Una unidad' in r.text and 'Fuentes del cálculo congelado' in r.text
-        assert 'Comparar venta de prueba' in r.text and 'Descargar ensayo con cálculo congelado' in r.text
+        assert 'Comparar venta de prueba' in r.text
+        assert ('Descargar paquete ML + MP del producto' if cambio.startswith('mp_') else 'Descargar ensayo con cálculo congelado') in r.text
         assert '#politicas' in r.text
+        assert 'Contrastar el cobro ML + MP de este producto' in r.text
         assert ('por debajo del mínimo' in r.text) == (cambio=='envio_mayor')
         source = re.search(r'id="evidencia-archivo"[^>]*>(.*?)</script>',r.text,re.S)
         paquete = json.loads(source.group(1))
         _, nuevo = analizar_archivo(json.dumps(paquete).encode(),organizacion_id=1,unidad_negocio_id=2,cuenta_codigo=CUENTA)
         assert nuevo == paquete['resultado']
+        if cambio.startswith('mp_'):
+            assert 'Contraste de cobros y cargos MP' in r.text
+            assert 'data-profitability-filename="rentabilidad_producto_ml_mp_' in r.text
+            assert paquete['entrada']['formato']=='ml_mp_rentabilidad_offline_v1'
+            assert (nuevo['enlace_precio']['estado']=='requiere_revision') == (cambio!='mp_completo')
+            if cambio!='mp_completo':assert 'no se confirma el mínimo' in r.text
     else:
         assert r.status_code==302
     assert llamadas == ([] if cambio in {'unidad','sin_acceso'} else [(1,2)])

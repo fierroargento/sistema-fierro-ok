@@ -136,7 +136,8 @@ def evaluar_enlace_venta(documento, resultado):
     """Verifica la fotografía y compara usando el resultado del motor existente.
 
 No consulta el costo actual: releer el archivo debe conservar su historia.
-Solo admite el ensayo sintético de una unidad, no certifica una venta real.
+    Admite el ensayo y su enlace explícito en snapshots declarados de una unidad.
+    No certifica una venta real ni la identidad de una cuenta conectada.
 """
     e = documento.get("enlace_precio")
     try:
@@ -149,10 +150,14 @@ Solo admite el ensayo sintético de una unidad, no certifica una venta real.
             raise ValueError("Cambió la trazabilidad económica del cálculo.")
         if (documento["organizacion_id"], documento["unidad_negocio_id"], documento["moneda"]) != (t["organizacion_id"], t["unidad_negocio_id"], t["moneda"]):
             raise ValueError("El cálculo congelado pertenece a otro contexto.")
-        if (documento["origen"] != "sintetico" or documento["cuenta_codigo"] != CUENTA
+        snapshot_ml = documento.get("trazabilidad_ml")
+        desde_snapshot = documento["origen"] == "archivo_offline" and isinstance(snapshot_ml, dict) and snapshot_ml.get("formato") == "ml_rentabilidad_offline_v1"
+        if (documento["origen"] != "sintetico" and not desde_snapshot):
+            raise ValueError("La venta requiere ensayo sintético o snapshot ML explícitamente vinculado.")
+        if (documento["cuenta_codigo"] != CUENTA
                 or e["cuenta_ensayo"] != CUENTA or t.get("habilita_publicacion") is not False
                 or t.get("cobertura_estado") != "declarada_vigente"):
-            raise ValueError("El enlace solo admite ensayos sintéticos con embalaje revisado.")
+            raise ValueError("El enlace requiere cuenta de ensayo y embalaje revisado.")
         if len(documento["lineas"]) != 1 or type(e["cantidad"]) is not int or e["cantidad"] != 1:
             raise ValueError("El enlace de prueba requiere una única unidad.")
         x = documento["lineas"][0]
@@ -192,15 +197,47 @@ Solo admite el ensayo sintético de una unidad, no certifica una venta real.
             raise ValueError("La previsión no reproduce el mínimo económico congelado.")
         neto = resultado["totales"]["ingreso_economico_centavos"] - resultado["totales"]["gastos_centavos"]
         previsto = canal["liquidacion_centavos"] - extra
+        problemas_cobro = []
+        observado = resultado["liquidacion"]["observada_centavos"]
+        neto_cobrado = None
+        if desde_snapshot:
+            if observado is None:
+                problemas_cobro.append("Falta el neto de cobro; el bruto no lo reemplaza.")
+            if resultado["liquidacion"]["diferencia_detalle_centavos"] not in (None, 0):
+                problemas_cobro.append("El neto cobrado no reproduce el detalle de gastos; requiere revisión.")
+            mp = documento.get("trazabilidad_mp")
+            if mp:
+                if mp.get("collector_declarado") != snapshot_ml.get("seller_declarado"):
+                    raise ValueError("El cobrador no coincide con el vendedor declarado del snapshot.")
+                if any(g["estado"] != "coincidente" for g in mp["cargos"]):
+                    problemas_cobro.append("Hay cargos ML/MP con diferencias; no se descuentan otra vez para forzar coincidencia.")
+            else:
+                problemas_cobro.append("Falta el contraste de pagos y cargos MP para esta operación.")
+            if observado is not None:
+                locales = sum(h["importe_centavos"] * (1 if h["direccion"] == "debito" else -1)
+                    for h in resultado["hechos"] if h["tipo"] not in {"retencion", "pago_bruto", "liquidacion_neta"}
+                    and not h["impacta_saldo"] and not h["incluido_en_neto"])
+                neto_cobrado = observado - locales
+            # No dar verde si el lector señala grupos de cobros/cargos sin resolver.
+            problemas_cobro.extend(documento.get("pendientes_fuente", []))
+            for pendiente in resultado["faltantes"]:
+                if (pendiente.startswith("Gasto no observado:") or pendiente in {"comision", "envio", "embalaje", "cargo_fijo"}
+                        or pendiente.startswith(tuple("Detalle incompleto de " + c for c in ("comision", "envio", "embalaje", "cargo_fijo")))):
+                    problemas_cobro.append(pendiente)
+            problemas_cobro = [p for p in problemas_cobro if not p.startswith("Fotografía interna vinculada")]
+        estado = "requiere_revision" if problemas_cobro else "bajo_minimo" if neto < piso else "cubre_minimo"
         return {"huella_snapshot": e["huella_snapshot"], "fecha_snapshot": e["fecha_snapshot"],
             "costo_version_id": t["costo"]["id"], "costo_numero_version": t["costo"]["numero_version"],
             "politica_numero_version": t["politica_canal"]["numero_version"],
             "cuenta_declarada": identidad["cuenta_codigo"], "publicacion_declarada": identidad["publicacion"],
             "precio_minimo_centavos": precio, "neto_minimo_centavos": piso,
             "neto_previsto_centavos": previsto, "neto_ensayo_centavos": neto,
-            "diferencia_previsto_centavos": neto - previsto, "diferencia_minimo_centavos": neto - piso,
-            "estado": "bajo_minimo" if neto < piso else "cubre_minimo",
+            "diferencia_previsto_centavos": None if problemas_cobro else neto - previsto,
+            "diferencia_minimo_centavos": None if problemas_cobro else neto - piso,
+            "estado": estado, "desde_snapshot": desde_snapshot,
+            "neto_cobrado_despues_locales_centavos": neto_cobrado,
+            "problemas_cobro": sorted(set(problemas_cobro)),
             "definitivo": False, "publicacion_habilitada": False,
-            "alcance": "Comparación sintética de conceptos declarados; faltantes no equivalen a cero."}
+            "alcance": "Comparación de conceptos declarados; faltantes no equivalen a cero y no acredita autenticidad externa."}
     except (KeyError, TypeError, AttributeError, OverflowError) as error:
         raise ValueError("El enlace de precio está incompleto o no es válido.") from error

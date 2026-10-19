@@ -288,5 +288,9 @@ def analizar_rentabilidad(documento, *, organizacion_id, unidad_negocio_id, cuen
     if "enlace_precio" in d:
         from services.venta_prueba_precio import evaluar_enlace_venta
         r["enlace_precio"] = evaluar_enlace_venta(d, r)
+        if r["enlace_precio"]["estado"] == "requiere_revision":
+            # El resultado del detalle sigue siendo parcial; su diferencia no
+            # acredita un resultado obtenido mientras el cobro está sin resolver.
+            r["totales"]["diferencia_resultado_centavos"] = None
     r["huella_rentabilidad"] = sha256(json.dumps(r, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     return r

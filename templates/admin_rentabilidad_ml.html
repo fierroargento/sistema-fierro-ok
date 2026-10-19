@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='produccion.css', v='20261018-rentabilidad') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='rentabilidad_ml.css', v='20261019-enlace-venta') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='produccion.js', v='20261018-rentabilidad') }}" defer></script>
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='rentabilidad_ml.js', v='20261019-archivo-1') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='rentabilidad_ml.js', v='20261019-enlace-mp') }}" defer></script>
 {% endblock %}
 {% block content %}
 {% set conceptos = {'comision':'Comisión', 'cargo_fijo':'Cargo fijo', 'envio':'Envío', 'embalaje':'Embalaje', 'publicidad':'Publicidad', 'financiacion':'Financiación', 'descuentos':'Descuentos en el precio', 'devoluciones':'Devoluciones', 'impuestos':'Gastos impositivos'} %}
@@ -19,6 +19,15 @@
       <div class="production-actions production-field-wide"><button class="comercial-primary" type="submit">Comparar venta de prueba</button></div>
     </form>
     <p>Conserva el costo, la política y el embalaje guardados. El caso de envío mayor cambia los hechos sintéticos; no recalcula la previsión para ocultar la diferencia.</p>
+    {% if casos_mp_enlace %}<details class="production-lot-create" {% if caso_mp_enlace %}open{% endif %}><summary>Contrastar el cobro ML + MP de este producto</summary>
+      <p>Prepara snapshots ficticios de la misma venta y los procesa con los lectores ML/MP existentes. Conserva la previsión guardada. No consulta cuentas ni crea movimientos.</p>
+      <form class="comercial-form" method="get" action="{{ url_for('admin_comercial.venta_prueba_precio', _anchor='resultado') }}">
+        {% for nombre, valor in enlace_parametros.items() %}<input type="hidden" name="{{ nombre }}" value="{{ valor }}">{% endfor %}
+        <input type="hidden" name="caso_enlace" value="{{ caso_enlace }}">
+        <label class="production-field-wide"><span>Cobro del mismo ensayo</span><select name="comparar_mp">{% for codigo, nombre in casos_mp_enlace.items() %}<option value="{{ codigo }}" {% if codigo == caso_mp_enlace %}selected{% endif %}>{{ nombre }}</option>{% endfor %}</select></label>
+        <div class="production-actions production-field-wide"><button class="comercial-primary" type="submit">Contrastar cobro y cargos</button></div>
+      </form>
+    </details>{% endif %}
   </section>
   {% else %}
   <section class="comercial-section"><details class="production-lot-create" {% if not resultado %}open{% endif %}><summary>Elegir otro ejemplo</summary>
@@ -57,12 +66,14 @@
     <div class="feedback {% if resultado.estado == 'alcance_declarado_completo' %}feedback-ok{% else %}profitability-pending{% endif %}" role="status">Análisis terminado. {% if resultado.estado == 'alcance_declarado_completo' %}{% if desde_archivo %}El archivo tiene completos los conceptos declarados.{% else %}El ejemplo tiene completos los conceptos declarados.{% endif %}{% elif resultado.estado == 'no_calculable' %}No se puede calcular el resultado sin costo histórico.{% else %}Resultado parcial: hay datos pendientes o estimados.{% endif %} {% if desde_archivo %}Resultado de datos declarados; no verifica ventas ni fuentes externas.{% else %}Los importes pertenecen al ensayo, no a ventas reales.{% endif %}</div>
     {% if resultado.enlace_precio %}{% set enlace = resultado.enlace_precio %}
     <div class="profitability-price-bridge">
-      <div class="feedback {{ 'feedback-error' if enlace.estado == 'bajo_minimo' else 'feedback-ok' }}" role="status"><strong>{{ 'El neto del ensayo queda por debajo del mínimo.' if enlace.estado == 'bajo_minimo' else 'El neto del ensayo cubre el mínimo en los conceptos simulados.' }}</strong> Comparación provisional: faltan conceptos y fuentes externas.</div>
+      <div class="feedback {{ 'feedback-error' if enlace.estado == 'bajo_minimo' else 'profitability-pending' if enlace.estado == 'requiere_revision' else 'feedback-ok' }}" role="status"><strong>{% if enlace.estado == 'requiere_revision' %}El cobro y los cargos requieren revisión; no se confirma el mínimo.{% elif enlace.estado == 'bajo_minimo' %}El neto {{ 'del archivo' if enlace.desde_snapshot else 'del ensayo' }} queda por debajo del mínimo.{% else %}El neto {{ 'del archivo' if enlace.desde_snapshot else 'del ensayo' }} cubre el mínimo en los conceptos {{ 'declarados' if enlace.desde_snapshot else 'simulados' }}.{% endif %}</strong> Comparación provisional: faltan conceptos y fuentes externas.</div>
+      {% if enlace.problemas_cobro %}<ul>{% for problema in enlace.problemas_cobro %}<li>{{ problema }}</li>{% endfor %}</ul>{% endif %}
+      {% if enlace.desde_snapshot %}<p><strong>Neto cobrado menos gastos locales informados:</strong> {% if enlace.neto_cobrado_despues_locales_centavos is not none %}${{ enlace.neto_cobrado_despues_locales_centavos|moneda_centavos }}{% else %}Pendiente: no se reemplaza por el importe bruto.{% endif %}</p>{% endif %}
       <div class="profitability-metrics">
         <article><span>Mínimo neto a percibir</span><strong>${{ enlace.neto_minimo_centavos|moneda_centavos }}</strong></article>
         <article><span>Neto previsto después del embalaje</span><strong>${{ enlace.neto_previsto_centavos|moneda_centavos }}</strong></article>
-        <article><span>Neto del ensayo después de gastos</span><strong>${{ enlace.neto_ensayo_centavos|moneda_centavos }}</strong></article>
-        <article><span>Diferencia frente al mínimo</span><strong>${{ enlace.diferencia_minimo_centavos|moneda_centavos }}</strong></article>
+        <article><span>Neto {{ 'del detalle del archivo' if enlace.desde_snapshot else 'del ensayo' }} después de gastos</span><strong>${{ enlace.neto_ensayo_centavos|moneda_centavos }}</strong></article>
+        <article><span>Diferencia frente al mínimo</span><strong>{% if enlace.diferencia_minimo_centavos is not none %}${{ enlace.diferencia_minimo_centavos|moneda_centavos }}{% else %}Pendiente{% endif %}</strong></article>
       </div>
       <details class="production-lot-create"><summary>Fuentes del cálculo congelado</summary><dl class="profitability-snapshot-sources"><dt>Costo y política</dt><dd>Costo v{{ enlace.costo_numero_version }} · política v{{ enlace.politica_numero_version }}</dd><dt>Cuenta y publicación declaradas</dt><dd>{{ enlace.cuenta_declarada }} · {{ enlace.publicacion_declarada }}</dd><dt>Precio mínimo de referencia</dt><dd>${{ enlace.precio_minimo_centavos|moneda_centavos }}</dd><dt>Fotografía UTC</dt><dd>{{ enlace.fecha_snapshot }}</dd></dl><p>La cuenta del ensayo es demo-rentabilidad-sin-conexion. No representa autenticación de la cuenta declarada. El archivo conserva esta fotografía aunque cambien los costos después; su huella comprueba coherencia interna, no autenticidad externa.</p><p class="table-subline profitability-source-hash">{{ enlace.huella_snapshot }}</p></details>
     </div>
@@ -83,7 +94,7 @@
           <div class="production-actions"><button type="button" data-production-close>Cerrar</button></div>
         </dialog></td></tr>{% endfor %}
     </tbody></table></div>
-    <div class="production-report-links"><p>{% if desde_archivo or desde_enlace %}<button type="button" class="secondary-link" data-profitability-download>{{ 'Descargar ensayo con cálculo congelado' if desde_enlace else 'Descargar evidencia recalculada' }}</button>{% else %}<a class="secondary-link" href="{{ url_for('admin_rentabilidad_ml.panel', caso=clave, descargar='1') }}">Descargar evidencia del ensayo</a>{% endif %}</p></div>
+    <div class="production-report-links"><p>{% if desde_archivo or desde_enlace %}<button type="button" class="secondary-link" data-profitability-download>{{ 'Descargar paquete ML + MP del producto' if caso_mp_enlace else 'Descargar ensayo con cálculo congelado' if desde_enlace else 'Descargar evidencia recalculada' }}</button>{% else %}<a class="secondary-link" href="{{ url_for('admin_rentabilidad_ml.panel', caso=clave, descargar='1') }}">Descargar evidencia del ensayo</a>{% endif %}</p></div>
   </section>
   <section class="comercial-section"><div class="section-heading"><div><span class="section-number">3</span><h2>Cobros y gastos incluidos</h2></div></div>
     <div class="profitability-liquidation"><p><strong>Liquidación prevista:</strong> {% if resultado.liquidacion.prevista_centavos is not none %}${{ resultado.liquidacion.prevista_centavos|moneda_centavos }}{% else %}No disponible{% endif %}</p><p><strong>Liquidación observada en {% if desde_archivo %}el archivo{% else %}el ejemplo{% endif %}:</strong> {% if resultado.liquidacion.observada_centavos is not none %}${{ resultado.liquidacion.observada_centavos|moneda_centavos }}{% else %}Pendiente{% endif %}</p></div>
@@ -115,6 +126,6 @@
     <p class="table-subline profitability-source-hash">Huella del paquete ML + MP: {{ trazabilidad_mp.huella_snapshot }}</p>
   </details></section>
   {% endif %}
-  {% if evidencia_archivo %}<script type="application/json" id="evidencia-archivo" nonce="{{ csp_nonce }}">{{ evidencia_archivo|tojson }}</script>{% endif %}
+  {% if evidencia_archivo %}<script type="application/json" id="evidencia-archivo" nonce="{{ csp_nonce }}" {% if caso_mp_enlace %}data-profitability-filename="rentabilidad_producto_ml_mp_{{ caso_mp_enlace }}.json"{% endif %}>{{ evidencia_archivo|tojson }}</script>{% endif %}
 </main>
 {% endblock %}

@@ -987,3 +987,58 @@ Pendientes:
 - Venta real/offline con su fecha y snapshot aprobado antes de vender, cobros y gastos efectivamente documentados, deducciones/promociones completas y conciliación de cuenta ML/MP. No se considera terminado el módulo ML ni la fabricación/envío físico integral.
 - Varias unidades, packs con envío/cargos compartidos, variantes y precios por cantidad deben enlazarse sin extrapolar el caso de una unidad.
 - Pendientes históricos, negativos MP de interfaz y estética no revalidados continúan abiertos. No cargar todavía el nuevo producto integral.
+
+
+## 2026-10-19 — Previsión congelada vinculada a snapshots ML/MP
+
+UAT confirmado del bloque anterior:
+- Capturas 195555/195632: UAT-PROD-001, precio $6.690, costo $4.933,65, comisión $669, embalaje $100, neto $5.921 y resultado $987,35. Detalle visual legible en popup.
+- Capturas 195851/195907: el embalaje guardado pasó a $500; el cálculo respondió con precio $7.135, comisión $713,50, neto $5.921,50 y excedente de $0,50. No era todavía el caso de envío mayor.
+- Captura 200810: caso Envío $500 más caro, con precio $7.135 intacto y embalaje $500. Neto previsto $5.921,50; neto ensayo $5.421,50; faltante frente al mínimo $499,50; resultado $487,85 y diferencia -$500. Alerta roja correcta.
+- Captura 201331: relectura offline del archivo conserva esos importes, fuentes y alerta. Queda validada por captura la descarga/relectura del ensayo, sin certificar datos externos.
+- No repetir el bloque anterior ni volver a cambiar embalaje para probar gastos observados. La configuración actual de staging tiene embalaje $500; los ejemplos antiguos de $100 siguen documentados como historia.
+
+Auditoría y reutilización:
+- Los lectores offline ML/MP ya normalizan órdenes, publicaciones, envío del vendedor, pagos y grupos explícitos de cargos; el analizador evita duplicar los hechos coincidentes.
+- La previsión congelada del producto no se trasladaba por datos_locales a la entrada normalizada ML. Se conserva ahora ese enlace explícito, sin consultar el costo vigente al releer.
+- No se crea otra integración, conciliación, libro de movimientos, cotizador ni método de cálculo de margen. Se utilizan analizar_archivo, normalizar_snapshot_ml/mp y analizar_rentabilidad.
+
+Bloque implementado:
+- Desde la venta de prueba del producto: Contrastar el cobro ML + MP de este producto, plegado inicialmente.
+- Tres casos: cobro/cargos coincidentes, MP sin neto informado y MP con $100 más de comisión. Usa el mismo producto y su previsión, no los ejemplos genéricos de otros SKU.
+- Prepara el paquete en el contrato offline existente (orden/publicación/envío ML, costo/previsión/embalaje locales y pago/relaciones de cargos MP). La generación es ficticia y de una sola unidad; no llama APIs ni genera datos operativos.
+- El propio paquete pasa por los lectores y el analizador existentes antes de presentarse. La descarga contiene el paquete original, no solo el resultado calculado, con nombre rentabilidad_producto_ml_mp_<caso>.json. Releer ignora el resultado exportado y vuelve a normalizar/recalcular.
+- El lector ML conserva enlace_precio cuando se declara dentro de datos_locales. El verificador admite ahora, además del ensayo, ese enlace en archivos normalizados de snapshot ML declarado. Se mantiene cuenta técnica demo-rentabilidad-sin-conexion, contexto, SKU/publicación/variante, cantidad única, fecha posterior al congelado, costo y previsión exactos y reproducción del motor/piso.
+- No se abre la importación a cuentas conectadas ni se certifica la cuenta/publicación declaradas. Una huella comprueba coherencia, no autenticidad de archivos externos.
+- En paquetes enlazados se exige cobrador MP igual al vendedor ML declarado y aprobación no anterior a las órdenes vinculadas. Otros alcances requieren revisión, no fallback. Los contratos históricos sin enlace conservan su comportamiento previo.
+- MP conserva los pendientes del lector ML, además de agregar sus propios faltantes; no borra la advertencia de vínculo declarado.
+
+Cobro, resultado y mínimo:
+- Se distinguen neto del detalle económico, neto MP menos gastos locales informados y previsión congelada. Retenciones no se convierten automáticamente en otro costo de producto.
+- Con cobro coincidente, el cargo ML contrastado por MP recibe otra fuente del mismo hecho. No se suma otra comisión ni envío. El embalaje local se descuenta una vez; si ya integra costo, no se agrega de nuevo.
+- Sin net_received_amount, el cobro y su neto después de gastos locales quedan pendientes. El importe bruto no los reemplaza.
+- Si comisión/envío difieren entre ML/MP, el resultado económico del detalle continúa parcial. No se agrega la diferencia al gasto para forzar una conciliación ni se afirma que la previsión se cumplió.
+- Falta de contraste MP, cargos sin vincular, importe de pago diferente, neto sin reconstrucción consistente, gastos estimados o faltantes básicos de comisión/envío/embalaje/cargo llevan el enlace a requiere_revision. El aviso deja explícito que no se confirma el mínimo.
+- En ese estado se suprimen las diferencias económicas frente al previsto y al mínimo (null/Pendiente), para evitar un aparente $0 de desvío mientras los hechos siguen sin resolver.
+- Con contraste coincidente pero envío efectivamente mayor en el ensayo, la alerta bajo mínimo se conserva; no se ajusta la previsión después de observar el gasto.
+- Impuestos, fuentes externas y demás conceptos no acreditados continúan pendientes. Incluso un contraste coherente es provisional y publicacion_habilitada/definitivo continúan false.
+
+Verificación:
+- 398 pruebas focalizadas aprobadas: 281 del bloque anterior, 86 regresiones existentes de lectura ML/MP añadidas a la ejecución y 31 casos nuevos (27 de integración de snapshots y cuatro de ruta).
+- Pruebas del recorrido completo costo/previsión → paquete → lectores → analizador: importes UAT con embalaje $100/$500, envío mayor, modos incluido/sin costo, neto faltante, comisión diferente, fuentes duplicadas no sumadas, gastos locales efectivamente distintos, descarga/relectura raw y normalizada.
+- Rechazos por vendedor/cobrador, fechas de pago/orden, SKU/publicación/variante/cantidad, costo/previsión/huella y contexto ajenos. Sin verde para neto/detalle de cargos MP ausentes, comisión ML ausente o embalaje estimado.
+- Ruta real extraída por AST ejecutada por HTTP Flask y plantilla real con dobles de ORM/acceso; incorpora los tres casos, descarga y relectura del JSON renderizado. No sustituye middleware real de autenticación/CSRF ni pruebas PostgreSQL.
+- Compilación Python y sintaxis JavaScript aprobadas. Sin suite completa, arranque de app/scheduler ni revisión visual de navegador.
+- Sin cambios a app.py, modelos, migraciones, bootstrap, flags, credenciales, estados, webhooks, producción ni conexiones nuevas. Cero ventas, movimientos financieros, stock, reservas, cobros o publicaciones operativas.
+
+UAT agrupado tras desplegar:
+1. Costos y precios → 5. Políticas comerciales → Gestionar UAT-PROD-001 → Preparar venta de prueba. Mantener Gastos según lo previsto.
+2. Desplegar Contrastar el cobro ML + MP de este producto. Cobro y cargos coincidentes → Contrastar cobro y cargos. Debe conservar los importes; con embalaje $500 actual, neto después de gastos locales $5.921,50, costo $4.933,65 y resultado parcial $987,85. La sección Contraste de cobros y cargos MP debe mostrar los grupos coincidentes y no otro descuento.
+3. MP sin neto informado: cobro/neto pendiente, aviso requiere revisión y comparación frente al mínimo pendiente.
+4. MP con $100 más de comisión: cargo con diferencia, neto cobrado $100 menor, comparación pendiente; el detalle ML no recibe otro descuento automático.
+5. Descargar paquete ML + MP del producto del último caso y analizarlo en el formulario offline de la misma pantalla; debe conservar fuentes/diferencia/pendientes, sin cambiar costo o previsión guardados.
+
+Pendientes conservados:
+- No se considera terminada la importación de operaciones reales ni la conciliación completa de cuenta/liberaciones/transferencias/contracargos/reintegros MP. Sin saldo disponible consultado.
+- Falta el circuito operativo con producto físico, fabricación, venta/envío reales, todas sus deducciones documentadas y snapshot aprobado antes de vender. No cargar todavía el nuevo producto integral.
+- Packs, más unidades, mayoristas y varias cuentas/variantes no se deducen del caso de una unidad; siguen pendientes de su vínculo explícito. Continúa el resto del plan y los pendientes históricos no revalidados.
