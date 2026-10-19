@@ -1293,3 +1293,19 @@ Despliegue/UAT:
 3. Base de Datos → Productos: nuevo artículo ficticio Simple con No stockeable y compra/venta habilitadas; guardar, reabrir, comprobar casilla y permisos físicos deshabilitados. No debe prepararse un SKU/existencia para él.
 4. Crear otro artículo stockeable y un Combo con SKU diferente. El simple mantiene su SKU al seleccionarlo como componente. Intentar transformar la ficha existente de simple a combo debe quedar impedido; no probarlo sobre datos reales.
 5. Revisar primero el orden visual y las casillas; conservar los demás pendientes y continuar por partes desde Productos.
+
+## 2026-10-19 — UAT visual de Productos y corrección de alineación
+
+Evidencia de Martín:
+- Captura 221103: script de staging ejecutado; resultado Ficha preparada, productos existentes conservados y sin asignar tipos ni habilitaciones.
+- Captura 221145: Base de Datos → Productos abre en staging con barra lateral, dos productos existentes, tipo De producción según costeo para UAT-PROD-001 y estados Sin configurar. Importación masiva plegada.
+- Captura 221216: Nuevo producto abre en diálogo con No stockeable, tipo y cuatro usos; pie con Cancelar y Guardar producto. No acredita guardado ni aceptación final.
+- Detectados en las capturas: Gestionar partido en dos líneas, checkboxes encima del texto en lugar de a la izquierda y franja vacía sobre SKU.
+
+Corrección de presentación:
+- La regla compartida .source-dialog form label:not(.resource-team-row) imponía orientación vertical con mayor especificidad que las clases locales. Se ajusta únicamente CSS de Productos para casillas horizontales, alineadas a izquierda, con medidas estables y sin alterar nombres/valores.
+- La alerta interna vacía conserva hidden; se da prioridad visual a ese atributo para que .alerta display:flex no la haga aparecer. Un error real sigue mostrándose al quitar hidden.
+- Columna de acciones con espacio para Gestionar, botón sin quiebre de palabra y ancho compacto. Se actualiza versión del CSS para evitar caché.
+- Sin cambios de JS, modelos, migración, permisos, servicios o datos. No hace falta repetir la preparación de la ficha.
+- Verificación: render de la ruta real con Flask/Jinja aprobado (1 prueba funcional existente); revisión de la cascada y especificidad de CSS frente a la regla compartida. No se repite la batería de 89 pruebas por este ajuste de presentación ni se declara QA visual de Chromium.
+- La verificación final de alineación y altura queda pendiente de refrescar staging con Ctrl+F5 tras este commit. No cargar todavía la planilla real ni avanzar al caso integral.

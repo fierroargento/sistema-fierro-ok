@@ -13,8 +13,10 @@
 .productos-table { width:100%; table-layout:fixed; }
 .productos-table th:first-child { width:28%; }
 .productos-table th:nth-child(4) { width:24%; }
-.productos-table th:last-child { width:100px; }
+.productos-table th:last-child { width:120px; }
 .productos-table td { overflow-wrap:anywhere; vertical-align:middle; }
+.productos-table td:last-child { overflow-wrap:normal; }
+.productos-table .source-dialog-trigger { box-sizing:border-box; min-width:88px; white-space:nowrap; word-break:normal; }
 .productos-name, .productos-table small { display:block; margin-top:5px; color:#657587; }
 .productos-name { color:#34465b; }
 .productos-usos { display:flex; flex-wrap:wrap; gap:5px; }
@@ -32,19 +34,22 @@
 .producto-dialog-header h2 { margin:0; font-size:23px; color:#183d50; }
 .producto-close { border:1px solid #ccdce6; background:white; border-radius:50%; width:34px!important; height:34px; font-size:24px; cursor:pointer; line-height:1; color:#526173; padding:0; }
 .producto-dialog-body { overflow-y:auto; min-height:0; padding:22px 26px; }
+#producto-form-error[hidden] { display:none; }
 .producto-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
 .producto-grid label, .producto-section-body > label { display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:#445064; }
 .producto-dialog input:not([type=checkbox]), .producto-dialog select, .producto-dialog textarea { box-sizing:border-box; width:100%; min-height:40px; border:1px solid #cbd8e2; border-radius:8px; padding:9px 10px; font:inherit; color:#253c50; background:white; }
 .producto-dialog input:read-only { background:#f0f4f7; color:#657587; }
 .producto-dialog input:focus, .producto-dialog select:focus, .producto-dialog textarea:focus { outline:2px solid #7abbd3; outline-offset:1px; }
-.producto-dialog input[type=checkbox] { width:18px; height:18px; accent-color:#176b89; margin:0; flex-shrink:0; }
+.producto-dialog form input[type=checkbox] { width:18px; height:18px; min-width:18px; min-height:18px; padding:0; accent-color:#176b89; margin:0; flex-shrink:0; align-self:center; }
 .producto-span-2 { grid-column:span 2; }
 .producto-span-3 { grid-column:span 3; }
 .producto-roles { margin:20px 0 16px; padding:14px 16px 17px; border:1px solid #d8e5ed; border-radius:10px; background:#f9fbfd; }
 .producto-roles legend { font-size:14px; font-weight:800; color:#294a60; padding:0 6px; }
 .producto-roles p { margin:0 0 14px; font-size:13px; color:#657587; }
 .producto-roles > div { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.producto-roles label, .producto-active, .producto-logistica-checks label { display:flex; align-items:center; gap:10px; font-size:13px; color:#304c60; }
+.producto-dialog form .producto-roles label,
+.producto-dialog form label.producto-active,
+.producto-dialog form .producto-logistica-checks label { display:flex; flex-direction:row; align-items:center; justify-content:flex-start; text-align:left; gap:10px; min-height:30px; font-size:13px; color:#304c60; }
 .producto-active { font-weight:700; }
 .producto-section { border-top:1px solid #e2eaf0; margin-top:10px; }
 .producto-section-body { padding:2px 0 14px; }
