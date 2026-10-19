@@ -20,8 +20,9 @@
   <section class="comercial-section">
     <details class="production-lot-create" {% if desde_archivo and error %}open{% endif %}>
       <summary>Analizar un archivo offline</summary>
-      <p>Archivo del ensayo o paquete offline de Mercado Libre, hasta 2 MB. Solo cuenta ficticia <strong>demo-rentabilidad-sin-conexion</strong>, organización y unidad activas. El paquete ML requiere órdenes, publicaciones y datos locales vinculados; no admite respuestas sueltas ni acredita autenticidad externa.</p>
+      <p>Archivo del ensayo o paquete offline ML/MP, hasta 2 MB. Solo cuenta ficticia <strong>demo-rentabilidad-sin-conexion</strong>, organización y unidad activas. El paquete ML requiere órdenes, publicaciones y datos locales vinculados; no admite respuestas sueltas ni acredita autenticidad externa.</p>
       <p><a class="secondary-link" href="{{ url_for('admin_rentabilidad_ml.panel', descargar_snapshot_ml='1') }}">Descargar ejemplo ML · Pack de cuatro órdenes</a></p>
+      <p><a class="secondary-link" href="{{ url_for('admin_rentabilidad_ml.panel', descargar_snapshot_mp='1') }}">Descargar ejemplo ML + MP · Cobros y cargos</a></p>
       <form class="comercial-form" method="post" action="{{ url_for('admin_rentabilidad_ml.archivo') }}" data-profitability-upload>
         <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}">
         <label class="production-field-wide"><span>Archivo JSON</span><input type="file" name="archivo" accept=".json,application/json" required></label>
@@ -67,6 +68,20 @@
     <ul>{% for aviso in trazabilidad_ml.advertencias %}<li>{{ aviso }}</li>{% endfor %}</ul>
     <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Orden</th><th>Contexto declarado</th></tr></thead><tbody>{% for orden in trazabilidad_ml.ordenes %}<tr><td>{{ orden.order_id }}</td><td>{{ 'B2B (sin verificar elegibilidad)' if orden.tipo == 'b2b' else 'No determinado' }}</td></tr>{% endfor %}</tbody></table></div>
     <p class="table-subline profitability-source-hash">Huella del snapshot original: {{ trazabilidad_ml.huella_snapshot }}</p>
+  </details></section>
+  {% endif %}
+  {% if trazabilidad_mp %}
+  <section class="comercial-section"><details class="production-lot-create"><summary>Contraste de cobros y cargos MP</summary>
+    <p>Cobrador declarado: {{ trazabilidad_mp.collector_declarado }} · <strong>Saldo disponible: no consultado</strong>.</p>
+    <ul>{% for aviso in trazabilidad_mp.advertencias %}<li>{{ aviso }}</li>{% endfor %}</ul>
+    <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Pago MP</th><th>Órdenes vinculadas</th><th>Importe del pago</th><th>Neto informado</th><th>Estado declarado</th></tr></thead><tbody>
+      {% for pago in trazabilidad_mp.pagos %}<tr><td>{{ pago.id }}</td><td>{{ pago.ordenes|join(' · ') }}</td><td>${{ pago.bruto_centavos|moneda_centavos }}</td><td>{% if pago.neto_centavos is not none %}${{ pago.neto_centavos|moneda_centavos }}{% else %}Pendiente{% endif %}</td><td>{{ 'Aprobado' if pago.estado == 'approved' else pago.estado }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    <p>Los grupos siguientes contrastan cargos ya incluidos en el cálculo. No representan otro descuento.</p>
+    <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Grupo</th><th>Cargo ML</th><th>Detalle MP</th><th>Diferencia</th><th>Revisión</th></tr></thead><tbody>
+      {% for cargo in trazabilidad_mp.cargos %}<tr><td>{{ cargo.grupo }}</td><td>${{ cargo.importe_ml_centavos|moneda_centavos }}</td><td>${{ cargo.importe_mp_centavos|moneda_centavos }}</td><td>${{ cargo.diferencia_centavos|moneda_centavos }}</td><td>{{ 'Coincide en importe y alcance declarado' if cargo.estado == 'coincidente' else 'Requiere revisión' }}</td></tr>{% else %}<tr><td colspan="5">Sin cargos MP vinculados para contrastar.</td></tr>{% endfor %}
+    </tbody></table></div>
+    <p class="table-subline profitability-source-hash">Huella del paquete ML + MP: {{ trazabilidad_mp.huella_snapshot }}</p>
   </details></section>
   {% endif %}
   {% if evidencia_archivo %}<script type="application/json" id="evidencia-archivo" nonce="{{ csp_nonce }}">{{ evidencia_archivo|tojson }}</script>{% endif %}

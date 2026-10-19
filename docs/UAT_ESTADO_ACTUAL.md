@@ -610,3 +610,50 @@ Próximo UAT tras deploy de integración:
 2. Descargar ejemplo ML · Pack de cuatro órdenes. Seleccionar ese rentabilidad_ml_snapshot_pack_demo.json en el mismo formulario y Analizar archivo.
 3. Verificar Snapshot ML offline, cuatro filas/cinco unidades, $20.400, 37,78% y neto $41.900; abrir Ver detalle y Origen y alcance del archivo ML.
 4. Descargar evidencia recalculada para comprobar huellas, fuentes y envío único. No se repiten las siete pruebas anteriores ni se usan datos reales.
+
+
+### PML-0C validado en UAT y PML-0D: contraste MP offline — 19/10/2026
+
+Cierre acotado de PML-0C:
+- image(20261019-141921).png y rentabilidad_ml_archivo_recalculado (1).json: cuatro órdenes originales, cinco unidades, SKU repetido con precios históricos distintos, ingreso $54.000, costo $20.000, comisión $8.100, envío compartido $4.000, embalaje $1.500, resultado $20.400, margen 37,78%, neto $41.900 y diferencia cero.
+- Huellas canónicas de entrada/resultado válidas. Resultado: 061cc7cb5244c2f9f0f8174379896c6eaf768de0b2c6f8ca8d9cf68de2a5dd96. Snapshot ML declarado: cc64b469ec18de62b56d504674c4de9e6b541fef2dc758c9bb036d4858ff94ee.
+- Envío único ml-envio:DEMO-SHIP-1 repartido en 400000 centavos, cinco hechos económicos de cargos ML y todos los controles de ejecución/persistencia en cero.
+- image(20261019-142022).png: origen y alcance desplegados, vendedor/pack ficticios, cuatro órdenes con contexto mayorista No determinado y huella correspondiente. Presentación aceptada por el usuario. No se atribuye a estas capturas una prueba individual de Cancelar/X/Escape del modal.
+
+Base de PML-0D: 493e657e120932755cebbcee7301ec251b0da9dd.
+Alcance y reutilización:
+- Nuevo lector puro services/lectura_mp_rentabilidad.py, sin DB/red, encadena el lector ML existente y el mismo motor de rentabilidad/conciliación. No crea otro maestro, cuenta corriente ni motor de gastos.
+- Contrato propio ml_mp_rentabilidad_offline_v1: snapshot_ml, collector_id declarado y pagos_mp con respuesta de pago, órdenes vinculadas explícitamente, fuente del vínculo y relaciones entre índices fee_details y hechos ML. No es una respuesta literal de un endpoint.
+- No se usa el adaptador legado _adaptar_pago_mp porque convierte neto ausente en cero; permanece sin modificar.
+- Organización/unidad/cuenta siguen verificadas contra el contexto del servidor. Solo cuenta ficticia, ARS y pagos approved; operaciones distintas de regular_payment, reintegros conocidos, órdenes ajenas, pagos duplicados y alcances ambiguos se rechazan para revisión.
+- No se infieren vínculos a partir de importes, external_reference ni order.id MP. Cobrador y vínculos son declarados, sin acreditar acceso ni titularidad externa.
+- Neto ausente queda pendiente; cero explícito se conserva como cero. Se controla corte de aprobación/actualización y cobertura/bruto de las órdenes vinculadas. Se admiten varios pagos del mismo alcance sin solapamientos parciales ambiguos.
+- Cargos del comprador no se imputan al vendedor. Cada cargo collector requiere relación explícita con hechos ML del mismo concepto; importes y alcance agregados deben coincidir. Se incorpora una fuente del mismo hecho para que la deduplicación existente no vuelva a restar el gasto.
+- Diferencias de cargos no sobrescriben ML para forzar coincidencia; dejan resultado parcial. Cargos sin vínculo/responsable, charges_details sin clasificar, impuestos y cupones informados requieren revisión sin inventar importes. Faltantes de actualización, tipo de operación o devoluciones también dejan parcial.
+- Extensión acotada del motor: pendientes_fuente opcional, validado y limitado, para conservar estos faltantes en el resultado. Ausencia del campo conserva el comportamiento anterior.
+- Se rechaza mezclar netos/brutos normalizados previos con nuevos cobros MP del mismo paquete. Este lector exige declarar que los cargos ML están incluidos en el neto; otros alcances requieren tratamiento posterior.
+- Entrada exportada conserva trazabilidad mínima y huella del paquete; no copia pagadores, tarjetas, domicilios ni credenciales. La huella comprueba integridad, no autenticidad.
+- Un pago aprobado/net_received_amount no acredita saldo disponible, liberación ni transferencia bancaria. La pantalla muestra Saldo disponible: no consultado.
+
+Interfaz y ejemplo:
+- Mismo formulario plegado Analizar un archivo offline y mismo límite de 2 MB/CSRF/no-store/memoria transitoria. Nuevo enlace Descargar ejemplo ML + MP · Cobros y cargos, archivo rentabilidad_ml_mp_snapshot_demo.json en contexto activo.
+- Ejemplo reutiliza las cuatro órdenes/cinco unidades ML, con cuatro pagos, cuatro comisiones y porciones de un único envío compartido. Neto total $41.900; resultado $20.400 y 37,78%. Los cinco hechos ML contrastados agregan fuentes sin otro descuento. Incluye cargos de financiación del comprador para verificar su exclusión.
+- Contraste de cobros y cargos MP plegado, tablas contenidas con pagos y cinco grupos de cargos, diferencias y huella ajustada al ancho. Reutiliza clases visuales actuales, sidebar y modales; no agrega estilos ni controles paralelos.
+
+Verificación:
+- 178 pruebas focalizadas aprobadas: las 135 anteriores y 43 casos MP parametrizados, incluidos contexto ajeno, neto ausente/cero, duplicación, varios pagos por orden, fuentes/cobertura, responsables, cargos discordantes, devolución, fechas, estructuras/importes inválidos y GET/POST/render/exportación/rechazos.
+- Compilación Python aprobada. Pruebas de rutas usan fixture y CSRF real extraído de app.py; no arrancan toda la aplicación. Sin prueba de navegador real, Postgres, API ni despliegue Render en este bloque.
+- Sin cambios de modelos, migraciones, app.py, bootstrap, sidebar, sincronizador operativo, scheduler, webhooks, flags, credenciales, permisos externos ni producción. BOOTSTRAP_BASE_DATOS_HABILITADO=false y MODO_LABORATORIO_DESCONECTADO=true permanecen.
+
+Documentación oficial consultada 19/10/2026:
+- GET de pago y campos declarados: https://www.mercadopago.com.ar/developers/es/reference/online-payments/subscriptions/get-payment/get
+- Ejemplo oficial con net_received_amount y fee_details/responsable: https://www.mercadopago.com.ar/developers/en/docs/resources-pci-compliant-merchants/unified-post
+Estas referencias no verifican permisos o cobertura de las cuentas ML/MP de Fierro. No se llamaron cuentas de vendedores ni se habilitaron conexiones; charges_details y reportes se mantienen pendientes.
+
+Pendientes conservados: cuentas reales/autenticación y alcance, reportes de cuenta/liberación/liquidaciones/retiros, cargos finales ML/MP y diferencias económicas, clasificación fiscal/retenciones/cupones/cofinanciación, devoluciones y contracargos, B2B/tramos y cálculo de precio por rentabilidad pretendida dentro del plan existente. Se mantienen todos los pendientes previos y de otros módulos.
+
+Próximo UAT tras deploy de integración:
+1. Comercial → Rentabilidad ML · Ensayo offline → Analizar un archivo offline.
+2. Descargar ejemplo ML + MP · Cobros y cargos; seleccionar rentabilidad_ml_mp_snapshot_demo.json y Analizar archivo.
+3. Verificar Snapshot ML + MP offline, resultado $20.400, margen 37,78% y neto $41.900.
+4. Desplegar Contraste de cobros y cargos MP: cuatro pagos, cinco grupos coincidentes y Saldo disponible: no consultado. Descargar evidencia recalculada para comprobar importes/huellas y cargos únicos. No repetir los siete escenarios previos ni usar datos reales.

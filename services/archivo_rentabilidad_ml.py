@@ -3,6 +3,7 @@ import json
 
 from services.rentabilidad_ml_offline import analizar_rentabilidad
 from services.lectura_ml_rentabilidad import FORMATO_ML, normalizar_snapshot_ml
+from services.lectura_mp_rentabilidad import FORMATO_MP, normalizar_snapshot_mp
 
 MAX_ARCHIVO_BYTES = 2_000_000
 
@@ -35,7 +36,10 @@ def analizar_archivo(contenido, *, organizacion_id, unidad_negocio_id, cuenta_co
     if not isinstance(entrada, dict):
         raise ValueError("El campo entrada debe contener el contrato normalizado.")
     try:
-        if entrada.get("formato") == FORMATO_ML:
+        if entrada.get("formato") == FORMATO_MP:
+            entrada = normalizar_snapshot_mp(entrada, organizacion_id=organizacion_id,
+                unidad_negocio_id=unidad_negocio_id, cuenta_codigo=cuenta_codigo)
+        elif entrada.get("formato") == FORMATO_ML:
             entrada = normalizar_snapshot_ml(entrada, organizacion_id=organizacion_id,
                 unidad_negocio_id=unidad_negocio_id, cuenta_codigo=cuenta_codigo)
         resultado = analizar_rentabilidad(entrada, organizacion_id=organizacion_id,

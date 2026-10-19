@@ -89,7 +89,10 @@ def analizar_rentabilidad(documento, *, organizacion_id, unidad_negocio_id, cuen
     if not isinstance(lineas, list) or not 1 <= len(lineas) <= 200:
         raise ValueError("El ensayo admite entre 1 y 200 líneas.")
     filas, pesos, identidades, ventas = {}, {}, set(), []
-    faltantes = []
+    pendientes = d.get("pendientes_fuente", [])
+    if not isinstance(pendientes, list) or len(pendientes) > 200:
+        raise ValueError("Pendientes de fuente no válidos.")
+    faltantes = [_texto(p, "Pendiente de fuente") for p in pendientes]
     for x in lineas:
         if not isinstance(x, dict):
             raise ValueError("Línea no válida.")
