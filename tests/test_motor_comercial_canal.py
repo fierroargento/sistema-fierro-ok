@@ -125,3 +125,44 @@ def test_contrato_es_generico_y_no_publica_canales():
     assert '"ReglaCanalVersion"' in app and '"ReglaCanalCargoTramo"' in app
     for prohibido in ("requests", "OAuth", "Webhook", "MercadoLibre", "Pedido"):
         assert prohibido not in motor
+
+
+def test_redondeo_separado_no_deja_corto_ni_encarece_de_mas():
+    politica=Obj(comision_pct=25, publicidad_pct=25, financiacion_pct=0,
+        devoluciones_pct=0, umbral_envio_centavos=0,
+        costo_envio_default_centavos=0, incremento_redondeo_centavos=1, tramos=[])
+    # La fórmula continua propone 2: redondear ambos cargos a 1 deja neto 0.
+    # En 1, ambos cargos redondean a 0 y el neto llega exactamente a 1.
+    r=calcular_precio_minimo_canal(1,politica)
+    assert r['precio_final_centavos']==1 and r['liquidacion_centavos']==1
+
+
+def test_precio_minimo_coincide_con_busqueda_exhaustiva_incluidos_saltos():
+    from itertools import product
+    tasas=[(0,0,0,0),(15,0,0,0),(25,25,0,0),(16,10,6,4),(49,49,0,0)]
+    for porcentajes,piso,paso in product(tasas,(0,1,2,7,15,31),(1,3,10)):
+        politica=Obj(comision_pct=porcentajes[0],publicidad_pct=porcentajes[1],
+            financiacion_pct=porcentajes[2],devoluciones_pct=porcentajes[3],
+            umbral_envio_centavos=20,costo_envio_default_centavos=5,
+            incremento_redondeo_centavos=paso,
+            tramos=[Obj(precio_desde_centavos=0,precio_hasta_centavos=10,cargo_fijo_centavos=4),
+                    Obj(precio_desde_centavos=10,precio_hasta_centavos=20,cargo_fijo_centavos=0),
+                    Obj(precio_desde_centavos=20,precio_hasta_centavos=None,cargo_fijo_centavos=8)])
+        def neto(precio):
+            return liquidar_precio(precio,comision_pct=politica.comision_pct,
+                publicidad_pct=politica.publicidad_pct,financiacion_pct=politica.financiacion_pct,
+                devoluciones_pct=politica.devoluciones_pct,tramos=politica.tramos,
+                umbral_envio_centavos=20,costo_envio_centavos=5)['liquidacion_centavos']
+        primero=next(p for p in range(0,10000,paso) if neto(p)>=piso)
+        calculado=calcular_precio_minimo_canal(piso,politica)
+        assert calculado['precio_final_centavos']==primero,(porcentajes,piso,paso)
+        assert calculado['liquidacion_centavos']>=piso
+
+
+def test_tasa_extrema_sin_verificacion_acotada_no_devuelve_un_precio_aprobado():
+    import pytest
+    politica=Obj(comision_pct='99.999999',publicidad_pct=0,financiacion_pct=0,
+        devoluciones_pct=0,umbral_envio_centavos=0,costo_envio_default_centavos=0,
+        incremento_redondeo_centavos=1,tramos=[])
+    with pytest.raises(ValueError,match='requiere revisión'):
+        calcular_precio_minimo_canal(100,politica)

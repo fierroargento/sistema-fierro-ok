@@ -15,3 +15,8 @@
   .simulator-page .simulator-form,.simulator-page .simulator-results { grid-template-columns:minmax(0,1fr); }
   .simulator-page .simulator-verdict { flex-direction:column; }
 }
+
+.simulator-page .simulator-form > .simulation-state-note { grid-column:1 / -1;margin:0; }
+.simulator-page .simulation-breakdown { margin:16px 0;padding:14px;border:1px solid #d5e3ec;border-radius:10px;background:#f7fafc; }
+.simulator-page .simulation-breakdown > summary { cursor:pointer;font-weight:700;color:#244b60; }
+.simulator-page .simulation-breakdown .table-wrap { margin-top:12px; }

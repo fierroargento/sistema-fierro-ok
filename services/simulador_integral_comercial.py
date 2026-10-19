@@ -1,6 +1,6 @@
 """Simulacion economica integral en memoria, sin persistencia ni canales."""
 
-from decimal import Decimal, ROUND_CEILING, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_CEILING, ROUND_HALF_UP
 from types import SimpleNamespace
 
 from services.motor_comercial_canal import calcular_precio_minimo_canal, liquidar_precio
@@ -52,6 +52,9 @@ def _porcentaje(valor, nombre):
 
 def _regla(datos):
     umbral = int(datos["umbral_envio_centavos"])
+    paso = int(datos.get("redondeo_centavos", 100))
+    if paso <= 0:
+        raise ValueError("El paso del precio debe ser mayor que cero.")
     tramo = SimpleNamespace(
         precio_desde_centavos=0,
         precio_hasta_centavos=umbral if umbral > 0 else None,
@@ -64,7 +67,7 @@ def _regla(datos):
         devoluciones_pct=datos.get("devoluciones_pct", 0),
         umbral_envio_centavos=umbral,
         costo_envio_default_centavos=int(datos["envio_centavos"]),
-        incremento_redondeo_centavos=max(1, int(datos.get("redondeo_centavos", 100))),
+        incremento_redondeo_centavos=paso,
     )
 
 
@@ -75,11 +78,22 @@ def simular_escenario(datos):
     costo = int(datos["costo_centavos"]); precio = int(datos["precio_final_centavos"])
     real = int(datos.get("liquidacion_real_centavos", 0))
     if min(costo, precio, real) < 0: raise ValueError("Los importes simulados no pueden ser negativos.")
-    piso = calcular_piso_economico(
-        costo, impuesto_pct=datos.get("impuesto_pct", 0), metodo_impuesto="sobre_costo",
-        utilidad_pct=datos.get("utilidad_pct", 0), metodo_utilidad="sobre_costo",
-        redondeo_centavos=max(1, int(datos.get("redondeo_centavos", 100))),
-    )
+    minimo_declarado = datos.get("minimo_neto_centavos")
+    if minimo_declarado is not None:
+        try:
+            valor = Decimal(str(minimo_declarado))
+        except (InvalidOperation, ValueError) as error:
+            raise ValueError("El mínimo neto no es válido.") from error
+        if not valor.is_finite() or valor != valor.to_integral_value() or valor < costo or valor > 10**15:
+            raise ValueError("El mínimo neto debe expresarse en centavos y cubrir al menos el costo declarado.")
+        piso = {"costo_centavos": costo, "piso_liquidacion_centavos": int(valor),
+                "impuesto_centavos": None, "utilidad_centavos": None}
+    else:
+        piso = calcular_piso_economico(
+            costo, impuesto_pct=datos.get("impuesto_pct", 0), metodo_impuesto="sobre_costo",
+            utilidad_pct=datos.get("utilidad_pct", 0), metodo_utilidad="sobre_costo",
+            redondeo_centavos=max(1, int(datos.get("redondeo_centavos", 100))),
+        )
     regla = _regla(datos)
     actual = liquidar_precio(
         precio, comision_pct=regla.comision_pct, tramos=regla.tramos,
@@ -109,13 +123,16 @@ def simular_escenario(datos):
     else: accion = "actualizar_precio"
     pasos = [
         {"nombre": "Costo", "importe_centavos": costo, "estado": "dato"},
-        {"nombre": "Piso con utilidad e impuestos", "importe_centavos": piso["piso_liquidacion_centavos"], "estado": "dato"},
+        {"nombre": "Mínimo neto a percibir", "importe_centavos": piso["piso_liquidacion_centavos"], "estado": "dato"},
         {"nombre": "Liquidacion esperada", "importe_centavos": actual["liquidacion_centavos"], "estado": "cumple" if cumple else "no_cumple"},
         {"nombre": "Liquidacion observada", "importe_centavos": real, "estado": estado_conciliacion},
     ]
     return {
         "entrada": dict(datos), "piso": piso, "liquidacion_actual": actual,
         "precio_minimo": minimo, "precio_base_con_descuento_centavos": base_promocional,
+        "minimo_neto_explicito": minimo_declarado is not None,
+        "fuente_minimo": "Monto declarado para el ensayo" if minimo_declarado is not None else "Regla ilustrativa de costo, utilidad e impuestos",
+
         "cumple_piso": cumple, "margen_sobre_piso_centavos": actual["liquidacion_centavos"] - piso["piso_liquidacion_centavos"],
         "diferencia_liquidacion_centavos": diferencia_esperada,
         "estado_conciliacion": estado_conciliacion, "accion_propuesta": accion,

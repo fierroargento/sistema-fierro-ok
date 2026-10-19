@@ -1404,6 +1404,10 @@ def crear_blueprint_comercial(*, dependencias):
                     "utilidad_pct": request.form.get("utilidad_pct"),
                     "precio_final_centavos": importe_a_centavos(request.form.get("precio_final")),
                     "comision_pct": request.form.get("comision_pct"),
+                    "publicidad_pct": request.form.get("publicidad_pct", "0"),
+                    "financiacion_pct": request.form.get("financiacion_pct", "0"),
+                    "devoluciones_pct": request.form.get("devoluciones_pct", "0"),
+                    "minimo_neto_centavos": importe_a_centavos(request.form.get("minimo_neto")) if (request.form.get("minimo_neto") or "").strip() else None,
                     "cargo_fijo_centavos": importe_a_centavos(request.form.get("cargo_fijo")),
                     "umbral_envio_centavos": importe_a_centavos(request.form.get("umbral_envio")),
                     "envio_centavos": importe_a_centavos(request.form.get("envio")),
@@ -1411,7 +1415,7 @@ def crear_blueprint_comercial(*, dependencias):
                     "descuento_pct": request.form.get("descuento_pct"),
                     "liquidacion_real_centavos": importe_a_centavos(request.form.get("liquidacion_real")),
                     "estado_venta": request.form.get("estado_venta"),
-                    "redondeo_centavos": 100,
+                    "redondeo_centavos": importe_a_centavos(request.form.get("paso_precio", "1")),
                 }
             resultado = simular_escenario(datos)
             error = ""
@@ -1422,6 +1426,7 @@ def crear_blueprint_comercial(*, dependencias):
             "admin_simulador_integral_comercial.html", organizacion=organizacion,
             unidad_activa=unidad_activa, unidades=unidades, escenarios=ESCENARIOS,
             escenario_activo=clave, datos=datos, resultado=resultado, error=error,
+            formatear_centavos_ars=formatear_centavos_ars,
         )
 
     @blueprint.route("/admin/comercial/conciliacion", methods=["GET", "POST"])

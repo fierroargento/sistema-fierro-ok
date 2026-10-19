@@ -1,5 +1,5 @@
 # Estado único de UAT — staging
-Seguimiento iniciado: 16/10/2026, Argentina. Última incorporación: 18/10/2026.
+Seguimiento iniciado: 16/10/2026, Argentina. Última incorporación: 19/10/2026.
 Rama: `integracion-saas-2026-09`.
 Base inicial: `379b6f6a86b80742064efbdc77706d979a526670`. Base de la ampliación ML del 18/10: `f90ffc0cf0f517aa85ad9b19fd82b186d4e96c6c`.
 
@@ -718,3 +718,43 @@ Definiciones y cálculo:
 Criterios obligatorios de aceptación futura: igualdad exacta del neto mínimo; candidato inferior que no cumple; redondeo al centavo/paso permitido sin quedar por debajo; límites y saltos de tramos; gastos incluidos una sola vez; faltantes que impiden declarar cumplimiento; precio viable fuera de mercado sin rebajar el mínimo; conservación de la previsión histórica para contraste posterior.
 
 Estado: regla registrada, pendiente completar su implementación y UAT en el cálculo de precio objetivo reutilizando lo existente. No se declara resuelta por el simulador de recargo ni por los ejemplos de rentabilidad. Este registro no modifica producción ni habilita publicaciones, cambios de precio o conexiones externas.
+
+
+### Prioridad: terminar dependencias antes del producto integral — 19/10/2026
+
+Martín solicita agrupar cambios por circuito y reducir rondas de pruebas aisladas. Aclara que primero deben completarse los módulos necesarios y después cargar un producto de prueba con fabricación, costos, publicación, venta, envío y cobro. No se crea todavía ese producto ni otro registro de seguimiento.
+
+Auditoría de reutilización:
+- La ficha productiva ya compone insumos/merma, operaciones de mano de obra, máquinas y costos fijos en services/composicion_costo_producto.py. Se conservan versiones históricas y orden/partes/lotes preparatorios.
+- services/produccion_nucleo.py mantiene ejecución e impacto de inventario deshabilitados. El costeo del resultado productivo es una absorción teórica del plan/avance, no evidencia de consumos reales.
+- El cálculo inverso ya existe en services/motor_comercial_canal.py y evalúa tramos de cargo fijo/umbral de envío. Se corrige ese motor; no se añade otro.
+- Simulador comercial, preparación de publicaciones/observaciones, conciliación y lectores ML/MP permanecen en sus módulos actuales. Los ejemplos no acreditan que todo el circuito esté conectado.
+
+Bloque de precio mínimo neto, base d25055fafa7c2b33870e144249b1005e62e25f0a:
+- Hallazgo corregido: calcular la inversa continua y verificar una sola vez puede omitir un precio inferior válido o descartar un tramo por el redondeo independiente de las deducciones.
+- Dentro de cada tramo/umbral se acota el error de los cargos porcentuales redondeados por separado. Se evalúan en orden los precios admisibles de la franja acotada con liquidar_precio existente; se toma el primero que alcanza el mínimo. No se supone monotonicidad del neto entre centavos.
+- Si una política extrema exigiría más de 100000 evaluaciones para verificar la búsqueda, se rechaza para revisión. No se devuelve como mínimo comprobado una aproximación no verificada.
+- Se conserva la firma y estructura de retorno del motor compartido. No se modifican reglas almacenadas ni fuentes de cargos.
+- En el simulador existente se agrega Mínimo neto a percibir en este ensayo, paso de precio, publicidad, financiación del vendedor y previsión de devoluciones. El mínimo explícito manda sobre los porcentajes ilustrativos y debe cubrir al menos el costo declarado; no se le vuelven a sumar utilidad/impuestos.
+- Sin mínimo explícito se conserva el ejemplo anterior, identificado como regla ilustrativa. No se usa ese recargo como sustituto de la regla insalvable.
+- Se muestra neto al precio mínimo, excedente y desglose plegado de cada cargo. Importes de resultados con formato ARS existente, CSS acotado al simulador y sin cambios de navegación.
+- Referencia comprobada: costo $4.000; mínimo $5.000; comisión 15%, publicidad 3%, financiación 2%, previsión de devoluciones 1%; cargo fijo $100 bajo umbral $10.000; envío $1.000 sobre umbral; paso $0,01. Precio mínimo $6.455,69, neto exactamente $5.000 y excedente cero. Son datos de ensayo, no tarifas actuales de ML.
+- Precio de lista con descuento continúa siendo una referencia; cofinanciación, promociones/tramos por cantidad y vigencia real requieren su validación específica. No se declara lista real publicable ni garantía de liquidación futura.
+- El monto del simulador no modifica ni consulta por sí mismo el mínimo configurado de un producto. El motor compartido recibe el piso resuelto por sus llamadores; completar y evidenciar el enlace de producto/costo/regla/canal es requisito antes del producto integral.
+- Las alertas futuras deben respetar primero el mínimo neto; métricas de margen porcentual son complementarias y no pueden sustituirlo.
+
+Verificación:
+- 219 pruebas focalizadas aprobadas: 183 de rentabilidad/archivos ML/MP y 36 de motor/simulador/reglas/cargos/ruta. Incluyen comparación contra búsqueda exhaustiva independiente en 90 combinaciones de tasas, pisos, pasos y saltos; caso de redondeos separados; tasa extrema rechazada; mínimo explícito, rechazo bajo costo y formato monetario.
+- Se ejecuta por AST la función real de la ruta del simulador y el conversor monetario, con contexto de prueba y plantilla real/layout mínimo. No se inicia la aplicación completa ni se verifica autorización/CSRF de esa ruta mediante este fixture; se conservan sus decoradores y protección existentes.
+- Compilación Python aprobada. Sin navegador real, DB de staging ni prueba con canales. Visual del formulario ampliado pendiente de revisión agrupada.
+- Sin cambios de modelos, migraciones, app.py, bootstrap, scheduler, webhooks, estados operativos, credenciales, flags o producción. No se cargan productos ni se activan conexiones.
+
+Dependencias que siguen abiertas antes de iniciar el caso integral:
+| Bloque | Qué falta completar o evidenciar | Condición para avanzar |
+| --- | --- | --- |
+| Fabricación + inventario + calidad | Aplicar elegibilidad por calidad a propuestas; no contar lotes rechazados/cuarentena como disponibles; comprobar materiales suficientes y resolver cantidades fraccionarias/unidades. | No habilitar ingreso/consumo por un informe de consistencia si falta stock, conversión o calidad. |
+| Costos + mínimo neto + publicación | Encadenar/evidenciar la ficha y su versión con la regla económica aplicable, mínimo neto y política de canal/vigencia/cobertura, incluido embalaje una sola vez. | Precio verificado con cargos vigentes y explicación de cada componente; faltantes bloquean aprobación como cumplido. |
+| Venta + envío + cobro | Vincular el mismo SKU/publicación/variante y cantidades, costo congelado, envío compartido y cobros/cargos únicos. Completar estados/ajustes pendientes según alcance del caso. | Recorrido coherente de punta a punta en laboratorio; sin órdenes externas ni dinero real. |
+| Operación conectada posterior | Permisos/cobertura de cuentas reales, reportes MP, promociones/B2B, acciones de publicación y logística externa. | Etapa separada; no se activa para satisfacer el ensayo desconectado. |
+
+Siguiente trabajo: resolver Fabricación + inventario + calidad como bloque, conservando UAT-OP-001 y sus antecedentes sin usarlos como permiso para ejecutarla. No se pide al usuario cargar un producto nuevo ni repetir las siete pruebas de rentabilidad. Las dos variantes MP del commit anterior siguen pendientes de UAT de interfaz y pueden revisarse junto con el siguiente despliegue; no bloquean el desarrollo por pedir otra ronda aislada.

@@ -62,16 +62,43 @@ def calcular_precio_minimo_canal(piso_liquidacion_centavos, regla, *, costo_envi
     devoluciones = _pct(getattr(regla, "devoluciones_pct", 0)) / Decimal("100")
     tasa_total = comision + publicidad + financiacion + devoluciones
     if tasa_total >= 1: raise ValueError("Los costos porcentuales deben sumar menos de 100%.")
+    # Cada deducción se redondea por separado. La fórmula continua puede
+    # quedar por debajo del piso o saltarse un precio menor válido.
+    # Dentro de cada tramo, el error total queda acotado por n/2 centavos.
+    error_redondeo = Decimal(sum(tasa > 0 for tasa in (comision, publicidad, financiacion, devoluciones))) / 2
     candidatos = []
+    evaluados = 0
     for desde, hasta in segmentos:
-        muestra = desde
-        cargo = cargo_para_precio(muestra, regla.tramos)
-        envio_segmento = envio if int(regla.umbral_envio_centavos or 0) > 0 and muestra >= int(regla.umbral_envio_centavos) else 0
-        requerido = (Decimal(piso + cargo + envio_segmento) / (Decimal("1") - tasa_total)).to_integral_value(rounding=ROUND_CEILING)
-        candidato = _redondear(max(desde, int(requerido)), paso)
-        if hasta is not None and candidato > hasta: continue
-        liquidacion = liquidar_precio(candidato, comision_pct=regla.comision_pct, publicidad_pct=getattr(regla, "publicidad_pct", 0), financiacion_pct=getattr(regla, "financiacion_pct", 0), devoluciones_pct=getattr(regla, "devoluciones_pct", 0), tramos=regla.tramos, umbral_envio_centavos=regla.umbral_envio_centavos, costo_envio_centavos=envio)
-        if liquidacion["liquidacion_centavos"] >= piso: candidatos.append(liquidacion)
+        cargo = cargo_para_precio(desde, regla.tramos)
+        envio_segmento = envio if int(regla.umbral_envio_centavos or 0) > 0 and desde >= int(regla.umbral_envio_centavos) else 0
+        if cargo < 0 or envio_segmento < 0:
+            raise ValueError("Los cargos y el envío no pueden ser negativos.")
+        constante = Decimal(piso + cargo + envio_segmento)
+        inferior = ((constante - error_redondeo) / (Decimal("1") - tasa_total)).to_integral_value(rounding=ROUND_CEILING)
+        superior = ((constante + error_redondeo) / (Decimal("1") - tasa_total)).to_integral_value(rounding=ROUND_CEILING)
+        primero = _redondear(max(desde, int(inferior)), paso)
+        ultimo = _redondear(max(desde, int(superior)), paso)
+        if hasta is not None:
+            ultimo = min(ultimo, hasta)
+        if primero > ultimo:
+            continue
+        # Tramos en orden creciente: un tramo posterior no mejora un precio encontrado.
+        if candidatos and primero >= candidatos[0]["precio_final_centavos"]:
+            break
+        cantidad = (ultimo - primero) // paso + 1
+        if evaluados + cantidad > 100000:
+            raise ValueError("La política requiere revisión: no se puede verificar el precio mínimo con este redondeo y tasas.")
+        for candidato in range(primero, ultimo + 1, paso):
+            evaluados += 1
+            liquidacion = liquidar_precio(candidato, comision_pct=regla.comision_pct,
+                publicidad_pct=getattr(regla, "publicidad_pct", 0),
+                financiacion_pct=getattr(regla, "financiacion_pct", 0),
+                devoluciones_pct=getattr(regla, "devoluciones_pct", 0),
+                tramos=regla.tramos, umbral_envio_centavos=regla.umbral_envio_centavos,
+                costo_envio_centavos=envio)
+            if liquidacion["liquidacion_centavos"] >= piso:
+                candidatos.append(liquidacion)
+                break
     if not candidatos: raise ValueError("No se encontró un precio compatible con la política.")
     resultado = min(candidatos, key=lambda item: item["precio_final_centavos"])
     resultado["piso_liquidacion_centavos"] = piso
