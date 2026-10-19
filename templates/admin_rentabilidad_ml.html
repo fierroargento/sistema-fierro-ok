@@ -4,11 +4,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='produccion.css', v='20261018-rentabilidad') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='rentabilidad_ml.css', v='20261019-1') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='produccion.js', v='20261018-rentabilidad') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='rentabilidad_ml.js', v='20261019-archivo-1') }}" defer></script>
 {% endblock %}
 {% block content %}
 {% set conceptos = {'comision':'Comisión', 'cargo_fijo':'Cargo fijo', 'envio':'Envío', 'embalaje':'Embalaje', 'publicidad':'Publicidad', 'financiacion':'Financiación', 'descuentos':'Descuentos en el precio', 'devoluciones':'Devoluciones', 'impuestos':'Gastos impositivos'} %}
 <main class="production-page profitability-page">
-  <header class="comercial-header"><div><span class="eyebrow">COMERCIAL · MERCADO LIBRE</span><h1>Rentabilidad por venta y publicación</h1><p>Ensayos con datos sintéticos · {{ unidad_activa.nombre }}. Sin conexión, guardado ni cambios en publicaciones.</p></div><a class="secondary-link" href="{{ url_for('admin_comercial.panel') }}">Volver a Comercial</a></header>
+  <header class="comercial-header"><div><span class="eyebrow">COMERCIAL · MERCADO LIBRE</span><h1>Rentabilidad por venta y publicación</h1><p>Ensayos y archivos offline · {{ unidad_activa.nombre }}. Sin conexión, guardado ni cambios en publicaciones.</p></div><a class="secondary-link" href="{{ url_for('admin_comercial.panel') }}">Volver a Comercial</a></header>
   {% if error %}<div class="feedback feedback-error" role="alert">{{ error }}</div>{% endif %}
   <section class="comercial-section"><div class="section-heading"><div><span class="section-number">1</span><h2>Elegir un ejemplo</h2></div></div>
     <form class="comercial-form" method="get" action="{{ url_for('admin_rentabilidad_ml.panel', _anchor='resultado') }}">
@@ -16,35 +17,49 @@
       <div class="production-actions production-field-wide"><button class="comercial-primary" type="submit">Analizar ejemplo</button><a class="secondary-link" href="{{ url_for('admin_comercial.simulador_integral_comercial') }}">Abrir simulador de precio objetivo</a></div>
     </form>
   </section>
+  <section class="comercial-section">
+    <details class="production-lot-create" {% if desde_archivo and error %}open{% endif %}>
+      <summary>Analizar un archivo offline</summary>
+      <p>JSON del ensayo descargado o contrato normalizado v1, hasta 2 MB. Solo cuenta ficticia <strong>demo-rentabilidad-sin-conexion</strong>, organización y unidad activas. No admite respuestas crudas de ML/MP ni acredita que los datos declarados sean reales.</p>
+      <form class="comercial-form" method="post" action="{{ url_for('admin_rentabilidad_ml.archivo') }}" data-profitability-upload>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}">
+        <label class="production-field-wide"><span>Archivo JSON</span><input type="file" name="archivo" accept=".json,application/json" required></label>
+        <p class="production-field-wide" data-profitability-status role="status" aria-live="polite"></p>
+        <div class="production-actions production-field-wide"><button type="submit" class="comercial-primary">Analizar archivo</button><button type="button" data-lot-create-cancel>Cancelar</button></div>
+        <noscript><p>La lectura en memoria requiere JavaScript habilitado.</p></noscript>
+      </form>
+    </details>
+  </section>
   {% if resultado %}
   <section class="comercial-section" id="resultado" tabindex="-1" aria-labelledby="titulo-resultado">
     <div class="section-heading"><div><span class="section-number">2</span><h2 id="titulo-resultado">{{ meta.nombre }}</h2></div><p>{{ meta.descripcion }} · {{ meta.contexto }}</p></div>
-    <div class="feedback {% if resultado.estado == 'alcance_declarado_completo' %}feedback-ok{% else %}profitability-pending{% endif %}" role="status">Análisis terminado. {% if resultado.estado == 'alcance_declarado_completo' %}El ejemplo tiene completos los conceptos declarados.{% elif resultado.estado == 'no_calculable' %}No se puede calcular el resultado sin costo histórico.{% else %}Resultado parcial: hay datos pendientes o estimados.{% endif %} Los importes pertenecen al ensayo, no a ventas reales.</div>
+    <div class="feedback {% if resultado.estado == 'alcance_declarado_completo' %}feedback-ok{% else %}profitability-pending{% endif %}" role="status">Análisis terminado. {% if resultado.estado == 'alcance_declarado_completo' %}{% if desde_archivo %}El archivo tiene completos los conceptos declarados.{% else %}El ejemplo tiene completos los conceptos declarados.{% endif %}{% elif resultado.estado == 'no_calculable' %}No se puede calcular el resultado sin costo histórico.{% else %}Resultado parcial: hay datos pendientes o estimados.{% endif %} {% if desde_archivo %}Resultado de datos declarados; no verifica ventas ni fuentes externas.{% else %}Los importes pertenecen al ensayo, no a ventas reales.{% endif %}</div>
     <div class="profitability-metrics">
       <article><span>Resultado previsto</span><strong>{% if resultado.totales.resultado_previsto_centavos is not none %}${{ resultado.totales.resultado_previsto_centavos|moneda_centavos }}{% else %}No disponible{% endif %}</strong></article>
-      <article><span>Resultado {% if resultado.estado == 'parcial' %}parcial{% else %}del ejemplo{% endif %}</span><strong>{% if resultado.totales.resultado_centavos is not none %}${{ resultado.totales.resultado_centavos|moneda_centavos }}{% else %}No calculable{% endif %}</strong></article>
+      <article><span>Resultado {% if resultado.estado == 'parcial' %}parcial{% elif desde_archivo %}del archivo{% else %}del ejemplo{% endif %}</span><strong>{% if resultado.totales.resultado_centavos is not none %}${{ resultado.totales.resultado_centavos|moneda_centavos }}{% else %}No calculable{% endif %}</strong></article>
       <article><span>Margen sobre venta</span><strong>{{ (resultado.totales.margen_pct|replace('.', ',')) ~ '%' if resultado.totales.margen_pct is not none else 'No calculable' }}</strong></article>
       <article><span>Diferencia frente al previsto</span><strong>{% if resultado.totales.diferencia_resultado_centavos is not none %}${{ resultado.totales.diferencia_resultado_centavos|moneda_centavos }}{% else %}No disponible{% endif %}</strong></article>
     </div>
     {% if resultado.faltantes %}<div class="feedback profitability-pending"><strong>Falta completar</strong><ul>{% for faltante in resultado.faltantes %}<li>{{ faltante }}</li>{% endfor %}</ul></div>{% endif %}
     <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Orden / publicación</th><th>SKU</th><th>Cantidad</th><th>Ingreso efectivo</th><th>Costo histórico</th><th>Resultado</th><th>Acción</th></tr></thead><tbody>
       {% for fila in resultado.lineas %}<tr><td>{{ fila.order_id }}<small class="table-subline">{{ fila.publicacion_id }}</small></td><td>{{ fila.sku }}</td><td>{{ fila.cantidad }}</td><td>${{ fila.ingreso_economico_centavos|moneda_centavos }}</td><td>{% if fila.costo_centavos is not none %}${{ fila.costo_centavos|moneda_centavos }}{% else %}Pendiente{% endif %}</td><td>{% if fila.resultado_centavos is not none %}${{ fila.resultado_centavos|moneda_centavos }}{% else %}No calculable{% endif %}</td><td><button type="button" data-production-dialog="detalle-{{ loop.index }}">Ver detalle</button>
-        <dialog class="production-dialog" id="detalle-{{ loop.index }}" aria-labelledby="titulo-detalle-{{ loop.index }}"><header class="production-dialog-header"><div><span class="eyebrow">DESGLOSE DEL EJEMPLO</span><h2 id="titulo-detalle-{{ loop.index }}">{{ fila.sku }} · {{ fila.order_id }}</h2></div><button type="button" data-production-close aria-label="Cerrar">×</button></header>
+        <dialog class="production-dialog" id="detalle-{{ loop.index }}" aria-labelledby="titulo-detalle-{{ loop.index }}"><header class="production-dialog-header"><div><span class="eyebrow">DESGLOSE {% if desde_archivo %}DEL ARCHIVO{% else %}DEL EJEMPLO{% endif %}</span><h2 id="titulo-detalle-{{ loop.index }}">{{ fila.sku }} · {{ fila.order_id }}</h2></div><button type="button" data-production-close aria-label="Cerrar">×</button></header>
           <p>Precio efectivo y ajustes de la venta, menos costo histórico y gastos identificados. El reparto de gastos compartidos se indica debajo.</p>
-          {% if fila.costo_snapshot %}<p><strong>Costo calculado histórico:</strong> {{ fila.costo_snapshot.version }} · {{ fila.costo_snapshot.fuente }}. {% if fila.costo_snapshot.incluye_embalaje %}Incluye embalaje.{% else %}Embalaje separado.{% endif %}</p>{% else %}<div class="feedback profitability-pending">Falta el costo de esta fecha; no se reemplaza por cero.</div>{% endif %}
+          {% if fila.costo_snapshot %}<p><strong>Costo histórico{% if desde_archivo %} declarado{% endif %}:</strong> {{ fila.costo_snapshot.version }} · {{ fila.costo_snapshot.fuente }}. {% if fila.costo_snapshot.incluye_embalaje %}Incluye embalaje.{% else %}Embalaje separado.{% endif %}</p>{% else %}<div class="feedback profitability-pending">Falta el costo de esta fecha; no se reemplaza por cero.</div>{% endif %}
           <div class="table-wrap"><table class="comercial-table profitability-detail-table"><thead><tr><th>Concepto</th><th>Importe</th><th>Origen</th></tr></thead><tbody>{% for c in fila.componentes %}<tr><td>{{ conceptos.get(c.concepto, c.concepto) }}</td><td>${{ c.importe_centavos|moneda_centavos }}</td><td>{{ c.fuentes|join(' · ') }}<small class="table-subline">{% if c.asignacion == 'directa' %}Asignación directa{% else %}Repartido según ingreso de cada línea{% endif %}</small></td></tr>{% else %}<tr><td colspan="3">Sin gastos detallados.</td></tr>{% endfor %}</tbody></table></div>
           <div class="production-actions"><button type="button" data-production-close>Cerrar</button></div>
         </dialog></td></tr>{% endfor %}
     </tbody></table></div>
-    <div class="production-report-links"><p><a class="secondary-link" href="{{ url_for('admin_rentabilidad_ml.panel', caso=clave, descargar='1') }}">Descargar evidencia del ensayo</a></p></div>
+    <div class="production-report-links"><p>{% if desde_archivo %}<button type="button" class="secondary-link" data-profitability-download>Descargar evidencia recalculada</button>{% else %}<a class="secondary-link" href="{{ url_for('admin_rentabilidad_ml.panel', caso=clave, descargar='1') }}">Descargar evidencia del ensayo</a>{% endif %}</p></div>
   </section>
   <section class="comercial-section"><div class="section-heading"><div><span class="section-number">3</span><h2>Cobros y gastos incluidos</h2></div></div>
-    <div class="profitability-liquidation"><p><strong>Liquidación prevista:</strong> {% if resultado.liquidacion.prevista_centavos is not none %}${{ resultado.liquidacion.prevista_centavos|moneda_centavos }}{% else %}No disponible{% endif %}</p><p><strong>Liquidación observada en el ejemplo:</strong> {% if resultado.liquidacion.observada_centavos is not none %}${{ resultado.liquidacion.observada_centavos|moneda_centavos }}{% else %}Pendiente{% endif %}</p></div>
+    <div class="profitability-liquidation"><p><strong>Liquidación prevista:</strong> {% if resultado.liquidacion.prevista_centavos is not none %}${{ resultado.liquidacion.prevista_centavos|moneda_centavos }}{% else %}No disponible{% endif %}</p><p><strong>Liquidación observada en {% if desde_archivo %}el archivo{% else %}el ejemplo{% endif %}:</strong> {% if resultado.liquidacion.observada_centavos is not none %}${{ resultado.liquidacion.observada_centavos|moneda_centavos }}{% else %}Pendiente{% endif %}</p></div>
     <p>Liquidación y ganancia son diferentes: el costo del producto y el embalaje propio también reducen el resultado económico.</p>
-    <div class="profitability-coverage">{% for c in resultado.cobertura %}<div><strong>{{ conceptos[c.concepto] }}</strong><span>{% if c.estado == 'confirmado' %}Incluido con evidencia sintética{% elif c.estado == 'no_aplica' %}No aplica en este ejemplo{% else %}Pendiente{% endif %}</span></div>{% endfor %}</div>
+    <div class="profitability-coverage">{% for c in resultado.cobertura %}<div><strong>{{ conceptos[c.concepto] }}</strong><span>{% if c.estado == 'confirmado' %}Incluido con evidencia {% if desde_archivo %}declarada{% else %}sintética{% endif %}{% elif c.estado == 'no_aplica' %}No aplica {% if desde_archivo %}según el archivo{% else %}en este ejemplo{% endif %}{% else %}Pendiente{% endif %}</span></div>{% endfor %}</div>
     {% if meta.precio_objetivo_centavos is not none %}<details class="production-lot-create"><summary>Precio objetivo de referencia del ejemplo</summary><p><strong>${{ meta.precio_objetivo_centavos|moneda_centavos }}</strong> por unidad.</p><p>{{ meta.criterio_objetivo }} Es un recargo sobre costo, distinto del margen sobre venta mostrado arriba.</p></details>{% endif %}
     <p>Cuenta simulada · no se verifica elegibilidad B2B, no se aplican precios en ML y no se generan cobros, liquidaciones ni movimientos.</p>
   </section>
   {% else %}<p>Seleccioná un ejemplo y pulsá Analizar ejemplo para ver el desglose.</p>{% endif %}
+  {% if evidencia_archivo %}<script type="application/json" id="evidencia-archivo" nonce="{{ csp_nonce }}">{{ evidencia_archivo|tojson }}</script>{% endif %}
 </main>
 {% endblock %}

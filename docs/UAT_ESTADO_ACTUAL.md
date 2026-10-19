@@ -531,3 +531,30 @@ Ajustes realizados tras este UAT:
 Estado: siete casos sintéticos comprobados en evidencia; queda revisar estos ajustes visuales después del deploy. El modal se vio abierto en captura; Cerrar/X/Escape y sidebar completo no quedan acreditados individualmente por estas capturas.
 No valida ventas reales, elegibilidad B2B, lectura de tramos, reportes MP ni el conjunto PML-UAT-01 a 24. Se mantienen las limitaciones y pendientes anteriores, producción fuera de alcance y laboratorio desconectado.
 Próximo bloque seguro propuesto: ingreso offline de evidencia normalizada con vista previa y validación de organización/unidad/cuenta/moneda/corte, sin guardar ni consultar ML/MP. Reutilizar este contrato, los costos y la conciliación existentes; no crear otro catálogo ni motor.
+
+### PML-0B: carga transitoria de evidencia normalizada — 19/10/2026
+
+Continuación autorizada por el usuario tras verificar los ejemplos. Base: ee5da1236badf051114855a5f89fc9a85cf0cc82.
+Las capturas image(20261019-124159).png y image(20261019-124300).png acreditan margen 32,00%, resultado $3.200, contenedor sin borde negro y referencia $7.248 por unidad con aclaración de recargo del 20% sobre costo. No se repitieron las siete altas/ensayos ni se infiere el SHA de Render solo por la imagen.
+
+Implementación:
+- Se agrega un formulario plegado en la misma pantalla: Analizar un archivo offline. Admite JSON UTF-8 (también BOM) hasta 2.000.000 bytes: contrato v1 o exportación con entrada. No usa respuestas crudas de ML/MP.
+- Reutiliza analizar_rentabilidad y la conciliación existente. Si el archivo contiene resultado/escenario, se ignoran y se recalculan; no se consideran evidencia confiable ni se utiliza un precio objetivo precargado. Una huella reproducible no acredita autenticidad externa.
+- Alcance de cuenta deliberadamente limitado a demo-rentabilidad-sin-conexion, organización del admin y unidad activa válidas en sesión. No se infiere cuenta confiable desde el archivo ni se habilitan cuentas reales. La moneda y fechas/corte/costo se validan con el contrato existente.
+- Nueva ruta POST /admin/comercial/rentabilidad-ml/archivo, protegida por login, rol y CSRF global existente, sin exenciones. Las rutas GET de ejemplos y exportaciones anteriores se conservan. No hay alta/confirmación de operación.
+- El navegador envía los bytes del archivo como application/json con cabecera X-CSRF-Token; la ruta lee un máximo acotado del stream. No usa multipart/request.files, guardado de adjuntos, DB, sesión de resultados, localStorage ni conexiones ML/MP. Respuestas del blueprint no-store y nosniff.
+- Resultado en la misma pantalla, con foco/salto al resultado y modales compartidos. Texto de archivo distingue datos declarados de fuentes externas verificadas. Avisos de rechazo usan la presentación existente; no se muestra un resultado anterior como si el archivo rechazado fuera válido.
+- Botón Analizar archivo bloqueado durante lectura, aviso Analizando archivo, Cancelar aborta la petición y descarta respuestas tardías. Cancelar no guarda. La carga y descarga local requieren JavaScript.
+- Descargar evidencia recalculada genera rentabilidad_ml_archivo_recalculado.json mediante Blob local con entrada y resultado recalculados y metadatos del servidor, sin solicitar otra operación. El archivo permanece en la memoria de la pestaña mientras está visible; recargar/navegar descarta el resultado transitorio.
+- Se rechazan JSON inválido/no UTF-8, claves duplicadas, NaN/infinito, exceso de tamaño/profundidad, tipos anidados inválidos y contextos ajenos. Un archivo válido con fuente/costo faltante conserva parcial/no_calculable; no transforma ausencia en cero.
+
+Verificación:
+- 97 pruebas focalizadas aprobadas (60 existentes de servicio/rutas + 37 casos nuevos parametrizados de archivos/rutas). Incluye los siete escenarios recalculados, ignorar totales falsos, escaping de HTML/JSON, permisos/unidad/organización/cuenta/moneda, tamaño/tipos/fechas, BOM, ausencia de persistencia y CSRF. El test de CSRF ejecuta la función real extraída de app.py sin modificarla; el fixture no inicia toda la aplicación.
+- Compilación Python y node --check aprobados. Ensayo JS con DOM/fetch mínimos verificó rechazo de tamaño antes de enviar, POST JSON/CSRF, estado ocupado y Cancelar impidiendo reemplazo tardío. No sustituye un navegador real.
+- Sin cambios de motor, modelos, migraciones, app.py, bootstrap, sidebar, scheduler, permisos externos, flags, datos ni producción. No se declara validada rentabilidad real ni resueltos B2B/tramos/reportes MP/cuentas reales, y permanecen los pendientes previos.
+
+Próximo UAT en staging tras deploy:
+1. Comercial → Rentabilidad ML · Ensayo offline → desplegar Analizar un archivo offline.
+2. Seleccionar el archivo ya disponible rentabilidad_ml_ensayo_simple.json y tocar Analizar archivo. Debe mostrar $3.200, 32,00% y liquidación $7.500; título Archivo offline y aviso de datos declarados.
+3. Abrir/cerrar Ver detalle y descargar evidencia recalculada para verificarla. No hace falta reconstruir ni editar el JSON de prueba.
+4. Comprobar Cancelar antes del envío: restablece el selector y cierra el formulario sin registrar operaciones. Rechazos técnicos ya cubiertos localmente; los avisos y descarga requieren revisión real de navegador.
