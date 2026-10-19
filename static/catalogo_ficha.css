@@ -40,3 +40,19 @@
  .catalog-product-dialog .catalog-image-upload { grid-column:1 / -1; }
  .catalog-product-dialog .catalog-relations > div { grid-template-columns:minmax(0,1fr); }
 }
+
+/* Cálculo de precio: cuerpo y cierre siguen el orden de lectura. */
+.economic-price-dialog .catalog-product-form { display:flex;flex-direction:column;gap:14px; }
+.economic-price-dialog .catalog-product-form > input[type="hidden"] { display:none; }
+.economic-price-dialog .catalog-product-form fieldset { flex:none;margin:0;min-width:0; }
+.economic-price-dialog dl { display:grid;grid-template-columns:minmax(130px,1fr) 2fr;gap:9px 16px;margin:0;font-size:12px; }
+.economic-price-dialog dt { color:#52677c;font-weight:700; }
+.economic-price-dialog dd { margin:0;overflow-wrap:anywhere; }
+.economic-price-dialog p,.economic-price-dialog li { color:#52677c;font-size:12px;line-height:1.5; }
+.economic-price-dialog .catalog-dialog-actions { position:static;order:99;justify-content:flex-end;flex-wrap:wrap;margin-top:0; }
+.economic-evidence-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
+.economic-evidence-fields label { display:flex;flex-direction:column;gap:5px;min-width:0;font-size:12px;color:#43556a; }
+.economic-evidence-fields input,.economic-evidence-fields select { box-sizing:border-box;width:100%;min-width:0;padding:9px;border:1px solid #cbd5df;border-radius:8px;font:inherit;background:#fff; }
+.economic-evidence-lines label { display:flex;gap:8px;align-items:center;padding:7px 0; }
+.economic-evidence-lines input[type="checkbox"] { width:16px;height:16px;margin:0;flex:none; }
+@media(max-width:600px) { .economic-evidence-fields,.economic-price-dialog dl { grid-template-columns:minmax(0,1fr); } }

@@ -6,6 +6,7 @@ from decimal import Decimal
 from openpyxl import Workbook
 
 from services.motor_comercial_canal import liquidar_precio, precio_lista_para_descuento
+from services.cobertura_precio_publicacion import ajustar_liquidacion
 
 
 def evaluar_control(simulacion, precio_actual_centavos=None, fuente_precio=None,
@@ -26,6 +27,9 @@ def evaluar_control(simulacion, precio_actual_centavos=None, fuente_precio=None,
             umbral_envio_centavos=regla.umbral_envio_centavos,
             costo_envio_centavos=regla.costo_envio_default_centavos,
         )
+    embalaje = simulacion.get("trazabilidad_economica", {}).get("embalaje_adicional_centavos", 0)
+    if actual is not None:
+        actual = ajustar_liquidacion(actual, embalaje)
     if actual is None:
         estado = "sin_precio"
     elif actual["liquidacion_centavos"] < piso_minimo:
@@ -35,7 +39,7 @@ def evaluar_control(simulacion, precio_actual_centavos=None, fuente_precio=None,
     else:
         estado = "rentable"
     precio_propuesto = objetivo["precio_final_centavos"]
-    if actual is not None and actual["precio_final_centavos"] >= precio_propuesto:
+    if actual is not None and actual["liquidacion_centavos"] >= piso_objetivo:
         precio_propuesto = actual["precio_final_centavos"]
     propuesto = liquidar_precio(
         precio_propuesto, comision_pct=regla.comision_pct,
@@ -46,7 +50,8 @@ def evaluar_control(simulacion, precio_actual_centavos=None, fuente_precio=None,
         umbral_envio_centavos=regla.umbral_envio_centavos,
         costo_envio_centavos=regla.costo_envio_default_centavos,
     )
-    requiere_correccion = actual is None or precio_propuesto > actual["precio_final_centavos"]
+    propuesto = ajustar_liquidacion(propuesto, embalaje)
+    requiere_correccion = actual is None or precio_propuesto != actual["precio_final_centavos"]
     promocion_activa = promocion is not None and promocion.estado_observado == "activa"
     precio_base_promocional_sugerido = None
     if promocion_activa:

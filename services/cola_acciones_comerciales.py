@@ -36,6 +36,8 @@ def _huella(snapshot):
 
 
 def planificar_fila(fila):
+    if fila.get("trazabilidad_economica", {}).get("cobertura_estado") in {"pendiente", "requiere_revision"}:
+        return []
     recomendacion = fila.get("accion_recomendada")
     if recomendacion in {"sin_accion", "mantener_promocion", "completar_catalogo"}: return []
     tipos = (

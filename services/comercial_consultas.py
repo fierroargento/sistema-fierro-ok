@@ -8,6 +8,7 @@ from services.catalogo_ficha_integral import (
     presentar_variantes,
 )
 from services.enlace_economico_producto import construir_enlaces
+from services.cobertura_precio_publicacion import completar_cobertura
 from services.control_comercial_masivo import construir_bandeja
 from services.validacion_integral_canal import construir_tablero
 from services.control_motores_comerciales import construir_control_motores
@@ -77,13 +78,16 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
     propuestas_comerciales = Propuesta.query.filter_by(
         organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
     ).order_by(Propuesta.fecha_creacion.desc()).all()
-    control_comercial, resumen_control_comercial = construir_bandeja(
-        simulaciones_canal, items, promociones, observaciones_canal,
-    )
     reglas_validacion = ReglaValidacion.query.join(Lista).filter(
         Lista.organizacion_id == organizacion_id,
         Lista.unidad_negocio_id == unidad_negocio_id,
     ).order_by(ReglaValidacion.fecha_creacion.desc()).all()
+    simulaciones_canal = [completar_cobertura(fila,
+        observaciones=observaciones_canal, reglas_validacion=reglas_validacion)
+        for fila in simulaciones_canal]
+    control_comercial, resumen_control_comercial = construir_bandeja(
+        simulaciones_canal, items, promociones, observaciones_canal,
+    )
     tablero_preparacion, resumen_preparacion, propuestas_obsoletas = construir_tablero(
         control_comercial, reglas_validacion, observaciones_canal,
         promociones, propuestas_comerciales,

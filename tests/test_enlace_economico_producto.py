@@ -18,7 +18,7 @@ AHORA=datetime(2026,10,19,16)
 def fuentes():
     fecha=dict(vigente=True,estado='vigente',vigente_desde=AHORA-timedelta(days=1),vigente_hasta=None,numero_version=1)
     producto=Obj(id=7,organizacion_id=1,sku='UAT-PRODUCTO')
-    detalle=Obj(tipo='insumo',codigo='MP',concepto='Material',cantidad=Decimal('2.1'),
+    detalle=Obj(id=11,tipo='insumo',codigo='MP',concepto='Material',cantidad=Decimal('2.1'),
         unidad_medida='kg',costo_unitario_centavos=10000,porcentaje_merma=0,
         subtotal_centavos=21000,orden=0,observacion=None)
     costo=Obj(id=10,organizacion_id=1,unidad_negocio_id=2,producto_id=7,
@@ -26,7 +26,7 @@ def fuentes():
         detalles=[detalle],**fecha)
     perfil=Obj(id=12,organizacion_id=1,unidad_negocio_id=2,producto_id=7,tipo='simple',activo=True)
     catalogo=Obj(id=4,organizacion_id=1,unidad_negocio_id=2,nombre='Catálogo UAT')
-    inclusion=Obj(id=5,producto_id=7,producto=producto,catalogo_id=4,catalogo=catalogo,activo=True)
+    inclusion=Obj(id=5,canales_json='{}',producto_id=7,producto=producto,catalogo_id=4,catalogo=catalogo,activo=True)
     economica=Obj(id=13,organizacion_id=1,unidad_negocio_id=2,catalogo_id=None,producto_id=7,
         alcance='producto',clave_alcance='producto:2:7',impuesto_pct=Decimal('5'),metodo_impuesto='sobre_costo',
         utilidad_minima_pct=Decimal('20'),utilidad_objetivo_pct=Decimal('30'),metodo_utilidad='sobre_costo',
@@ -162,11 +162,11 @@ def test_modal_usa_estilos_y_eventos_existentes_y_explica_limites():
     app=Flask(__name__);app.jinja_loader=FileSystemLoader('templates')
     fila=ejecutar()[1][0]
     with app.test_request_context():
-        html=app.jinja_env.get_template('partials/enlace_economico_dialog.html').render(fila=fila)
+        html=app.jinja_env.get_template('partials/enlace_economico_dialog.html').render(fila=fila,url_for=lambda *a,**k:'#')
     assert 'catalog-product-dialog' in html and 'data-close-catalog-dialog' in html
     assert 'Gestionar' not in html and 'Neto calculado' in html
-    assert 'Versión 1' in html and 'Embalaje' not in html and 'embalaje' in html
-    assert 'no certifica rentabilidad real' in html and 'method="dialog"' in html
+    assert 'Versión 1' in html and 'Embalaje adicional' in html and 'Guardar evidencia y recalcular' in html
+    assert 'no certifica rentabilidad real' in html and 'method="post"' in html
 
 
 def test_combo_reutiliza_composicion_existente_y_cambio_de_componente_bloquea():
@@ -230,7 +230,8 @@ def test_consulta_existente_usa_el_enlace_y_conserva_bloqueos():
         ('ReglaEconomicaVersion',d['reglas_economicas']),('ReglaCanalVersion',d['reglas_canal']),
         ('PerfilCosteoProducto',d['perfiles'])]:modelos[nombre].query.filas=filas
     def enlace(**k):return construir_enlaces(**k,ahora=AHORA)
-    entorno=dict(construir_enlaces=enlace,calcular_completitud=lambda *a:(100,[]),construir_bandeja=construir_bandeja,
+    from services.cobertura_precio_publicacion import completar_cobertura
+    entorno=dict(completar_cobertura=completar_cobertura,construir_enlaces=enlace,calcular_completitud=lambda *a:(100,[]),construir_bandeja=construir_bandeja,
         construir_tablero=lambda *a:([],{},[]),construir_control_motores=lambda *a:{},
         construir_plan_transicion=lambda *a:{},construir_ensayo_transicion=lambda *a:{},
         cargar_json=lambda *a:{},numero_visual=str,presentar_atributos=lambda *a:[],presentar_variantes=lambda *a:[])

@@ -1,6 +1,7 @@
 """Administración tenant de catálogos para el módulo comercial interno."""
 
 from services.catalogos_comerciales import cambiar_estado_catalogo
+from services.cobertura_precio_publicacion import preservar_coberturas
 from services.catalogo_ficha_integral import (
     MAX_IMAGENES_FICHA,
     calcular_completitud,
@@ -161,9 +162,9 @@ def procesar_accion_catalogo_comercial(
         return f"{sku} incorporado como inactivo y no disponible."
 
     if accion == "gestionar_producto_catalogo":
-        inclusion = CatalogoProducto.query.get(
-            _id(formulario, "catalogo_producto_id")
-        )
+        inclusion = CatalogoProducto.query.filter_by(
+            id=_id(formulario, "catalogo_producto_id")
+        ).with_for_update().populate_existing().first()
         if (
             inclusion is None
             or inclusion.catalogo.organizacion_id != organizacion.id
@@ -219,7 +220,7 @@ def procesar_accion_catalogo_comercial(
             parsear_atributos_estructurados(formulario)
         )
         variantes = parsear_variantes_estructuradas(formulario)
-        inclusion.canales_json = volcar_json(parsear_canales(formulario))
+        inclusion.canales_json = volcar_json(preservar_coberturas(inclusion, parsear_canales(formulario)))
         inclusion.relaciones_json = volcar_json(validar_relaciones(
             formulario.getlist("relaciones")
             if hasattr(formulario, "getlist") else formulario.get("relaciones", []),

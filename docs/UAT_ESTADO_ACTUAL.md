@@ -884,3 +884,51 @@ UAT agrupado tras desplegar:
 - Si hay una combinación completa, Gestionar debe abrir el detalle de versiones y neto/piso, con embalaje/cuenta pendientes explícitos. Cerrar y volver a abrir conserva los datos.
 - Si las fuentes actuales no cumplen, revisar Cálculos pendientes de revisión: debe identificar producto/lista y motivo sin error 500. No hace falta cargar un producto nuevo para esa inspección.
 - Siguen pendientes las variantes negativas MP de interfaz y demás pendientes históricos. No repetir las altas previas ni cargar todavía el producto integral.
+
+
+## 2026-10-19 — Embalaje declarado, identidad de publicación y contraste parcial
+
+Continuidad UAT previa:
+- Capturas 170013 a 170323: UAT-PROD-001 estaba en borrador/no disponible; activar la inclusión interna conservando No disponible resolvió el bloqueo de catálogo. Luego el cálculo identificó la cobertura de cargos faltante, sin inventar cero.
+- Capturas 170757/170818 eran estados intermedios: no acreditaban cobertura completa.
+- Captura 170933: UAT-POLITICA-002 v2 de Lista de prueba UAT, comisión 10 %, resto de porcentajes y envío explícitos en cero, paso $1 y tramo desde cero hasta sin límite con cargo cero. UAT-POLITICA-001 v1 quedó archivada.
+- UAT-PROD-001: perfil/catalogo/inclusión 1, costo v2 $4.933,65, regla UAT-REGLA-001 v1 unidad:3, mínimo neto $5.921, precio mínimo $6.579, comisión $657,90, neto $5.921,10 y excedente $0,10. Captura 171103 conserva esos importes en la tabla, objetivo $7.127 y confirma cierre visual. No acredita una reapertura ni persistencia independiente.
+- La captura mostró el pie Cerrar superpuesto al contenido durante el desplazamiento. El nuevo CSS limita el ajuste a este diálogo y ubica el pie después de todo el contenido.
+
+Bloque implementado:
+- Reutiliza el enlace económico, motor, simulación, bandeja, observaciones de canal y popup existentes. No crea otro catálogo, libro de cargos, cuenta conectada ni esquema de base.
+- Nueva evidencia local versionada dentro del campo existente CatalogoProducto.canales_json, clave reservada _coberturas_economicas. Conserva los metadatos ML/TN; editar normalmente el catálogo conserva la evidencia. Ambas escrituras bloquean la inclusión para serializar versiones. Máximo 100 versiones; alcanzar el límite rechaza otra carga sin borrar historia.
+- Registra organización/unidad, inclusión/lista, versión de costo y huella de fuentes, cuenta/publicación/variante declaradas, modo y referencia del embalaje, autor/fecha y huella de evidencia.
+- Modos: incluido (selección explícita de líneas del costo vigente, sin sumarlas otra vez), adicional por unidad vendida (se cubre antes de comparar el neto con el piso económico original) o sin costo declarado con referencia. Ausencia de evidencia nunca equivale a cero.
+- Un adicional de $100 en el ejemplo UAT, con fuentes sin cambios, requiere $6.690, comisión $669 y neto después del embalaje $5.921. El costo aprobado $4.933,65 y el piso original $5.921 permanecen intactos. No se vuelve a aplicar margen sobre ese adicional.
+- Cambiar costo/composición/regla/política vuelve obsoleta la evidencia anterior: queda visible para revisión pero no se aplica. Se rechazan huellas antiguas, líneas ajenas/duplicadas, contextos ajenos y modos contradictorios. Un reintento idéntico no agrega versión.
+- Las propuestas internas nuevas se bloquean mientras la cobertura sea pendiente o requiera revisión. La huella ampliada invalida propuestas anteriores si cambia la evidencia o su contraste.
+- El contraste usa únicamente observaciones ya existentes de precio, comisión/cargo y envío para organización/unidad/lista/inclusión/cuenta/publicación exactas, con regla de vigencia única y activa. Faltantes, futuras/vencidas, contradicciones o diferencias quedan pendientes. Una variante declarada sigue pendiente porque esas observaciones no identifican variantes.
+- Coincidir solo acredita comisión/cargo/envío al precio observado. No acredita identidad OAuth, todos los tramos de precio, impuestos, promociones, publicidad, financiación o liquidaciones reales. cargos_contrastados_cuenta y habilita_publicacion continúan false. embalaje_verificado indica coherencia de la declaración interna con las fuentes, no comprobación externa.
+- Control comercial descuenta el adicional una sola vez, tanto para precio observado como propuesto. Además deja de conservar automáticamente un precio observado más alto: exige que su neto cubra el objetivo, porque un salto de envío/cargo puede volverlo insuficiente. En ese caso propone internamente el precio recalculado admisible, incluso si es menor, sin ejecutarlo.
+
+Presentación:
+- Misma ruta Costos y precios → 5. Políticas comerciales → Simulación sin publicar → Gestionar.
+- Formulario compacto de dos columnas, líneas de costo plegadas, estado y motivos de contraste legibles, pie al final. Guardar evidencia y recalcular pide confirmación con botones, sin texto escrito.
+- Cerrar, X o Escape descartan cambios locales al cerrar. Enter en campos no envía el formulario. El selector habilita solamente el importe o las líneas aplicables para evitar envíos contradictorios.
+- Se mantiene la navegación/sidebar; no se crean pantallas ni accesos nuevos.
+
+Verificación:
+- 141 pruebas focalizadas aprobadas: 97 anteriores y 44 nuevas de cobertura, persistencia/guardas y formulario.
+- Persistencia de JSON en tabla reducida SQLite, lectura posterior y conservación de historia al editar metadatos; no equivale a probar PostgreSQL ni concurrencia real.
+- Ruta real extraída por AST y ejecutada por HTTP de Flask con dobles de acceso/ORM: escritura válida con bloqueo, rechazo de unidad/tenant/huella/línea ajena. No prueba middleware real de autenticación/CSRF; la ruta conserva login_required y el formulario token CSRF.
+- Node VM verifica selector, Enter, confirmar/cancelar y reset tras cierre; no es inspección visual de navegador.
+- Incluye ejemplo monetario UAT exacto, no duplicación de embalaje, idempotencia, obsolescencia, contraste exacto/parcial y salto de envío con precio mayor insuficiente. Compilación Python y sintaxis JavaScript aprobadas.
+- Sin suite completa ni arranque de aplicación/scheduler. Sin cambios a app.py, modelos, migraciones, bootstrap, flags, webhooks, estados, credenciales o producción. Sin nuevas conexiones externas, publicaciones, reservas, stock, dinero o cobros.
+
+UAT agrupado pendiente tras desplegar este bloque:
+1. En la ruta indicada, Gestionar sobre UAT-PROD-001 / Lista de prueba UAT.
+2. Declarar cuenta CUENTA-UAT, publicación PUB-UAT-PROD-001, variante vacía, Gasto adicional por unidad vendida, $100 y referencia UAT-EMB-001. Son referencias ficticias locales.
+3. Guardar y confirmar. Con las fuentes documentadas sin cambios: precio mínimo $6.690 y neto $5.921 después del embalaje. Recargar y reabrir debe conservar evidencia e importes.
+4. Cambiar localmente importe a $200 y cerrar; reabrir debe mostrar $100. Cancelar la confirmación de guardado también debe conservar la versión anterior. Verificar pie y campos sin superposición.
+5. Los faltantes de observación/cuenta son esperables: no cargar datos inventados para obtener coincidencia ni conectar cuentas.
+
+Pendientes conservados:
+- La última evidencia por inclusión/lista es la que aplica; versiones anteriores se conservan. No resuelve políticas simultáneas para varias cuentas/variantes de la misma inclusión/lista.
+- Identidad real, cobertura completa de deducciones/promociones, venta offline y snapshot de costos/cargos/embalaje de esa venta, conciliación ML/MP y demás etapas del plan siguen pendientes. No declarar rentabilidad real asegurada.
+- Pendientes históricos de interfaz/negativos MP y prueba física integral siguen abiertos. No cargar todavía un producto integral nuevo; continuar sobre el ejemplo UAT existente.

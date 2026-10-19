@@ -7,6 +7,7 @@ from flask import Blueprint, redirect, render_template, request, send_file, sess
 from services.comercial_admin import procesar_accion_comercial
 from services.comercial_consultas import obtener_datos_panel_comercial
 from services.precio_observado_manual import registrar_precio_manual
+from services.cobertura_precio_publicacion import guardar_cobertura
 from services.historial_costos_productos import obtener_historial_costo_producto
 from services.historial_precios_observados import obtener_historial_precio
 from services.control_comercial_masivo import exportar_bandeja_excel
@@ -223,6 +224,41 @@ def crear_blueprint_comercial(*, dependencias):
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(),
         )
+
+    @blueprint.route("/admin/comercial/cobertura-precio", methods=["POST"])
+    @dependencias["login_required"]
+    def guardar_cobertura_precio():
+        usuario, organizacion, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        try:
+            unidad_activa, _unidades = contexto_comercial(organizacion)
+            if int(request.form.get("unidad_negocio_id")) != unidad_activa.id:
+                raise ValueError("Cambió la unidad activa. Cerrá y volvé a abrir el cálculo.")
+            inclusion_id = int(request.form.get("catalogo_producto_id"))
+            lista_id = int(request.form.get("lista_precio_id"))
+            Inclusion = modelos["CatalogoProducto"]
+            # Serializa versiones de evidencia sobre esta misma inclusión.
+            inclusion = Inclusion.query.filter_by(id=inclusion_id).with_for_update().first()
+            if inclusion is None or (inclusion.catalogo.organizacion_id, inclusion.catalogo.unidad_negocio_id) != (organizacion.id, unidad_activa.id):
+                raise ValueError("El producto no pertenece a la unidad activa.")
+            datos = obtener_datos_panel_comercial(organizacion.id, unidad_activa.id, modelos=modelos)
+            filas = [f for f in datos["simulaciones_canal"] if f["inclusion"].id == inclusion_id and f["regla_canal"].lista_precio_id == lista_id]
+            if len(filas) != 1:
+                raise ValueError("El cálculo ya no está disponible de forma inequívoca. Revisá sus fuentes.")
+            creado = guardar_cobertura(filas[0], cuenta=request.form.get("cuenta_codigo"),
+                publicacion=request.form.get("publicacion"), variante=request.form.get("variante"),
+                modo_embalaje=request.form.get("modo_embalaje"),
+                detalle_ids=[int(i) for i in request.form.getlist("detalle_embalaje_id")],
+                adicional_centavos=importe_a_centavos(request.form.get("embalaje_adicional") or "0"),
+                referencia=request.form.get("referencia_embalaje"),
+                huella_esperada=request.form.get("huella_calculo"),usuario=usuario,db_session=db.session)
+            mensaje = "Evidencia guardada y precio recalculado; no se publica ni se modifica stock." if creado else "La evidencia ya estaba registrada; no se duplicó."
+            dependencias["registrar_auditoria"]("Registró evidencia del cálculo de precio",entidad="catalogo_producto",entidad_id=inclusion_id,detalle=mensaje)
+            return redirect(url_for("admin_comercial.panel",ok=mensaje,_anchor="politicas"))
+        except Exception as error:
+            db.session.rollback()
+            return redirect(url_for("admin_comercial.panel",error=str(error),_anchor="politicas"))
 
     @blueprint.route("/admin/comercial/precio-observado", methods=["POST"])
     @dependencias["login_required"]

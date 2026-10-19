@@ -1,6 +1,11 @@
 {% set traza = fila.trazabilidad_economica %}
-<dialog class="catalog-product-dialog" id="enlace-economico-{{ fila.costo.id }}-{{ fila.regla_canal.id }}">
-  <form class="catalog-product-form" method="dialog">
+<dialog class="catalog-product-dialog economic-price-dialog" id="enlace-economico-{{ fila.costo.id }}-{{ fila.regla_canal.id }}">
+  <form class="catalog-product-form" method="post" action="{{ url_for('admin_comercial.guardar_cobertura_precio') }}" data-economic-evidence>
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}">
+    <input type="hidden" name="unidad_negocio_id" value="{{ traza.unidad_negocio_id }}">
+    <input type="hidden" name="catalogo_producto_id" value="{{ traza.catalogo_producto_id }}">
+    <input type="hidden" name="lista_precio_id" value="{{ traza.politica_canal.lista_precio_id }}">
+    <input type="hidden" name="huella_calculo" value="{{ traza.huella_enlace }}">
     <div class="catalog-dialog-head"><div><strong>Cálculo de precio · {{ traza.sku }}</strong><span>{{ fila.regla_canal.lista_precio.nombre }} · {{ traza.moneda }}</span></div><button class="dialog-close" type="button" data-close-catalog-dialog aria-label="Cerrar">×</button></div>
     <fieldset><legend>Origen del cálculo</legend><dl>
       <dt>Ficha y catálogo</dt><dd>Perfil #{{ traza.perfil_id }} · catálogo #{{ traza.catalogo_id }} · inclusión #{{ traza.catalogo_producto_id }}</dd>
@@ -11,11 +16,26 @@
     <fieldset><legend>Precio mínimo según las versiones internas</legend><div class="table-wrap"><table class="comercial-table"><tbody>
       <tr><th>Mínimo neto a percibir</th><td>${{ '%.2f'|format(traza.minimo.piso_liquidacion_centavos / 100) }}</td></tr>
       <tr><th>Precio de publicación calculado</th><td><strong>${{ '%.2f'|format(traza.minimo.precio_final_centavos / 100) }}</strong></td></tr>
-      {% for clave, nombre in [('comision_centavos','Comisión'),('publicidad_centavos','Publicidad'),('financiacion_centavos','Financiación'),('devoluciones_centavos','Previsión de devoluciones'),('cargo_fijo_centavos','Cargo fijo'),('envio_centavos','Envío estimado')] %}<tr><th>{{ nombre }}</th><td>${{ '%.2f'|format(traza.minimo[clave] / 100) }}</td></tr>{% endfor %}
+      {% for clave, nombre in [('comision_centavos','Comisión'),('publicidad_centavos','Publicidad'),('financiacion_centavos','Financiación'),('devoluciones_centavos','Previsión de devoluciones'),('cargo_fijo_centavos','Cargo fijo'),('envio_centavos','Envío estimado'),('embalaje_adicional_centavos','Embalaje adicional')] %}<tr><th>{{ nombre }}</th><td>${{ '%.2f'|format(traza.minimo.get(clave, 0) / 100) }}</td></tr>{% endfor %}
       <tr><th>Neto calculado</th><td><strong>${{ '%.2f'|format(traza.minimo.liquidacion_centavos / 100) }}</strong></td></tr>
       <tr><th>Excedente por cargos y redondeo</th><td>${{ '%.2f'|format(traza.minimo.excedente_centavos / 100) }}</td></tr>
     </tbody></table></div><p>El precio objetivo se muestra por separado. El mínimo es el menor precio admisible que conserva el neto definido con esta política.</p></fieldset>
     <fieldset><legend>Alcance pendiente de verificar</legend><ul>{% for pendiente in traza.faltantes %}<li>{{ pendiente }}</li>{% endfor %}</ul><p>Los importes son estimaciones internas. Este cálculo no certifica rentabilidad real ni habilita publicaciones.</p></fieldset>
-    <div class="catalog-dialog-actions"><button class="table-action" type="button" data-close-catalog-dialog>Cerrar</button></div>
+    {% set evidencia = traza.get('evidencia_embalaje', {}) %}
+    <fieldset><legend>Embalaje y publicación declarados</legend>
+      <p>El embalaje incluido no vuelve a sumarse. El gasto adicional se descuenta del neto y el precio se recalcula para conservar el mínimo de la regla económica.</p>
+      <div class="economic-evidence-fields">
+        <label><span>Cuenta declarada</span><input name="cuenta_codigo" value="{{ evidencia.get('cuenta_codigo','') }}" maxlength="100" required placeholder="Ej. CUENTA-UAT"></label>
+        <label><span>Publicación declarada</span><input name="publicacion" value="{{ evidencia.get('publicacion','') }}" maxlength="160" required placeholder="Referencia de publicación"></label>
+        <label><span>Variante · opcional</span><input name="variante" value="{{ evidencia.get('variante','') }}" maxlength="160"></label>
+        <label><span>Registro del embalaje</span><select name="modo_embalaje" required><option value="">Seleccionar</option>{% for clave, etiqueta in [('incluido','Incluido en el costo aprobado'),('adicional','Gasto adicional por unidad vendida'),('sin_costo','Sin costo de embalaje · declarado')] %}<option value="{{ clave }}" {% if evidencia.get('modo_embalaje') == clave %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}</select></label>
+        <label><span>Gasto adicional por unidad · $</span><input name="embalaje_adicional" value="{{ '%.2f'|format(evidencia.get('embalaje_adicional_centavos',0) / 100) }}" inputmode="decimal" required></label>
+        <label><span>Referencia del embalaje</span><input name="referencia_embalaje" value="{{ evidencia.get('referencia','') }}" maxlength="300" required placeholder="Documento o criterio del ensayo"></label>
+      </div>
+      <details><summary>Líneas del costo que incluyen el embalaje</summary><p>Seleccioná líneas solo si elegiste Incluido en el costo aprobado.</p><div class="economic-evidence-lines">{% for detalle in fila.costo.detalles %}<label><input type="checkbox" name="detalle_embalaje_id" value="{{ detalle.id }}" {% if detalle.id in evidencia.get('detalle_ids',[]) %}checked{% endif %}><span>{{ detalle.concepto }} · ${{ '%.2f'|format(detalle.subtotal_centavos / 100) }}</span></label>{% endfor %}</div></details>
+      <p>Estado: {{ traza.get('cobertura_estado','pendiente')|replace('_',' ') }}. La cuenta y publicación son referencias declaradas; no se conectan ni se habilitan.</p>
+    </fieldset>
+    {% if traza.get('contraste') %}<fieldset><legend>Observaciones de la cuenta y publicación</legend><p>{{ traza.contraste.estado|replace('_',' ') }}</p>{% for motivo in traza.contraste.motivos %}<p>{{ motivo }}</p>{% endfor %}{% if traza.contraste.get('precio_observado_centavos') is not none %}<p>Precio observado: ${{ '%.2f'|format(traza.contraste.precio_observado_centavos / 100) }}. La coincidencia solo corresponde a ese precio y a comisión, cargo y envío; no verifica todas las deducciones.</p>{% endif %}</fieldset>{% endif %}
+    <div class="catalog-dialog-actions"><button class="comercial-primary" type="submit">Guardar evidencia y recalcular</button><button class="table-action" type="button" data-close-catalog-dialog>Cerrar</button></div>
   </form>
 </dialog>
