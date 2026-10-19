@@ -1088,3 +1088,34 @@ Siguiente trabajo, según la nueva prioridad:
 - Revisar el alta manual y la importación masiva de productos, qué campos pertenecen al maestro único y cómo se enlazan luego con ficha comercial, fabricación y costo. Auditar las validaciones y evitar duplicar el producto por completar su ficha.
 - La vista Productos actual corresponde al maestro interno/logístico. La existencia de botones no acredita que toda la creación integral y masiva esté aceptada; su presentación y flujo se revisarán en el siguiente bloque antes de pedir nuevas cargas.
 - Conservar todos los pendientes históricos y la separación staging/producción. Este ajuste del mapa del sitio no habilita el producto integral ni cierra los pendientes de fabricación o cuentas reales.
+
+
+## 2026-10-19 — Regla de fuente principal: ficha maestra única de Productos
+
+Decisión explícita de Martín:
+- Productos deja de entenderse como una lista exclusivamente logística: será la base principal de la que se nutran todos los procesos, funciones y cálculos vinculados a productos.
+- Se reutiliza Producto y su identidad por organización. No se crea un segundo maestro comercial, productivo o logístico ni se duplica un producto para completar datos de otro módulo.
+- La creación manual y masiva deben alimentar la misma estructura y utilizar las mismas validaciones. La carga masiva debe presentar su previsualización y diferencias antes de confirmar.
+- La ficha debe reunir identificación/clasificación, características e imágenes/variantes, fabricación/compra/combo, proveedores, unidades/presentaciones, inventario, costos, condiciones comerciales/publicaciones y logística/embalaje.
+- Se permite alta en borrador con datos básicos. La completitud y elegibilidad se validan para cada uso; un borrador no queda automáticamente listo para fabricar, vender, publicar o despachar.
+
+Criterio de integración:
+- Los datos propios e intrínsecos del producto se administran desde la ficha principal. Las rutas actuales de módulos deben reutilizar esa identidad y las referencias correspondientes.
+- Catálogos, listas, cuentas, proveedores y variantes se vinculan explícitamente; no se elige arbitrariamente la primera asociación cuando haya varias.
+- Condiciones por organización/unidad, catálogo/canal y vigencias mantienen su alcance. Centralizar el acceso no significa convertir precios, costos o disponibilidad de distintos contextos en un único valor global.
+- Stock, reservas, compras, producción, ventas, envíos y cobros conservan sus registros/transacciones. La ficha presenta su información vinculada, sin inventar saldos editables ni copiar movimientos.
+- Las versiones de costo y snapshots históricos de ventas/publicaciones deben conservar sus datos originales. Editar la ficha actual no recalcula ni reescribe hechos anteriores.
+- Cambios de datos que afecten composición, costo, embalaje o política deben aplicar los controles existentes de vigencia/obsolescencia antes de presentar un precio como cumplido.
+- Se distinguen características físicas del producto de medidas/peso del paquete y condiciones de envío. Los permisos logísticos existentes no se reemplazan por defaults de una importación de datos generales.
+
+Auditoría inicial:
+- Producto actual contiene identidad tenant y datos logísticos. La pantalla /admin/productos sigue centrada en esos campos.
+- CatalogoProducto ya conserva nombre/marca/categoría/descripciones/características, medidas propias del producto, imágenes, atributos, variantes, relaciones y datos comerciales por catálogo.
+- PerfilCosteoProducto ya clasifica simple/producción/combo por contexto y vincula composición; existen versiones de costo, inventario y trazabilidad económica.
+- La ruta masiva actual del maestro delega directamente la sincronización Excel. Su presencia no acredita previsualización del nuevo contrato integral ni preservación de todos los campos ausentes.
+- Debe revisarse la propiedad de cada dato y adaptar esas rutas/servicios. No volcar todas las tablas en un JSON único ni reemplazar los módulos existentes por otro conjunto de maestros.
+
+Estado:
+- Esta sección registra la decisión de arquitectura y el alcance confirmado; no declara implementada la ficha maestra integral.
+- Siguiente desarrollo: organizar la ficha y los campos con sus fuentes existentes, resolver datos generales faltantes y adaptar alta manual/masiva con preservación de relaciones e históricos.
+- Todo se prepara en integración/staging. Sin cambios a producción, flags o conexiones, sin nuevas cargas de productos ni migraciones ejecutadas por esta definición.
