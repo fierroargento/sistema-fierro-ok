@@ -837,3 +837,50 @@ Alcance pendiente y siguiente trabajo:
 3. Continúa el enlace producto/ficha/versión de costo → regla/mínimo neto → cobertura/canal/publicación, sin duplicar el motor ya implementado. Costeo por consumos físicos reales y operación conectada continúan pendientes.
 4. No se solicita aún cargar el producto integral. UAT agrupado al desplegar: abrir Compras → sección 5 Mapeo de insumos a inventario → Preparar materia prima y comprobar selector de precisión; cerrar sin guardar. Revisar unidades en las existencias actuales sin modificar saldos. Para validar conversión de un SKU nuevo se preparará un caso separado cuando corresponda; no reutilizar UAT-OP-001 para ejecutar nada.
 5. Se conservan los pendientes visuales históricos y las dos variantes negativas MP pendientes de interfaz. No se declara terminado todo el sistema.
+
+
+### Enlace verificable de costo, piso económico y precio de canal — 19/10/2026
+
+Base oficial: 751ebdb411fd0c955feb6a6cd66d881f36deb9f8, rama integracion-saas-2026-09. El usuario respondió LISTO al bloque anterior; se registra esa confirmación sin atribuirle una captura, prueba de conversión nueva ni verificación independiente del deploy.
+
+Auditoría y reutilización:
+- Comercial ya invocaba resolver_regla_vigente/calcular_pisos_regla y calcular_precio_minimo_canal. Se conserva esa implementación; no se agrega otro motor de margen/precio ni otro módulo de publicaciones.
+- El armado anterior elegía la primera inclusión del producto y cruzaba las políticas vigentes sin comprobar composición, moneda, vigencia temporal ni cobertura completa de tramos. Una excepción de una fila también podía interrumpir toda la consulta.
+- Se extrae ese armado a services/enlace_economico_producto.py y se integra en la consulta y bandeja existentes. Solo lee fuentes de la organización/unidad actuales. Las inclusiones inactivas no compiten; varias inclusiones activas requieren una asociación inequívoca futura y se bloquean, sin escoger la primera.
+
+Comportamiento:
+- Requiere una versión de costo vigente, en ARS, con perfil activo/único del mismo producto/contexto. Recalcula sus subtotales con el servicio existente para comprobar el total; para producción/combo compara la composición actual con el snapshot aprobado reutilizando construir_detalles/construir_detalles_combo y huella_detalles.
+- Conserva la prioridad económica producto → catálogo → unidad → organización. Excepciones ambiguas, referencias inconsistentes, estados/fechas incompatibles y fuentes ajenas bloquean esa fila. No se sustituye una excepción inválida por una regla general menos exigente.
+- La política de canal debe pertenecer a una lista de la misma organización/unidad/moneda, ser única y estar vigente. Los cargos deben cubrir desde cero hasta un tramo final sin límite, sin huecos ni solapamientos. Cargo cero se declara como tramo explícito; ausencia de tramo/porcentaje no se trata como cero.
+- El motor compartido obtiene el mínimo y objetivo por separado. El precio mínimo conserva la regla irrevocable: menor precio admisible cuyo neto calculado cubre el mínimo a percibir, con reevaluación de tasas, cargos, envío y redondeos.
+- Los fallos se muestran como Cálculos pendientes de revisión, dentro de Políticas comerciales, sin producir precios para esas combinaciones ni impedir calcular otras filas válidas.
+- Cada cálculo conserva perfil, producto/SKU, catálogo/inclusión, versión/composición de costo, regla económica, política/tramos, importes y fechas. La huella del enlace incorpora esos datos y el resultado, con fechas normalizadas a UTC.
+- La cola interna incluye esa huella al preparar nuevas propuestas. Cambiar la versión económica/política/composición invalida la propuesta anterior aun si el precio numérico queda igual. Los snapshots históricos no se reescriben ni se reabren decisiones; su revisión puede indicar obsolescencia al compararlos con el cálculo actual.
+- La exportación existente de Control comercial agrega IDs de origen, huella y alcance. Se mantienen columnas anteriores y sus posiciones.
+
+Presentación:
+- Costos y precios → 5. Políticas comerciales → Simulación sin publicar: tabla compacta de seis columnas con mínimo, neto/piso y objetivo separados.
+- Gestionar abre el detalle en el diálogo y con los controles existentes del catálogo: fuentes, deducciones calculadas, neto y excedente. Cerrar no envía modificaciones ni requiere escribir una confirmación.
+- Se reutilizan sidebar, CSS y JS actuales. No se crea otra pantalla ni se cambia navegación.
+- La bandeja deja de describir su cálculo como precio seguro sin matices: muestra su alcance como cálculo según versiones internas.
+
+Verificación:
+- 97 pruebas focalizadas aprobadas; 42 casos del nuevo enlace y sus cruces/presentación. Incluyen búsqueda exhaustiva del primer precio admisible del ejemplo, salto de envío/cargo, costo 2,1 kg sin multiplicarlo dos veces, total/subtotal incoherentes, versiones y catálogos ambiguos, unidad/tenant/moneda, vigencias UTC, cobertura de tramos, producción/combo desactualizados, exportación y obsolescencia con igual precio.
+- Se ejecuta la función real de consulta del panel extraída por AST con dobles de ORM, conservando el nuevo enlace real y la bandeja real. Verifica que perfiles se consulten con organización/unidad y que errores se expongan sin simulación. No es una prueba del ORM PostgreSQL ni de autorización HTTP.
+- Render Jinja del panel y popup reales con layout mínimo; verifica IDs y controles existentes de apertura/cierre. Sin inspección visual en navegador ni sesión real de staging. Compilación Python aprobada.
+- Regresiones focalizadas del motor, reglas, publicidad/cuotas, simulador, bandeja, cola y validación de canal aprobadas. No se ejecuta la suite completa del repositorio ni se inicia la aplicación/scheduler.
+- Sin cambios a app.py, modelos, migraciones, bootstrap, scheduler, webhooks, estados operativos, credenciales, flags o producción. No se publican precios, se reservan materiales ni se ejecutan movimientos/cobros.
+
+Límites pendientes antes del producto integral:
+1. El enlace nuevo acredita coherencia de las versiones internas, no una consulta real ML/MP. La traza marca cargos_contrastados_cuenta=false y habilita_publicacion=false. Publicidad, financiación, devoluciones y envío son parámetros/previsiones de esa política.
+2. Embalaje no se infiere por el nombre de un insumo o su ficha física. Se marca embalaje_verificado=false y se pide verificar su inclusión en la composición; no se suma otro cargo automáticamente. Falta registrar y reutilizar esa evidencia explícita para cerrar el mínimo completo sin doble conteo.
+3. Falta enlazar esta traza con la cuenta/publicación/variante exactas, observaciones vigentes y cobertura real de cargos/promociones, y con el snapshot de la venta offline. No se declara el módulo ML terminado ni rentabilidad real asegurada.
+4. Se mantienen el motor histórico de listas y su plan de transición, la falta de ejecución productiva y el costeo físico real pendiente. El nuevo control no migra esos consumidores ni activa conexiones.
+5. Los casos antes tolerados pueden aparecer ahora bloqueados. Revisarlos por su motivo; no inventar datos o cargar stock para obtener verde. Las versiones vigentes con cobertura incompleta requieren una nueva política preparatoria explícita, sin modificar la historia.
+6. La validación de fichas lee fuentes actuales; no se ha medido rendimiento masivo en staging ni concurrencia transaccional. Los resultados siguen siendo fotografías de solo lectura.
+
+UAT agrupado tras desplegar:
+- Abrir /admin/comercial#politicas (Costos y precios → 5. Políticas comerciales).
+- Si hay una combinación completa, Gestionar debe abrir el detalle de versiones y neto/piso, con embalaje/cuenta pendientes explícitos. Cerrar y volver a abrir conserva los datos.
+- Si las fuentes actuales no cumplen, revisar Cálculos pendientes de revisión: debe identificar producto/lista y motivo sin error 500. No hace falta cargar un producto nuevo para esa inspección.
+- Siguen pendientes las variantes negativas MP de interfaz y demás pendientes históricos. No repetir las altas previas ni cargar todavía el producto integral.

@@ -1,0 +1,21 @@
+{% set traza = fila.trazabilidad_economica %}
+<dialog class="catalog-product-dialog" id="enlace-economico-{{ fila.costo.id }}-{{ fila.regla_canal.id }}">
+  <form class="catalog-product-form" method="dialog">
+    <div class="catalog-dialog-head"><div><strong>Cálculo de precio · {{ traza.sku }}</strong><span>{{ fila.regla_canal.lista_precio.nombre }} · {{ traza.moneda }}</span></div><button class="dialog-close" type="button" data-close-catalog-dialog aria-label="Cerrar">×</button></div>
+    <fieldset><legend>Origen del cálculo</legend><dl>
+      <dt>Ficha y catálogo</dt><dd>Perfil #{{ traza.perfil_id }} · catálogo #{{ traza.catalogo_id }} · inclusión #{{ traza.catalogo_producto_id }}</dd>
+      <dt>Costo aprobado</dt><dd>Versión {{ traza.costo.numero_version }} · ${{ '%.2f'|format(traza.costo.costo_total_centavos / 100) }}</dd>
+      <dt>Regla económica</dt><dd>{{ fila.regla.nombre }} · versión {{ traza.regla_economica.numero_version }} · {{ traza.regla_economica.clave_alcance }}</dd>
+      <dt>Política de canal</dt><dd>{{ fila.regla_canal.nombre }} · versión {{ traza.politica_canal.numero_version }}</dd>
+    </dl></fieldset>
+    <fieldset><legend>Precio mínimo según las versiones internas</legend><div class="table-wrap"><table class="comercial-table"><tbody>
+      <tr><th>Mínimo neto a percibir</th><td>${{ '%.2f'|format(traza.minimo.piso_liquidacion_centavos / 100) }}</td></tr>
+      <tr><th>Precio de publicación calculado</th><td><strong>${{ '%.2f'|format(traza.minimo.precio_final_centavos / 100) }}</strong></td></tr>
+      {% for clave, nombre in [('comision_centavos','Comisión'),('publicidad_centavos','Publicidad'),('financiacion_centavos','Financiación'),('devoluciones_centavos','Previsión de devoluciones'),('cargo_fijo_centavos','Cargo fijo'),('envio_centavos','Envío estimado')] %}<tr><th>{{ nombre }}</th><td>${{ '%.2f'|format(traza.minimo[clave] / 100) }}</td></tr>{% endfor %}
+      <tr><th>Neto calculado</th><td><strong>${{ '%.2f'|format(traza.minimo.liquidacion_centavos / 100) }}</strong></td></tr>
+      <tr><th>Excedente por cargos y redondeo</th><td>${{ '%.2f'|format(traza.minimo.excedente_centavos / 100) }}</td></tr>
+    </tbody></table></div><p>El precio objetivo se muestra por separado. El mínimo es el menor precio admisible que conserva el neto definido con esta política.</p></fieldset>
+    <fieldset><legend>Alcance pendiente de verificar</legend><ul>{% for pendiente in traza.faltantes %}<li>{{ pendiente }}</li>{% endfor %}</ul><p>Los importes son estimaciones internas. Este cálculo no certifica rentabilidad real ni habilita publicaciones.</p></fieldset>
+    <div class="catalog-dialog-actions"><button class="table-action" type="button" data-close-catalog-dialog>Cerrar</button></div>
+  </form>
+</dialog>

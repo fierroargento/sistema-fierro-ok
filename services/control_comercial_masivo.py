@@ -126,9 +126,10 @@ def construir_bandeja(simulaciones, items, promociones=(), observaciones=()):
 
 def exportar_bandeja_excel(filas):
     libro = Workbook(); hoja = libro.active; hoja.title = "Control comercial"
-    hoja.append(["SKU", "LISTA_CANAL", "ESTADO", "FUENTE_PRECIO", "PRECIO_BASE", "PRECIO_EFECTIVO", "PRECIO_MINIMO", "PRECIO_PROPUESTO", "PRECIO_BASE_PROMOCIONAL_SUGERIDO", "LIQUIDACION_ACTUAL", "PISO_MINIMO", "DIFERENCIA", "DIFERENCIA_PCT", "PROMOCION_ACTIVA", "ACCION_RECOMENDADA", "CAMBIA_CARGO", "CAMBIA_ENVIO", "DESVIOS_OBSERVADOS"])
+    hoja.append(["SKU", "LISTA_CANAL", "ESTADO", "FUENTE_PRECIO", "PRECIO_BASE", "PRECIO_EFECTIVO", "PRECIO_MINIMO", "PRECIO_PROPUESTO", "PRECIO_BASE_PROMOCIONAL_SUGERIDO", "LIQUIDACION_ACTUAL", "PISO_MINIMO", "DIFERENCIA", "DIFERENCIA_PCT", "PROMOCION_ACTIVA", "ACCION_RECOMENDADA", "CAMBIA_CARGO", "CAMBIA_ENVIO", "DESVIOS_OBSERVADOS", "COSTO_VERSION_ID", "REGLA_ECONOMICA_ID", "POLITICA_CANAL_ID", "CATALOGO_PRODUCTO_ID", "HUELLA_ENLACE", "ALCANCE"])
     for fila in filas:
         actual = fila["actual"]
+        traza = fila.get("trazabilidad_economica", {})
         hoja.append([
             fila["costo"].producto.sku, fila["regla_canal"].lista_precio.nombre,
             fila["estado_control"], fila["fuente_precio"],
@@ -144,6 +145,11 @@ def exportar_bandeja_excel(filas):
             fila["accion_recomendada"], "SI" if fila["cambia_cargo"] else "NO",
             "SI" if fila["cambia_envio"] else "NO",
             ", ".join(fila.get("desvios_observados", [])),
+            traza.get("costo", {}).get("id"),
+            traza.get("regla_economica", {}).get("id"),
+            traza.get("politica_canal", {}).get("id"),
+            traza.get("catalogo_producto_id"), traza.get("huella_enlace"),
+            traza.get("alcance", "sin_trazabilidad_verificada"),
         ])
     hoja.freeze_panes = "A2"
     salida = BytesIO(); libro.save(salida); salida.seek(0); return salida

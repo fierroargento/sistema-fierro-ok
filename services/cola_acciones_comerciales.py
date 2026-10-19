@@ -9,7 +9,7 @@ from services.fechas import ahora_utc_naive
 def _snapshot(fila, tipo_accion):
     actual = fila.get("actual")
     promocion = fila.get("promocion")
-    return {
+    snapshot = {
         "tipo_accion": tipo_accion,
         "lista_precio_id": fila["regla_canal"].lista_precio_id,
         "catalogo_producto_id": fila["inclusion"].id,
@@ -23,6 +23,11 @@ def _snapshot(fila, tipo_accion):
         "piso_objetivo_centavos": fila["objetivo"]["piso_liquidacion_centavos"],
         "estado_control": fila["estado_control"],
     }
+
+    traza = fila.get("trazabilidad_economica")
+    if traza:
+        snapshot["huella_enlace_economico"] = traza["huella_enlace"]
+    return snapshot
 
 
 def _huella(snapshot):

@@ -7,8 +7,7 @@ from services.catalogo_ficha_integral import (
     presentar_atributos,
     presentar_variantes,
 )
-from services.reglas_economicas import calcular_pisos_regla, resolver_regla_vigente
-from services.motor_comercial_canal import calcular_precio_minimo_canal
+from services.enlace_economico_producto import construir_enlaces
 from services.control_comercial_masivo import construir_bandeja
 from services.validacion_integral_canal import construir_tablero
 from services.control_motores_comerciales import construir_control_motores
@@ -51,38 +50,18 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         (ReglaEconomica.unidad_negocio_id.is_(None))
         | (ReglaEconomica.unidad_negocio_id == unidad_negocio_id),
     ).order_by(ReglaEconomica.fecha_creacion.desc()).all()
-    pisos_economicos = []
-    for costo in (item for item in costos if item.vigente):
-        inclusion = next(
-            (item for item in inclusiones if item.producto_id == costo.producto_id),
-            None,
-        )
-        regla = resolver_regla_vigente(
-            reglas_economicas, unidad_negocio_id=unidad_negocio_id,
-            catalogo_id=inclusion.catalogo_id if inclusion else None,
-            producto_id=costo.producto_id,
-        )
-        pisos_economicos.append({
-            "costo": costo, "inclusion": inclusion, "regla": regla,
-            "pisos": calcular_pisos_regla(costo.costo_total_centavos, regla)
-            if regla else None,
-        })
     reglas_canal = ReglaCanal.query.join(Lista).filter(
         Lista.organizacion_id == organizacion_id,
         Lista.unidad_negocio_id == unidad_negocio_id,
     ).order_by(ReglaCanal.fecha_creacion.desc()).all()
-    simulaciones_canal = []
-    for fila in (item for item in pisos_economicos if item["pisos"]):
-        for regla_canal in (item for item in reglas_canal if item.vigente):
-            simulaciones_canal.append({
-                **fila, "regla_canal": regla_canal,
-                "minimo": calcular_precio_minimo_canal(
-                    fila["pisos"]["minimo"]["piso_liquidacion_centavos"], regla_canal,
-                ),
-                "objetivo": calcular_precio_minimo_canal(
-                    fila["pisos"]["objetivo"]["piso_liquidacion_centavos"], regla_canal,
-                ),
-            })
+    perfiles_costeo = modelos["PerfilCosteoProducto"].query.filter_by(
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
+    ).all()
+    pisos_economicos, simulaciones_canal, bloqueos_enlace_economico = construir_enlaces(
+        organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
+        costos=costos, inclusiones=inclusiones, reglas_economicas=reglas_economicas,
+        reglas_canal=reglas_canal, perfiles=perfiles_costeo, modelo_costo=Costo,
+    )
     items = Item.query.join(Lista).filter(
         Lista.organizacion_id == organizacion_id,
         Lista.unidad_negocio_id == unidad_negocio_id,
@@ -149,6 +128,7 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         "pisos_economicos": pisos_economicos,
         "reglas_canal": reglas_canal,
         "simulaciones_canal": simulaciones_canal,
+        "bloqueos_enlace_economico": bloqueos_enlace_economico,
         "control_comercial": control_comercial,
         "resumen_control_comercial": resumen_control_comercial,
         "promociones_canal": promociones,
