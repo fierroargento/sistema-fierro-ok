@@ -24,6 +24,8 @@ def _alcance(perfil, recurso):
 
 def guardar_insumo(perfil, insumo, *, cantidad, merma, observacion, Modelo, db_session):
     _alcance(perfil, insumo)
+    from services.producto_habilitaciones import exigir_uso_insumo
+    exigir_uso_insumo(insumo, "insumo", db_session, perfil.unidad_negocio_id)
     registro = Modelo.query.filter_by(perfil_costeo_id=perfil.id, insumo_id=insumo.id).first()
     if registro is None:
         registro = Modelo(perfil_costeo_id=perfil.id, insumo_id=insumo.id)

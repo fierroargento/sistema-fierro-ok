@@ -1,6 +1,7 @@
 """Reglas tenant para tipos de producto y composicion de combos."""
 
 from decimal import Decimal, InvalidOperation
+from sqlalchemy import inspect
 
 
 TIPOS_PERFIL_COSTEO = {"simple", "produccion", "combo"}
@@ -29,6 +30,11 @@ def crear_o_actualizar_perfil(
         raise ValueError("El producto no existe.")
     if int(producto.organizacion_id) != int(organizacion_id):
         raise ValueError("El producto no pertenece a la organización.")
+    from services.producto_habilitaciones import exigir_tipo_producto
+    # Mismo bloqueo que usa la edición del maestro.
+    if inspect(producto, raiseerr=False) is not None:
+        db_session.query(Producto).filter_by(id=producto.id).with_for_update().one()
+    exigir_tipo_producto(producto, tipo_normalizado, db_session)
     if unidad_negocio_id is not None:
         unidad = db_session.get(UnidadNegocio, unidad_negocio_id)
         if unidad is None or int(unidad.organizacion_id) != int(organizacion_id):
@@ -80,6 +86,8 @@ def agregar_componente_combo(
         raise ValueError("Los productos pertenecen a organizaciones diferentes.")
     if combo.unidad_negocio_id != componente.unidad_negocio_id:
         raise ValueError("El componente debe pertenecer a la misma unidad del combo.")
+    from services.producto_habilitaciones import exigir_uso_producto
+    exigir_uso_producto(getattr(componente, "producto", None), "componente", db_session)
     existente = ComboProductoComponente.query.filter_by(
         combo_perfil_id=combo.id,
         componente_perfil_id=componente.id,
@@ -116,6 +124,8 @@ def crear_o_actualizar_componente_combo(
         or combo.unidad_negocio_id != componente.unidad_negocio_id
     ):
         raise ValueError("El componente debe pertenecer al mismo tenant y unidad.")
+    from services.producto_habilitaciones import exigir_uso_producto
+    exigir_uso_producto(getattr(componente, "producto", None), "componente", db_session)
     registro = ComboProductoComponente.query.filter_by(
         combo_perfil_id=combo.id,
         componente_perfil_id=componente.id,

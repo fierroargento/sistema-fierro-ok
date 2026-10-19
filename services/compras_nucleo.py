@@ -59,6 +59,9 @@ def crear_orden(datos, *, organizacion_id, unidad_negocio_id, proveedor,
         raise ValueError("El proveedor no pertenece al tenant activo o está inactivo.")
     if insumo is not None and int(insumo.organizacion_id) != int(organizacion_id):
         raise ValueError("El insumo no pertenece al tenant activo.")
+    if insumo is not None:
+        from services.producto_habilitaciones import exigir_uso_insumo
+        exigir_uso_insumo(insumo, "compra", db_session, unidad_negocio_id)
     cantidad = _cantidad(datos.get("cantidad"))
     precio = _centavos(datos.get("precio_unitario"))
     subtotal = int((cantidad * Decimal(precio)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
@@ -107,6 +110,9 @@ def agregar_item_orden(orden, datos, *, organizacion_id, insumo,
         raise ValueError("Solo se pueden editar ítems de una orden borrador.")
     if insumo is not None and int(insumo.organizacion_id) != int(organizacion_id):
         raise ValueError("El insumo no pertenece al tenant activo.")
+    if insumo is not None:
+        from services.producto_habilitaciones import exigir_uso_insumo
+        exigir_uso_insumo(insumo, "compra", db_session, getattr(orden, "unidad_negocio_id", None))
     orden.items.append(_nuevo_item(datos, insumo, OrdenCompraItem))
     _recalcular_total(orden)
     db_session.commit()

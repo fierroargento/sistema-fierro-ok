@@ -11,6 +11,10 @@ def _entero(valor, predeterminado=0):
 def calcular_cantidad_publicable(*, politica, existencia, item, vinculo=None):
     """Calcula una propuesta conservadora y explica cada bloqueo."""
     motivos = []
+    from services.producto_habilitaciones import motivo_venta_item
+    bloqueo_maestro = motivo_venta_item(item)
+    if bloqueo_maestro:
+        motivos.append(bloqueo_maestro)
     actual = _entero(getattr(existencia, "stock_actual", 0))
     reservado = _entero(getattr(existencia, "stock_reservado", 0))
     bloqueado = _entero(getattr(existencia, "stock_bloqueado", 0))

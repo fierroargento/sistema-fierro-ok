@@ -1,191 +1,107 @@
-"""
-Administración tenant del maestro logístico de productos.
-"""
+"""Administración tenant del maestro único de productos."""
+from flask import Blueprint, Response, current_app, redirect, render_template, request, session, url_for
 
-from flask import (
-    Blueprint,
-    redirect,
-    render_template,
-    request,
-    session,
-    url_for,
-)
-
-from services.productos_admin import (
-    procesar_accion_productos_plataforma,
-)
-from services.productos_consultas import (
-    obtener_panel_productos_plataforma,
-)
-from services.tenant_context import (
-    TenantError,
-    resolver_tenant_usuario,
-)
+from services.productos_consultas import obtener_panel_productos_plataforma
+from services.productos_ficha_maestra import construir_filas, datos_de_formulario, guardar_ficha
+from services.producto_habilitaciones import TIPOS, USOS
+from services.importacion_maestro_productos import aplicar_lote, firmar_lote, leer_lote, plantilla_csv, previsualizar_lote
+from services.tenant_context import TenantError, resolver_tenant_usuario
 
 
-def crear_blueprint_productos(
-    *,
-    dependencias,
-):
-    blueprint = Blueprint(
-        "admin_productos",
-        __name__,
-    )
-
+def crear_blueprint_productos(*, dependencias):
+    blueprint = Blueprint("admin_productos", __name__)
     db = dependencias["db"]
-    login_required = dependencias[
-        "login_required"
-    ]
-    usuario_actual = dependencias[
-        "usuario_actual"
-    ]
-    registrar_auditoria = dependencias[
-        "registrar_auditoria"
-    ]
-    UsuarioOrganizacion = dependencias[
-        "UsuarioOrganizacion"
-    ]
+    login_required = dependencias["login_required"]
+    usuario_actual = dependencias["usuario_actual"]
+    registrar_auditoria = dependencias["registrar_auditoria"]
+    UsuarioOrganizacion = dependencias["UsuarioOrganizacion"]
     Producto = dependencias["Producto"]
-    sincronizar_excel = dependencias[
-        "sincronizar_excel"
-    ]
 
     def resolver_acceso():
         usuario = usuario_actual()
-
         try:
-            membresia = resolver_tenant_usuario(
-                usuario,
-                UsuarioOrganizacion=(
-                    UsuarioOrganizacion
-                ),
-                organizacion_id=session.get(
-                    "organizacion_id"
-                ),
-            )
+            membresia = resolver_tenant_usuario(usuario,
+                UsuarioOrganizacion=UsuarioOrganizacion,
+                organizacion_id=session.get("organizacion_id"))
         except TenantError as error:
-            return None, None, redirect(
-                url_for(
-                    "inicio",
-                    error=str(error),
-                )
-            )
-
-        organizacion = membresia.organizacion
-
+            return None, None, redirect(url_for("inicio", error=str(error)))
         if membresia.rol != "admin":
-            return None, None, redirect(
-                url_for("inicio")
-            )
+            return None, None, redirect(url_for("inicio"))
+        session["organizacion_id"] = membresia.organizacion_id
+        return usuario, membresia.organizacion, None
 
-        session["organizacion_id"] = (
-            membresia.organizacion_id
-        )
-
-        return usuario, organizacion, None
-
-    @blueprint.route(
-        "/admin/productos",
-        methods=["GET", "POST"],
-    )
+    @blueprint.route("/admin/productos/plantilla.csv")
     @login_required
-    def panel():
-        usuario, organizacion, respuesta = (
-            resolver_acceso()
-        )
-
+    def plantilla():
+        _, _, respuesta = resolver_acceso()
         if respuesta is not None:
             return respuesta
+        return Response(plantilla_csv(), content_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="plantilla_maestro_productos.csv"'})
 
-        mensaje = (
-            request.args.get("ok")
-            or ""
-        ).strip()
-        error = (
-            request.args.get("error")
-            or ""
-        ).strip()
-        filtro_sku = (
-            request.args.get("sku")
-            or ""
-        ).strip()
-
+    @blueprint.route("/admin/productos", methods=["GET", "POST"])
+    @login_required
+    def panel():
+        usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        mensaje = (request.args.get("ok") or "").strip()
+        error = ""
+        filtro_sku = (request.args.get("sku") or "").strip()
+        vista, token, formulario_error = None, "", None
         if request.method == "POST":
-            accion = (
-                request.form.get("accion")
-                or "importar_excel"
-            ).strip()
-
+            accion = request.form.get("accion", "")
             try:
-                mensaje, sku = (
-                    procesar_accion_productos_plataforma(
-                        accion,
-                        request.form,
-                        request.files,
-                        Producto=Producto,
-                        db=db,
-                        sincronizar_excel=(
-                            sincronizar_excel
-                        ),
-                        organizacion_id=(
-                            organizacion.id
-                        ),
-                    )
-                )
-
-                registrar_auditoria(
-                    (
-                        "Configuró catálogo "
-                        "maestro de productos"
-                    ),
-                    entidad="producto",
-                    entidad_id=organizacion.id,
-                    detalle=(
-                        f"Acción: {accion}. "
-                        f"{mensaje}"
-                    ),
-                )
-
-                argumentos = {
-                    "ok": mensaje,
-                }
-
-                if sku:
-                    argumentos["sku"] = sku
-
-                return redirect(
-                    url_for(
-                        "admin_productos.panel",
-                        **argumentos,
-                    )
-                )
-
+                if accion in {"crear_producto", "editar_producto"}:
+                    producto_id = int(request.form["producto_id"]) if accion == "editar_producto" else None
+                    producto = guardar_ficha(datos_de_formulario(request.form), Producto=Producto,
+                        db_session=db.session, organizacion_id=(organizacion.id),
+                        producto_id=producto_id, huella_esperada=request.form.get("huella", ""))
+                    mensaje = f"{producto.sku}: ficha guardada correctamente."
+                    filtro_sku = producto.sku
+                elif accion == "previsualizar_importacion":
+                    archivo = request.files.get("archivo_productos")
+                    if archivo is None or not archivo.filename:
+                        raise ValueError("Seleccioná un archivo para previsualizar.")
+                    vista = previsualizar_lote(leer_lote(archivo), Producto=Producto,
+                        db_session=db.session, organizacion_id=organizacion.id)
+                    token = firmar_lote(vista, organizacion.id, usuario.id, current_app.secret_key)
+                elif accion == "confirmar_importacion":
+                    conteo = aplicar_lote(request.form.get("lote_token", ""), Producto=Producto,
+                        db_session=db.session, organizacion_id=organizacion.id,
+                        usuario_id=usuario.id, secret_key=current_app.secret_key)
+                    mensaje = f"Importación confirmada: {conteo['crear']} creados, {conteo['actualizar']} actualizados y {conteo['sin_cambios']} sin cambios."
+                else:
+                    raise ValueError("La acción no es válida. Usá Gestionar o Importar productos.")
+                if vista is None:
+                    try:
+                        registrar_auditoria("Configuró maestro de productos", entidad="producto",
+                            entidad_id=organizacion.id, detalle=f"Acción: {accion}. {mensaje}")
+                    except Exception:
+                        # El guardado ya terminó. No informar un rechazo falso
+                        # ni inducir otra alta si falló únicamente su registro.
+                        db.session.rollback()
+                        current_app.logger.exception("La ficha se guardó pero falló su registro de auditoría")
+                        mensaje += " El registro de auditoría quedó pendiente de revisión."
+                    return redirect(url_for("admin_productos.panel", ok=mensaje, sku=filtro_sku, _anchor="productos-listado"))
             except Exception as error_accion:
                 db.session.rollback()
-
-                print(
-                    "[PRODUCTOS ADMIN] "
-                    f"No se pudo ejecutar "
-                    f"{accion}: "
-                    f"{error_accion}"
-                )
-
-                error = str(error_accion)
-
-        datos = (
-            obtener_panel_productos_plataforma(
-                Producto,
-                organizacion_id=organizacion.id,
-                filtro_sku=filtro_sku,
-            )
-        )
-
-        return render_template(
-            "admin_productos.html",
-            mensaje=mensaje,
-            error=error,
-            organizacion=organizacion,
-            **datos,
-        )
+                current_app.logger.warning("No se pudo guardar el maestro de productos: %s", type(error_accion).__name__)
+                error = str(error_accion) if isinstance(error_accion, (ValueError, KeyError)) else "No se pudo guardar. No se aplicaron cambios; volvé a intentarlo."
+                if accion in {"crear_producto", "editar_producto"}:
+                    formulario_error = dict(request.form)
+        datos = obtener_panel_productos_plataforma(Producto, organizacion_id=organizacion.id, filtro_sku=filtro_sku)
+        preparado, filas = construir_filas(datos["productos"], db.session, organizacion.id)
+        insumos = []
+        if preparado:
+            from models.fuentes_costo_productivo import InsumoProductivo
+            insumos = db.session.query(InsumoProductivo).filter(
+                InsumoProductivo.organizacion_id == organizacion.id,
+                InsumoProductivo.tipo != "servicio_productivo",
+            ).order_by(InsumoProductivo.codigo).all()
+        return render_template("admin_productos.html", mensaje=mensaje, error=error,
+            organizacion=organizacion, preparado=preparado, filas=filas,
+            tipos=TIPOS, usos=USOS, vista=vista, lote_token=token, insumos=insumos,
+            formulario_error=formulario_error, **datos)
 
     return blueprint

@@ -132,6 +132,8 @@ def procesar_accion_catalogo_comercial(
         ).first()
         if producto is None:
             raise ValueError("No se encontró el producto maestro.")
+        from services.producto_habilitaciones import exigir_uso_producto
+        exigir_uso_producto(producto, "venta", db_session)
         if CatalogoProducto.query.filter_by(
             catalogo_id=catalogo.id,
             producto_id=producto.id,
@@ -179,6 +181,9 @@ def procesar_accion_catalogo_comercial(
             raise ValueError("El estado comercial no es válido.")
         if disponibilidad not in ESTADOS_DISPONIBILIDAD:
             raise ValueError("La disponibilidad no es válida.")
+        if estado == "activo" or disponibilidad == "disponible":
+            from services.producto_habilitaciones import exigir_uso_producto
+            exigir_uso_producto(inclusion.producto, "venta", db_session)
         if estado != "activo":
             disponibilidad = "no_disponible"
         motivo = _texto(formulario, "motivo_disponibilidad", 300)

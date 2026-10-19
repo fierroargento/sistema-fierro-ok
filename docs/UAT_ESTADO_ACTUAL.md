@@ -1177,3 +1177,84 @@ Siguiente bloque concreto:
 5. UAT inicial en staging: mismo artículo vendible/insumo, componente usado en combo sin duplicarlo, combinación comprada/fabricada con estructura explícita, duplicado CJ-MDF-000 rechazado, reimportación sin cambios, columna omitida preservada y cancelar sin guardar. Después continuar con fabricación/costos del caso integral.
 
 Estado: relevamiento y contrato registrados. No se declara implementada la ampliación del maestro, no se importó el libro ni se ejecutaron macros, migraciones, altas o movimientos. Este registro no requiere deploy de aplicación. Producción y conexiones quedan fuera del cambio.
+
+
+## 2026-10-19 — Primer bloque implementado del maestro APB: tipo y cuatro habilitaciones
+
+Alcance autorizado por Martín:
+- Aplicar desde Productos un tipo excluyente (simple, producción, combo) y cuatro casillas independientes: compra, venta, insumo de producción y componente de combo.
+- Priorizar carga/lectura prácticas, ventanas de gestión, consistencia visual, secciones plegadas y ajustes posteriores sobre el resultado. No retomar aún el producto integral de fabricación.
+
+Implementación:
+- La identidad sigue siendo Producto. ProductoFichaMaestra es su extensión 1:1, con producto_id como clave primaria y FK; no tiene otro SKU ni crea otro producto. Conserva nombre, línea, unidad, tipo, estado y cuatro booleanos independientes. Descripción y logística conservan sus columnas y vínculos actuales.
+- No se agregan columnas a Producto ni se altera su SELECT operativo. El esquema nuevo se detecta antes de consultarlo; si falta, Productos muestra lectura y aviso de preparación pendiente, sin errores por columnas inexistentes ni escrituras parciales.
+- La extensión se prepara explícitamente en staging; no se usa bootstrap ni se modifica su flag. El script no importa app.py ni inicia scheduler/jobs y no asigna tipo/roles a productos anteriores.
+- Un producto existente sin extensión figura Sin configurar. Si todos sus perfiles tienen un único tipo se muestra ese antecedente; los roles no se infieren de códigos, nombres o posición en una hoja. Los consumidores heredados mantienen su comportamiento mientras no exista una ficha configurada: no equivale a una aprobación de sus cuatro usos.
+- Los cuatro usos son combinables para cualquiera de los tres tipos. Producto inactivo bloquea los nuevos usos controlados aunque conserve sus casillas; no se eliminan composiciones ni hechos históricos.
+- SKU existente de solo lectura en esta ficha, alta por SKU normalizado y control de duplicados dentro de la organización. Huella de datos y bloqueo de fila para no pisar cambios de otra pestaña, incluyendo cambios hechos por los servicios logísticos anteriores.
+- Tipos de perfiles y maestro se validan en ambos sentidos. Una ficha con perfiles de tipos diferentes no se transforma silenciosamente: se rechaza el cambio y se pide revisar las composiciones. No se cambia el modelo de costos ni se crean perfiles/costos automáticos.
+- Referencia opcional al InsumoProductivo físico existente, de la misma organización y unidad de medida explícita. La referencia es única y se conserva tras guardarla; el producto puede tener simultáneamente venta e insumo habilitados. No se copian precios o saldos ni se fabrican identidades por coincidencia de códigos.
+- Esta referencia no convierte por sí sola un ItemInventario de producto en insumo ni habilita stock compartido para una identidad de inventario aún no preparada. La adaptación integral del doble uso en todos los selectores y su circuito físico sigue pendiente de UAT y del vínculo correspondiente. Se conserva la precisión/conversión existente.
+
+Pantalla:
+- Base de Datos → Productos conserva base.html y la barra lateral. Listado compacto con SKU/nombre, línea, tipo, usos, estado y Gestionar; se elimina la edición horizontal con numerosos inputs.
+- Nuevo producto y Gestionar comparten un diálogo. Datos generales y casillas visibles; referencia de insumo/costeo y logística plegadas inicialmente. Se reutiliza la paleta y las clases comerciales, con estilos acotados de Productos.
+- Búsqueda por SKU, nombre, descripción o línea; hasta 100 resultados. No se carga una ficha por cada fila ni se hacen 100 consultas de perfiles: las fichas y tipos se leen por lote.
+- Cancelar y cerrar son botones type=button sin POST. Reabrir recupera los valores guardados. Enter en inputs no envía; el guardado abre una reconfirmación con Cancelar/Confirmar, sin escribir frases. Enter en esa reconfirmación no la acepta de forma accidental.
+- Conserva CSRF, tenant y acceso admin; la descarga de plantilla aplica la misma autorización. Errores de validación reabren los valores ingresados. Se bloquea doble envío de la interfaz y se conserva la posición de scroll después de guardar.
+- Esta pantalla no ofrece eliminación física: el estado y los usos permiten deshabilitar sin borrar relaciones. Un POST con la acción antigua eliminar_producto se rechaza.
+- El estilo fue verificado por estructura y render de las plantillas reales, sin afirmar aceptación visual de Martín. No se completó inspección en Chromium: la descarga del navegador del entorno devolvió un archivo inválido. El control visual final corresponde al UAT de staging.
+
+Importación desde Productos:
+- XLSX/XLSM/CSV, máximo 2 MB y 500 productos. Hoja Productos si existe, o primera hoja. No ejecuta macros; fórmulas no se aceptan como datos editables.
+- Plantilla CSV descargable con datos de ejemplo y los cuatro usos explícitos. La antigua importación directa de esta pantalla se reemplaza por previsualización, diferencias antes/después y confirmación con popup.
+- Alta manual y lote comparten normalización y validación. Columnas/celdas vacías del lote conservan datos actuales; No/0 destilda explícitamente. Los nuevos productos o anteriores sin configurar exigen estado y cuatro usos explícitos, tipo y unidad: no se habilitan por defaults.
+- Un SKU duplicado se rechaza en todas sus filas; un error impide aplicar el lote completo. La firma incluye organización y usuario, vence a los 15 minutos y se revalida contra las huellas actuales. Lote atómico, rollback ante cualquier conflicto, sin borrar productos ausentes.
+- La planilla de Martín no se importó. Su CJ-MDF-000 repetido sigue siendo un conflicto para revisar, no una corrección automática.
+- Los importadores existentes de catálogos y fuentes de costo mantienen sus contratos especializados; este bloque no declara transformados todos los importadores anteriores en el nuevo contrato general.
+
+Controles conectados en este bloque:
+| Uso/regla | Puntos controlados | Conservación |
+| --- | --- | --- |
+| Tipo maestro | crear_o_actualizar_perfil y guardar ficha manual/masiva | Sin reclasificar perfiles ni reescribir costos históricos. |
+| Componente | agregar_componente_combo y crear_o_actualizar_componente_combo | Rechaza nueva selección/edición de componente deshabilitado; conserva líneas existentes. Sigue la restricción actual de no anidar combos. |
+| Venta | Agregar a catálogo, activar/disponibilizar ficha comercial, aplicar inclusiones masivas y cálculo interno de cantidad publicable | Sin publicar, conectar cuentas, cambiar precios ni ventas históricas. |
+| Compra | Crear orden y agregar ítem cuando el insumo tiene vínculo verificado al producto | Sin órdenes ni importes reales; las líneas de texto sin identidad de producto no se atribuyen por suposición. |
+| Insumo | Guardar línea de insumo en ficha de producción, con referencia directa o mapeo de inventario verificado | Sin consumos, stock ni precios nuevos. |
+
+Los controles anteriores no acreditan cobertura universal de los consumidores operativos antiguos. No se tocaron importación real de pedidos/ventas, webhooks, automatismos ni reglas de transporte. Quedan pendientes la adecuación progresiva de sus selectores y la revalidación al confirmar operaciones preparadas previamente, sin impedir incorporar hechos externos reales.
+
+Verificación:
+- 21 pruebas nuevas con Flask/SQLAlchemy/SQLite y plantillas reales: ausencia de esquema, preparación idempotente, productos previos conservados, cuatro usos, deshabilitación e inactividad, valores inválidos/no finitos, checkbox ausente, tenant, SKU estable, edición obsoleta, tipo compatible con costeo, componente bloqueado, compra/consumo rechazados en manejadores reales, catálogo/disponibilidad bloqueados, referencia única, lotes duplicados, rollback atómico, firma/usuario/organización, reimportación sin cambios, plantilla, fórmulas y ruta/CSRF.
+- 25 pruebas existentes de perfiles, composición, DB de catálogo y administración aprobadas. Se excluyeron tres aserciones estáticas anteriores sobre un cache-buster y selector literal de JS de Fuentes de Costos que ya no coinciden con sus archivos originales; esos assets no se modifican en este bloque.
+- 18 pruebas adicionales existentes de disponibilidad, inclusiones y compras aprobadas. Se eligió el alcance funcional disponible del checkout reducido, sin declarar ejecutada su composición monolítica ni las vistas no incluidas.
+- Total: 64 pruebas aprobadas; sintaxis JS y compilación de los módulos modificados aprobadas. No se importó/inició app.py ni se utilizó una DB externa. No se declara verificado PostgreSQL/Render en ejecución ni aceptación visual en navegador.
+- No se cambian main, flags, credenciales, conexiones, scheduler, estados operativos, inventario, pedidos, pagos o liquidaciones. Se mantienen los pendientes anteriores.
+
+Preparación tras desplegar este commit en el servicio STAGING:
+1. Shell de staging, en /opt/render/project/src: python -m scripts.preparar_ficha_productos --staging
+2. El script exige laboratorio desconectado y rechaza otra rama/URL de Render cuando están informadas. Usa DATABASE_URL del servicio; no pedir ni pegar credenciales en el chat.
+3. Resultado esperado: Ficha preparada. Productos existentes conservados, sin asignar tipos ni habilitaciones. Una segunda ejecución informa ya preparada y no altera datos.
+4. Refrescar Base de Datos → Productos. No hace falta habilitar bootstrap ni cambiar flags.
+
+UAT inmediato, por partes:
+1. Revisar listado y abrir Gestionar de un producto conocido: identificación/logística previas conservadas y secciones complementarias plegadas. Cancelar sin guardar.
+2. Nuevo producto ficticio UAT-MAESTRO-001: Simple, unidad, nombre; marcar las cuatro casillas. Cancelar, volver a abrir y comprobar que no se creó.
+3. Repetir el alta, Guardar producto → Confirmar. Debe existir una sola ficha con cuatro usos. Destildar solo Venta y guardar; las otras tres casillas deben conservarse.
+4. Editar una ficha en dos pestañas: el segundo guardado con datos anteriores debe mostrar aviso y no pisar el primero.
+5. Descargar plantilla y revisar un lote de prueba antes de aplicar. SKU repetido rechazado, campos omitidos conservados y Cancelar importación sin cambios. No cargar todavía la planilla real.
+6. Recoger observaciones de legibilidad/espacios/orden antes de ampliar características, proveedores, composiciones y navegación de la ficha. No iniciar aún el producto integral.
+
+
+### Ampliación de referencia DUX recibida durante este desarrollo
+
+Captura de Martín image(20261019-212841).png inspeccionada: Nuevo Producto, paso 1 de 6, muestra Simple / No Stockeable / Con Variantes / Combo / Producción / Trazable. Se toma como referencia de capacidades, sin convertir las seis tarjetas en un único selector excluyente ni reproducir obligatoriamente sus seis pasos.
+
+- Se conserva la decisión de tres tipos: Simple, De producción y Combo, con las cuatro habilitaciones independientes.
+- Se agregan al alcance siguiente de la ficha tres capacidades separadas: controla stock o no stockeable; tiene variantes; requiere identificación/seguimiento individual por número de serie. Pueden coexistir con el tipo y con sus usos.
+- No stockeable significa que no se cuenta/almacena el artículo, por ejemplo un servicio. No significa stock cero ni control temporalmente desactivado. Su tratamiento debe respetar compras/ventas sin fabricar existencias, reservas, consumos o despachos físicos ficticios.
+- Con variantes debe reutilizar las variantes comerciales existentes y su identidad de inventario, con SKU/atributos y existencia por variante cuando corresponda. No crear otra lista de variantes aislada en la ficha principal ni sumar stock de padre e hijos.
+- Trazable en la captura refiere a número de serie por unidad para garantías/rastreo. No equivale al historial de movimientos, al lote de importación ni al LoteProduccion preparatorio actual. Se revisará el circuito completo de altas, recepción, fabricación, venta, devolución y garantía antes de habilitar la obligación de serie.
+- CatalogoProducto ya conserva variantes y atributos; el inventario distingue ítems. LoteProduccion ya existe, retenido/preparatorio y sin impacto. La revisión de esos archivos no acredita un circuito individual por serie listo para operación.
+- Estas tres capacidades adicionales se registran como siguiente ampliación funcional; NO aparecen como casillas operativas ficticias en este primer commit. El bloque entregado mantiene tipo, cuatro usos, estado, referencia de insumo, logística y alta/importación.
+- Revisar el resultado de Productos primero y agregar esas capacidades con validaciones e integración de sus módulos. Esta nueva referencia no habilita conexiones ni el caso integral aún pendiente.

@@ -257,6 +257,8 @@ def aplicar_inclusiones(
                 db_session.flush()
                 productos_creados_lote[fila["sku"]] = producto
 
+            from services.producto_habilitaciones import exigir_uso_producto
+            exigir_uso_producto(producto, "venta", db_session)
             inclusion_id = fila.get("inclusion_id")
             inclusion = (
                 db_session.get(CatalogoProducto, inclusion_id)

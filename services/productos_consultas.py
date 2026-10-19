@@ -18,11 +18,17 @@ def obtener_panel_productos_plataforma(
     )
 
     if filtro_sku:
-        consulta = consulta.filter(
-            Producto.sku.ilike(
-                f"%{filtro_sku}%"
-            )
-        )
+        from sqlalchemy import or_
+        from services.producto_habilitaciones import esquema_ficha_disponible
+        patron = f"%{filtro_sku}%"
+        criterios = [Producto.sku.ilike(patron), Producto.descripcion.ilike(patron)]
+        if esquema_ficha_disponible(consulta.session):
+            from models.producto_ficha_maestra import ProductoFichaMaestra
+            consulta = consulta.outerjoin(ProductoFichaMaestra,
+                (ProductoFichaMaestra.producto_id == Producto.id)
+                & (ProductoFichaMaestra.organizacion_id == organizacion_id))
+            criterios.extend([ProductoFichaMaestra.nombre.ilike(patron), ProductoFichaMaestra.linea.ilike(patron)])
+        consulta = consulta.filter(or_(*criterios))
 
     productos = (
         consulta
