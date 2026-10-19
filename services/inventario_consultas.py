@@ -5,6 +5,7 @@ No modifica stock, no importa pedidos y no sincroniza
 datos con canales comerciales.
 """
 
+from services.unidades_materias_primas import texto_unidad
 from services.inventario_eventos_canal import (
     diagnosticar_eventos_persistidos,
 )
@@ -232,6 +233,7 @@ def obtener_datos_panel_inventario(
             "sucursal_nombre": sucursal.nombre,
             "item_id": int(item.id),
             "sku": item.sku,
+            "unidad_stock": texto_unidad(item),
             "item_nombre": item.nombre,
         }
         for sucursal in sucursales
@@ -265,6 +267,7 @@ def obtener_datos_panel_inventario(
         ),
         "vinculos_canal": vinculos_canal,
         "items_inventario": items_inventario,
+        "unidad_stock_por_item": {item.id: texto_unidad(item) for item in items_inventario},
         "reservas": reservas,
         "transferencias": transferencias,
         "conteos": conteos,

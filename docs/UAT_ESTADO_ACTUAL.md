@@ -800,3 +800,40 @@ UAT agrupado cuando se despliegue este bloque:
 - Producción → Planificación productiva → Disponibilidad de materiales y calidad. Revisar órdenes existentes; no crear ni ejecutar otra.
 - Captura de la sección y descarga de la Propuesta Producción–Inventario de UAT-OP-001 / expediente actualizado para comprobar calidad, consumos y bloqueos del mismo circuito. El informe nuevo puede cambiar su aptitud respecto al histórico porque ahora verifica faltantes y calidad que antes no incidían.
 - No ingresar stock, aprobar lotes rechazados ni modificar cantidades solo para obtener un indicador verde. No repetir las altas previas ni las siete pruebas de rentabilidad.
+
+
+### UAT recibido: cruce de materiales y calidad — 19/10/2026
+
+Evidencia aportada después del despliegue informado de 4d9a65ed2cd606fd72d6456fa652ab16e021ae99:
+- Captura image(20261019-155458).png: sección Disponibilidad de materiales y calidad; UAT-OP-001 con 9 buenas, 6 elegibles, 3 no elegibles y 0 sin lote. Sin demanda pendiente aclara que no acredita materiales para consumos ya informados.
+- Archivo propuesta_inventario_produccion_1 (2).json: huella canónica verificada feb634f795a67e125ff3fc3347712416fb65860447b2e408bc76902ea11adefc; simulación 7a1bc06ca4a6cf336d41beb615d5bbd99575e9a5c2cc9c9695cb0a26beb4caeb.
+- Organización 1/unidad 3/orden 1: salida teórica 21, disponibilidad 0 y faltante 21; ingreso teórico 6, excluyendo las 3 rechazadas. Hallazgos lote_rechazado y material_insuficiente; aprobada=false/habilita_ejecucion=false.
+- Se acepta este cruce limitado de calidad y materiales. No implica liberación, consumo físico, conexión externa ni habilitación integral. No se corrige stock ni se aprueba un lote rechazado para obtener un indicador verde.
+
+### Bloque conjunto: unidades fraccionarias de materias primas — 19/10/2026
+
+Base oficial: 4d9a65ed2cd606fd72d6456fa652ab16e021ae99. Se reutilizan ItemInventario.atributos_json, maestro de SKU y servicios de propuestas; sin tablas, migraciones ni inventario paralelo.
+
+Implementado:
+- Compras → Mapeo de insumos a inventario → Preparar materia prima permite definir la precisión de un SKU NUEVO: unidad, milésima o millonésima de la unidad del insumo. Ejemplo: insumo/costeo en kg, SKU en g con factor 1000. Para otras unidades se declara una fracción de la misma unidad; no se supone equivalencia de peso/superficie/volumen.
+- La equivalencia queda persistida al preparar la identidad inactiva y sin stock. Repetir igual es idempotente; intentar cambiar unidad/precisión de una identidad existente se rechaza. Las identidades anteriores mantienen factor 1; no se reinterpretan saldos, reservas ni historial.
+- Un conversor exacto compartido valida identidad del insumo/SKU/producto, organización/unidad, origen declarado, precisión y límite Integer. Las cantidades que no se representan en enteros de la unidad base no se redondean ni se habilitan. Se mantiene la precisión de seis decimales de las cantidades fuente del circuito existente.
+- Plan de materiales compara demanda convertida con existencias/reservas/bloqueos en unidad base. Demanda, asignación y sugerencia de compra permanecen expresadas también en la unidad fuente del insumo. Las fracciones representables ya no son un bloqueo por sí mismas; stock/calidad siguen siendo requisitos separados.
+- Propuesta de producción identifica cantidad fuente, factor y cantidad base; el producto terminado sigue contando unidades enteras. Expediente y disponibilidad compartida utilizan la cantidad base. Propuestas/reversiones siguen siendo teóricas y no ejecutables.
+- Propuestas de compras, tanto iniciales como habilitadas después del mapeo, usan la misma conversión. Unidad de compra diferente/ausente, cantidad no representable y mapeos ambiguos o ajenos mantienen bloqueo con motivo. No se reabren decisiones finales ni se reescriben propuestas históricas ya preparadas/aprobadas.
+- Precio unitario y obligación de compra conservan su base/importe original: 2,1 kg a 10.000 centavos/kg son 21.000 centavos, mientras el stock propuesto sería 2.100 g.
+- Inventario conserva sus campos y operaciones enteras existentes. La unidad se muestra junto al SKU, destinos, movimientos, reservas, transferencias y conteos. El Excel de conteo agrega UNIDAD; se verifica al importar materias primas. Plantillas anteriores siguen admitidas para unidades sin escala; un SKU fraccionario requiere plantilla con unidad explícita.
+- Compras muestra la equivalencia junto a la propuesta y el motivo concreto del bloqueo. Se reutilizan modal, clases y sidebar actuales; no se agrega otra pantalla.
+
+Verificación:
+- 133 pruebas focalizadas aprobadas del conjunto local de producción, calidad, materiales, propuestas, capacidad, costeo, expediente, materias primas, compras y conteos. Incluyen 33 casos del conversor/cruce/presentación, persistencia SQLite de identidad e inmutabilidad, cantidades mínimas, exceso de precisión/desborde, unidades/tenant cruzados, compra nueva y mapeo posterior, importación Excel sin escritura ante unidad errónea y regresiones de calidad/stock compartido.
+- Ejemplo comprobado: 2,1 kg → 2.100 g; con 2.500 g brutos, reserva 300 y bloqueo 200, faltan 0,1 kg; con 2.600 g la demanda es suficiente. No se mutan existencias durante planificación.
+- Compilación Python aprobada. Render Jinja de plantillas reales con layout mínimo; no equivale a inspección visual en navegador. No se ejecuta la suite completa del repositorio ni se inicia la aplicación, Postgres o una sesión de staging. Persistencia probada con modelos reducidos SQLite; no es ensayo de migración.
+- Sin cambios a modelos, app.py, bootstrap, scheduler, webhooks, credenciales, flags o producción. No se ejecutan movimientos, publicación, reservas reales ni dinero durante estas pruebas.
+
+Alcance pendiente y siguiente trabajo:
+1. La representación fraccionaria queda disponible para SKU nuevos preparados con escala explícita. La migración de SKU existentes con saldos/historial, cambios de unidad de insumos y revisión de propuestas antiguas sin unidad siguen pendientes de un procedimiento específico; este bloque no los convierte.
+2. No se habilita ejecución de fabricación por disponer de unidad compatible. Materiales/calidad/capacidad/costos y transacciones siguen requiriendo sus controles; la disponibilidad continúa siendo una fotografía.
+3. Continúa el enlace producto/ficha/versión de costo → regla/mínimo neto → cobertura/canal/publicación, sin duplicar el motor ya implementado. Costeo por consumos físicos reales y operación conectada continúan pendientes.
+4. No se solicita aún cargar el producto integral. UAT agrupado al desplegar: abrir Compras → sección 5 Mapeo de insumos a inventario → Preparar materia prima y comprobar selector de precisión; cerrar sin guardar. Revisar unidades en las existencias actuales sin modificar saldos. Para validar conversión de un SKU nuevo se preparará un caso separado cuando corresponda; no reutilizar UAT-OP-001 para ejecutar nada.
+5. Se conservan los pendientes visuales históricos y las dos variantes negativas MP pendientes de interfaz. No se declara terminado todo el sistema.

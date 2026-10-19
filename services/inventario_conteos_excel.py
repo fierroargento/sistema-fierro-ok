@@ -4,9 +4,10 @@ from io import BytesIO
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape
 from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile
+from services.unidades_materias_primas import texto_unidad, leer_unidad_item
 
 
-ENCABEZADOS = ("SKU", "UBICACION", "ESPERADO", "CONTADO", "OBSERVACION")
+ENCABEZADOS = ("SKU", "UBICACION", "ESPERADO", "CONTADO", "OBSERVACION", "UNIDAD")
 NS_HOJA = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 
 
@@ -47,7 +48,7 @@ def crear_xlsx_conteo(filas):
         '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>'
         '</sheetView></sheetViews><sheetData>'
         + "".join(filas_xml)
-        + '</sheetData><autoFilter ref="A1:E1"/></worksheet>'
+        + '</sheetData><autoFilter ref="A1:F1"/></worksheet>'
     )
     contenido = BytesIO()
     with ZipFile(contenido, "w", ZIP_DEFLATED) as archivo:
@@ -98,7 +99,7 @@ def crear_plantilla_conteo(conteo):
         )
         filas.append((
             sku, conteo.sucursal.nombre, int(item.cantidad_esperada),
-            item.cantidad_contada, item.observacion or "",
+            item.cantidad_contada, item.observacion or "", texto_unidad(existencia.item_inventario),
         ))
     return crear_xlsx_conteo(filas)
 
@@ -147,7 +148,8 @@ def importar_conteo_excel(conteo, archivo, *, db_session):
         raise ValueError("El archivo debe estar en formato XLSX.")
     filas = _leer_filas_xlsx(archivo)
     encabezados = tuple(str(v or "").strip().upper() for v in (filas[0] if filas else ()))
-    if encabezados != ENCABEZADOS:
+    legacy = encabezados == ENCABEZADOS[:5] + ("",)
+    if encabezados != ENCABEZADOS and not legacy:
         raise ValueError("La plantilla no corresponde a un conteo de inventario.")
     items_por_sku = {}
     for item in conteo.items:
@@ -164,6 +166,12 @@ def importar_conteo_excel(conteo, archivo, *, db_session):
             raise ValueError(f"El SKU {sku or '(vacío)'} no pertenece al inventario.")
         if sku in recibidos:
             raise ValueError(f"El SKU {sku} está repetido en la plantilla.")
+        item_inventario = items_por_sku[sku].existencia.item_inventario
+        if getattr(item_inventario, "tipo", None) == "insumo":
+            unidad = leer_unidad_item(item_inventario)
+            if ((legacy and unidad["factor_inventario"] != 1)
+                    or (not legacy and str(fila[5] or "").strip() != unidad["unidad_inventario"])):
+                raise ValueError(f"La unidad de {sku} no coincide. Descargá una plantilla nueva y contá en su unidad base.")
         try:
             numero = float(fila[3])
             cantidad = int(numero)

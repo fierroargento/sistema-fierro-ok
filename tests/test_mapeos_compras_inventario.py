@@ -70,13 +70,13 @@ def test_rechaza_mapeo_cruzado_entre_tenants():
 
 def test_mapeo_habilita_propuesta_bloqueada_sin_ejecutarla():
     propuesta = Obj(
-        tipo="stock", estado="bloqueada", ejecutada=False,
+        organizacion_id=7, unidad_negocio_id=9, tipo="stock", estado="bloqueada", ejecutada=False,
         detalle_json=json.dumps({
-            "insumo_id": 2, "requiere_mapeo_item_inventario": True,
+            "insumo_id": 2, "cantidad_recibida": "2", "unidad_compra": "kg", "requiere_mapeo_item_inventario": True,
             "movimiento_creado": False,
         }),
     )
-    mapeo = Obj(id=5, insumo_id=2, existencia_sucursal_id=8, activo=True)
+    mapeo = mapeo_valido()
     habilitadas = habilitar_propuestas_stock(
         [propuesta], [mapeo], db_session=Session(),
     )
@@ -90,7 +90,7 @@ def test_mapeo_habilita_propuesta_bloqueada_sin_ejecutarla():
 def test_preparacion_nueva_usa_mapeo_existente_desde_el_inicio():
     recibido = Obj(
         id=30, cantidad_recibida="2",
-        orden_item=Obj(insumo_id=2, precio_unitario_centavos=100),
+        orden_item=Obj(insumo_id=2, unidad_medida="kg", precio_unitario_centavos=100),
     )
     recepcion = Obj(
         id=10, organizacion_id=7, unidad_negocio_id=9,
@@ -98,7 +98,7 @@ def test_preparacion_nueva_usa_mapeo_existente_desde_el_inicio():
         orden=Obj(proveedor_id=4, total_centavos=200),
         comprobante_referencia="FC",
     )
-    mapeo = Obj(id=5, insumo_id=2, existencia_sucursal_id=8, activo=True)
+    mapeo = mapeo_valido()
     creadas = preparar_propuestas(
         recepcion, organizacion_id=7, unidad_negocio_id=9,
         PropuestaImpactoCompra=Propuesta, db_session=Session(), mapeos=[mapeo],
@@ -125,3 +125,12 @@ def test_panel_registra_mapeo_pero_no_movimientos():
     assert "no mueve existencias" in panel
     for prohibido in ("MovimientoInventario", "stock_actual", "db.session", "requests."):
         assert prohibido not in servicio
+
+
+def mapeo_valido():
+    item=Obj(tipo="insumo",organizacion_id=7,producto_id=20,
+        atributos_json=json.dumps({"insumo_productivo_id":2,"unidad_medida":"kg"}))
+    return Obj(id=5,insumo_id=2,organizacion_id=7,unidad_negocio_id=9,
+        existencia_sucursal_id=8,activo=True,
+        insumo=Obj(id=2,organizacion_id=7,unidad_negocio_id=9,unidad_medida="kg"),
+        existencia=Obj(id=8,organizacion_id=7,producto_id=20,item_inventario=item))

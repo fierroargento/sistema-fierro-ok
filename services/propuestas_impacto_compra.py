@@ -4,6 +4,7 @@ import json
 from decimal import Decimal, ROUND_HALF_UP
 
 from services.fechas import ahora_utc_naive
+from services.unidades_materias_primas import convertir_compra, mapeos_unicos
 
 
 def _importe_recepcion_centavos(recepcion):
@@ -57,16 +58,24 @@ def preparar_propuestas(recepcion, *, organizacion_id, unidad_negocio_id,
         ).all()
     }
     creadas = []
-    mapeos_por_insumo = {
-        int(item.insumo_id): item for item in mapeos if item.activo
-    }
+    mapeos_por_insumo = mapeos_unicos(mapeos)
     for recibido in recepcion.items:
         orden_item = recibido.orden_item
+        unidad_compra = getattr(orden_item, "unidad_medida", None)
+        mapeo = mapeos_por_insumo.get((organizacion_id, unidad_negocio_id, int(orden_item.insumo_id))) if orden_item.insumo_id else None
+        conversion = {}
+        error_unidad = None
+        if mapeo is not None:
+            try:
+                conversion = convertir_compra(mapeo, recibido.cantidad_recibida, unidad_compra, organizacion_id, unidad_negocio_id)
+            except ValueError as error:
+                error_unidad = str(error)
         costo = _crear(
             recepcion=recepcion, item=recibido, tipo="costo",
             detalle={
                 "insumo_id": orden_item.insumo_id,
                 "precio_unitario_centavos": int(orden_item.precio_unitario_centavos),
+                "unidad_medida": unidad_compra,
                 "proveedor_id": recepcion.orden.proveedor_id,
                 "comprobante_referencia": recepcion.comprobante_referencia,
                 "version_costo_creada": False,
@@ -75,18 +84,20 @@ def preparar_propuestas(recepcion, *, organizacion_id, unidad_negocio_id,
             usuario_id=usuario_id, PropuestaImpactoCompra=PropuestaImpactoCompra,
             db_session=db_session, existentes=existentes,
         )
-        mapeo = mapeos_por_insumo.get(int(orden_item.insumo_id)) if orden_item.insumo_id else None
         stock = _crear(
             recepcion=recepcion, item=recibido, tipo="stock",
             detalle={
+                **conversion,
                 "insumo_id": orden_item.insumo_id,
                 "cantidad_recibida": str(recibido.cantidad_recibida),
+                "unidad_compra": unidad_compra,
+                "motivo_bloqueo": error_unidad or ("Falta un mapeo único de inventario." if mapeo is None else None),
                 "requiere_mapeo_item_inventario": mapeo is None,
                 "existencia_sucursal_id": getattr(mapeo, "existencia_sucursal_id", None),
                 "mapeo_id": getattr(mapeo, "id", None),
                 "movimiento_creado": False,
             },
-            estado="preparada" if mapeo is not None else "bloqueada", usuario_id=usuario_id,
+            estado="preparada" if conversion else "bloqueada", usuario_id=usuario_id,
             PropuestaImpactoCompra=PropuestaImpactoCompra,
             db_session=db_session, existentes=existentes,
         )

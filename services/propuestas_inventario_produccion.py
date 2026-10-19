@@ -8,7 +8,8 @@ from decimal import Decimal
 from services.simulacion_cierre_produccion import simular_cierre
 from services.destino_produccion import validar_destino
 from services.calidad_produccion import elegibilidad_inventario
-from services.disponibilidad_productiva import disponibilidad_neta, cantidad_exacta
+from services.disponibilidad_productiva import disponibilidad_neta
+from services.unidades_materias_primas import convertir_cantidad
 
 
 def _decimal(valor):
@@ -62,8 +63,13 @@ def preparar_propuesta_inventario(
             })
             continue
         existencia = candidatos[0].existencia
-        cantidad = consumo["cantidad_teorica"]
-        requerida = cantidad_exacta(cantidad)
+        try:
+            conversion = convertir_cantidad(candidatos[0], consumo["cantidad_teorica"])
+        except ValueError as error:
+            hallazgos.append({"codigo": "unidad_no_verificable", "insumo_id": consumo["insumo_id"], "motivo": str(error)})
+            continue
+        cantidad = conversion["cantidad_inventario"]
+        requerida = Decimal(cantidad)
         try:
             if existencia.id not in disponible:
                 disponible[existencia.id] = disponibilidad_neta(existencia)
@@ -78,6 +84,7 @@ def preparar_propuesta_inventario(
         if requerida != requerida.to_integral_value():
             hallazgos.append({"codigo":"consumo_fraccionario_no_ejecutable","insumo_id":consumo["insumo_id"]})
         consumos.append({
+            **conversion,
             "disponible_antes":_decimal(neta),"faltante":_decimal(falta),
             "tipo": "salida_teorica", "insumo_id": consumo["insumo_id"],
             "existencia_sucursal_id": existencia.id, "cantidad": cantidad,

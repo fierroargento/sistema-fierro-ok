@@ -85,3 +85,37 @@ def test_importacion_rechaza_formato_y_filas_incompletas():
             archivo_xlsx(carga),
             db_session=Sesion(),
         )
+
+
+def conteo_fraccionario():
+    import json
+    conteo=conteo_ejemplo();item=conteo.items[0].existencia.item_inventario
+    item.tipo='insumo'
+    item.atributos_json=json.dumps({'insumo_productivo_id':3,'unidad_medida':'kg',
+        'precision_inventario':'milesimas','factor_inventario':1000})
+    conteo.items[0].cantidad_esperada=2100
+    return conteo
+
+
+def test_plantilla_expone_gramos_y_conteo_sigue_entero():
+    from services.inventario_conteos_excel import _leer_filas_xlsx
+    conteo=conteo_fraccionario()
+    filas=_leer_filas_xlsx(crear_plantilla_conteo(conteo))
+    assert filas[0][-1]=='UNIDAD' and filas[1][-1]=='g'
+    carga=crear_xlsx_conteo((filas[0],('PP6040H','Taller',2100,2000,'','g')))
+    sesion=Sesion()
+    importar_conteo_excel(conteo,archivo_xlsx(carga),db_session=sesion)
+    assert conteo.items[0].cantidad_contada==2000 and conteo.items[0].diferencia==-100
+    assert sesion.commits==1
+
+
+@pytest.mark.parametrize('unidad',[None,'kg'])
+def test_conteo_rechaza_unidad_ausente_o_distinta_sin_guardar(unidad):
+    conteo=conteo_fraccionario();sesion=Sesion()
+    encabezado=('SKU','UBICACION','ESPERADO','CONTADO','OBSERVACION')
+    fila=('PP6040H','Taller',2100,2,'')
+    if unidad:encabezado+=('UNIDAD',);fila+=(unidad,)
+    carga=crear_xlsx_conteo((encabezado,fila))
+    with pytest.raises(ValueError,match='unidad'):
+        importar_conteo_excel(conteo,archivo_xlsx(carga),db_session=sesion)
+    assert sesion.commits==0 and conteo.items[0].cantidad_contada is None

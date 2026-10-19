@@ -1,6 +1,17 @@
 """Consultas tenant del panel de compras."""
 
 
+from services.unidades_materias_primas import texto_unidad
+import json
+
+
+def _detalle_seguro(propuesta):
+    try:
+        dato = json.loads(propuesta.detalle_json or "{}")
+        return dato if isinstance(dato, dict) else {}
+    except (ValueError, TypeError):
+        return {}
+
 def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
     Proveedor = modelos["ProveedorCompra"]
     Orden = modelos["OrdenCompra"]
@@ -37,10 +48,12 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
     ).order_by(Factura.fecha_creacion.desc()).all()
     return {
         "proveedores": proveedores,
+        "unidad_stock_por_existencia": {e.id: texto_unidad(e.item_inventario) for e in existencias},
         "ordenes_compra": ordenes,
         "recepciones_compra": recepciones,
         "insumos_compra": insumos,
         "propuestas_impacto_compra": propuestas,
+        "detalles_propuestas_compra": {p.id: _detalle_seguro(p) for p in propuestas},
         "mapeos_insumo_inventario": mapeos,
         "existencias_para_compras": [item for item in existencias
             if item.item_inventario is not None and item.item_inventario.tipo == "insumo"

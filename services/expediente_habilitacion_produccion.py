@@ -72,6 +72,9 @@ def construir_expediente(
                 consumos_acumulados[existencia_id] = previa + requerida
                 disponibilidad_compartida.append({"orden_id":orden.id,
                     "existencia_sucursal_id":existencia_id,
+                    "unidad_inventario":movimiento["unidad_inventario"],
+                    "factor_inventario":movimiento["factor_inventario"],
+                    "unidad_medida":movimiento["unidad_medida"],
                     "consumo_acumulado":format(previa+requerida,"f"),
                     "disponible":format(neta,"f"),"faltante":format(falta,"f")})
                 if falta:

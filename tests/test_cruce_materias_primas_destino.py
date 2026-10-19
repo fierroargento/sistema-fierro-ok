@@ -83,7 +83,7 @@ def test_prepara_una_sola_identidad_inactiva_sin_catalogo(persistencia):
     item, creado = preparar(db)
     assert creado and not item.activo and item.tipo == "insumo"
     assert item.catalogo_producto_id is None
-    assert json.loads(item.atributos_json) == {"insumo_productivo_id": 3, "unidad_medida": "kg"}
+    assert json.loads(item.atributos_json) == {"insumo_productivo_id": 3, "unidad_medida": "kg", "factor_inventario": 1, "precision_inventario": "unidad", "unidad_inventario": "kg", "version_unidad": 1}
     producto = db.Producto.query.one()
     assert not producto.permite_correo and not producto.permite_via_cargo
     assert preparar(db)[1] is False
@@ -184,3 +184,26 @@ def test_propuesta_resuelve_dos_destinos_y_bloquea_seleccion_invalida():
     assert not propuesta(99)["aprobada"]
     destinos[1].sucursal.activa=False
     assert not propuesta(13)["aprobada"]
+
+
+def test_precision_se_persiste_y_no_se_puede_reinterpretar(persistencia):
+    db=persistencia
+    def crear(precision):
+        return preparar_materia_prima(insumo=db.insumo,sku='UAT-MP-FRACCION',
+            organizacion_id=7,unidad_negocio_id=9,Producto=db.Producto,
+            ItemInventario=db.Item,db_session=db.session,precision_inventario=precision)
+    item,creado=crear('milesimas');anterior=item.atributos_json;db.session.expire_all()
+    assert creado and json.loads(db.Item.query.one().atributos_json)['unidad_inventario']=='g'
+    assert crear('milesimas')[1] is False
+    with pytest.raises(ValueError,match='conserva su unidad'):crear('millonesimas')
+    assert db.Item.query.one().atributos_json==anterior
+    assert db.Item.query.count()==db.Producto.query.count()==1
+    assert not item.activo
+
+
+def test_precision_invalida_no_crea_identidades(persistencia):
+    db=persistencia
+    with pytest.raises(ValueError):
+        preparar_materia_prima(insumo=db.insumo,sku='UAT',organizacion_id=7,unidad_negocio_id=9,
+            Producto=db.Producto,ItemInventario=db.Item,db_session=db.session,precision_inventario='libre')
+    assert db.Item.query.count()==db.Producto.query.count()==0

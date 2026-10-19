@@ -3,6 +3,8 @@
 import json
 import re
 
+from services.unidades_materias_primas import definir_unidad, leer_unidad_item
+
 
 def identidad_insumo(item):
     if item is None or item.tipo != "insumo":
@@ -24,9 +26,10 @@ def validar_insumo(insumo, organizacion_id, unidad_negocio_id):
 
 
 def preparar_materia_prima(*, insumo, sku, organizacion_id, unidad_negocio_id,
-                          Producto, ItemInventario, db_session):
+                          Producto, ItemInventario, db_session, precision_inventario="unidad"):
     """Crea identidad interna inactiva, sin catálogo comercial ni existencias."""
     validar_insumo(insumo, organizacion_id, unidad_negocio_id)
+    unidad = definir_unidad(insumo.unidad_medida, precision_inventario)
     sku = str(sku or "").strip().upper()
     if not re.fullmatch(r"[A-Z0-9][A-Z0-9._-]{0,79}", sku):
         raise ValueError("El SKU debe tener hasta 80 letras, números, puntos, guiones o guiones bajos.")
@@ -36,6 +39,9 @@ def preparar_materia_prima(*, insumo, sku, organizacion_id, unidad_negocio_id,
     anteriores = [item for item in items if identidad_insumo(item) == insumo.id]
     if anteriores:
         if len(anteriores) == 1 and anteriores[0].sku == sku:
+            anterior = leer_unidad_item(anteriores[0])
+            if anterior['factor_inventario'] != unidad['factor_inventario'] or anterior['unidad_medida'] != unidad['unidad_medida']:
+                raise ValueError('El SKU existente conserva su unidad y precisión. No se reinterpretan sus saldos ni su historial.')
             return anteriores[0], False
         raise ValueError("El insumo ya tiene un SKU preparado. Usá el existente.")
     if any(item.sku.upper() == sku for item in items):
@@ -55,7 +61,7 @@ def preparar_materia_prima(*, insumo, sku, organizacion_id, unidad_negocio_id,
         catalogo_producto_id=None, sku=sku, nombre=insumo.nombre,
         tipo="insumo", activo=False,
         atributos_json=json.dumps({"insumo_productivo_id": insumo.id,
-                                   "unidad_medida": insumo.unidad_medida}, sort_keys=True),
+                                   **unidad}, sort_keys=True),
     )
     db_session.add(item)
     db_session.commit()
@@ -75,3 +81,6 @@ def validar_existencia_insumo(insumo, existencia, organizacion_id, unidad_negoci
             or not existencia.sucursal.activa
             or int(existencia.sucursal.organizacion_id) != int(organizacion_id)):
         raise ValueError("Activá el SKU, la ubicación y el control de la existencia antes de mapear.")
+    unidad = leer_unidad_item(item)
+    if str(insumo.unidad_medida).strip().casefold() != unidad['unidad_medida'].casefold():
+        raise ValueError('La unidad del insumo cambió después de preparar el SKU; revisala antes de mapear.')

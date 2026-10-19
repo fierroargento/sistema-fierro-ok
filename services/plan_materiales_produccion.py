@@ -7,6 +7,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from services.avances_produccion import resumir_orden
 from services.disponibilidad_productiva import disponibilidad_neta
+from services.unidades_materias_primas import convertir_cantidad
 
 
 SEIS = Decimal("0.000001")
@@ -76,10 +77,19 @@ def planificar_materiales(*, organizacion_id, unidad_negocio_id, ordenes, mapeos
                     hallazgos.append({"codigo":"stock_no_verificable","existencia_sucursal_id":clave})
                     continue
             requerida = (Decimal(str(item.cantidad_planificada)) * proporcion).quantize(SEIS, rounding=ROUND_HALF_UP)
-            asignada = min(requerida, disponibilidad[clave])
+            try:
+                conversion = convertir_cantidad(mapeos[0], requerida)
+            except ValueError as error:
+                hallazgos.append({"codigo": "unidad_no_verificable", "insumo_id": item.insumo_id, "motivo": str(error)})
+                continue
+            factor = Decimal(conversion["factor_inventario"])
+            requerida_base = Decimal(conversion["cantidad_inventario"])
+            asignada_base = min(requerida_base, disponibilidad[clave])
+            asignada = asignada_base / factor
             falta = requerida - asignada
-            disponibilidad[clave] -= asignada
+            disponibilidad[clave] -= asignada_base
             asignaciones.append({
+                **conversion,
                 "orden_id": orden.id, "numero": orden.numero, "insumo_id": item.insumo_id,
                 "existencia_sucursal_id": clave, "requerida": _numero(requerida),
                 "asignada_virtual": _numero(asignada), "faltante": _numero(falta),
@@ -89,6 +99,7 @@ def planificar_materiales(*, organizacion_id, unidad_negocio_id, ordenes, mapeos
                 dato = faltantes.setdefault((int(item.insumo_id), clave), {
                     "insumo_id": item.insumo_id, "existencia_sucursal_id": clave,
                     "cantidad": Decimal("0"), "ordenes": [],
+                    "unidad_medida": conversion["unidad_medida"],
                 })
                 dato["cantidad"] += falta
                 dato["ordenes"].append(orden.id)
@@ -100,19 +111,21 @@ def planificar_materiales(*, organizacion_id, unidad_negocio_id, ordenes, mapeos
             "tipo": "compra_sugerida", "insumo_id": insumo_id,
             "existencia_sucursal_id": existencia_id, "cantidad": cantidad,
             "ordenes_origen": dato["ordenes"],
+            "unidad_medida": dato["unidad_medida"],
             "clave_idempotencia": f"mrp:{organizacion_id}:{unidad_negocio_id}:{insumo_id}:{existencia_id}:{cantidad}",
             "orden_compra_creada": False,
         })
 
     requiere_fracciones = any(Decimal(x["requerida"]) != Decimal(x["requerida"]).to_integral_value() for x in asignaciones)
+    compatible = not hallazgos and all(x["representable"] for x in asignaciones)
     resultado = {
         "organizacion_id": organizacion_id, "unidad_negocio_id": unidad_negocio_id,
-        "modo": "planificacion_no_ejecutable", "aprobado": not hallazgos and not sugerencias and not requiere_fracciones,
+        "modo": "planificacion_no_ejecutable", "aprobado": not hallazgos and not sugerencias and compatible,
         "consistente": not hallazgos,
         "disponibilidad_suficiente": not hallazgos and not sugerencias,
         "demanda_pendiente": any(Decimal(x["requerida"]) > 0 for x in asignaciones),
         "requiere_fracciones": requiere_fracciones,
-        "compatible_con_inventario": not requiere_fracciones,
+        "compatible_con_inventario": compatible,
         "habilita_ejecucion": False,
         "resumen": {
             "ordenes_consideradas": len(ordenes_validas), "asignaciones": len(asignaciones),

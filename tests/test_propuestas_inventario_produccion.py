@@ -26,7 +26,9 @@ def orden():
 def datos():
     existencia_insumo=Obj(id=11, organizacion_id=7, producto_id=20, control_activo=True,
         stock_actual=100,stock_reservado=0,stock_bloqueado=0)
-    insumo=Obj(organizacion_id=7, unidad_negocio_id=9, activo=True)
+    existencia_insumo.producto_id=20
+    existencia_insumo.item_inventario=Obj(tipo="insumo",organizacion_id=7,producto_id=20,atributos_json=json.dumps({"insumo_productivo_id":3,"unidad_medida":"unidad"}))
+    insumo=Obj(id=3, unidad_medida="unidad", organizacion_id=7, unidad_negocio_id=9, activo=True)
     mapeo=Obj(id=5, organizacion_id=7, unidad_negocio_id=9, insumo_id=3,
               activo=True, insumo=insumo, existencia=existencia_insumo)
     destino=Obj(id=12, organizacion_id=7, producto_id=30, control_activo=True,

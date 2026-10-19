@@ -105,10 +105,9 @@ def test_orden_terminada_sin_demanda_no_prueba_stock_para_consumir_el_avance():
 
 
 def test_varios_insumos_no_reutilizan_la_misma_disponibilidad():
-    op=orden();op.insumos_planificados.append(Obj(insumo_id=8,cantidad_planificada='20'))
+    op=orden();op.insumos_planificados.append(Obj(insumo_id=3,cantidad_planificada='20'))
     mapeos,_=datos();mapeos[0].existencia.stock_actual=20
-    otro=deepcopy(mapeos[0]);otro.id=6;otro.insumo_id=8
-    r=preparar(op,mapeos+[otro])
+    r=preparar(op,mapeos)
     assert r['movimientos_propuestos'][0]['faltante']=='0'
     assert r['movimientos_propuestos'][1]['faltante']=='12'
     assert not r['aprobada']
@@ -166,7 +165,7 @@ def test_nueva_seccion_produccion_se_renderiza_plegada_con_bloqueos():
     op.partes_informados[0].lotes_preparatorios=[]
     calidad=elegibilidad_inventario(op,organizacion_id=7,unidad_negocio_id=9)
     plan=Obj(consistente=True,demanda_pendiente=True,disponibilidad_suficiente=False,
-        requiere_fracciones=True,sugerencias_compra=[Obj(insumo_id=3,existencia_sucursal_id=11,cantidad='0.1')])
+        requiere_fracciones=True,compatible_con_inventario=False,sugerencias_compra=[Obj(insumo_id=3,existencia_sucursal_id=11,cantidad='0.1')])
     with app.test_request_context():
         html=app.jinja_env.get_template('admin_produccion.html').render(
             url_for=lambda *a,**k:'#',unidad_activa=Obj(nombre='UAT'),perfiles_produccion=[],

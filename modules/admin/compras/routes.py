@@ -341,7 +341,7 @@ def crear_blueprint_compras(*, dependencias):
                     insumo=insumo, sku=request.form.get("sku"),
                     organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
                     Producto=modelos["Producto"], ItemInventario=modelos["ItemInventario"],
-                    db_session=db.session,
+                    db_session=db.session, precision_inventario=request.form.get("precision_inventario", "unidad"),
                 )
                 mensaje = (f"SKU {item.sku} preparado desactivado, sin existencias ni stock."
                            if creado else f"El insumo ya está preparado como {item.sku}; no se duplicó.")

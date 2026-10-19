@@ -21,7 +21,9 @@ def mapeo(stock=25, reservado=0, bloqueado=0):
     existencia=Obj(id=11, organizacion_id=7, stock_actual=stock,
                    stock_reservado=reservado, stock_bloqueado=bloqueado,
                    control_activo=True)
-    insumo=Obj(organizacion_id=7, unidad_negocio_id=9, activo=True)
+    existencia.producto_id=20
+    existencia.item_inventario=Obj(tipo="insumo",organizacion_id=7,producto_id=20,atributos_json=json.dumps({"insumo_productivo_id":3,"unidad_medida":"unidad"}))
+    insumo=Obj(id=3, unidad_medida="unidad", organizacion_id=7, unidad_negocio_id=9, activo=True)
     return Obj(id=5, organizacion_id=7, unidad_negocio_id=9, insumo_id=3,
                activo=True, insumo=insumo, existencia=existencia)
 
