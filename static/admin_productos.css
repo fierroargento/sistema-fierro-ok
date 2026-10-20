@@ -177,3 +177,22 @@
 .producto-duplicacion-aviso {margin-bottom:16px}
 
 .producto-acciones-dialog #producto-acciones-estado[data-error=true] {background:#fff0f1;border-color:#efc7cc;color:#963a46}
+
+/* Fabricación masiva: misma escala de controles y tabla contenida. */
+.fabricacion-import { padding-bottom:24px; margin-bottom:24px; border-bottom:1px solid #dbe3ec; }
+.fabricacion-import header h2 { margin:4px 0 8px; }
+.fabricacion-import-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; margin:18px 0; }
+.fabricacion-import-grid label { display:flex; flex-direction:column; gap:7px; font-weight:600; min-width:0; }
+.fabricacion-import-grid input,.fabricacion-import-grid select { box-sizing:border-box; width:100%; min-height:42px; padding:9px 11px; border:1px solid #cbd5e1; border-radius:9px; background:#fff; color:#1e293b; font:inherit; }
+.fabricacion-import-usos { display:flex; flex-wrap:wrap; gap:18px; border:1px solid #dbe3ec; border-radius:10px; padding:12px 16px; }
+.fabricacion-import-usos label { display:flex; gap:8px; align-items:center; }
+.fabricacion-import-usos input { width:auto; }
+.fabricacion-import-tabla { max-height:600px; overflow:auto; margin:16px 0; }
+.fabricacion-import-tabla table { min-width:760px; width:100%; }
+.fabricacion-import-tabla td { max-width:360px; overflow-wrap:anywhere; vertical-align:top; }
+.fabricacion-import-tabla th { position:sticky; top:0; background:#edf2f7; z-index:1; }
+.fabricacion-import-tabla details { min-width:190px; }
+.fabricacion-import-tabla details p,.fabricacion-import-tabla li { font-size:.88rem; }
+
+.fabricacion-import-avisos { padding:12px 16px; margin:14px 0; border:1px solid #e6d5a3; border-radius:10px; background:#fffaf0; color:#674b15; }
+.fabricacion-import-avisos ul { margin:8px 0 0; padding-left:20px; }

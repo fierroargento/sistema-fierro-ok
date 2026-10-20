@@ -1,0 +1,35 @@
+<section class="fabricacion-import" aria-labelledby="fabricacion-import-title">
+  <header><p class="productos-ruta">Planilla General</p><h2 id="fabricacion-import-title">Importar fabricación propia</h2><p>Cargá productos con sus piezas, consumos y tareas. Primero revisás; después confirmás.</p></header>
+  <p class="productos-muted">Los SKU existentes se conservan completos. Se excluyen L-MDF-001 a L-MDF-005. Se utilizan los insumos y tarifas actuales de Fierro; el Excel no reemplaza sus precios.</p>
+  {% set opts = vista_fabricacion.opciones if vista_fabricacion else opciones_fabricacion %}
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('admin_productos.panel', _anchor='productos-importacion') }}" class="fabricacion-import-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="accion" value="previsualizar_fabricacion">
+    <div class="fabricacion-import-grid">
+      <label>Planilla General<input type="file" name="archivo_fabricacion" accept=".xlsx,.xlsm" required></label>
+      <label>Unidad de fabricación<select name="unidad_id"><option value="">General</option>{% for u in unidades_combo if u.activa %}<option value="{{ u.id }}" {% if (opts.get('unidad_id', unidad_produccion_inicial)|string) == (u.id|string) %}selected{% endif %}>{{ u.nombre }}</option>{% endfor %}</select></label>
+      {% for campo, etiqueta, grupo in [('tarifa_herreria','Mano de obra · Herrería','operaciones'),('tarifa_laser','Mano de obra · Láser','operaciones'),('maquina_laser','Máquina láser · costo de uso sin mano de obra','maquinas')] %}
+      <label>{{ etiqueta }}<select name="{{ campo }}"><option value="">Seleccionar si corresponde</option>{% for r in recursos_fabricacion.get(grupo, []) if r.activo %}<option value="{{ r.id }}" {% if opts.get(campo,'')|string == r.id|string %}selected{% endif %}>{{ r.codigo }} · {{ r.nombre }}</option>{% endfor %}</select></label>
+      {% endfor %}
+    </div>
+    <fieldset class="fabricacion-import-usos"><legend>Usos de los productos nuevos</legend>{% for uso,etiqueta in [('venta','Venta'),('compra','Compra'),('insumo','Insumo'),('componente','Componente')] %}<label><input type="checkbox" name="habilita_{{ uso }}" value="1" {% if opts.get('habilita_' ~ uso, uso == 'venta' and not opciones_fabricacion) in [true,'1'] %}checked{% endif %}>{{ etiqueta }}</label>{% endfor %}</fieldset>
+    <p class="productos-muted">Costos por unidad, sin IVA ni merma agregada. Utilidad sobre costo, IVA e IIBB desde Resumen Producto. No se importan stock, imágenes ni permisos de envío. El costo calculado queda preparatorio para revisión.</p>
+    <p data-fabricacion-progreso role="status" aria-live="polite" hidden></p>
+    <button class="comercial-primary" type="submit" {% if not preparado or not completo or not fabricacion_disponible or not despiece_disponible %}disabled{% endif %}>Analizar fabricación</button>
+  </form>
+  {% if vista_fabricacion %}
+    {% set filas_fab = vista_fabricacion.filas %}{% set errores_fab = filas_fab|selectattr('errores')|list %}{% set nuevas_fab = filas_fab|selectattr('accion','equalto','crear')|list %}
+    <div class="productos-preview" role="status"><h3>Revisión de fabricación</h3><p>{{ nuevas_fab|length }} para crear · {{ filas_fab|selectattr('accion','equalto','conservar')|list|length }} existentes · {{ filas_fab|selectattr('accion','equalto','excluido')|list|length }} excluidos · {{ errores_fab|length }} para revisar.</p><p>{% if errores_fab %}No se guardó nada. Corregí los faltantes y volvé a analizar el archivo.{% else %}Todavía no se guardó nada. Revisá los detalles antes de confirmar.{% endif %}</p></div>
+    {% set avisos_fab = filas_fab|selectattr('avisos')|list %}
+    {% if avisos_fab %}<aside class="fabricacion-import-avisos" aria-label="Avisos para revisar"><strong>{{ avisos_fab|length }} producto(s) con avisos</strong><ul>{% for f in avisos_fab %}{% for aviso in f.avisos %}<li><strong>{{ f.sku }}:</strong> {{ aviso }}</li>{% endfor %}{% endfor %}</ul></aside>{% endif %}
+    <div class="table-wrap fabricacion-import-tabla"><table class="comercial-table"><thead><tr><th>Producto</th><th>Resultado</th><th>Fabricación por unidad</th><th>Costo neto ARS</th><th>Revisión</th></tr></thead><tbody>
+    {% for f in filas_fab %}<tr><td><strong>{{ f.sku }}</strong><span class="productos-name">{{ f.nombre }}</span></td><td>{{ {'crear':'Crear','conservar':'Conservar existente','excluido':'Excluido','rechazado':'Revisar'}[f.accion] }}</td><td>{% if f.produccion %}{{ f.piezas }} piezas · {{ f.tareas }} tareas{% else %}—{% endif %}</td><td>{{ dinero(f.costo_centavos) if f.costo_centavos is not none else '—' }}</td><td>
+      {% for e in f.errores %}<p class="productos-error">{{ e }}</p>{% endfor %}{% for a in f.avisos %}<p>{{ a }}</p>{% endfor %}
+      {% if f.accion == 'conservar' %}Se conserva sin cambios.{% elif f.accion == 'excluido' %}Llavero fuera de este lote.{% endif %}
+      {% if f.produccion %}<details><summary>Ver composición e impuestos</summary><p>Utilidad {% if f.adicionales.utilidad_pct %}{{ f.adicionales.utilidad_pct }}% sobre costo{% else %}pendiente{% endif %} · IVA {{ f.adicionales.iva_pct }}% · IIBB {{ f.adicionales.iibb_pct }}%</p><ul>{% for p in f.produccion.piezas %}<li>{{ p.nombre }} · {{ p.codigo_origen }} · {{ p.cantidad }} pieza(s){% if p.modo == 'longitud' %} × {{ p.largo_cm }} cm{% elif p.modo == 'rendimiento' %} / {{ p.rendimiento }} por unidad de insumo{% endif %}</li>{% endfor %}{% for t in f.produccion.tareas %}<li>{{ t.nombre }} · {{ t.segundos }} segundos</li>{% endfor %}</ul></details>{% endif %}
+    </td></tr>{% endfor %}</tbody></table></div>
+    <form method="post" action="{{ url_for('admin_productos.panel') }}" data-confirm-save="¿Importar las fichas nuevas de fabricación? Los productos existentes se conservan sin cambios.">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="accion" value="confirmar_fabricacion"><input type="hidden" name="fabricacion_token" value="{{ token_fabricacion }}">
+      <div class="productos-actions"><a class="secondary-link" href="{{ url_for('admin_productos.panel') }}">Cancelar importación</a><button class="comercial-primary" type="submit" {% if errores_fab or not nuevas_fab %}disabled{% endif %}>Confirmar fabricación</button></div>
+    </form>
+  {% endif %}
+</section>

@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261019-maestro') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261020-duplicar') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261020-importar-fabricacion') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261020-duplicar') }}" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_produccion.js', v='20261020-acciones-comunes') }}" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261020-duplicar') }}" defer></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_producto_vista.css', v='20261020-acciones-comunes') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_producto_vista.js', v='20261020-iconos-producto') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_importar_fabricacion.js', v='20261020') }}" defer></script>
 {% endblock %}
 {% block content %}
 {% macro valor_cambio(campo, valor) -%}
@@ -31,7 +32,9 @@
       {% else %}<tr><td colspan="6" class="empty-state">{% if filtro_sku %}No encontramos productos con ese SKU.{% else %}Todavía no hay productos. Empezá con Nuevo producto o Importar productos.{% endif %}</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
-  <details class="comercial-section productos-import" id="productos-importacion" {% if vista %}open{% endif %}><summary>Importación masiva</summary><div class="productos-import-body">
+  <details class="comercial-section productos-import" id="productos-importacion" {% if vista or vista_fabricacion or opciones_fabricacion %}open{% endif %}><summary>Importación masiva</summary><div class="productos-import-body">
+    {% include "partials/productos_importar_fabricacion.html" %}
+    <h2>Ficha básica de productos</h2>
     <p>Descargá la plantilla, completala y revisá los cambios antes de confirmar. Hasta 500 productos por lote.</p>
     <p class="productos-muted">XLSX, XLSM o CSV. Se lee la hoja Productos, si existe, o la primera hoja. Las columnas y celdas vacías conservan los datos actuales; para destildar indicá No. Los productos nuevos requieren tipo, unidad, estado y los cuatro usos con Sí o No.</p>
     <p class="productos-muted">Para combos, completá Componentes combo con SKU=2|OTRO-SKU=1. Los componentes deben existir y estar habilitados antes del lote. Unidad combo ID vacía usa General en altas; en ediciones conserva la unidad actual.</p>
