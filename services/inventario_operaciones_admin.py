@@ -224,7 +224,7 @@ def procesar_operacion_inventario(
         _tenant(organizacion, sucursal, "La ubicación")
         _tenant(organizacion, item, "El SKU")
         from services.producto_habilitaciones import exigir_recurso_stockeable
-        exigir_recurso_stockeable(item, db_session)
+        exigir_recurso_stockeable(item, db_session, ubicacion_id=sucursal.id)
         if not sucursal.activa or not item.activo:
             raise ValueError("La ubicación y el SKU deben estar activos.")
         if Existencia.query.filter_by(

@@ -74,7 +74,7 @@ def exigir_producto_stockeable(producto, db_session):
     return ficha
 
 
-def exigir_recurso_stockeable(recurso, db_session):
+def exigir_recurso_stockeable(recurso, db_session, *, ubicacion_id=None):
     if inspect(recurso, raiseerr=False) is None:
         return
     from models.producto import Producto
@@ -83,7 +83,12 @@ def exigir_recurso_stockeable(recurso, db_session):
     ).with_for_update().populate_existing().first()
     if producto is None:
         raise ValueError("El registro de inventario no tiene un producto maestro válido.")
-    return exigir_producto_stockeable(producto, db_session)
+    ficha = exigir_producto_stockeable(producto, db_session)
+    ubicacion_id = ubicacion_id if ubicacion_id is not None else getattr(recurso, "sucursal_operativa_id", None)
+    if ubicacion_id is not None:
+        from services.productos_datos_generales import exigir_ubicacion_producto
+        exigir_ubicacion_producto(producto, ubicacion_id, "deposito", db_session)
+    return ficha
 
 
 def exigir_insumo_stockeable(insumo, db_session):

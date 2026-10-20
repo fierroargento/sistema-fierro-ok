@@ -138,6 +138,7 @@
     document.getElementById("producto-combo-error").hidden = true;
     cargarComposicion(Array.isArray(componentes) ? componentes : []);
     ajustarNoStockeable();
+    if (window.productosDatos) window.productosDatos.abrir(filaGuardada, fallido);
     dialogo.showModal();
     (edicion ? form.elements.nombre : form.elements.sku).focus();
   }
@@ -162,9 +163,17 @@
     destino.querySelectorAll('button[type="submit"]').forEach(b => { b.disabled = true; b.textContent = "Guardando…"; });
     HTMLFormElement.prototype.submit.call(destino);
   });
+  function validarCampos(f) {
+    const invalido = Array.from(f.elements).find(c => c.willValidate && !c.validity.valid);
+    if (invalido) {
+      let padre = invalido.parentElement;
+      while (padre && padre !== f) { if (padre.tagName === "DETAILS") padre.open = true; padre = padre.parentElement; }
+    }
+    return f.reportValidity();
+  }
   document.querySelectorAll("[data-confirm-save]").forEach(f => f.addEventListener("submit", e => {
     e.preventDefault();
-    if (enviando || (f === form && !validarCombo()) || !f.reportValidity()) return;
+    if (enviando || (f === form && ((!validarCombo()) || (window.productosDatos && !window.productosDatos.validar()))) || !validarCampos(f)) return;
     pendiente = f;
     document.getElementById("producto-confirm-text").textContent = f.dataset.confirmSave;
     confirmar.showModal();

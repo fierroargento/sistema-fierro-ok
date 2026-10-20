@@ -1,4 +1,6 @@
 """Administración tenant del maestro único de productos."""
+from io import BytesIO
+from flask import abort, send_file
 from flask import Blueprint, Response, current_app, redirect, render_template, request, session, url_for
 
 from services.productos_consultas import obtener_panel_productos_plataforma
@@ -6,6 +8,7 @@ from services.productos_ficha_maestra import construir_filas, datos_de_formulari
 from services.producto_habilitaciones import TIPOS, USOS
 from services.importacion_maestro_productos import aplicar_lote, firmar_lote, leer_lote, plantilla_csv, previsualizar_lote
 from services.tenant_context import TenantError, resolver_tenant_usuario
+from services.productos_datos_generales import esquema_datos_disponible, leer_formulario_completo, guardar_datos_generales
 
 
 def crear_blueprint_productos(*, dependencias):
@@ -30,6 +33,23 @@ def crear_blueprint_productos(*, dependencias):
         session["organizacion_id"] = membresia.organizacion_id
         return usuario, membresia.organizacion, None
 
+    @blueprint.route("/admin/productos/<int:producto_id>/imagenes/<int:imagen_id>")
+    @login_required
+    def imagen(producto_id, imagen_id):
+        _, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None: return respuesta
+        if not esquema_datos_disponible(db.session): abort(404)
+        from models.producto_datos_generales import ProductoImagenMaestra
+        registro = db.session.query(ProductoImagenMaestra).join(Producto, Producto.id == ProductoImagenMaestra.producto_id).filter(
+            ProductoImagenMaestra.id == imagen_id, ProductoImagenMaestra.producto_id == producto_id,
+            ProductoImagenMaestra.organizacion_id == organizacion.id, Producto.organizacion_id == organizacion.id).first()
+        if registro is None: abort(404)
+        respuesta = send_file(BytesIO(registro.contenido), mimetype=registro.mime,
+            download_name=registro.nombre, etag=registro.sha256, max_age=0)
+        respuesta.headers['Cache-Control'] = 'private, no-cache'
+        respuesta.headers['X-Content-Type-Options'] = 'nosniff'
+        return respuesta
+
     @blueprint.route("/admin/productos/plantilla.csv")
     @login_required
     def plantilla():
@@ -46,17 +66,22 @@ def crear_blueprint_productos(*, dependencias):
         if respuesta is not None:
             return respuesta
         mensaje = (request.args.get("ok") or "").strip()
-        error = ""
+        error = (request.args.get("error") or "").strip()[:400]
         filtro_sku = (request.args.get("sku") or "").strip()
         vista, token, formulario_error = None, "", None
         if request.method == "POST":
+            if request.content_length is not None and request.content_length > 12 * 1024 * 1024:
+                return redirect(url_for("admin_productos.panel", error="No se guardó: el formulario supera 12 MB. Usá hasta 5 imágenes de 2 MB."))
             accion = request.form.get("accion", "")
             try:
                 if accion in {"crear_producto", "editar_producto"}:
                     producto_id = int(request.form["producto_id"]) if accion == "editar_producto" else None
+                    adicionales = leer_formulario_completo(request.form, request.files.getlist("imagenes_producto"))
                     producto = guardar_ficha(datos_de_formulario(request.form), Producto=Producto,
                         db_session=db.session, organizacion_id=(organizacion.id),
-                        producto_id=producto_id, huella_esperada=request.form.get("huella", ""))
+                        producto_id=producto_id, huella_esperada=request.form.get("huella", ""), commit=False)
+                    guardar_datos_generales(producto, adicionales, db.session)
+                    db.session.commit()
                     mensaje = f"{producto.sku}: ficha guardada correctamente."
                     filtro_sku = producto.sku
                 elif accion == "previsualizar_importacion":
@@ -90,6 +115,9 @@ def crear_blueprint_productos(*, dependencias):
                 error = str(error_accion) if isinstance(error_accion, (ValueError, KeyError)) else "No se pudo guardar. No se aplicaron cambios; volvé a intentarlo."
                 if accion in {"crear_producto", "editar_producto"}:
                     formulario_error = dict(request.form)
+                    if accion == "editar_producto" and str(request.form.get("producto_id", "")).isdigit():
+                        actual = db.session.query(Producto).filter_by(id=int(request.form["producto_id"]), organizacion_id=organizacion.id).first()
+                        if actual is not None: filtro_sku = actual.sku
         datos = obtener_panel_productos_plataforma(Producto, organizacion_id=organizacion.id, filtro_sku=filtro_sku)
         preparado, filas = construir_filas(datos["productos"], db.session, organizacion.id)
         insumos = []
@@ -109,7 +137,16 @@ def crear_blueprint_productos(*, dependencias):
                 Ficha.tipo.in_(["simple", "produccion"]),
             ).order_by(Producto.sku).all()
             unidades = db.session.query(UnidadNegocio).filter_by(organizacion_id=organizacion.id).order_by(UnidadNegocio.nombre).all()
-        return render_template("admin_productos.html", componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
+        completo = esquema_datos_disponible(db.session)
+        proveedores, ubicaciones, clasificaciones = [], [], []
+        if completo:
+            from models.compras import ProveedorCompra
+            from models.sucursal_operativa import SucursalOperativa
+            from models.producto_datos_generales import ProductoDatosGenerales
+            proveedores = db.session.query(ProveedorCompra).filter_by(organizacion_id=organizacion.id).order_by(ProveedorCompra.razon_social).all()
+            ubicaciones = db.session.query(SucursalOperativa).filter_by(organizacion_id=organizacion.id).order_by(SucursalOperativa.nombre).all()
+            clasificaciones = [dict(r._mapping) for r in db.session.query(ProductoDatosGenerales.rubro, ProductoDatosGenerales.subrubro, ProductoDatosGenerales.marca).filter_by(organizacion_id=organizacion.id).distinct().all()]
+        return render_template("admin_productos.html", completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
             organizacion=organizacion, preparado=preparado, filas=filas,
             tipos=TIPOS, usos=USOS, vista=vista, lote_token=token, insumos=insumos,
             formulario_error=formulario_error, **datos)

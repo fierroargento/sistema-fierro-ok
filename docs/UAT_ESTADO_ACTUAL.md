@@ -1383,3 +1383,53 @@ Deploy/UAT:
 - Se actualiza versión JS/CSS y se agrega una ayuda breve junto a las cantidades. Sin cambios de modelos, servicios, transacciones, esquema ni datos.
 - Verificación: sintaxis JS, render de rutas reales de Productos y prueba existente de receta con cantidad decimal. Pendiente UAT visual en navegador tras deploy. No requiere preparación de esquema.
 - Próximo paso: en Gestionar UAT-COMBO-001 → Ensayo UAT, con una sola fila, probar flechas desde 5 (6/5/4) y guardar 3. Reabrir debe conservar 3. No asumir el guardado a partir de la captura del aviso.
+
+
+## 2026-10-20 — Cierre del alta manual: ficha completa de Producto
+
+Prioridad y evidencia:
+- Martín pidió terminar Nuevo producto antes de seguir con otros módulos o procesos.
+- Captura 121512: UAT-PROD-001 guardado como De producción, activo, Venta/Insumo/Componente; no acredita todavía una composición de fabricación nueva.
+- Capturas 121658 y DUX 122235/122332/122354/122413/122434 revisadas. Se toman como referencia de campos y practicidad, conservando el diálogo, barra lateral, confirmación y secciones plegables de Fierro.
+- No se incorporan saldos iniciales ni otro editor de costos/precios/listas en este alta: esos procesos ya tienen servicios propios. No se retoma todavía fabricación.
+
+Alcance entregado:
+- Clasificación del maestro: rubro, subrubro asociado a rubro y marca. Se ofrecen valores de la misma organización mediante sugerencias, con carga de valores nuevos en el mismo formulario. Se conserva Línea de la base anterior, sin reinterpretarla automáticamente como rubro.
+- Proveedores: relaciones con ProveedorCompra, varios por producto, primero principal. Código externo/de proveedor opcional por relación; exige proveedor elegido. Código interno SKU independiente e inmutable.
+- El código original conserva texto y ceros iniciales. Clave normalizada en mayúsculas con unicidad organización/proveedor/código; un mismo código puede existir en productos de distintos proveedores u organizaciones. Se rechaza reutilizarlo para otro producto del mismo proveedor. Proveedor repetido en la misma ficha rechazado. Sin código se permite relacionar el proveedor sin inventar una referencia.
+- Sucursales y depósitos: dos habilitaciones explícitas sobre SucursalOperativa existente, que hoy reúne ambos tipos de ubicación. Una ubicación puede cumplir ambos roles; no se inventa una relación sucursal-depósito ni se usa UnidadNegocio como si fuera una sucursal física.
+- Cada alcance tiene Definir habilitados. Sin definir conserva compatibilidad del sistema anterior; definido con lista vacía significa ninguno habilitado. No se crean ubicaciones, existencias, SKU de inventario ni movimientos al guardar.
+- El depósito definido se valida al crear existencias desde ambas interfaces de inventario y al usar el acceso común para reservas/movimientos/controles. No permite retirar habilitación de un depósito con saldo/reservas/bloqueos/tránsito pendientes. Sucursales se registran como alcance del maestro, con guardia reutilizable para los procesos que reciban ubicación física; no se afirma convertidos todos los consumidores comerciales históricos.
+- Utilidad pretendida opcional, con base Costo o Precio de venta. Vacío es Sin definir y cero es explícito. Sobre costo admite recargos mayores al 100%; sobre venta exige menos del 100%. Decimal finito, no negativo, hasta seis decimales.
+- El porcentaje queda como objetivo del maestro. Se muestra ejemplo claramente ilustrativo sin gastos/impuestos (costo 100, 30% sobre costo → 130; sobre venta → 142,86). No se identifica margen sobre venta bruta con sobre_liquidacion de la regla económica existente.
+- No se activa ni reemplaza una ReglaEconomicaVersion, lista o precio publicado al guardar el maestro. La aplicación del objetivo en cada cálculo/canal debe usar las fuentes y pisos verificados existentes; no se modifica el motor ni se debilita la regla insalvable del neto mínimo. Este bloque termina la captura manual de estos datos.
+- Códigos de barras: varios por producto, texto con ceros iniciales, máximo 20; únicos por organización para evitar identificar dos productos. No se fabrican EAN ni se exige que todo código interno sea EAN.
+- Imágenes: hasta cinco JPG/PNG/WEBP de 2 MB cada una, principal seleccionable, miniaturas, quitar/conservar y reemplazo. Reutiliza prevalidar_imagenes de la ficha comercial, suma límites de tamaño/resolución y comprueba formato real. No admite SVG ni ejecuta contenido activo.
+- Fotos del maestro en tabla propia referida al mismo Producto; contenido binario diferido, no se carga en listas ni en JSON del formulario. Persisten con la transacción de DB, sin depender de archivos efímeros de Render ni activar Cloudinary. Las inclusiones comerciales anteriores y sus imágenes explícitas no se sobrescriben ni duplican automáticamente.
+- Acceso a fotos por endpoint admin, con autenticación, organización/producto/imagen coincidentes, MIME comprobado, nosniff y caché privada. No son URLs públicas para publicar en canales.
+- Búsqueda del maestro ampliada a código de proveedor, códigos de barras, marca, rubro y subrubro, con contexto tenant y sin duplicar filas. La tabla muestra clasificación/marca en forma compacta.
+
+Persistencia y UX:
+- Cinco tablas aditivas referidas a Producto: producto_datos_generales, producto_proveedor, producto_ubicacion, producto_codigo_barras y producto_imagen_maestra. No se agrega otro SKU ni se cambia el SELECT de Producto ni de su extensión anterior.
+- Preparación independiente e idempotente, sin importar app.py ni iniciar scheduler. Conserva productos, fichas y relaciones existentes. El nuevo script también ejecuta la preparación anterior de ficha si es necesaria.
+- Hasta preparar estas tablas, la ampliación no se muestra como disponible; el flujo anterior sigue funcionando. Detección de tabla y columnas antes de consultar.
+- Ruta de alta/edición: ficha anterior, combo y datos nuevos con una única confirmación/commit. Un error de proveedor, códigos, fotos o permisos revierte también el producto/ficha creados. Fotos no se suben antes de confirmar. Cancelar no hace POST.
+- La huella de concurrencia incluye la revisión y metadatos/relaciones nuevos, sin binarios. La importación anterior conserva la ampliación y rechaza una previsualización obsoleta; los nuevos campos relacionales/fotos no se agregan de manera improvisada al CSV anterior.
+- Error conserva valores y listas; vuelve a seleccionar el producto editado aunque estuviera fuera de los primeros 100. Fotos nuevas rechazadas deben seleccionarse de nuevo, con aviso explícito; las guardadas se conservan según la selección revisada.
+- Campos requeridos dentro de secciones plegadas se despliegan para mostrar la validación. Reconfirmación normal y prevención de guardado accidental con Enter se conservan.
+- Sin cambio de main, flags, scheduler, conexiones externas, pedidos, cobros, liquidaciones ni stock real.
+
+Verificación y límites:
+- 83 pruebas funcionales aprobadas: 49 del maestro anterior, 17 nuevas de ficha completa (incluyendo casos parametrizados) y 17 del núcleo/inventario SaaS. Seis comprobaciones estáticas antiguas de inventario fuera del checkout reducido no se incluyen. Dos comprobaciones estáticas de modularidad/flush aprobadas aparte.
+- Casos nuevos: preparación idempotente y proceso independiente sin app, unicidad por proveedor, ceros iniciales, aislamiento tenant, utilidad/costo/venta/vacío/cero, subrubro, permisos físicos, rechazo de retiro con saldo, imágenes válidas/falsas/grandes/repetidas/principal/reemplazo, endpoint autorizado/404, rollback integral, importación que conserva datos y detecta huella vieja, búsqueda por atributos/códigos.
+- Prueba de DOM con HTML renderizado por Flask/Jinja y scripts reales: alta completa, ejemplo de margen, serialización, confirmación, cancelación, reapertura, proveedor duplicado y selección/cancelación de fotos aprobados. DataTransfer/dialog son adaptados en el entorno de DOM, no se declara prueba de browser.
+- Sintaxis de ambos JS y compilación de módulos Python aprobadas.
+- No se ejecuta el monolito ni PostgreSQL/Render. Chromium no pudo instalarse por descarga truncada; aceptación visual final y archivos reales quedan pendientes del UAT de staging. No se declaran aprobadas pruebas ajenas a este bloque que requieren archivos no disponibles del checkout parcial.
+
+Deploy y próximo UAT (solo carga manual):
+1. Desplegar el nuevo commit únicamente en integracion-saas-2026-09.
+2. Shell de staging: python -m scripts.preparar_datos_productos --staging. Mantener BOOTSTRAP_BASE_DATOS_HABILITADO=false y MODO_LABORATORIO_DESCONECTADO=true.
+3. Ctrl+F5 → Base de Datos → Productos → Nuevo producto. Revisar las secciones nuevas sin salir a otros procesos.
+4. Crear un Simple ficticio UAT-FICHA-002: clasificación, proveedor existente/código 000-PRUEBA, sucursal/depósito seleccionados, utilidad 30 sobre costo, código de barras interno ficticio UAT-000002 y una o dos imágenes de prueba. Guardar/confirmar/reabrir, verificar todos los datos y foto principal.
+5. Probar Cancelar cambios y proveedores con código igual en proveedores distintos; código igual en el mismo proveedor para otro SKU debe rechazarse íntegramente. Probar utilidad sobre venta 100 o superior y subrubro sin rubro: aviso, sin alta parcial.
+6. Seguir limando el alta manual; no avanzar todavía a fabricación, precios operativos, importación real ni conexiones externas.

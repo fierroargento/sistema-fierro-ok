@@ -177,6 +177,8 @@ def procesar_accion_inventario_admin(
 
         from services.producto_habilitaciones import exigir_producto_stockeable
         exigir_producto_stockeable(producto, db_session)
+        from services.productos_datos_generales import exigir_ubicacion_producto
+        exigir_ubicacion_producto(producto, sucursal.id, "deposito", db_session)
         existente = (
             ExistenciaSucursal.query
             .filter_by(

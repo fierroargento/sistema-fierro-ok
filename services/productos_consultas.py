@@ -28,6 +28,18 @@ def obtener_panel_productos_plataforma(
                 (ProductoFichaMaestra.producto_id == Producto.id)
                 & (ProductoFichaMaestra.organizacion_id == organizacion_id))
             criterios.extend([ProductoFichaMaestra.nombre.ilike(patron), ProductoFichaMaestra.linea.ilike(patron)])
+        from services.productos_datos_generales import esquema_datos_disponible
+        if esquema_datos_disponible(consulta.session):
+            from models.producto_datos_generales import ProductoDatosGenerales, ProductoProveedor, ProductoCodigoBarras
+            consulta = consulta.outerjoin(ProductoDatosGenerales,
+                (ProductoDatosGenerales.producto_id == Producto.id) & (ProductoDatosGenerales.organizacion_id == organizacion_id))
+            criterios.extend([ProductoDatosGenerales.marca.ilike(patron), ProductoDatosGenerales.rubro.ilike(patron), ProductoDatosGenerales.subrubro.ilike(patron)])
+            criterios.extend([
+                consulta.session.query(ProductoProveedor.id).filter(ProductoProveedor.organizacion_id == organizacion_id,
+                    ProductoProveedor.producto_id == Producto.id, ProductoProveedor.codigo.ilike(patron)).exists(),
+                consulta.session.query(ProductoCodigoBarras.id).filter(ProductoCodigoBarras.organizacion_id == organizacion_id,
+                    ProductoCodigoBarras.producto_id == Producto.id, ProductoCodigoBarras.codigo.ilike(patron)).exists(),
+            ])
         consulta = consulta.filter(or_(*criterios))
 
     productos = (

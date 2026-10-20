@@ -71,3 +71,21 @@
 .producto-componente-fila .secondary-link, #producto-combo-agregar { display:inline-flex; align-items:center; justify-content:center; min-height:40px; padding:8px 12px; box-sizing:border-box; text-decoration:none; }
 .producto-componente-fila input { text-align:right; }
 @media(max-width:560px) { .producto-componente-fila {grid-template-columns:minmax(0,1fr) 90px;} .producto-componente-fila button {grid-column:1 / -1; justify-self:end;} }
+
+#producto-adicional-error[hidden], #producto-fotos-aviso[hidden] {display:none;}
+.producto-dialog form .producto-section-body label {display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:#445064;}
+.producto-proveedor-fila {display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto; gap:10px; align-items:end; margin:12px 0;}
+.producto-barra-fila {display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:end; margin:12px 0;}
+.producto-section-body .secondary-link {display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; min-height:40px; padding:8px 12px; text-decoration:none;}
+.producto-ubicaciones {display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.producto-ubicaciones fieldset {min-width:0; border:1px solid #d8e5ed; border-radius:8px; padding:12px;}
+.producto-ubicaciones legend {font-size:13px; font-weight:700; color:#294a60;}
+.producto-dialog form .producto-ubicaciones label, .producto-dialog form .producto-imagen label {flex-direction:row; align-items:center; justify-content:flex-start; text-align:left; gap:8px; min-height:30px;}
+.producto-ubicaciones-lista {max-height:180px; overflow:auto; margin-top:10px;}
+.producto-imagenes {display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; margin:14px 0;}
+.producto-imagen {padding:10px; border:1px solid #d8e5ed; border-radius:8px; display:flex; flex-direction:column; gap:8px; min-width:0; max-width:180px; background:#f8fbfd;}
+.producto-imagen img {width:100%; height:100px; object-fit:contain; background:white; border-radius:5px;}
+.producto-imagen span {overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:11px; color:#64748b;}
+.producto-dialog .producto-imagen input[type=radio] {width:16px; min-height:16px; height:16px; padding:0; margin:0; accent-color:#176b89;}
+.producto-subtitulo {font-size:14px; color:#294a60; margin:18px 0 8px;}
+@media(max-width:600px) {.producto-proveedor-fila {grid-template-columns:1fr;} .producto-ubicaciones {grid-template-columns:1fr;} .producto-proveedor-fila button {justify-self:end;}}

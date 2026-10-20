@@ -104,7 +104,7 @@ def datos_de_formulario(formulario):
     return normalizar_ficha(datos)
 
 
-def huella(producto, ficha, composiciones=None):
+def huella(producto, ficha, composiciones=None, adicionales=None):
     if producto is None:
         return "nuevo"
     datos = {c: getattr(producto, c) for c in CAMPOS_BASE}
@@ -114,6 +114,11 @@ def huella(producto, ficha, composiciones=None):
         if composiciones is None:
             composiciones = leer_composiciones([producto], inspect(producto).session, producto.organizacion_id).get(producto.id, [])
         datos["composiciones_combo"] = composiciones
+    from services.productos_datos_generales import cargar_datos_productos
+    if adicionales is None:
+        adicionales = cargar_datos_productos([producto], inspect(producto).session, producto.organizacion_id).get(producto.id, {})
+    if adicionales:
+        datos["datos_generales"] = adicionales
     return sha256(json.dumps(datos, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()
 
 
@@ -236,6 +241,8 @@ def construir_filas(productos, db_session, organizacion_id):
                 tabla.c.producto_id.in_([p.id for p in productos]))).mappings():
             perfiles_por_producto.setdefault(registro["producto_id"], set()).add(registro["tipo"])
     composiciones = leer_composiciones(productos, db_session, organizacion_id)
+    from services.productos_datos_generales import cargar_datos_productos
+    adicionales = cargar_datos_productos(productos, db_session, organizacion_id)
     filas = []
     for producto in productos:
         ficha = fichas.get(producto.id)
@@ -251,7 +258,7 @@ def construir_filas(productos, db_session, organizacion_id):
             receta = next((r for r in recetas if r["unidad_combo_id"] is None), recetas[0] if recetas else None)
             datos["componentes_combo"] = [{"sku": c["sku"], "cantidad": c["cantidad"]} for c in receta["componentes_combo"]] if receta else []
             datos["unidad_combo_id"] = receta["unidad_combo_id"] if receta else None
-        filas.append({"id": producto.id, "composiciones": recetas, "configurado": ficha is not None,
-            "datos": datos, "huella": huella(producto, ficha, recetas), "tipos_previos": tipos,
+        filas.append({"id": producto.id, "composiciones": recetas, "adicionales": adicionales.get(producto.id, {}), "configurado": ficha is not None,
+            "datos": datos, "huella": huella(producto, ficha, recetas, adicionales.get(producto.id, {})), "tipos_previos": tipos,
             "usos": [etiqueta for uso, etiqueta in USOS.items() if ficha and getattr(ficha, "habilita_" + uso)]})
     return preparado, filas
