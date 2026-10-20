@@ -1,0 +1,24 @@
+/* Solo controles marcados: el mismo ojo/engranaje en todos los módulos. */
+body .fierro-icon-action[data-fierro-icon] {
+  display:inline-flex!important;align-items:center;justify-content:center;vertical-align:middle;
+  box-sizing:border-box;flex:0 0 40px;width:40px!important;min-width:40px!important;max-width:40px!important;
+  height:40px!important;min-height:40px!important;padding:9px!important;margin:2px 3px 2px 0;
+  border:1px solid #bdd7e2!important;border-radius:8px!important;background:#eef7fa!important;color:#17576d!important;
+  line-height:1!important;text-decoration:none!important;list-style:none;cursor:pointer;gap:0!important;
+}
+body .fierro-icon-action[data-fierro-icon] svg {
+  display:block;flex:0 0 20px;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;pointer-events:none;
+}
+body .fierro-icon-action[data-fierro-icon] .fierro-action-label {
+  position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;
+  overflow:hidden!important;clip:rect(0,0,0,0)!important;clip-path:inset(50%);white-space:nowrap!important;border:0!important;
+}
+body .fierro-icon-action[data-fierro-icon]::before,
+body .fierro-icon-action[data-fierro-icon]::after {content:none!important}
+body .fierro-icon-action[data-fierro-icon]::-webkit-details-marker {display:none}
+body .fierro-icon-action[data-fierro-icon]:hover:not(:disabled):not([aria-disabled=true]) {background:#deeff5!important;border-color:#639eb4!important;color:#11475b!important}
+body .fierro-icon-action[data-fierro-icon]:focus-visible {outline:3px solid #3a9ec7!important;outline-offset:2px}
+body .fierro-icon-action[data-fierro-icon]:disabled,
+body .fierro-icon-action[data-fierro-icon][aria-disabled=true] {opacity:.5;cursor:not-allowed}
+@media(forced-colors:active) {body .fierro-icon-action[data-fierro-icon] {border-color:ButtonText!important;color:ButtonText!important}}

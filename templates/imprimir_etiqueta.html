@@ -220,13 +220,15 @@
         }
     }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='acciones_iconos.css', v='20261020-comun') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='acciones_iconos.js', v='20261020-comun') }}" defer></script>
 </head>
 <body class="preset-{{ preset_etiqueta }}">
     <div class="barra">
         <div class="titulo">Impresión de etiqueta - Pedido #{{ pedido.id }}</div>
         <div class="acciones">
             <button class="btn" onclick="window.print()">Imprimir</button>
-            <a class="btn" href="{{ url_original }}" target="_blank" rel="noopener noreferrer">Abrir original</a>
+            <a class="btn" href="{{ url_original }}" target="_blank" rel="noopener noreferrer" data-fierro-icon="ver">Abrir original</a>
         </div>
     </div>
 

@@ -43,7 +43,7 @@
                         <td>
                             {% if lote.estado == 'confirmado' %}
                             <details class="source-catalog fiscal-editor">
-                                <summary><span>Gestionar</span></summary>
+                                <summary data-fierro-icon="gestionar"><span>Gestionar</span></summary>
                                 <form class="comercial-form" method="post" action="{{ url_for('admin_facturacion.anular_lote_fiscal', lote_id=lote.id) }}" onsubmit="return window.confirm('¿Anular internamente este lote y cancelar sus borradores? Los registros y sus importes se conservarán.');">
                                     <label>Motivo de anulación<input required name="motivo" maxlength="1500" placeholder="Indicá el motivo"></label>
                                     <p class="muted">Cancela los borradores no autorizados de este lote.</p>

@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261006-admin-tree') }}">
     {% if usuario_logueado %}<link rel="stylesheet" href="{{ url_for('static', filename='notificaciones.css', v='20261016-panel') }}">{% endif %}
     {% block extra_head %}{% endblock %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='acciones_iconos.css', v='20261020-comun') }}">
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='acciones_iconos.js', v='20261020-comun') }}" defer></script>
 </head>
 <body>
 

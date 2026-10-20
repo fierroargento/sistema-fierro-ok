@@ -101,7 +101,7 @@
         if(g==="piezas"){const m=material(r.insumo_id);detalle.textContent=(m?m.nombre:"Revisar material")+" · "+formato(r.cantidad)+(r.modo==="longitud"?" × "+formato(r.largo_cm)+" cm":r.modo==="rendimiento"?" / "+formato(r.rendimiento)+" piezas por unidad":"")+" → "+formato(consumo(r))+" "+(m?m.unidad:"");}
         else detalle.textContent=formato(r.segundos)+" segundos por unidad";
         texto.append(nombre,detalle);const acciones=document.createElement("div");acciones.className="productos-actions";
-        const editar=document.createElement("button");editar.type="button";editar.className="secondary-link";editar.textContent="Editar";editar.addEventListener("click",()=>g==="piezas"?abrirPieza(i):abrirTarea(i));
+        const editar=document.createElement("button");editar.type="button";editar.className="secondary-link";editar.textContent="Editar";editar.dataset.fierroIcon="gestionar";editar.addEventListener("click",()=>g==="piezas"?abrirPieza(i):abrirTarea(i));
         const quitar=document.createElement("button");quitar.type="button";quitar.className="secondary-link";quitar.textContent="Quitar";quitar.addEventListener("click",()=>{datos.splice(i,1);renderListas();invalidar();});acciones.append(editar,quitar);fila.append(texto,acciones);lista.appendChild(fila);
       });
     }resumenConsumos();

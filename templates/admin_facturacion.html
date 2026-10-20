@@ -95,7 +95,7 @@
                         </td>
                         <td>{{ configuracion.estado }}</td>
                         <td>
-                            <details class="source-catalog fiscal-editor"><summary><span>Gestionar</span></summary><form class="comercial-form" method="post"
+                            <details class="source-catalog fiscal-editor"><summary data-fierro-icon="gestionar"><span>Gestionar</span></summary><form class="comercial-form" method="post"
                                   action="{{ url_for('admin_facturacion.guardar') }}">
                                 <input type="hidden"
                                        name="accion"
@@ -360,7 +360,7 @@
                         <td>$ {{ "%.2f"|format(borrador.total_centavos / 100) }}</td>
                         <td>
                             {% if borrador.estado in ["borrador", "listo"] %}
-                            <details class="source-catalog fiscal-editor"><summary><span>Gestionar</span></summary><form class="comercial-form" method="post"
+                            <details class="source-catalog fiscal-editor"><summary data-fierro-icon="gestionar"><span>Gestionar</span></summary><form class="comercial-form" method="post"
                                   action="{{ url_for('admin_facturacion.guardar') }}">
                                 <input type="hidden"
                                        name="accion"

@@ -65,6 +65,7 @@
       boton.className = "source-dialog-trigger";
       boton.setAttribute("data-source-dialog", "");
       boton.textContent = resumen ? resumen.textContent.trim() : "Gestionar";
+      boton.dataset.fierroIcon = resumen?.dataset.fierroIcon || "gestionar";
       const dialogo = document.createElement("dialog");
       dialogo.className = "source-dialog";
       if (detalle.classList.contains("proveedor-detalle")) dialogo.classList.add("provider-dialog");

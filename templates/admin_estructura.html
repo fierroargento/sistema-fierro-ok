@@ -299,7 +299,7 @@
         {% endif %}
 
         <h3>Tenant activo</h3>
-        <details class="estructura-editor"><summary>Gestionar organización</summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+        <details class="estructura-editor"><summary data-fierro-icon="gestionar">Gestionar organización</summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
               style="display:flex;gap:8px;flex-wrap:wrap;">
             <input type="hidden" name="accion" value="editar_organizacion">
             <input name="nombre" required maxlength="150" value="{{ organizacion.nombre }}">
@@ -317,7 +317,7 @@
         <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
         <div style="display:grid;gap:8px;margin-top:12px;">
             {% for unidad in unidades %}
-            <details class="estructura-editor"><summary>Gestionar unidad de negocio</summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+            <details class="estructura-editor"><summary data-fierro-icon="gestionar">Gestionar unidad de negocio</summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
                   style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <input type="hidden" name="unidad_id" value="{{ unidad.id }}">
                 <input name="nombre" required maxlength="150" value="{{ unidad.nombre }}">
@@ -356,7 +356,7 @@
                         <td>{{ mostrar_estado(modulo.estado) }}</td>
                         <td>{{ modulo.detalle or "-" }}</td>
                         <td>
-                            <details class="estructura-editor"><summary>Gestionar</summary><form method="post"
+                            <details class="estructura-editor"><summary data-fierro-icon="gestionar">Gestionar</summary><form method="post"
                                   action="{{ url_for('admin_estructura.guardar') }}">
                                 <input type="hidden" name="accion" value="estado_modulo">
                                 <input type="hidden" name="modulo_id" value="{{ modulo.id }}">
@@ -678,7 +678,7 @@
                         </td>
                         <td>{{ mostrar_estado(vinculo.estado) }}</td>
                         <td class="channel-actions-cell">
-                            <details class="estructura-editor channel-management"><summary>Gestionar</summary><h3>Asignación operativa</h3><form method="post"
+                            <details class="estructura-editor channel-management"><summary data-fierro-icon="gestionar">Gestionar</summary><h3>Asignación operativa</h3><form method="post"
                                   action="{{ url_for('admin_estructura.guardar') }}"
                                   class="channel-assignment-form">
                                 <input type="hidden"
@@ -788,7 +788,7 @@
                         <td>{{ catalogo.moneda }}</td>
                         <td>{{ mostrar_estado(catalogo.estado) }}</td>
                         <td>
-                            <details class="estructura-editor"><summary>Gestionar</summary><form method="post"
+                            <details class="estructura-editor"><summary data-fierro-icon="gestionar">Gestionar</summary><form method="post"
                                   action="{{ url_for('admin_estructura.guardar') }}">
                                 <input type="hidden" name="accion" value="estado_catalogo">
                                 <input type="hidden" name="catalogo_id" value="{{ catalogo.id }}">

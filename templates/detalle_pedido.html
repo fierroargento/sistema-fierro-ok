@@ -400,9 +400,9 @@ body { background: #f4f7f8; }
                 {% if pedido.comprobante_dux_archivo %}
                     {% set dux_valor = pedido.comprobante_dux_archivo|string %}
                     {% if dux_valor.startswith("http") or dux_valor.startswith("/archivos-uat/") %}
-                        <a href="{{ dux_valor }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                        <a href="{{ dux_valor }}" target="_blank" rel="noopener noreferrer" data-fierro-icon="ver">Ver archivo</a>
                     {% else %}
-                        <a href="{{ url_for('ver_etiqueta', nombre_archivo=dux_valor) }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                        <a href="{{ url_for('ver_etiqueta', nombre_archivo=dux_valor) }}" target="_blank" rel="noopener noreferrer" data-fierro-icon="ver">Ver archivo</a>
                     {% endif %}
                 {% else %}
                     -
@@ -413,9 +413,9 @@ body { background: #f4f7f8; }
                 {% if pedido.etiqueta_archivo %}
                     {% set etiqueta_valor = pedido.etiqueta_archivo|string %}
                     {% if etiqueta_valor.startswith("http") or etiqueta_valor.startswith("/archivos-uat/") %}
-                        <a href="{{ etiqueta_valor }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                        <a href="{{ etiqueta_valor }}" target="_blank" rel="noopener noreferrer" data-fierro-icon="ver">Ver archivo</a>
                     {% else %}
-                        <a href="{{ url_for('ver_archivo_pedido_compat', pedido_id=pedido.id, nombre_archivo=etiqueta_valor) }}" target="_blank" rel="noopener noreferrer">Ver archivo</a>
+                        <a href="{{ url_for('ver_archivo_pedido_compat', pedido_id=pedido.id, nombre_archivo=etiqueta_valor) }}" target="_blank" rel="noopener noreferrer" data-fierro-icon="ver">Ver archivo</a>
                     {% endif %}
                 {% elif pedido.empresa_envio == "Vía Cargo" %}
                     Etiqueta interna
@@ -431,7 +431,7 @@ body { background: #f4f7f8; }
             {% if "correo" in transporte_correo_accion and rol_actual in ["admin", "carga", "despacho"] %}
             <p style="margin-top:8px;">
                 <a href="{{ url_for('editar_pedido', id=pedido.id, paso=3) }}"
-                   class="inline-edit-link">
+                   class="inline-edit-link" data-fierro-icon="gestionar">
                     Gestionar envío Correo
                 </a>
             </p>
@@ -558,7 +558,7 @@ body { background: #f4f7f8; }
                 {% endif %}
                 <button type="button" class="btn btn-secundario apb-btn-secundario" onclick="copiarMensajeMLAPB(true)">Copiar mensaje</button>
                 {% if ml_link_detalle_venta(pedido) %}
-                <a href="{{ ml_link_detalle_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secundario apb-btn-secundario">Abrir venta en ML</a>
+                <a href="{{ ml_link_detalle_venta(pedido) }}" target="_blank" rel="noopener noreferrer" class="btn btn-secundario apb-btn-secundario" data-fierro-icon="ver">Abrir venta en ML</a>
                 {% endif %}
                 <span id="mensaje-ml-copiado" class="apb-copy-feedback"></span>
             </div>
@@ -998,7 +998,7 @@ body { background: #f4f7f8; }
                                    target="_blank"
                                    rel="noopener noreferrer"
                                    class="btn btn-secundario btn-wa-small"
-                                   style="text-decoration:none; color:#ffffff; padding:4px 8px; font-size:11px; line-height:1.1;">
+                                   style="text-decoration:none; color:#ffffff; padding:4px 8px; font-size:11px; line-height:1.1;" data-fierro-icon="ver">
                                     {% if media_recibida.mime_type == "application/pdf" %}
                                         Ver PDF
                                     {% elif media_recibida.mime_type and media_recibida.mime_type.startswith('image/') %}
@@ -1141,7 +1141,7 @@ body { background: #f4f7f8; }
                     <div style="display:flex; gap:6px; flex-shrink:0;">
                         <!-- Editar -->
                         <button onclick="document.getElementById('edit-nota-{{ nota.id }}').style.display='block'; this.parentElement.parentElement.querySelector('p').style.display='none'; this.parentElement.style.display='none';"
-                            style="font-size:0.78rem; padding:3px 8px; border:1px solid #94a3b8; border-radius:6px; background:white; cursor:pointer;">✏️</button>
+                            style="font-size:0.78rem; padding:3px 8px; border:1px solid #94a3b8; border-radius:6px; background:white; cursor:pointer;" aria-label="Editar nota" title="Editar nota" data-fierro-icon="gestionar">✏️</button>
                         <!-- Eliminar -->
                         <form method="POST" action="{{ url_for('eliminar_nota_pedido', id=pedido.id, nota_id=nota.id) }}"
                             onsubmit="return confirm('¿Eliminar esta nota?');" style="margin:0;">
@@ -1297,10 +1297,10 @@ body { background: #f4f7f8; }
                 </div>
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     {% if agregado.comprobante_dux_url %}
-                    <a href="{{ agregado.comprobante_dux_url }}" target="_blank" rel="noopener" class="btn btn-secundario" style="padding:5px 9px; font-size:0.75rem;">Ver DUX</a>
+                    <a href="{{ agregado.comprobante_dux_url }}" target="_blank" rel="noopener" class="btn btn-secundario" style="padding:5px 9px; font-size:0.75rem;" data-fierro-icon="ver">Ver DUX</a>
                     {% endif %}
                     {% if agregado.comprobante_pago_url %}
-                    <a href="{{ agregado.comprobante_pago_url }}" target="_blank" rel="noopener" class="btn btn-secundario" style="padding:5px 9px; font-size:0.75rem;">Ver pago</a>
+                    <a href="{{ agregado.comprobante_pago_url }}" target="_blank" rel="noopener" class="btn btn-secundario" style="padding:5px 9px; font-size:0.75rem;" data-fierro-icon="ver">Ver pago</a>
                     {% endif %}
                 </div>
             </div>

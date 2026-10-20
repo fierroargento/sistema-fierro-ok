@@ -58,7 +58,7 @@
       tarjeta.className = "producto-resumen-card";
       const titulo = document.createElement("h4"); titulo.textContent = p.dataset.titulo;
       const editar = document.createElement("button"); editar.type = "button";
-      editar.className = "secondary-link"; editar.textContent = "Editar";
+      editar.className = "secondary-link"; editar.textContent = "Editar";editar.dataset.fierroIcon="gestionar";
       editar.setAttribute("aria-label", "Editar " + p.dataset.titulo);
       editar.addEventListener("click", () => mostrarPaso(i));
       cabecera.append(titulo, editar); tarjeta.appendChild(cabecera);

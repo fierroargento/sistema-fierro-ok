@@ -1,6 +1,6 @@
 """La plantilla de Compras debe compilar con filtros estándar de Jinja."""
 from pathlib import Path
-from jinja2 import Environment, DictLoader
+from jinja2 import Environment, DictLoader, FileSystemLoader
 
 
 def test_compras_compila_sin_filtros_personalizados():
@@ -41,29 +41,43 @@ def test_ficha_proveedor_renderiza_datos_y_conserva_edicion_segura():
                  estado="activo", persona_contacto="Contacto", email="uat@example.invalid",
                  telefono="123", domicilio="Calle 123", localidad="Viedma", provincia="Río Negro",
                  codigo_postal="8500", observacion='Nota <script>sin ejecutar</script>')
-    html = Environment(autoescape=True).from_string(source[start:end]).render(
+    html = Environment(autoescape=True, loader=FileSystemLoader('templates')).from_string(source[start:end]).render(
         proveedores=[supplier], organizacion=O(nombre="UAT"), csrf_token_value="token-UAT",
+        contactos_proveedores={1: "456"}, contactos_preparados=True,
         url_for=lambda *a, **k: "/guardar")
     class Controls(HTMLParser):
         def __init__(self):
             super().__init__()
             self.inputs = []
             self.scripts = 0
+            self.summaries = []
+            self.current_summary = None
         def handle_starttag(self, tag, attrs):
             if tag == "input":
                 self.inputs.append(dict(attrs))
             if tag == "script":
                 self.scripts += 1
+            if tag == "summary":
+                self.current_summary = {"attrs": dict(attrs), "text": ""}
+        def handle_data(self, data):
+            if self.current_summary is not None:
+                self.current_summary["text"] += data
+        def handle_endtag(self, tag):
+            if tag == "summary" and self.current_summary is not None:
+                self.summaries.append(self.current_summary)
+                self.current_summary = None
     dom = Controls()
     dom.feed(html)
-    assert '<summary>Gestionar</summary>' in html
+    actions = {s['text'].strip(): s['attrs'].get('data-fierro-icon') for s in dom.summaries}
+    assert actions['Gestionar'] == 'gestionar'
     for title in ("Datos fiscales", "Contacto", "Domicilio", "Observaciones"):
         assert f"<h3>{title}</h3>" in html
     assert "30700000001" in html and "Calle 123" in html
-    assert '<summary>Editar proveedor</summary>' in html
+    assert actions['Editar proveedor'] == 'gestionar'
     def value(name):
         return next(i["value"] for i in dom.inputs if i.get("name") == name and "value" in i)
     assert value("proveedor_id") == "1"
     assert value("_csrf_token") == "token-UAT"
     assert value("razon_social") == "Proveedor <UAT>"
+    assert value("telefono_contacto") == "456"
     assert not dom.scripts

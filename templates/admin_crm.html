@@ -149,7 +149,7 @@
                     {% for cliente in clientes %}
                     <tr>
                         <td>{{ cliente.codigo }}</td>
-                        <td>{{ cliente.nombre }}<br><button type="button" data-cliente-datos="cliente-datos-{{ cliente.id }}">Ver datos</button>
+                        <td>{{ cliente.nombre }}<br><button type="button" data-cliente-datos="cliente-datos-{{ cliente.id }}" data-fierro-icon="ver">Ver datos</button>
                         {% set domicilio_cliente = domicilios_clientes.get(cliente.id, {}) %}
                         <dialog class="cliente-datos-dialog" id="cliente-datos-{{ cliente.id }}" aria-labelledby="cliente-datos-titulo-{{ cliente.id }}"><h2 id="cliente-datos-titulo-{{ cliente.id }}">{{ cliente.nombre }}</h2><dl>
                         <dt>DNI / CUIT</dt><dd>{{ cliente.documento or 'Sin informar' }}</dd>

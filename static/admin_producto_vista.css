@@ -44,7 +44,3 @@
 @media(max-width:600px){.producto-vista-dialog .pv-header,.producto-vista-dialog .pv-scroll {padding:16px}.producto-vista-dialog h2 {font-size:20px}.producto-vista-dialog .pv-grid {grid-template-columns:1fr 1fr;gap:16px}.producto-vista-dialog .pv-tabs {padding:8px}.producto-vista-dialog .pv-footer {padding:12px 16px;flex-wrap:wrap}}
 @media(max-width:390px){.producto-vista-dialog .pv-grid {grid-template-columns:1fr}}
 
-.productos-page .productos-table .producto-accion-icono {display:inline-flex;align-items:center;justify-content:center;flex:0 0 40px;width:40px;min-width:40px;height:40px;min-height:40px;padding:9px;border:1px solid #bdd7e2;border-radius:8px;background:#eef7fa;color:#17576d;cursor:pointer;box-sizing:border-box;line-height:1}
-.productos-page .producto-accion-icono svg {display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
-.productos-page .producto-accion-icono:hover:not(:disabled) {background:#deeff5;border-color:#639eb4;color:#11475b}
-.productos-page .producto-accion-icono:focus-visible {outline:3px solid #3a9ec7;outline-offset:2px}

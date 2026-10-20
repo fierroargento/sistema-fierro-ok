@@ -46,7 +46,7 @@
 {% endif %}{% endif %}{% endfor %}{% endfor %}
 {% if disponibilidad.partes == 0 %}<p class="production-lot-note">No hay unidades buenas pendientes de asignar a lotes.</p>{% endif %}
 {% if lotes_produccion %}<div class="table-wrap"><table class="production-lot-table"><thead><tr><th>Lote / origen</th><th>Cantidad</th><th>Calidad</th><th>Inventario</th><th>Acciones</th></tr></thead><tbody>
-{% for lote in lotes_produccion %}<tr><td><strong>{{ lote.codigo }}</strong><small class="table-subline">Orden #{{ lote.orden_produccion_id }} · Parte #{{ lote.parte_produccion_id }}</small></td><td>{{ cantidad_limpia(lote.cantidad) }}</td><td>{{ {'cuarentena':'En cuarentena', 'aprobado_interno':'Aprobado internamente', 'rechazado_interno':'Rechazado internamente'}.get(lote.estado, lote.estado) }}</td><td>Stock: bloqueado</td><td><button type="button" data-production-dialog="production-lot-{{ lote.id }}">Gestionar</button></td></tr>{% endfor %}
+{% for lote in lotes_produccion %}<tr><td><strong>{{ lote.codigo }}</strong><small class="table-subline">Orden #{{ lote.orden_produccion_id }} · Parte #{{ lote.parte_produccion_id }}</small></td><td>{{ cantidad_limpia(lote.cantidad) }}</td><td>{{ {'cuarentena':'En cuarentena', 'aprobado_interno':'Aprobado internamente', 'rechazado_interno':'Rechazado internamente'}.get(lote.estado, lote.estado) }}</td><td>Stock: bloqueado</td><td><button type="button" data-production-dialog="production-lot-{{ lote.id }}" data-fierro-icon="gestionar">Gestionar</button></td></tr>{% endfor %}
 </tbody></table></div>
 {% for lote in lotes_produccion %}
 <dialog class="production-dialog" id="production-lot-{{ lote.id }}" aria-labelledby="production-lot-title-{{ lote.id }}">
