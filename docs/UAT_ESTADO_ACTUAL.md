@@ -1492,3 +1492,13 @@ UAT inmediato (seguir solo carga manual):
 3. Ctrl+F5 → Base de Datos → Productos → Nuevo/Gestionar → Composición y utilidad.
 4. Usar ficha ficticia: costo sin IVA 1000, IVA 21, ARS. La vista debe mostrar IVA 210 y total con IVA 1210; volver/revisar/cancelar y comprobar que no se guardó nada.
 5. Guardar y reabrir: deben conservarse 1000/21/ARS. Probar otra ficha ficticia en USD con 12,34 e IVA 10,5; verificar moneda y valores, sin activar costos ni publicar.
+
+
+## 2026-10-20 · Descripción opcional e independiente del nombre
+
+- Corrección solicitada al revisar el primer paso del asistente: Nombre identifica al producto; Descripción agrega detalles y es opcional. Se elimina la copia automática del nombre a una descripción vacía en la normalización común de carga manual y lotes.
+- Etiqueta Descripción (opcional), con ayuda para completar detalles/características o dejar vacía. Alta, edición y reapertura conservan vacío; cambiar el nombre no rellena ni modifica la descripción. Se permite borrar una descripción sin borrar el nombre.
+- Producto.descripcion conserva el mismo campo y puede guardar cadena vacía; no requiere modificación de esquema. No se agrega otro nombre/SKU ni otra descripción paralela.
+- Textos anteriores conservados: no se borran masivamente coincidencias nombre/descripción porque pueden haber sido ingresadas expresamente. La compatibilidad inicial de productos antiguos sin ficha sigue usando su dato histórico como propuesta de nombre; esta corrección elimina la copia inversa nombre → descripción en fichas guardadas.
+- 88 pruebas del maestro y datos generales aprobadas. Nuevos casos de alta/edición/reapertura independiente, borrado explícito, alta masiva sin descripción y ruta Flask real con nombre requerido y descripción vacía. Sin cambios de producción, conexiones o stock.
+- UAT: desplegar el commit de integración y Ctrl+F5 → Base de Datos → Productos → Nuevo producto. Completar nombre y dejar Descripción vacía, guardar y reabrir; debe continuar vacía. Agregar detalles y luego editar solo el nombre: los detalles se conservan. Esta corrección no requiere Shell ni otra migración; la preparación del bloque previo de costo/IVA/moneda sigue siendo necesaria si todavía no se ejecutó.

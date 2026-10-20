@@ -693,3 +693,50 @@ def test_ruta_combo_exige_componentes_y_restaura_datos_ante_error(entorno,monkey
     assert respuesta.status_code==200 and 'ficha guardada correctamente' in respuesta.text
     assert Producto.query.count()==2 and ComboProductoComponente.query.one().cantidad==2
     assert 'Productos que componen el combo' in respuesta.text and 'Agregar componente' in respuesta.text
+
+
+def test_descripcion_opcional_independiente_del_nombre(entorno):
+    _,org,_,_=entorno;preparar(db.engine)
+    p=crear(org,nombre='Producto con nombre',descripcion='')
+    assert p.descripcion==''
+    assert ProductoFichaMaestra.query.filter_by(producto_id=p.id).one().nombre=='Producto con nombre'
+    cambiar(p,nombre='Nombre actualizado',descripcion='')
+    assert p.descripcion==''
+    cambiar(p,descripcion='Acero pintado, terminación mate.')
+    cambiar(p,nombre='Otro nombre')
+    assert p.descripcion=='Acero pintado, terminación mate.'
+    cambiar(p,descripcion='')
+    assert p.descripcion==''
+    _,filas=construir_filas([p],db.session,org.id)
+    assert filas[0]['datos']['descripcion']=='' and filas[0]['datos']['nombre']=='Otro nombre'
+
+
+def test_lote_alta_sin_descripcion_no_copia_nombre(entorno):
+    _,org,_,_=entorno;preparar(db.engine)
+    d=datos('OPCIONAL-LOTE');d.pop('descripcion')
+    v=preview(org,[d]);assert not v[0]['errores']
+    aplicar(org,v)
+    p=Producto.query.filter_by(sku='OPCIONAL-LOTE').one()
+    assert p.descripcion==''
+    aplicar(org,preview(org,[{'sku':p.sku,'nombre':'Nombre desde lote'}]))
+    assert p.descripcion==''
+
+
+def test_ruta_descripcion_opcional_alta_y_edicion(entorno):
+    app,org,_,_=entorno;preparar(db.engine);configurar_rutas(app,org)
+    cliente=app.test_client()
+    r=cliente.post('/admin/productos',data=form_datos(sku='OPCIONAL-WEB',descripcion=''),follow_redirects=True)
+    assert r.status_code==200
+    p=Producto.query.filter_by(sku='OPCIONAL-WEB').one()
+    assert p.descripcion=='' and 'Descripción (opcional)' in r.text
+    assert 'se conserva el nombre como descripción' not in r.text
+    _,filas=construir_filas([p],db.session,org.id)
+    f=form_datos(sku=p.sku,nombre='Identificación propia',descripcion='Detalles del artículo')
+    f.update(accion='editar_producto',producto_id=str(p.id),huella=filas[0]['huella'])
+    assert cliente.post('/admin/productos',data=f).status_code==302
+    assert p.descripcion=='Detalles del artículo'
+    _,filas=construir_filas([p],db.session,org.id)
+    f.update(huella=filas[0]['huella'],descripcion='')
+    assert cliente.post('/admin/productos',data=f).status_code==302
+    assert p.descripcion==''
+    assert ProductoFichaMaestra.query.filter_by(producto_id=p.id).one().nombre=='Identificación propia'

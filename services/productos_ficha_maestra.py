@@ -51,7 +51,6 @@ def normalizar_ficha(datos):
     salida["permitir_stock_negativo"] = booleano(datos.get("permitir_stock_negativo", False), "Permitir stock negativo")
     if salida["no_stockeable"] and salida["permitir_stock_negativo"]:
         raise ValueError("No stockeable y Permitir stock negativo son opciones incompatibles. Elegí una sola.")
-    salida["descripcion"] = salida["descripcion"] or salida["nombre"]
     for campo in ("activo",) + tuple("habilita_" + uso for uso in USOS):
         salida[campo] = booleano(datos.get(campo), campo.replace("_", " "))
     for campo in CAMPOS_LOGISTICA:
