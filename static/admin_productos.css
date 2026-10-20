@@ -117,3 +117,5 @@
   .producto-dialog .producto-dialog-footer { flex-wrap:wrap; }
   .producto-dialog .producto-dialog-footer > .productos-actions { margin-left:auto; gap:8px; }
 }
+
+.producto-dialog .producto-costo-preview { background:#edf6f9; border:1px solid #d5e8ee; border-radius:8px; padding:12px; color:#124e64; font-size:.88rem; line-height:1.5; }

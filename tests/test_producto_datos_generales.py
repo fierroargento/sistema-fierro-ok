@@ -15,6 +15,9 @@ from models.catalogo_producto import CatalogoProducto
 from models.compras import ProveedorCompra
 from models.sucursal_operativa import SucursalOperativa
 from models.producto_datos_generales import ProductoDatosGenerales, ProductoProveedor, ProductoUbicacion, ProductoCodigoBarras, ProductoImagenMaestra, TABLAS_DATOS_PRODUCTO
+from models.costo_producto_version import CostoProductoVersion
+from models.costo_producto_detalle import CostoProductoDetalle
+from models.usuario_sistema import UsuarioSistema
 from scripts.preparar_datos_productos import preparar
 from services.productos_datos_generales import leer_formulario_completo, guardar_datos_generales, exigir_ubicacion_producto
 from services.productos_ficha_maestra import construir_filas
@@ -24,7 +27,7 @@ from test_producto_ficha_maestra import entorno, crear, cambiar, configurar_ruta
 @pytest.fixture()
 def completo(entorno):
     app,org,otra,unidad=entorno
-    db.metadata.create_all(db.engine,tables=[ProveedorCompra.__table__,SucursalOperativa.__table__])
+    db.metadata.create_all(db.engine,tables=[ProveedorCompra.__table__,SucursalOperativa.__table__,UsuarioSistema.__table__,CostoProductoVersion.__table__,CostoProductoDetalle.__table__])
     preparar(db.engine)
     p=ProveedorCompra(organizacion_id=org.id,codigo='PROV-1',razon_social='Proveedor Uno',estado='activo')
     q=ProveedorCompra(organizacion_id=org.id,codigo='PROV-2',razon_social='Proveedor Dos',estado='activo')
@@ -35,7 +38,7 @@ def completo(entorno):
     db.session.add_all([p,q,x,a,b,z]);db.session.commit()
     yield app,org,otra,unidad,p,q,x,a,b,z
     db.session.rollback()
-    db.metadata.drop_all(db.engine,tables=list(reversed(TABLAS_DATOS_PRODUCTO))+[ProveedorCompra.__table__,SucursalOperativa.__table__])
+    db.metadata.drop_all(db.engine,tables=list(reversed(TABLAS_DATOS_PRODUCTO))+[ProveedorCompra.__table__,SucursalOperativa.__table__,CostoProductoDetalle.__table__,CostoProductoVersion.__table__,UsuarioSistema.__table__])
 
 
 def formulario(**cambios):
@@ -237,8 +240,142 @@ def test_preparacion_en_proceso_independiente_sin_importar_app(tmp_path):
     from models.organizacion import Organizacion
     from models.fuentes_costo_productivo import InsumoProductivo
     engine=create_engine('sqlite:///'+str(tmp_path/'prueba.sqlite'))
-    db.metadata.create_all(engine,tables=[Organizacion.__table__,Producto.__table__,InsumoProductivo.__table__,ProveedorCompra.__table__,SucursalOperativa.__table__])
+    db.metadata.create_all(engine,tables=[Organizacion.__table__,Producto.__table__,InsumoProductivo.__table__,ProveedorCompra.__table__,SucursalOperativa.__table__,UsuarioSistema.__table__,CostoProductoVersion.__table__,CostoProductoDetalle.__table__])
     codigo="from sqlalchemy import create_engine; from scripts.preparar_datos_productos import preparar; import sys; print(preparar(create_engine(sys.argv[1]))); assert 'app' not in sys.modules"
     r=subprocess.run([sys.executable,'-c',codigo,str(engine.url)],capture_output=True,text=True,env=os.environ)
     assert r.returncode==0,r.stdout+r.stderr
     assert 'Ficha completa preparada' in r.stdout
+
+
+def costo_form(**cambios):
+    return formulario(costo_maestro_presentado='1',precio_costo='1000,25',iva_pct='21',moneda_costo='ARS',**cambios)
+
+
+def test_costo_reutiliza_historial_y_conserva_vigencia(completo):
+    from services.productos_datos_generales import cargar_datos_productos
+    _,org,*_=completo
+    p=crear(org)
+    guardar(p,costo_form())
+    g=ProductoDatosGenerales.query.one(); version=db.session.get(CostoProductoVersion,g.costo_carga_id)
+    assert version.costo_total_centavos==100025 and version.moneda=='ARS'
+    assert version.tipo=='manual' and version.estado=='preparatorio' and not version.vigente
+    assert len(version.detalles)==1 and version.detalles[0].cantidad==1
+    assert version.detalles[0].costo_unitario_centavos==100025
+    assert g.iva_pct==Decimal('21')
+    dto=cargar_datos_productos([p],db.session,org.id)[p.id]
+    assert dto['precio_costo']=='1000.25' and dto['moneda_costo']=='ARS'
+    # Volver a guardar, o editar desde un cliente previo, no duplica ni borra costos.
+    guardar(p,costo_form());guardar(p,formulario(marca='Otra'))
+    assert CostoProductoVersion.query.count()==1
+    assert g.costo_carga_id==version.id and g.iva_pct==21
+    version.estado='vigente';version.vigente=True;db.session.commit()
+    f=costo_form();f['precio_costo']='12,34';f['moneda_costo']='USD';f['iva_pct']='10,5'
+    guardar(p,f)
+    nueva=db.session.get(CostoProductoVersion,g.costo_carga_id)
+    assert nueva.id!=version.id and nueva.moneda=='USD' and nueva.costo_total_centavos==1234
+    assert version.vigente and version.estado=='vigente' and version.costo_total_centavos==100025
+    assert not nueva.vigente and nueva.estado=='preparatorio'
+    # IVA no se suma a la base ni se interpreta USD como ARS.
+    assert g.iva_pct==Decimal('10.5') and CostoProductoVersion.query.count()==2
+
+
+@pytest.mark.parametrize('campo,valor',[
+    ('precio_costo','-1'),('precio_costo','NaN'),('precio_costo','Infinity'),('precio_costo','1e3'),
+    ('precio_costo','1000.001'),('precio_costo','1.234,56'),('precio_costo','1000000000000'),
+    ('iva_pct','-0.1'),('iva_pct','100.1'),('iva_pct','NaN'),('iva_pct','1.0000001'),('moneda_costo','EUR')])
+def test_costo_iva_moneda_invalidos_rechazados(completo,campo,valor):
+    f=costo_form();f[campo]=valor
+    with pytest.raises(ValueError): leer_formulario_completo(f,[])
+    assert CostoProductoVersion.query.count()==0
+
+
+def test_costo_vacio_cero_y_quitar_no_borra_historial(completo):
+    _,org,*_=completo;p=crear(org)
+    f=costo_form();f['precio_costo']='';f['iva_pct']=''
+    guardar(p,f);g=ProductoDatosGenerales.query.one()
+    assert g.costo_carga_id is None and g.iva_pct is None
+    f['precio_costo']='0';f['iva_pct']='0';guardar(p,f)
+    v=db.session.get(CostoProductoVersion,g.costo_carga_id)
+    assert v.costo_total_centavos==0 and g.iva_pct==0
+    f['precio_costo']='';guardar(p,f)
+    assert g.costo_carga_id is None and CostoProductoVersion.query.count()==1
+
+
+def test_costo_rollback_integral_y_huella_concurrente(completo):
+    _,org,*_=completo;p=crear(org)
+    guardar(p,costo_form());_,filas=construir_filas([p],db.session,org.id);anterior=filas[0]
+    f=costo_form();f['precio_costo']='999,99';guardar(p,f)
+    with pytest.raises(ValueError,match='cambi'):
+        from services.productos_ficha_maestra import guardar_ficha
+        guardar_ficha(anterior['datos'],Producto=Producto,db_session=db.session,organizacion_id=org.id,
+            producto_id=p.id,huella_esperada=anterior['huella'])
+    db.session.rollback()
+    # La ruta rechaza íntegramente un costo mal formado: no crea el SKU.
+    app=completo[0];configurar_rutas(app,org)
+    datos=form_datos(sku='COSTO-RECHAZADO')|costo_form().to_dict();datos['precio_costo']='-1'
+    respuesta=app.test_client().post('/admin/productos',data=datos)
+    assert respuesta.status_code==200 and b'Precio de costo' in respuesta.data
+    assert Producto.query.filter_by(sku='COSTO-RECHAZADO').count()==0
+    assert CostoProductoVersion.query.count()==2
+
+
+def test_costo_no_lee_otra_organizacion_y_rechaza_vinculo_ajeno(completo):
+    from services.productos_datos_generales import cargar_datos_productos
+    _,org,otra,*_=completo;p=crear(org,sku='PROPIO');q=crear(otra,sku='AJENO-COSTO')
+    guardar(q,costo_form());g_ajeno=ProductoDatosGenerales.query.filter_by(producto_id=q.id).one()
+    guardar(p,formulario());g=ProductoDatosGenerales.query.filter_by(producto_id=p.id).one()
+    g.costo_carga_id=g_ajeno.costo_carga_id;db.session.commit()
+    assert cargar_datos_productos([p],db.session,org.id)[p.id]['precio_costo']==''
+    with pytest.raises(ValueError,match='no corresponde'):
+        guardar(p,costo_form())
+    db.session.rollback()
+
+
+def test_migra_datos_anteriores_sin_perder_campos(tmp_path):
+    from sqlalchemy import create_engine,text
+    from models.organizacion import Organizacion
+    from models.fuentes_costo_productivo import InsumoProductivo
+    engine=create_engine('sqlite:///'+str(tmp_path/'anterior.sqlite'))
+    db.metadata.create_all(engine,tables=[Organizacion.__table__,Producto.__table__,InsumoProductivo.__table__,
+        ProveedorCompra.__table__,SucursalOperativa.__table__,UsuarioSistema.__table__,CostoProductoVersion.__table__,CostoProductoDetalle.__table__])
+    with engine.begin() as c:
+        c.execute(text("CREATE TABLE producto_datos_generales (producto_id INTEGER PRIMARY KEY, organizacion_id INTEGER NOT NULL, rubro VARCHAR(120) NOT NULL, subrubro VARCHAR(120) NOT NULL, marca VARCHAR(120) NOT NULL, utilidad_pct NUMERIC(12,6), utilidad_base VARCHAR(20) NOT NULL, sucursales_definidas BOOLEAN NOT NULL, depositos_definidos BOOLEAN NOT NULL, revision INTEGER NOT NULL)"))
+        c.execute(text("INSERT INTO producto_datos_generales VALUES (1,1,'Ferretería','','Fierro',30,'costo',0,0,7)"))
+    preparar(engine);preparar(engine)
+    with engine.connect() as c:
+        fila=c.execute(text('SELECT * FROM producto_datos_generales')).mappings().one()
+        assert fila['rubro']=='Ferretería' and fila['revision']==7 and fila['utilidad_pct']==30
+        assert fila['costo_carga_id'] is None and fila['iva_pct'] is None and fila['moneda_costo']=='ARS'
+
+
+def test_ruta_guarda_costo_y_reabre_con_moneda_iva(completo):
+    from models.perfil_costeo_producto import PerfilCosteoProducto
+    app,org,*_=completo;configurar_rutas(app,org)
+    form=form_datos(sku='COSTO-USD')|costo_form().to_dict()
+    form.update(precio_costo='12,34',iva_pct='10,5',moneda_costo='USD')
+    cliente=app.test_client();r=cliente.post('/admin/productos',data=form)
+    assert r.status_code==302
+    p=Producto.query.filter_by(sku='COSTO-USD').one()
+    v=CostoProductoVersion.query.filter_by(producto_id=p.id).one()
+    assert v.costo_total_centavos==1234 and v.moneda=='USD' and not v.vigente
+    assert PerfilCosteoProducto.query.filter_by(producto_id=p.id,unidad_negocio_id=None).one().tipo=='simple'
+    r=cliente.get(r.location)
+    assert b'"precio_costo": "12.34"' in r.data and b'"moneda_costo": "USD"' in r.data
+    assert b'"iva_pct": "10.500000"' in r.data
+
+
+def test_fallo_despues_de_crear_costo_revierte_toda_la_ficha(completo,monkeypatch):
+    import services.costos_productos as costos
+    from models.perfil_costeo_producto import PerfilCosteoProducto
+    original=costos.crear_version_costo
+    def fallar(**datos):
+        original(**datos)
+        raise ValueError('Prueba de rechazo posterior al costo')
+    monkeypatch.setattr(costos,'crear_version_costo',fallar)
+    app,org,*_=completo;configurar_rutas(app,org)
+    form=form_datos(sku='ROLLBACK-COSTO')|costo_form().to_dict()
+    r=app.test_client().post('/admin/productos',data=form)
+    assert r.status_code==200 and b'rechazo posterior' in r.data
+    assert Producto.query.count()==0 and ProductoDatosGenerales.query.count()==0
+    assert CostoProductoVersion.query.count()==0 and CostoProductoDetalle.query.count()==0
+    assert PerfilCosteoProducto.query.count()==0

@@ -9,12 +9,18 @@ class ProductoDatosGenerales(db.Model):
     rubro = db.Column(db.String(120), nullable=False, default='')
     subrubro = db.Column(db.String(120), nullable=False, default='')
     marca = db.Column(db.String(120), nullable=False, default='')
+    # El importe vive en el historial de Costos; aquí solo se referencia.
+    costo_carga_id = db.Column(db.Integer, db.ForeignKey('costo_producto_version.id'))
+    moneda_costo = db.Column(db.String(3), nullable=False, default='ARS', server_default='ARS')
+    iva_pct = db.Column(db.Numeric(9, 6))
     utilidad_pct = db.Column(db.Numeric(12, 6))
     utilidad_base = db.Column(db.String(20), nullable=False, default='costo')
     sucursales_definidas = db.Column(db.Boolean, nullable=False, default=False)
     depositos_definidos = db.Column(db.Boolean, nullable=False, default=False)
     revision = db.Column(db.Integer, nullable=False, default=1)
     __table_args__ = (
+        db.CheckConstraint("moneda_costo IN ('ARS','USD')", name='ck_producto_moneda_costo'),
+        db.CheckConstraint("iva_pct IS NULL OR (iva_pct >= 0 AND iva_pct <= 100)", name='ck_producto_iva_pct'),
         db.CheckConstraint("utilidad_base IN ('costo','precio_venta')", name='ck_producto_utilidad_base'),
         db.CheckConstraint("utilidad_pct IS NULL OR (utilidad_pct >= 0 AND (utilidad_base != 'precio_venta' OR utilidad_pct < 100))", name='ck_producto_utilidad_pct'),
         db.CheckConstraint("subrubro = '' OR rubro != ''", name='ck_producto_subrubro_padre'),

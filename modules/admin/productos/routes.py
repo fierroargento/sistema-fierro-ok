@@ -80,7 +80,7 @@ def crear_blueprint_productos(*, dependencias):
                     producto = guardar_ficha(datos_de_formulario(request.form), Producto=Producto,
                         db_session=db.session, organizacion_id=(organizacion.id),
                         producto_id=producto_id, huella_esperada=request.form.get("huella", ""), commit=False)
-                    guardar_datos_generales(producto, adicionales, db.session)
+                    guardar_datos_generales(producto, adicionales, db.session, usuario=usuario)
                     db.session.commit()
                     mensaje = f"{producto.sku}: ficha guardada correctamente."
                     filtro_sku = producto.sku

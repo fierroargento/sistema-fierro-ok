@@ -58,6 +58,19 @@
     const precio=venta?100/(1-pct/100):100*(1+pct/100);
     destino.textContent="Ejemplo sin gastos ni impuestos: costo $100 → precio $"+(Math.ceil(precio*100)/100).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2})+". Es una referencia, no un precio de publicación.";
   }
+  function ejemploCosto() {
+    const costo=form.elements.precio_costo.value.trim(), iva=form.elements.iva_pct.value.trim();
+    const moneda=form.elements.moneda_costo.value;
+    const importe=Number(costo.replace(",", ".")), tasa=Number(iva.replace(",", "."));
+    const destino=document.getElementById("producto-costo-ejemplo");
+    if (!costo) {destino.textContent="Costo sin definir. Podés completarlo más adelante.";return;}
+    if (!Number.isFinite(importe)||importe<0||importe>999999999999.99||!Number.isFinite(tasa)||tasa<0||tasa>100) {
+      destino.textContent="Revisá el costo y el porcentaje de IVA.";return;
+    }
+    const formato=n=>n.toLocaleString("es-AR",{style:"currency",currency:moneda,currencyDisplay:"code"});
+    destino.textContent=iva ? "Sin IVA: "+formato(importe)+" · IVA: "+formato(importe*tasa/100)+" · Con IVA: "+formato(importe*(1+tasa/100)) :
+      "Costo sin IVA: "+formato(importe)+" · IVA sin definir; no se calcula el total con IVA.";
+  }
   function renderFotos() {
     fotos.replaceChildren();
     const filas=guardadas.map(f=>({...f,clave:String(f.id)})).concat(nuevas.map((f,n)=>({clave:"nueva:"+n,nombre:f.name,archivo:f})));
@@ -98,12 +111,17 @@
   form.elements.rubro.addEventListener("input",clasificaciones);
   form.elements.utilidad_pct.addEventListener("input",ejemploUtilidad);
   form.elements.utilidad_base.addEventListener("change",ejemploUtilidad);
+  for (const campo of ["precio_costo", "iva_pct", "moneda_costo"]) {
+    form.elements[campo].addEventListener("input", ejemploCosto);
+    form.elements[campo].addEventListener("change", ejemploCosto);
+  }
   window.productosDatos = {
     abrir(fila, fallido) {
       const d=fallido || (fila && fila.adicionales) || {};
       error.hidden=true;proveedores.replaceChildren();barras.replaceChildren();
-      for(const campo of ["rubro","subrubro","marca","utilidad_pct"]) form.elements[campo].value=d[campo]||"";
+      for(const campo of ["rubro","subrubro","marca","utilidad_pct","precio_costo","iva_pct"]) form.elements[campo].value=d[campo]||"";
       form.elements.utilidad_base.value=d.utilidad_base||"costo";
+      form.elements.moneda_costo.value=d.moneda_costo||"ARS";
       const prov=fallido?parser(d.proveedores_json,[]):(d.proveedores||[]);prov.forEach(agregarProveedor);
       const codigos=fallido?parser(d.codigos_barras_json,[]):(d.codigos_barras||[]);codigos.forEach(agregarBarra);
       for(const campo of ["sucursales","depositos"]) {
@@ -118,7 +136,7 @@
       principal=fallido?d.imagen_principal:(String((guardadas.find(f=>f.principal)||{}).id||""));
       const aviso=document.getElementById("producto-fotos-aviso");aviso.hidden=!(fallido&&Number(d.imagenes_nuevas_cantidad)>0);
       aviso.textContent="Volvé a seleccionar las fotos nuevas: el guardado fue rechazado y no se cargaron.";
-      renderFotos();clasificaciones();ejemploUtilidad();
+      renderFotos();clasificaciones();ejemploUtilidad();ejemploCosto();
     },
     validar(paso) {
       error.hidden=true;
@@ -128,6 +146,14 @@
       if((!paso || paso === "imagenes") && new Set(codigos).size!==codigos.length)return avisar("Hay códigos de barras repetidos.", "imagenes");
       if((!paso || paso === "comercial") && form.elements.subrubro.value.trim()&&!form.elements.rubro.value.trim())return avisar("Elegí el rubro del subrubro.", "comercial");
       if(!paso || paso === "costos") {
+        for (const [campo, nombre, maximo, decimales] of [["precio_costo","Precio de costo",999999999999.99,2],["iva_pct","IVA",100,6]]) {
+          const texto=form.elements[campo].value.trim().replace(",", ".");
+          const valor=Number(texto);
+          const patron=new RegExp("^(?:\\d+(?:\\.\\d{1,"+decimales+"})?|\\.\\d{1,"+decimales+"})$");
+          if(texto && (!patron.test(texto)||!Number.isFinite(valor)||valor<0||valor>maximo))
+            return avisar(nombre+": revisá el valor. Usá hasta "+decimales+" decimales, sin separadores de miles.", "costos");
+        }
+        if(!["ARS","USD"].includes(form.elements.moneda_costo.value)) return avisar("Elegí Pesos (ARS) o Dólares (USD).", "costos");
         const texto=form.elements.utilidad_pct.value.trim(), numero=Number(texto.replace(",", "."));
         if(texto && (!/^(?:\d+(?:[.,]\d{1,6})?|[.,]\d{1,6})$/.test(texto) || !Number.isFinite(numero) || numero<0 || numero>999999.999999 || (form.elements.utilidad_base.value==="precio_venta" && numero>=100)))
           return avisar("Revisá la utilidad: usá un porcentaje positivo o cero, con hasta seis decimales. Sobre precio de venta debe ser menor al 100%.", "costos");

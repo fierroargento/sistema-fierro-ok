@@ -67,6 +67,8 @@ def leer_formulario_completo(formulario, archivos):
         if not numero.is_finite() or numero < 0 or numero > Decimal('999999.999999') or (base == 'precio_venta' and numero >= 100) or numero != numero.quantize(Decimal('0.000001')):
             raise ValueError('Usá una utilidad positiva o cero, con hasta seis decimales; sobre precio de venta debe ser menor al 100%.')
         datos['utilidad_pct'] = numero
+    from services.productos_costo_maestro import leer_costo_manual
+    datos.update(leer_costo_manual(formulario))
     proveedores = _json(formulario, 'proveedores_json', [])
     if len(proveedores) > 20:
         raise ValueError('El producto admite hasta 20 proveedores.')
@@ -130,8 +132,10 @@ def cargar_datos_productos(productos, db_session, organizacion_id):
     ids = [p.id for p in productos]
     salida = {}
     for general in db_session.query(General).filter(General.organizacion_id==organizacion_id, General.producto_id.in_(ids)).populate_existing():
-        salida[general.producto_id] = {c:getattr(general,c) for c in ('rubro','subrubro','marca','utilidad_base','sucursales_definidas','depositos_definidos','revision')}
-        salida[general.producto_id].update(utilidad_pct=str(general.utilidad_pct) if general.utilidad_pct is not None else '', proveedores=[],sucursales=[],depositos=[],codigos_barras=[],imagenes=[])
+        salida[general.producto_id] = {c:getattr(general,c) for c in ('rubro','subrubro','marca','costo_carga_id','moneda_costo','utilidad_base','sucursales_definidas','depositos_definidos','revision')}
+        salida[general.producto_id].update(iva_pct=str(general.iva_pct) if general.iva_pct is not None else '', utilidad_pct=str(general.utilidad_pct) if general.utilidad_pct is not None else '', proveedores=[],sucursales=[],depositos=[],codigos_barras=[],imagenes=[])
+    from services.productos_costo_maestro import cargar_costos_manuales
+    cargar_costos_manuales(salida, db_session, organizacion_id)
     for modelo, clave in ((Proveedor,'proveedores'),(Ubicacion,'ubicaciones'),(Barras,'codigos_barras'),(Imagen,'imagenes')):
         for registro in db_session.query(modelo).filter(modelo.organizacion_id==organizacion_id,modelo.producto_id.in_(ids)).order_by(modelo.id).populate_existing():
             d = salida.get(registro.producto_id)
@@ -144,7 +148,7 @@ def cargar_datos_productos(productos, db_session, organizacion_id):
     return salida
 
 
-def guardar_datos_generales(producto, datos, db_session):
+def guardar_datos_generales(producto, datos, db_session, *, usuario=None):
     if datos is None: return
     if not esquema_datos_disponible(db_session):
         raise ValueError('Falta preparar la ficha completa de productos en staging. No se guardó ningún cambio.')
@@ -193,6 +197,8 @@ def guardar_datos_generales(producto, datos, db_session):
     if general is None:
         general=General(producto_id=producto.id,organizacion_id=org,revision=1);db_session.add(general)
     else: general.revision+=1
+    from services.productos_costo_maestro import guardar_costo_manual
+    guardar_costo_manual(producto, general, datos, db_session, usuario=usuario)
     for campo in ('rubro','subrubro','marca','utilidad_pct','utilidad_base','sucursales_definidas','depositos_definidos'):
         setattr(general,campo,datos[campo])
     for modelo in (Proveedor,Ubicacion,Barras):

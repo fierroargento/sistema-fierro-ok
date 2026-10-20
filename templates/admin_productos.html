@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261019-maestro') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261020-asistente-producto') }}">
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261020-asistente-producto') }}" defer></script>
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261020-asistente-producto') }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261020-costo-iva-moneda') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261020-costo-iva-moneda') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261020-costo-iva-moneda') }}" defer></script>
 {% endblock %}
 {% block content %}
 {% macro valor_cambio(campo, valor) -%}

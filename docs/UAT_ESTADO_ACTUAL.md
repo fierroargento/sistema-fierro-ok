@@ -1460,3 +1460,35 @@ Siguiente UAT, exclusivamente alta manual:
 3. Seleccionar Combo y comprobar que Composición no deja avanzar sin componentes; usar el producto de prueba existente, con SKU propio para el combo.
 4. En Revisar y guardar usar Editar, corregir y volver al resumen; comprobar Cancelar tanto en la ficha como en la confirmación. Guardar una única ficha de prueba y reabrir para verificar datos e imágenes.
 5. No avanzar todavía a otros módulos: continuar sobre el resultado del alta manual. Main/producción, conexiones externas y stock real quedan fuera de este bloque.
+
+## 2026-10-20 · Costo unitario, IVA y moneda en el alta manual
+
+Pedido: permitir cargar precio de costo, porcentaje de IVA y elegir pesos o dólares. Se conserva el asistente de Nuevo/Gestionar producto, sin volver a desplegables ni abrir otro proceso.
+
+Implementación:
+- En Composición y utilidad: Precio de costo unitario (sin IVA), Moneda del costo Pesos (ARS)/Dólares (USD) e IVA (%). IVA editable con sugerencias 0/10,5/21/27; no se presume alícuota ni condición fiscal. Vacío y cero son estados distintos.
+- Vista informativa de costo sin IVA, importe del IVA y costo con IVA en la moneda elegida. Si IVA está vacío no se calcula total gravado. Se admiten coma o punto decimal, sin separadores de miles; costo hasta dos decimales, IVA hasta seis, no negativos ni valores no finitos. IVA 0–100; monedas permitidas ARS/USD. No hay conversión automática ni nueva conexión de cotizaciones.
+- El costo NO se duplica como otro importe en la ficha: referencia a CostoProductoVersion, con detalle unitario y creación mediante crear_version_costo(commit=False). Misma moneda, cantidad 1 y unidad de medida del maestro; importe sin IVA. El porcentaje fiscal se conserva en ProductoDatosGenerales, separado del costo neto.
+- Carga general de la organización; no selecciona arbitrariamente una unidad de negocio. Cuando un Simple con costo no tiene perfil general, reutiliza crear_o_actualizar_perfil para crearlo del mismo tipo. No cambia ni reactiva perfiles existentes; no crea composiciones vacías para producción/combos.
+- Nuevo importe o moneda generan versión preparatoria no vigente. Repetir el mismo costo no duplica versiones. Vaciarlo quita la referencia manual, conservando el historial. Un cliente anterior que no presenta estos campos conserva costo, IVA y moneda.
+- No modifica una versión vigente ni activa/publica precios, impuesto de una regla económica o márgenes. Producción/combo conservan el cálculo de composición como fuente final; la carga manual no se hace pasar por costo calculado. USD no se consume como ARS en los motores existentes.
+- Guardado con la ficha, relaciones y fotos en una sola transacción. Error posterior a crear el borrador revierte también Producto, ficha, perfil, versión y detalle. Lectura con organización/producto/ámbito general/tipo manual coincidentes. Huella incluye referencia, importe, moneda y estado cargados; edición obsoleta rechazada.
+- Los nuevos campos se conservan al avanzar/volver, aparecen en el resumen, se reabren desde la base y mantienen los errores con los valores cargados. No se agregan al CSV anterior sin un diseño de importación específico.
+
+Preparación:
+- Tres columnas aditivas en producto_datos_generales: costo_carga_id (FK al historial existente), moneda_costo (ARS/USD) e iva_pct. Sin otro maestro ni tabla de importes paralela.
+- El mismo script preparar_datos_productos reconoce el esquema anterior y agrega solo esas columnas faltantes, con validación previa de tablas y columnas de Costos. Es idempotente, conserva el contenido anterior y rechaza esquemas desconocidos. No importa app.py ni arranca scheduler. Hasta preparar se mantiene la guardia que evita consultar columnas ausentes.
+- Se mantienen main, flags, producción, existencias, ventas, cobros y conexiones externas fuera del cambio.
+
+Validación:
+- 85 pruebas del maestro y datos generales aprobadas. Casos nuevos: historial reutilizado/no duplicado, USD/ARS sin conversión, IVA separado, vacío/cero, límites y formatos inválidos, versiones vigentes conservadas, clientes previos, aislamiento de organización, huella, ruta Flask de guardado/reapertura y rollback completo posterior a crear el costo.
+- Migración del esquema anterior con contenido e idempotencia comprobadas en SQLite; proceso separado sin importar app comprobado. Sintaxis JS y compilación Python aprobadas.
+- DOM con HTML real Flask y scripts reales: campos, validación por paso, costo inválido, IVA inválido, moneda en el ejemplo, conservación al volver/resumen y guardado con confirmación comprobados. Usa adaptadores de dialog/DataTransfer; no equivale a prueba visual en navegador.
+- Falta ejecutar preparación en PostgreSQL/Render y aceptar visual en staging; no se afirma desplegado ni aplicado a producción.
+
+UAT inmediato (seguir solo carga manual):
+1. Deploy del commit de integracion-saas-2026-09.
+2. Shell de staging: python -m scripts.preparar_datos_productos --staging. Mantener BOOTSTRAP_BASE_DATOS_HABILITADO=false y MODO_LABORATORIO_DESCONECTADO=true.
+3. Ctrl+F5 → Base de Datos → Productos → Nuevo/Gestionar → Composición y utilidad.
+4. Usar ficha ficticia: costo sin IVA 1000, IVA 21, ARS. La vista debe mostrar IVA 210 y total con IVA 1210; volver/revisar/cancelar y comprobar que no se guardó nada.
+5. Guardar y reabrir: deben conservarse 1000/21/ARS. Probar otra ficha ficticia en USD con 12,34 e IVA 10,5; verificar moneda y valores, sin activar costos ni publicar.
