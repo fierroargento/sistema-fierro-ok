@@ -10,7 +10,8 @@
   const error = document.getElementById("producto-adicional-error");
   const campoDefinido = campo => campo === "depositos" ? "depositos_definidos" : "sucursales_definidas";
   const parser = (valor, defecto) => { try { return JSON.parse(valor); } catch (_) { return defecto; } };
-  function avisar(texto) {
+  function avisar(texto, paso) {
+    if (paso) form.dispatchEvent(new CustomEvent("producto-error-paso", {detail:paso}));
     error.textContent = texto; error.hidden = false;
     error.scrollIntoView({block:"nearest"}); return false;
   }
@@ -87,7 +88,7 @@
     error.hidden=true;
     const archivos=Array.from(e.target.files);
     if (guardadas.length+nuevas.length+archivos.length>5||archivos.some(f=>f.size>2*1024*1024||!/[.](jpe?g|png|webp)$/i.test(f.name))) {
-      renderFotos();avisar("Usá hasta 5 imágenes JPG, PNG o WEBP, de hasta 2 MB cada una.");return;
+      renderFotos();avisar("Usá hasta 5 imágenes JPG, PNG o WEBP, de hasta 2 MB cada una.", "imagenes");return;
     }
     nuevas=nuevas.concat(archivos);renderFotos();
   });
@@ -119,13 +120,18 @@
       aviso.textContent="Volvé a seleccionar las fotos nuevas: el guardado fue rechazado y no se cargaron.";
       renderFotos();clasificaciones();ejemploUtilidad();
     },
-    validar() {
+    validar(paso) {
       error.hidden=true;
       const prov=Array.from(proveedores.children).map(f=>({proveedor_id:f.querySelector("[data-proveedor]").value,codigo:f.querySelector("[data-codigo-proveedor]").value}));
-      if(new Set(prov.map(p=>p.proveedor_id)).size!==prov.length)return avisar("El proveedor está repetido. Conservá una fila por proveedor.");
+      if((!paso || paso === "comercial") && new Set(prov.map(p=>p.proveedor_id)).size!==prov.length)return avisar("El proveedor está repetido. Conservá una fila por proveedor.", "comercial");
       const codigos=Array.from(barras.children).map(f=>f.querySelector("[data-codigo-barras]").value.trim());
-      if(new Set(codigos).size!==codigos.length)return avisar("Hay códigos de barras repetidos.");
-      if(form.elements.subrubro.value.trim()&&!form.elements.rubro.value.trim())return avisar("Elegí el rubro del subrubro.");
+      if((!paso || paso === "imagenes") && new Set(codigos).size!==codigos.length)return avisar("Hay códigos de barras repetidos.", "imagenes");
+      if((!paso || paso === "comercial") && form.elements.subrubro.value.trim()&&!form.elements.rubro.value.trim())return avisar("Elegí el rubro del subrubro.", "comercial");
+      if(!paso || paso === "costos") {
+        const texto=form.elements.utilidad_pct.value.trim(), numero=Number(texto.replace(",", "."));
+        if(texto && (!/^(?:\d+(?:[.,]\d{1,6})?|[.,]\d{1,6})$/.test(texto) || !Number.isFinite(numero) || numero<0 || numero>999999.999999 || (form.elements.utilidad_base.value==="precio_venta" && numero>=100)))
+          return avisar("Revisá la utilidad: usá un porcentaje positivo o cero, con hasta seis decimales. Sobre precio de venta debe ser menor al 100%.", "costos");
+      }
       form.elements.proveedores_json.value=JSON.stringify(prov);
       form.elements.codigos_barras_json.value=JSON.stringify(codigos);
       for(const campo of ["sucursales","depositos"])form.elements[campo+"_json"].value=JSON.stringify(Array.from(document.querySelectorAll('[data-ubicaciones="'+campo+'"] input:checked')).map(c=>Number(c.value)));

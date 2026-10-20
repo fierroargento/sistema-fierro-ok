@@ -1,19 +1,20 @@
 {% if completo %}
-<input type="hidden" name="datos_generales_presentados" value="1">
-<div id="producto-adicional-error" class="alerta alerta-error" role="alert" hidden></div>
-<details class="producto-section"><summary>Clasificación · rubro, subrubro y marca</summary><div class="producto-section-body producto-grid">
+{% if paso_datos == "comercial" %}
+<section class="producto-section"><h3>Clasificación · rubro, subrubro y marca</h3><div class="producto-section-body producto-grid">
 <label>Rubro<input name="rubro" maxlength="120" list="producto-rubros" placeholder="Seleccionar o escribir"><datalist id="producto-rubros"></datalist></label>
 <label>Subrubro<input name="subrubro" maxlength="120" list="producto-subrubros" placeholder="Primero elegí un rubro"><datalist id="producto-subrubros"></datalist></label>
 <label>Marca<input name="marca" maxlength="120" list="producto-marcas" placeholder="Seleccionar o escribir"><datalist id="producto-marcas"></datalist></label>
 <p class="productos-muted producto-span-3">Podés reutilizar valores existentes o escribir uno nuevo. El subrubro queda asociado al rubro elegido.</p>
-</div></details>
-<details class="producto-section"><summary>Proveedores y códigos externos</summary><div class="producto-section-body">
+</div></section>
+<section class="producto-section"><h3>Proveedores y códigos externos</h3><div class="producto-section-body">
 <p>El código es el del proveedor; el SKU de Fierro se conserva. Podés agregar varios proveedores: el primero será el principal.</p>
 <input type="hidden" name="proveedores_json" value="[]"><div id="producto-proveedores-filas"></div>
 <button type="button" class="secondary-link" id="producto-proveedor-agregar">Agregar proveedor</button>
 <template id="producto-proveedor-template"><div class="producto-proveedor-fila"><label>Proveedor<select data-proveedor required><option value="">Seleccionar proveedor</option>{% for proveedor in proveedores %}<option value="{{ proveedor.id }}" data-activo="{{ '1' if proveedor.estado == 'activo' else '0' }}">{{ proveedor.razon_social }} · {{ proveedor.codigo }}{% if proveedor.estado != 'activo' %} (inactivo){% endif %}</option>{% endfor %}</select></label><label>Código de ese proveedor<input data-codigo-proveedor maxlength="120" placeholder="Opcional · conserva ceros iniciales"></label><button type="button" class="secondary-link" data-quitar-proveedor>Quitar</button></div></template>
-</div></details>
-<details class="producto-section"><summary>Sucursales y depósitos habilitados</summary><div class="producto-section-body">
+</div></section>
+{% endif %}
+{% if paso_datos == "ubicaciones" %}
+<section class="producto-section"><h3>Sucursales y depósitos habilitados</h3><div class="producto-section-body">
 <p>Se usan las ubicaciones operativas existentes de Fierro. Una misma ubicación puede funcionar como sucursal y depósito; no se crean ubicaciones ni saldos al guardar.</p>
 <div class="producto-ubicaciones">
 {% for campo, titulo in [('sucursales','Sucursales'),('depositos','Depósitos')] %}
@@ -22,12 +23,16 @@
 {% for ubicacion in ubicaciones %}<label><input type="checkbox" value="{{ ubicacion.id }}" data-activa="{{ '1' if ubicacion.activa else '0' }}">{{ ubicacion.nombre }}{% if not ubicacion.activa %} (inactiva){% endif %}</label>{% else %}<p class="productos-muted">Todavía no hay ubicaciones operativas.</p>{% endfor %}
 </div><p class="productos-muted" data-alcance-aviso="{{ campo }}">Sin definir: se conserva el comportamiento actual. Al definir, solo quedan habilitadas las seleccionadas; ninguna selección significa ninguna habilitada.</p></fieldset>
 {% endfor %}</div>
-</div></details>
-<details class="producto-section"><summary>Utilidad pretendida</summary><div class="producto-section-body"><div class="producto-grid">
+</div></section>
+{% endif %}
+{% if paso_datos == "utilidad" %}
+<section class="producto-section"><h3>Utilidad pretendida</h3><div class="producto-section-body"><div class="producto-grid">
 <label>Utilidad pretendida (%)<input name="utilidad_pct" inputmode="decimal" maxlength="20" placeholder="Sin definir"></label>
 <label class="producto-span-2">Calcular sobre<select name="utilidad_base"><option value="costo">Costo · recargo sobre el costo</option><option value="precio_venta">Precio de venta · margen sobre la venta</option></select></label>
-</div><p id="producto-utilidad-ejemplo" class="productos-muted"></p><p class="productos-muted">Se guarda como objetivo del producto. El cálculo final de precios debe considerar los gastos y las reglas de neto mínimo del canal. Cambiar este dato no publica precios ni reemplaza una regla económica vigente.</p></div></details>
-<details class="producto-section"><summary>Imágenes y códigos de barras</summary><div class="producto-section-body">
+</div><p id="producto-utilidad-ejemplo" class="productos-muted"></p><p class="productos-muted">Se guarda como objetivo del producto. El cálculo final de precios debe considerar los gastos y las reglas de neto mínimo del canal. Cambiar este dato no publica precios ni reemplaza una regla económica vigente.</p></div></section>
+{% endif %}
+{% if paso_datos == "imagenes" %}
+<section class="producto-section"><h3>Imágenes y códigos de barras</h3><div class="producto-section-body">
 <h3 class="producto-subtitulo">Imágenes del producto</h3><p>Hasta 5 fotos JPG, PNG o WEBP, de hasta 2 MB cada una. Elegí cuál será la principal. Se conservan en la base del sistema y se muestran solo a usuarios autorizados.</p>
 <input type="hidden" name="imagenes_conservar_json" value="[]"><input type="hidden" name="imagen_principal"><input type="hidden" name="imagenes_nuevas_cantidad" value="0">
 <div id="producto-imagenes" class="producto-imagenes"></div>
@@ -35,5 +40,6 @@
 <h3 class="producto-subtitulo">Códigos de barras</h3><p>Conservan los ceros iniciales. Cada código identifica un producto dentro de la organización.</p>
 <input type="hidden" name="codigos_barras_json" value="[]"><div id="producto-barras-filas"></div><button type="button" class="secondary-link" id="producto-barra-agregar">Agregar código de barras</button>
 <template id="producto-barra-template"><div class="producto-barra-fila"><label>Código de barras<input data-codigo-barras maxlength="80" autocomplete="off" required></label><button type="button" class="secondary-link" data-quitar-barra>Quitar</button></div></template>
-</div></details>
-{% else %}<p class="productos-muted">La ampliación de clasificación, proveedores, ubicaciones, utilidad e imágenes está pendiente de preparación en staging.</p>{% endif %}
+</div></section>
+{% endif %}
+{% endif %}

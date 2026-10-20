@@ -1433,3 +1433,30 @@ Deploy y próximo UAT (solo carga manual):
 4. Crear un Simple ficticio UAT-FICHA-002: clasificación, proveedor existente/código 000-PRUEBA, sucursal/depósito seleccionados, utilidad 30 sobre costo, código de barras interno ficticio UAT-000002 y una o dos imágenes de prueba. Guardar/confirmar/reabrir, verificar todos los datos y foto principal.
 5. Probar Cancelar cambios y proveedores con código igual en proveedores distintos; código igual en el mismo proveedor para otro SKU debe rechazarse íntegramente. Probar utilidad sobre venta 100 o superior y subrubro sin rubro: aviso, sin alta parcial.
 6. Seguir limando el alta manual; no avanzar todavía a fabricación, precios operativos, importación real ni conexiones externas.
+
+## 2026-10-20 · Alta manual por pasos en formularios emergentes
+
+Pedido vigente: reemplazar los desplegables de la ficha por un recorrido APB, inspirado en DUX. La ampliación anterior de datos se conserva; las indicaciones de secciones plegables del bloque anterior quedan reemplazadas para Nuevo/Gestionar producto.
+
+Resultado:
+- Una sola pantalla del formulario emergente visible por vez: Datos básicos; Clasificación y proveedores; Stock y ubicaciones; Composición y utilidad; Imágenes y códigos; Envíos; Revisar y guardar.
+- Anterior/Siguiente, indicador de paso y acceso a pasos ya visitados. Resumen final por sección con Editar. No hay acordeones en la ficha manual. La importación masiva mantiene su interfaz anterior.
+- Datos, proveedores, ubicaciones, componentes y archivos seleccionados permanecen al avanzar o retroceder. Cancelar/cerrar no envía datos. Al abrir otra vez se carga la versión guardada.
+- Solo el resumen ofrece Guardar producto; luego pide la confirmación normal. Enter en campos no dispara guardado. Un submit anticipado, incluso programático, valida y lleva al resumen; requiere otra acción explícita para confirmar. Protección ante doble envío conservada.
+- Validación de campos en su paso; combo obligatorio y sin duplicados en Composición. Proveedores repetidos, códigos repetidos y porcentaje inválido llevan al paso correspondiente con aviso. La revisión/guardado revalida toda la ficha, aunque se vuelva con Editar. El servidor sigue siendo la autoridad de reglas e integridad.
+- Se conserva el guardado atómico existente de maestro/combo/datos/fotos en el mismo POST; sin nueva entidad de producto, cálculo económico ni guardado parcial por paso. Sin tablas ni cambios de esquema nuevos en este bloque.
+- El resumen construye texto con nodos de DOM; no interpreta nombres, códigos ni descripciones del usuario como HTML. Fotos con nombre y marca de principal; cantidades y códigos conservados.
+- En instalaciones sin la ampliación preparada, se omiten los pasos vacíos de clasificación/imágenes y se conserva el recorrido básico.
+
+Verificación:
+- 66 pruebas del maestro y de datos generales aprobadas, incluyendo las rutas Flask/Jinja reales y guardado/rollback existentes.
+- Sintaxis de ambos scripts aprobada.
+- DOM con HTML real renderizado por Flask y scripts reales: navegación, campos obligatorios, avance sin POST, volver manteniendo proveedor/fotos, combo vacío rechazado, componente fraccionario con flechas de paso 1, utilidad sobre venta inválida, resumen y Editar, texto no interpretado como HTML, submit anticipado, cancelar y confirmar una sola vez aprobados. Conservadas las comprobaciones anteriores de datos, imágenes y serialización.
+- DOM usa adaptadores de dialog/DataTransfer; no equivale a navegador real. No se pudo disponer de Chromium en este entorno; aceptación visual y funcionamiento nativo de los emergentes quedan pendientes en staging. No se ejecutó PostgreSQL/Render ni el monolito.
+
+Siguiente UAT, exclusivamente alta manual:
+1. Desplegar este commit de integracion-saas-2026-09; no requiere otra migración si ya se preparó la ampliación anterior. Mantener los flags de laboratorio.
+2. Ctrl+F5 → Base de Datos → Productos → Nuevo producto. Recorrer los pasos, volver y comprobar que se mantienen los datos; revisar apariencia en el tamaño de pantalla habitual.
+3. Seleccionar Combo y comprobar que Composición no deja avanzar sin componentes; usar el producto de prueba existente, con SKU propio para el combo.
+4. En Revisar y guardar usar Editar, corregir y volver al resumen; comprobar Cancelar tanto en la ficha como en la confirmación. Guardar una única ficha de prueba y reabrir para verificar datos e imágenes.
+5. No avanzar todavía a otros módulos: continuar sobre el resultado del alta manual. Main/producción, conexiones externas y stock real quedan fuera de este bloque.

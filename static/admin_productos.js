@@ -11,6 +11,103 @@
   let pendiente = null;
   let enviando = false;
 
+  const pasos = Array.from(form.querySelectorAll("[data-paso]")).filter(p =>
+    form.elements.datos_generales_presentados || !["comercial", "imagenes"].includes(p.dataset.paso));
+  const anterior = document.getElementById("producto-anterior");
+  const siguiente = document.getElementById("producto-siguiente");
+  const guardar = document.getElementById("producto-guardar");
+  let pasoActual = 0;
+  let maxVisitado = 0;
+  const indicador = document.getElementById("producto-pasos-indicador");
+  pasos.forEach((p, i) => {
+    const li = document.createElement("li"), boton = document.createElement("button");
+    boton.type = "button"; boton.textContent = String(i + 1);
+    boton.setAttribute("aria-label", "Paso " + (i + 1) + ": " + p.dataset.titulo);
+    boton.title = p.dataset.titulo;
+    boton.addEventListener("click", () => { if (i <= maxVisitado) mostrarPaso(i); });
+    li.appendChild(boton); indicador.appendChild(li);
+  });
+  function mostrarPaso(indice, enfocar = true) {
+    pasoActual = indice;
+    maxVisitado = Math.max(maxVisitado, indice);
+    pasos.forEach((p, i) => { p.hidden = i !== indice; });
+    Array.from(indicador.querySelectorAll("button")).forEach((b, i) => {
+      b.disabled = i > maxVisitado;
+      if (i === indice) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
+      b.dataset.completado = String(i < indice);
+    });
+    document.getElementById("producto-paso-progreso").textContent =
+      "Paso " + (indice + 1) + " de " + pasos.length + " · " + pasos[indice].dataset.titulo;
+    anterior.hidden = indice === 0;
+    const ultimo = indice === pasos.length - 1;
+    siguiente.hidden = ultimo; guardar.hidden = !ultimo;
+    siguiente.textContent = indice === pasos.length - 2 ? "Revisar ficha" : "Siguiente";
+    if (ultimo) armarResumen();
+    dialogo.querySelector(".producto-dialog-body").scrollTop = 0;
+    if (enfocar) pasos[indice].querySelector(".producto-paso-titulo").focus();
+  }
+  function irAPaso(nombre) {
+    const i = pasos.findIndex(p => p.dataset.paso === nombre);
+    if (i >= 0) mostrarPaso(i);
+  }
+  function armarResumen() {
+    const destino = document.getElementById("producto-resumen");
+    destino.replaceChildren();
+    pasos.slice(0, -1).forEach((p, i) => {
+      const tarjeta = document.createElement("section"), cabecera = document.createElement("div");
+      tarjeta.className = "producto-resumen-card";
+      const titulo = document.createElement("h4"); titulo.textContent = p.dataset.titulo;
+      const editar = document.createElement("button"); editar.type = "button";
+      editar.className = "secondary-link"; editar.textContent = "Editar";
+      editar.setAttribute("aria-label", "Editar " + p.dataset.titulo);
+      editar.addEventListener("click", () => mostrarPaso(i));
+      cabecera.append(titulo, editar); tarjeta.appendChild(cabecera);
+      const lista = document.createElement("dl");
+      p.querySelectorAll("label").forEach(label => {
+        const c = label.querySelector("input,select,textarea");
+        if (!c || c.disabled || ["hidden", "file", "radio"].includes(c.type)) return;
+        const copia = label.cloneNode(true);
+        copia.querySelectorAll("input,select,textarea,datalist").forEach(n => n.remove());
+        const nombre = copia.textContent.trim();
+        if (!nombre) return;
+        const dt = document.createElement("dt"), dd = document.createElement("dd");
+        dt.textContent = nombre;
+        dd.textContent = c.type === "checkbox" ? (c.checked ? "Sí" : "No") :
+          c.tagName === "SELECT" ? (c.value ? c.selectedOptions[0].textContent : "Sin definir") :
+          (c.value.trim() || "Sin completar");
+        lista.append(dt, dd);
+      });
+      if (p.dataset.paso === "imagenes") {
+        const dt = document.createElement("dt"), dd = document.createElement("dd");
+        dt.textContent = "Fotos";
+        const fotos = Array.from(p.querySelectorAll(".producto-imagen"));
+        dd.textContent = fotos.length ? fotos.map(f => f.querySelector("span").textContent +
+          (f.querySelector("input[type=radio]").checked ? " (principal)" : "")).join(" · ") : "Sin fotos";
+        lista.append(dt, dd);
+      }
+      tarjeta.appendChild(lista); destino.appendChild(tarjeta);
+    });
+  }
+  function validarPaso(indice) {
+    const panel = pasos[indice];
+    const invalido = Array.from(panel.querySelectorAll("input,select,textarea")).find(c => c.willValidate && !c.validity.valid);
+    if (invalido) { mostrarPaso(indice); invalido.reportValidity(); return false; }
+    if (panel.dataset.paso === "costos" && !validarCombo()) { mostrarPaso(indice); return false; }
+    if (window.productosDatos && !window.productosDatos.validar(panel.dataset.paso)) return false;
+    return true;
+  }
+  function validarFicha() {
+    for (let i = 0; i < pasos.length - 1; i++) if (!validarPaso(i)) return false;
+    return true;
+  }
+  anterior.addEventListener("click", () => mostrarPaso(pasoActual - 1));
+  siguiente.addEventListener("click", () => {
+    if (!validarPaso(pasoActual)) return;
+    if (pasoActual === pasos.length - 2 && !validarFicha()) return;
+    mostrarPaso(pasoActual + 1);
+  });
+  form.addEventListener("producto-error-paso", e => irAPaso(e.detail));
+
   const comboPanel = document.getElementById("producto-combo");
   const comboFilas = document.getElementById("producto-combo-filas");
   let recetas = [];
@@ -101,7 +198,7 @@
 
   function abrir(fila, fallido) {
     form.reset();
-    form.querySelectorAll("details").forEach(d => { d.open = false; });
+    pasoActual = 0; maxVisitado = 0;
     const edicion = fallido ? fallido.accion === "editar_producto" : !!fila;
     const valores = fallido || (fila && fila.datos) || {};
     for (const control of form.elements) {
@@ -139,6 +236,7 @@
     cargarComposicion(Array.isArray(componentes) ? componentes : []);
     ajustarNoStockeable();
     if (window.productosDatos) window.productosDatos.abrir(filaGuardada, fallido);
+    mostrarPaso(0, false);
     dialogo.showModal();
     (edicion ? form.elements.nombre : form.elements.sku).focus();
   }
@@ -173,7 +271,12 @@
   }
   document.querySelectorAll("[data-confirm-save]").forEach(f => f.addEventListener("submit", e => {
     e.preventDefault();
-    if (enviando || (f === form && ((!validarCombo()) || (window.productosDatos && !window.productosDatos.validar()))) || !validarCampos(f)) return;
+    if (enviando) return;
+    if (f === form) {
+      // Un submit anticipado tampoco guarda: lleva a la revisión explícita.
+      if (!validarFicha()) return;
+      if (pasoActual !== pasos.length - 1) { mostrarPaso(pasos.length - 1); return; }
+    } else if (!validarCampos(f)) return;
     pendiente = f;
     document.getElementById("producto-confirm-text").textContent = f.dataset.confirmSave;
     confirmar.showModal();

@@ -89,3 +89,31 @@
 .producto-dialog .producto-imagen input[type=radio] {width:16px; min-height:16px; height:16px; padding:0; margin:0; accent-color:#176b89;}
 .producto-subtitulo {font-size:14px; color:#294a60; margin:18px 0 8px;}
 @media(max-width:600px) {.producto-proveedor-fila {grid-template-columns:1fr;} .producto-ubicaciones {grid-template-columns:1fr;} .producto-proveedor-fila button {justify-self:end;}}
+
+/* Alta y edición guiadas: una pantalla por paso, sin acordeones. */
+.producto-dialog [hidden] { display:none !important; }
+.producto-dialog .producto-asistente { padding:0 0 18px; border-bottom:1px solid #e2e8f0; margin-bottom:20px; }
+.producto-dialog #producto-paso-progreso { color:#334155; font-size:.9rem; font-weight:600; margin:0 0 12px; }
+.producto-dialog #producto-pasos-indicador { display:flex; gap:10px; list-style:none; margin:0; padding:0; }
+.producto-dialog #producto-pasos-indicador button { border:1px solid #cbd5e1; border-radius:50%; width:32px; height:32px; padding:0; background:#fff; color:#475569; font-size:.85rem; cursor:pointer; }
+.producto-dialog #producto-pasos-indicador button[aria-current] { background:#124e64; border-color:#124e64; color:#fff; box-shadow:0 0 0 3px #d5e8ee; }
+.producto-dialog #producto-pasos-indicador button:disabled { opacity:.45; cursor:default; }
+.producto-dialog #producto-pasos-indicador button[data-completado="true"] { background:#edf6f9; border-color:#8ac4da; color:#124e64; }
+.producto-dialog .producto-paso-titulo { font-size:1.2rem; color:#0f172a; margin:0 0 6px; outline:none; }
+.producto-dialog .producto-paso > .productos-muted { margin:0 0 20px; }
+.producto-dialog section.producto-section { border:0; border-top:1px solid #e2e8f0; border-radius:0; padding:16px 0 0; margin:18px 0 0; }
+.producto-dialog section.producto-section > h3 { margin:0 0 12px; font-size:1rem; color:#334155; }
+.producto-dialog section.producto-section .producto-section-body { padding:0; }
+.producto-dialog .producto-dialog-footer { justify-content:space-between; gap:12px; }
+.producto-dialog .producto-resumen { display:grid; gap:12px; }
+.producto-dialog .producto-resumen-card { border:1px solid #e2e8f0; background:#f8fafc; border-radius:10px; padding:14px; }
+.producto-dialog .producto-resumen-card > div { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.producto-dialog .producto-resumen-card h4 { font-size:.95rem; margin:0; color:#0f172a; }
+.producto-dialog .producto-resumen-card dl { display:grid; grid-template-columns:minmax(110px, 1fr) minmax(0, 2fr); gap:6px 12px; margin:0; font-size:.88rem; }
+.producto-dialog .producto-resumen-card dt { color:#64748b; }
+.producto-dialog .producto-resumen-card dd { margin:0; color:#0f172a; white-space:pre-wrap; overflow-wrap:anywhere; }
+@media(max-width:540px) {
+  .producto-dialog #producto-pasos-indicador { gap:7px; }
+  .producto-dialog .producto-dialog-footer { flex-wrap:wrap; }
+  .producto-dialog .producto-dialog-footer > .productos-actions { margin-left:auto; gap:8px; }
+}
