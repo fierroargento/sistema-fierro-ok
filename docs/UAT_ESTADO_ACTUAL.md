@@ -1640,3 +1640,13 @@ UAT e importación:
 4. Para el archivo preparado los importes son unitarios: no mapearlos como precio por bulto. Operación Crear y actualizar → Leer archivo → verificar Cantidad por bulto y Medidas en origen → Validar y previsualizar. Los dos sin precio no forman parte del lote.
 5. Revisar 33 filas, sin rechazos inesperados, los importes por unidad/bulto y los códigos existentes. Confirmar importación y aceptar el popup. No volver a confirmar un lote completado.
 6. Fuentes de costo → Insumos y precios → Ver insumos cargados: verificar cantidades y precios por unidad/bulto, gestionar una ficha de ensayo y revisar historial. Para futuras listas cotizadas por bulto usar la plantilla nueva y Cotización=bulto con cantidad y precio del bulto.
+
+
+## 2026-10-20 — Presentación de importaciones de fuentes de costo
+- Base oficial: `61eb0ce011762918fe72688e5949339878093b78`, rama `integracion-saas-2026-09`.
+- Evidencia del usuario: pantalla de importación completada de `insumos_lista_proveedores.xlsx`, 33 creados, 0 actualizados y 0 rechazados. No repetir esta importación para revisar el diseño.
+- Vista previa de insumos agrupada en seis columnas: fila, insumo (nombre/código/tipo), proveedor, presentación (cotización/cantidad/precio por bulto/medidas), costo por unidad y resultado con motivo del rechazo. Se mantienen visibles los diez campos originales; no cambia el cálculo ni el contenido confirmable del lote.
+- Estilos exclusivos para esta pantalla: tipografía legible, resumen de cantidades, encabezados fijos con desplazamiento interno, precios destacados y acciones alineadas; ayuda de cotización plegada y oculta al completar. Historial con etiquetas de estado legibles; pantalla final identifica el archivo.
+- Confirmación, revalidación y bloqueo de lotes completados conservados. No hay migraciones, cambios de modelos, conexiones externas ni modificaciones de producción.
+- Validación: 23 pruebas aprobadas (`test_importacion_fuentes_presentacion.py` y `test_importacion_fuentes_costeo.py`). Render Jinja con variables estrictas, conservación de campos/precios, escape de texto, otras cinco fuentes y ausencia de acción confirmar en lotes completados. Sin inspección visual en navegador real; pendiente UAT visual en staging.
+- UAT siguiente: desplegar este commit en staging y Ctrl+F5; revisar resultado e historial existentes. Para revisar una vista previa nueva, usar Solo validar, comprobar datos unitarios/bulto, errores y desplazamiento, sin confirmar ni duplicar los 33 insumos.

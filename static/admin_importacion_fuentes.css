@@ -1,0 +1,56 @@
+/* Importaciones de fuentes de costo: presentación aislada, sin alterar el flujo. */
+.import-fuentes-page { --import-border: #dce5ec; }
+.import-fuentes-page .comercial-header { align-items: center; gap: 20px; }
+.import-fuentes-page .comercial-intro { font-size: 15px; line-height: 1.5; }
+.import-fuentes-page .export-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.import-fuentes-page .section-link,
+.import-fuentes-page .secondary-link,
+.import-fuentes-page .comercial-primary { display: inline-flex; align-items: center; justify-content: center; width: auto; min-height: 40px; box-sizing: border-box; text-decoration: none; font-size: 14px; line-height: 1.3; }
+.import-fuentes-page .comercial-section { padding: 24px; border: 1px solid var(--import-border); box-shadow: 0 3px 12px #16334a06; }
+.import-fuentes-page .section-heading { gap: 16px; flex-wrap: wrap; align-items: center; }
+.import-fuentes-page .section-heading p { font-size: 14px; }
+.import-fuentes-page .import-help { margin-bottom: 18px; border: 1px solid var(--import-border); border-radius: 10px; background: #f8fafc; padding: 14px 18px; font-size: 14px; }
+.import-fuentes-page .import-help summary { cursor: pointer; color: #15566d; font-weight: 600; }
+.import-fuentes-page .import-help p { line-height: 1.65; max-width: 900px; margin-bottom: 0; }
+.import-fuentes-page .preview-heading-actions { flex-wrap: wrap; justify-content: flex-start; }
+.import-fuentes-page .import-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 600px; margin: 18px 0; }
+.import-fuentes-page .import-summary span { display: flex; flex-direction: column; gap: 4px; padding: 14px 18px; border: 1px solid var(--import-border); background: #f8fafc; color: #475569; font-size: 14px; }
+.import-fuentes-page .import-summary strong { font-size: 26px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.import-fuentes-page .import-summary .import-count-create { border-top: 3px solid #218164; }
+.import-fuentes-page .import-summary .import-count-update { border-top: 3px solid #2a7693; }
+.import-fuentes-page .import-summary .import-count-rejected { border-top: 3px solid #b56b27; }
+.import-fuentes-page .import-file-caption { margin: 18px 0 10px; color: #526174; font-size: 14px; overflow-wrap: anywhere; }
+.import-fuentes-page .import-preview-scroll { max-height: 65vh; overflow: auto; margin-top: 0; }
+.import-fuentes-page .import-preview-scroll:focus-visible { outline: 3px solid #2885aa; outline-offset: 3px; }
+.import-fuentes-page .comercial-table th { font-size: 12px; letter-spacing: .025em; padding: 13px 16px; }
+.import-fuentes-page .comercial-table td { padding: 16px; font-size: 14px; line-height: 1.45; vertical-align: top; }
+.import-fuentes-page .import-preview-scroll thead th { position: sticky; top: 0; z-index: 1; background: #edf3f7; }
+.import-fuentes-page .comercial-table tbody tr:nth-child(even) { background: #f8fafc; }
+.import-fuentes-page .import-insumos-preview { min-width: 1000px; }
+.import-fuentes-page .import-insumos-preview td:nth-child(2) { min-width: 200px; max-width: 300px; }
+.import-fuentes-page .import-insumos-preview td:nth-child(3) { min-width: 120px; max-width: 200px; }
+.import-fuentes-page .import-insumos-preview td:nth-child(4) { min-width: 215px; max-width: 280px; }
+.import-fuentes-page .import-insumos-preview td:last-child { min-width: 145px; max-width: 280px; }
+.import-fuentes-page .import-product-name { display: block; margin-bottom: 6px; color: #18344a; }
+.import-fuentes-page .import-code { display: inline-block; padding: 3px 7px; border-radius: 5px; background: #eaf0f5; color: #31465a; font-size: 12px; }
+.import-fuentes-page .import-field { display: block; margin-top: 6px; font-size: 13px; color: #58687b; }
+.import-fuentes-page .import-unit-price strong { white-space: nowrap; font-size: 17px; font-variant-numeric: tabular-nums; color: #15566d; }
+.import-fuentes-page .import-row-number { color: #64748b; font-variant-numeric: tabular-nums; }
+.import-fuentes-page .import-row-error { margin: 9px 0 0; color: #9d302a; font-size: 13px; }
+.import-fuentes-page .import-preview-table td { min-width: 110px; max-width: 300px; }
+.import-fuentes-page .confirm-import { display: flex; justify-content: flex-end; padding-top: 20px; }
+.import-fuentes-page .import-completed { display: block; border-top: 4px solid #218164; }
+.import-fuentes-page .import-completed h2 { margin: 12px 0 8px; }
+.import-fuentes-page .import-completed p { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.import-fuentes-page .import-completed .import-summary { margin: 20px 0; }
+.import-fuentes-page .import-completed-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--import-border); padding-top: 18px; }
+.import-fuentes-page .import-history .comercial-table { min-width: 760px; }
+.import-fuentes-page .status { font-size: 12px; line-height: 1.35; }
+@media (max-width: 650px) {
+  .import-fuentes-page .comercial-section { padding: 16px; }
+  .import-fuentes-page .import-summary { gap: 6px; }
+  .import-fuentes-page .import-summary span { padding: 12px 8px; font-size: 12px; }
+  .import-fuentes-page .import-summary strong { font-size: 23px; }
+  .import-fuentes-page .comercial-header { flex-wrap: wrap; }
+  .import-fuentes-page .import-completed-actions { justify-content: flex-start; }
+}
