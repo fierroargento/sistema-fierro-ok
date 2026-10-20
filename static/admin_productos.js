@@ -28,6 +28,13 @@
     comboPanel.querySelectorAll("input,select,button").forEach(c => { c.disabled = !esCombo; });
     document.getElementById("producto-combo-vacio").hidden = comboFilas.children.length > 0;
   }
+  function ajustarPasoCantidad(control) {
+    // El mínimo fija la base del step nativo: conserva la parte decimal
+    // escrita, mientras las flechas suman/restan una unidad completa.
+    const fraccion = /^\d*\.(\d{1,6})$/.exec(control.value);
+    control.min = fraccion && /[1-9]/.test(fraccion[1]) ? "0." + fraccion[1] : "1";
+    control.step = "1";
+  }
   function agregarComponente(dato) {
     const fila = document.getElementById("producto-componente-template").content.firstElementChild.cloneNode(true);
     const selector = fila.querySelector("[data-componente-sku]");
@@ -38,7 +45,10 @@
     }
     selector.value = sku;
     Array.from(selector.options).forEach(o => { if (o.value && o.value === form.elements.sku.value) o.disabled = true; });
-    fila.querySelector("[data-componente-cantidad]").value = dato ? String(dato.cantidad).replace(/(\.\d*?[1-9])0+$|\.0+$/, "$1") : "1";
+    const cantidad = fila.querySelector("[data-componente-cantidad]");
+    cantidad.value = dato ? String(dato.cantidad).replace(/(\.\d*?[1-9])0+$|\.0+$/, "$1") : "1";
+    ajustarPasoCantidad(cantidad);
+    cantidad.addEventListener("input", () => ajustarPasoCantidad(cantidad));
     fila.querySelector("[data-componente-quitar]").addEventListener("click", () => { fila.remove(); estadoCombo(); });
     comboFilas.appendChild(fila);
     estadoCombo();

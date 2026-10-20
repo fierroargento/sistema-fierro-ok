@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261019-maestro') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261019-combo-completo') }}">
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261019-combo-completo') }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261019-combo-paso-unidad') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261019-combo-paso-unidad') }}" defer></script>
 {% endblock %}
 {% block content %}
 {% macro valor_cambio(campo, valor) -%}
@@ -53,12 +53,13 @@
         <label>Unidad de negocio<select name="unidad_combo_id"><option value="">General</option>{% for unidad in unidades_combo %}<option value="{{ unidad.id }}">{{ unidad.nombre }}</option>{% endfor %}</select></label>
         <p class="productos-muted">Usá General salvo que la composición cambie por unidad de negocio. Se guarda solo la composición de la unidad seleccionada.</p>
         <input type="hidden" name="componentes_combo_json" value="[]">
+        <p class="productos-muted">Las flechas cambian de a 1 unidad. Para usar fracciones, escribí la cantidad.</p>
         <div id="producto-combo-filas"></div>
         <p id="producto-combo-vacio" class="productos-muted">Agregá al menos un componente para guardar el combo.</p>
         <button type="button" class="secondary-link" id="producto-combo-agregar">Agregar componente</button>
         <p id="producto-combo-error" class="productos-error" role="alert" hidden></p>
       </section>
-      <template id="producto-componente-template"><div class="producto-componente-fila"><label>Producto<select data-componente-sku required><option value="">Seleccionar producto</option>{% for producto, ficha in componentes %}<option value="{{ producto.sku }}" data-producto-id="{{ producto.id }}">{{ producto.sku }} · {{ ficha.nombre }} ({{ ficha.unidad_medida }})</option>{% endfor %}</select></label><label>Cantidad<input data-componente-cantidad type="number" min="0.000001" max="999999999999.999999" step="0.000001" value="1" required></label><button type="button" class="secondary-link" data-componente-quitar>Quitar</button></div></template>
+      <template id="producto-componente-template"><div class="producto-componente-fila"><label>Producto<select data-componente-sku required><option value="">Seleccionar producto</option>{% for producto, ficha in componentes %}<option value="{{ producto.sku }}" data-producto-id="{{ producto.id }}">{{ producto.sku }} · {{ ficha.nombre }} ({{ ficha.unidad_medida }})</option>{% endfor %}</select></label><label>Cantidad<input data-componente-cantidad type="number" min="1" max="999999999999.999999" step="1" value="1" required></label><button type="button" class="secondary-link" data-componente-quitar>Quitar</button></div></template>
       <p class="productos-muted">Cada combo se crea como otro producto con SKU propio. Sus componentes conservan sus SKU.</p>
       <label class="producto-active"><input type="checkbox" name="no_stockeable" value="1">No stockeable</label><p class="productos-muted">Artículo sin control de existencias, por ejemplo un servicio. Puede habilitarse para compra y venta; no genera inventario ni envío físico.</p>
       <label class="producto-active"><input type="checkbox" name="permitir_stock_negativo" value="1">Permitir stock negativo</label><p class="productos-muted">Conserva el control de existencias y permite egresos y ajustes internos por debajo de cero. Las reservas siguen requiriendo disponibilidad. No cambia el stock publicado.</p>

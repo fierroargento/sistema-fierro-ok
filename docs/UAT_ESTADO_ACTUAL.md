@@ -1372,3 +1372,14 @@ Deploy/UAT:
 3. Debe aparecer la composición. Intentar guardar vacía debe impedir el alta con aviso visible; también se rechaza una petición sin componentes en el servidor.
 4. Agregar UAT-MAESTRO-001, cantidad 2, ámbito General; guardar/confirmar y reabrir. Debe conservar cantidad 2 y SKU propio, usando las mismas relaciones de Costos. Si ya existe ese SKU, usar Gestionar para completarlo; no recrearlo.
 5. Probar quitar la única fila: debe impedir guardar. Cancelar y reabrir conserva la composición anterior. No usar productos/existencias reales ni cargar todavía la planilla real.
+
+
+## 2026-10-19 — UAT Combo y paso de cantidades
+
+- Captura 233856: Gestionar UAT-COMBO-001 muestra UAT-MAESTRO-001 con cantidad 5 en Ensayo UAT. Martín aclara que eligió expresamente 5 unidades.
+- Captura 234614: quitar el único componente muestra aviso de composición obligatoria. Martín confirma después la cancelación y conservación del valor anterior, y el bloqueo de componentes repetidos.
+- Captura 000159 (nombre UTC del 20/10, fecha local 19/10): las flechas modifican la cantidad en millonésimas por el step 0.000001. La imagen sigue mostrando aviso de duplicados; no se da por validado el guardado de 5 a 3.
+- Ajuste local de presentación/interacción: flechas con step 1. Para conservar cantidades decimales escritas manualmente y su validación HTML, la base mínima del step se alinea con su fracción actual; en enteros parte de 1. Se mantiene cantidad positiva y límite máximo. No se redondea ni transforma el valor escrito ni el guardado.
+- Se actualiza versión JS/CSS y se agrega una ayuda breve junto a las cantidades. Sin cambios de modelos, servicios, transacciones, esquema ni datos.
+- Verificación: sintaxis JS, render de rutas reales de Productos y prueba existente de receta con cantidad decimal. Pendiente UAT visual en navegador tras deploy. No requiere preparación de esquema.
+- Próximo paso: en Gestionar UAT-COMBO-001 → Ensayo UAT, con una sola fila, probar flechas desde 5 (6/5/4) y guardar 3. Reabrir debe conservar 3. No asumir el guardado a partir de la captura del aviso.
