@@ -8,6 +8,23 @@
   const fotos = document.getElementById("producto-imagenes");
   let guardadas = [], nuevas = [], principal = "";
   const error = document.getElementById("producto-adicional-error");
+  const propia = document.getElementById("producto-fabricacion-propia");
+  function origenProducto() {
+    const tipo=form.elements.tipo.value, produccion=tipo==="produccion";
+    const opcion=Array.from(form.elements.tipo.options).find(o=>o.value==="produccion");
+    propia.setAttribute("aria-pressed",String(produccion));
+    propia.disabled=tipo==="combo"||!opcion||opcion.disabled;
+    document.getElementById("producto-origen-aviso").textContent=produccion ?
+      "Fabricación propia seleccionada. No necesitás elegir proveedor: el costo se construye con componentes y tareas. Agregá proveedores solo si también comprás este producto terminado." :
+      tipo==="combo" ? "El combo se arma con sus componentes; la fabricación se define en cada producto de producción." :
+      "Elegí Fabricación propia si lo elaborás en Fierro, o agregá el proveedor si lo comprás. Fabricación propia establece el tipo De producción.";
+  }
+  propia.addEventListener("click",()=>{
+    if(propia.disabled||form.elements.tipo.value==="produccion")return;
+    form.elements.tipo.value="produccion";
+    form.elements.tipo.dispatchEvent(new Event("change",{bubbles:true}));
+  });
+  form.elements.tipo.addEventListener("change",origenProducto);
   const campoDefinido = campo => campo === "depositos" ? "depositos_definidos" : "sucursales_definidas";
   const parser = (valor, defecto) => { try { return JSON.parse(valor); } catch (_) { return defecto; } };
   function avisar(texto, paso) {
@@ -135,7 +152,7 @@
       principal=fallido?d.imagen_principal:(String((guardadas.find(f=>f.principal)||{}).id||""));
       const aviso=document.getElementById("producto-fotos-aviso");aviso.hidden=!(fallido&&Number(d.imagenes_nuevas_cantidad)>0);
       aviso.textContent="Volvé a seleccionar las fotos nuevas: el guardado fue rechazado y no se cargaron.";
-      renderFotos();clasificaciones();ejemploUtilidad();ejemploCosto();
+      renderFotos();clasificaciones();ejemploUtilidad();ejemploCosto();origenProducto();
     },
     validar(paso) {
       error.hidden=true;

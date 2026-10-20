@@ -137,3 +137,5 @@
 .producto-dialog .producto-despiece-fila > div:first-child { min-width:0; overflow-wrap:anywhere; }
 .producto-dialog .producto-despiece-fila small { display:block; margin-top:5px; color:#64748b; font-size:.82rem; }
 @media(max-width:550px){.producto-dialog .producto-despiece-fila {align-items:stretch;flex-direction:column;} .producto-editor-dialog .producto-grid {grid-template-columns:1fr;} }
+.producto-origen-opcion[aria-pressed="true"]{background:#e8f5ee;border-color:#278455;color:#175c39;font-weight:700;}
+.producto-origen-opcion[aria-pressed="true"]::before{content:"✓ ";}

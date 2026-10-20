@@ -6,10 +6,11 @@
 <label>Marca<input name="marca" maxlength="120" list="producto-marcas" placeholder="Seleccionar o escribir"><datalist id="producto-marcas"></datalist></label>
 <p class="productos-muted producto-span-3">Podés reutilizar valores existentes o escribir uno nuevo. El subrubro queda asociado al rubro elegido.</p>
 </div></section>
-<section class="producto-section"><h3>Proveedores y códigos externos</h3><div class="producto-section-body">
-<p>El código es el del proveedor; el SKU de Fierro se conserva. Podés agregar varios proveedores: el primero será el principal.</p>
+<section class="producto-section"><h3>Origen y proveedores</h3><div class="producto-section-body">
+<div class="productos-actions"><button type="button" class="secondary-link producto-origen-opcion" id="producto-fabricacion-propia" aria-pressed="false" aria-describedby="producto-origen-aviso">Fabricación propia</button><button type="button" class="secondary-link" id="producto-proveedor-agregar">Agregar proveedor</button></div>
+<p id="producto-origen-aviso" class="productos-muted" role="status"></p>
+<p>El código externo corresponde al proveedor; el SKU de Fierro se conserva. Si comprás el producto, podés agregar varios proveedores: el primero será el principal.</p>
 <input type="hidden" name="proveedores_json" value="[]"><div id="producto-proveedores-filas"></div>
-<button type="button" class="secondary-link" id="producto-proveedor-agregar">Agregar proveedor</button>
 <template id="producto-proveedor-template"><div class="producto-proveedor-fila"><label>Proveedor<select data-proveedor required><option value="">Seleccionar proveedor</option>{% for proveedor in proveedores %}<option value="{{ proveedor.id }}" data-activo="{{ '1' if proveedor.estado == 'activo' else '0' }}">{{ proveedor.razon_social }} · {{ proveedor.codigo }}{% if proveedor.estado != 'activo' %} (inactivo){% endif %}</option>{% endfor %}</select></label><label>Código de ese proveedor<input data-codigo-proveedor maxlength="120" placeholder="Opcional · conserva ceros iniciales"></label><button type="button" class="secondary-link" data-quitar-proveedor>Quitar</button></div></template>
 </div></section>
 {% endif %}

@@ -168,7 +168,7 @@ def test_ruta_real_guardado_completo_imagen_autorizada_y_rollback(completo):
     f=imagen();campos['imagenes_producto']=(f.stream,f.filename)
     r=cliente.post('/admin/productos',data=campos,content_type='multipart/form-data',follow_redirects=True)
     assert r.status_code==200 and 'ficha guardada correctamente' in r.text
-    assert 'Clasificación' in r.text and 'Proveedores y códigos externos' in r.text
+    assert 'Clasificación' in r.text and 'Origen y proveedores' in r.text and 'producto-fabricacion-propia' in r.text
     producto=Producto.query.filter_by(sku='NUEVO-COMPLETO').one()
     foto=ProductoImagenMaestra.query.one()
     r=cliente.get(f'/admin/productos/{producto.id}/imagenes/{foto.id}')

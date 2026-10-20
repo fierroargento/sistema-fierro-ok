@@ -1588,3 +1588,14 @@ UAT siguiente, sin salir del alta manual:
 3. Cargar piezas/tareas de una ficha ficticia siguiendo el ejemplo PP6040H. Elegir tarifa del taller ya configurada; no inventar precios de fuentes faltantes.
 4. Revisar consumos/tiempo, IVA elegido e IIBB que corresponda al caso. Calcular: costo neto o aviso claro de fuente pendiente; no costo con IVA.
 5. Cancelar primero y comprobar que no se creó nada. Luego guardar ficha ficticia y reabrir: mismas piezas/tiempos/IVA/IIBB y versión preparatoria, sin activación.
+
+## 2026-10-20 · Fabricación propia en lugar de seleccionar proveedor
+
+- En Clasificación y proveedores, sección Origen y proveedores, se agrega la opción visible Fabricación propia junto a Agregar proveedor. No se crea a Fierro como proveedor ficticio.
+- Se reutiliza el tipo De producción del maestro: si ya fue elegido en el primer paso, Fabricación propia aparece marcada automáticamente. Seleccionarla desde un producto Simple cambia el tipo a De producción mediante el mismo evento del selector, habilitando su ficha de fabricación y bloqueando costo manual. La ayuda lo explica antes de elegir.
+- No exige proveedor ni código externo para elaboración propia. Proveedores existentes se conservan y pueden agregarse si el mismo producto también se compra terminado; no se mezclan con proveedores de sus materias primas.
+- La opción no convierte combos ni elude las restricciones existentes del cambio de tipo. No se guarda otro indicador de origen que pueda contradecir el tipo; no requiere esquema adicional.
+- Cancelar no guarda el cambio de tipo ni crea proveedor. La selección se recupera al reabrir a partir del maestro guardado.
+- Pruebas: suite de datos generales y despiece aprobada; DOM Flask/scripts reales comprueba elección desde Simple, selección automática al reabrir producción, ausencia de proveedor artificial, ningún POST al seleccionar, sincronización al cambiar tipo y bloqueo para Combo. Sintaxis JS aprobada. Aceptación visual pendiente de staging.
+- UAT: desplegar este commit de integración, Ctrl+F5 → Base de Datos → Productos → Nuevo → Clasificación y proveedores. Un De producción ya debe indicar Fabricación propia seleccionada; un Simple puede elegirla ahí y continuar con componentes/tareas. Cancelar y luego guardar/reabrir una ficha ficticia. Sin cambios en main o conexiones.
+- Este ajuste no requiere otro comando de preparación; si todavía no se preparó el bloque anterior de despiece/IIBB, sigue pendiente python -m scripts.preparar_despiece_productos --staging en Shell de staging.
