@@ -21,6 +21,58 @@
     if(valor&&!Array.from(s.options).some(o=>o.value===String(valor))){const o=new Option("Revisar recurso "+valor,String(valor));o.disabled=true;s.add(o);}
     s.value=String(valor||"");
   }
+  const buscarMaterial=document.getElementById("pieza-material-buscar");
+  const nombrePieza=piezaForm&&piezaForm.elements.nombre;
+  const normalizarBusqueda=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  function etiquetasMaterial(r) {
+    const partes=["Insumo: "+r.codigo];
+    if((r.skus||[]).length)partes.push("SKU: "+r.skus.join(", "));
+    (r.codigos_proveedor||[]).forEach(p=>partes.push(p.codigo+" · "+p.proveedor));
+    if((r.proveedores||[]).length)partes.push(r.proveedores.join(" / "));
+    partes.push(r.unidad);return partes.join(" | ");
+  }
+  function seleccionMaterial(r,desdeNombre=false) {
+    piezaForm.elements.insumo_id.value=String(r.id);
+    buscarMaterial.value=r.nombre+" · "+r.codigo;
+    buscarMaterial.setCustomValidity("");
+    if(desdeNombre||!nombrePieza.value.trim())nombrePieza.value=r.nombre;
+    nombrePieza.setCustomValidity(nombrePieza.value.length>160?"Usá un nombre de pieza de hasta 160 caracteres.":"");
+    piezaForm.elements.insumo_id.dispatchEvent(new Event("change",{bubbles:true}));
+  }
+  function autocompletar(input,lista,elegir) {
+    let opciones=[],indice=-1;
+    function cerrar(){lista.hidden=true;input.setAttribute("aria-expanded","false");input.removeAttribute("aria-activedescendant");indice=-1;}
+    function activar(n){indice=n;Array.from(lista.querySelectorAll("[role=option]")).forEach((b,i)=>b.setAttribute("aria-selected",String(i===n)));const b=lista.querySelectorAll("[role=option]")[n];if(b){input.setAttribute("aria-activedescendant",b.id);b.scrollIntoView({block:"nearest"});}}
+    function mostrar(){
+      if(input===nombrePieza&&!input.value.trim()){cerrar();return;}
+      const consulta=normalizarBusqueda(input.value),terminos=consulta.split(/\s+/).filter(Boolean),disponibles=listaRecursos("insumos");
+      const exactos=consulta?disponibles.filter(r=>[r.codigo,...(r.skus||[]),...(r.codigos_proveedor||[]).map(p=>p.codigo)].some(c=>normalizarBusqueda(c)===consulta)):[];
+      const coincidencias=exactos.length?exactos:disponibles.filter(r=>{const texto=normalizarBusqueda(r.nombre+" "+etiquetasMaterial(r));return terminos.every(t=>texto.includes(t));});
+      opciones=coincidencias.slice(0,8);indice=-1;lista.replaceChildren();
+      opciones.forEach((r,i)=>{const boton=document.createElement("button");boton.type="button";boton.id=lista.id+"-"+i;boton.setAttribute("role","option");boton.setAttribute("aria-selected","false");boton.tabIndex=-1;
+        const nombre=document.createElement("strong"),detalle=document.createElement("span");nombre.textContent=r.nombre;detalle.textContent=etiquetasMaterial(r);boton.append(nombre,detalle);
+        boton.addEventListener("mousedown",e=>e.preventDefault());boton.addEventListener("click",()=>{elegir(r);cerrar();input.focus();});lista.appendChild(boton);});
+      const aviso=document.createElement("p");aviso.className="pieza-busqueda-aviso";aviso.textContent=!opciones.length?(input===nombrePieza?"Sin coincidencias. Podés conservar este nombre propio para la pieza.":"Sin coincidencias entre los insumos activos de esta unidad."):coincidencias.length>8?"Mostrando 8 de "+coincidencias.length+". Escribí más datos para precisar la búsqueda.":coincidencias.length+" resultado(s). Elegí el que corresponde.";lista.appendChild(aviso);
+      lista.hidden=false;input.setAttribute("aria-expanded","true");input.removeAttribute("aria-activedescendant");
+    }
+    input.addEventListener("input",mostrar);input.addEventListener("focus",mostrar);
+    input.addEventListener("blur",()=>setTimeout(cerrar,100));
+    input.addEventListener("keydown",e=>{
+      if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();e.stopPropagation();if(lista.hidden)mostrar();if(opciones.length)activar((indice+(e.key==="ArrowDown"?1:opciones.length-1)+opciones.length)%opciones.length);}
+      if(e.key==="Enter"&&!lista.hidden&&indice>=0){e.preventDefault();e.stopPropagation();elegir(opciones[indice]);cerrar();}
+      if(e.key==="Escape"&&!lista.hidden){e.preventDefault();e.stopPropagation();cerrar();}
+    });
+    return {cerrar};
+  }
+  let sugerenciasNombre=null,sugerenciasMaterial=null;
+  if(habilitado&&buscarMaterial){
+    sugerenciasNombre=autocompletar(nombrePieza,document.getElementById("pieza-nombre-opciones"),r=>seleccionMaterial(r,true));
+    sugerenciasMaterial=autocompletar(buscarMaterial,document.getElementById("pieza-material-opciones"),r=>seleccionMaterial(r));
+    buscarMaterial.addEventListener("input",()=>{piezaForm.elements.insumo_id.value="";buscarMaterial.setCustomValidity("Elegí un material de los resultados.");prepararPieza();});
+    nombrePieza.addEventListener("input",()=>nombrePieza.setCustomValidity(nombrePieza.value.length>160?"Usá un nombre de pieza de hasta 160 caracteres.":""));
+    piezaDialog.addEventListener("close",()=>{sugerenciasNombre.cerrar();sugerenciasMaterial.cerrar();});
+  }
+
   function resumenConsumos() {
     const destino=document.getElementById("producto-consumos-resumen");destino.replaceChildren();const consumos=new Map();
     piezas.forEach(p=>consumos.set(String(p.insumo_id),(consumos.get(String(p.insumo_id))||0)+consumo(p)));
@@ -49,9 +101,11 @@
     document.getElementById("pieza-consumo-preview").textContent=m&&Number.isFinite(q)&&q>0?"Consumo por producto: "+formato(q)+" "+m.unidad:"Completá los datos para ver el consumo.";
   }
   function abrirPieza(i=null) {
-    editorIndice=i;piezaForm.reset();llenarSelector(piezaForm.elements.insumo_id,"insumos",i===null?"":piezas[i].insumo_id);
+    editorIndice=i;piezaForm.reset();sugerenciasNombre.cerrar();sugerenciasMaterial.cerrar();buscarMaterial.setCustomValidity("");nombrePieza.setCustomValidity("");llenarSelector(piezaForm.elements.insumo_id,"insumos",i===null?"":piezas[i].insumo_id);
     const d=i===null?{modo:"directo",cantidad:"1"}:piezas[i];for(const [k,v] of Object.entries(d))if(piezaForm.elements[k])piezaForm.elements[k].value=v;
-    piezaForm.querySelector('[type="submit"]').textContent=i===null?"Agregar componente":"Aplicar cambios";prepararPieza();piezaDialog.showModal();piezaForm.elements.nombre.focus();
+    const seleccionado=material(piezaForm.elements.insumo_id.value);buscarMaterial.value=seleccionado?seleccionado.nombre+" · "+seleccionado.codigo:"";
+    buscarMaterial.setCustomValidity(seleccionado?"":"Elegí un material de los resultados.");
+    piezaForm.querySelector('[type="submit"]').textContent=i===null?"Agregar componente":"Aplicar cambios";prepararPieza();piezaDialog.showModal();buscarMaterial.focus();
   }
   function abrirTarea(i=null) {
     editorIndice=i;tareaForm.reset();if(i!==null){tareaForm.elements.nombre.value=tareas[i].nombre;tareaForm.elements.tiempo.value=tareas[i].segundos;}
@@ -139,7 +193,7 @@
       f.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.tagName!=="BUTTON")e.preventDefault();});
     }
     piezaForm.addEventListener("input",prepararPieza);
-    piezaForm.elements.insumo_id.addEventListener("change",()=>{const m=material(piezaForm.elements.insumo_id.value);piezaForm.elements.modo.value=m&&["m","metro","metros"].includes(m.unidad.toLowerCase().trim())?"longitud":"directo";prepararPieza();});
+    piezaForm.elements.insumo_id.addEventListener("change",()=>{const m=material(piezaForm.elements.insumo_id.value);buscarMaterial.value=m?m.nombre+" · "+m.codigo:"";buscarMaterial.setCustomValidity(m?"":"Elegí un material de los resultados.");piezaForm.elements.modo.value=m&&["m","metro","metros"].includes(m.unidad.toLowerCase().trim())?"longitud":"directo";prepararPieza();});
     piezaForm.elements.modo.addEventListener("change",prepararPieza);
     piezaForm.addEventListener("submit",e=>{e.preventDefault();if(!piezaForm.reportValidity())return;const p=Object.fromEntries(new FormData(piezaForm));const m=material(p.insumo_id);
       if(!m||!Number.isFinite(consumo(p))||consumo(p)<=0)return;

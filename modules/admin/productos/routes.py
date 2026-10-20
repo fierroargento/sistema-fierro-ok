@@ -186,6 +186,9 @@ def crear_blueprint_productos(*, dependencias):
                     'unidad_id':r.unidad_negocio_id,'activo':r.activo,'tipo_registro':getattr(r,'tipo_registro','')}
                     for r in db.session.query(Recurso).filter_by(organizacion_id=organizacion.id).order_by(Recurso.codigo)
                     if grupo!='fijos' or r.integra_costo_produccion]
+        if fabricacion_disponible:
+            from services.selector_materiales_producto import enriquecer_insumos
+            recursos_fabricacion['insumos'] = enriquecer_insumos(recursos_fabricacion.get('insumos', []), db.session, organizacion.id)
         from services.productos_despiece import disponible as despiece_disponible
         return render_template("admin_productos.html", despiece_disponible=despiece_disponible(db.session), fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
             organizacion=organizacion, preparado=preparado, filas=filas,
