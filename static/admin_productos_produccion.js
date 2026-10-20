@@ -116,17 +116,28 @@
     document.getElementById("pieza-consumo-preview").textContent=m&&Number.isFinite(q)&&q>0?"Consumo por producto: "+formato(q)+" "+m.unidad:"Completá los datos para ver el consumo.";
   }
   function abrirPieza(i=null) {
-    editorIndice=i;piezaForm.reset();sugerenciasNombre.cerrar();sugerenciasMaterial.cerrar();buscarMaterial.setCustomValidity("");nombrePieza.setCustomValidity("");llenarSelector(piezaForm.elements.insumo_id,"insumos",i===null?"":piezas[i].insumo_id);
+    editorIndice=i;piezaForm.querySelectorAll('[type="submit"]').forEach(b=>b.disabled=i===null&&piezas.length>=100);piezaForm.reset();piezaForm.querySelector("[data-editor-feedback]").hidden=true;sugerenciasNombre.cerrar();sugerenciasMaterial.cerrar();buscarMaterial.setCustomValidity("");nombrePieza.setCustomValidity("");llenarSelector(piezaForm.elements.insumo_id,"insumos",i===null?"":piezas[i].insumo_id);
     const d=i===null?{modo:"directo",cantidad:"1"}:piezas[i];for(const [k,v] of Object.entries(d))if(piezaForm.elements[k])piezaForm.elements[k].value=v;
     const seleccionado=material(piezaForm.elements.insumo_id.value);buscarMaterial.value=seleccionado?seleccionado.nombre+" · "+seleccionado.codigo:"";
     buscarMaterial.setCustomValidity(seleccionado?"":"Elegí un material de los resultados.");
-    piezaForm.querySelector('[type="submit"]').textContent=i===null?"Agregar componente":"Aplicar cambios";prepararPieza();piezaDialog.showModal();buscarMaterial.focus();
+    piezaForm.querySelector("[data-editor-guardar]").textContent=i===null?"Agregar componente":"Aplicar cambios";prepararPieza();if(!piezaDialog.open)piezaDialog.showModal();buscarMaterial.focus();
   }
   function abrirTarea(i=null) {
-    editorIndice=i;tareaForm.reset();if(i!==null){tareaForm.elements.nombre.value=tareas[i].nombre;tareaForm.elements.tiempo.value=tareas[i].segundos;}
-    tareaForm.querySelector('[type="submit"]').textContent=i===null?"Agregar tarea":"Aplicar cambios";tareaDialog.showModal();tareaForm.elements.nombre.focus();
+    editorIndice=i;tareaForm.querySelectorAll('[type="submit"]').forEach(b=>b.disabled=i===null&&tareas.length>=100);tareaForm.reset();tareaForm.querySelector("[data-editor-feedback]").hidden=true;if(i!==null){tareaForm.elements.nombre.value=tareas[i].nombre;tareaForm.elements.tiempo.value=tareas[i].segundos;}
+    tareaForm.querySelector("[data-editor-guardar]").textContent=i===null?"Agregar tarea":"Aplicar cambios";if(!tareaDialog.open)tareaDialog.showModal();tareaForm.elements.nombre.focus();
   }
 
+  function finalizarEditor(e,grupo) {
+    const esPieza=grupo==="piezas",dlg=esPieza?piezaDialog:tareaDialog,f=esPieza?piezaForm:tareaForm;
+    const cantidad=esPieza?piezas.length:tareas.length,editando=editorIndice!==null;
+    if(e.submitter&&e.submitter.hasAttribute("data-editor-otra")) {
+      const unidadTiempo=esPieza?null:f.elements.unidad.value;
+      if(esPieza)abrirPieza();else {abrirTarea();f.elements.unidad.value=unidadTiempo;}
+      const aviso=f.querySelector("[data-editor-feedback]");aviso.hidden=false;
+      aviso.textContent=(editando?"Cambios aplicados a la ficha. ":esPieza?"Componente agregado a la ficha. ":"Tarea agregada a la ficha. ")+(cantidad<100?"Cargá "+(esPieza?"el siguiente.":"la siguiente."):"Llegaste al máximo de 100 filas. Cerrá este cuadro para continuar.");
+      f.querySelectorAll('[type="submit"]').forEach(b=>{b.disabled=cantidad>=100;});
+    } else dlg.close();
+  }
   function tab(g) {
     panel.querySelectorAll("[data-fabricacion-grupo]").forEach(p=>{p.hidden=p.dataset.fabricacionGrupo!==g;});
     panel.querySelectorAll("[data-fabricacion-tab]").forEach(b=>{b.setAttribute("aria-selected",String(b.dataset.fabricacionTab===g));b.tabIndex=b.dataset.fabricacionTab===g?0:-1;});
@@ -210,12 +221,12 @@
     piezaForm.addEventListener("input",prepararPieza);
     piezaForm.elements.insumo_id.addEventListener("change",()=>{const m=material(piezaForm.elements.insumo_id.value);buscarMaterial.value=m?m.nombre+" · "+m.codigo:"";buscarMaterial.setCustomValidity(m?"":"Elegí un material de los resultados.");piezaForm.elements.modo.value=m&&["m","metro","metros"].includes(m.unidad.toLowerCase().trim())?"longitud":"directo";prepararPieza();});
     piezaForm.elements.modo.addEventListener("change",prepararPieza);
-    piezaForm.addEventListener("submit",e=>{e.preventDefault();if(!piezaForm.reportValidity())return;const p=Object.fromEntries(new FormData(piezaForm));const m=material(p.insumo_id);
+    piezaForm.addEventListener("submit",e=>{e.preventDefault();if(editorIndice===null&&piezas.length>=100)return;if(!piezaForm.reportValidity())return;const p=Object.fromEntries(new FormData(piezaForm));const m=material(p.insumo_id);
       if(!m||!Number.isFinite(consumo(p))||consumo(p)<=0)return;
       if(p.modo==="longitud"&&!["m","metro","metros"].includes(m.unidad.toLowerCase().trim())){piezaForm.elements.modo.setCustomValidity("Este material no está cotizado por metro.");piezaForm.elements.modo.reportValidity();piezaForm.elements.modo.setCustomValidity("");return;}
-      if(editorIndice===null)piezas.push(p);else piezas[editorIndice]=p;renderListas();invalidar();piezaDialog.close();});
-    tareaForm.addEventListener("submit",e=>{e.preventDefault();if(!tareaForm.reportValidity())return;const segundos=numero(tareaForm.elements.tiempo.value)*(tareaForm.elements.unidad.value==="minutos"?60:1);if(!Number.isFinite(segundos)||segundos<=0)return;
-      const t={nombre:tareaForm.elements.nombre.value,segundos:String(Number(segundos.toFixed(6)))};if(editorIndice===null)tareas.push(t);else tareas[editorIndice]=t;renderListas();invalidar();tareaDialog.close();});
+      if(editorIndice===null)piezas.push(p);else piezas[editorIndice]=p;renderListas();invalidar();finalizarEditor(e,"piezas");});
+    tareaForm.addEventListener("submit",e=>{e.preventDefault();if(editorIndice===null&&tareas.length>=100)return;if(!tareaForm.reportValidity())return;const segundos=numero(tareaForm.elements.tiempo.value)*(tareaForm.elements.unidad.value==="minutos"?60:1);if(!Number.isFinite(segundos)||segundos<=0)return;
+      const t={nombre:tareaForm.elements.nombre.value,segundos:String(Number(segundos.toFixed(6)))};if(editorIndice===null)tareas.push(t);else tareas[editorIndice]=t;renderListas();invalidar();finalizarEditor(e,"tareas");});
     panel.querySelectorAll("[data-fabricacion-tab]").forEach(b=>{
       b.addEventListener("click",()=>tab(b.dataset.fabricacionTab));
       b.addEventListener("keydown",e=>{if(!["ArrowLeft","ArrowRight"].includes(e.key))return;e.preventDefault();const bs=Array.from(panel.querySelectorAll("[data-fabricacion-tab]")),i=bs.indexOf(b);const destino=bs[(i+(e.key==="ArrowRight"?1:bs.length-1))%bs.length];tab(destino.dataset.fabricacionTab);destino.focus();});

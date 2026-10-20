@@ -152,3 +152,9 @@
 .producto-editor-dialog .pieza-sugerencias strong {display:block;font-size:14px;overflow-wrap:anywhere}
 .producto-editor-dialog .pieza-sugerencias span {display:block;margin-top:5px;font-size:12px;color:#62758a;line-height:1.5;overflow-wrap:anywhere}
 .producto-editor-dialog .pieza-busqueda-aviso {padding:10px 13px;margin:0;font-size:12px;color:#62758a;line-height:1.5}
+
+.producto-editor-dialog .producto-editor-acciones {display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;min-width:0}
+.producto-editor-dialog .producto-editor-acciones button {width:auto;min-height:40px;white-space:normal}
+.producto-editor-dialog .producto-editor-feedback {padding:10px 12px;margin:0 0 14px;border:1px solid #c7e5d6;border-radius:8px;background:#effaf4;color:#236548;font-size:13px;line-height:1.5}
+.producto-editor-dialog .producto-editor-feedback[hidden] {display:none}
+@media(max-width:560px){.producto-editor-dialog .producto-dialog-footer {flex-wrap:wrap;gap:10px}.producto-editor-dialog .producto-editor-acciones {justify-content:flex-start}}
