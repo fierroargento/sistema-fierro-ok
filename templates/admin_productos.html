@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261019-maestro') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261020-costo-iva-moneda') }}">
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261020-costo-iva-moneda') }}" defer></script>
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261020-costo-iva-moneda') }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261020-fabricacion-maestro') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261020-fabricacion-maestro') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_produccion.js', v='20261020-fabricacion-maestro') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261020-fabricacion-maestro') }}" defer></script>
 {% endblock %}
 {% block content %}
 {% macro valor_cambio(campo, valor) -%}
@@ -77,7 +78,8 @@
         <p id="producto-combo-error" class="productos-error" role="alert" hidden></p>
       </section>
       <template id="producto-componente-template"><div class="producto-componente-fila"><label>Producto<select data-componente-sku required><option value="">Seleccionar producto</option>{% for producto, ficha in componentes %}<option value="{{ producto.sku }}" data-producto-id="{{ producto.id }}">{{ producto.sku }} · {{ ficha.nombre }} ({{ ficha.unidad_medida }})</option>{% endfor %}</select></label><label>Cantidad<input data-componente-cantidad type="number" min="1" max="999999999999.999999" step="1" value="1" required></label><button type="button" class="secondary-link" data-componente-quitar>Quitar</button></div></template>
-      <section class="producto-section"><h3>Referencia de insumo y costeo</h3><div class="producto-section-body"><p>Si el artículo ya existe en las fuentes de costo, vinculalo para reutilizarlo. No se copian sus precios ni saldos.</p><label>Insumo físico existente<select name="insumo_id"><option value="">Sin vincular todavía</option>{% for insumo in insumos %}<option value="{{ insumo.id }}">{{ insumo.codigo }} · {{ insumo.nombre }} · {{ insumo.unidad_medida }}</option>{% endfor %}</select></label><p class="productos-muted">La unidad debe coincidir exactamente con la del insumo. Los costos y la composición se conservan en sus módulos actuales.</p></div></section>
+      {% include "partials/producto_fabricacion.html" %}
+      <section class="producto-section"><h3>Vínculo del producto como insumo (opcional)</h3><div class="producto-section-body"><p>Si este mismo artículo ya tiene una fuente de insumo, vinculala para conservar su identidad. Este vínculo no reemplaza los materiales ni las operaciones de su ficha de fabricación.</p><label>Insumo físico existente<select name="insumo_id"><option value="">Sin vincular todavía</option>{% for insumo in insumos %}<option value="{{ insumo.id }}">{{ insumo.codigo }} · {{ insumo.nombre }} · {{ insumo.unidad_medida }}</option>{% endfor %}</select></label><p class="productos-muted">La unidad debe coincidir exactamente con la del insumo. Los costos y la composición se conservan en sus módulos actuales.</p></div></section>
 {% with paso_datos="utilidad" %}{% include "partials/producto_datos_generales.html" %}{% endwith %}
 </section>
 <section class="producto-paso" data-paso="imagenes" data-titulo="Imágenes y códigos" hidden aria-labelledby="paso-imagenes"><h3 id="paso-imagenes" class="producto-paso-titulo" tabindex="-1">Imágenes y códigos</h3><p class="productos-muted">Agregá fotos y códigos de barras si los tenés; podés completarlos más adelante.</p>
@@ -95,6 +97,7 @@
   </form>
 </dialog>
 <dialog class="source-dialog producto-confirm" id="producto-confirm" aria-labelledby="producto-confirm-title"><h2 id="producto-confirm-title">Confirmar cambios</h2><p id="producto-confirm-text"></p><div class="productos-actions"><button type="button" class="secondary-link" id="producto-confirm-cancel" autofocus>Cancelar</button><button type="button" class="comercial-primary" id="producto-confirm-ok">Confirmar</button></div></dialog>
+<script nonce="{{ csp_nonce }}" type="application/json" id="productos-fabricacion-recursos">{{ recursos_fabricacion|tojson }}</script>
 <script nonce="{{ csp_nonce }}" type="application/json" id="productos-clasificaciones">{{ clasificaciones|tojson }}</script>
 <script nonce="{{ csp_nonce }}" type="application/json" id="productos-datos">{{ {'filas': filas, 'formulario_error': formulario_error, 'error': error}|tojson }}</script>
 {% endblock %}

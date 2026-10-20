@@ -85,14 +85,19 @@
           (f.querySelector("input[type=radio]").checked ? " (principal)" : "")).join(" · ") : "Sin fotos";
         lista.append(dt, dd);
       }
+      if (p.dataset.paso === "costos" && form.elements.tipo.value === "produccion" && window.productosProduccion) {
+        const dt=document.createElement("dt"), dd=document.createElement("dd");
+        dt.textContent="Costo de fabricación"; dd.textContent=window.productosProduccion.resumen(); lista.append(dt,dd);
+      }
       tarjeta.appendChild(lista); destino.appendChild(tarjeta);
     });
   }
   function validarPaso(indice) {
     const panel = pasos[indice];
     const invalido = Array.from(panel.querySelectorAll("input,select,textarea")).find(c => c.willValidate && !c.validity.valid);
-    if (invalido) { mostrarPaso(indice); invalido.reportValidity(); return false; }
+    if (invalido) { mostrarPaso(indice); if (window.productosProduccion) window.productosProduccion.mostrarError(invalido); invalido.reportValidity(); return false; }
     if (panel.dataset.paso === "costos" && !validarCombo()) { mostrarPaso(indice); return false; }
+    if (panel.dataset.paso === "costos" && window.productosProduccion && !window.productosProduccion.validar()) { mostrarPaso(indice); return false; }
     if (window.productosDatos && !window.productosDatos.validar(panel.dataset.paso)) return false;
     return true;
   }
@@ -236,6 +241,7 @@
     cargarComposicion(Array.isArray(componentes) ? componentes : []);
     ajustarNoStockeable();
     if (window.productosDatos) window.productosDatos.abrir(filaGuardada, fallido);
+    if (window.productosProduccion) window.productosProduccion.abrir(filaGuardada, fallido);
     mostrarPaso(0, false);
     dialogo.showModal();
     (edicion ? form.elements.nombre : form.elements.sku).focus();

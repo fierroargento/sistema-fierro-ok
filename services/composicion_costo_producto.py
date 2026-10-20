@@ -22,7 +22,7 @@ def _alcance(perfil, recurso):
         raise ValueError("El recurso no pertenece a la unidad del producto.")
 
 
-def guardar_insumo(perfil, insumo, *, cantidad, merma, observacion, Modelo, db_session):
+def guardar_insumo(perfil, insumo, *, cantidad, merma, observacion, Modelo, db_session, commit=True):
     _alcance(perfil, insumo)
     from services.producto_habilitaciones import exigir_uso_insumo
     exigir_uso_insumo(insumo, "insumo", db_session, perfil.unidad_negocio_id)
@@ -33,11 +33,12 @@ def guardar_insumo(perfil, insumo, *, cantidad, merma, observacion, Modelo, db_s
     registro.cantidad = _positivo(cantidad, "La cantidad")
     registro.porcentaje_merma = Decimal("0") if str(merma or "").strip() in {"", "0"} else _positivo(merma, "La merma", Decimal("100"))
     registro.observacion = str(observacion or "").strip() or None
-    db_session.commit()
+    if commit: db_session.commit()
+    else: db_session.flush()
     return registro
 
 
-def guardar_operacion(perfil, empleado, *, nombre, minutos, observacion, Modelo, db_session, registro_id=None):
+def guardar_operacion(perfil, empleado, *, nombre, minutos, observacion, Modelo, db_session, registro_id=None, commit=True):
     _alcance(perfil, empleado)
     descripcion = str(nombre or "").strip()
     if not descripcion:
@@ -54,11 +55,12 @@ def guardar_operacion(perfil, empleado, *, nombre, minutos, observacion, Modelo,
     registro.nombre = descripcion[:160]
     registro.minutos = _positivo(minutos, "Los minutos")
     registro.observacion = str(observacion or "").strip() or None
-    db_session.commit()
+    if commit: db_session.commit()
+    else: db_session.flush()
     return registro
 
 
-def guardar_costo_fijo(perfil, costo_fijo, *, porcentaje, unidades_mensuales, observacion, Modelo, db_session):
+def guardar_costo_fijo(perfil, costo_fijo, *, porcentaje, unidades_mensuales, observacion, Modelo, db_session, commit=True):
     _alcance(perfil, costo_fijo)
     if not costo_fijo.integra_costo_produccion:
         raise ValueError("El costo fijo no está marcado como productivo.")
@@ -69,12 +71,14 @@ def guardar_costo_fijo(perfil, costo_fijo, *, porcentaje, unidades_mensuales, ob
     registro.porcentaje_asignacion = _positivo(porcentaje, "El porcentaje", Decimal("100"))
     registro.unidades_mensuales = _positivo(unidades_mensuales, "Las unidades mensuales")
     registro.observacion = str(observacion or "").strip() or None
-    db_session.commit(); return registro
+    if commit: db_session.commit()
+    else: db_session.flush()
+    return registro
 
 
 def guardar_maquina(
     perfil, maquina, *, nombre, minutos, observacion, Modelo, db_session,
-    registro_id=None,
+    registro_id=None, commit=True,
 ):
     _alcance(perfil, maquina)
     descripcion = str(nombre or "").strip()
@@ -97,7 +101,8 @@ def guardar_maquina(
     registro.nombre = descripcion[:160]
     registro.minutos = _positivo(minutos, "Los minutos")
     registro.observacion = str(observacion or "").strip() or None
-    db_session.commit()
+    if commit: db_session.commit()
+    else: db_session.flush()
     return registro
 
 
@@ -119,6 +124,8 @@ def _factor_productivo_unidad(costo_fijo, unidad_negocio_id):
     ]
     if not distribuciones:
         return Decimal("1")
+    if unidad_negocio_id is None:
+        raise ValueError("Elegí la unidad de fabricación para aplicar los costos fijos distribuidos.")
     asignacion = next(
         (
             item for item in distribuciones
@@ -217,7 +224,7 @@ def construir_detalles_combo(perfil, *, CostoProductoVersion):
             )
         detalles.append({
             "tipo": "elaboracion", "codigo": linea.componente.producto.sku,
-            "concepto": linea.componente.producto.descripcion,
+            "concepto": linea.componente.producto.descripcion or linea.componente.producto.sku,
             "cantidad": linea.cantidad, "unidad_medida": "unidad",
             "costo_unitario_centavos": costo.costo_total_centavos,
             "porcentaje_merma": 0, "orden": orden,

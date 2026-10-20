@@ -103,7 +103,7 @@ def datos_de_formulario(formulario):
     return normalizar_ficha(datos)
 
 
-def huella(producto, ficha, composiciones=None, adicionales=None):
+def huella(producto, ficha, composiciones=None, adicionales=None, producciones=None):
     if producto is None:
         return "nuevo"
     datos = {c: getattr(producto, c) for c in CAMPOS_BASE}
@@ -113,6 +113,11 @@ def huella(producto, ficha, composiciones=None, adicionales=None):
         if composiciones is None:
             composiciones = leer_composiciones([producto], inspect(producto).session, producto.organizacion_id).get(producto.id, [])
         datos["composiciones_combo"] = composiciones
+    if ficha is None or ficha.tipo == "produccion":
+        if producciones is None:
+            from services.productos_produccion_maestro import leer_producciones
+            producciones = leer_producciones([producto], inspect(producto).session, producto.organizacion_id).get(producto.id, [])
+        datos["fabricacion"] = producciones
     from services.productos_datos_generales import cargar_datos_productos
     if adicionales is None:
         adicionales = cargar_datos_productos([producto], inspect(producto).session, producto.organizacion_id).get(producto.id, {})
@@ -242,6 +247,8 @@ def construir_filas(productos, db_session, organizacion_id):
     composiciones = leer_composiciones(productos, db_session, organizacion_id)
     from services.productos_datos_generales import cargar_datos_productos
     adicionales = cargar_datos_productos(productos, db_session, organizacion_id)
+    from services.productos_produccion_maestro import leer_producciones
+    producciones = leer_producciones(productos, db_session, organizacion_id)
     filas = []
     for producto in productos:
         ficha = fichas.get(producto.id)
@@ -257,7 +264,7 @@ def construir_filas(productos, db_session, organizacion_id):
             receta = next((r for r in recetas if r["unidad_combo_id"] is None), recetas[0] if recetas else None)
             datos["componentes_combo"] = [{"sku": c["sku"], "cantidad": c["cantidad"]} for c in receta["componentes_combo"]] if receta else []
             datos["unidad_combo_id"] = receta["unidad_combo_id"] if receta else None
-        filas.append({"id": producto.id, "composiciones": recetas, "adicionales": adicionales.get(producto.id, {}), "configurado": ficha is not None,
-            "datos": datos, "huella": huella(producto, ficha, recetas, adicionales.get(producto.id, {})), "tipos_previos": tipos,
+        filas.append({"id": producto.id, "composiciones": recetas, "producciones": producciones.get(producto.id, []), "adicionales": adicionales.get(producto.id, {}), "configurado": ficha is not None,
+            "datos": datos, "huella": huella(producto, ficha, recetas, adicionales.get(producto.id, {}), producciones.get(producto.id, [])), "tipos_previos": tipos,
             "usos": [etiqueta for uso, etiqueta in USOS.items() if ficha and getattr(ficha, "habilita_" + uso)]})
     return preparado, filas

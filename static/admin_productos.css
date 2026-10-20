@@ -119,3 +119,10 @@
 }
 
 .producto-dialog .producto-costo-preview { background:#edf6f9; border:1px solid #d5e8ee; border-radius:8px; padding:12px; color:#124e64; font-size:.88rem; line-height:1.5; }
+.producto-dialog .producto-fabricacion-tabs { display:flex; flex-wrap:wrap; gap:7px; margin:16px 0; }
+.producto-dialog .producto-fabricacion-tabs [aria-selected="true"] { background:#124e64; color:#fff; border-color:#124e64; }
+.producto-dialog .producto-fabricacion-fila { display:grid; grid-template-columns:minmax(150px,2fr) minmax(85px,1fr) minmax(85px,1fr) auto; align-items:end; gap:10px; border:1px solid #d5e8ee; border-radius:8px; background:#f8fbfd; padding:12px; margin:12px 0; }
+.producto-dialog .producto-fabricacion-fila label { min-width:0; }
+.producto-dialog .producto-fabricacion-calculo { display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin:20px 0 12px; }
+.producto-dialog #producto-fabricacion-resultado ul { padding-left:20px; margin-top:0; }
+@media(max-width:680px) { .producto-dialog .producto-fabricacion-fila { grid-template-columns:1fr 1fr; } .producto-dialog .producto-fabricacion-fila > label:first-child { grid-column:1/-1; } }

@@ -1,0 +1,26 @@
+<section id="producto-fabricacion" class="producto-section" hidden>
+<h3>Construcción del costo de fabricación</h3>
+<p class="productos-muted">Indicá lo necesario para fabricar una unidad de medida del producto. Las tarifas se toman de las fuentes de Costos existentes.</p>
+{% if fabricacion_disponible %}
+<input type="hidden" name="produccion_presentada" value="1"><input type="hidden" name="produccion_json" value="{}"><input type="hidden" name="produccion_huella">
+<label>Unidad de fabricación<select name="unidad_produccion_ui"><option value="">General</option>{% for u in unidades_combo %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
+<p class="productos-muted">Se edita la ficha de esta unidad; las otras se conservan.</p>
+<div class="producto-fabricacion-tabs" role="tablist" aria-label="Componentes de fabricación">
+{% for g,t in [('insumos','Insumos y materiales'),('operaciones','Mano de obra'),('maquinas','Máquinas'),('fijos','Indirectos')] %}<button type="button" class="secondary-link" role="tab" id="fabricacion-tab-{{ g }}" aria-controls="fabricacion-{{ g }}" data-fabricacion-tab="{{ g }}">{{ t }}</button>{% endfor %}
+</div>
+{% for g,t in [('insumos','Insumos y materiales'),('operaciones','Mano de obra'),('maquinas','Máquinas'),('fijos','Costos indirectos')] %}
+<section id="fabricacion-{{ g }}" role="tabpanel" aria-labelledby="fabricacion-tab-{{ g }}" data-fabricacion-grupo="{{ g }}" hidden>
+<h4>{{ t }}</h4>
+{% if g=='insumos' %}<p class="productos-muted">Cantidad de cada material por unidad fabricada, con su merma. También podés seleccionar consumibles o embalajes productivos existentes.</p>
+{% elif g=='operaciones' %}<p class="productos-muted">Nombre de la tarea, empleado o recurso laboral y minutos por unidad.</p>
+{% elif g=='maquinas' %}<p class="productos-muted">Operación, equipo y minutos de uso por unidad. La tarifa proviene de la máquina.</p>
+{% else %}<p class="productos-muted">Parte del gasto productivo mensual atribuible al producto y unidades que se fabrican por mes.</p>{% endif %}
+<div data-fabricacion-filas="{{ g }}"></div><button type="button" class="secondary-link" data-fabricacion-agregar="{{ g }}">Agregar {{ 'insumo' if g=='insumos' else 'operación' if g=='operaciones' else 'máquina' if g=='maquinas' else 'costo indirecto' }}</button>
+</section>
+{% endfor %}
+<p id="producto-fabricacion-error" class="productos-error" role="alert" hidden></p>
+<div class="producto-fabricacion-calculo"><button type="button" class="comercial-primary" id="producto-fabricacion-calcular" data-url="{{ url_for('admin_productos.calcular_fabricacion') }}">Calcular costo unitario</button><p id="producto-fabricacion-estado" class="productos-muted" role="status" aria-live="polite">Agregá la composición y calculá su costo. No se guarda al calcular.</p></div>
+<div id="producto-fabricacion-resultado" class="producto-costo-preview" hidden></div>
+<p class="productos-muted">Si falta un precio o tarifa, la ficha puede guardarse con costo pendiente. Un costo pendiente no se considera cero ni habilita precios de venta.</p>
+{% else %}<p class="productos-error">La ficha de fabricación no está disponible en este entorno. No se puede reemplazar por un costo manual.</p>{% endif %}
+</section>

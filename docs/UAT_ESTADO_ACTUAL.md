@@ -1502,3 +1502,40 @@ UAT inmediato (seguir solo carga manual):
 - Textos anteriores conservados: no se borran masivamente coincidencias nombre/descripción porque pueden haber sido ingresadas expresamente. La compatibilidad inicial de productos antiguos sin ficha sigue usando su dato histórico como propuesta de nombre; esta corrección elimina la copia inversa nombre → descripción en fichas guardadas.
 - 88 pruebas del maestro y datos generales aprobadas. Nuevos casos de alta/edición/reapertura independiente, borrado explícito, alta masiva sin descripción y ruta Flask real con nombre requerido y descripción vacía. Sin cambios de producción, conexiones o stock.
 - UAT: desplegar el commit de integración y Ctrl+F5 → Base de Datos → Productos → Nuevo producto. Completar nombre y dejar Descripción vacía, guardar y reabrir; debe continuar vacía. Agregar detalles y luego editar solo el nombre: los detalles se conservan. Esta corrección no requiere Shell ni otra migración; la preparación del bloque previo de costo/IVA/moneda sigue siendo necesaria si todavía no se ejecutó.
+
+## 2026-10-20 · La construcción del costo comienza al crear el producto
+
+Decisión confirmada: un producto de producción comienza su ficha de fabricación en Nuevo producto. Composición de costo es otra entrada de mantenimiento de esa MISMA ficha; no es un paso externo obligatorio ni un segundo registro. El costo no se escribe a mano para producción o combos.
+
+Implementación en el asistente:
+- Simple conserva costo de compra sin IVA, moneda ARS/USD e IVA. Producción oculta/deshabilita el importe manual y ofrece la construcción desde fuentes existentes; Combo conserva sus componentes y también deshabilita el costo manual. El servidor rechaza un importe manual para ambos tipos, incluso si se elude el navegador. No se activan conexiones ni conversiones de moneda.
+- En Composición y utilidad aparece la ficha de fabricación con secciones en pestañas: Insumos y materiales (cantidad y merma por unidad), Mano de obra (tarea/recurso/minutos), Máquinas (operación/equipo/minutos) e Indirectos (asignación porcentual/unidades mensuales).
+- Se reutilizan InsumoProductivo, empleados/recursos laborales, máquinas y costos fijos productivos existentes. No se genera otra receta ni otra identidad de producto. Los insumos respetan los vínculos de habilitación del maestro ya existentes.
+- Unidad de fabricación explícita General o unidad de negocio; se validan organización, unidad y recursos activos. Se edita solo el ámbito elegido y se conservan los otros. Borradores locales por unidad al cambiar el selector. Se preservan observaciones existentes aunque no se reescriban en esta UI.
+- Calcular costo unitario realiza un POST autenticado/con CSRF de solo lectura sobre el formulario aún no guardado. Usa construir_detalles + preparar_detalles existentes, con precios/tarifas vigentes en ARS. No guarda el producto, perfil, líneas ni versión al simular.
+- El botón muestra Calculando y luego resultado/aviso visible; desglose por material/operación/recurso y total unitario en ARS. No suma IVA a la base de fabricación ni utiliza USD como ARS. El IVA del producto y la utilidad siguen siendo atributos separados.
+- Cambiar la receta invalida el resultado previo. Respuestas de una simulación anterior no se aplican si se cambia el formulario o se abre otro producto. El resumen final muestra los datos de fabricación y el estado del cálculo.
+- El alta manual nueva de Producción exige al menos un insumo/operación/recurso. Si una fuente no tiene tarifa vigente, el cálculo informa el faltante; se puede guardar la composición como costo pendiente, sin crear un costo cero. El mensaje de guardado indica ese estado. Un costo pendiente no habilita un precio/publicación.
+
+Persistencia y guardias:
+- Reutiliza PerfilCosteoProducto y ProductoInsumoCosteo/ProductoOperacionCosteo/ProductoMaquinaCosteo/ProductoCostoFijoCosteo. Los servicios existentes admiten commit=False conservando commit=True como valor anterior para sus otras pantallas.
+- Una única transacción guarda maestro, ampliación, fotos, perfil, composición y, cuando puede calcularse, CostoProductoVersion/Detalle tipo calculado, preparatorio y no vigente. No se activa automáticamente ni se cambia una versión vigente. Composición igual a la última versión no genera otra versión idéntica.
+- Si se simuló, se contrasta la huella del desglose al guardar; cambios de tarifas piden recalcular y revierten íntegramente. Sin simulación previa el servidor calcula con las fuentes vigentes o informa pendiente, sin inventar importes.
+- La huella del maestro incluye todas las composiciones de fabricación por unidad. Una modificación desde Composición de costo invalida un formulario anterior y evita pisarla silenciosamente. IDs de líneas ajenas, unidades o recursos de otro tenant, duplicados, inactivos y cantidades/tiempos inválidos son rechazados.
+- Las líneas quitadas se eliminan solo del perfil seleccionado, sin borrar snapshots históricos. Una excepción posterior a crear el costo revierte también producto/perfil/líneas/versiones. Cancelar no envía el guardado.
+- La referencia antigua de costo manual en una ficha no Simple se desvincula al guardar el nuevo formulario, conservando su historial; no se interpreta como costo de fabricación.
+- Se reutilizan tablas desplegadas de Costos; no hay migración nueva. Guardias de esquema antes de mostrar la ficha: si faltan tablas/columnas, se informa que no está disponible y no se admite reemplazar fabricación por costo manual. La preparación anterior de costo/IVA/moneda sigue siendo necesaria si no se ejecutó.
+- Inspección de esquema reutilizada dentro de la petición, sin caché persistente que impida ver una preparación posterior. Sin cambios de main, stock, pedidos, scheduler o conexiones externas.
+- Dos ajustes del cálculo existente: un indirecto distribuido por unidad pide seleccionar unidad, en lugar de fallar con int(None); un detalle de combo sin descripción opcional usa el SKU como concepto, sin volver a copiar nombres a descripciones.
+
+Verificación y límites:
+- 106 pruebas del maestro/datos/fabricación aprobadas; 18 casos de fabricación incluyen las cuatro fuentes, merma, cálculo previo sin escrituras, CSRF, guardado/reapertura sin duplicados, rechazos/rollback, tarifas faltantes, cambio de fuente tras simular, ámbitos independientes, edición externa obsoleta y bloqueo de costo manual para producción/combo. Una prueba adicional del cálculo anterior de composición aprobada.
+- DOM con HTML Flask y scripts reales: cambio de tipo, bloqueo del importe, cuatro pestañas, feedback de cálculo, resultado sin interpretar texto como HTML, invalidación, borradores por unidad, resumen, cancelación y reapertura comprobados. El DOM adapta dialog/DataTransfer y la respuesta de cálculo; la API real se prueba aparte con Flask/DB.
+- Sintaxis JS y compilación Python aprobadas. No se declara QA visual en navegador real ni ejecución de PostgreSQL/Render; queda la aceptación de staging. No se ejecuta el monolito ni pruebas estáticas ajenas que dependen de archivos no disponibles.
+
+UAT inmediato, continuar solo el alta manual:
+1. Desplegar este commit únicamente en integracion-saas-2026-09. No requiere otra migración por este bloque.
+2. Ctrl+F5 → Base de Datos → Productos → Nuevo producto → Tipo De producción → Composición y utilidad.
+3. Elegir unidad de fabricación y cargar insumo/cantidad/merma, tarea/recurso/minutos y máquina/minutos de prueba. Agregar un indirecto si corresponde al caso. Usar las fuentes ya preparadas; no activar servicios externos.
+4. Calcular costo unitario y revisar el desglose. Volver a un paso anterior conserva los datos; Cancelar no crea producto/receta. Si falta una tarifa, debe indicar costo pendiente y no mostrar cero como costo válido.
+5. Guardar una ficha ficticia y reabrir: misma composición, costos calculados en el historial sin activación. Cambiar una cantidad y recalcular; observar resultado actualizado. Seguir ajustando el alta manual antes de avanzar a ventas/publicación reales.

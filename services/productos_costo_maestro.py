@@ -60,6 +60,16 @@ def cargar_costos_manuales(salida, db_session, organizacion_id):
 def guardar_costo_manual(producto, general, datos, db_session, *, usuario=None):
     if not datos.get('costo_presentado'):
         return
+    from models.producto_ficha_maestra import ProductoFichaMaestra
+    ficha = db_session.query(ProductoFichaMaestra).filter_by(producto_id=producto.id,
+        organizacion_id=producto.organizacion_id).one()
+    if ficha.tipo != 'simple':
+        if datos['precio_costo_centavos'] is not None:
+            raise ValueError('El costo de producción y combos se construye con su composición; no se carga a mano.')
+        if datos['moneda_costo'] != 'ARS':
+            raise ValueError('El costo construido utiliza ARS; no se convierten monedas automáticamente.')
+        general.iva_pct=datos['iva_pct'];general.moneda_costo='ARS';general.costo_carga_id=None
+        return
     Modelo, Detalle = _modelos()
     anterior = None
     if general.costo_carga_id:
@@ -80,9 +90,6 @@ def guardar_costo_manual(producto, general, datos, db_session, *, usuario=None):
     from models.organizacion import Organizacion
     from models.unidad_negocio import UnidadNegocio
     from models.producto import Producto
-    from models.producto_ficha_maestra import ProductoFichaMaestra
-    ficha = db_session.query(ProductoFichaMaestra).filter_by(producto_id=producto.id,
-        organizacion_id=producto.organizacion_id).one()
     # El mismo perfil general permite encontrar la carga desde Costos.
     # No se cambia ni reactiva un perfil existente ni una ficha de producción.
     from models.perfil_costeo_producto import PerfilCosteoProducto

@@ -147,6 +147,7 @@
       if((!paso || paso === "comercial") && form.elements.subrubro.value.trim()&&!form.elements.rubro.value.trim())return avisar("Elegí el rubro del subrubro.", "comercial");
       if(!paso || paso === "costos") {
         for (const [campo, nombre, maximo, decimales] of [["precio_costo","Precio de costo",999999999999.99,2],["iva_pct","IVA",100,6]]) {
+          if (form.elements[campo].disabled) continue;
           const texto=form.elements[campo].value.trim().replace(",", ".");
           const valor=Number(texto);
           const patron=new RegExp("^(?:\\d+(?:\\.\\d{1,"+decimales+"})?|\\.\\d{1,"+decimales+"})$");

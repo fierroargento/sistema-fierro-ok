@@ -1,6 +1,6 @@
 """Administración tenant del maestro único de productos."""
 from io import BytesIO
-from flask import abort, send_file
+from flask import abort, send_file, jsonify
 from flask import Blueprint, Response, current_app, redirect, render_template, request, session, url_for
 
 from services.productos_consultas import obtener_panel_productos_plataforma
@@ -59,6 +59,25 @@ def crear_blueprint_productos(*, dependencias):
         return Response(plantilla_csv(), content_type="text/csv; charset=utf-8",
             headers={"Content-Disposition": 'attachment; filename="plantilla_maestro_productos.csv"'})
 
+    @blueprint.route("/admin/productos/calcular-fabricacion", methods=["POST"])
+    @login_required
+    def calcular_fabricacion():
+        _, organizacion, respuesta=resolver_acceso()
+        if respuesta is not None:return respuesta
+        if request.content_length and request.content_length>110000:return jsonify(error="La ficha supera el tamaño permitido."),400
+        from services.productos_produccion_maestro import preparar, calcular
+        try:
+            if request.form.get('tipo')!='produccion':raise ValueError('El cálculo requiere un producto de producción.')
+            ident=request.form.get('producto_id') or None
+            if ident is not None:
+                if not ident.isdigit():raise ValueError('El producto no es válido.')
+                ident=int(ident)
+            plan=preparar(request.form.get('produccion_json',''),db.session,organizacion.id,ident)
+            resultado=calcular(plan,organizacion.id)
+            return jsonify(resultado)
+        except ValueError as error:
+            return jsonify(error=str(error)),400
+
     @blueprint.route("/admin/productos", methods=["GET", "POST"])
     @login_required
     def panel():
@@ -77,12 +96,23 @@ def crear_blueprint_productos(*, dependencias):
                 if accion in {"crear_producto", "editar_producto"}:
                     producto_id = int(request.form["producto_id"]) if accion == "editar_producto" else None
                     adicionales = leer_formulario_completo(request.form, request.files.getlist("imagenes_producto"))
+                    plan_produccion=None
+                    if request.form.get('tipo')=='produccion':
+                        if request.form.get('produccion_presentada')=='1':
+                            from services.productos_produccion_maestro import preparar as preparar_produccion
+                            plan_produccion=preparar_produccion(request.form.get('produccion_json',''),db.session,organizacion.id,producto_id)
+                        elif accion=='crear_producto':
+                            raise ValueError('Completá la ficha de fabricación del nuevo producto de producción.')
                     producto = guardar_ficha(datos_de_formulario(request.form), Producto=Producto,
                         db_session=db.session, organizacion_id=(organizacion.id),
                         producto_id=producto_id, huella_esperada=request.form.get("huella", ""), commit=False)
                     guardar_datos_generales(producto, adicionales, db.session, usuario=usuario)
+                    aviso_produccion=''
+                    if plan_produccion is not None:
+                        from services.productos_produccion_maestro import guardar as guardar_produccion
+                        aviso_produccion=guardar_produccion(producto,plan_produccion,db.session,usuario,request.form.get('produccion_huella',''))
                     db.session.commit()
-                    mensaje = f"{producto.sku}: ficha guardada correctamente."
+                    mensaje = f"{producto.sku}: ficha guardada correctamente." + (" " + aviso_produccion if aviso_produccion else "")
                     filtro_sku = producto.sku
                 elif accion == "previsualizar_importacion":
                     archivo = request.files.get("archivo_productos")
@@ -146,7 +176,17 @@ def crear_blueprint_productos(*, dependencias):
             proveedores = db.session.query(ProveedorCompra).filter_by(organizacion_id=organizacion.id).order_by(ProveedorCompra.razon_social).all()
             ubicaciones = db.session.query(SucursalOperativa).filter_by(organizacion_id=organizacion.id).order_by(SucursalOperativa.nombre).all()
             clasificaciones = [dict(r._mapping) for r in db.session.query(ProductoDatosGenerales.rubro, ProductoDatosGenerales.subrubro, ProductoDatosGenerales.marca).filter_by(organizacion_id=organizacion.id).distinct().all()]
-        return render_template("admin_productos.html", completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
+        from services.productos_produccion_maestro import disponible, modelos
+        fabricacion_disponible=disponible(db.session)
+        recursos_fabricacion={}
+        if fabricacion_disponible:
+            for grupo,(_,Recurso,_) in modelos()[1].items():
+                recursos_fabricacion[grupo]=[{'id':r.id,'codigo':r.codigo,'nombre':r.nombre,
+                    'unidad':getattr(r,'unidad_medida','minuto' if grupo in {'operaciones','maquinas'} else 'mes'),
+                    'unidad_id':r.unidad_negocio_id,'activo':r.activo}
+                    for r in db.session.query(Recurso).filter_by(organizacion_id=organizacion.id).order_by(Recurso.codigo)
+                    if grupo!='fijos' or r.integra_costo_produccion]
+        return render_template("admin_productos.html", fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
             organizacion=organizacion, preparado=preparado, filas=filas,
             tipos=TIPOS, usos=USOS, vista=vista, lote_token=token, insumos=insumos,
             formulario_error=formulario_error, **datos)
