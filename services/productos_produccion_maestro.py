@@ -62,8 +62,9 @@ def _id(v,opcional=False):
     return int(v)
 
 
-def preparar(valor,session,org,producto_id=None):
-    if not disponible(session):raise ValueError('La ficha de fabricación todavía no está preparada en este entorno.')
+def preparar(valor,session,org,producto_id=None,*,lectura=None):
+    if lectura is not None:lectura.comprobar(session,org)
+    if not (lectura.esquema(disponible) if lectura is not None else disponible(session)):raise ValueError('La ficha de fabricación todavía no está preparada en este entorno.')
     if isinstance(valor,str):
         if len(valor)>100000:raise ValueError('La ficha de fabricación supera el tamaño permitido.')
         try:valor=json.loads(valor)
@@ -71,7 +72,8 @@ def preparar(valor,session,org,producto_id=None):
     if not isinstance(valor,dict):raise ValueError('Revisá la ficha de fabricación.')
     unidad=_id(valor.get('unidad_id'),True)
     from models.unidad_negocio import UnidadNegocio
-    if unidad is not None and session.query(UnidadNegocio).filter_by(id=unidad,organizacion_id=org,activa=True).first() is None:
+    unidad_actual = (lectura.recurso(UnidadNegocio,unidad) if lectura is not None else session.query(UnidadNegocio).filter_by(id=unidad,organizacion_id=org).first()) if unidad is not None else None
+    if unidad is not None and (unidad_actual is None or not unidad_actual.activa):
         raise ValueError('La unidad de fabricación no está activa o no pertenece a tu organización.')
     from models.producto import Producto
     if producto_id is not None and session.query(Producto).filter_by(id=producto_id,organizacion_id=org).first() is None:
@@ -80,7 +82,7 @@ def preparar(valor,session,org,producto_id=None):
     perfil=session.query(Perfil).filter_by(organizacion_id=org,producto_id=producto_id,unidad_negocio_id=unidad).first() if producto_id else None
     if perfil and (perfil.tipo!='produccion' or not perfil.activo):raise ValueError('El perfil de fabricación no está activo o tiene otro tipo.')
     from services.productos_despiece import expandir
-    valor,despiece=expandir(valor,session,org,perfil)
+    valor,despiece=expandir(valor,session,org,perfil,lectura=lectura)
     plan={'unidad_id':unidad,'perfil':perfil,'lineas':{},'despiece':despiece}
     from services.productos_costo_maestro import _decimal
     from services.composicion_costo_producto import _alcance
@@ -92,10 +94,12 @@ def preparar(valor,session,org,producto_id=None):
         plan['lineas'][grupo]=[];vistos=set();ids=set()
         for n,f in enumerate(filas):
             if not isinstance(f,dict):raise ValueError('Revisá las filas de fabricación.')
-            rid=_id(f.get(clave));recurso=session.query(Recurso).filter_by(id=rid,organizacion_id=org).first()
+            rid=_id(f.get(clave));recurso=lectura.recurso(Recurso,rid) if lectura is not None else session.query(Recurso).filter_by(id=rid,organizacion_id=org).first()
             _alcance(contexto,recurso)
             if not recurso.activo:raise ValueError(f'{recurso.nombre}: el recurso está inactivo.')
-            if grupo=='insumos':exigir_uso_insumo(recurso,'insumo',session,unidad)
+            if grupo=='insumos':
+                if lectura is not None:lectura.exigir_insumo(recurso,unidad)
+                else:exigir_uso_insumo(recurso,'insumo',session,unidad)
             if grupo=='fijos' and not recurso.integra_costo_produccion:raise ValueError('El costo fijo no está marcado como productivo.')
             ident=_id(f.get('id'),True)
             if ident is not None:

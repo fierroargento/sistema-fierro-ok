@@ -1,5 +1,6 @@
 """Administración tenant del maestro único de productos."""
 from io import BytesIO
+from time import perf_counter
 from flask import abort, send_file, jsonify
 from flask import Blueprint, Response, current_app, redirect, render_template, request, session, url_for
 
@@ -133,14 +134,20 @@ def crear_blueprint_productos(*, dependencias):
                     archivo = request.files.get("archivo_fabricacion")
                     if archivo is None or not archivo.filename:
                         raise ValueError("Seleccioná la Planilla General para analizar.")
+                    inicio_fabricacion = perf_counter()
+                    current_app.logger.info("Fabricación masiva: inicio de análisis")
                     vista_fabricacion = fabricacion.previsualizar(fabricacion.leer(archivo),
                         opciones=opciones_fabricacion, Producto=Producto, session=db.session, organizacion_id=organizacion.id)
                     token_fabricacion = fabricacion.firmar(vista_fabricacion, organizacion.id, usuario.id, current_app.secret_key)
+                    current_app.logger.info("Fabricación masiva: análisis terminado; filas=%d; segundos=%.2f", len(vista_fabricacion["filas"]), perf_counter()-inicio_fabricacion)
                 elif accion == "confirmar_fabricacion":
                     from services import importacion_fabricacion_productos as fabricacion
+                    inicio_fabricacion = perf_counter()
+                    current_app.logger.info("Fabricación masiva: inicio de confirmación")
                     conteo = fabricacion.aplicar(request.form.get("fabricacion_token", ""),
                         organizacion_id=organizacion.id, usuario=usuario, secreto=current_app.secret_key,
                         Producto=Producto, session=db.session)
+                    current_app.logger.info("Fabricación masiva: confirmación terminada; creados=%d; segundos=%.2f", conteo["creados"], perf_counter()-inicio_fabricacion)
                     mensaje = f"Fabricación importada: {conteo['creados']} creados, {conteo['conservados']} existentes conservados y {conteo['excluidos']} llaveros excluidos."
                 elif accion == "previsualizar_importacion":
                     archivo = request.files.get("archivo_productos")

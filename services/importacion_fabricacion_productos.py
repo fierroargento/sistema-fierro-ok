@@ -159,6 +159,8 @@ def previsualizar(lote, *, opciones, Producto, session, organizacion_id):
     from services.productos_produccion_maestro import preparar, calcular
     from services.productos_despiece import disponible
     if not esquema_datos_disponible(session) or not disponible(session): raise ValueError('Falta preparar las fichas completas de productos en este entorno.')
+    from services.lectura_fabricacion_lote import LecturaFabricacion
+    lectura=LecturaFabricacion(session,organizacion_id)
     opciones=_opciones(opciones,session,organizacion_id)
     tablas=lote['tablas'];componentes=_agrupar(tablas,'Componentes');tareas=_agrupar(tablas,'Tareas');resumen=_agrupar(tablas,'Resumen Producto')
     repetidos=Counter(texto(r['valores'][0]).upper() for r in tablas['Productos'])
@@ -187,7 +189,7 @@ def previsualizar(lote, *, opciones, Producto, session, organizacion_id):
                 adicionales=_formulario_adicional(resumen[sku]);leer_formulario_completo(adicionales,[])
                 receta,avisos=_receta(componentes[sku],tareas[sku],opciones,indice,linea)
                 if not adicionales['utilidad_pct']: avisos.append('Utilidad pretendida sin definir en el Excel. Completar antes de calcular precios de venta.')
-                plan=preparar(receta,session,organizacion_id);costo=calcular(plan,organizacion_id)
+                plan=preparar(receta,session,organizacion_id,lectura=lectura);costo=calcular(plan,organizacion_id)
                 fila.update(datos=datos,adicionales=adicionales,produccion=receta,avisos=avisos,costo_centavos=costo['total_centavos'],huella_costo=costo['huella'],piezas=len(receta['piezas']),tareas=len(receta['tareas']))
         except (ValueError,IndexError,TypeError) as error:
             fila['accion']='rechazado';fila['errores']=[str(error)]
@@ -206,30 +208,40 @@ def aplicar(token, *, organizacion_id, usuario, secreto, Producto, session):
     if lote['org']!=organizacion_id or lote['usuario']!=usuario.id: raise ValueError('El lote no pertenece al usuario y organización activos.')
     vista=lote['vista'];filas=vista['filas']
     if not filas or len(filas)>MAX_PRODUCTOS or any(f['errores'] or f['accion']=='rechazado' for f in filas): raise ValueError('Corregí las filas con errores antes de confirmar. No se aplicó el lote.')
-    from services.productos_ficha_maestra import guardar_ficha
-    from services.productos_datos_generales import leer_formulario_completo, guardar_datos_generales
-    from services.productos_produccion_maestro import preparar, calcular, guardar
+    from services.productos_ficha_maestra import normalizar_ficha, validar_vinculos
+    from services.producto_habilitaciones import esquema_ficha_disponible
+    from services.productos_datos_generales import esquema_datos_disponible
+    from services.productos_despiece import disponible as despiece_disponible
+    from services.lectura_fabricacion_lote import LecturaFabricacion
+    from services.productos_datos_generales import leer_formulario_completo
+    from services.productos_produccion_maestro import preparar, calcular
     conteo=Counter();preparadas=[]
     try:
         _opciones(vista['opciones'],session,organizacion_id)
+        if not esquema_ficha_disponible(session) or not esquema_datos_disponible(session) or not despiece_disponible(session):
+            raise ValueError('Falta preparar las fichas completas de productos en este entorno.')
+        lectura=LecturaFabricacion(session,organizacion_id)
+        existentes_por_sku=defaultdict(list)
+        for p in session.query(Producto).filter_by(organizacion_id=organizacion_id):existentes_por_sku[p.sku.strip().upper()].append(p)
         for fila in sorted(filas,key=lambda f:f['sku']):
             if fila['accion']=='excluido':
                 if fila['sku'] not in EXCLUIDOS: raise ValueError('La exclusión no corresponde al lote.')
                 conteo['excluidos']+=1;continue
-            existentes=session.query(Producto).filter(Producto.organizacion_id==organizacion_id,Producto.sku.ilike(fila['sku'])).all()
+            existentes=existentes_por_sku[fila['sku']]
             if fila['accion']=='conservar':
                 if len(existentes)!=1 or existentes[0].id!=fila['producto_id']: raise ValueError('Cambió un producto conservado. Volvé a previsualizar el lote.')
                 conteo['conservados']+=1;continue
             if fila['accion']!='crear': raise ValueError('La acción de la fila no es válida.')
             if existentes: raise ValueError(f'{fila["sku"]} ya existe. Volvé a previsualizar para conservarlo sin duplicar.')
-            plan=preparar(fila['produccion'],session,organizacion_id)
-            if calcular(plan,organizacion_id)['huella']!=fila['huella_costo']: raise ValueError('Cambiaron los costos desde la vista previa. Volvé a analizar el archivo.')
-            preparadas.append((fila,plan,leer_formulario_completo(fila['adicionales'],[])))
-        for fila,plan,adicionales in preparadas:
-            producto=guardar_ficha(fila['datos'],Producto=Producto,db_session=session,organizacion_id=organizacion_id,huella_esperada='nuevo',commit=False)
-            guardar_datos_generales(producto,adicionales,session,usuario=usuario)
-            guardar(producto,plan,session,usuario,fila['huella_costo'])
-            conteo['creados']+=1
+            fila=dict(fila,datos=normalizar_ficha(fila['datos']))
+            validar_vinculos(None,fila['datos'],session,organizacion_id)
+            plan=preparar(fila['produccion'],session,organizacion_id,lectura=lectura)
+            costo=calcular(plan,organizacion_id)
+            if costo['huella']!=fila['huella_costo']: raise ValueError('Cambiaron los costos desde la vista previa. Volvé a analizar el archivo.')
+            preparadas.append((fila,plan,leer_formulario_completo(fila['adicionales'],[]),costo))
+        from services.guardar_fabricacion_lote import guardar_nuevas
+        guardar_nuevas(preparadas,Producto=Producto,session=session,organizacion_id=organizacion_id,usuario=usuario)
+        conteo['creados']=len(preparadas)
         session.commit()
     except Exception:
         session.rollback();raise

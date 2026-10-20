@@ -31,9 +31,10 @@ def cargar(perfil):
     return {'datos':datos,'revision':r.revision,'actual':r.huella_composicion==huella_perfil(perfil)}
 
 
-def expandir(valor,session,org,perfil):
+def expandir(valor,session,org,perfil,*,lectura=None):
+    if lectura is not None:lectura.comprobar(session,org)
     if 'piezas' not in valor:return valor,None
-    if not disponible(session):raise ValueError('Falta preparar el despiece de Productos en staging.')
+    if not (lectura.esquema(disponible) if lectura is not None else disponible(session)):raise ValueError('Falta preparar el despiece de Productos en staging.')
     from services.productos_costo_maestro import _decimal
     from models.fuentes_costo_productivo import InsumoProductivo
     piezas=valor.get('piezas');tareas=valor.get('tareas',[])
@@ -47,7 +48,7 @@ def expandir(valor,session,org,perfil):
         if not isinstance(p,dict):raise ValueError('Revisá los componentes del producto.')
         ident=str(p.get('insumo_id') or '')
         if not ident.isdigit():raise ValueError('Seleccioná el material del componente.')
-        recurso=session.query(InsumoProductivo).filter_by(id=int(ident),organizacion_id=org).first()
+        recurso=lectura.recurso(InsumoProductivo,int(ident)) if lectura is not None else session.query(InsumoProductivo).filter_by(id=int(ident),organizacion_id=org).first()
         if recurso is None:raise ValueError('El material no pertenece a la organización.')
         nombre=str(p.get('nombre') or '').strip()
         if not nombre or len(nombre)>160:raise ValueError('Cada componente requiere un nombre de hasta 160 caracteres.')

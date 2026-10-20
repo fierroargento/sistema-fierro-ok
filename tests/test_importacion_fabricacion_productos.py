@@ -2,6 +2,7 @@
 from io import BytesIO
 from types import SimpleNamespace
 from decimal import Decimal
+from collections import Counter
 import pytest
 from werkzeug.datastructures import FileStorage
 from openpyxl import Workbook
@@ -136,13 +137,14 @@ def test_cambio_de_precio_y_alta_concurrente_rechazan_atomico(despiece):
     assert Producto.query.count()==1
 
 
-def test_fallo_segunda_ficha_revierte_todo(despiece,monkeypatch):
-    import services.productos_produccion_maestro as motor
-    v=preview(despiece,lote(('UNO','DOS')));real=motor.guardar;veces=[]
-    def falla(*a,**kw):
-        real(*a,**kw);veces.append(1)
-        if len(veces)==2:raise ValueError('Fallo final de prueba')
-    monkeypatch.setattr(motor,'guardar',falla)
+def test_fallo_ultimo_grupo_revierte_todo(despiece,monkeypatch):
+    import services.guardar_fabricacion_lote as persistencia
+    v=preview(despiece,lote(('UNO','DOS')));real=persistencia._insertar
+    def falla(session,tabla,filas,devolver=()):
+        resultado=real(session,tabla,filas,devolver)
+        if tabla.name=='costo_producto_detalle':raise ValueError('Fallo final de prueba')
+        return resultado
+    monkeypatch.setattr(persistencia,'_insertar',falla)
     with pytest.raises(ValueError,match='Fallo final'):aplicar(despiece,v)
     assert Producto.query.count()==ProductoDespieceCosteo.query.count()==CostoProductoVersion.query.count()==0
 
@@ -219,3 +221,75 @@ def test_rendimiento_carton_no_divide_nuevamente_por_bulto(despiece):
     assert not f['errores'],f
     assert f['produccion']['piezas'][0]['modo']=='rendimiento'
     assert f['costo_centavos']==2050 # 2/10 unidades de insumo + 1 min MO
+
+
+@pytest.mark.parametrize('laser',[False,True])
+def test_lote_reabre_y_coincide_con_motor_manual(despiece,laser):
+    from services.productos_ficha_maestra import construir_filas
+    from services.productos_produccion_maestro import preparar,calcular,guardar
+    from services.motor_costeo_productos import huella_detalles
+    from models.perfil_costeo_producto import PerfilCosteoProducto
+    v=preview(despiece,lote(laser=laser));f=v['filas'][0]
+    aplicar(despiece,v);p=Producto.query.one()
+    _,filas=construir_filas([p],db.session,despiece[0][1].id)
+    assert filas[0]['producciones'][0]['despiece']['actual']
+    assert filas[0]['producciones'][0]['despiece']['datos']['piezas'][0]['nombre']==('Corte' if laser else 'Pieza')
+    plan=preparar(f['produccion'],db.session,p.organizacion_id,p.id)
+    calculo=calcular(plan,p.organizacion_id)
+    assert calculo['huella']==f['huella_costo']==huella_detalles(CostoProductoVersion.query.one().detalles)
+    # La edición normal lee la misma ficha y no crea otra versión del mismo costo.
+    guardar(p,plan,db.session,SimpleNamespace(id=1),calculo['huella']);db.session.commit()
+    assert CostoProductoVersion.query.count()==PerfilCosteoProducto.query.count()==1
+
+
+def test_lectura_lote_acotada_no_reusa_sesion_org_ni_cambios(despiece):
+    from services.lectura_fabricacion_lote import LecturaFabricacion
+    from services.productos_produccion_maestro import preparar
+    d=despiece;v=preview(d);receta=v['filas'][0]['produccion'];org=d[0][1].id
+    lectura=LecturaFabricacion(db.session,org)
+    preparar(receta,db.session,org,lectura=lectura)
+    with pytest.raises(ValueError,match='sesión y organización'):
+        preparar(receta,db.session,d[0][2].id,lectura=lectura)
+    d[1][0].activo=False
+    with pytest.raises(ValueError,match='sin escrituras'):
+        preparar(receta,db.session,org,lectura=lectura)
+    db.session.rollback()
+    db.session.query(InsumoPrecioVersion).update({'precio_unitario_centavos':20000});db.session.commit()
+    assert preview(d)['filas'][0]['costo_centavos']==16050
+
+
+def test_cambio_habilitacion_despues_de_preview_rechaza_lote(despiece):
+    from models.producto_ficha_maestra import ProductoFichaMaestra
+    org=despiece[0][1];ins=despiece[1][0]
+    p=crear(org,sku='BASE-RESTRINGIDA',insumo_id=ins.id,unidad_medida=ins.unidad_medida,habilita_insumo=True)
+    v=preview(despiece,lote(('UNO','DOS')))
+    ficha=ProductoFichaMaestra.query.filter_by(producto_id=p.id).one();ficha.habilita_insumo=False;db.session.commit()
+    with pytest.raises(ValueError,match='antes de confirmar|Corregí|habilitá'):
+        aplicar(despiece,v)
+    assert Producto.query.count()==1 and CostoProductoVersion.query.count()==0
+
+
+def test_numero_consultas_acotado_en_cien_altas(despiece):
+    from sqlalchemy import event
+    sentencias=[]
+    def contar(conn,cursor,statement,*args):sentencias.append(statement.lstrip().split()[0].upper())
+    event.listen(db.engine,'before_cursor_execute',contar)
+    try:
+        v=preview(despiece,lote(tuple(f'LOTE-{n:03d}' for n in range(100))))
+        assert all(f['accion']=='crear' for f in v['filas'])
+        assert len(sentencias)<180,Counter(sentencias)
+        sentencias.clear();aplicar(despiece,v)
+        # PostgreSQL usa consultas a catálogos; SQLite PRAGMA. En ninguno
+        # se permite volver al patrón de cientos de lecturas por producto.
+        assert len(sentencias)<180,Counter(sentencias)
+        assert 'UPDATE' not in sentencias and 'DELETE' not in sentencias
+    finally:event.remove(db.engine,'before_cursor_execute',contar)
+    assert Producto.query.count()==100
+
+
+def test_sku_con_comodin_sql_se_compara_por_identidad(despiece):
+    crear(despiece[0][1],sku='QA-XX')
+    v=preview(despiece,lote(('QA-__',)))
+    assert v['filas'][0]['accion']=='crear'
+    aplicar(despiece,v)
+    assert Producto.query.count()==2
