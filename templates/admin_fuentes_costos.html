@@ -4,8 +4,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='costo_producto_dialog.css', v='20260930-history') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='costo_producto_dialog.js', v='20260930-history') }}" defer></script>
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261016-maquina-alineacion') }}">
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20261016-dialog-context') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261020-bulto-precio') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_fuentes_costos.js', v='20261020-bulto-precio') }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -13,6 +13,7 @@
   {{- ('%.4f'|format(valor|float)).rstrip('0').rstrip('.') -}}
 {%- endmacro %}
 <main class="comercial-page cost-sources-page">
+{% set presentaciones_insumos = presentaciones_insumos|default({}) %}
   <header class="comercial-header">
     <div>
       <p class="comercial-eyebrow">Administración · Costos</p>
@@ -125,20 +126,21 @@
       <label><span>Nombre</span><input name="nombre" maxlength="200" placeholder="Ej. Hierro redondo 6 mm" required></label>
       <label><span>Tipo</span><select name="tipo"><option value="materia_prima">Materia prima</option><option value="consumible">Consumible</option><option value="servicio_productivo">Servicio productivo</option><option value="embalaje_productivo">Embalaje productivo</option></select></label>
       <label><span>Unidad de medida</span><input name="unidad_medida" maxlength="30" placeholder="metro, kg, unidad" required></label>
-      <label><span>Precio unitario</span><div class="money-input"><span>$</span><input name="precio_unitario" inputmode="decimal" placeholder="0,00" required></div></label>
+      {% with presentacion={} %}{% include "partials/insumo_precio_compra.html" %}{% endwith %}
       <label><span>Proveedor <small>opcional</small></span><input name="proveedor_referencia" maxlength="200"></label>
       <button class="comercial-primary" type="submit">Crear insumo</button>
     </form></details>
     {% if insumos %}
     <details class="source-catalog">
       <summary><span>Ver insumos cargados</span><strong>{{ insumos|length }}</strong></summary>
-      <div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Código</th><th>Insumo</th><th>Tipo</th><th>Medida</th><th>Precio vigente</th><th>Versión</th><th>Proveedor</th><th>Acciones</th></tr></thead><tbody>
+      <div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Código</th><th>Insumo</th><th>Tipo</th><th>Medida</th><th>Precio por unidad sin IVA</th><th>Cantidad por bulto</th><th>Precio por bulto sin IVA</th><th>Versión</th><th>Proveedor</th><th>Acciones</th></tr></thead><tbody>
       {% for insumo in insumos %}
-      {% set vigente = insumo.versiones_precio|selectattr('vigente')|first %}
-      <tr><td><strong>{{ insumo.codigo }}</strong></td><td>{{ insumo.nombre }}</td><td><span class="status status-active">{{ insumo.tipo|replace('_', ' ') }}</span></td><td>{{ insumo.unidad_medida }}</td><td>{% if vigente %}<strong>$ {{ formatear_centavos_ars(vigente.precio_unitario_centavos) }}</strong>{% else %}Sin precio{% endif %}</td><td>{{ 'v' ~ vigente.numero_version if vigente else '—' }}</td><td>{{ vigente.proveedor_referencia if vigente and vigente.proveedor_referencia else '—' }}</td><td>
+      {% set vigente = insumo.versiones_precio|selectattr('vigente')|selectattr('moneda', 'equalto', 'ARS')|first %}
+    {% set presentacion = presentaciones_insumos.get(insumo.id, {}) %}
+      <tr><td><strong>{{ insumo.codigo }}</strong></td><td>{{ insumo.nombre }}</td><td><span class="status status-active">{{ insumo.tipo|replace('_', ' ') }}</span></td><td>{{ insumo.unidad_medida }}</td><td>{% if vigente %}<strong>$ {{ formatear_centavos_ars(vigente.precio_unitario_centavos) }}</strong>{% else %}Sin precio{% endif %}</td><td>{% if presentacion.get("cantidad_bulto") is not none %}{{ ("%.6f"|format(presentacion.cantidad_bulto|float)).rstrip("0").rstrip(".") }} {{ insumo.unidad_medida }}{% else %}Sin definir{% endif %}{% if presentacion.get("medidas_origen") %}<small class="table-subline">{{ presentacion.medidas_origen }}</small>{% endif %}</td><td>{% if presentacion.get("precio_bulto_centavos") is not none %}$ {{ formatear_centavos_ars(presentacion.precio_bulto_centavos) }}<small class="table-subline">{{ "Cotizado por bulto" if presentacion.get("base_precio") == "bulto" else "Calculado desde precio unitario" }}</small>{% else %}Sin definir{% endif %}</td><td>{{ 'v' ~ vigente.numero_version if vigente else '—' }}</td><td>{{ vigente.proveedor_referencia if vigente and vigente.proveedor_referencia else '—' }}</td><td>
         <button class="source-dialog-trigger" type="button" data-source-dialog>Gestionar</button><dialog class="source-dialog"><button class="source-dialog-close" type="button" aria-label="Cerrar">×</button><div class="source-row-panel">
-          <form class="source-table-update" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_precio_insumo"><input type="hidden" name="insumo_id" value="{{ insumo.id }}"><input type="hidden" name="moneda" value="ARS"><label><span>Nuevo precio</span><div class="money-input"><span>$</span><input name="precio_unitario" inputmode="decimal" required></div></label><label><span>Proveedor</span><input name="proveedor_referencia" value="{{ vigente.proveedor_referencia if vigente and vigente.proveedor_referencia else '' }}"></label><label><span>Comprobante</span><input name="comprobante_referencia"></label><button class="table-action" type="submit">Guardar versión</button></form>
-          <details class="source-table-history"><summary>Ver historial ({{ insumo.versiones_precio|length }})</summary><div class="mini-history">{% for version in insumo.versiones_precio|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }}{% if version.proveedor_referencia %} · {{ version.proveedor_referencia }}{% endif %}</span><strong>$ {{ formatear_centavos_ars(version.precio_unitario_centavos) }}</strong></div>{% endfor %}</div></details>
+          <form class="source-table-update" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_precio_insumo"><input type="hidden" name="insumo_id" value="{{ insumo.id }}"><input type="hidden" name="moneda" value="ARS">{% include "partials/insumo_precio_compra.html" %}<label><span>Proveedor</span><input name="proveedor_referencia" value="{{ vigente.proveedor_referencia if vigente and vigente.proveedor_referencia else '' }}"></label><label><span>Comprobante</span><input name="comprobante_referencia"></label><button class="table-action" type="submit">Guardar versión</button></form>
+          <details class="source-table-history"><summary>Ver historial ({{ insumo.versiones_precio|length }})</summary><div class="mini-history">{% for version in insumo.versiones_precio|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }}{% if version.proveedor_referencia %} · {{ version.proveedor_referencia }}{% endif %}</span><strong>{{ version.moneda }} {{ formatear_centavos_ars(version.precio_unitario_centavos) }}</strong>{% set bulto_historico = presentacion.get("historial", {}).get(version.id) %}{% if bulto_historico %}<span>Bulto de {{ ("%.6f"|format(bulto_historico.cantidad_bulto|float)).rstrip("0").rstrip(".") }} {{ insumo.unidad_medida }} · $ {{ formatear_centavos_ars(bulto_historico.precio_bulto_centavos) }} · {{ "Cotizado por bulto" if bulto_historico.base_precio == "bulto" else "Calculado por unidad" }}</span>{% endif %}</div>{% endfor %}</div></details>
         </div></dialog>
       </td></tr>
       {% endfor %}

@@ -692,6 +692,8 @@ def procesar_accion_fuente_costo(
         return f"Costo calculado v{version.numero_version}: ${version.costo_total_centavos / 100:.2f}."
 
     if accion == "crear_insumo":
+        from services.insumos_presentacion import preparar_precio, guardar_precio
+        precio = preparar_precio(formulario)
         insumo = crear_insumo(
             **comunes,
             codigo=formulario.get("codigo"),
@@ -702,21 +704,25 @@ def procesar_accion_fuente_costo(
             InsumoProductivo=modelos["InsumoProductivo"],
             commit=False,
         )
-        registrar_precio_insumo(
+        from services.insumos_presentacion import guardar as guardar_presentacion
+        guardar_presentacion(insumo, formulario, db_session, organizacion.id)
+        version = registrar_precio_insumo(
             insumo,
             moneda=formulario.get("moneda", "ARS"),
-            precio_unitario_centavos=importe_a_centavos(
-                formulario.get("precio_unitario")
-            ),
+            precio_unitario_centavos=precio["unitario_centavos"],
             proveedor_referencia=formulario.get("proveedor_referencia"),
             comprobante_referencia=formulario.get("comprobante_referencia"),
             creado_por_usuario_id=usuario_id,
             InsumoPrecioVersion=modelos["InsumoPrecioVersion"],
-            db_session=db_session,
+            db_session=db_session, commit=False,
         )
+        guardar_precio(version, insumo, formulario, db_session, organizacion.id)
+        db_session.commit()
         return f"Insumo {insumo.nombre} creado con su precio inicial."
 
     if accion == "actualizar_precio_insumo":
+        from services.insumos_presentacion import preparar_precio, guardar_precio
+        precio = preparar_precio(formulario)
         insumo = _registro_tenant(
             modelos["InsumoProductivo"],
             _id(formulario, "insumo_id"),
@@ -732,20 +738,24 @@ def procesar_accion_fuente_costo(
                 raise ValueError("El tipo de insumo no es valido.")
             insumo.tipo = tipo
         if formulario.get("unidad_medida") is not None:
-            insumo.unidad_medida = str(formulario.get("unidad_medida") or "").strip()
+            nueva_unidad = str(formulario.get("unidad_medida") or "").strip()
+            if nueva_unidad.lower() != insumo.unidad_medida.strip().lower():
+                raise ValueError("La unidad no coincide con el insumo existente; requiere revisión antes de importar.")
+        from services.insumos_presentacion import guardar as guardar_presentacion
+        guardar_presentacion(insumo, formulario, db_session, organizacion.id)
         version = registrar_precio_insumo(
             insumo,
             moneda=formulario.get("moneda", "ARS"),
-            precio_unitario_centavos=importe_a_centavos(
-                formulario.get("precio_unitario")
-            ),
+            precio_unitario_centavos=precio["unitario_centavos"],
             proveedor_referencia=formulario.get("proveedor_referencia"),
             comprobante_referencia=formulario.get("comprobante_referencia"),
             observacion=formulario.get("observacion"),
             creado_por_usuario_id=usuario_id,
             InsumoPrecioVersion=modelos["InsumoPrecioVersion"],
-            db_session=db_session,
+            db_session=db_session, commit=False,
         )
+        guardar_precio(version, insumo, formulario, db_session, organizacion.id)
+        db_session.commit()
         return f"Precio de {insumo.nombre} actualizado a version {version.numero_version}."
 
     if accion == "crear_empleado":

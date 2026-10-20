@@ -1195,3 +1195,7 @@
 .cost-sources-page .source-dialog form.machine-table-update .money-input input {
   flex:1 1 0;width:0;height:36px;min-height:36px;max-height:36px;margin:0;border-radius:0;
 }
+.comercial-form.form-source-insumo,
+.source-table-update:has([data-cotizacion-insumo]) { grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); }
+[data-precio-insumo-ayuda] { grid-column:1 / -1; margin:0; color:var(--muted,#667085); font-size:12px; line-height:1.45; }
+.source-table-update select { width:100%; min-width:0; height:36px; padding:7px 9px; border:1px solid #cbd2dc; border-radius:7px; background:#fff; }

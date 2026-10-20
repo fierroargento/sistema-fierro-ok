@@ -237,7 +237,7 @@ def crear_costo_fijo(
 
 def _crear_version_vigente(
     *, maestro, moneda, ModeloVersion, fk_nombre, valores, vigente_desde,
-    db_session,
+    db_session, commit=True,
 ):
     if maestro is None:
         raise ValueError("El registro base no existe.")
@@ -270,7 +270,8 @@ def _crear_version_vigente(
             anterior.vigente = False
             anterior.vigente_hasta = momento
         db_session.add(version)
-        db_session.commit()
+        if commit: db_session.commit()
+        else: db_session.flush()
     except Exception:
         db_session.rollback()
         raise
@@ -280,13 +281,14 @@ def _crear_version_vigente(
 def registrar_precio_insumo(
     insumo, *, moneda, precio_unitario_centavos, vigente_desde=None,
     proveedor_referencia=None, comprobante_referencia=None, observacion=None,
-    creado_por_usuario_id=None, InsumoPrecioVersion, db_session,
+    creado_por_usuario_id=None, InsumoPrecioVersion, db_session, commit=True,
 ):
     return _crear_version_vigente(
         maestro=insumo,
         moneda=moneda,
         ModeloVersion=InsumoPrecioVersion,
         fk_nombre="insumo_id",
+        commit=commit,
         vigente_desde=vigente_desde,
         db_session=db_session,
         valores={

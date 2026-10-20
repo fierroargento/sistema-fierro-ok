@@ -86,9 +86,11 @@ def test_vista_previa_presenta_columnas_monedas_y_estados_legibles():
     }])
     assert [columna["nombre"] for columna in columnas] == [
         "Código", "Nombre", "Tipo", "Unidad de medida", "Precio unitario", "Proveedor",
+        "Cantidad por bulto", "Medidas en origen", "Cotización", "Precio por bulto",
     ]
     assert filas[0]["valores"] == [
         "1955", "Barra ángulo", "Materia prima", "metro", "$ 1.910,80", "CODIMAT",
+        "—", "—", "Por unidad", "—",
     ]
     assert filas[0]["accion"] == "Crear"
     assert filas[0]["clase_accion"] == "create"
@@ -156,7 +158,7 @@ def test_confirmacion_oculta_vista_previa_y_muestra_cierre_compacto():
     assert "{{ lote.creados }}" in template
     assert "{{ lote.actualizados }}" in template
     assert "{{ lote.rechazados }}" in template
-    assert "v='20260810-2'" in template
+    assert "v='20261020-bulto-precio'" in template
 
     estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
     assert ".import-completed-actions .comercial-primary" in estilos

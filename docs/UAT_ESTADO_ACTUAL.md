@@ -1599,3 +1599,44 @@ UAT siguiente, sin salir del alta manual:
 - Pruebas: suite de datos generales y despiece aprobada; DOM Flask/scripts reales comprueba elección desde Simple, selección automática al reabrir producción, ausencia de proveedor artificial, ningún POST al seleccionar, sincronización al cambiar tipo y bloqueo para Combo. Sintaxis JS aprobada. Aceptación visual pendiente de staging.
 - UAT: desplegar este commit de integración, Ctrl+F5 → Base de Datos → Productos → Nuevo → Clasificación y proveedores. Un De producción ya debe indicar Fabricación propia seleccionada; un Simple puede elegirla ahí y continuar con componentes/tareas. Cancelar y luego guardar/reabrir una ficha ficticia. Sin cambios en main o conexiones.
 - Este ajuste no requiere otro comando de preparación; si todavía no se preparó el bloque anterior de despiece/IIBB, sigue pendiente python -m scripts.preparar_despiece_productos --staging en Shell de staging.
+
+## 2026-10-20 · Importación de insumos con cantidad y precio por bulto
+
+Decisión de Martín: importar de una vez los insumos de Lista Proveedores. La preparación contiene 33 insumos con precio; PS-CRUDO-5MM y PS-PLUS BLANCO-5MM quedan fuera por no tener precio ni consumo en productos activos. No se les asigna cero. Las cantidades de bulto no informadas quedan vacías para completarlas manualmente; medidas como 1,8*2,6 se conservan separadas y no se interpretan como cantidad.
+
+Este bloque cierra el pendiente anterior del importador que ignoraba Bulto. Se amplía el importador existente; no se crea otro maestro ni otra identidad de insumo.
+
+Contrato de cotización, todo sin IVA:
+- Cantidad por bulto: metros/unidades de la misma unidad de medida del insumo, positiva y hasta seis decimales; puede quedar sin definir.
+- Precio unitario: tarifa por metro/unidad que utiliza la fabricación. Un precio ya normalizado NO se divide nuevamente al informar el bulto.
+- Precio por bulto: importe del paquete/barra/caja cotizado por el proveedor. La cotización bulto requiere cantidad y precio del bulto, y calcula una vez precio unitario = importe / cantidad.
+- Cotización explícita unitario o bulto. Un archivo antiguo con precio unitario sigue siendo unitario; si solo informa precio por bulto se interpreta esa base. Si informa ambos se contrasta su coherencia con la base elegida; no se ignora una discrepancia.
+- Ejemplo ficticio: $600 netos por barra de 6 metros guarda $100 netos por metro y conserva $600 como precio del bulto. $100 por bulto de 6 metros guarda $16,67 por metro, manteniendo el importe real de $100 y sin reconstruir $100,02 como si fuera lo cotizado.
+- Los costos productivos siguen leyendo la MISMA InsumoPrecioVersion, en centavos. Se mantiene el límite de precisión del motor existente; el precio original por bulto se conserva para no perderlo por redondeo unitario.
+- IVA no se incorpora a estas fuentes. IIBB y cálculo final de precio de publicación mantienen el alcance/pending definido en el maestro; este bloque no activa reglas económicas ni publicaciones.
+
+Implementación:
+- InsumoPresentacionCompra: cantidad/presentación opcional asociada al insumo existente. InsumoPrecioBultoVersion: referencia 1:1 a la versión histórica de precio existente, con cantidad, importe del bulto y base de cotización de ese momento. No duplica un catálogo/SKU ni reemplaza versiones de costos.
+- Las dos tablas son aditivas. Se guardan en la misma transacción del alta o actualización del insumo y su precio. Los servicios de versionado admiten commit=False para este recorrido, manteniendo el comportamiento anterior por defecto.
+- Lectura protegida antes de preparar esquema: no agrega columnas a consultas ORM de tablas desplegadas y no produce UndefinedColumn. Una importación con datos de bulto sin esquema se rechaza antes de aplicar la primera fila.
+- CSV/Excel anteriores sin columnas nuevas siguen admitidos. Columnas vacías/no mapeadas conservan cantidad y medidas ya guardadas; no significan bulto de una unidad ni borrado. El precio faltante sigue rechazado salvo que se proporcione cotización por bulto completa. Cero es un importe explícito, no un reemplazo del faltante.
+- Se rechazan cantidad cero/negativa, NaN/infinito, exceso de precisión/rango, medidas en cantidad, precios contradictorios y cambios de unidad de un insumo existente que requieren revisión. Organización y unidad se validan antes de escribir.
+- Plantilla, mapeo automático, previsualización y exportación incorporan Cantidad por bulto, Medidas en origen, Cotización y Precio por bulto. La columna Revisión del archivo preparado queda sin importar.
+- La pantalla existente Fuentes de costo → Insumos y precios permite crear/gestionar ambos tipos de cotización, solicita solo el importe correspondiente y muestra feedback del costo unitario. Listado e historial distinguen bulto cotizado de bulto calculado desde tarifa unitaria.
+- El lote conserva la revalidación y el popup de confirmación existentes, sin escribir frases. La aplicación por filas mantiene el comportamiento previo del importador; no se afirma transacción global de todo el lote.
+- El importador conserva Proveedor como referencia de texto, según su contrato existente; no crea personas/proveedores ni inventa vínculos al maestro por nombre. La identidad y los códigos del proveedor requieren seguir el esquema de vínculos del maestro ya definido. No se resuelven equivalencias solo por nombres.
+
+Validación:
+- Conjunto de maestro/datos/fabricación/despiece/importador/bultos: 160 pruebas aprobadas; guardia adicional de esquema antes de la primera fila verificada en la suite focalizada de 38 casos, que también pasa (161 casos en total cubiertos).
+- Se ejecutan los dos recorridos reales de administración de insumos y servicios ORM sobre SQLite aislado, cargando sus acciones sin los imports operativos ajenos no disponibles. Se comprueban precios unitarios sin división, bulto convertido una vez, origen real/historial, decimales, vacíos/formularios anteriores, inmutabilidad de unidad, límites, tenant, rollback integral y esquema ausente.
+- Script independiente probado sobre copia SQLite: preparación idempotente, conservación de datos y rechazo de main. No se ejecuta el monolito ni conexiones.
+- Archivo preparado de 33 insumos: lector, mapeo, previsualización y aplicación completos en SQLite aislado, con comprobación de códigos, unidades, precios y cantidades. Esto no acredita datos importados en Render/staging ni examina una copia que Martín haya completado fuera del chat.
+- HTML Flask y scripts reales verificados con DOM: cotización unitario/bulto, campos habilitados y requeridos correctos, importe inactivo no enviado, feedback $600/6=$100 y reapertura de cantidad/base guardadas. Sintaxis JS y compilación Python aprobadas. Aceptación visual en navegador real y PostgreSQL/Render pendientes.
+
+UAT e importación:
+1. Desplegar el commit solo en integracion-saas-2026-09. Mantener BOOTSTRAP_BASE_DATOS_HABILITADO=false y MODO_LABORATORIO_DESCONECTADO=true.
+2. En Shell del servicio STAGING ejecutar: python -m scripts.preparar_bultos_insumos --staging. Crea exclusivamente las dos tablas de presentación; no conecta canales ni modifica precios/insumos existentes.
+3. Ctrl+F5 → /admin/comercial/importaciones/fuentes/insumos. Usar el archivo de 33 insumos ya completado por Martín, no reemplazar su copia con otra vacía.
+4. Para el archivo preparado los importes son unitarios: no mapearlos como precio por bulto. Operación Crear y actualizar → Leer archivo → verificar Cantidad por bulto y Medidas en origen → Validar y previsualizar. Los dos sin precio no forman parte del lote.
+5. Revisar 33 filas, sin rechazos inesperados, los importes por unidad/bulto y los códigos existentes. Confirmar importación y aceptar el popup. No volver a confirmar un lote completado.
+6. Fuentes de costo → Insumos y precios → Ver insumos cargados: verificar cantidades y precios por unidad/bulto, gestionar una ficha de ensayo y revisar historial. Para futuras listas cotizadas por bulto usar la plantilla nueva y Cotización=bulto con cantidad y precio del bulto.

@@ -396,8 +396,10 @@ def crear_blueprint_comercial(*, dependencias):
         if respuesta is not None:
             return respuesta
         unidad_activa, unidades = contexto_comercial(organizacion)
+        from services.insumos_presentacion import leer as leer_presentaciones
         return render_template(
             "admin_fuentes_costos.html",
+            presentaciones_insumos=leer_presentaciones(db.session, organizacion.id, unidad_activa.id),
             organizacion=organizacion,
             unidad_activa=unidad_activa, unidades=unidades,
             formatear_centavos_ars=formatear_centavos_ars,
@@ -2658,9 +2660,13 @@ def crear_blueprint_comercial(*, dependencias):
         encabezados = [nombre.upper() for nombre, _obligatorio in config["campos"].values()]
         if tipo == "insumos":
             registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["insumos"]
+            from services.insumos_presentacion import leer as leer_presentaciones
+            presentaciones = leer_presentaciones(db.session, organizacion.id, unidad.id)
             for r in registros:
-                v = next((x for x in r.versiones_precio if x.vigente), None)
-                filas.append([r.codigo, r.nombre, r.tipo, r.unidad_medida, v.precio_unitario_centavos / 100 if v else "", v.proveedor_referencia if v else ""])
+                v = next((x for x in r.versiones_precio if x.vigente and x.moneda == "ARS"), None)
+                presentacion = presentaciones.get(r.id, {})
+                bulto = presentacion.get("cantidad_bulto")
+                filas.append([r.codigo, r.nombre, r.tipo, r.unidad_medida, v.precio_unitario_centavos / 100 if v else "", v.proveedor_referencia if v else "", float(bulto) if bulto is not None else "", presentacion.get("medidas_origen", ""), presentacion.get("base_precio", "unitario"), presentacion.get("precio_bulto_centavos") / 100 if presentacion.get("precio_bulto_centavos") is not None else ""])
         elif tipo == "empleados":
             registros = obtener_fuentes_costo(organizacion.id, unidad.id, modelos=modelos)["empleados"]
             for r in registros:

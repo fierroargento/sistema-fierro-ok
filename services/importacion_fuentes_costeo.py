@@ -21,9 +21,11 @@ DEFINICIONES = {
         "campos": {
             "codigo": ("Código", True), "nombre": ("Nombre", True),
             "tipo": ("Tipo", True), "unidad_medida": ("Unidad de medida", True),
-            "precio_unitario": ("Precio unitario", True), "proveedor": ("Proveedor", False),
+            "precio_unitario": ("Precio unitario", False), "proveedor": ("Proveedor", False),
+            "cantidad_bulto": ("Cantidad por bulto", False), "medidas_origen": ("Medidas en origen", False),
+            "base_precio": ("Cotización", False), "precio_bulto": ("Precio por bulto", False),
         },
-        "ejemplo": ["hierro-6mm", "Hierro redondo 6 mm", "materia_prima", "kg", "1500", "Proveedor"],
+        "ejemplo": ["hierro-6mm", "Hierro redondo 6 mm", "materia_prima", "kg", "1500", "Proveedor", "", "", "unitario", ""],
     },
     "empleados": {
         "titulo": "Empleados y costos laborales",
@@ -100,6 +102,7 @@ DEFINICIONES = {
 
 
 ETIQUETAS_VALORES = {
+    "unitario": "Por unidad", "bulto": "Por bulto",
     "materia_prima": "Materia prima",
     "consumible": "Consumible",
     "servicio_productivo": "Servicio productivo",
@@ -117,7 +120,7 @@ ETIQUETAS_VALORES = {
 }
 
 CAMPOS_MONEDA = {
-    "precio_unitario", "sueldo_base", "adicionales",
+    "precio_unitario", "precio_bulto", "sueldo_base", "adicionales",
     "otros_costos", "importe_mensual", "importe_periodo",
     "valor_adquisicion", "valor_residual", "costo_kwh",
     "mantenimiento_mensual", "otros_costos_mensuales",
@@ -160,6 +163,8 @@ def sugerir_mapeo_fuente(tipo, encabezados):
         destino = ""
         for clave, (nombre, _obligatorio) in campos.items():
             opciones = {normalizar(nombre), normalizar(clave.replace("_", " "))}
+            if clave == "cantidad_bulto": opciones |= {"bulto", "cantidad bulto", "unidades por bulto"}
+            if clave == "base_precio": opciones |= {"base precio", "precio cotizado por"}
             if clave not in usados and limpio in opciones:
                 destino, usados = clave, usados | {clave}
                 break
@@ -199,7 +204,13 @@ def presentar_vista_fuentes(tipo, vista):
     filas = []
     for fila in vista:
         etiqueta, clase = acciones.get(fila.get("accion"), (str(fila.get("accion") or ""), "draft"))
-        datos = fila.get("datos") or {}
+        datos = dict(fila.get("datos") or {})
+        if tipo == "insumos" and not fila.get("errores"):
+            from services.insumos_presentacion import preparar_precio
+            p = preparar_precio(datos)
+            datos["base_precio"] = p["base_precio"]
+            datos["precio_unitario"] = str(Decimal(p["unitario_centavos"]) / 100)
+            datos["precio_bulto"] = str(Decimal(p["bulto_centavos"]) / 100) if p["bulto_centavos"] is not None else ""
         filas.append({
             "numero": fila.get("numero"),
             "valores": [_valor_presentado(columna["clave"], datos.get(columna["clave"])) for columna in columnas],
@@ -301,7 +312,11 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                 if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
                     raise ValueError("El código ya pertenece a otra unidad")
                 if existente: ids = {"insumo_id": existente.id}
-                datos["precio_unitario"] = _numero(datos.get("precio_unitario"), "Precio unitario")
+                from services.insumos_presentacion import preparar_precio
+                plan_precio = preparar_precio(datos)
+                datos.update({k: plan_precio[k] for k in ("cantidad_bulto", "medidas_origen", "base_precio")})
+                if existente and normalizar(existente.unidad_medida) != normalizar(datos.get("unidad_medida")):
+                    raise ValueError("La unidad no coincide con el insumo existente; requiere revisión antes de importar.")
             elif tipo == "empleados":
                 existente = modelos["EmpleadoProductivo"].query.filter_by(organizacion_id=organizacion_id, codigo=str(datos.get("codigo") or "").strip().lower()).first()
                 if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
@@ -506,6 +521,11 @@ def plantilla_excel_fuente(tipo):
 
 def aplicar_fuentes(tipo, vista, *, organizacion, unidad_activa, modelos, db_session, usuario):
     from services.fuentes_costo_admin import procesar_accion_fuente_costo
+    if tipo == 'insumos' and any(f.get('accion') != 'rechazado' and any(
+        f.get('datos', {}).get(c) not in (None, '') for c in ('cantidad_bulto', 'medidas_origen', 'precio_bulto')) for f in vista):
+        from services.insumos_presentacion import disponible
+        if not disponible(db_session):
+            raise ValueError('Falta preparar los bultos en staging: python -m scripts.preparar_bultos_insumos --staging')
     conteos = {"creados": 0, "actualizados": 0, "sin_cambios": 0, "rechazados": 0}
     for fila in vista:
         if fila["accion"] == "rechazado":

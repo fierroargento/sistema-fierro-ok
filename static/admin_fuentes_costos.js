@@ -243,3 +243,32 @@ document.addEventListener("DOMContentLoaded",function(){
  let saved;try{saved=JSON.parse(sessionStorage.getItem(key));sessionStorage.removeItem(key);}catch(_){}
  if(saved&&(location.search.includes("ok=")||location.search.includes("error="))){const section=saved.id&&document.getElementById(saved.id);const feedback=document.querySelector(".comercial-message,.feedback");if(section&&feedback)section.prepend(feedback);requestAnimationFrame(function(){window.scrollTo(0,section?section.getBoundingClientRect().top+window.scrollY+Math.min(saved.offset,Math.max(0,section.offsetHeight-window.innerHeight/2)):saved.y);});}
 });
+(function () {
+  "use strict";
+  document.querySelectorAll('[data-cotizacion-insumo]').forEach(selector => {
+    const form = selector.closest('form');
+    if (!form) return;
+    function actualizar() {
+      const bulto = selector.value === 'bulto';
+      for (const [atributo, activo] of [['data-precio-unitario', !bulto], ['data-precio-bulto', bulto]]) {
+        const label = form.querySelector('[' + atributo + ']');
+        label.hidden = !activo;
+        label.querySelector('input').disabled = !activo;
+        label.querySelector('input').required = activo;
+      }
+      const cantidad = form.querySelector('[data-cantidad-bulto]');
+      cantidad.required = bulto;
+      const numero = valor => Number(valor.trim().replace(',', '.'));
+      const q = numero(cantidad.value), control = form.elements[bulto ? 'precio_bulto' : 'precio_unitario'];
+      const precio = numero(control.value);
+      const ayuda = form.querySelector('[data-precio-insumo-ayuda]');
+      if (control.value.trim() && Number.isFinite(precio) && precio >= 0 && (!bulto || cantidad.value.trim() && Number.isFinite(q) && q > 0)) {
+        const unitario = bulto ? precio / q : precio;
+        ayuda.textContent = 'Costo neto por unidad de medida: ' + unitario.toLocaleString('es-AR', {style: 'currency', currency: 'ARS'}) + (bulto ? '. Calculado una vez desde el bulto.' : '. El precio unitario se conserva sin dividir.');
+      } else ayuda.textContent = bulto ? 'Completá el precio sin IVA del bulto y cuántos metros o unidades contiene.' : 'Ingresá el precio neto por metro, unidad o medida indicada. El bulto es opcional.';
+    }
+    selector.addEventListener('change', actualizar);
+    form.addEventListener('input', actualizar);
+    actualizar();
+  });
+})();
