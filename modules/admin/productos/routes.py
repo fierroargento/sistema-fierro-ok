@@ -50,6 +50,18 @@ def crear_blueprint_productos(*, dependencias):
         respuesta.headers['X-Content-Type-Options'] = 'nosniff'
         return respuesta
 
+    @blueprint.route("/admin/productos/<int:producto_id>/detalle")
+    @login_required
+    def detalle(producto_id):
+        _, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None: return respuesta
+        producto = db.session.query(Producto).filter_by(id=producto_id, organizacion_id=organizacion.id).first()
+        if producto is None: abort(404)
+        from services.producto_vista import obtener_vista, numero, dinero, fecha_local
+        contenido = render_template('partials/producto_vista.html', vista=obtener_vista(producto, db.session, organizacion.id),
+            tipos=TIPOS, numero=numero, dinero=dinero, fecha_local=fecha_local)
+        return Response(contenido, content_type='text/html; charset=utf-8', headers={'Cache-Control':'no-store'})
+
     @blueprint.route("/admin/productos/plantilla.csv")
     @login_required
     def plantilla():
