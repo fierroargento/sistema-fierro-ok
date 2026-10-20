@@ -8,6 +8,7 @@
   const confirmar = document.getElementById("producto-confirm");
   const raiz = document.querySelector(".productos-page");
   const scrollKey = "productos-scroll-" + raiz.dataset.organizacion;
+  let duplicadoOrigen = "";
   let pendiente = null;
   let enviando = false;
 
@@ -201,10 +202,15 @@
   }
   form.elements.no_stockeable.addEventListener("change", ajustarNoStockeable);
 
-  function abrir(fila, fallido) {
+  function abrir(fila, fallido, duplicacion = null) {
     form.reset();
     pasoActual = 0; maxVisitado = 0;
-    const edicion = fallido ? fallido.accion === "editar_producto" : !!fila;
+    const edicion = !duplicacion && (fallido ? fallido.accion === "editar_producto" : !!fila);
+    duplicadoOrigen = duplicacion ? duplicacion.sku : "";
+    form.elements.sku.setCustomValidity("");
+    const avisoCopia = document.getElementById("producto-duplicacion-aviso");
+    avisoCopia.hidden = !duplicacion;
+    avisoCopia.textContent = duplicacion ? "Copia de " + duplicacion.sku + ". Completá un SKU nuevo y sus códigos propios. Revisá los datos y la composición de la unidad elegida antes de guardar. El original se conserva." : "";
     const valores = fallido || (fila && fila.datos) || {};
     for (const control of form.elements) {
       if (!control.name || !(control.name in valores)) continue;
@@ -225,7 +231,7 @@
     });
     const referencia = String(form.elements.insumo_id.value || "");
     Array.from(form.elements.insumo_id.options).forEach(o => { o.disabled = edicion && !!referencia && o.value !== referencia; });
-    document.getElementById("producto-dialog-title").textContent = edicion ? "Gestionar · " + valores.sku : "Nuevo producto";
+    document.getElementById("producto-dialog-title").textContent = duplicacion ? "Duplicar · " + duplicacion.sku : edicion ? "Gestionar · " + valores.sku : "Nuevo producto";
     const aviso = document.getElementById("producto-form-error");
     aviso.hidden = !fallido;
     aviso.textContent = fallido ? datos.error : "";
@@ -240,15 +246,95 @@
     document.getElementById("producto-combo-error").hidden = true;
     cargarComposicion(Array.isArray(componentes) ? componentes : []);
     ajustarNoStockeable();
-    if (window.productosDatos) window.productosDatos.abrir(filaGuardada, fallido);
+    if (window.productosDatos) window.productosDatos.abrir(filaGuardada, fallido, duplicacion && duplicacion.fotos);
     if (window.productosProduccion) window.productosProduccion.abrir(filaGuardada, fallido);
     mostrarPaso(0, false);
     dialogo.showModal();
     (edicion ? form.elements.nombre : form.elements.sku).focus();
   }
+  form.elements.sku.addEventListener("input", () => {
+    form.elements.sku.setCustomValidity(duplicadoOrigen && form.elements.sku.value.trim().toUpperCase() === duplicadoOrigen.trim().toUpperCase() ? "Ingresá un SKU distinto al del producto original." : "");
+  });
+  const acciones = document.getElementById("producto-acciones-dialog");
+  const editarAccion = acciones.querySelector("[data-edit-product]");
+  const duplicarAccion = acciones.querySelector("[data-duplicate-product]");
+  const estadoCopia = document.getElementById("producto-acciones-estado");
+  let botonAcciones = null, solicitudCopia = null, versionCopia = 0;
+  function cancelarCopia() {
+    versionCopia++;
+    if (solicitudCopia) solicitudCopia.abort();
+    solicitudCopia = null;
+    editarAccion.disabled = duplicarAccion.disabled = false;
+    estadoCopia.hidden = true;estadoCopia.setAttribute("role", "status");delete estadoCopia.dataset.error;
+  }
+  document.querySelectorAll("[data-product-actions]").forEach(b => b.addEventListener("click", () => {
+    const fila = datos.filas.find(f => String(f.id) === b.dataset.productActions);
+    if (!fila) return;
+    cancelarCopia();botonAcciones = b;
+    editarAccion.dataset.editProduct = duplicarAccion.dataset.duplicateProduct = String(fila.id);
+    document.getElementById("producto-acciones-nombre").textContent = fila.datos.sku + " · " + (fila.datos.nombre || fila.datos.descripcion || "");
+    acciones.showModal();editarAccion.focus();
+  }));
+  document.querySelectorAll("[data-close-product-actions]").forEach(b => b.addEventListener("click", () => acciones.close()));
+  acciones.addEventListener("close", () => {
+    cancelarCopia();
+    if (!dialogo.open && botonAcciones && botonAcciones.isConnected) botonAcciones.focus({preventScroll:true});
+  });
+  // El borrador reutiliza el alta normal. IDs de ficha/líneas y códigos únicos no se heredan.
+  async function duplicar(fila) {
+    cancelarCopia();const intento = versionCopia;
+    const control = new AbortController();solicitudCopia = control;
+    editarAccion.disabled = duplicarAccion.disabled = true;
+    estadoCopia.hidden = false;estadoCopia.textContent = "Preparando copia…";
+    const timer = setTimeout(() => control.abort(), 15000);
+    try {
+      const imagenes = (fila.adicionales && fila.adicionales.imagenes) || [];
+      if (imagenes.length > 5) throw new Error("Revisá las fotos del original: el máximo es de cinco.");
+      if (imagenes.length) estadoCopia.textContent = "Copiando " + imagenes.length + " foto(s)…";
+      const archivos = await Promise.all(imagenes.map(async imagen => {
+        const url = new URL(imagen.url, location.href);
+        if (url.origin !== location.origin || !/^\/admin\/productos\/\d+\/imagenes\/\d+$/.test(url.pathname)) throw new Error("La foto no corresponde al maestro de productos.");
+        const respuesta = await fetch(url.href, {credentials:"same-origin", signal:control.signal});
+        if (!respuesta.ok || respuesta.redirected) throw new Error("No se pudieron copiar las fotos. Revisá tu sesión y volvé a intentarlo.");
+        const blob = await respuesta.blob();
+        if (!blob.size || blob.size > 2*1024*1024 || !["image/png","image/jpeg","image/webp"].includes(blob.type)) throw new Error("Una foto no se pudo copiar. Revisá las imágenes del original.");
+        return new File([blob], imagen.nombre, {type:blob.type});
+      }));
+      if (intento !== versionCopia || !acciones.open) return;
+      const copia = JSON.parse(JSON.stringify(fila));
+      copia.id = null;copia.huella = "nuevo";copia.datos.sku = "";copia.datos.insumo_id = null;
+      if (copia.adicionales) {
+        copia.adicionales.codigos_barras = [];copia.adicionales.imagenes = [];copia.adicionales.costo_carga_id = null;
+        (copia.adicionales.proveedores || []).forEach(p => {p.codigo = "";});
+      }
+      (copia.producciones || []).forEach(r => {
+        delete r.perfil_id;
+        for (const grupo of ["insumos","operaciones","maquinas","fijos"]) (r[grupo] || []).forEach(l => {delete l.id;});
+      });
+      acciones.close();
+      abrir(copia, null, {sku:fila.datos.sku, fotos:{archivos,principal:Math.max(0,imagenes.findIndex(i => i.principal))}});
+    } catch (error) {
+      if (intento === versionCopia && acciones.open) {
+        estadoCopia.setAttribute("role", "alert");estadoCopia.dataset.error = "true";
+        estadoCopia.textContent = error.name === "AbortError" ? "La copia demoró demasiado. Volvé a intentarlo." : error instanceof TypeError ? "No se pudieron copiar las fotos. Revisá la conexión y volvé a intentarlo." : error.message;
+      }
+    } finally {
+      clearTimeout(timer);
+      if (intento === versionCopia) {
+        control.abort();solicitudCopia = null;
+        editarAccion.disabled = duplicarAccion.disabled = false;
+      }
+    }
+  }
+  duplicarAccion.addEventListener("click", () => {
+    const fila = datos.filas.find(f => String(f.id) === duplicarAccion.dataset.duplicateProduct);
+    if (fila) duplicar(fila);
+  });
   document.querySelectorAll("[data-new-product]").forEach(b => b.addEventListener("click", () => abrir(null, null)));
   document.querySelectorAll("[data-edit-product]").forEach(b => b.addEventListener("click", () => {
-    abrir(datos.filas.find(f => String(f.id) === b.dataset.editProduct), null);
+    const fila = datos.filas.find(f => String(f.id) === b.dataset.editProduct);
+    if (!fila) return;
+    acciones.close();abrir(fila, null);
   }));
   document.querySelectorAll("[data-close-product]").forEach(b => b.addEventListener("click", () => dialogo.close()));
   form.addEventListener("keydown", e => {

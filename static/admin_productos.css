@@ -158,3 +158,22 @@
 .producto-editor-dialog .producto-editor-feedback {padding:10px 12px;margin:0 0 14px;border:1px solid #c7e5d6;border-radius:8px;background:#effaf4;color:#236548;font-size:13px;line-height:1.5}
 .producto-editor-dialog .producto-editor-feedback[hidden] {display:none}
 @media(max-width:560px){.producto-editor-dialog .producto-dialog-footer {flex-wrap:wrap;gap:10px}.producto-editor-dialog .producto-editor-acciones {justify-content:flex-start}}
+/* Menú del engranaje: editar la ficha o iniciar un alta a partir de ella. */
+.producto-acciones-dialog {width:min(440px,calc(100vw - 32px));max-height:85vh;padding:22px;border:1px solid #d7e2e9;border-radius:14px;background:#fff;color:#19384b;box-shadow:0 18px 70px #102a3e33;box-sizing:border-box}
+.producto-acciones-dialog::backdrop {background:#102b3e85;backdrop-filter:blur(2px)}
+.producto-acciones-dialog header {display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.producto-acciones-dialog h2 {font-size:21px;margin:0 0 10px}
+.producto-acciones-dialog #producto-acciones-nombre {font-size:14px;line-height:1.5;overflow-wrap:anywhere;color:#536b80;margin:0 0 18px}
+.producto-acciones-opciones {display:grid;gap:10px}
+.producto-acciones-dialog .producto-acciones-opciones button {display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;padding:14px 16px;border:1px solid #bdd7e2;border-radius:8px;background:#eef7fa;color:#17576d;font-weight:700;white-space:normal;text-align:left;cursor:pointer;box-sizing:border-box}
+.producto-acciones-opciones button span {font-weight:400;font-size:13px;line-height:1.5;color:#536b80}
+.producto-acciones-dialog .producto-acciones-opciones button:hover:not(:disabled) {background:#deeff5}
+.producto-acciones-dialog button:focus-visible {outline:3px solid #3a9ec7;outline-offset:2px}
+.producto-acciones-dialog button:disabled {opacity:.6;cursor:wait}
+.producto-acciones-dialog footer {display:flex;justify-content:flex-end;margin-top:18px}
+.producto-acciones-dialog footer button {padding:9px 16px;border:1px solid #a4cfe1;border-radius:7px;background:#edf8fc;color:#165970;font-weight:600;cursor:pointer}
+.producto-acciones-dialog .producto-close {border:0;background:transparent;font-size:25px;line-height:1;width:36px;height:36px;color:#536b80;cursor:pointer}
+.producto-acciones-dialog #producto-acciones-estado,.producto-duplicacion-aviso {padding:12px 14px;border:1px solid #c4dce7;border-radius:8px;background:#edf6fa;color:#24546a;font-size:13px;line-height:1.6}
+.producto-duplicacion-aviso {margin-bottom:16px}
+
+.producto-acciones-dialog #producto-acciones-estado[data-error=true] {background:#fff0f1;border-color:#efc7cc;color:#963a46}

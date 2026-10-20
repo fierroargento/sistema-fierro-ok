@@ -132,7 +132,7 @@
     form.elements[campo].addEventListener("change", ejemploCosto);
   }
   window.productosDatos = {
-    abrir(fila, fallido) {
+    abrir(fila, fallido, fotosCopia) {
       const d=fallido || (fila && fila.adicionales) || {};
       error.hidden=true;proveedores.replaceChildren();barras.replaceChildren();
       for(const campo of ["rubro","subrubro","marca","utilidad_pct","precio_costo","iva_pct","iibb_pct"]) form.elements[campo].value=d[campo]||"";
@@ -148,8 +148,8 @@
       }
       const actuales=(fila && fila.adicionales && fila.adicionales.imagenes)||[];
       const conservar=fallido?parser(d.imagenes_conservar_json,[]):actuales.map(f=>f.id);
-      guardadas=actuales.filter(f=>conservar.map(String).includes(String(f.id)));nuevas=[];
-      principal=fallido?d.imagen_principal:(String((guardadas.find(f=>f.principal)||{}).id||""));
+      guardadas=actuales.filter(f=>conservar.map(String).includes(String(f.id)));nuevas=fotosCopia ? fotosCopia.archivos.slice() : [];
+      principal=fotosCopia && nuevas.length ? "nueva:"+fotosCopia.principal : fallido?d.imagen_principal:(String((guardadas.find(f=>f.principal)||{}).id||""));
       const aviso=document.getElementById("producto-fotos-aviso");aviso.hidden=!(fallido&&Number(d.imagenes_nuevas_cantidad)>0);
       aviso.textContent="Volvé a seleccionar las fotos nuevas: el guardado fue rechazado y no se cargaron.";
       renderFotos();clasificaciones();ejemploUtilidad();ejemploCosto();origenProducto();

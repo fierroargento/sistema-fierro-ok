@@ -284,7 +284,7 @@ def test_ruta_real_plantilla_csrf_guardado_error_y_rechazo_tenant(entorno):
     assert r.status_code==200 and 'pendiente de preparación' in r.text
     preparar(db.engine)
     r=cliente.get('/admin/productos')
-    assert r.status_code==200 and 'Base de Datos' in r.text and 'Gestionar' not in r.text
+    assert r.status_code==200 and 'Base de Datos' in r.text and 'data-product-actions="' not in r.text
     assert cliente.get('/admin/productos/plantilla.csv').status_code==200
     assert cliente.post('/admin/productos',data={'accion':'crear_producto'}).status_code==400
     r=cliente.post('/admin/productos',data=form_datos(),follow_redirects=True)

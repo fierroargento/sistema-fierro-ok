@@ -1,0 +1,11 @@
+/* Alternancia común en pantalla. El fondo de estados y alertas se conserva. */
+@media screen {
+  body table > tbody {background-color:#fff}
+  /* Unifica los dos sombreados locales anteriores sin alterar sus demás estilos. */
+  body .import-fuentes-page .comercial-table tbody tr:nth-child(even),
+  body .producto-vista-dialog tbody tr:nth-child(even) {background-color:transparent}
+  /* Cuenta solo filas visibles: los filtros y los editores auxiliares no cortan la alternancia. */
+  body table > tbody > tr:nth-child(even of :not([hidden], [style*="display: none"], [style*="display:none"], .compras-editor-row)) > :is(td, th) {
+    background-image:linear-gradient(rgba(18,78,100,.08),rgba(18,78,100,.08));
+  }
+}
