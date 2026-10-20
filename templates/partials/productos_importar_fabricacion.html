@@ -1,20 +1,28 @@
 <section class="fabricacion-import" aria-labelledby="fabricacion-import-title">
-  <header><p class="productos-ruta">Planilla General</p><h2 id="fabricacion-import-title">Importar fabricación propia</h2><p>Cargá productos con sus piezas, consumos y tareas. Primero revisás; después confirmás.</p></header>
-  <p class="productos-muted">Los SKU existentes se conservan completos. Se excluyen L-MDF-001 a L-MDF-005. Se utilizan los insumos y tarifas actuales de Fierro; el Excel no reemplaza sus precios.</p>
+  <header class="fabricacion-import-header"><p class="productos-ruta">Planilla General</p><h2 id="fabricacion-import-title">Importar fabricación propia</h2><p>Elegí el archivo y las tarifas. Después revisás los productos antes de guardarlos.</p></header>
+  <div class="fabricacion-import-alcance"><span>Los productos existentes se conservan</span><span>5 llaveros excluidos</span></div>
   {% set opts = vista_fabricacion.opciones if vista_fabricacion else opciones_fabricacion %}
   <form method="post" enctype="multipart/form-data" action="{{ url_for('admin_productos.panel', _anchor='productos-importacion') }}" class="fabricacion-import-form">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="accion" value="previsualizar_fabricacion">
-    <div class="fabricacion-import-grid">
-      <label>Planilla General<input type="file" name="archivo_fabricacion" accept=".xlsx,.xlsm" required></label>
-      <label>Unidad de fabricación<select name="unidad_id"><option value="">General</option>{% for u in unidades_combo if u.activa %}<option value="{{ u.id }}" {% if (opts.get('unidad_id', unidad_produccion_inicial)|string) == (u.id|string) %}selected{% endif %}>{{ u.nombre }}</option>{% endfor %}</select></label>
-      {% for campo, etiqueta, grupo in [('tarifa_herreria','Mano de obra · Herrería','operaciones'),('tarifa_laser','Mano de obra · Láser','operaciones'),('maquina_laser','Máquina láser · costo de uso sin mano de obra','maquinas')] %}
-      <label>{{ etiqueta }}<select name="{{ campo }}"><option value="">Seleccionar si corresponde</option>{% for r in recursos_fabricacion.get(grupo, []) if r.activo %}<option value="{{ r.id }}" {% if opts.get(campo,'')|string == r.id|string %}selected{% endif %}>{{ r.codigo }} · {{ r.nombre }}</option>{% endfor %}</select></label>
-      {% endfor %}
-    </div>
-    <fieldset class="fabricacion-import-usos"><legend>Usos de los productos nuevos</legend>{% for uso,etiqueta in [('venta','Venta'),('compra','Compra'),('insumo','Insumo'),('componente','Componente')] %}<label><input type="checkbox" name="habilita_{{ uso }}" value="1" {% if opts.get('habilita_' ~ uso, uso == 'venta' and not opciones_fabricacion) in [true,'1'] %}checked{% endif %}>{{ etiqueta }}</label>{% endfor %}</fieldset>
-    <p class="productos-muted">Costos por unidad, sin IVA ni merma agregada. Utilidad sobre costo, IVA e IIBB desde Resumen Producto. No se importan stock, imágenes ni permisos de envío. El costo calculado queda preparatorio para revisión.</p>
-    <p data-fabricacion-progreso role="status" aria-live="polite" hidden></p>
-    <button class="comercial-primary" type="submit" {% if not preparado or not completo or not fabricacion_disponible or not despiece_disponible %}disabled{% endif %}>Analizar fabricación</button>
+    <section class="fabricacion-import-card" aria-labelledby="fabricacion-archivo-title">
+      <h3 id="fabricacion-archivo-title"><span>1</span> Archivo y unidad</h3>
+      <div class="fabricacion-import-grid fabricacion-import-archivo">
+        <label>Planilla General<input type="file" name="archivo_fabricacion" accept=".xlsx,.xlsm" required><small>Archivo XLSX o XLSM · Hasta 500 productos.</small></label>
+        <label>Unidad de fabricación<select name="unidad_id"><option value="">General</option>{% for u in unidades_combo if u.activa %}<option value="{{ u.id }}" {% if (opts.get('unidad_id', unidad_produccion_inicial)|string) == (u.id|string) %}selected{% endif %}>{{ u.nombre }}</option>{% endfor %}</select><small>Unidad donde se construye el costo.</small></label>
+      </div>
+    </section>
+    <section class="fabricacion-import-card" aria-labelledby="fabricacion-tarifas-title">
+      <h3 id="fabricacion-tarifas-title"><span>2</span> Tarifas de fabricación</h3>
+      <p>Seleccioná los recursos actuales de Fierro para las líneas que vas a importar.</p>
+      <div class="fabricacion-import-grid fabricacion-import-tarifas">
+        {% for campo, etiqueta, grupo, ayuda in [('tarifa_herreria','Mano de obra · Herrería','operaciones','Tarifa para las tareas de herrería.'),('tarifa_laser','Mano de obra · Láser','operaciones','Tarifa para el tiempo de corte.'),('maquina_laser','Máquina láser','maquinas','Sólo costo de uso, sin mano de obra.')] %}
+        <label>{{ etiqueta }}<select name="{{ campo }}"><option value="">Seleccionar si corresponde</option>{% for r in recursos_fabricacion.get(grupo, []) if r.activo %}<option value="{{ r.id }}" {% if opts.get(campo,'')|string == r.id|string %}selected{% endif %}>{{ r.codigo }} · {{ r.nombre }}</option>{% endfor %}</select><small>{{ ayuda }}</small></label>
+        {% endfor %}
+      </div>
+    </section>
+    <fieldset class="fabricacion-import-usos"><legend>3 · Usos de los productos nuevos</legend>{% for uso,etiqueta in [('venta','Venta'),('compra','Compra'),('insumo','Insumo'),('componente','Componente')] %}<label><input type="checkbox" name="habilita_{{ uso }}" value="1" {% if opts.get('habilita_' ~ uso, uso == 'venta' and not opciones_fabricacion) in [true,'1'] %}checked{% endif %}><span>{{ etiqueta }}</span></label>{% endfor %}</fieldset>
+    <details class="fabricacion-import-ayuda"><summary>Qué se importa y cómo se calcula</summary><p>Se conservan los SKU existentes y se excluyen L-MDF-001 a L-MDF-005. Se utilizan los insumos y tarifas de Fierro; el Excel no reemplaza sus precios.</p><p>Costos por unidad, sin IVA ni merma agregada. Utilidad sobre costo, IVA e IIBB desde Resumen Producto. No se importan stock, imágenes ni permisos de envío. El costo calculado queda preparatorio para revisión.</p></details>
+    <footer class="fabricacion-import-footer"><p data-fabricacion-progreso role="status" aria-live="polite" hidden></p><button class="comercial-primary" type="submit" {% if not preparado or not completo or not fabricacion_disponible or not despiece_disponible %}disabled{% endif %}>Analizar fabricación</button></footer>
   </form>
   {% if vista_fabricacion %}
     {% set filas_fab = vista_fabricacion.filas %}{% set errores_fab = filas_fab|selectattr('errores')|list %}{% set nuevas_fab = filas_fab|selectattr('accion','equalto','crear')|list %}

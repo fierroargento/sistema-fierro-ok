@@ -181,11 +181,13 @@
 /* Fabricación masiva: misma escala de controles y tabla contenida. */
 .fabricacion-import { padding-bottom:24px; margin-bottom:24px; border-bottom:1px solid #dbe3ec; }
 .fabricacion-import header h2 { margin:4px 0 8px; }
-.fabricacion-import-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; margin:18px 0; }
+.fabricacion-import-grid { display:grid; gap:18px; margin-top:16px; align-items:start; }
+.fabricacion-import-archivo { grid-template-columns:minmax(0,2fr) minmax(0,1fr); }
+.fabricacion-import-tarifas { grid-template-columns:repeat(3,minmax(0,1fr)); }
 .fabricacion-import-grid label { display:flex; flex-direction:column; gap:7px; font-weight:600; min-width:0; }
 .fabricacion-import-grid input,.fabricacion-import-grid select { box-sizing:border-box; width:100%; min-height:42px; padding:9px 11px; border:1px solid #cbd5e1; border-radius:9px; background:#fff; color:#1e293b; font:inherit; }
-.fabricacion-import-usos { display:flex; flex-wrap:wrap; gap:18px; border:1px solid #dbe3ec; border-radius:10px; padding:12px 16px; }
-.fabricacion-import-usos label { display:flex; gap:8px; align-items:center; }
+.fabricacion-import-usos { display:flex; flex-wrap:wrap; gap:10px; min-width:0; margin:0; border:1px solid #dbe3ec; border-radius:12px; padding:14px 18px 18px; background:#f8fbfd; }
+.fabricacion-import-usos label { display:flex; gap:9px; align-items:center; border:1px solid #d5e0e9; border-radius:8px; padding:10px 16px; background:#fff; color:#344e63; font-weight:600; cursor:pointer; }
 .fabricacion-import-usos input { width:auto; }
 .fabricacion-import-tabla { max-height:600px; overflow:auto; margin:16px 0; }
 .fabricacion-import-tabla table { min-width:760px; width:100%; }
@@ -196,3 +198,28 @@
 
 .fabricacion-import-avisos { padding:12px 16px; margin:14px 0; border:1px solid #e6d5a3; border-radius:10px; background:#fffaf0; color:#674b15; }
 .fabricacion-import-avisos ul { margin:8px 0 0; padding-left:20px; }
+
+/* Grupos explícitos: evita cinco columnas apretadas al variar el zoom. */
+.fabricacion-import-header > p:last-child { margin:8px 0 12px; color:#526779; }
+.fabricacion-import-alcance { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+.fabricacion-import-alcance span { padding:6px 10px; background:#edf5f8; border-radius:6px; color:#35596b; font-size:12px; }
+.fabricacion-import-form { display:grid; gap:18px; }
+.fabricacion-import-card { min-width:0; padding:18px 20px; border:1px solid #dbe3ec; border-radius:12px; background:#f8fbfd; }
+.fabricacion-import-card h3 { display:flex; align-items:center; gap:9px; margin:0; font-size:15px; color:#25495d; }
+.fabricacion-import-card h3 > span { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; flex-shrink:0; border-radius:8px; background:#e1eef3; font-size:13px; }
+.fabricacion-import-card > p { margin:9px 0 0; color:#64778a; font-size:13px; }
+.fabricacion-import-grid small { font-size:12px; font-weight:400; line-height:1.45; color:#64778a; }
+.fabricacion-import-grid input[type=file] { padding:5px; overflow:hidden; font-size:13px; }
+.fabricacion-import-grid input[type=file]::file-selector-button { min-height:30px; padding:5px 12px; margin-right:10px; border:0; border-radius:6px; background:#e6eff4; color:#25495d; font:inherit; font-weight:600; cursor:pointer; }
+.fabricacion-import-grid input:focus-visible,.fabricacion-import-grid select:focus-visible { outline:2px solid #4787a0; outline-offset:2px; }
+.fabricacion-import-usos legend { padding:0 6px; color:#25495d; font-size:14px; font-weight:700; }
+.fabricacion-import-usos input { margin:0; width:16px; height:16px; accent-color:#175a70; }
+.fabricacion-import-usos label:has(input:checked) { border-color:#97bdcd; background:#eaf4f8; color:#17536b; }
+.fabricacion-import-usos label:focus-within { outline:2px solid #4787a0; outline-offset:2px; }
+.fabricacion-import-ayuda { color:#617587; font-size:13px; }
+.fabricacion-import-ayuda summary { cursor:pointer; font-weight:600; padding:6px 0; }
+.fabricacion-import-ayuda p { line-height:1.6; max-width:90ch; }
+.fabricacion-import-footer { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:12px; padding-top:4px; }
+.fabricacion-import-footer > p { flex:1 1 280px; margin:0; color:#35596b; }
+.fabricacion-import-footer button { width:auto; min-height:42px; padding:10px 20px; flex:0 0 auto; }
+@media(max-width:760px) { .fabricacion-import-archivo,.fabricacion-import-tarifas { grid-template-columns:minmax(0,1fr); } .fabricacion-import-card { padding:16px; } }
