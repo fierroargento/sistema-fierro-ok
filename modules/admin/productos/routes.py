@@ -167,6 +167,10 @@ def crear_blueprint_productos(*, dependencias):
                 Ficha.tipo.in_(["simple", "produccion"]),
             ).order_by(Producto.sku).all()
             unidades = db.session.query(UnidadNegocio).filter_by(organizacion_id=organizacion.id).order_by(UnidadNegocio.nombre).all()
+        activas = [u for u in unidades if u.activa]
+        unidad_produccion_inicial = next((u.id for u in activas if str(u.id) == str(session.get('unidad_negocio_id'))), None)
+        if unidad_produccion_inicial is None and len(activas) == 1:
+            unidad_produccion_inicial = activas[0].id
         completo = esquema_datos_disponible(db.session)
         proveedores, ubicaciones, clasificaciones = [], [], []
         if completo:
@@ -190,7 +194,7 @@ def crear_blueprint_productos(*, dependencias):
             from services.selector_materiales_producto import enriquecer_insumos
             recursos_fabricacion['insumos'] = enriquecer_insumos(recursos_fabricacion.get('insumos', []), db.session, organizacion.id)
         from services.productos_despiece import disponible as despiece_disponible
-        return render_template("admin_productos.html", despiece_disponible=despiece_disponible(db.session), fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
+        return render_template("admin_productos.html", unidad_produccion_inicial=unidad_produccion_inicial, despiece_disponible=despiece_disponible(db.session), fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
             organizacion=organizacion, preparado=preparado, filas=filas,
             tipos=TIPOS, usos=USOS, vista=vista, lote_token=token, insumos=insumos,
             formulario_error=formulario_error, **datos)

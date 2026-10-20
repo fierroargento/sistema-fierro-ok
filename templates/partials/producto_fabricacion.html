@@ -2,7 +2,7 @@
 <h3>Fabricación de una unidad</h3>
 {% if fabricacion_disponible and despiece_disponible %}
 <input type="hidden" name="produccion_presentada" value="1"><input type="hidden" name="produccion_json" value="{}"><input type="hidden" name="produccion_huella">
-<label>Ficha de fabricación<select name="unidad_produccion_ui"><option value="">General</option>{% for u in unidades_combo %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>
+<label>Unidad de fabricación<select name="unidad_produccion_ui" data-unidad-inicial="{{ unidad_produccion_inicial or '' }}"><option value="">General</option>{% for u in unidades_combo %}<option value="{{ u.id }}" data-activa="{{ 1 if u.activa else 0 }}">{{ u.nombre }}</option>{% endfor %}</select></label>
 <div class="producto-fabricacion-tabs" role="tablist" aria-label="Carga de fabricación">
 {% for g,t in [('piezas','1. Componentes'),('tareas','2. Tareas'),('resumen','3. Resumen'),('otros','Otros costos')] %}<button type="button" class="secondary-link" role="tab" id="fabricacion-tab-{{ g }}" aria-controls="fabricacion-{{ g }}" data-fabricacion-tab="{{ g }}">{{ t }}</button>{% endfor %}
 </div>

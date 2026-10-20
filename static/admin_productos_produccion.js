@@ -39,20 +39,34 @@
     nombrePieza.setCustomValidity(nombrePieza.value.length>160?"Usá un nombre de pieza de hasta 160 caracteres.":"");
     piezaForm.elements.insumo_id.dispatchEvent(new Event("change",{bubbles:true}));
   }
+  function coincidenciasMateriales(disponibles,consulta) {
+    const terminos=consulta.split(/\s+/).filter(Boolean);
+    const exactos=consulta?disponibles.filter(r=>[r.codigo,...(r.skus||[]),...(r.codigos_proveedor||[]).map(p=>p.codigo)].some(c=>normalizarBusqueda(c)===consulta)):[];
+    return exactos.length?exactos:disponibles.filter(r=>{const texto=normalizarBusqueda(r.nombre+" "+etiquetasMaterial(r));return terminos.every(t=>texto.includes(t));});
+  }
+  function sinCoincidencias(consulta,esNombre) {
+    if(esNombre)return "Sin coincidencias. Podés conservar este nombre propio para la pieza.";
+    const selector=form.elements.unidad_produccion_ui, actual=selector.selectedOptions[0]?.textContent||"General";
+    const otras=coincidenciasMateriales((recursos.insumos||[]).filter(r=>r.activo&&r.unidad_id&&String(r.unidad_id)!==selector.value),consulta);
+    const unidades=Array.from(new Set(otras.map(r=>Array.from(selector.options).find(o=>o.value===String(r.unidad_id)&&o.dataset.activa!=="0")?.textContent).filter(Boolean)));
+    if(unidades.length)return "El insumo coincide en "+unidades.join(" / ")+". En Unidad de fabricación elegiste "+actual+". Cerrá este cuadro y elegí la unidad correspondiente para usarlo.";
+    const inactivos=coincidenciasMateriales((recursos.insumos||[]).filter(r=>!r.activo&&(!r.unidad_id||String(r.unidad_id)===selector.value)),consulta);
+    if(inactivos.length)return "Hay coincidencias con insumos inactivos. Revisá su estado en Insumos y precios antes de usarlos.";
+    return "Sin coincidencias entre los insumos activos de "+actual+". Revisá el código o la unidad de fabricación.";
+  }
   function autocompletar(input,lista,elegir) {
     let opciones=[],indice=-1;
     function cerrar(){lista.hidden=true;input.setAttribute("aria-expanded","false");input.removeAttribute("aria-activedescendant");indice=-1;}
     function activar(n){indice=n;Array.from(lista.querySelectorAll("[role=option]")).forEach((b,i)=>b.setAttribute("aria-selected",String(i===n)));const b=lista.querySelectorAll("[role=option]")[n];if(b){input.setAttribute("aria-activedescendant",b.id);b.scrollIntoView({block:"nearest"});}}
     function mostrar(){
       if(input===nombrePieza&&!input.value.trim()){cerrar();return;}
-      const consulta=normalizarBusqueda(input.value),terminos=consulta.split(/\s+/).filter(Boolean),disponibles=listaRecursos("insumos");
-      const exactos=consulta?disponibles.filter(r=>[r.codigo,...(r.skus||[]),...(r.codigos_proveedor||[]).map(p=>p.codigo)].some(c=>normalizarBusqueda(c)===consulta)):[];
-      const coincidencias=exactos.length?exactos:disponibles.filter(r=>{const texto=normalizarBusqueda(r.nombre+" "+etiquetasMaterial(r));return terminos.every(t=>texto.includes(t));});
+      const consulta=normalizarBusqueda(input.value);
+      const coincidencias=coincidenciasMateriales(listaRecursos("insumos"),consulta);
       opciones=coincidencias.slice(0,8);indice=-1;lista.replaceChildren();
       opciones.forEach((r,i)=>{const boton=document.createElement("button");boton.type="button";boton.id=lista.id+"-"+i;boton.setAttribute("role","option");boton.setAttribute("aria-selected","false");boton.tabIndex=-1;
         const nombre=document.createElement("strong"),detalle=document.createElement("span");nombre.textContent=r.nombre;detalle.textContent=etiquetasMaterial(r);boton.append(nombre,detalle);
         boton.addEventListener("mousedown",e=>e.preventDefault());boton.addEventListener("click",()=>{elegir(r);cerrar();input.focus();});lista.appendChild(boton);});
-      const aviso=document.createElement("p");aviso.className="pieza-busqueda-aviso";aviso.textContent=!opciones.length?(input===nombrePieza?"Sin coincidencias. Podés conservar este nombre propio para la pieza.":"Sin coincidencias entre los insumos activos de esta unidad."):coincidencias.length>8?"Mostrando 8 de "+coincidencias.length+". Escribí más datos para precisar la búsqueda.":coincidencias.length+" resultado(s). Elegí el que corresponde.";lista.appendChild(aviso);
+      const aviso=document.createElement("p");aviso.className="pieza-busqueda-aviso";aviso.textContent=!opciones.length?sinCoincidencias(consulta,input===nombrePieza):coincidencias.length>8?"Mostrando 8 de "+coincidencias.length+". Escribí más datos para precisar la búsqueda.":coincidencias.length+" resultado(s). Elegí el que corresponde.";lista.appendChild(aviso);
       lista.hidden=false;input.setAttribute("aria-expanded","true");input.removeAttribute("aria-activedescendant");
     }
     input.addEventListener("input",mostrar);input.addEventListener("focus",mostrar);
@@ -93,6 +107,7 @@
     }resumenConsumos();
   }
   function prepararPieza() {
+    document.getElementById("pieza-unidad-fabricacion").textContent=form.elements.unidad_produccion_ui.selectedOptions[0]?.textContent||"General";
     const m=material(piezaForm.elements.insumo_id.value),modo=piezaForm.elements.modo.value;
     document.getElementById("pieza-unidad").textContent=m?m.unidad:"Seleccioná un material";
     document.getElementById("pieza-medida-label").hidden=modo!=="longitud";piezaForm.elements.largo_cm.disabled=modo!=="longitud";
@@ -240,7 +255,7 @@
       token++;peticion++;monedaSimple=form.elements.moneda_costo?form.elements.moneda_costo.value:"ARS";
       if(habilitado){recetas=(fila&&fila.producciones)||[];borradores={};let d=null;
         if(fallido){try{d=JSON.parse(fallido.produccion_json||"null");}catch(_){d=null;}}
-        const inicial=d||recetas.find(r=>!r.unidad_id)||recetas[0]||{};unidad=String(inicial.unidad_id||"");form.elements.unidad_produccion_ui.value=unidad;cargar(inicial);
+        const inicial=d||recetas.find(r=>!r.unidad_id)||recetas[0]||{unidad_id:form.elements.unidad_produccion_ui.dataset.unidadInicial||""};unidad=String(inicial.unidad_id||"");form.elements.unidad_produccion_ui.value=unidad;cargar(inicial);
         form.elements.produccion_huella.value="";
         document.getElementById("producto-fabricacion-calcular").textContent="Calcular costo unitario";
       }estado();
