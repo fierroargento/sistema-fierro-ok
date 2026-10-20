@@ -2,6 +2,8 @@
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css') }}?v=20261015-crm-panel-2">
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_crm.css') }}?v=20261015-crm-panel-2">
+<link rel="stylesheet" href="{{ url_for('static', filename='consulta_cuit_arca.css', v='20261020-arca') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='consulta_cuit_arca.js', v='20261020-arca') }}" defer></script>
 {% endblock %}
 {% block content %}
 {% set vista_clientes = request.args.get("vista") == "clientes" %}
@@ -91,7 +93,7 @@
     <section id="crm-clientes" class="card crm-section">
         <h2>{{ "Clientes" if vista_clientes else "Clientes CRM" }}</h2>
 
-        <details class="estructura-editor crm-create"><summary>Nuevo cliente</summary><form class="crm-create-form" method="post"
+        <details class="estructura-editor crm-create"><summary>Nuevo cliente</summary><form data-arca-form="cliente" data-arca-url="{{ url_for('admin_crm.consultar_cuit') }}" class="crm-create-form" method="post"
               action="{{ url_for('admin_crm.guardar', vista='clientes' if vista_clientes else none) }}">
             <input type="hidden" name="accion" value="crear_cliente">
             <label class="crm-field"><span>Código</span><input required name="codigo" maxlength="80" placeholder="Código interno"></label>
@@ -109,7 +111,11 @@
                 {% endfor %}
             </select></label>
 
-            <label class="crm-field"><span>DNI / CUIT</span><input name="documento" maxlength="30" placeholder="DNI / CUIT"></label>
+            <label class="crm-field"><span>DNI / CUIT</span><input name="documento" maxlength="30" placeholder="DNI / CUIT" inputmode="numeric"></label>
+            {% include "partials/consulta_cuit_arca.html" %}
+            <label class="crm-field"><span>Domicilio fiscal</span><input name="domicilio" maxlength="250" {% if not domicilios_preparados %}disabled{% endif %}></label>
+            <label class="crm-field"><span>Código postal</span><input name="codigo_postal" maxlength="20" {% if not domicilios_preparados %}disabled{% endif %}></label>
+            {% if not domicilios_preparados %}<p class="arca-domicilio-pendiente">Domicilio y código postal pendientes de preparación. El resto del alta está disponible.</p>{% endif %}
             <label class="crm-field"><span>Email</span><input name="email" type="email" maxlength="200" placeholder="Email"></label>
             <label class="crm-field"><span>Teléfono</span><input name="telefono" maxlength="50" placeholder="Teléfono"></label>
             <label class="crm-field"><span>Localidad</span><input name="localidad" maxlength="120" placeholder="Localidad"></label>
@@ -143,7 +149,16 @@
                     {% for cliente in clientes %}
                     <tr>
                         <td>{{ cliente.codigo }}</td>
-                        <td>{{ cliente.nombre }}</td>
+                        <td>{{ cliente.nombre }}<br><button type="button" data-cliente-datos="cliente-datos-{{ cliente.id }}">Ver datos</button>
+                        {% set domicilio_cliente = domicilios_clientes.get(cliente.id, {}) %}
+                        <dialog class="cliente-datos-dialog" id="cliente-datos-{{ cliente.id }}" aria-labelledby="cliente-datos-titulo-{{ cliente.id }}"><h2 id="cliente-datos-titulo-{{ cliente.id }}">{{ cliente.nombre }}</h2><dl>
+                        <dt>DNI / CUIT</dt><dd>{{ cliente.documento or 'Sin informar' }}</dd>
+                        <dt>Domicilio fiscal</dt><dd>{{ domicilio_cliente.get('domicilio') or 'Sin informar' }}</dd>
+                        <dt>Localidad y provincia</dt><dd>{{ cliente.localidad or '—' }} · {{ cliente.provincia or '—' }}</dd>
+                        <dt>Código postal</dt><dd>{{ domicilio_cliente.get('codigo_postal') or 'Sin informar' }}</dd>
+                        <dt>Email</dt><dd>{{ cliente.email or 'Sin informar' }}</dd>
+                        <dt>Teléfono</dt><dd>{{ cliente.telefono or 'Sin informar' }}</dd></dl>
+                        <button type="button" data-cliente-cerrar>Cerrar</button></dialog></td>
                         <td>
                             {{ cliente.telefono or "-" }}<br>
                             {{ cliente.email or "-" }}
@@ -431,3 +446,4 @@
 </main>
 <script src="{{ url_for('static', filename='admin_crm.js') }}?v=20261015-crm-panel-2" defer></script>
 {% endblock %}
+

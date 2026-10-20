@@ -90,6 +90,15 @@ def crear_blueprint_crm(
             None,
         )
 
+    @blueprint.route("/admin/crm/consultar-cuit", methods=["POST"])
+    @login_required
+    def consultar_cuit():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        from services.consulta_padron_web import responder_consulta_padron
+        return responder_consulta_padron(organizacion.id)
+
     @blueprint.route("/admin/crm")
     @login_required
     def panel():
@@ -104,6 +113,10 @@ def crear_blueprint_crm(
             organizacion.id,
             modelos=modelos,
         )
+
+        from services.maestros_contacto import consultar, preparado
+        datos['domicilios_preparados'] = preparado(db.session)
+        datos['domicilios_clientes'] = consultar(db.session, organizacion.id)
 
         return render_template(
             "admin_crm.html",
@@ -320,3 +333,4 @@ def crear_blueprint_crm(
         return render_template("admin_control_integral_crm.html", control=resultado)
 
     return blueprint
+

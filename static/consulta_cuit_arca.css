@@ -1,0 +1,22 @@
+.arca-lookup {grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 14px;border:1px solid #dce5ec;border-radius:10px;background:#f8fafc;min-width:0}
+.arca-lookup .arca-consult,.arca-lookup .arca-apply,.arca-lookup .arca-dismiss {display:inline-flex;align-items:center;justify-content:center;width:auto;min-height:40px;padding:9px 15px;border:1px solid #a9cfdf;border-radius:7px;background:#edf8fc;color:#12556e;font-size:14px;font-weight:600;cursor:pointer;line-height:1.3;text-decoration:none;margin:0}
+.arca-lookup .arca-apply {background:#15556b;color:#fff;border-color:#15556b}
+.arca-lookup button:disabled {opacity:.65;cursor:wait}
+.arca-lookup .arca-feedback {margin:0;font-size:14px;line-height:1.5;color:#526174;flex:1;min-width:200px}
+.arca-lookup .arca-feedback[data-error=true] {color:#a13932}
+.arca-lookup .arca-result {flex-basis:100%;padding-top:14px;border-top:1px solid #dce5ec}
+.arca-lookup [hidden] {display:none!important}
+.arca-lookup .arca-result h3 {margin:0 0 12px;font-size:16px;color:#18364b}
+.arca-lookup .arca-result dl {display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:0}
+.arca-lookup .arca-result dt {font-size:12px;color:#637287;margin-bottom:4px}
+.arca-lookup .arca-result dd {margin:0;font-size:14px;font-weight:600;color:#19384b;overflow-wrap:anywhere}
+.arca-lookup .arca-result p {font-size:13px;color:#637287;line-height:1.5}
+.arca-lookup .arca-dismiss {margin-left:6px}
+.arca-domicilio-pendiente {grid-column:1/-1;color:#9b5e20;font-size:13px;margin:0}
+.cliente-datos-dialog {width:min(560px,calc(100vw - 40px));border:1px solid #dce5ec;border-radius:14px;padding:24px;color:#19384b}
+.cliente-datos-dialog::backdrop {background:#102b3e80}
+.cliente-datos-dialog dt {font-size:13px;color:#637287;margin-top:14px}
+.cliente-datos-dialog dd {margin:4px 0;overflow-wrap:anywhere}
+
+.arca-lookup .arca-replace {display:flex;align-items:center;gap:8px;margin:12px 0;font-size:14px;color:#314b60}
+.arca-lookup .arca-replace input {width:18px;height:18px;margin:0}

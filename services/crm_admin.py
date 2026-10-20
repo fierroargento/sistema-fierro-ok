@@ -379,6 +379,8 @@ def procesar_accion_crm_admin(
             activo=False,
         )
         db_session.add(cliente)
+        from services.maestros_contacto import guardar as guardar_domicilio
+        guardar_domicilio(db_session, cliente, _texto(formulario, 'domicilio', 250), _texto(formulario, 'codigo_postal', 20))
         _guardar(db_session)
 
         return "Cliente CRM creado como desactivado."
@@ -874,3 +876,4 @@ def procesar_accion_crm_admin(
     raise ValueError(
         "La acción CRM no es válida."
     )
+

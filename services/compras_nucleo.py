@@ -49,6 +49,9 @@ def crear_proveedor(datos, *, organizacion_id, ProveedorCompra, db_session):
     )
     for campo, valor in vista[0]["datos"].items(): setattr(proveedor, campo, valor)
     db_session.add(proveedor)
+    if 'telefono_contacto' in datos:
+        from services.maestros_contacto import guardar_contacto
+        guardar_contacto(db_session, proveedor, datos.get('telefono_contacto'))
     db_session.commit()
     return proveedor
 
@@ -198,3 +201,4 @@ def preparar_recepcion(datos, *, orden, organizacion_id, unidad_negocio_id,
     db_session.add(recepcion)
     db_session.commit()
     return recepcion
+

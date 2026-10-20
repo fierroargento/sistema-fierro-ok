@@ -57,6 +57,15 @@ def crear_blueprint_compras(*, dependencias):
         session["organizacion_id"] = membresia.organizacion_id
         return usuario, membresia.organizacion, unidad, None
 
+    @blueprint.route("/admin/compras/consultar-cuit", methods=["POST"])
+    @dependencias["login_required"]
+    def consultar_cuit():
+        _usuario, organizacion, _unidad, respuesta = acceso()
+        if respuesta is not None:
+            return respuesta
+        from services.consulta_padron_web import responder_consulta_padron
+        return responder_consulta_padron(organizacion.id)
+
     @blueprint.route("/admin/compras")
     @dependencias["login_required"]
     def panel():
@@ -64,6 +73,9 @@ def crear_blueprint_compras(*, dependencias):
         if respuesta is not None:
             return respuesta
         datos = obtener_panel_compras(organizacion.id, unidad.id, modelos=modelos)
+        from services.maestros_contacto import consultar_contactos, contactos_preparados
+        datos['contactos_proveedores'] = consultar_contactos(db.session, organizacion.id)
+        datos['contactos_preparados'] = contactos_preparados(db.session)
         return render_template(
             "admin_compras.html", organizacion=organizacion, unidad_activa=unidad,
             ok_feedback=(request.args.get("ok") or "").strip(),
@@ -218,7 +230,11 @@ def crear_blueprint_compras(*, dependencias):
                 vista = previsualizar_proveedores([{"numero": 1, "valores": [datos_proveedor.get(campo, "") for campo in campos]}], {str(i): campo for i, campo in enumerate(campos)}, proveedores=proveedores)
                 if vista[0]["errores"]: raise ValueError("; ".join(vista[0]["errores"]))
                 if vista[0]["proveedor_id"] != proveedor.id: raise ValueError("La identidad del proveedor cambió.")
-                aplicar_proveedores(vista, organizacion_id=organizacion.id, ProveedorCompra=modelos["ProveedorCompra"], db_session=db.session)
+                aplicar_proveedores(vista, organizacion_id=organizacion.id, ProveedorCompra=modelos["ProveedorCompra"], db_session=db.session, commit=False)
+                if "telefono_contacto" in request.form:
+                    from services.maestros_contacto import guardar_contacto
+                    guardar_contacto(db.session, proveedor, request.form.get("telefono_contacto"))
+                db.session.commit()
                 mensaje = f"Proveedor {proveedor.codigo} actualizado."
             elif accion == "crear_orden":
                 proveedor = modelos["ProveedorCompra"].query.filter_by(
@@ -414,3 +430,4 @@ def crear_blueprint_compras(*, dependencias):
         )
 
     return blueprint
+
