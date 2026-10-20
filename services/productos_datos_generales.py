@@ -69,6 +69,10 @@ def leer_formulario_completo(formulario, archivos):
         datos['utilidad_pct'] = numero
     from services.productos_costo_maestro import leer_costo_manual
     datos.update(leer_costo_manual(formulario))
+    datos['iibb_presentado']=formulario.get('iibb_maestro_presentado')=='1'
+    if datos['iibb_presentado']:
+        from services.productos_costo_maestro import _decimal
+        datos['iibb_pct']=_decimal(formulario.get('iibb_pct'),'IIBB',Decimal('99.999999'),6)
     proveedores = _json(formulario, 'proveedores_json', [])
     if len(proveedores) > 20:
         raise ValueError('El producto admite hasta 20 proveedores.')
@@ -133,7 +137,7 @@ def cargar_datos_productos(productos, db_session, organizacion_id):
     salida = {}
     for general in db_session.query(General).filter(General.organizacion_id==organizacion_id, General.producto_id.in_(ids)).populate_existing():
         salida[general.producto_id] = {c:getattr(general,c) for c in ('rubro','subrubro','marca','costo_carga_id','moneda_costo','utilidad_base','sucursales_definidas','depositos_definidos','revision')}
-        salida[general.producto_id].update(iva_pct=str(general.iva_pct) if general.iva_pct is not None else '', utilidad_pct=str(general.utilidad_pct) if general.utilidad_pct is not None else '', proveedores=[],sucursales=[],depositos=[],codigos_barras=[],imagenes=[])
+        salida[general.producto_id].update(iibb_pct=str(general.iibb_pct) if general.iibb_pct is not None else '', iva_pct=str(general.iva_pct) if general.iva_pct is not None else '', utilidad_pct=str(general.utilidad_pct) if general.utilidad_pct is not None else '', proveedores=[],sucursales=[],depositos=[],codigos_barras=[],imagenes=[])
     from services.productos_costo_maestro import cargar_costos_manuales
     cargar_costos_manuales(salida, db_session, organizacion_id)
     for modelo, clave in ((Proveedor,'proveedores'),(Ubicacion,'ubicaciones'),(Barras,'codigos_barras'),(Imagen,'imagenes')):
@@ -199,6 +203,7 @@ def guardar_datos_generales(producto, datos, db_session, *, usuario=None):
     else: general.revision+=1
     from services.productos_costo_maestro import guardar_costo_manual
     guardar_costo_manual(producto, general, datos, db_session, usuario=usuario)
+    if datos.get('iibb_presentado'):general.iibb_pct=datos['iibb_pct']
     for campo in ('rubro','subrubro','marca','utilidad_pct','utilidad_base','sucursales_definidas','depositos_definidos'):
         setattr(general,campo,datos[campo])
     for modelo in (Proveedor,Ubicacion,Barras):

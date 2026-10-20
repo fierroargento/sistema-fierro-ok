@@ -49,6 +49,10 @@ def leer_producciones(productos,session,org):
             campos=['id',clave,'observacion']+({'insumos':['cantidad','porcentaje_merma'],'operaciones':['nombre','minutos','orden'],
                 'maquinas':['nombre','minutos','orden'],'fijos':['porcentaje_asignacion','unidades_mensuales']}[nombre])
             por_id[r.perfil_costeo_id][nombre].append({c:format(getattr(r,c),'f') if isinstance(getattr(r,c),Decimal) else getattr(r,c) for c in campos})
+    from services.productos_despiece import cargar
+    for p in perfiles:
+        despiece=cargar(p)
+        if despiece is not None:por_id[p.id]['despiece']=despiece
     return salida
 
 
@@ -75,7 +79,9 @@ def preparar(valor,session,org,producto_id=None):
     Perfil,grupos,_=modelos()
     perfil=session.query(Perfil).filter_by(organizacion_id=org,producto_id=producto_id,unidad_negocio_id=unidad).first() if producto_id else None
     if perfil and (perfil.tipo!='produccion' or not perfil.activo):raise ValueError('El perfil de fabricación no está activo o tiene otro tipo.')
-    plan={'unidad_id':unidad,'perfil':perfil,'lineas':{}}
+    from services.productos_despiece import expandir
+    valor,despiece=expandir(valor,session,org,perfil)
+    plan={'unidad_id':unidad,'perfil':perfil,'lineas':{},'despiece':despiece}
     from services.productos_costo_maestro import _decimal
     from services.composicion_costo_producto import _alcance
     from services.producto_habilitaciones import exigir_uso_insumo
@@ -122,11 +128,13 @@ def calcular(plan,org):
     from services.motor_costeo_productos import huella_detalles
     nombres={'insumos':('insumos_costeo','insumo'),'operaciones':('operaciones_costeo','empleado'),
         'maquinas':('maquinas_costeo','maquina'),'fijos':('costos_fijos_costeo','costo_fijo')}
-    perfil=SimpleNamespace(tipo='produccion',organizacion_id=org,unidad_negocio_id=plan['unidad_id'])
+    perfil=SimpleNamespace(tipo='produccion',organizacion_id=org,unidad_negocio_id=plan['unidad_id'],despiece_preparado=plan.get('despiece'))
     for g,(attr,rel) in nombres.items():
         setattr(perfil,attr,[SimpleNamespace(**{k:v for k,v in d.items() if k!='recurso'},**{rel:d['recurso']}) for d in plan['lineas'][g]])
     detalles=preparar_detalles(construir_detalles(perfil))
-    return {'detalles':detalles,'total_centavos':sum(d['subtotal_centavos'] for d in detalles),'huella':huella_detalles(detalles),'moneda':'ARS'}
+    return {'detalles':detalles,'total_centavos':sum(d['subtotal_centavos'] for d in detalles),'huella':huella_detalles(detalles),'moneda':'ARS',
+        'consumos':[{'nombre':d['recurso'].nombre,'cantidad':str(d['cantidad']),'unidad':d['recurso'].unidad_medida} for d in plan['lineas']['insumos']],
+        'tiempo_segundos':str(sum((Decimal(t['segundos']) for t in (plan.get('despiece') or {}).get('tareas',[])),Decimal(0)))}
 
 
 def guardar(producto,plan,session,usuario=None,huella_calculo=''):
@@ -152,6 +160,8 @@ def guardar(producto,plan,session,usuario=None,huella_calculo=''):
                 r=funcion(perfil,d['recurso'],nombre=d['nombre'],minutos=d['minutos'],registro_id=d['id'],**base)
                 r.orden=d['orden']
     session.flush()
+    from services.productos_despiece import guardar as guardar_despiece
+    guardar_despiece(perfil,plan.get("despiece"),session)
     try:resultado=calcular(plan,producto.organizacion_id)
     except ValueError as e:
         if huella_calculo:raise ValueError('El costo cambió desde el cálculo. Volvé a calcular: '+str(e)) from e

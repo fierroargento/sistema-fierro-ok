@@ -159,16 +159,31 @@ def construir_detalles(perfil):
             "porcentaje_merma": linea.porcentaje_merma, "orden": orden,
             "observacion": linea.observacion,
         }); orden += 1
-    for linea in sorted(perfil.operaciones_costeo, key=lambda item: item.orden):
-        version = _vigente(linea.empleado.versiones_costo)
-        if version is None:
-            raise ValueError(f"{linea.empleado.nombre} no tiene costo vigente.")
-        detalles.append({
-            "tipo": "mano_obra", "codigo": linea.empleado.codigo,
-            "concepto": linea.nombre, "cantidad": linea.minutos,
-            "unidad_medida": "minuto", "costo_unitario_centavos": version.costo_minuto_productivo_centavos,
-            "porcentaje_merma": 0, "orden": orden, "observacion": linea.observacion,
-        }); orden += 1
+    despiece=getattr(perfil,'despiece_preparado',None)
+    if despiece is None and getattr(perfil,'id',None):
+        from services.productos_despiece import cargar
+        estado=cargar(perfil)
+        if estado and estado['actual']:despiece=estado['datos']
+    if despiece and despiece.get('tareas'):
+        linea=next((r for r in perfil.operaciones_costeo if r.empleado_id==int(despiece['tarifa_id'])),None)
+        if linea is None:raise ValueError('La tarifa de las tareas requiere revisión.')
+        version=_vigente(linea.empleado.versiones_costo)
+        if version is None:raise ValueError(f"{linea.empleado.nombre} no tiene costo vigente.")
+        minutos=(sum((Decimal(t['segundos']) for t in despiece['tareas']),Decimal(0))/60).quantize(Decimal('0.000001'),rounding=ROUND_HALF_UP)
+        detalles.append({'tipo':'mano_obra','codigo':linea.empleado.codigo,'concepto':'Mano de obra del taller',
+            'cantidad':minutos,'unidad_medida':'minuto','costo_unitario_centavos':version.costo_minuto_productivo_centavos,
+            'porcentaje_merma':0,'orden':orden,'observacion':f"{len(despiece['tareas'])} tareas por unidad fabricada"});orden+=1
+    else:
+        for linea in sorted(perfil.operaciones_costeo, key=lambda item: item.orden):
+            version = _vigente(linea.empleado.versiones_costo)
+            if version is None:
+                raise ValueError(f"{linea.empleado.nombre} no tiene costo vigente.")
+            detalles.append({
+                "tipo": "mano_obra", "codigo": linea.empleado.codigo,
+                "concepto": linea.nombre, "cantidad": linea.minutos,
+                "unidad_medida": "minuto", "costo_unitario_centavos": version.costo_minuto_productivo_centavos,
+                "porcentaje_merma": 0, "orden": orden, "observacion": linea.observacion,
+            }); orden += 1
     for linea in sorted(
         getattr(perfil, "maquinas_costeo", []), key=lambda item: item.orden,
     ):

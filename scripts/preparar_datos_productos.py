@@ -24,6 +24,7 @@ def preparar(engine):
         nuevas=[t.name for t in TABLAS_DATOS_PRODUCTO if not inspector.has_table(t.name)]
         # Solo esta ampliación conocida se permite sobre la tabla ya desplegada.
         ampliacion = {
+            'iibb_pct': 'NUMERIC(9,6) CHECK (iibb_pct IS NULL OR (iibb_pct >= 0 AND iibb_pct < 100))',
             'costo_carga_id': 'INTEGER REFERENCES costo_producto_version(id)',
             'moneda_costo': "VARCHAR(3) NOT NULL DEFAULT 'ARS' CHECK (moneda_costo IN ('ARS','USD'))",
             'iva_pct': 'NUMERIC(9,6) CHECK (iva_pct IS NULL OR (iva_pct >= 0 AND iva_pct <= 100))',

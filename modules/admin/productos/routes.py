@@ -183,10 +183,11 @@ def crear_blueprint_productos(*, dependencias):
             for grupo,(_,Recurso,_) in modelos()[1].items():
                 recursos_fabricacion[grupo]=[{'id':r.id,'codigo':r.codigo,'nombre':r.nombre,
                     'unidad':getattr(r,'unidad_medida','minuto' if grupo in {'operaciones','maquinas'} else 'mes'),
-                    'unidad_id':r.unidad_negocio_id,'activo':r.activo}
+                    'unidad_id':r.unidad_negocio_id,'activo':r.activo,'tipo_registro':getattr(r,'tipo_registro','')}
                     for r in db.session.query(Recurso).filter_by(organizacion_id=organizacion.id).order_by(Recurso.codigo)
                     if grupo!='fijos' or r.integra_costo_produccion]
-        return render_template("admin_productos.html", fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
+        from services.productos_despiece import disponible as despiece_disponible
+        return render_template("admin_productos.html", despiece_disponible=despiece_disponible(db.session), fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
             organizacion=organizacion, preparado=preparado, filas=filas,
             tipos=TIPOS, usos=USOS, vista=vista, lote_token=token, insumos=insumos,
             formulario_error=formulario_error, **datos)

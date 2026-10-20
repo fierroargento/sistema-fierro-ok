@@ -13,12 +13,14 @@ class ProductoDatosGenerales(db.Model):
     costo_carga_id = db.Column(db.Integer, db.ForeignKey('costo_producto_version.id'))
     moneda_costo = db.Column(db.String(3), nullable=False, default='ARS', server_default='ARS')
     iva_pct = db.Column(db.Numeric(9, 6))
+    iibb_pct = db.Column(db.Numeric(9, 6))
     utilidad_pct = db.Column(db.Numeric(12, 6))
     utilidad_base = db.Column(db.String(20), nullable=False, default='costo')
     sucursales_definidas = db.Column(db.Boolean, nullable=False, default=False)
     depositos_definidos = db.Column(db.Boolean, nullable=False, default=False)
     revision = db.Column(db.Integer, nullable=False, default=1)
     __table_args__ = (
+        db.CheckConstraint("iibb_pct IS NULL OR (iibb_pct >= 0 AND iibb_pct < 100)", name='ck_producto_iibb_pct'),
         db.CheckConstraint("moneda_costo IN ('ARS','USD')", name='ck_producto_moneda_costo'),
         db.CheckConstraint("iva_pct IS NULL OR (iva_pct >= 0 AND iva_pct <= 100)", name='ck_producto_iva_pct'),
         db.CheckConstraint("utilidad_base IN ('costo','precio_venta')", name='ck_producto_utilidad_base'),

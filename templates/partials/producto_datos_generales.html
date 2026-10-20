@@ -27,12 +27,14 @@
 {% endif %}
 {% if paso_datos == "utilidad" %}
 <section class="producto-section"><h3 id="producto-costo-titulo">Precio de costo e IVA</h3><div class="producto-section-body">
-<input type="hidden" name="costo_maestro_presentado" value="1">
+<input type="hidden" name="costo_maestro_presentado" value="1"><input type="hidden" name="iibb_maestro_presentado" value="1">
 <div class="producto-grid"><label data-costo-manual>Precio de costo unitario (sin IVA)<input name="precio_costo" inputmode="decimal" maxlength="20" placeholder="Ej.: 1000,00"></label>
 <label>Moneda del costo<select name="moneda_costo"><option value="ARS">Pesos (ARS)</option><option value="USD">Dólares (USD)</option></select></label>
-<label>IVA (%)<input name="iva_pct" inputmode="decimal" maxlength="12" placeholder="Sin definir" list="producto-ivas"><datalist id="producto-ivas"><option value="0"><option value="10,5"><option value="21"><option value="27"></datalist></label></div>
+<label>IVA del producto (%)<input name="iva_pct" inputmode="decimal" maxlength="12" placeholder="Sin definir" list="producto-ivas"><datalist id="producto-ivas"><option value="0"><option value="10,5"><option value="21"><option value="27"></datalist></label><label>IIBB (%)<input name="iibb_pct" inputmode="decimal" maxlength="12" placeholder="Sin definir"></label></div>
+<p class="productos-muted">IIBB se registra como costo fiscal para la formación del precio y la rentabilidad; no se agrega como concepto separado en la factura.</p>
 <p class="productos-muted" data-costo-manual>Costo por una unidad de medida del producto. Usá coma o punto decimal, sin separadores de miles. Dejar vacío no es lo mismo que cargar cero.</p>
 <p data-costo-manual id="producto-costo-ejemplo" class="producto-costo-preview" role="status" aria-live="polite"></p>
+<p class="productos-muted">El IVA se conserva en la ficha y se aplica únicamente al precio final de venta o publicación. Los costos se mantienen netos.</p>
 <p class="productos-muted" data-costo-manual>El importe se registra como borrador en el historial de Costos; no reemplaza un costo vigente. En producción y combos, el costo final se obtiene de su composición. No se convierten monedas automáticamente.</p>
 </div></section>
 <section class="producto-section"><h3>Utilidad pretendida</h3><div class="producto-section-body"><div class="producto-grid">

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261019-maestro') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261020-fabricacion-maestro') }}">
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261020-fabricacion-maestro') }}" defer></script>
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_produccion.js', v='20261020-fabricacion-maestro') }}" defer></script>
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261020-fabricacion-maestro') }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261020-despiece-producto') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261020-despiece-producto') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_produccion.js', v='20261020-despiece-producto') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261020-despiece-producto') }}" defer></script>
 {% endblock %}
 {% block content %}
 {% macro valor_cambio(campo, valor) -%}
@@ -96,6 +96,7 @@
     <footer class="producto-dialog-footer"><button type="button" class="secondary-link" data-close-product>Cancelar</button><div class="productos-actions"><button type="button" class="secondary-link" id="producto-anterior">Anterior</button><button type="button" class="comercial-primary" id="producto-siguiente">Siguiente</button><button type="submit" class="comercial-primary" id="producto-guardar" hidden>Guardar producto</button></div></footer>
   </form>
 </dialog>
+{% include "partials/producto_despiece_dialogos.html" %}
 <dialog class="source-dialog producto-confirm" id="producto-confirm" aria-labelledby="producto-confirm-title"><h2 id="producto-confirm-title">Confirmar cambios</h2><p id="producto-confirm-text"></p><div class="productos-actions"><button type="button" class="secondary-link" id="producto-confirm-cancel" autofocus>Cancelar</button><button type="button" class="comercial-primary" id="producto-confirm-ok">Confirmar</button></div></dialog>
 <script nonce="{{ csp_nonce }}" type="application/json" id="productos-fabricacion-recursos">{{ recursos_fabricacion|tojson }}</script>
 <script nonce="{{ csp_nonce }}" type="application/json" id="productos-clasificaciones">{{ clasificaciones|tojson }}</script>

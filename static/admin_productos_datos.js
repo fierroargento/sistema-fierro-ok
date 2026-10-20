@@ -68,8 +68,7 @@
       destino.textContent="Revisá el costo y el porcentaje de IVA.";return;
     }
     const formato=n=>n.toLocaleString("es-AR",{style:"currency",currency:moneda,currencyDisplay:"code"});
-    destino.textContent=iva ? "Sin IVA: "+formato(importe)+" · IVA: "+formato(importe*tasa/100)+" · Con IVA: "+formato(importe*(1+tasa/100)) :
-      "Costo sin IVA: "+formato(importe)+" · IVA sin definir; no se calcula el total con IVA.";
+    destino.textContent="Costo neto: "+formato(importe)+". "+(iva ? "IVA del producto: "+iva+"%. Se aplica al precio final de venta o publicación." : "IVA del producto sin definir.");
   }
   function renderFotos() {
     fotos.replaceChildren();
@@ -119,7 +118,7 @@
     abrir(fila, fallido) {
       const d=fallido || (fila && fila.adicionales) || {};
       error.hidden=true;proveedores.replaceChildren();barras.replaceChildren();
-      for(const campo of ["rubro","subrubro","marca","utilidad_pct","precio_costo","iva_pct"]) form.elements[campo].value=d[campo]||"";
+      for(const campo of ["rubro","subrubro","marca","utilidad_pct","precio_costo","iva_pct","iibb_pct"]) form.elements[campo].value=d[campo]||"";
       form.elements.utilidad_base.value=d.utilidad_base||"costo";
       form.elements.moneda_costo.value=d.moneda_costo||"ARS";
       const prov=fallido?parser(d.proveedores_json,[]):(d.proveedores||[]);prov.forEach(agregarProveedor);
@@ -146,7 +145,7 @@
       if((!paso || paso === "imagenes") && new Set(codigos).size!==codigos.length)return avisar("Hay códigos de barras repetidos.", "imagenes");
       if((!paso || paso === "comercial") && form.elements.subrubro.value.trim()&&!form.elements.rubro.value.trim())return avisar("Elegí el rubro del subrubro.", "comercial");
       if(!paso || paso === "costos") {
-        for (const [campo, nombre, maximo, decimales] of [["precio_costo","Precio de costo",999999999999.99,2],["iva_pct","IVA",100,6]]) {
+        for (const [campo, nombre, maximo, decimales] of [["precio_costo","Precio de costo",999999999999.99,2],["iva_pct","IVA",100,6],["iibb_pct","IIBB",99.999999,6]]) {
           if (form.elements[campo].disabled) continue;
           const texto=form.elements[campo].value.trim().replace(",", ".");
           const valor=Number(texto);

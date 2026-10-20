@@ -1539,3 +1539,52 @@ UAT inmediato, continuar solo el alta manual:
 3. Elegir unidad de fabricación y cargar insumo/cantidad/merma, tarea/recurso/minutos y máquina/minutos de prueba. Agregar un indirecto si corresponde al caso. Usar las fuentes ya preparadas; no activar servicios externos.
 4. Calcular costo unitario y revisar el desglose. Volver a un paso anterior conserva los datos; Cancelar no crea producto/receta. Si falta una tarifa, debe indicar costo pendiente y no mostrar cero como costo válido.
 5. Guardar una ficha ficticia y reabrir: misma composición, costos calculados en el historial sin activación. Cambiar una cantidad y recalcular; observar resultado actualizado. Seguir ajustando el alta manual antes de avanzar a ventas/publicación reales.
+
+
+## 2026-10-20 · Alta de fabricación según PLANILLA GENERAL; IVA final e IIBB como costo
+
+Este bloque reemplaza el ingreso agregado de insumos/merma y tarifa por tarea descrito en el bloque anterior. Se continúa exclusivamente el alta manual de Productos.
+
+Reglas confirmadas por Martín:
+- Todos los precios de fuentes y costos son sin IVA. No se calcula merma en esta metodología.
+- Los tiempos de Tareas son por un producto/una unidad, no por lote.
+- Lista Proveedores.Unidad define la unidad de cada fuente; su tarifa ya corresponde a metro/unidad. No volver a dividir por bulto de compra.
+- IVA (%) permanece editable y persistido por producto. Solo se suma al definir el precio final de venta/publicación; se retira la vista previa anterior de costo con IVA.
+- IIBB (%) configurable por producto: costo fiscal para precio/rentabilidad, sin concepto separado de facturación. Vacío significa sin definir; cero es explícito. No se importa ni presupone 3,5% del archivo de referencia.
+
+Interfaz y reutilización:
+- Composición y utilidad → ficha de fabricación con Componentes, Tareas, Resumen y Otros costos.
+- Cada pieza se carga/edita en una emergente individual: nombre, material, cantidad y medida en cm para fuentes cotizadas por metro; también consumo directo o rendimiento por placa/cartón/unidad. Se pueden repetir materiales en distintas piezas y se suman automáticamente sus consumos.
+- Cada tarea tiene su emergente, nombre y segundos/minutos por unidad. Una única tarifa configurada de mano de obra del taller para el conjunto; no se elige arbitrariamente el primer empleado ni se genera otra nómina/promedio.
+- Resumen automático de consumos por fuente y tiempo total. Calcular muestra progreso, desglose y resultado neto; no escribe producto/costo al simular. Máquinas e indirectos existentes siguen disponibles como Otros costos.
+- Las medidas originales y segundos se guardan como metadatos de UN MISMO PerfilCosteoProducto; alimentan las líneas existentes de insumos y operaciones. No se crea otro producto, motor o costo paralelo.
+- El motor compartido suma segundos antes de calcular mano de obra y genera la misma versión preparatoria desde Productos o Costos. No activa versiones ni precios.
+- La huella comprueba si Costos modificó posteriormente las líneas. Si las medidas dejaron de representar la composición, se informa y se usan los consumos actuales, no datos obsoletos.
+- Recetas anteriores sin medidas se muestran como Consumo previo, sin inventar largo de piezas. Una merma histórica se incorpora al consumo efectivo para no reducirlo silenciosamente al pasar al nuevo método sin merma. Varias tarifas anteriores exigen elegir/revisar la tarifa del taller.
+- Se preservan separación por organización/unidad, transacción atómica, huella de edición, rechazo de fuentes ajenas/inactivas, costo pendiente ante tarifas faltantes, cancelación sin envío y defensa de confirmación explícita.
+
+Referencia PP6040H auditada en PLANILLA GENERAL(2).xlsm:
+- 7 piezas: 24×39,5 cm varillas; 4×35,5 cm laterales; 2×59 cm patas; 2×16,5 cm manijas; 2×3 cm bisagras; 4 tuercas y 2 bulones.
+- Resultado: 10,99 m hierro, 1,48 m planchuela, 4 tuercas, 2 bulones. 13 tareas suman 1156 segundos = 19 min 16 s.
+- No se importa ni cambia ningún producto real o precio desde esa planilla. El ensayo automatizado usa fuentes y tarifas ficticias.
+- Límite pendiente: el motor existente guarda tarifas monetarias en centavos; la planilla tiene precios de fuente con más decimales. Se verifica igualdad de método/cantidades/tiempos, no igualdad exacta de centavos con los precios históricos del archivo.
+
+Alcance fiscal de este commit:
+- Captura, validación, reapertura y persistencia de IVA/IIBB en el maestro; IIBB admite seis decimales en [0,100).
+- Formularios anteriores sin indicador del nuevo campo conservan IIBB ya guardado.
+- PENDIENTE al construir precio final: conectar explícitamente estos parámetros con las reglas económicas de cada canal y su base de cálculo, deduplicando impuestos/cargos existentes. Este commit NO afirma que guardar IIBB ya lo aplique al precio ML ni altera reglas económicas vigentes. Se mantiene la regla insalvable de neto mínimo; no se habilitan publicaciones con costos o cargos faltantes.
+
+Preparación y verificación:
+- Tabla aditiva producto_despiece_costeo, asociada al perfil existente; columna nullable iibb_pct en producto_datos_generales. Guardias de esquema impiden usar la ampliación sin prepararla, sin consultar columnas inexistentes.
+- Ejecutar SOLO en Shell de staging después de desplegar: python -m scripts.preparar_despiece_productos --staging. Incluye la preparación anterior de datos generales; es idempotente y conserva datos. Mantener BOOTSTRAP_BASE_DATOS_HABILITADO=false y MODO_LABORATORIO_DESCONECTADO=true.
+- 122 pruebas del maestro/datos/fabricación/despiece aprobadas, más una prueba nueva del script ejecutado en proceso aislado sobre copia SQLite y rechazo de rama main. El conjunto suma 123 casos. Se comprueban agregación PP6040H, unidades/rendimiento, segundos, huella compartida, guardado/reapertura, no duplicación, cambios externos, preservación de IIBB, límites y rollback integral después de guardar las piezas.
+- DOM con HTML Flask y scripts reales: emergentes individuales, cancelar sin agregar/guardar, materiales repetidos, cm/metro, tareas/segundos, resumen, feedback y confirmación, IVA/IIBB habilitados y costo neto. Respuesta de cálculo simulada en DOM; API probada separadamente con Flask/DB.
+- Sintaxis JS y compilación Python aprobadas. No se declara QA visual de navegador real ni ejecución de PostgreSQL/Render; sigue pendiente la aceptación visual en staging.
+- Sin cambios de main, stock, pedidos, scheduler o conexiones externas.
+
+UAT siguiente, sin salir del alta manual:
+1. Desplegar el commit en integración y ejecutar el comando de preparación anterior en staging.
+2. Ctrl+F5 → Base de Datos → Productos → Nuevo producto → De producción → Composición y utilidad.
+3. Cargar piezas/tareas de una ficha ficticia siguiendo el ejemplo PP6040H. Elegir tarifa del taller ya configurada; no inventar precios de fuentes faltantes.
+4. Revisar consumos/tiempo, IVA elegido e IIBB que corresponda al caso. Calcular: costo neto o aviso claro de fuente pendiente; no costo con IVA.
+5. Cancelar primero y comprobar que no se creó nada. Luego guardar ficha ficticia y reabrir: mismas piezas/tiempos/IVA/IIBB y versión preparatoria, sin activación.
