@@ -39,7 +39,8 @@
       </div>
     </nav>
   </section>
-  <details class="comercial-section productos-import" id="productos-importacion" {% if vista or vista_fabricacion or opciones_fabricacion or vista_planilla %}open{% endif %}><summary>Importación masiva</summary><div class="productos-import-body">
+  <details class="comercial-section productos-import" id="productos-importacion" {% if vista or vista_fabricacion or opciones_fabricacion or vista_planilla or vista_logistica %}open{% endif %}><summary>Importación masiva</summary><div class="productos-import-body">
+    {% include "partials/productos_logistica_tn.html" %}
     {% include "partials/productos_planilla.html" %}
     {% include "partials/productos_importar_fabricacion.html" %}
     <h2>Ficha básica de productos</h2>

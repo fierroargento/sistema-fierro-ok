@@ -121,6 +121,7 @@ def crear_blueprint_productos(*, dependencias):
         vista, token, formulario_error = None, "", None
         vista_fabricacion, token_fabricacion, opciones_fabricacion = None, "", {}
         vista_planilla, token_planilla = None, ""
+        vista_logistica, token_logistica = None, ""
         if request.method == "POST":
             if request.content_length is not None and request.content_length > 12 * 1024 * 1024:
                 return redirect(url_for("admin_productos.panel", error="No se guardó: el formulario supera 12 MB. Usá hasta 5 imágenes de 2 MB."))
@@ -147,6 +148,20 @@ def crear_blueprint_productos(*, dependencias):
                     db.session.commit()
                     mensaje = f"{producto.sku}: ficha guardada correctamente." + (" " + aviso_produccion if aviso_produccion else "")
                     filtro_sku = producto.sku
+                elif accion == "previsualizar_logistica_tn":
+                    from services import importacion_logistica_tn as logistica_tn
+                    archivo = request.files.get("archivo_logistica_tn")
+                    if archivo is None or not archivo.filename:
+                        raise ValueError("Elegí el CSV de productos exportado de Tiendanube.")
+                    vista_logistica = logistica_tn.previsualizar(logistica_tn.leer(archivo),
+                        Producto=Producto, session=db.session, organizacion_id=organizacion.id)
+                    token_logistica = logistica_tn.firmar(vista_logistica, organizacion.id, usuario.id, current_app.secret_key)
+                elif accion == "confirmar_logistica_tn":
+                    from services import importacion_logistica_tn as logistica_tn
+                    cantidad = logistica_tn.aplicar(request.form.get("logistica_token", ""),
+                        Producto=Producto, session=db.session, organizacion_id=organizacion.id,
+                        usuario_id=usuario.id, secreto=current_app.secret_key)
+                    mensaje = f"Peso y dimensiones actualizados en {cantidad} productos. Los demás datos se conservaron."
                 elif accion == "previsualizar_planilla":
                     from services import planilla_productos
                     archivo = request.files.get('archivo_planilla')
@@ -192,7 +207,7 @@ def crear_blueprint_productos(*, dependencias):
                     mensaje = f"Importación confirmada: {conteo['crear']} creados, {conteo['actualizar']} actualizados y {conteo['sin_cambios']} sin cambios."
                 else:
                     raise ValueError("La acción no es válida. Usá Gestionar o Importar productos.")
-                if vista is None and vista_fabricacion is None and vista_planilla is None:
+                if vista is None and vista_fabricacion is None and vista_planilla is None and vista_logistica is None:
                     try:
                         registrar_auditoria("Configuró maestro de productos", entidad="producto",
                             entidad_id=organizacion.id, detalle=f"Acción: {accion}. {mensaje}")
@@ -259,7 +274,7 @@ def crear_blueprint_productos(*, dependencias):
             recursos_fabricacion['insumos'] = enriquecer_insumos(recursos_fabricacion.get('insumos', []), db.session, organizacion.id)
         from services.productos_despiece import disponible as despiece_disponible
         from services.producto_vista import dinero
-        return render_template("admin_productos.html", dinero=dinero, vista_planilla=vista_planilla, token_planilla=token_planilla, vista_fabricacion=vista_fabricacion, token_fabricacion=token_fabricacion, opciones_fabricacion=opciones_fabricacion, unidad_produccion_inicial=unidad_produccion_inicial, despiece_disponible=despiece_disponible(db.session), fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
+        return render_template("admin_productos.html", vista_logistica=vista_logistica, token_logistica=token_logistica, dinero=dinero, vista_planilla=vista_planilla, token_planilla=token_planilla, vista_fabricacion=vista_fabricacion, token_fabricacion=token_fabricacion, opciones_fabricacion=opciones_fabricacion, unidad_produccion_inicial=unidad_produccion_inicial, despiece_disponible=despiece_disponible(db.session), fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
             organizacion=organizacion, preparado=preparado, filas=filas,
             tipos=TIPOS, usos=USOS, vista=vista, lote_token=token, insumos=insumos,
             formulario_error=formulario_error, **datos)

@@ -1,0 +1,21 @@
+<section class="fabricacion-import" aria-labelledby="productos-logistica-tn-title">
+  <header class="fabricacion-import-header"><p class="productos-ruta">Solo datos de envío</p><h2 id="productos-logistica-tn-title">Peso y dimensiones desde Tiendanube</h2><p>Subí el CSV original de productos de Tiendanube. Buscamos cada SKU en Fierro y revisamos únicamente su peso y sus medidas.</p></header>
+  <form class="productos-planilla-form fabricacion-import-card" method="post" enctype="multipart/form-data" action="{{ url_for('admin_productos.panel', _anchor='productos-importacion') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="accion" value="previsualizar_logistica_tn">
+    <div class="fabricacion-import-grid fabricacion-import-archivo"><label>Archivo de Tiendanube<input type="file" name="archivo_logistica_tn" accept=".csv" required><small>No hace falta cambiar columnas ni convertir el archivo.</small></label><div class="productos-actions"><button class="comercial-primary" type="submit">Revisar peso y dimensiones</button></div></div>
+    <p data-fabricacion-progreso role="status" aria-live="polite" hidden></p>
+  </form>
+  <p class="productos-muted">Peso: kg → gramos. Alto y ancho: cm. Profundidad → largo (cm). Vacíos y ceros conservan el dato actual. No crea productos ni cambia nombres, costos, precios, stock, usos o permisos de envío.</p>
+  {% if vista_logistica is not none %}
+  {% set actualizaciones = vista_logistica|selectattr('accion','equalto','actualizar')|list %}
+  {% set omitidos = vista_logistica|selectattr('accion','equalto','omitido')|list %}
+  <div class="productos-preview" role="status"><h3>Revisión de peso y dimensiones</h3><p>{{ actualizaciones|length }} para actualizar · {{ vista_logistica|selectattr('accion','equalto','sin_cambios')|list|length }} sin cambios · {{ omitidos|length }} omitidos. Todavía no se guardó nada.</p>{% if omitidos %}<p>Los omitidos no se importarán. Revisá los motivos antes de confirmar los demás.</p>{% endif %}</div>
+  <div class="table-wrap fabricacion-import-tabla"><table class="comercial-table"><thead><tr><th>SKU</th><th>Resultado</th><th>Peso y dimensiones</th><th>Revisión</th></tr></thead><tbody>
+    {% for f in vista_logistica %}<tr><td><strong>{{ f.sku or 'Sin SKU' }}</strong><small>Fila(s) CSV: {{ f.filas|join(', ') }}</small></td><td>{{ {'actualizar':'Actualizar','sin_cambios':'Sin cambios','omitido':'Omitido'}[f.accion] }}</td><td>{% for c in f.cambios %}<p><strong>{{ c.campo }}:</strong> {{ c.antes if c.antes is not none else 'Sin dato' }} → {{ c.despues }}</p>{% else %}—{% endfor %}</td><td>{% if f.motivo %}<p class="productos-error">{{ f.motivo }}</p>{% endif %}{% for a in f.avisos %}<p class="productos-muted">{{ a }}</p>{% endfor %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  <form method="post" action="{{ url_for('admin_productos.panel') }}" data-confirm-save="¿Actualizar solo el peso y las dimensiones de los productos revisados? Los SKU omitidos no se importarán y los demás datos se conservarán.">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="accion" value="confirmar_logistica_tn"><input type="hidden" name="logistica_token" value="{{ token_logistica }}">
+    <div class="productos-actions"><a class="secondary-link" href="{{ url_for('admin_productos.panel') }}">Cancelar importación</a><button type="submit" class="comercial-primary" {% if not actualizaciones %}disabled{% endif %}>Confirmar peso y dimensiones</button></div>
+  </form>
+  {% endif %}
+</section>
