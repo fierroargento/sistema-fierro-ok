@@ -38,7 +38,8 @@ def disponible(session):
 def leer_producciones(productos,session,org):
     if not productos or not disponible(session):return {}
     Perfil,grupos,_=modelos()
-    perfiles=session.query(Perfil).filter(Perfil.organizacion_id==org,Perfil.producto_id.in_([p.id for p in productos]),Perfil.tipo=='produccion').populate_existing().all()
+    from sqlalchemy.orm import selectinload
+    perfiles=session.query(Perfil).options(selectinload(Perfil.insumos_costeo),selectinload(Perfil.operaciones_costeo)).filter(Perfil.organizacion_id==org,Perfil.producto_id.in_([p.id for p in productos]),Perfil.tipo=='produccion').populate_existing().all()
     salida={};por_id={}
     for p in perfiles:
         d={'perfil_id':p.id,'unidad_id':p.unidad_negocio_id,'activo':p.activo,**{g:[] for g in grupos}}
@@ -49,9 +50,10 @@ def leer_producciones(productos,session,org):
             campos=['id',clave,'observacion']+({'insumos':['cantidad','porcentaje_merma'],'operaciones':['nombre','minutos','orden'],
                 'maquinas':['nombre','minutos','orden'],'fijos':['porcentaje_asignacion','unidades_mensuales']}[nombre])
             por_id[r.perfil_costeo_id][nombre].append({c:format(getattr(r,c),'f') if isinstance(getattr(r,c),Decimal) else getattr(r,c) for c in campos})
-    from services.productos_despiece import cargar
+    from services.productos_despiece import cargar_lote
+    despieces=cargar_lote(perfiles,session)
     for p in perfiles:
-        despiece=cargar(p)
+        despiece=despieces.get(p.id)
         if despiece is not None:por_id[p.id]['despiece']=despiece
     return salida
 

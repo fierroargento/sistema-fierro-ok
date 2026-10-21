@@ -44,6 +44,9 @@ def leer_lote(archivo):
     elif nombre.endswith((".xlsx", ".xlsm")):
         from openpyxl import load_workbook
         libro = load_workbook(BytesIO(contenido), read_only=True, data_only=False, keep_links=False)
+        if "Control" in libro.sheetnames and str(libro['Control']['A2'].value or '').startswith('FIERRO-PRODUCTOS-'):
+            libro.close()
+            raise ValueError('Esta planilla se carga en Actualizar desde planilla Fierro, para incluir fabricación y datos completos.')
         hoja = libro["Productos"] if "Productos" in libro.sheetnames else libro.worksheets[0]
         fuente = hoja.iter_rows(values_only=True)
     else:

@@ -31,6 +31,17 @@ def cargar(perfil):
     return {'datos':datos,'revision':r.revision,'actual':r.huella_composicion==huella_perfil(perfil)}
 
 
+def cargar_lote(perfiles,session):
+    """Lee despieces de los perfiles ya autorizados sin una consulta por producto."""
+    if not perfiles or not disponible(session):return {}
+    from models.producto_despiece_costeo import ProductoDespieceCosteo as Modelo
+    autorizados={p.id:p for p in perfiles}
+    registros=session.query(Modelo).filter(Modelo.perfil_costeo_id.in_(autorizados),Modelo.organizacion_id.in_({p.organizacion_id for p in perfiles})).populate_existing().all()
+    return {r.perfil_costeo_id:{'datos':json.loads(r.contenido),'revision':r.revision,
+        'actual':r.huella_composicion==huella_perfil(autorizados[r.perfil_costeo_id])}
+        for r in registros if r.organizacion_id==autorizados[r.perfil_costeo_id].organizacion_id}
+
+
 def expandir(valor,session,org,perfil,*,lectura=None):
     if lectura is not None:lectura.comprobar(session,org)
     if 'piezas' not in valor:return valor,None

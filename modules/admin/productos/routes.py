@@ -63,6 +63,21 @@ def crear_blueprint_productos(*, dependencias):
             tipos=TIPOS, numero=numero, dinero=dinero, fecha_local=fecha_local)
         return Response(contenido, content_type='text/html; charset=utf-8', headers={'Cache-Control':'no-store'})
 
+    @blueprint.route("/admin/productos/exportar.xlsx")
+    @login_required
+    def exportar():
+        _, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:return respuesta
+        from services.planilla_productos import exportar as exportar_planilla
+        try:
+            archivo=exportar_planilla(Producto=Producto,session=db.session,organizacion_id=organizacion.id,base_url=request.url_root)
+        except ValueError as error:
+            return redirect(url_for('admin_productos.panel',error=str(error)))
+        respuesta=send_file(archivo,as_attachment=True,download_name='maestro_productos_fierro.xlsx',mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        respuesta.headers['Cache-Control']='private, no-store'
+        respuesta.headers['X-Content-Type-Options']='nosniff'
+        return respuesta
+
     @blueprint.route("/admin/productos/plantilla.csv")
     @login_required
     def plantilla():
@@ -102,6 +117,7 @@ def crear_blueprint_productos(*, dependencias):
         filtro_sku = (request.args.get("sku") or "").strip()
         vista, token, formulario_error = None, "", None
         vista_fabricacion, token_fabricacion, opciones_fabricacion = None, "", {}
+        vista_planilla, token_planilla = None, ""
         if request.method == "POST":
             if request.content_length is not None and request.content_length > 12 * 1024 * 1024:
                 return redirect(url_for("admin_productos.panel", error="No se guardó: el formulario supera 12 MB. Usá hasta 5 imágenes de 2 MB."))
@@ -128,6 +144,16 @@ def crear_blueprint_productos(*, dependencias):
                     db.session.commit()
                     mensaje = f"{producto.sku}: ficha guardada correctamente." + (" " + aviso_produccion if aviso_produccion else "")
                     filtro_sku = producto.sku
+                elif accion == "previsualizar_planilla":
+                    from services import planilla_productos
+                    archivo = request.files.get('archivo_planilla')
+                    if archivo is None or not archivo.filename:raise ValueError('Seleccioná la planilla descargada desde Exportar para editar.')
+                    vista_planilla = planilla_productos.previsualizar(planilla_productos.leer(archivo,organizacion.id),Producto=Producto,session=db.session,organizacion_id=organizacion.id)
+                    token_planilla = planilla_productos.firmar(vista_planilla,organizacion.id,usuario.id,current_app.secret_key)
+                elif accion == "confirmar_planilla":
+                    from services import planilla_productos
+                    conteo = planilla_productos.aplicar(request.form.get('planilla_token',''),Producto=Producto,session=db.session,organizacion_id=organizacion.id,usuario=usuario,secreto=current_app.secret_key)
+                    mensaje = f"Planilla confirmada: {conteo['actualizar']} productos actualizados y {conteo['sin_cambios']} sin cambios."
                 elif accion == "previsualizar_fabricacion":
                     from services import importacion_fabricacion_productos as fabricacion
                     opciones_fabricacion = dict(request.form)
@@ -163,7 +189,7 @@ def crear_blueprint_productos(*, dependencias):
                     mensaje = f"Importación confirmada: {conteo['crear']} creados, {conteo['actualizar']} actualizados y {conteo['sin_cambios']} sin cambios."
                 else:
                     raise ValueError("La acción no es válida. Usá Gestionar o Importar productos.")
-                if vista is None and vista_fabricacion is None:
+                if vista is None and vista_fabricacion is None and vista_planilla is None:
                     try:
                         registrar_auditoria("Configuró maestro de productos", entidad="producto",
                             entidad_id=organizacion.id, detalle=f"Acción: {accion}. {mensaje}")
@@ -230,7 +256,7 @@ def crear_blueprint_productos(*, dependencias):
             recursos_fabricacion['insumos'] = enriquecer_insumos(recursos_fabricacion.get('insumos', []), db.session, organizacion.id)
         from services.productos_despiece import disponible as despiece_disponible
         from services.producto_vista import dinero
-        return render_template("admin_productos.html", dinero=dinero, vista_fabricacion=vista_fabricacion, token_fabricacion=token_fabricacion, opciones_fabricacion=opciones_fabricacion, unidad_produccion_inicial=unidad_produccion_inicial, despiece_disponible=despiece_disponible(db.session), fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
+        return render_template("admin_productos.html", dinero=dinero, vista_planilla=vista_planilla, token_planilla=token_planilla, vista_fabricacion=vista_fabricacion, token_fabricacion=token_fabricacion, opciones_fabricacion=opciones_fabricacion, unidad_produccion_inicial=unidad_produccion_inicial, despiece_disponible=despiece_disponible(db.session), fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
             organizacion=organizacion, preparado=preparado, filas=filas,
             tipos=TIPOS, usos=USOS, vista=vista, lote_token=token, insumos=insumos,
             formulario_error=formulario_error, **datos)

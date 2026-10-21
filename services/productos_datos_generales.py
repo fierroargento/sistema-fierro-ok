@@ -152,7 +152,7 @@ def cargar_datos_productos(productos, db_session, organizacion_id):
     return salida
 
 
-def guardar_datos_generales(producto, datos, db_session, *, usuario=None):
+def validar_datos_generales(producto, datos, db_session):
     if datos is None: return
     if not esquema_datos_disponible(db_session):
         raise ValueError('Falta preparar la ficha completa de productos en staging. No se guardó ningún cambio.')
@@ -197,6 +197,14 @@ def guardar_datos_generales(producto, datos, db_session, *, usuario=None):
     principal = datos['imagen_principal'] or (candidatos[0] if candidatos else '')
     if principal and principal not in candidatos:
         raise ValueError('Elegí una imagen principal entre las fotos conservadas o nuevas.')
+    return imagenes, principal
+
+
+def guardar_datos_generales(producto, datos, db_session, *, usuario=None):
+    if datos is None: return
+    imagenes, principal = validar_datos_generales(producto, datos, db_session)
+    from models.producto_datos_generales import ProductoDatosGenerales as General, ProductoProveedor as Proveedor, ProductoUbicacion as Ubicacion, ProductoCodigoBarras as Barras, ProductoImagenMaestra as Imagen
+    org = producto.organizacion_id
     general = db_session.query(General).filter_by(producto_id=producto.id,organizacion_id=org).first()
     if general is None:
         general=General(producto_id=producto.id,organizacion_id=org,revision=1);db_session.add(general)

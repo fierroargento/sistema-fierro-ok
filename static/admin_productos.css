@@ -223,3 +223,7 @@
 .fabricacion-import-footer > p { flex:1 1 280px; margin:0; color:#35596b; }
 .fabricacion-import-footer button { width:auto; min-height:42px; padding:10px 20px; flex:0 0 auto; }
 @media(max-width:760px) { .fabricacion-import-archivo,.fabricacion-import-tarifas { grid-template-columns:minmax(0,1fr); } .fabricacion-import-card { padding:16px; } }
+
+.productos-planilla-form .fabricacion-import-grid { margin-top:0; align-items:end; }
+.productos-planilla-form .productos-actions { padding-bottom:24px; }
+@media(max-width:760px) { .productos-planilla-form .productos-actions { padding-bottom:0; justify-content:flex-start; } }
