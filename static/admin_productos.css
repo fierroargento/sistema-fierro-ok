@@ -227,3 +227,9 @@
 .productos-planilla-form .fabricacion-import-grid { margin-top:0; align-items:end; }
 .productos-planilla-form .productos-actions { padding-bottom:24px; }
 @media(max-width:760px) { .productos-planilla-form .productos-actions { padding-bottom:0; justify-content:flex-start; } }
+
+.productos-search { max-width:850px; }
+.productos-search > div { align-items:end; flex-wrap:wrap; }
+.productos-search .productos-tamano { display:flex; flex-direction:column; gap:5px; flex:0 0 auto; }
+.productos-tamano select { min-height:40px; border:1px solid #cbd8e2; border-radius:8px; padding:8px 12px; background:#fff; color:#34465b; }
+.productos-paginacion { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px; }

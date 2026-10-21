@@ -122,7 +122,7 @@ def exportar(*,Producto,session,organizacion_id,base_url=""):
             for n,c in enumerate(columnas,1):
                 celda=ws.cell(ws.max_row,n)
                 if isinstance(valores[n-1],str):celda.data_type='s' # nunca exportar texto como fórmula
-                celda.protection=protegido if c in ('producto_id','huella','sku','perfil_id','id') or c=='tipo' and nombre=='Productos' or nombre=='Perfiles' and c!='tarifa_id' or c=='insumo_id' and nombre=='Productos' else editable
+                celda.protection=protegido if c in ('producto_id','huella','sku','perfil_id','id') or c=='tipo' and nombre=='Productos' and bool(fila[c]) or nombre=='Perfiles' and c!='tarifa_id' or c=='insumo_id' and nombre=='Productos' else editable
                 celda.number_format='0.######' if c in NUMEROS and not isinstance(valores[n-1],str) else '@'
         for n,c in enumerate(columnas,1):
             letra=ws.cell(1,n).column_letter
@@ -147,7 +147,7 @@ def exportar(*,Producto,session,organizacion_id,base_url=""):
         for r in f['adicionales'].get('imagenes',[]):imagenes.append([sku,r['nombre'],'Sí' if r['principal'] else 'No',base_url.rstrip('/')+r['url']])
     for ws in (control,referencias,costos,imagenes):ws.protection.sheet=True
     ayuda=libro.create_sheet('Ayuda');ayuda.append(['Uso de la planilla Fierro'])
-    for t in ['Editá las celdas azules y guardá como XLSX. Luego usá Importar planilla Fierro en Productos.','No cambies SKU, producto_id, huella ni los datos de identidad de Perfiles. Son productos existentes, no altas.','Para quitar un producto de uso cambiá Activo a No. Quitar su fila del archivo no borra el producto.','Para fabricación con piezas editá Componentes y Tareas; el consumo y costo se recalculan en Fierro. Para fichas anteriores sin piezas, usá Consumos y Operaciones.','Perfiles identifica la unidad de cada receta; no elimines perfiles. Referencias contiene los códigos e identificadores para elegir los recursos.','Precio de costo es editable sólo para productos simples. Para producción y combos se construye desde su composición. Importes sin IVA; IVA, IIBB y utilidad se expresan en puntos porcentuales: 21, 3.5, 90.','Proveedores, Ubicaciones y Barras reemplazan esas listas sólo de los SKU incluidos. Para quitar una relación eliminá su fila; deben conservarse todas las hojas.','Imágenes, existencias, precios publicados e historial se conservan en el sistema. No se modifican a través de esta planilla.','La importación rechaza fichas modificadas en el sistema desde esta exportación. Descargá de nuevo si quedó desactualizada.','Costos de referencia muestra el historial guardado, sin IVA y por unidad. Es de consulta y no modifica costos históricos ni precios publicados.','Los costos de los recursos se consultan en Fierro; Referencias es de consulta y no actualiza tarifas ni precios de insumos.']:
+    for t in ['Editá las celdas azules y guardá como XLSX. Luego usá Importar planilla Fierro en Productos.','No cambies SKU, producto_id, huella ni los datos de identidad de Perfiles. Son productos existentes, no altas.','Si Tipo está vacío y es un producto simple, completalo con simple y elegí Unidad de medida. Para configurar producción o combo por primera vez usá el engranaje del producto y cargá su composición. Una ficha ya clasificada conserva su tipo.','Para quitar un producto de uso cambiá Activo a No. Quitar su fila del archivo no borra el producto.','Para fabricación con piezas editá Componentes y Tareas; el consumo y costo se recalculan en Fierro. Para fichas anteriores sin piezas, usá Consumos y Operaciones.','Perfiles identifica la unidad de cada receta; no elimines perfiles. Referencias contiene los códigos e identificadores para elegir los recursos.','Precio de costo es editable sólo para productos simples. Para producción y combos se construye desde su composición. Importes sin IVA; IVA, IIBB y utilidad se expresan en puntos porcentuales: 21, 3.5, 90.','Proveedores, Ubicaciones y Barras reemplazan esas listas sólo de los SKU incluidos. Para quitar una relación eliminá su fila; deben conservarse todas las hojas.','Imágenes, existencias, precios publicados e historial se conservan en el sistema. No se modifican a través de esta planilla.','La importación rechaza fichas modificadas en el sistema desde esta exportación. Descargá de nuevo si quedó desactualizada.','Costos de referencia muestra el historial guardado, sin IVA y por unidad. Es de consulta y no modifica costos históricos ni precios publicados.','Los costos de los recursos se consultan en Fierro; Referencias es de consulta y no actualiza tarifas ni precios de insumos.']:
         ayuda.append([t])
     ayuda.column_dimensions['A'].width=110
     referencias.column_dimensions['D'].width=48
@@ -194,6 +194,7 @@ def leer(archivo,org):
                 datos=dict(zip(columnas,(v if v is not None else '' for v in r)))
                 for c in NUMEROS & datos.keys():
                     if isinstance(datos[c],(int,float)) and not isinstance(datos[c],bool):datos[c]=format(Decimal(str(datos[c])),'f')
+                if hoja=='Productos':datos['_fila_excel']=n
                 filas.append(datos)
             tablas[hoja]=filas
         if not tablas['Productos'] or len(tablas['Productos'])>500:raise ValueError('Incluí entre 1 y 500 productos existentes.')
@@ -214,6 +215,7 @@ def _canon(tablas):
         for f in filas:
             r={}
             for c,v in f.items():
+                if c=='_fila_excel':continue
                 if c in BOOLEANOS:r[c]=booleano(v,c) if v not in (None,'') else ''
                 elif c in NUMEROS and v not in (None,''):
                     try:
@@ -296,14 +298,24 @@ def previsualizar(tablas,*,Producto,session,organizacion_id):
     vista=[]
     for entrada in tablas['Productos']:
         sku=entrada['sku'];actual=actuales_por_sku.get(sku)
-        fila={'sku':sku,'numero':len(vista)+2,'accion':'rechazado','errores':[],'cambios':[],'datos':None,'producto_id':None,'huella':entrada['huella'],'adicionales':None,'producciones':[],'combos':[],'detalle_cambios':[],'tablas':_por_sku(tablas,sku)}
+        fila={'sku':sku,'numero':entrada.get('_fila_excel',len(vista)+2),'accion':'rechazado','errores':[],'cambios':[],'datos':None,'producto_id':None,'huella':entrada['huella'],'adicionales':None,'producciones':[],'combos':[],'detalle_cambios':[],'tablas':_por_sku(tablas,sku)}
         try:
             if actual is None or str(actual['id'])!=str(entrada['producto_id']):raise ValueError('El SKU o identificador no corresponde a un producto existente de esta organización.')
             if actual['huella']!=entrada['huella']:raise ValueError('El producto cambió desde la exportación; descargá una planilla nueva.')
             fila['producto_id']=actual['id']
             esperadas=tablas_de_filas({sku:actual})
             if _canon(esperadas)==_canon(fila['tablas']):fila['accion']='sin_cambios';vista.append(fila);continue
-            if entrada['tipo']!=actual['datos']['tipo'] or str(entrada['insumo_id'] or '')!=str(actual['datos']['insumo_id'] or ''):raise ValueError('El tipo y vínculo de insumo se conservan; usá Gestionar para revisarlos.')
+            tipo=str(entrada['tipo']).strip().lower().replace('ó','o')
+            if tipo=='de produccion':tipo='produccion'
+            original=actual['datos']['tipo']
+            if original and tipo!=original:
+                raise ValueError(f'Columna «Tipo»: el producto es «{original}» y el Excel indica «{entrada["tipo"] or "Vacío"}». Conservá «{original}» en esta planilla. Para cambiar su clasificación, abrí Base de Datos → Productos → engranaje del producto; un combo necesita SKU propio.')
+            if str(entrada['insumo_id'] or '')!=str(actual['datos']['insumo_id'] or ''):
+                raise ValueError(f'Columna «Insumo ID»: el sistema tiene «{actual["datos"]["insumo_id"] or "Vacío"}» y el Excel indica «{entrada["insumo_id"] or "Vacío"}». Copiá sólo esa celda desde una exportación nueva. Este vínculo identifica al insumo y no se cambia desde Excel.')
+            faltantes=[etiqueta(c) for c in ('tipo','unidad_medida') if not str(entrada[c]).strip()]
+            if faltantes:raise ValueError('Ficha incompleta. En la hoja Productos completá '+', '.join('«'+c+'»' for c in faltantes)+'. Para una ficha anterior sin composición podés completar Tipo con simple; para producción o combo usá el engranaje del producto y cargá su composición. Unidad de medida indica cómo se mide, por ejemplo unidad, metro o kg. No copies datos de otro producto.')
+            if not original and tipo in ('combo','produccion'):
+                raise ValueError('Columna «Tipo»: para configurar por primera vez un producto de producción o combo hay que cargar su composición. Abrí Base de Datos → Productos → engranaje del producto, completá su composición y luego exportá una planilla nueva. Un combo necesita SKU propio.')
             datos=normalizar_ficha({c:entrada[c] for c in BASE})
             producto=session.get(Producto,actual['id'])
             adicional=_adicional(entrada,actual,fila['tablas']);parseado=leer_formulario_completo(adicional,[])
@@ -315,7 +327,7 @@ def previsualizar(tablas,*,Producto,session,organizacion_id):
             for h in COLUMNAS:
                 if h!='Productos' and _canon({h:esperadas[h]})!=_canon({h:fila['tablas'][h]}):cambios.append(h)
             rapidos={'nombre','linea','descripcion','rubro','subrubro','marca','iva_pct','iibb_pct','utilidad_pct','utilidad_base'}
-            solo_atributos=bool(actual['adicionales'].get('revision')) and set(cambios)<={c.replace('_',' ') for c in rapidos}
+            solo_atributos=actual['configurado'] and bool(actual['adicionales'].get('revision')) and set(cambios)<={c.replace('_',' ') for c in rapidos}
             if not solo_atributos:
                 validar_vinculos(producto,datos,session,organizacion_id)
                 validar_datos_generales(producto,parseado,session)

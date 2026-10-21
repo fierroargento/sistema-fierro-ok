@@ -115,6 +115,9 @@ def crear_blueprint_productos(*, dependencias):
         mensaje = (request.args.get("ok") or "").strip()
         error = (request.args.get("error") or "").strip()[:400]
         filtro_sku = (request.args.get("sku") or "").strip()
+        seleccion = request.args.get("por_pagina", session.get("productos_por_pagina", 10))
+        por_pagina = int(seleccion) if str(seleccion) in {"10", "25", "50"} else 10
+        session["productos_por_pagina"] = por_pagina
         vista, token, formulario_error = None, "", None
         vista_fabricacion, token_fabricacion, opciones_fabricacion = None, "", {}
         vista_planilla, token_planilla = None, ""
@@ -209,7 +212,7 @@ def crear_blueprint_productos(*, dependencias):
                     if accion == "editar_producto" and str(request.form.get("producto_id", "")).isdigit():
                         actual = db.session.query(Producto).filter_by(id=int(request.form["producto_id"]), organizacion_id=organizacion.id).first()
                         if actual is not None: filtro_sku = actual.sku
-        datos = obtener_panel_productos_plataforma(Producto, organizacion_id=organizacion.id, filtro_sku=filtro_sku)
+        datos = obtener_panel_productos_plataforma(Producto, organizacion_id=organizacion.id, filtro_sku=filtro_sku, limite=por_pagina, pagina=request.args.get("pagina", 1) if request.method == "GET" else 1)
         preparado, filas = construir_filas(datos["productos"], db.session, organizacion.id)
         insumos = []
         if preparado:

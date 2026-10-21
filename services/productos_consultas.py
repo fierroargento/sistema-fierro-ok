@@ -7,6 +7,7 @@ def obtener_panel_productos_plataforma(
     organizacion_id,
     filtro_sku="",
     limite=100,
+    pagina=1,
 ):
     filtro_sku = (
         filtro_sku
@@ -42,12 +43,20 @@ def obtener_panel_productos_plataforma(
             ])
         consulta = consulta.filter(or_(*criterios))
 
+    total_resultados = consulta.count()
+    total_paginas = max(1, (total_resultados + limite - 1) // limite)
+    try:
+        pagina = max(1, min(int(pagina), total_paginas))
+    except (ValueError, TypeError):
+        pagina = 1
+
     productos = (
         consulta
         .order_by(
             Producto.sku.asc(),
             Producto.descripcion.asc(),
         )
+        .offset((pagina - 1) * limite)
         .limit(limite)
         .all()
     )
@@ -61,4 +70,10 @@ def obtener_panel_productos_plataforma(
         "ultimos": productos,
         "productos": productos,
         "filtro_sku": filtro_sku,
+        "pagina": pagina,
+        "por_pagina": limite,
+        "total_paginas": total_paginas,
+        "total_resultados": total_resultados,
+        "desde": (pagina - 1) * limite + 1 if total_resultados else 0,
+        "hasta": (pagina - 1) * limite + len(productos),
     }

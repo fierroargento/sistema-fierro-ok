@@ -266,3 +266,76 @@ def test_texto_exportado_no_es_formula_y_no_filtra_otra_org(despiece):
     assert celda.value=='=texto literal' and celda.data_type=='s'
     assert all('AJENO-PRIVADO' not in str(v) for ws in wb for row in ws.values for v in row)
     a.stream.seek(0);v=revisar(despiece,a);assert v[0]['accion']=='sin_cambios',v[0]['detalle_cambios']
+
+
+def test_completar_tipo_unidad_de_producto_anterior_sin_duplicar(completo):
+    from models.producto_ficha_maestra import ProductoFichaMaestra
+    org=completo[1]
+    p=Producto(organizacion_id=org.id,sku='UAT-MP-001',descripcion='Materia prima anterior')
+    db.session.add(p);db.session.commit();ident=p.id
+    d=(completo,)
+    a=archivo(d)
+    w=load_workbook(a.stream)
+    ws=w['Productos'];cols=list(next(ws.values))
+    assert ws.cell(2,cols.index('Tipo')+1).value is None
+    assert not ws.cell(2,cols.index('Tipo')+1).protection.locked
+    a.stream.seek(0)
+    assert revisar(d,a)[0]['accion']=='sin_cambios'
+    def editar(w):
+        cambiar(w,'Productos','tipo','Simple');cambiar(w,'Productos','unidad_medida','unidad');cambiar(w,'Productos','marca','Fierro')
+    v=revisar(d,archivo(d,editar))
+    assert not v[0]['errores'],v
+    assert v[0]['accion']=='actualizar' and not v[0]['solo_atributos']
+    assert ProductoFichaMaestra.query.count()==0
+    assert guardar(d,v)=={'actualizar':1,'sin_cambios':0}
+    assert Producto.query.one().id==ident
+    f=ProductoFichaMaestra.query.one()
+    assert f.tipo=='simple' and f.unidad_medida=='unidad'
+    assert ProductoDatosGenerales.query.one().marca=='Fierro'
+    assert revisar(d,archivo(d))[0]['accion']=='sin_cambios'
+
+
+def test_ficha_incompleta_indica_columnas_y_resumen_visible(completo):
+    org=completo[1]
+    db.session.add(Producto(organizacion_id=org.id,sku='UAT-MP-001',descripcion='Anterior'));db.session.commit()
+    d=(completo,)
+    a=archivo(d,lambda w:cambiar(w,'Productos','marca','Fierro'))
+    v=revisar(d,a)
+    assert '«Tipo»' in v[0]['errores'][0] and '«Unidad de medida»' in v[0]['errores'][0]
+    a=archivo(d,lambda w:cambiar(w,'Productos','marca','Fierro'))
+    from test_producto_ficha_maestra import configurar_rutas
+    configurar_rutas(completo[0],org)
+    r=completo[0].test_client().post('/admin/productos',data={'accion':'previsualizar_planilla','_csrf_token':'csrf-test','archivo_planilla':(a.stream,'fierro.xlsx')})
+    assert r.status_code==200
+    import re
+    aviso=re.search(r'<div class="productos-preview" role="alert">(.*?)</div>',r.text,re.S)
+    assert aviso and 'UAT-MP-001' in aviso[1] and 'fila 2' in aviso[1]
+    confirmacion=r.text.split('name="planilla_token"',1)[1].split('</form>',1)[0]
+    assert re.search(r'<button[^>]*disabled',confirmacion)
+
+
+def test_tipo_y_vinculo_existentes_siguen_protegidos(completo):
+    d=(completo,);crear(completo[1])
+    for campo,valor,texto in [('tipo','combo','Columna «Tipo»'),('insumo_id',123,'Columna «Insumo ID»')]:
+        v=revisar(d,archivo(d,lambda w:cambiar(w,'Productos',campo,valor)))
+        assert texto in v[0]['errores'][0]
+        with pytest.raises(ValueError,match='Corregí'):guardar(d,v)
+    assert Producto.query.count()==1
+
+
+@pytest.mark.parametrize('tipo',['combo','produccion'])
+def test_inicializar_composicion_sin_componentes_no_se_permite(completo,tipo):
+    db.session.add(Producto(organizacion_id=completo[1].id,sku='ANTERIOR',descripcion='Anterior'));db.session.commit()
+    def editar(w):
+        cambiar(w,'Productos','tipo',tipo);cambiar(w,'Productos','unidad_medida','unidad')
+    v=revisar((completo,),archivo((completo,),editar))
+    assert v[0]['errores'] and v[0]['accion']=='rechazado'
+
+
+def test_resumen_identifica_fila_real_si_hay_blancos(completo):
+    db.session.add(Producto(organizacion_id=completo[1].id,sku='ANTERIOR',descripcion='Anterior'));db.session.commit()
+    def editar(w):
+        w['Productos'].insert_rows(2,3)
+        cambiar(w,'Productos','marca','Fierro',fila=5)
+    v=revisar((completo,),archivo((completo,),editar))
+    assert v[0]['numero']==5 and v[0]['errores']
