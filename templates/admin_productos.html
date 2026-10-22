@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261019-maestro') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261022-menus-tareas') }}">
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261020-duplicar') }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261022-pasos-costos') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261022-pasos-costos') }}" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_produccion.js', v='20261020-acciones-comunes') }}" defer></script>
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261022-menus-tareas') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261022-pasos-costos') }}" defer></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_producto_vista.css', v='20261020-acciones-comunes') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_producto_vista.js', v='20261020-iconos-producto') }}" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_importar_fabricacion.js', v='20261021-planilla') }}" defer></script>
@@ -71,6 +71,8 @@
       <fieldset class="producto-roles"><legend>Usos habilitados</legend><p>Podés marcar varias opciones. El producto conserva el mismo SKU.</p><div>{% for uso, etiqueta in usos.items() %}<label><input type="checkbox" name="habilita_{{ uso }}" value="1">{{ etiqueta }}</label>{% endfor %}</div></fieldset>
       <label class="producto-active"><input type="checkbox" name="activo" value="1" checked>Producto activo</label><p class="productos-muted">Habilitar un uso no crea stock, publica ni confirma operaciones. Desactivarlo conserva el historial.</p>
 
+      <details id="producto-vinculo-insumo" class="producto-vinculo-insumo" hidden><summary>Avanzado: vínculo con una fuente de insumo existente (opcional)</summary><div class="producto-section-body"><p>Usalo sólo si este mismo artículo ya está cargado en Fuentes de costo como insumo y querés asociar ambos registros. Por ejemplo, una varilla que comprás, vendés y también consumís al fabricar.</p><label>Fuente de insumo de este mismo producto<select name="insumo_id"><option value="">Sin vincular todavía</option>{% for insumo in insumos %}<option value="{{ insumo.id }}">{{ insumo.codigo }} · {{ insumo.nombre }} · {{ insumo.unidad_medida }}</option>{% endfor %}</select></label><p class="productos-muted">Si estás cargando una parrilla, sus varillas y chapas se agregan en Composición, no acá. Podés dejar este vínculo vacío. La unidad debe coincidir con la de la fuente; un vínculo ya guardado se conserva.</p></div></details>
+
 </section>
 <section class="producto-paso" data-paso="comercial" data-titulo="Clasificación y proveedores" hidden aria-labelledby="paso-comercial"><h3 id="paso-comercial" class="producto-paso-titulo" tabindex="-1">Clasificación y proveedores</h3><p class="productos-muted">Organizá el producto y vinculá los códigos de sus proveedores. Estos datos son opcionales.</p>
 {% with paso_datos="comercial" %}{% include "partials/producto_datos_generales.html" %}{% endwith %}
@@ -80,7 +82,7 @@
       <label class="producto-active"><input type="checkbox" name="permitir_stock_negativo" value="1">Permitir stock negativo</label><p class="productos-muted">Conserva el control de existencias y permite egresos y ajustes internos por debajo de cero. Las reservas siguen requiriendo disponibilidad. No cambia el stock publicado.</p>
 {% with paso_datos="ubicaciones" %}{% include "partials/producto_datos_generales.html" %}{% endwith %}
 </section>
-<section class="producto-paso" data-paso="costos" data-titulo="Composición y utilidad" hidden aria-labelledby="paso-costos"><h3 id="paso-costos" class="producto-paso-titulo" tabindex="-1">Composición y utilidad</h3><p class="productos-muted">Si es un combo, agregá sus componentes. También podés definir su objetivo de utilidad.</p>
+<section class="producto-paso" data-paso="costos" data-titulo="Composición" hidden aria-labelledby="paso-costos"><h3 id="paso-costos" class="producto-paso-titulo" tabindex="-1">Composición</h3><p class="productos-muted">Para fabricación propia, cargá componentes y tareas; para combos, elegí los productos que los integran. Si es simple, continuá al siguiente paso para definir su costo. Los impuestos y la utilidad se completan por separado.</p>
       <section id="producto-combo" class="producto-combo" hidden aria-labelledby="producto-combo-title">
         <h3 id="producto-combo-title">Productos que componen el combo</h3>
         <p class="productos-muted">Elegí productos existentes y la cantidad de cada uno. El combo conserva su SKU propio. Esta es la misma composición utilizada por Costos.</p>
@@ -95,9 +97,13 @@
       </section>
       <template id="producto-componente-template"><div class="producto-componente-fila"><label>Producto<select data-componente-sku required><option value="">Seleccionar producto</option>{% for producto, ficha in componentes %}<option value="{{ producto.sku }}" data-producto-id="{{ producto.id }}">{{ producto.sku }} · {{ ficha.nombre }} ({{ ficha.unidad_medida }})</option>{% endfor %}</select></label><label>Cantidad<input data-componente-cantidad type="number" min="1" max="999999999999.999999" step="1" value="1" required></label><button type="button" class="secondary-link" data-componente-quitar>Quitar</button></div></template>
       {% include "partials/producto_fabricacion.html" %}
-      <section class="producto-section"><h3>Vínculo del producto como insumo (opcional)</h3><div class="producto-section-body"><p>Si este mismo artículo ya tiene una fuente de insumo, vinculala para conservar su identidad. Este vínculo no reemplaza los materiales ni las operaciones de su ficha de fabricación.</p><label>Insumo físico existente<select name="insumo_id"><option value="">Sin vincular todavía</option>{% for insumo in insumos %}<option value="{{ insumo.id }}">{{ insumo.codigo }} · {{ insumo.nombre }} · {{ insumo.unidad_medida }}</option>{% endfor %}</select></label><p class="productos-muted">La unidad debe coincidir exactamente con la del insumo. Los costos y la composición se conservan en sus módulos actuales.</p></div></section>
+
+</section>
+{% if completo %}
+<section class="producto-paso" data-paso="economia" data-titulo="Costo, impuestos y utilidad" hidden aria-labelledby="paso-economia"><h3 id="paso-economia" class="producto-paso-titulo" tabindex="-1">Costo, impuestos y utilidad</h3><p class="productos-muted">Definí los impuestos y el objetivo de utilidad de este producto. En productos simples, también podés cargar su costo unitario; en fabricación y combos, el costo se obtiene de la composición.</p>
 {% with paso_datos="utilidad" %}{% include "partials/producto_datos_generales.html" %}{% endwith %}
 </section>
+{% endif %}
 <section class="producto-paso" data-paso="imagenes" data-titulo="Imágenes y códigos" hidden aria-labelledby="paso-imagenes"><h3 id="paso-imagenes" class="producto-paso-titulo" tabindex="-1">Imágenes y códigos</h3><p class="productos-muted">Agregá fotos y códigos de barras si los tenés; podés completarlos más adelante.</p>
 {% with paso_datos="imagenes" %}{% include "partials/producto_datos_generales.html" %}{% endwith %}
 </section>

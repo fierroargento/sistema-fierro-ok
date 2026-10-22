@@ -161,19 +161,19 @@
       const codigos=Array.from(barras.children).map(f=>f.querySelector("[data-codigo-barras]").value.trim());
       if((!paso || paso === "imagenes") && new Set(codigos).size!==codigos.length)return avisar("Hay códigos de barras repetidos.", "imagenes");
       if((!paso || paso === "comercial") && form.elements.subrubro.value.trim()&&!form.elements.rubro.value.trim())return avisar("Elegí el rubro del subrubro.", "comercial");
-      if(!paso || paso === "costos") {
+      if(!paso || paso === "economia") {
         for (const [campo, nombre, maximo, decimales] of [["precio_costo","Precio de costo",999999999999.99,2],["iva_pct","IVA",100,6],["iibb_pct","IIBB",99.999999,6]]) {
           if (form.elements[campo].disabled) continue;
           const texto=form.elements[campo].value.trim().replace(",", ".");
           const valor=Number(texto);
           const patron=new RegExp("^(?:\\d+(?:\\.\\d{1,"+decimales+"})?|\\.\\d{1,"+decimales+"})$");
           if(texto && (!patron.test(texto)||!Number.isFinite(valor)||valor<0||valor>maximo))
-            return avisar(nombre+": revisá el valor. Usá hasta "+decimales+" decimales, sin separadores de miles.", "costos");
+            return avisar(nombre+": revisá el valor. Usá hasta "+decimales+" decimales, sin separadores de miles.", "economia");
         }
-        if(!["ARS","USD"].includes(form.elements.moneda_costo.value)) return avisar("Elegí Pesos (ARS) o Dólares (USD).", "costos");
+        if(!["ARS","USD"].includes(form.elements.moneda_costo.value)) return avisar("Elegí Pesos (ARS) o Dólares (USD).", "economia");
         const texto=form.elements.utilidad_pct.value.trim(), numero=Number(texto.replace(",", "."));
         if(texto && (!/^(?:\d+(?:[.,]\d{1,6})?|[.,]\d{1,6})$/.test(texto) || !Number.isFinite(numero) || numero<0 || numero>999999.999999 || (form.elements.utilidad_base.value==="precio_venta" && numero>=100)))
-          return avisar("Revisá la utilidad: usá un porcentaje positivo o cero, con hasta seis decimales. Sobre precio de venta debe ser menor al 100%.", "costos");
+          return avisar("Revisá la utilidad: usá un porcentaje positivo o cero, con hasta seis decimales. Sobre precio de venta debe ser menor al 100%.", "economia");
       }
       form.elements.proveedores_json.value=JSON.stringify(prov);
       form.elements.codigos_barras_json.value=JSON.stringify(codigos);

@@ -204,6 +204,9 @@
 
   function abrir(fila, fallido, duplicacion = null) {
     form.reset();
+    const vinculoInsumo = document.getElementById("producto-vinculo-insumo");
+    vinculoInsumo.open = false;
+    vinculoInsumo.hidden = true;
     pasoActual = 0; maxVisitado = 0;
     const edicion = !duplicacion && (fallido ? fallido.accion === "editar_producto" : !!fila);
     duplicadoOrigen = duplicacion ? duplicacion.sku : "";
@@ -229,7 +232,11 @@
     Array.from(form.elements.tipo.options).forEach(o => {
       o.disabled = edicion && !!tipoGuardado && o.value !== tipoGuardado && (tipoGuardado === "combo" || o.value === "combo");
     });
+    // El alta y la duplicación no heredan el vínculo del último producto editado.
+    if (!edicion) form.elements.insumo_id.value = "";
     const referencia = String(form.elements.insumo_id.value || "");
+    vinculoInsumo.hidden = !edicion;
+    vinculoInsumo.open = edicion && !!referencia;
     Array.from(form.elements.insumo_id.options).forEach(o => { o.disabled = edicion && !!referencia && o.value !== referencia; });
     document.getElementById("producto-dialog-title").textContent = duplicacion ? "Duplicar · " + duplicacion.sku : edicion ? "Gestionar · " + valores.sku : "Nuevo producto";
     const aviso = document.getElementById("producto-form-error");
