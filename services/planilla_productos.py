@@ -369,7 +369,7 @@ def _guardar_atributos(filas,session,org):
     session.expire_all()
 
 
-def aplicar(token,*,Producto,session,organizacion_id,usuario,secreto):
+def aplicar(token,*,Producto,session,organizacion_id,usuario,secreto,commit=True):
     from services.productos_ficha_maestra import guardar_ficha
     from services.productos_datos_generales import guardar_datos_generales
     from services.productos_produccion_maestro import preparar,calcular
@@ -415,5 +415,7 @@ def aplicar(token,*,Producto,session,organizacion_id,usuario,secreto):
             if costo['huella']!=r['huella_costo']:raise ValueError('Cambió el costo al confirmar. Volvé a analizar.')
             preparadas.append((p,plan,costo))
         guardar_recetas(preparadas,session,organizacion_id,usuario)
-        session.commit();return cuenta
+        if commit:session.commit()
+        else:session.flush()
+        return cuenta
     except Exception:session.rollback();raise

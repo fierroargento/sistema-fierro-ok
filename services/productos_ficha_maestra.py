@@ -33,6 +33,30 @@ def booleano(valor, nombre):
     raise ValueError(f"{nombre}: indicá Sí o No.")
 
 
+def normalizar_logistica(datos, campos=None):
+    """Comparte las reglas físicas entre ficha completa y actualizaciones parciales."""
+    salida = {}
+    for campo in CAMPOS_LOGISTICA:
+        if campos is not None and campo not in campos:continue
+        valor = datos.get(campo)
+        if campo in {"peso_gr", "alto_cm", "ancho_cm", "largo_cm"}:
+            if valor in (None, ""):
+                salida[campo] = None
+            else:
+                try:
+                    numero = float(str(valor).strip().replace(",", "."))
+                except (ValueError, TypeError) as error:
+                    raise ValueError(f"{campo}: ingresá un número mayor que cero.") from error
+                if not math.isfinite(numero) or numero <= 0 or numero > 10**9:
+                    raise ValueError(f"{campo}: ingresá un número válido mayor que cero.")
+                salida[campo] = numero
+        elif campo == "observacion_logistica":
+            salida[campo] = texto(valor, "observación logística", 300)
+        else:
+            salida[campo] = booleano(valor, campo.replace("_", " "))
+    return salida
+
+
 def normalizar_ficha(datos):
     """El formulario y los lotes pasan por las mismas validaciones."""
     salida = {
@@ -53,23 +77,7 @@ def normalizar_ficha(datos):
         raise ValueError("No stockeable y Permitir stock negativo son opciones incompatibles. Elegí una sola.")
     for campo in ("activo",) + tuple("habilita_" + uso for uso in USOS):
         salida[campo] = booleano(datos.get(campo), campo.replace("_", " "))
-    for campo in CAMPOS_LOGISTICA:
-        valor = datos.get(campo)
-        if campo in {"peso_gr", "alto_cm", "ancho_cm", "largo_cm"}:
-            if valor in (None, ""):
-                salida[campo] = None
-            else:
-                try:
-                    numero = float(str(valor).strip().replace(",", "."))
-                except (ValueError, TypeError) as error:
-                    raise ValueError(f"{campo}: ingresá un número mayor que cero.") from error
-                if not math.isfinite(numero) or numero <= 0 or numero > 10**9:
-                    raise ValueError(f"{campo}: ingresá un número válido mayor que cero.")
-                salida[campo] = numero
-        elif campo == "observacion_logistica":
-            salida[campo] = texto(valor, "observación logística", 300)
-        else:
-            salida[campo] = booleano(valor, campo.replace("_", " "))
+    salida.update(normalizar_logistica(datos))
     if salida["no_stockeable"] and (salida["permite_correo"] or salida["permite_via_cargo"]):
         raise ValueError("Un producto No stockeable no admite envío físico. Destildá Permite Correo y Permite Vía Cargo.")
     ident = datos.get("insumo_id")

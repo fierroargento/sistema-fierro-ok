@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261019-maestro') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261021-productos-paginados') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261022-importacion-selectiva') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261020-duplicar') }}" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_produccion.js', v='20261020-acciones-comunes') }}" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261020-duplicar') }}" defer></script>
@@ -39,8 +39,9 @@
       </div>
     </nav>
   </section>
-  <details class="comercial-section productos-import" id="productos-importacion" {% if vista or vista_fabricacion or opciones_fabricacion or vista_planilla or vista_logistica %}open{% endif %}><summary>Importación masiva</summary><div class="productos-import-body">
-    {% include "partials/productos_logistica_tn.html" %}
+  <details class="comercial-section productos-import" id="productos-importacion" {% if vista or vista_fabricacion or opciones_fabricacion or vista_planilla or vista_logistica or vista_selectiva %}open{% endif %}><summary>Importación masiva</summary><div class="productos-import-body">
+    {% include "partials/productos_actualizacion_selectiva.html" %}
+    <details class="productos-import" {% if vista_logistica %}open{% endif %}><summary>Importación transitoria de Tiendanube</summary>{% include "partials/productos_logistica_tn.html" %}</details>
     {% include "partials/productos_planilla.html" %}
     {% include "partials/productos_importar_fabricacion.html" %}
     <h2>Ficha básica de productos</h2>

@@ -78,6 +78,15 @@ def crear_blueprint_productos(*, dependencias):
         respuesta.headers['X-Content-Type-Options']='nosniff'
         return respuesta
 
+    @blueprint.route("/admin/productos/plantilla-vacia.xlsx")
+    @login_required
+    def plantilla_vacia():
+        _, _, respuesta = resolver_acceso()
+        if respuesta is not None:return respuesta
+        from services.actualizacion_selectiva_productos import plantilla
+        return send_file(plantilla(), as_attachment=True, download_name="plantilla_productos_vacia.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", max_age=0)
+
     @blueprint.route("/admin/productos/plantilla.csv")
     @login_required
     def plantilla():
@@ -122,6 +131,9 @@ def crear_blueprint_productos(*, dependencias):
         vista_fabricacion, token_fabricacion, opciones_fabricacion = None, "", {}
         vista_planilla, token_planilla = None, ""
         vista_logistica, token_logistica = None, ""
+        vista_selectiva, token_selectivo = None, ""
+        seleccion_campos = request.form.getlist("campos_actualizar") if request.method == "POST" else []
+        proveedor_lista = request.form.get("proveedor_lista", "") if request.method == "POST" else ""
         if request.method == "POST":
             if request.content_length is not None and request.content_length > 12 * 1024 * 1024:
                 return redirect(url_for("admin_productos.panel", error="No se guardó: el formulario supera 12 MB. Usá hasta 5 imágenes de 2 MB."))
@@ -148,6 +160,19 @@ def crear_blueprint_productos(*, dependencias):
                     db.session.commit()
                     mensaje = f"{producto.sku}: ficha guardada correctamente." + (" " + aviso_produccion if aviso_produccion else "")
                     filtro_sku = producto.sku
+                elif accion == "previsualizar_selectiva":
+                    from services import actualizacion_selectiva_productos as selectiva
+                    archivo = request.files.get("archivo_selectivo")
+                    if archivo is None or not archivo.filename:raise ValueError("Elegí la plantilla con los datos que querés actualizar.")
+                    entrada, campos = selectiva.leer(archivo, seleccion_campos)
+                    vista_selectiva = selectiva.previsualizar(entrada, campos, proveedor_id=proveedor_lista,
+                        Producto=Producto, session=db.session, organizacion_id=organizacion.id)
+                    token_selectivo = selectiva.firmar(vista_selectiva, organizacion.id, usuario.id, current_app.secret_key)
+                elif accion == "confirmar_selectiva":
+                    from services import actualizacion_selectiva_productos as selectiva
+                    cantidad = selectiva.aplicar(request.form.get("selectivo_token", ""), Producto=Producto,
+                        session=db.session, organizacion_id=organizacion.id, usuario=usuario, secreto=current_app.secret_key)
+                    mensaje = f"Lista aplicada: {cantidad} productos actualizados. Se conservaron los campos no seleccionados y los vacíos."
                 elif accion == "previsualizar_logistica_tn":
                     from services import importacion_logistica_tn as logistica_tn
                     archivo = request.files.get("archivo_logistica_tn")
@@ -207,7 +232,7 @@ def crear_blueprint_productos(*, dependencias):
                     mensaje = f"Importación confirmada: {conteo['crear']} creados, {conteo['actualizar']} actualizados y {conteo['sin_cambios']} sin cambios."
                 else:
                     raise ValueError("La acción no es válida. Usá Gestionar o Importar productos.")
-                if vista is None and vista_fabricacion is None and vista_planilla is None and vista_logistica is None:
+                if vista is None and vista_fabricacion is None and vista_planilla is None and vista_logistica is None and vista_selectiva is None:
                     try:
                         registrar_auditoria("Configuró maestro de productos", entidad="producto",
                             entidad_id=organizacion.id, detalle=f"Acción: {accion}. {mensaje}")
@@ -274,7 +299,10 @@ def crear_blueprint_productos(*, dependencias):
             recursos_fabricacion['insumos'] = enriquecer_insumos(recursos_fabricacion.get('insumos', []), db.session, organizacion.id)
         from services.productos_despiece import disponible as despiece_disponible
         from services.producto_vista import dinero
-        return render_template("admin_productos.html", vista_logistica=vista_logistica, token_logistica=token_logistica, dinero=dinero, vista_planilla=vista_planilla, token_planilla=token_planilla, vista_fabricacion=vista_fabricacion, token_fabricacion=token_fabricacion, opciones_fabricacion=opciones_fabricacion, unidad_produccion_inicial=unidad_produccion_inicial, despiece_disponible=despiece_disponible(db.session), fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
+        from services.actualizacion_selectiva_productos import GRUPOS, etiqueta as etiqueta_actualizacion
+        return render_template("admin_productos.html", vista_selectiva=vista_selectiva, token_selectivo=token_selectivo,
+            seleccion_campos=seleccion_campos, proveedor_lista=proveedor_lista, grupos_actualizacion=GRUPOS,
+            etiqueta_actualizacion=etiqueta_actualizacion, vista_logistica=vista_logistica, token_logistica=token_logistica, dinero=dinero, vista_planilla=vista_planilla, token_planilla=token_planilla, vista_fabricacion=vista_fabricacion, token_fabricacion=token_fabricacion, opciones_fabricacion=opciones_fabricacion, unidad_produccion_inicial=unidad_produccion_inicial, despiece_disponible=despiece_disponible(db.session), fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
             organizacion=organizacion, preparado=preparado, filas=filas,
             tipos=TIPOS, usos=USOS, vista=vista, lote_token=token, insumos=insumos,
             formulario_error=formulario_error, **datos)
