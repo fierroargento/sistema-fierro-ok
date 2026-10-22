@@ -46,9 +46,10 @@
                     <a href="{{ url_for('admin_crm.panel', vista='clientes') }}"{% if clientes_abiertos %} aria-current="page"{% endif %}>Clientes</a>
                 </div>
             </details>
+            {% set personal_abierto = (request.endpoint or '').startswith('admin_personal.') or (request.endpoint or '').startswith('admin_personas.') or (request.endpoint == 'admin_comercial.importar_fuente_costeo' and (request.view_args or {}).get('tipo') == 'empleados') %}
             {% set contabilidad_abierta = (request.endpoint or '').startswith('admin_contabilidad.') %}
             {% set tesoreria_abierta = request.endpoint == 'admin_comercial.cuentas_pagar' or (request.endpoint or '').startswith('admin_tesoreria.') %}
-            <details class="menu-group"{% if tesoreria_abierta or contabilidad_abierta %} open{% endif %}>
+            <details class="menu-group"{% if tesoreria_abierta or contabilidad_abierta or personal_abierto %} open{% endif %}>
                 <summary>Administración</summary>
                 <div class="menu-children">
                     <details class="menu-group menu-group-secondary"{% if tesoreria_abierta %} open{% endif %}>
@@ -58,6 +59,7 @@
                             <a href="{{ url_for('admin_comercial.cuentas_pagar') }}"{% if request.endpoint == 'admin_comercial.cuentas_pagar' %} aria-current="page"{% endif %}>Pagos y vencimientos</a>
                         </div>
                     </details>
+                    <a href="{{ url_for('admin_personal.panel') }}"{% if personal_abierto %} aria-current="page"{% endif %}>Personal</a>
                     <a href="{{ url_for('admin_contabilidad.panel') }}"{% if contabilidad_abierta %} aria-current="page"{% endif %}>Contabilidad</a>
                 </div>
             </details>
@@ -68,7 +70,6 @@
             <a href="{{ url_for('admin_compras.panel') }}">Compras</a>
             <a href="{{ url_for('admin_produccion.panel') }}">Producción</a>
             <a href="{{ url_for('admin_mantenimiento.panel') }}">Mantenimiento</a>
-            <a href="{{ url_for('admin_personas.panel') }}">Personas</a>
             <a href="{{ url_for('admin_postventa.panel') }}">Postventa</a>
             <a href="{{ url_for('admin_facturacion.panel') }}">Facturación</a>
             <a href="{{ url_for('admin_integraciones.panel') }}">Integraciones</a>

@@ -92,8 +92,9 @@ def test_recursos_permanecen_aislados_de_app_y_tienen_importacion_masiva():
     assert "calcular_componentes_recurso" not in app
     assert '"recursos": {' in importador
     assert "Importar recursos" in panel
-    assert "configurar_porcentaje_costo_laboral" in panel
-    assert "Estimación general del costo laboral" in panel
+    personal = Path("templates/admin_personal_ficha.html").read_text(encoding="utf-8")
+    assert "configurar_porcentaje_costo_laboral" in personal
+    assert "Porcentaje general de cargas" in personal
 
 
 def test_gestion_de_equipo_es_masiva_y_recalcula_una_sola_vez():

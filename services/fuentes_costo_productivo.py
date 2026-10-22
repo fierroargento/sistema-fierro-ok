@@ -368,7 +368,7 @@ def registrar_costo_empleado(
     adicionales_centavos=0, otros_costos_centavos=0, horas_mensuales,
     horas_productivas, ubicacion_trabajo="Sin definir", tipo_funcion="directa",
     porcentaje_productivo=100, vigente_desde=None, observacion=None,
-    creado_por_usuario_id=None, EmpleadoCostoVersion, db_session,
+    creado_por_usuario_id=None, EmpleadoCostoVersion, db_session, commit=True,
 ):
     valores = calcular_tarifa_laboral(
         sueldo_base_centavos=sueldo_base_centavos,
@@ -394,6 +394,7 @@ def registrar_costo_empleado(
     })
     return _crear_version_vigente(
         maestro=empleado,
+        commit=commit,
         moneda=moneda,
         ModeloVersion=EmpleadoCostoVersion,
         fk_nombre="empleado_id",

@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import date
 
 def registrar_competencia(datos,*,empleado,organizacion_id,unidad_negocio_id,Competencia,db_session):
-    if empleado is None or empleado.tipo_registro!="empleado" or int(empleado.organizacion_id)!=int(organizacion_id) or int(empleado.unidad_negocio_id)!=int(unidad_negocio_id):raise ValueError("El empleado no pertenece al contexto activo.")
+    if empleado is None or empleado.tipo_registro!="empleado" or int(empleado.organizacion_id)!=int(organizacion_id) or (empleado.unidad_negocio_id is not None and int(empleado.unidad_negocio_id)!=int(unidad_negocio_id)):raise ValueError("El empleado no pertenece al contexto activo.")
     codigo=str(datos.get("codigo") or "").strip();nombre=str(datos.get("nombre") or "").strip()
     try:nivel=int(datos.get("nivel"));vence=date.fromisoformat(str(datos.get("vence_el"))) if datos.get("vence_el") else None
     except ValueError:raise ValueError("Nivel o vencimiento invalido.")
@@ -13,7 +13,7 @@ def registrar_competencia(datos,*,empleado,organizacion_id,unidad_negocio_id,Com
     db_session.add(c);db_session.commit();return c
 
 def expediente_personas(*,organizacion_id,unidad_negocio_id,empleados,turnos,novedades,competencias,hoy=None):
-    hoy=hoy or date.today();ids={int(e.id) for e in empleados if e.tipo_registro=="empleado" and int(e.organizacion_id)==int(organizacion_id) and int(e.unidad_negocio_id)==int(unidad_negocio_id)};hallazgos=[];cobertura=defaultdict(lambda:{"empleados":set(),"minutos":0});turnos_validos=[]
+    hoy=hoy or date.today();ids={int(e.id) for e in empleados if e.tipo_registro=="empleado" and int(e.organizacion_id)==int(organizacion_id) and (e.unidad_negocio_id is None or int(e.unidad_negocio_id)==int(unidad_negocio_id))};hallazgos=[];cobertura=defaultdict(lambda:{"empleados":set(),"minutos":0});turnos_validos=[]
     for t in turnos:
         if int(t.organizacion_id)!=int(organizacion_id) or int(t.unidad_negocio_id)!=int(unidad_negocio_id):continue
         if int(t.empleado_id) not in ids:hallazgos.append({"codigo":"empleado_fuera_contexto","turno_id":t.id});continue

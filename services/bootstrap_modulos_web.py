@@ -30,6 +30,7 @@ def registrar_modulos_web(
     from modules.admin.contabilidad.routes import crear_blueprint_contabilidad
     from modules.admin.mantenimiento.routes import crear_blueprint_mantenimiento
     from modules.admin.personas.routes import crear_blueprint_personas
+    from modules.admin.personal.routes import crear_blueprint_personal
     from modules.admin.postventa.routes import crear_blueprint_postventa
     from modules.admin.usuarios.routes import (
         crear_blueprint_usuarios,
@@ -215,6 +216,15 @@ def registrar_modulos_web(
                 "modelos": {nombre:modelos[nombre] for nombre in ("UnidadNegocio","MaquinaProductiva","PlanMantenimiento","OrdenMantenimientoPreparatoria","TareaPlanMantenimiento","PropuestaRepuestoMantenimiento")},
             },
         )
+    )
+
+    app.register_blueprint(
+        crear_blueprint_personal(dependencias={**comunes, "modelos": {
+            nombre: modelos[nombre] for nombre in (
+                "Organizacion", "UnidadNegocio", "EmpleadoProductivo", "RecursoEmpleadoProductivo",
+                "EmpleadoCostoVersion", "ConfiguracionCostoLaboralVersion", "EmpleadoDistribucionVersion",
+                "TurnoLaboralPlanificado", "NovedadLaboralPreparatoria", "CompetenciaEmpleadoPreparatoria")
+        }}),
     )
 
     app.register_blueprint(

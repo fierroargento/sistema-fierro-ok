@@ -38,7 +38,7 @@
   <nav class="comercial-steps source-steps" aria-label="Fuentes de costo productivo">
     <a href="#productos-costeo"><span>1</span>Productos</a>
     <a href="#insumos"><span>2</span>Insumos</a>
-    <a href="#empleados"><span>3</span>Empleados</a>
+    <a href="#empleados"><span>3</span>Mano de obra</a>
     <a href="#maquinas"><span>4</span>Máquinas</a>
     <a href="#costos-fijos"><span>5</span>Costos indirectos</a>
     <a href="#fichas-tecnicas"><span>6</span>Fichas técnicas</a>
@@ -149,33 +149,7 @@
     {% else %}<p class="empty-card">Todavía no hay insumos productivos.</p>{% endif %}
   </section>
 
-  <section class="comercial-section" id="empleados">
-    <div class="section-heading"><div><span class="section-number">3</span><h2>Empleados y mano de obra</h2></div><div class="section-heading-actions"><p>La tarifa se calcula con el costo laboral mensual y las horas realmente productivas.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='empleados') }}">Importar empleados</a><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='recursos') }}">Importar recursos</a></div></div>
-    <details class="source-catalog uat-form-editor"><summary>Estimación general del costo laboral</summary>    <form class="labor-general-config" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
-      <input type="hidden" name="accion" value="configurar_porcentaje_costo_laboral">
-      <div class="labor-general-copy"><strong>Estimación general del costo laboral</strong><span>Se aplica sobre el sueldo base y queda versionada para {{ unidad_activa.nombre }}.</span></div>
-      <label><span>Porcentaje general</span><div class="percent-input"><input name="porcentaje_cargas_general" inputmode="decimal" value="{{ numero_decimal_limpio(configuracion_costo_laboral.porcentaje_cargas) if configuracion_costo_laboral else 0 }}" required><span>%</span></div></label>
-      <label><span>Observación <small>opcional</small></span><input name="observacion" placeholder="Ej. estimación agosto"></label>
-      <button class="table-action" type="submit">Guardar nueva versión</button>
-    </form></details>
-    <details class="source-catalog uat-form-editor"><summary>Crear empleado</summary><form class="comercial-form form-source-employee" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
-      <input type="hidden" name="accion" value="crear_empleado">
-      <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option><option value="">Compartido por la organización</option></select></label>
-      <label><span>Código o legajo</span><input name="codigo" maxlength="80" required></label>
-      <label><span>Nombre</span><input name="nombre" maxlength="200" required></label>
-      <label><span>Sector</span><input name="sector" maxlength="120" placeholder="Ej. Herrería" required></label>
-      <label><span>Puesto</span><input name="puesto" maxlength="120" placeholder="Ej. Soldador"></label>
-      <label><span>Ubicación</span><input name="ubicacion_trabajo" maxlength="120" placeholder="Taller o Salón de venta" required></label>
-      <label><span>Función de costo</span><select name="tipo_funcion"><option value="directa">Directa productiva</option><option value="indirecta_productiva">Indirecta productiva</option><option value="comercial_administrativa">Comercial / administrativa</option><option value="mixta">Mixta</option></select></label>
-      <label><span>Participación productiva %</span><input name="porcentaje_productivo" inputmode="decimal" value="100" required></label>
-      <label><span>Sueldo base</span><div class="money-input"><span>$</span><input name="sueldo_base" inputmode="decimal" required></div></label>
-      <label><span>Excepción cargas % <small>opcional</small></span><input name="porcentaje_cargas" inputmode="decimal" placeholder="Usa el porcentaje general"></label>
-      <label><span>Adicionales</span><div class="money-input"><span>$</span><input name="adicionales" inputmode="decimal" value="0"></div></label>
-      <label><span>Otros costos</span><div class="money-input"><span>$</span><input name="otros_costos" inputmode="decimal" value="0"></div></label>
-      <label><span>Horas mensuales</span><input name="horas_mensuales" inputmode="decimal" placeholder="176" required></label>
-      <label><span>Horas productivas</span><input name="horas_productivas" inputmode="decimal" placeholder="160" required></label>
-      <button class="comercial-primary" type="submit">Crear empleado</button>
-    </form></details>
+  <section class="comercial-section" id="empleados"><div class="section-heading"><div><span class="section-number">3</span><h2>Mano de obra y recursos productivos</h2><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='recursos') }}">Importar recursos</a></div></div><p>Los datos, sueldos, horarios y vacaciones del empleado se gestionan en <a class="secondary-link" href="{{ url_for('admin_personal.panel') }}">Administración → Personal</a>. Las tarifas de estos equipos toman los costos de esos mismos legajos.</p>
     <details class="labor-resources source-catalog">
       <summary><span>Configurar equipos o recursos productivos</span><strong>{{ recursos_productivos|length }}</strong></summary>
       <div class="labor-resources-content">
@@ -201,55 +175,6 @@
         </div></dialog></td></tr>{% endfor %}</tbody></table></div>{% endif %}
       </div>
     </details>
-    {% if empleados %}<details class="source-catalog"><summary><span>Ver empleados cargados</span><strong>{{ empleados|length }}</strong></summary><div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Legajo</th><th>Empleado</th><th>Ubicación</th><th>Función</th><th>Productivo</th><th>Costo mensual</th><th>Hora productiva</th><th>Cargas</th><th>Acciones</th></tr></thead><tbody>
-      {% for empleado in empleados %}
-      {% set vigente = empleado.versiones_costo|selectattr('vigente')|first %}
-      <tr><td><strong>{{ empleado.codigo }}</strong></td><td>{{ empleado.nombre }}<small class="table-subline">{{ empleado.sector }} · {{ empleado.puesto or 'Sin puesto' }}</small></td><td>{{ vigente.ubicacion_trabajo if vigente else '—' }}</td><td>{{ vigente.tipo_funcion|replace('_', ' ') if vigente else '—' }}</td><td>{{ numero_decimal_limpio(vigente.porcentaje_productivo) ~ '%' if vigente else '—' }}</td><td>{% if vigente %}<strong>$ {{ formatear_centavos_ars(vigente.costo_mensual_total_centavos) }}</strong>{% else %}—{% endif %}</td><td>{% if vigente %}<strong>$ {{ formatear_centavos_ars(vigente.costo_hora_productiva_centavos) }}</strong>{% else %}—{% endif %}</td><td>{% if vigente %}{{ numero_decimal_limpio(vigente.porcentaje_cargas) }}% {{ 'general' if vigente.usa_porcentaje_general else 'excepción' }}{% else %}—{% endif %}</td><td><details class="source-row-action"><summary data-fierro-icon="gestionar">Gestionar</summary><div class="source-row-panel"><form class="source-table-update employee-table-update" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}"><input type="hidden" name="accion" value="actualizar_costo_empleado"><input type="hidden" name="empleado_id" value="{{ empleado.id }}"><input type="hidden" name="moneda" value="ARS"><label><span>Ubicación</span><input name="ubicacion_trabajo" value="{{ vigente.ubicacion_trabajo if vigente else '' }}" required></label><label><span>Función</span><select name="tipo_funcion"><option value="directa" {% if vigente and vigente.tipo_funcion == 'directa' %}selected{% endif %}>Directa productiva</option><option value="indirecta_productiva" {% if vigente and vigente.tipo_funcion == 'indirecta_productiva' %}selected{% endif %}>Indirecta productiva</option><option value="comercial_administrativa" {% if vigente and vigente.tipo_funcion == 'comercial_administrativa' %}selected{% endif %}>Comercial / administrativa</option><option value="mixta" {% if vigente and vigente.tipo_funcion == 'mixta' %}selected{% endif %}>Mixta</option></select></label><label><span>Productivo %</span><input name="porcentaje_productivo" inputmode="decimal" value="{{ numero_decimal_limpio(vigente.porcentaje_productivo) if vigente else 100 }}" required></label><label><span>Sueldo base</span><input name="sueldo_base" inputmode="decimal" required></label><label><span>Excepción cargas %</span><input name="porcentaje_cargas" inputmode="decimal" placeholder="Usa el general"></label><label><span>Adicionales</span><input name="adicionales" inputmode="decimal" value="0"></label><label><span>Otros costos</span><input name="otros_costos" inputmode="decimal" value="0"></label><label><span>Horas mensuales</span><input name="horas_mensuales" inputmode="decimal" required></label><label><span>Horas productivas</span><input name="horas_productivas" inputmode="decimal" required></label><button class="table-action" type="submit">Guardar versión</button></form><details class="source-table-history"><summary data-fierro-icon="ver">Ver historial ({{ empleado.versiones_costo|length }})</summary><div class="mini-history">{% for version in empleado.versiones_costo|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }} · {{ version.ubicacion_trabajo }} · {{ numero_decimal_limpio(version.porcentaje_productivo) }}% productivo</span><strong>$ {{ formatear_centavos_ars(version.costo_hora_productiva_centavos) }}/h</strong></div>{% endfor %}</div></details></div></details></td></tr>
-      {% endfor %}
-    </tbody></table></div></details>
-    <div id="employee-current-values" hidden>
-      {% for empleado in empleados %}{% set actual = empleado.versiones_costo|selectattr('vigente')|first %}{% if actual %}
-      <span data-employee-current="{{ empleado.id }}"
-        data-sueldo-base="{{ numero_decimal_limpio(actual.sueldo_base_centavos / 100) }}"
-        data-porcentaje-cargas="{{ '' if actual.usa_porcentaje_general else numero_decimal_limpio(actual.porcentaje_cargas) }}"
-        data-adicionales="{{ numero_decimal_limpio(actual.adicionales_centavos / 100) }}"
-        data-otros-costos="{{ numero_decimal_limpio(actual.otros_costos_centavos / 100) }}"
-        data-horas-mensuales="{{ numero_decimal_limpio(actual.horas_mensuales) }}"
-        data-horas-productivas="{{ numero_decimal_limpio(actual.horas_productivas) }}"></span>
-      {% endif %}{% endfor %}
-    </div>
-    <details class="labor-distributions source-catalog">
-      <summary><span>Distribuir costos laborales entre unidades</span><strong>{{ empleados|length }}</strong></summary>
-      <div class="labor-distributions-content">
-        <p class="labor-distributions-help">Asigná el costo mensual de cada empleado entre las unidades. Cada revisión debe sumar exactamente 100% y conserva su historial.</p>
-        {% for empleado in empleados %}
-        {% set asignaciones = distribuciones_laborales.get(empleado.id, {}) %}
-        {% set vigente = empleado.versiones_costo|selectattr('vigente')|first %}
-        <form class="labor-distribution-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo') }}">
-          <input type="hidden" name="accion" value="configurar_distribucion_laboral">
-          <input type="hidden" name="empleado_id" value="{{ empleado.id }}">
-          <div class="labor-distribution-title">
-            <div><strong>{{ empleado.nombre }}</strong><span>{{ empleado.codigo }} · {{ empleado.puesto or empleado.sector }}</span></div>
-            <span class="labor-total">Total requerido: 100%</span>
-          </div>
-          <div class="labor-distribution-head"><span>Unidad</span><span>Participación</span><span>Ubicación</span><span>Función</span></div>
-          {% for unidad in unidades %}
-          {% set asignacion = asignaciones.get(unidad.id) %}
-          <div class="labor-distribution-row">
-            <input type="hidden" name="distribucion_unidad_id" value="{{ unidad.id }}">
-            <strong>{{ unidad.nombre }}</strong>
-            <div class="percent-input"><input name="distribucion_porcentaje" inputmode="decimal" value="{% if asignacion %}{{ numero_decimal_limpio(asignacion.porcentaje_asignacion) }}{% elif not asignaciones and unidad.id == unidad_activa.id %}100{% else %}0{% endif %}" required><span>%</span></div>
-            <input name="distribucion_ubicacion" maxlength="120" value="{% if asignacion %}{{ asignacion.ubicacion_trabajo }}{% elif not asignaciones and unidad.id == unidad_activa.id and vigente %}{{ vigente.ubicacion_trabajo }}{% endif %}" placeholder="Ej. Taller o salón">
-            {% set funcion = asignacion.tipo_funcion if asignacion else (vigente.tipo_funcion if not asignaciones and unidad.id == unidad_activa.id and vigente else 'directa') %}
-            <select name="distribucion_funcion"><option value="directa" {% if funcion == 'directa' %}selected{% endif %}>Directa productiva</option><option value="indirecta_productiva" {% if funcion == 'indirecta_productiva' %}selected{% endif %}>Indirecta productiva</option><option value="comercial_administrativa" {% if funcion == 'comercial_administrativa' %}selected{% endif %}>Comercial / administrativa</option><option value="mixta" {% if funcion == 'mixta' %}selected{% endif %}>Mixta</option></select>
-          </div>
-          {% endfor %}
-          <div class="labor-distribution-actions"><label><span>Observación <small>opcional</small></span><input name="observacion_distribucion" placeholder="Ej. distribución vigente desde agosto"></label><button class="table-action" type="submit">Guardar distribución</button></div>
-        </form>
-        {% endfor %}
-      </div>
-    </details>
-    {% else %}<p class="empty-card">Todavía no hay empleados cargados.</p>{% endif %}
   </section>
 
   <section class="comercial-section" id="maquinas">

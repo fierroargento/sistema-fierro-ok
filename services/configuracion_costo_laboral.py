@@ -29,7 +29,7 @@ def configuracion_vigente(organizacion_id, unidad_negocio_id, *, Modelo):
 
 def registrar_configuracion(
     *, organizacion_id, unidad_negocio_id, porcentaje, observacion,
-    usuario_id, Modelo, db_session,
+    usuario_id, Modelo, db_session, commit=True,
 ):
     valor = validar_porcentaje(porcentaje)
     momento = ahora_utc_naive()
@@ -57,12 +57,13 @@ def registrar_configuracion(
         creado_por_usuario_id=usuario_id,
     )
     db_session.add(version)
-    db_session.commit()
+    if commit: db_session.commit()
+    else: db_session.flush()
     return version
 
 
 def recalcular_empleados_generales(
-    empleados, porcentaje, *, EmpleadoCostoVersion, db_session, usuario_id,
+    empleados, porcentaje, *, EmpleadoCostoVersion, db_session, usuario_id, commit=True,
 ):
     recalculados = 0
     for empleado in empleados:
@@ -71,6 +72,7 @@ def recalcular_empleados_generales(
             continue
         registrar_costo_empleado(
             empleado,
+            commit=commit,
             moneda=vigente.moneda,
             sueldo_base_centavos=vigente.sueldo_base_centavos,
             porcentaje_cargas=porcentaje,
@@ -87,8 +89,9 @@ def recalcular_empleados_generales(
             EmpleadoCostoVersion=EmpleadoCostoVersion,
             db_session=db_session,
         )
+        db_session.expire(empleado, ["versiones_costo"])
         recalcular_recursos_del_empleado(
-            empleado, EmpleadoCostoVersion=EmpleadoCostoVersion,
+            empleado, commit=commit, EmpleadoCostoVersion=EmpleadoCostoVersion,
             db_session=db_session, usuario_id=usuario_id,
         )
         recalculados += 1

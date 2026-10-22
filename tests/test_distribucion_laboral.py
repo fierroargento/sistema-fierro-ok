@@ -42,7 +42,7 @@ def test_distribucion_es_historica_modular_e_importable():
     modelo = Path("models/fuentes_costo_productivo.py").read_text(encoding="utf-8")
     migracion = Path("services/migraciones_saas.py").read_text(encoding="utf-8")
     importador = Path("services/importacion_fuentes_costeo.py").read_text(encoding="utf-8")
-    panel = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    panel = Path("templates/admin_personal_ficha.html").read_text(encoding="utf-8")
 
     for campo in ("ubicacion_trabajo", "tipo_funcion", "porcentaje_productivo"):
         assert campo in modelo

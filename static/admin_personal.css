@@ -1,0 +1,42 @@
+.personal-page .personal-actions {display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.personal-page .personal-actions form {margin:0}
+.personal-page button,.personal-page .secondary-link {width:auto;min-height:38px;box-sizing:border-box;padding:9px 14px;line-height:1.2;text-decoration:none}
+.personal-page .personal-muted {color:#64748b;line-height:1.5}
+.personal-page .personal-search {display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.personal-page .personal-search label {display:grid;gap:6px;flex:1;min-width:220px;font-size:13px;font-weight:600}
+.personal-page input,.personal-page select,.personal-page textarea {font:inherit;border:1px solid #cbd5e1;border-radius:8px;padding:10px;width:100%;box-sizing:border-box;color:#253c50;background:#fff;min-height:40px}
+.personal-page input:read-only {background:#f1f5f9}
+.personal-page :is(input,select,textarea,button):focus-visible {outline:2px solid #227b9d;outline-offset:2px}
+.personal-page .personal-pages {justify-content:flex-end;margin-top:18px}
+.personal-page .personal-pages span {margin-right:auto;color:#64748b}
+.personal-page .personal-dialog {width:min(760px,calc(100vw - 32px));padding:0;border:1px solid #dbe4ec;border-radius:14px;max-height:calc(100dvh - 40px);color:#253c50;overflow:auto}
+.personal-page .personal-dialog::backdrop {background:rgba(15,23,42,.5)}
+.personal-page .personal-dialog form {display:flex;flex-direction:column;max-height:calc(100dvh - 42px);margin:0}
+.personal-page .personal-dialog header,.personal-page .personal-dialog footer {padding:16px 22px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.personal-page .personal-dialog header {border-bottom:1px solid #e2e8f0}
+.personal-page .personal-dialog footer {border-top:1px solid #e2e8f0;justify-content:flex-end}
+.personal-page .personal-dialog h2 {margin:0;font-size:21px}
+.personal-page .personal-dialog header button {font-size:24px;border:0;background:transparent;cursor:pointer;padding:4px 10px}
+.personal-page .personal-dialog-body {padding:18px 22px;overflow:auto;min-height:0}
+.personal-page .personal-grid {display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.personal-page .personal-grid label {display:grid;gap:6px;font-size:13px;font-weight:600}
+.personal-page .personal-wide {grid-column:1/-1}
+.personal-page .personal-confirm {padding:24px;width:min(420px,calc(100vw - 32px))}
+.personal-page .personal-confirm .personal-actions {justify-content:flex-end;margin-top:22px}
+.personal-page .personal-error {color:#9f1239;background:#fff1f2;padding:12px;border-radius:8px}
+.personal-page #personal-detalle {display:grid;grid-template-columns:1fr 2fr;gap:12px;margin:0}
+.personal-page #personal-detalle dt {color:#64748b}
+.personal-page #personal-detalle dd {margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.personal-page [hidden] {display:none!important}
+@media(max-width:600px){.personal-page .comercial-header {align-items:flex-start;flex-direction:column}.personal-page .personal-grid {grid-template-columns:1fr}.personal-page .personal-actions {gap:6px}.personal-page .personal-dialog header,.personal-page .personal-dialog footer,.personal-page .personal-dialog-body {padding:16px}}
+.personal-page .personal-tabs {margin:0 0 20px;gap:8px}
+.personal-page .personal-tabs [aria-current] {background:#124e64;color:white;border-color:#124e64}
+.personal-page .personal-ficha-datos {display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,2fr);gap:12px 20px}
+.personal-page .personal-ficha-datos dt {color:#64748b}
+.personal-page .personal-ficha-datos dd {margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.personal-page .personal-kpis {display:flex;gap:16px;flex-wrap:wrap;margin:20px 0}
+.personal-page .personal-kpis div {flex:1;min-width:160px;background:#f0f7fa;border:1px solid #d5e8ee;padding:16px;border-radius:10px;display:grid;gap:8px}
+.personal-page .personal-kpis span {font-size:13px;color:#64748b}
+.personal-page .personal-kpis strong {font-size:20px;color:#124e64}
+.personal-page .personal-config {margin:20px 0;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px}
+.personal-page .personal-config summary {cursor:pointer;margin-bottom:12px;font-weight:600}

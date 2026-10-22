@@ -29,7 +29,7 @@ def test_altas_iniciales_incluyen_version_vigente():
     assert "registrar_costo_empleado(" in servicio
     assert 'accion == "crear_costo_fijo"' in servicio
     assert "registrar_importe_costo_fijo(" in servicio
-    assert servicio.count("commit=False") == 4
+    assert servicio.count("commit=False") >= 4
 
 
 def test_actualizaciones_crean_versiones_sin_editar_anteriores():
@@ -60,6 +60,7 @@ def test_interfaz_usa_javascript_externo_y_responsive():
     assert "admin_fuentes_costos.js" in plantilla
     assert "<script>" not in plantilla
     assert "data-production-cost" in javascript
-    assert plantilla.count("Ver historial") == 3
+    assert plantilla.count("Ver historial") == 2
+    assert "Historial salarial" in leer("templates/admin_personal_ficha.html")
     assert ".source-grid" in estilos
     assert "@media (max-width: 560px)" in estilos

@@ -58,6 +58,8 @@ def vincular_empleado(
         raise ValueError("El recurso productivo no es válido.")
     if empleado is None or empleado.tipo_registro != "empleado":
         raise ValueError("Solo se pueden incorporar empleados individuales.")
+    if not getattr(empleado, "activo", True):
+        raise ValueError("El empleado está inactivo; no puede incorporarse al recurso.")
     if int(recurso.organizacion_id) != int(empleado.organizacion_id):
         raise ValueError("El empleado no pertenece a la organización del recurso.")
     if recurso.unidad_negocio_id != empleado.unidad_negocio_id:
@@ -107,6 +109,8 @@ def configurar_integrantes(
     for empleado, porcentaje_dedicacion in asignaciones:
         if empleado is None or empleado.tipo_registro != "empleado":
             raise ValueError("Solo se pueden incorporar empleados individuales.")
+        if not getattr(empleado, "activo", True):
+            raise ValueError("El empleado está inactivo; no puede incorporarse al recurso.")
         if empleado.id in empleados_vistos:
             raise ValueError(f"{empleado.nombre} está repetido en el equipo.")
         empleados_vistos.add(empleado.id)
@@ -228,11 +232,12 @@ def calcular_componentes_recurso(recurso):
 
 
 def recalcular_tarifa_recurso(
-    recurso, *, EmpleadoCostoVersion, db_session, usuario_id=None,
+    recurso, *, EmpleadoCostoVersion, db_session, usuario_id=None, commit=True,
 ):
     valores = calcular_componentes_recurso(recurso)
     version = registrar_costo_empleado(
         recurso,
+        commit=commit,
         moneda="ARS",
         sueldo_base_centavos=valores["sueldo_base_centavos"],
         cargas_sociales_centavos=valores["cargas_sociales_centavos"],
@@ -253,7 +258,7 @@ def recalcular_tarifa_recurso(
 
 
 def recalcular_recursos_del_empleado(
-    empleado, *, EmpleadoCostoVersion, db_session, usuario_id=None,
+    empleado, *, EmpleadoCostoVersion, db_session, usuario_id=None, commit=True,
 ):
     resultados = []
     for vinculo in empleado.participaciones_recurso:
@@ -261,6 +266,6 @@ def recalcular_recursos_del_empleado(
             vinculo.recurso,
             EmpleadoCostoVersion=EmpleadoCostoVersion,
             db_session=db_session,
-            usuario_id=usuario_id,
+            usuario_id=usuario_id, commit=commit,
         ))
     return resultados
