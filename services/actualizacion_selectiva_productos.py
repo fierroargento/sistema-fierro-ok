@@ -1,5 +1,5 @@
 """Plantilla vacía y parches explícitos del maestro, sin reemplazar campos ajenos."""
-from collections import Counter
+from collections import Counter, defaultdict
 from decimal import Decimal
 from hashlib import sha256
 from io import BytesIO, StringIO
@@ -13,6 +13,12 @@ from services import planilla_productos as completo
 from services.productos_ficha_maestra import CAMPOS_LOGISTICA, normalizar_logistica, texto
 
 SALT = 'productos-campos-seleccionados-v1'
+MAX_FILAS_LISTA = 50000
+MAX_COINCIDENCIAS = 500
+
+
+class LimiteCoincidencias(ValueError):
+    pass
 RELACIONES = ('codigos_barras', 'sucursales', 'depositos')
 PRECIOS = ('precio_proveedor', 'base_precio', 'cantidad_bulto', 'moneda_proveedor', 'medidas_origen')
 CAMPOS = tuple(c for c in completo.BASE + completo.GENERAL if c not in ('sku', 'insumo_id')) + RELACIONES + PRECIOS
@@ -43,6 +49,7 @@ def plantilla():
     for i,c in enumerate(columnas,1):
         letra=s.cell(1,i).column_letter
         s.column_dimensions[letra].width=38 if c in ('nombre','descripcion','observacion_logistica') else 25
+        if c in CLAVES+('codigos_barras',):s.column_dimensions[letra].number_format='@'
         s.cell(1,i).font=Font(bold=True,color='FFFFFF')
         s.cell(1,i).fill=PatternFill('solid',fgColor='17566D')
         s.cell(1,i).alignment=Alignment(wrap_text=True,vertical='center')
@@ -53,8 +60,8 @@ def plantilla():
                   'ARS,USD' if c in ('moneda_costo','moneda_proveedor') else 'unitario,bulto' if c=='base_precio' else
                   'costo,precio_venta' if c=='utilidad_base' else None)
         if opciones:
-            dv=DataValidation(type='list',formula1='"'+opciones+'"');dv.showErrorMessage=True;dv.error='Elegí una opción de la lista.';s.add_data_validation(dv);dv.add(f'{letra}2:{letra}501')
-    s.row_dimensions[1].height=36;s.freeze_panes='C2';s.auto_filter.ref=f'A1:{s.cell(1,len(columnas)).column_letter}501';s.sheet_view.showGridLines=False
+            dv=DataValidation(type='list',formula1='"'+opciones+'"');dv.showErrorMessage=True;dv.error='Elegí una opción de la lista.';s.add_data_validation(dv);dv.add(f'{letra}2:{letra}{MAX_FILAS_LISTA+1}')
+    s.row_dimensions[1].height=36;s.freeze_panes='C2';s.auto_filter.ref=f'A1:{s.cell(1,len(columnas)).column_letter}{MAX_FILAS_LISTA+1}';s.sheet_view.showGridLines=False
     a=w.create_sheet('Cómo usar')
     for fila in [
         ['Actualizar sólo los campos elegidos'],
@@ -69,7 +76,7 @@ def plantilla():
         ['Costo simple sin IVA es exclusivo de productos simples. Producción y combo construyen su costo desde componentes y tareas.'],
         ['Tipo se conserva en fichas configuradas. Una ficha antigua puede completarse como simple; producción o combo requieren su composición desde el engranaje.'],
         ['Imágenes, vínculos de insumo, recetas de fabricación/combo, stock e historial no se reemplazan desde esta plantilla. Para revisar piezas/tareas usá Exportar para editar.'],
-        ['Si no hay SKU o Código proveedor no se considera la fila. Hasta 500 filas, 4 MB, XLSX o CSV. Fórmulas en campos seleccionados: pegar valores.'],
+        ['Si no hay SKU o Código proveedor no se considera la fila. Hasta 50.000 filas de lista, 500 coincidencias y 10 MB, XLSX o CSV. Las filas sin coincidencia se ignoran automáticamente. Fórmulas en campos seleccionados: pegar valores.'],
     ]:a.append(fila)
     a.column_dimensions['A'].width=115
     for row in a:
@@ -82,18 +89,18 @@ def leer(archivo, seleccion):
     campos=list(dict.fromkeys(seleccion))
     if not campos or any(c not in CAMPOS for c in campos):
         raise ValueError('Tildá al menos un campo válido para actualizar.')
-    contenido=archivo.read(4*1024*1024+1)
-    if len(contenido)>4*1024*1024:raise ValueError('La planilla supera 4 MB.')
+    contenido=archivo.read(10*1024*1024+1)
+    if len(contenido)>10*1024*1024:raise ValueError('La planilla supera 10 MB.')
     nombre=str(archivo.filename or '').lower();w=None
     if nombre.endswith('.xlsx'):
         try:
             with ZipFile(BytesIO(contenido)) as z:
-                if len(z.infolist())>2000 or sum(i.file_size for i in z.infolist())>30*1024*1024:raise ValueError('La planilla descomprimida supera el límite.')
+                if len(z.infolist())>2000 or sum(i.file_size for i in z.infolist())>100*1024*1024:raise ValueError('La planilla descomprimida supera el límite.')
             from openpyxl import load_workbook
             w=load_workbook(BytesIO(contenido),read_only=True,data_only=False,keep_links=False)
             if 'Control' in w:raise ValueError('Esta es una exportación completa. Subila en Actualizar desde planilla Fierro o usá la plantilla vacía.')
             if 'Productos' not in w:raise ValueError('Falta la hoja Productos.')
-            if w['Productos'].max_row>5001 or w['Productos'].max_column>100:raise ValueError('La hoja supera los límites permitidos.')
+            if w['Productos'].max_row>MAX_FILAS_LISTA+1 or w['Productos'].max_column>100:raise ValueError('La hoja supera los límites permitidos.')
             fuente=w['Productos'].iter_rows();enc=[c.value for c in next(fuente,())]
         except (BadZipFile,KeyError):raise ValueError('No se pudo leer el XLSX.') from None
     elif nombre.endswith('.csv'):
@@ -115,20 +122,21 @@ def leer(archivo, seleccion):
         if faltantes:raise ValueError('Faltan las columnas seleccionadas: '+', '.join(faltantes)+'.')
         filas=[]
         for numero,row in enumerate(fuente,2):
-            if numero>5002:raise ValueError('La hoja tiene demasiadas filas; dejá hasta 500 productos.')
-            valores={}
+            if numero>MAX_FILAS_LISTA+1:raise ValueError('La lista supera 50.000 filas.')
+            valores={};formulas=[]
             for i,c in enumerate(columnas):
                 if c not in elegidos or i>=len(row):continue
                 celda=row[i];v=celda.value if w else celda
-                if c in CLAVES and w and celda.data_type=='f':raise ValueError(f'Fila {numero}: pegá el identificador como valor, sin fórmulas.')
+                if c in CLAVES and w and celda.data_type=='f':
+                    formulas.append(c)
                 if v is None or str(v).strip()=='':continue
                 if c in campos and ((w and celda.data_type=='f') or isinstance(v,str) and v.startswith('=')):
-                    raise ValueError(f'Fila {numero}, {etiqueta(c)}: pegá valores, no fórmulas.')
+                    formulas.append(c)
                 if isinstance(v,(int,float)) and not isinstance(v,bool):v=format(Decimal(str(v)),'f')
                 valores[c]=str(v).strip() if not isinstance(v,bool) else v
             if not any(valores.get(c) for c in CLAVES):continue
-            if len(filas)>=500:raise ValueError('Incluí hasta 500 productos por archivo.')
-            filas.append({'numero':numero,'valores':valores})
+            if len(filas)>=MAX_FILAS_LISTA:raise ValueError('La lista supera 50.000 artículos.')
+            filas.append({'numero':numero,'valores':valores,'formulas':formulas})
         if not filas:raise ValueError('Pegá al menos un SKU o Código proveedor y sus datos.')
         return filas,campos
     finally:
@@ -204,8 +212,19 @@ def previsualizar(filas,campos,*,proveedor_id,Producto,session,organizacion_id):
     if proveedor_id and not str(proveedor_id).isdigit():raise ValueError('Elegí un proveedor válido.')
     proveedor_id=int(proveedor_id) if str(proveedor_id or '').isdigit() else None
     if proveedor_id and proveedor_id not in proveedores:raise ValueError('El proveedor no pertenece a esta organización.')
+    if not proveedor_id and any(r['valores'].get('codigo_proveedor') for r in filas):
+        raise ValueError('Elegí el proveedor de esta lista para buscar por Código proveedor.')
     por_id={f['id']:f for f in actuales.values()}
+    por_codigo=defaultdict(list);vinculados=set()
+    for x in relaciones:
+        por_codigo[(x.proveedor_id,str(x.codigo_clave or '').strip().upper())].append(x)
+        vinculados.add((x.proveedor_id,x.producto_id))
     vista=[];tablas={h:[] for h in completo.COLUMNAS};legados=[];precios=[];cache={}
+    entrada_coincidente=[];ignoradas=0;muestras_ignoradas=[]
+    def ignorar(r,sku,codigo,motivo):
+        nonlocal ignoradas
+        ignoradas+=1
+        if len(muestras_ignoradas)<20:muestras_ignoradas.append({'numero':r['numero'],'sku':sku,'codigo_proveedor':codigo,'motivo':motivo})
     for r in filas:
         entrada={c:v for c,v in r['valores'].items() if c in set(campos)|set(CLAVES)}
         sku=str(entrada.get('sku') or '').upper()
@@ -215,14 +234,23 @@ def previsualizar(filas,campos,*,proveedor_id,Producto,session,organizacion_id):
             actual=actuales.get(sku) if sku else None
             if codigo:
                 if proveedor_id is None:raise ValueError('Elegí el proveedor de esta lista para buscar por Código proveedor.')
-                matches=[x for x in relaciones if x.proveedor_id==proveedor_id and str(x.codigo_clave or '').upper()==codigo]
-                if len(matches)!=1:raise ValueError('Código proveedor no encontrado o ambiguo para el proveedor elegido.')
+                matches=por_codigo.get((proveedor_id,codigo),[])
+                if not matches:
+                    ignorar(r,sku,codigo,'Código no cargado para el proveedor elegido.');continue
+                if len(matches)!=1:raise ValueError('Código proveedor ambiguo: identifica varios productos existentes. Revisá sus vínculos.')
                 identificado=por_id.get(matches[0].producto_id)
-                if not identificado or (sku and (actual is None or actual['id']!=identificado['id'])):raise ValueError('SKU y Código proveedor apuntan a productos distintos. Corregí la fila.')
+                if not identificado or (sku and actual is None):
+                    ignorar(r,sku,codigo,'Sin coincidencia de SKU y código para este proveedor.');continue
+                if sku and actual['id']!=identificado['id']:raise ValueError('SKU y Código proveedor apuntan a productos distintos. Corregí la fila.')
                 actual=identificado;sku=actual['datos']['sku'];f['sku']=sku
-            if actual is None:raise ValueError('SKU no encontrado. Esta opción actualiza existentes; para altas usá Nuevo producto o Ficha básica.')
-            if proveedor_id and not any(x.producto_id==actual['id'] and x.proveedor_id==proveedor_id for x in relaciones):
-                raise ValueError('El producto no está vinculado al proveedor elegido. Revisá su ficha.')
+            if actual is None:
+                ignorar(r,sku,codigo,'SKU no cargado en Fierro.');continue
+            if proveedor_id and (proveedor_id,actual['id']) not in vinculados:
+                ignorar(r,sku,codigo,'Sin vínculo con el proveedor elegido.');continue
+            if len(entrada_coincidente)>=MAX_COINCIDENCIAS:
+                raise LimiteCoincidencias('La lista tiene más de 500 coincidencias. Actualizá los productos existentes en bloques de hasta 500.')
+            if r.get('formulas'):
+                raise ValueError('Pegá valores, no fórmulas, en: '+', '.join(etiqueta(c) for c in r['formulas'])+'.')
             f.update(huella=actual['huella'],producto_id=actual['id'])
             entradas={c:v for c,v in entrada.items() if c in campos}
             if any(c in entradas for c in PRECIOS) and 'precio_proveedor' not in entradas:
@@ -272,7 +300,9 @@ def previsualizar(filas,campos,*,proveedor_id,Producto,session,organizacion_id):
                 for h in tablas:tablas[h].extend(t[h])
                 f['accion']='pendiente'
             if precio:precios.append(dict(precio,producto_id=actual['id'],sku=sku))
+        except LimiteCoincidencias:raise
         except (ValueError,TypeError) as e:f['errores']=[str(e)]
+        entrada_coincidente.append(r)
         vista.append(f)
     repetidos=Counter(f['sku'] for f in vista)
     for f in vista:
@@ -290,7 +320,8 @@ def previsualizar(filas,campos,*,proveedor_id,Producto,session,organizacion_id):
         if any(p['sku']==f['sku'] and p['insumo_id'] and insumos[p['insumo_id']]>1 for p in precios):
             f['errores'].append('Varias filas actualizan la misma fuente de insumo. Conservá una sola.');f['accion']='rechazado'
     return {'filas':vista,'planilla':vistas,'legados':legados,'precios':precios,
-            'entrada':filas,'campos':list(campos),'proveedor_id':proveedor_id}
+            'entrada':entrada_coincidente,'campos':list(campos),'proveedor_id':proveedor_id,
+            'leidas':len(filas),'ignoradas':ignoradas,'muestras_ignoradas':muestras_ignoradas}
 
 
 def firmar(vista,org,usuario,secreto):

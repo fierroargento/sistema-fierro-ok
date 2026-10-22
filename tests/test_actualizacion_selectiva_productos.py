@@ -80,7 +80,7 @@ def test_proveedor_codigo_repetido_en_otro_proveedor_y_sku_discordante(completo)
 
 def test_identidad_permisos_duplicados_y_atomico(completo):
     p=crear(completo[1]);guardar_general(p)
-    for filas in [[[p.sku,'X'],[p.sku,'Y']],[[p.sku,'X'],['AJENO','Y']]]:
+    for filas in [[[p.sku,'X'],[p.sku,'Y']]]:
         v=revisar(completo,filas,['marca']);assert any(f['errores'] for f in v['filas'])
         with pytest.raises(ValueError):aplicar(completo,v)
         assert ProductoDatosGenerales.query.one().marca=='Fierro'
@@ -89,7 +89,8 @@ def test_identidad_permisos_duplicados_y_atomico(completo):
 
 def test_formula_seleccionada_rechaza_y_otra_columna_ignora(completo):
     p=crear(completo[1])
-    with pytest.raises(ValueError,match='fórmulas'):revisar(completo,[[p.sku,'=1+1']],['marca'])
+    invalida=revisar(completo,[[p.sku,'=1+1']],['marca'])
+    assert 'fórmulas' in invalida['filas'][0]['errores'][0]
     v=revisar(completo,[[p.sku,'Fierro','=1+1']],['marca'],columnas=('sku','marca','descripcion'))
     assert not v['filas'][0]['errores']
 
@@ -236,3 +237,92 @@ def test_peso_legacy_no_exige_completar_campos_ajenos(completo):
     assert not v['filas'][0]['errores'],v
     aplicar(completo,v)
     assert p.peso_gr==800 and p.permite_correo is None and p.permite_via_cargo is None
+
+
+def test_lista_miles_ignora_no_cargados_y_no_valida_sus_valores(completo):
+    p=crear(completo[1]);guardar_general(p,formulario(marca='Anterior'))
+    filas=[[f'NO-CARGADO-{n}','=texto que no importa'] for n in range(10000)]
+    filas.insert(5000,[p.sku,'Corregida'])
+    v=revisar(completo,filas,['marca'])
+    assert v['leidas']==10001 and v['ignoradas']==10000
+    assert len(v['filas'])==len(v['entrada'])==1
+    assert len(v['muestras_ignoradas'])==20
+    assert not v['filas'][0]['errores']
+    token=s.firmar(v,completo[1].id,1,'clave')
+    assert len(token)<20000 # Las filas ajenas no inflan la confirmación.
+    assert aplicar(completo,v)==1
+    assert Producto.query.count()==1 and ProductoDatosGenerales.query.one().marca=='Corregida'
+
+
+def test_lista_proveedor_ignora_codigos_no_comprados_y_ajenos(completo):
+    p=crear(completo[1]);prov=completo[4];otro=completo[5]
+    guardar_general(p,formulario(proveedores_json='[{"proveedor_id":'+str(prov.id)+',"codigo":"0007"}]'))
+    ajeno=crear(completo[1],sku='OTRO')
+    guardar_general(ajeno,formulario(proveedores_json='[{"proveedor_id":'+str(otro.id)+',"codigo":"0008"}]'))
+    v=revisar(completo,[['0007','Nueva'],['0008','Ignorar'],['9999','=Ignorar']],['marca'],prov.id,columnas=('codigo_proveedor','marca'))
+    assert v['ignoradas']==2 and len(v['filas'])==1 and not v['filas'][0]['errores']
+    assert aplicar(completo,v)==1
+    assert ProductoDatosGenerales.query.filter_by(producto_id=p.id).one().marca=='Nueva'
+    assert ProductoDatosGenerales.query.filter_by(producto_id=ajeno.id).one().marca=='Fierro'
+
+
+def test_lista_sin_coincidencias_y_repetidos_desconocidos_no_son_error(completo):
+    crear(completo[1])
+    v=revisar(completo,[['NUEVO','A'],['NUEVO','B']],['marca'])
+    assert v['ignoradas']==2 and not v['filas'] and not v['entrada']
+    with pytest.raises(ValueError):aplicar(completo,v)
+    assert Producto.query.count()==1
+
+
+def test_coincidencias_conflictivas_siguen_bloqueando(completo):
+    a=crear(completo[1],sku='A');b=crear(completo[1],sku='B');prov=completo[4]
+    guardar_general(a,formulario(proveedores_json='[{"proveedor_id":'+str(prov.id)+',"codigo":"0007"}]'))
+    guardar_general(b,formulario(proveedores_json='[{"proveedor_id":'+str(prov.id)+',"codigo":"0008"}]'))
+    v=revisar(completo,[['A','0008','X'],['NO-CARGADO','0009','Y']],['marca'],prov.id,columnas=('sku','codigo_proveedor','marca'))
+    assert v['ignoradas']==1 and 'distintos' in v['filas'][0]['errores'][0]
+    with pytest.raises(ValueError):aplicar(completo,v)
+
+
+def test_coincidencia_eliminada_no_se_omite_silenciosamente_al_confirmar(completo):
+    p=crear(completo[1]);v=revisar(completo,[[p.sku,'X'],['NUEVO','Y']],['marca'])
+    p.sku='CAMBIADO';db.session.commit()
+    with pytest.raises(ValueError,match='Cambió'):aplicar(completo,v)
+    assert Producto.query.one().sku=='CAMBIADO'
+
+
+def test_vista_ignorada_no_impide_confirmar_desde_ruta(completo):
+    crear(completo[1]);configurar_rutas(completo[0],completo[1]);c=completo[0].test_client()
+    a=archivo([['UAT-1','Marca nueva'],['NO-CARGADO','=Ignorar']],('sku','marca'))
+    r=c.post('/admin/productos',data={'accion':'previsualizar_selectiva','_csrf_token':'csrf-test','campos_actualizar':['marca'],'archivo_selectivo':(a.stream,'lista.csv')})
+    assert r.status_code==200 and '1 ignoradas sin coincidencia' in r.text
+    assert 'no requieren corrección' in r.text
+    confirm=r.text.split('name="selectivo_token"',1)[1].split('</form>',1)[0]
+    assert 'disabled' not in confirm
+
+
+def test_limite_solo_500_coincidencias_no_500_filas_de_lista(completo,monkeypatch):
+    crear(completo[1])
+    monkeypatch.setattr(s,'MAX_COINCIDENCIAS',1)
+    with pytest.raises(ValueError,match='más de 500 coincidencias'):
+        revisar(completo,[['UAT-1','X'],['UAT-1','Y']],['marca'])
+
+
+def test_xlsx_miles_ignora_formulas_de_productos_no_cargados(completo):
+    from openpyxl import Workbook
+    p=crear(completo[1])
+    w=Workbook();h=w.active;h.title='Productos';h.append(['SKU','Marca'])
+    for n in range(2000):h.append([f'NO-CARGADO-{n}','=1/0'])
+    h.append([p.sku,'Nueva'])
+    b=BytesIO();w.save(b);b.seek(0)
+    entrada,campos=s.leer(FileStorage(b,filename='lista.xlsx'),['marca'])
+    v=s.previsualizar(entrada,campos,proveedor_id=None,Producto=Producto,session=db.session,organizacion_id=completo[1].id)
+    assert v['ignoradas']==2000 and len(v['filas'])==1 and not v['filas'][0]['errores']
+    assert aplicar(completo,v)==1 and Producto.query.count()==1
+
+
+def test_producto_que_aparece_tras_revision_no_se_agrega_a_confirmacion(completo):
+    p=crear(completo[1]);guardar_general(p)
+    v=revisar(completo,[[p.sku,'Modificada'],['NUEVO','No importar']],['marca'])
+    nuevo=crear(completo[1],sku='NUEVO');guardar_general(nuevo,formulario(marca='Conservar'))
+    assert aplicar(completo,v)==1
+    assert ProductoDatosGenerales.query.filter_by(producto_id=nuevo.id).one().marca=='Conservar'
