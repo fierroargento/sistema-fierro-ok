@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261019-maestro') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261022-importacion-selectiva') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261022-menus-tareas') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261020-duplicar') }}" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_produccion.js', v='20261020-acciones-comunes') }}" defer></script>
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261020-duplicar') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261022-menus-tareas') }}" defer></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_producto_vista.css', v='20261020-acciones-comunes') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_producto_vista.js', v='20261020-iconos-producto') }}" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_importar_fabricacion.js', v='20261021-planilla') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_tareas.js', v='20261022-menus-tareas') }}" defer></script>
 {% endblock %}
 {% block content %}
 {% macro valor_cambio(campo, valor) -%}
@@ -19,10 +20,16 @@
 {%- endmacro %}
 <main class="comercial-page productos-page" data-organizacion="{{ organizacion.id }}">
   <header class="comercial-header"><div><p class="productos-ruta">Base de Datos / Productos</p><h1>Productos</h1><p>Una ficha por SKU para compra, venta y fabricación.</p></div>
-    <div class="productos-actions"><a class="secondary-link" href="{{ url_for('admin_productos.exportar') }}">Exportar para editar</a><button type="button" class="secondary-link" data-import-open {% if not preparado %}disabled{% endif %}>Importar productos</button><button type="button" class="comercial-primary" data-new-product {% if not preparado %}disabled{% endif %}>Nuevo producto</button></div>
+    <div class="productos-actions">
+      <div class="productos-menu-contenedor"><button type="button" class="secondary-link" data-productos-menu="productos-menu-exportar" aria-expanded="false" aria-controls="productos-menu-exportar" aria-haspopup="menu">Exportar <span aria-hidden="true">▾</span></button><div id="productos-menu-exportar" class="productos-menu" role="menu" hidden aria-label="Exportar productos"><button type="button" role="menuitem" data-productos-tarea="exportar-completa">Base completa de productos<small>Descargar para consulta y control.</small></button><button type="button" role="menuitem" data-productos-tarea="exportar-editable">Base editable<small>Editar en Excel y volver a importar.</small></button></div></div>
+      <div class="productos-menu-contenedor"><button type="button" class="secondary-link" data-productos-menu="productos-menu-importar" aria-expanded="false" aria-controls="productos-menu-importar" aria-haspopup="menu" {% if not preparado %}disabled{% endif %}>Importar <span aria-hidden="true">▾</span></button><div id="productos-menu-importar" class="productos-menu" role="menu" hidden aria-label="Importar productos">
+        {% for tarea,titulo,ayuda in [('importar-selectiva','Actualizar campos desde una lista','Sólo coincidencias y campos elegidos.'),('importar-editable','Reimportar base editable','Aplicar correcciones de la exportación completa.'),('importar-altas','Alta masiva de productos','Crear productos con la ficha básica.'),('importar-fabricacion','Fabricación propia','Importar productos con su composición de costo.'),('importar-tiendanube','Peso y dimensiones de Tiendanube','Carga transitoria desde el CSV original.')] %}<button type="button" role="menuitem" data-productos-tarea="{{ tarea }}">{{ titulo }}<small>{{ ayuda }}</small></button>{% endfor %}
+      </div></div>
+      <button type="button" class="comercial-primary" data-new-product {% if not preparado %}disabled{% endif %}>Nuevo producto</button>
+    </div>
   </header>
   {% if mensaje %}<div class="alerta alerta-ok" role="status">{{ mensaje }}</div>{% endif %}
-  {% if error %}<div class="alerta alerta-error" role="alert">{{ error }}</div>{% endif %}
+  {% if error and not tarea_activa %}<div class="alerta alerta-error" role="alert">{{ error }}</div>{% endif %}
   {% if not preparado %}<div class="prerequisite-warning">La ficha ampliada está pendiente de preparación. Podés consultar los productos actuales; no se aplicaron cambios.</div>{% endif %}
   <section class="comercial-section" id="productos-listado">
     <form method="get" class="productos-search" action="{{ url_for('admin_productos.panel') }}"><label for="sku">Buscar por SKU, nombre, código de proveedor o barras</label><div><input type="search" id="sku" name="sku" value="{{ filtro_sku }}" placeholder="Ingresá un código o nombre"><label class="productos-tamano" for="productos-por-pagina">Por página<select id="productos-por-pagina" name="por_pagina">{% for cantidad in [10,25,50] %}<option value="{{ cantidad }}" {% if por_pagina == cantidad %}selected{% endif %}>{{ cantidad }}</option>{% endfor %}</select></label><button class="secondary-link" type="submit">Aplicar</button>{% if filtro_sku %}<a class="secondary-link" href="{{ url_for('admin_productos.panel') }}">Limpiar</a>{% endif %}</div></form>
@@ -39,23 +46,8 @@
       </div>
     </nav>
   </section>
-  <details class="comercial-section productos-import" id="productos-importacion" {% if vista or vista_fabricacion or opciones_fabricacion or vista_planilla or vista_logistica or vista_selectiva %}open{% endif %}><summary>Importación masiva</summary><div class="productos-import-body">
-    {% include "partials/productos_actualizacion_selectiva.html" %}
-    <details class="productos-import" {% if vista_logistica %}open{% endif %}><summary>Importación transitoria de Tiendanube</summary>{% include "partials/productos_logistica_tn.html" %}</details>
-    {% include "partials/productos_planilla.html" %}
-    {% include "partials/productos_importar_fabricacion.html" %}
-    <h2>Ficha básica de productos</h2>
-    <p>Descargá la plantilla, completala y revisá los cambios antes de confirmar. Hasta 500 productos por lote.</p>
-    <p class="productos-muted">XLSX, XLSM o CSV. Se lee la hoja Productos, si existe, o la primera hoja. Las columnas y celdas vacías conservan los datos actuales; para destildar indicá No. Los productos nuevos requieren tipo, unidad, estado y los cuatro usos con Sí o No.</p>
-    <p class="productos-muted">Para combos, completá Componentes combo con SKU=2|OTRO-SKU=1. Los componentes deben existir y estar habilitados antes del lote. Unidad combo ID vacía usa General en altas; en ediciones conserva la unidad actual.</p>
-    <a class="secondary-link" href="{{ url_for('admin_productos.plantilla') }}">Descargar plantilla</a>
-    <form class="productos-import-form" method="post" enctype="multipart/form-data" action="{{ url_for('admin_productos.panel', _anchor='productos-importacion') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="accion" value="previsualizar_importacion"><label>Archivo de productos<input type="file" name="archivo_productos" accept=".xlsx,.xlsm,.csv" required {% if not preparado %}disabled{% endif %}></label><button type="submit" class="comercial-primary" {% if not preparado %}disabled{% endif %}>Previsualizar cambios</button></form>
-    {% if vista %}{% set rechazados = vista|selectattr('errores')|list %}
-      <div class="productos-preview" role="status"><h2>Revisión del lote</h2><p>{{ vista|length }} filas · {{ rechazados|length }} con errores. {% if rechazados %}Corregí el archivo y volvé a previsualizar. No se aplicó ninguna fila.{% else %}Todavía no se guardó ningún cambio.{% endif %}</p></div>
-      <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Fila</th><th>SKU</th><th>Resultado</th><th>Detalle</th></tr></thead><tbody>{% for fila in vista %}<tr><td>{{ fila.numero }}</td><td>{{ fila.sku }}</td><td>{{ {'crear':'Crear','actualizar':'Actualizar','sin_cambios':'Sin cambios','rechazado':'Revisar'}[fila.accion] }}</td><td>{% for error_fila in fila.errores %}<p class="productos-error">{{ error_fila }}</p>{% endfor %}{% if fila.cambios %}<details><summary>Ver {{ fila.cambios|length }} campos</summary><ul>{% for cambio in fila.cambios %}<li><strong>{{ cambio.campo|replace('_',' ') }}:</strong> {{ valor_cambio(cambio.campo, cambio.antes) }} → {{ valor_cambio(cambio.campo, cambio.despues) }}</li>{% endfor %}</ul></details>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
-      <form method="post" action="{{ url_for('admin_productos.panel') }}" data-confirm-save="¿Confirmar la importación de este lote? Se guardarán únicamente los cambios revisados."><input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="accion" value="confirmar_importacion"><input type="hidden" name="lote_token" value="{{ lote_token }}"><div class="productos-actions"><a class="secondary-link" href="{{ url_for('admin_productos.panel') }}">Cancelar importación</a><button type="submit" class="comercial-primary" {% if rechazados or not preparado %}disabled{% endif %}>Confirmar importación</button></div></form>
-    {% endif %}
-  </div></details>
+  {% include "partials/productos_tareas.html" %}
+
 </main>
 <dialog class="producto-acciones-dialog" id="producto-acciones-dialog" aria-labelledby="producto-acciones-title">
   <header><div><p class="productos-ruta">Productos</p><h2 id="producto-acciones-title">Gestionar producto</h2></div><button type="button" class="producto-close" data-close-product-actions aria-label="Cerrar acciones">×</button></header>

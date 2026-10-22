@@ -95,7 +95,7 @@ def tablas_de_filas(filas):
     return tablas
 
 
-def exportar(*,Producto,session,organizacion_id,base_url=""):
+def exportar(*,Producto,session,organizacion_id,base_url="",solo_lectura=False):
     from services.productos_datos_generales import esquema_datos_disponible
     if not esquema_datos_disponible(session):raise ValueError('Falta preparar la ficha completa para exportar e importar la planilla Fierro.')
     from openpyxl import Workbook
@@ -162,6 +162,16 @@ def exportar(*,Producto,session,organizacion_id,base_url=""):
                 if isinstance(cell.value,str):cell.data_type='s'
                 if cell.row%2==0:cell.fill=fondo_alterno
                 cell.font=font_lectura if cell.protection.locked else font_editable;cell.alignment=alineacion
+    if solo_lectura:
+        control['A2']='FIERRO-PRODUCTOS-CONSULTA-1'
+        ayuda['A2']='Base completa para consulta. Para editar y reimportar, descargá Exportar → Base editable.'
+        for ws in libro:
+            ws.protection.sheet=True
+            ws.protection.autoFilter=False
+            for row in ws:
+                for celda in row:
+                    celda.protection=protegido
+                    if celda.row>1:celda.font=font_lectura
     salida=BytesIO();libro.save(salida);salida.seek(0);return salida
 
 
@@ -175,8 +185,9 @@ def leer(archivo,org):
         w=load_workbook(BytesIO(contenido),read_only=True,data_only=False,keep_links=False)
     except (BadZipFile,KeyError):raise ValueError('No se pudo leer la planilla XLSX.') from None
     try:
-        if 'Control' not in w:raise ValueError('Usá Exportar para editar; esta no es una planilla Fierro.')
+        if 'Control' not in w:raise ValueError('Usá Exportar → Base editable; esta no es una planilla Fierro.')
         meta=list(w['Control'].values)
+        if len(meta)>1 and meta[1][0]=='FIERRO-PRODUCTOS-CONSULTA-1':raise ValueError('Esta es la base de consulta. Para modificar y reimportar descargá Exportar → Base editable.')
         if len(meta)<2 or meta[1][0]!=FORMATO or str(meta[1][1])!=str(org):raise ValueError('La planilla no pertenece a esta organización o versión de Fierro.')
         tablas={}
         for hoja,columnas in COLUMNAS.items():

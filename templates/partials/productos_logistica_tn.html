@@ -1,6 +1,6 @@
 <section class="fabricacion-import" aria-labelledby="productos-logistica-tn-title">
   <header class="fabricacion-import-header"><p class="productos-ruta">Solo datos de envío</p><h2 id="productos-logistica-tn-title">Peso y dimensiones desde Tiendanube</h2><p>Subí el CSV original de productos de Tiendanube. Buscamos cada SKU en Fierro y revisamos únicamente su peso y sus medidas.</p></header>
-  <form class="productos-planilla-form fabricacion-import-card" method="post" enctype="multipart/form-data" action="{{ url_for('admin_productos.panel', _anchor='productos-importacion') }}">
+  <form class="productos-planilla-form fabricacion-import-card" method="post" enctype="multipart/form-data" action="{{ url_for('admin_productos.panel') }}">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="accion" value="previsualizar_logistica_tn">
     <div class="fabricacion-import-grid fabricacion-import-archivo"><label>Archivo de Tiendanube<input type="file" name="archivo_logistica_tn" accept=".csv" required><small>No hace falta cambiar columnas ni convertir el archivo.</small></label><div class="productos-actions"><button class="comercial-primary" type="submit">Revisar peso y dimensiones</button></div></div>
     <p data-fabricacion-progreso role="status" aria-live="polite" hidden></p>

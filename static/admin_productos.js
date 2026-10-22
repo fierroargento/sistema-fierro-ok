@@ -374,11 +374,6 @@
     confirmar.showModal();
     document.getElementById("producto-confirm-cancel").focus();
   }));
-  document.querySelectorAll("[data-import-open]").forEach(b => b.addEventListener("click", () => {
-    const panel = document.getElementById("productos-importacion");
-    panel.open = true;
-    panel.scrollIntoView({behavior:"smooth", block:"start"});
-  }));
   try {
     const scroll = sessionStorage.getItem(scrollKey);
     if (scroll !== null) { sessionStorage.removeItem(scrollKey); requestAnimationFrame(() => window.scrollTo(0, Number(scroll))); }

@@ -2,7 +2,7 @@
   <header class="fabricacion-import-header"><p class="productos-ruta">Planilla General</p><h2 id="fabricacion-import-title">Importar fabricación propia</h2><p>Elegí el archivo y las tarifas. Después revisás los productos antes de guardarlos.</p></header>
   <div class="fabricacion-import-alcance"><span>Los productos existentes se conservan</span><span>5 llaveros excluidos</span></div>
   {% set opts = vista_fabricacion.opciones if vista_fabricacion else opciones_fabricacion %}
-  <form method="post" enctype="multipart/form-data" action="{{ url_for('admin_productos.panel', _anchor='productos-importacion') }}" class="fabricacion-import-form">
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('admin_productos.panel') }}" class="fabricacion-import-form">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="accion" value="previsualizar_fabricacion">
     <section class="fabricacion-import-card" aria-labelledby="fabricacion-archivo-title">
       <h3 id="fabricacion-archivo-title"><span>1</span> Archivo y unidad</h3>

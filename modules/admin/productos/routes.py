@@ -70,10 +70,10 @@ def crear_blueprint_productos(*, dependencias):
         if respuesta is not None:return respuesta
         from services.planilla_productos import exportar as exportar_planilla
         try:
-            archivo=exportar_planilla(Producto=Producto,session=db.session,organizacion_id=organizacion.id,base_url=request.url_root)
+            archivo=exportar_planilla(Producto=Producto,session=db.session,organizacion_id=organizacion.id,base_url=request.url_root,solo_lectura=request.args.get('uso')=='consulta')
         except ValueError as error:
-            return redirect(url_for('admin_productos.panel',error=str(error)))
-        respuesta=send_file(archivo,as_attachment=True,download_name='maestro_productos_fierro.xlsx',mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            return redirect(url_for('admin_productos.panel',error=str(error),tarea='exportar-completa' if request.args.get('uso')=='consulta' else 'exportar-editable'))
+        respuesta=send_file(archivo,as_attachment=True,download_name='base_completa_productos_fierro.xlsx' if request.args.get('uso')=='consulta' else 'maestro_productos_fierro.xlsx',mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         respuesta.headers['Cache-Control']='private, no-store'
         respuesta.headers['X-Content-Type-Options']='nosniff'
         return respuesta
@@ -121,6 +121,14 @@ def crear_blueprint_productos(*, dependencias):
         usuario, organizacion, respuesta = resolver_acceso()
         if respuesta is not None:
             return respuesta
+        tareas_por_accion = {
+            "previsualizar_selectiva":"importar-selectiva", "confirmar_selectiva":"importar-selectiva",
+            "previsualizar_planilla":"importar-editable", "confirmar_planilla":"importar-editable",
+            "previsualizar_importacion":"importar-altas", "confirmar_importacion":"importar-altas",
+            "previsualizar_fabricacion":"importar-fabricacion", "confirmar_fabricacion":"importar-fabricacion",
+            "previsualizar_logistica_tn":"importar-tiendanube", "confirmar_logistica_tn":"importar-tiendanube"}
+        tarea_activa = tareas_por_accion.get(request.form.get("accion")) if request.method == "POST" else request.args.get("tarea")
+        if tarea_activa not in set(tareas_por_accion.values()) | {"exportar-completa","exportar-editable"}:tarea_activa = ""
         mensaje = (request.args.get("ok") or "").strip()
         error = (request.args.get("error") or "").strip()[:400]
         filtro_sku = (request.args.get("sku") or "").strip()
@@ -300,7 +308,7 @@ def crear_blueprint_productos(*, dependencias):
         from services.productos_despiece import disponible as despiece_disponible
         from services.producto_vista import dinero
         from services.actualizacion_selectiva_productos import GRUPOS, etiqueta as etiqueta_actualizacion
-        return render_template("admin_productos.html", vista_selectiva=vista_selectiva, token_selectivo=token_selectivo,
+        return render_template("admin_productos.html", tarea_activa=tarea_activa, vista_selectiva=vista_selectiva, token_selectivo=token_selectivo,
             seleccion_campos=seleccion_campos, proveedor_lista=proveedor_lista, grupos_actualizacion=GRUPOS,
             etiqueta_actualizacion=etiqueta_actualizacion, vista_logistica=vista_logistica, token_logistica=token_logistica, dinero=dinero, vista_planilla=vista_planilla, token_planilla=token_planilla, vista_fabricacion=vista_fabricacion, token_fabricacion=token_fabricacion, opciones_fabricacion=opciones_fabricacion, unidad_produccion_inicial=unidad_produccion_inicial, despiece_disponible=despiece_disponible(db.session), fabricacion_disponible=fabricacion_disponible, recursos_fabricacion=recursos_fabricacion, completo=completo, proveedores=proveedores, ubicaciones=ubicaciones, clasificaciones=clasificaciones, componentes=componentes, unidades_combo=unidades, mensaje=mensaje, error=error,
             organizacion=organizacion, preparado=preparado, filas=filas,

@@ -236,3 +236,23 @@
 .productos-campos-lista { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; padding:8px 0 16px; }
 .productos-campos-lista label { display:flex; align-items:center; gap:8px; font-size:13px; color:#34465b; }
 .productos-campos-lista input[type=checkbox] { flex:0 0 auto; width:17px; height:17px; }
+.productos-menu-contenedor { position:relative; }
+.productos-menu { position:absolute; right:0; top:calc(100% + 7px); z-index:80; width:min(330px,calc(100vw - 36px)); padding:6px; border:1px solid #d4e0e8; border-radius:12px; background:#fff; box-shadow:0 12px 32px #14364b26; }
+.productos-menu[hidden] { display:none; }
+.productos-menu button { display:block; width:100%; text-align:left; border:0; border-radius:7px; padding:12px; background:#fff; color:#23465a; font-size:14px; font-weight:700; cursor:pointer; }
+.productos-menu button:hover,.productos-menu button:focus-visible { background:#edf6fa; outline:2px solid #a4cfe1; outline-offset:-2px; }
+.productos-menu small { display:block; margin-top:4px; color:#64748b; font-weight:400; line-height:1.4; }
+.productos-actions [data-productos-menu] { gap:9px; }
+.producto-tarea-dialog { width:min(1120px,calc(100vw - 32px)); max-width:none; max-height:90vh; max-height:90dvh; margin:auto; padding:0; border:1px solid #d1dfe7; border-radius:16px; background:#fff; color:#243e50; box-shadow:0 20px 70px #102a3e40; box-sizing:border-box; }
+.producto-tarea-dialog[open] { display:flex; flex-direction:column; }
+.producto-tarea-dialog::backdrop { background:#102b3e85; backdrop-filter:blur(2px); }
+.producto-tarea-cabecera { flex:0 0 auto; display:flex; align-items:flex-start; justify-content:space-between; gap:18px; padding:20px 24px; border-bottom:1px solid #e1eaf0; background:#f5f9fc; }
+.producto-tarea-cabecera h2 { margin:0; font-size:23px; color:#193e54; }
+.producto-tarea-cabecera h2:focus { outline:none; }
+.producto-tarea-cabecera .producto-close { width:36px; height:36px; border:0; border-radius:8px; background:#e8f1f6; color:#3b5b70; font-size:25px; cursor:pointer; }
+.producto-tarea-cuerpo { min-height:0; overflow:auto; padding:22px 24px; overscroll-behavior:contain; }
+.producto-tarea-cuerpo > p { line-height:1.6; margin-top:0; }
+.producto-tarea-cuerpo .fabricacion-import { margin:0; padding:0; border:0; }
+.producto-tarea-cuerpo .fabricacion-import-header > .productos-ruta,.producto-tarea-cuerpo .fabricacion-import-header > h2 { display:none; }
+.producto-tarea-pie { flex:0 0 auto; display:flex; justify-content:flex-end; padding:14px 24px; border-top:1px solid #e1eaf0; background:#f5f9fc; }
+@media(max-width:600px) { .producto-tarea-dialog { width:calc(100vw - 16px); max-height:94dvh; } .producto-tarea-cabecera,.producto-tarea-cuerpo { padding:16px; } .producto-tarea-cabecera h2 { font-size:20px; } .productos-menu { position:fixed; right:12px; top:auto; } }

@@ -1,0 +1,23 @@
+<div id="productos-importacion">
+{% for clave,titulo in [('exportar-completa','Base completa de productos'),('exportar-editable','Base editable'),('importar-selectiva','Actualizar campos desde una lista'),('importar-editable','Reimportar base editable'),('importar-altas','Alta masiva de productos'),('importar-fabricacion','Fabricación propia'),('importar-tiendanube','Peso y dimensiones de Tiendanube')] %}
+<dialog class="producto-tarea-dialog" id="producto-tarea-{{ clave }}" aria-labelledby="producto-tarea-titulo-{{ clave }}" data-productos-dialogo="{{ clave }}" {% if tarea_activa == clave %}data-auto-open{% endif %}>
+  <header class="producto-tarea-cabecera"><div><p class="productos-ruta">{{ 'Exportar' if clave.startswith('exportar') else 'Importar' }} / Productos</p><h2 id="producto-tarea-titulo-{{ clave }}" tabindex="-1">{{ titulo }}</h2></div><button type="button" class="producto-close" data-productos-tarea-cerrar aria-label="Cerrar {{ titulo }}">×</button></header>
+  <div class="producto-tarea-cuerpo">
+    {% if error and tarea_activa == clave %}<div class="alerta alerta-error" role="alert">{{ error }}</div>{% endif %}
+    {% if clave == 'exportar-completa' %}
+      <p>Descargá todos los productos de la organización para consultar y controlar sus datos, composición y costos guardados. Incluye las referencias de imágenes e historial.</p><p class="productos-muted">La planilla queda protegida para consulta. Para modificar datos y subirlos de nuevo, elegí Base editable.</p>
+      <a class="comercial-primary" href="{{ url_for('admin_productos.exportar', uso='consulta') }}">Descargar base completa</a>
+    {% elif clave == 'exportar-editable' %}
+      <p>Descargá la base actual, corregí las celdas editables en Excel y guardá el archivo. Después elegí Importar → Reimportar base editable para revisar los cambios.</p><p class="productos-muted">Conservá los SKU y las columnas de control. Las imágenes, el stock y los precios publicados se mantienen en el sistema.</p>
+      <a class="comercial-primary" href="{{ url_for('admin_productos.exportar') }}">Descargar base editable</a>
+    {% elif clave == 'importar-selectiva' %}{% include "partials/productos_actualizacion_selectiva.html" %}
+    {% elif clave == 'importar-editable' %}{% include "partials/productos_planilla.html" %}
+    {% elif clave == 'importar-altas' %}{% include "partials/productos_importar_basicos.html" %}
+    {% elif clave == 'importar-fabricacion' %}{% include "partials/productos_importar_fabricacion.html" %}
+    {% elif clave == 'importar-tiendanube' %}{% include "partials/productos_logistica_tn.html" %}
+    {% endif %}
+  </div>
+  <footer class="producto-tarea-pie"><button type="button" class="secondary-link" data-productos-tarea-cerrar>Cerrar</button></footer>
+</dialog>
+{% endfor %}
+</div>
