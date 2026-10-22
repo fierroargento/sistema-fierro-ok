@@ -1,6 +1,8 @@
 """Ampliación del legajo existente; no crea otra identidad de empleado."""
 from sqlalchemy import CheckConstraint, UniqueConstraint
 from extensions import db
+from models.personas import NovedadLaboralPreparatoria
+from models.usuario_organizacion import UsuarioOrganizacion
 from services.fechas import ahora_utc_naive
 
 
@@ -51,7 +53,7 @@ class AusenciaPersonal(db.Model):
     tipo = db.Column(db.String(30), nullable=False)
     dias_computados = db.Column(db.Numeric(8,2), nullable=True)
     periodo = db.Column(db.String(40))
-    novedad = db.relationship('NovedadLaboralPreparatoria')
+    novedad = db.relationship(NovedadLaboralPreparatoria)
     __table_args__ = (CheckConstraint("tipo IN ('vacaciones','licencia','ausencia')", name='ck_ausencia_personal_tipo'), CheckConstraint('dias_computados IS NULL OR dias_computados >= 0', name='ck_ausencia_personal_dias'))
 
     @property
@@ -70,4 +72,14 @@ class AusenciaPersonal(db.Model):
     def estado(self, estado): self.novedad.estado = 'propuesta' if estado == 'planificada' else 'cancelada'
 
 
-TABLAS_PERSONAL = [PersonalDetalle.__table__, HorarioPersonal.__table__, AusenciaPersonal.__table__]
+class PersonalAcceso(db.Model):
+    """Vínculo a la cuenta real y código físico cifrado; nunca copia contraseñas."""
+    __tablename__ = 'personal_acceso'
+    empleado_id = db.Column(db.Integer, db.ForeignKey('empleado_productivo.id'), primary_key=True)
+    usuario_organizacion_id = db.Column(db.Integer, db.ForeignKey('usuario_organizacion.id'), unique=True)
+    codigo_alarma_cifrado = db.Column(db.LargeBinary)
+    revision = db.Column(db.Integer, nullable=False, default=1)
+    membresia = db.relationship(UsuarioOrganizacion)
+
+
+TABLAS_PERSONAL = [PersonalDetalle.__table__, HorarioPersonal.__table__, AusenciaPersonal.__table__, PersonalAcceso.__table__]

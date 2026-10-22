@@ -40,3 +40,8 @@
 .personal-page .personal-kpis strong {font-size:20px;color:#124e64}
 .personal-page .personal-config {margin:20px 0;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px}
 .personal-page .personal-config summary {cursor:pointer;margin-bottom:12px;font-weight:600}
+.personal-page .personal-check {display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;min-height:38px}
+.personal-page .personal-check input[type=checkbox] {width:18px;min-height:18px;height:18px;flex:none;margin:0;padding:0}
+.personal-page .personal-dias {display:flex;gap:10px;flex-wrap:wrap}
+.personal-page .personal-alta-laboral,.personal-page .personal-accesos {border-top:1px solid #e2e8f0;margin-top:22px;padding-top:8px}
+.personal-page .personal-accesos .personal-muted {font-size:13px}

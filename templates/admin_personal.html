@@ -2,8 +2,8 @@
 {% block title %}Personal{% endblock %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261022-personal') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_personal.css', v='20261022-personal') }}">
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_personal.js', v='20261022-personal') }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_personal.css', v='20261022-accesos') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_personal.js', v='20261022-accesos') }}" defer></script>
 {% endblock %}
 {% block content %}
 <main class="comercial-page personal-page" data-organizacion="{{ organizacion.id }}">
@@ -14,9 +14,9 @@
 <section class="comercial-section" id="personal-listado">
 <form method="get" class="personal-search"><label>Buscar por legajo, nombre, sector o puesto<input type="search" name="buscar" value="{{ buscar }}" maxlength="120"></label><button type="submit" class="secondary-link">Buscar</button>{% if buscar %}<a class="secondary-link" href="{{ url_for('admin_personal.panel') }}">Limpiar</a>{% endif %}</form>
 <p class="personal-muted">{{ total }} empleados{% if buscar %} encontrados{% endif %} · {{ organizacion.nombre }}. Los equipos y recursos de costo se gestionan en Producción.</p>
-<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Legajo</th><th>Nombre</th><th>Sector / Puesto</th><th>Unidad</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
-{% for e in empleados %}<tr><td><strong>{{ e.codigo }}</strong></td><td>{{ e.nombre }}</td><td>{{ e.sector }}<small class="table-subline">{{ e.puesto or 'Sin puesto definido' }}</small></td><td>{{ e.unidad_negocio.nombre if e.unidad_negocio else 'Compartido por la organización' }}</td><td>{{ 'Activo' if e.activo else 'Inactivo' }}</td><td><div class="personal-actions"><a class="secondary-link" href="{{ url_for('admin_personal.ficha', empleado_id=e.id) }}" data-fierro-icon="ver" aria-label="Ver legajo {{ e.codigo }}">Ver</a><button type="button" class="secondary-link" data-personal-editar="{{ e.id }}" data-fierro-icon="gestionar" aria-label="Gestionar empleado {{ e.codigo }}" {% if not preparado %}disabled{% endif %}>Gestionar</button><a class="secondary-link" href="{{ url_for('admin_personal.ficha',empleado_id=e.id,seccion='sueldos') }}">Sueldos</a></div></td></tr>
-{% else %}<tr><td colspan="6" class="empty-card">{% if buscar %}No hay coincidencias.{% else %}Todavía no hay empleados. Usá Nuevo empleado para cargar la primera ficha.{% endif %}</td></tr>{% endfor %}
+<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Legajo</th><th>Nombre</th><th>Sector / Puesto</th><th>Unidad</th><th>Sueldo / Horario laboral</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+{% for e in empleados %}<tr><td><strong>{{ e.codigo }}</strong></td><td>{{ e.nombre }}</td><td>{{ e.sector }}<small class="table-subline">{{ e.puesto or 'Sin puesto definido' }}</small></td><td>{{ e.unidad_negocio.nombre if e.unidad_negocio else 'Compartido por la organización' }}</td><td>{{ resumenes_laborales[e.id].sueldo_resumen }}<small class="table-subline">{{ resumenes_laborales[e.id].horario_resumen }}</small></td><td>{{ 'Activo' if e.activo else 'Inactivo' }}</td><td><div class="personal-actions"><a class="secondary-link" href="{{ url_for('admin_personal.ficha', empleado_id=e.id) }}" data-fierro-icon="ver" aria-label="Ver legajo {{ e.codigo }}">Ver</a><button type="button" class="secondary-link" data-personal-editar="{{ e.id }}" data-fierro-icon="gestionar" aria-label="Gestionar empleado {{ e.codigo }}" {% if not preparado %}disabled{% endif %}>Gestionar</button><a class="secondary-link" href="{{ url_for('admin_personal.ficha',empleado_id=e.id,seccion='sueldos') }}">Sueldos</a></div></td></tr>
+{% else %}<tr><td colspan="7" class="empty-card">{% if buscar %}No hay coincidencias.{% else %}Todavía no hay empleados. Usá Nuevo empleado para cargar la primera ficha.{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 <nav class="personal-actions personal-pages" aria-label="Páginas de Personal"><span>Página {{ pagina }} de {{ paginas }}</span>{% if pagina > 1 %}<a class="secondary-link" href="{{ url_for('admin_personal.panel', buscar=buscar, pagina=pagina-1, _anchor='personal-listado') }}">Anterior</a>{% endif %}{% if pagina < paginas %}<a class="secondary-link" href="{{ url_for('admin_personal.panel', buscar=buscar, pagina=pagina+1, _anchor='personal-listado') }}">Siguiente</a>{% endif %}</nav>
 </section>

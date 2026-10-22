@@ -43,7 +43,8 @@ def registrar_modulos_web(
     )
 
     db = dependencias["db"]
-    modelos = {**dependencias["modelos"], "ConfiguracionSistema": ConfiguracionSistema}
+    modelos = {**dependencias["modelos"], "ConfiguracionSistema": ConfiguracionSistema,
+               "UsuarioSistema": dependencias["UsuarioSistema"], "UsuarioOrganizacion": dependencias["UsuarioOrganizacion"]}
 
     app.jinja_env.filters["moneda_centavos"] = formatear_centavos_ars
 
@@ -221,7 +222,7 @@ def registrar_modulos_web(
     app.register_blueprint(
         crear_blueprint_personal(dependencias={**comunes, "modelos": {
             nombre: modelos[nombre] for nombre in (
-                "Organizacion", "UnidadNegocio", "EmpleadoProductivo", "RecursoEmpleadoProductivo",
+                "Organizacion", "UnidadNegocio", "EmpleadoProductivo", "RecursoEmpleadoProductivo", "UsuarioSistema", "UsuarioOrganizacion",
                 "EmpleadoCostoVersion", "ConfiguracionCostoLaboralVersion", "EmpleadoDistribucionVersion",
                 "TurnoLaboralPlanificado", "NovedadLaboralPreparatoria", "CompetenciaEmpleadoPreparatoria")
         }}),

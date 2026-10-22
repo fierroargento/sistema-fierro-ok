@@ -9,6 +9,7 @@ from extensions import db
 from models.organizacion import Organizacion
 from models.unidad_negocio import UnidadNegocio
 from models.usuario_sistema import UsuarioSistema
+from models.usuario_organizacion import UsuarioOrganizacion
 from models.fuentes_costo_productivo import EmpleadoProductivo, EmpleadoCostoVersion, RecursoEmpleadoProductivo, ConfiguracionCostoLaboralVersion, EmpleadoDistribucionVersion
 from services.personal_admin import datos_empleado, huella_empleado
 from services.fuentes_costo_productivo import crear_empleado, registrar_costo_empleado
@@ -24,16 +25,16 @@ def personal(entorno, monkeypatch):
     from models.personas import TurnoLaboralPlanificado, NovedadLaboralPreparatoria, CompetenciaEmpleadoPreparatoria
     from scripts.preparar_personal import preparar
     from models.personal_administrativo import TABLAS_PERSONAL
-    db.metadata.create_all(db.engine,tables=[ConfiguracionCostoLaboralVersion.__table__, EmpleadoDistribucionVersion.__table__,TurnoLaboralPlanificado.__table__,NovedadLaboralPreparatoria.__table__,CompetenciaEmpleadoPreparatoria.__table__])
+    db.metadata.create_all(db.engine,tables=[UsuarioOrganizacion.__table__,ConfiguracionCostoLaboralVersion.__table__, EmpleadoDistribucionVersion.__table__,TurnoLaboralPlanificado.__table__,NovedadLaboralPreparatoria.__table__,CompetenciaEmpleadoPreparatoria.__table__])
     preparar(db.engine)
-    modelos = dict(Organizacion=Organizacion, UnidadNegocio=UnidadNegocio, EmpleadoProductivo=EmpleadoProductivo, RecursoEmpleadoProductivo=RecursoEmpleadoProductivo,
+    modelos = dict(UsuarioSistema=UsuarioSistema,UsuarioOrganizacion=UsuarioOrganizacion,Organizacion=Organizacion, UnidadNegocio=UnidadNegocio, EmpleadoProductivo=EmpleadoProductivo, RecursoEmpleadoProductivo=RecursoEmpleadoProductivo,
         ConfiguracionCostoLaboralVersion=ConfiguracionCostoLaboralVersion,EmpleadoCostoVersion=EmpleadoCostoVersion,
         EmpleadoDistribucionVersion=EmpleadoDistribucionVersion,TurnoLaboralPlanificado=TurnoLaboralPlanificado,
         NovedadLaboralPreparatoria=NovedadLaboralPreparatoria,CompetenciaEmpleadoPreparatoria=CompetenciaEmpleadoPreparatoria)
     mem = SimpleNamespace(rol='admin', organizacion_id=org.id, organizacion=org)
     monkeypatch.setattr(routes, 'resolver_tenant_usuario', lambda *a, **k: mem)
     app.register_blueprint(routes.crear_blueprint_personal(dependencias=dict(db=db, modelos=modelos,
-        usuario_actual=lambda: SimpleNamespace(id=1), UsuarioOrganizacion=None,
+        usuario_actual=lambda: SimpleNamespace(id=1), UsuarioOrganizacion=UsuarioOrganizacion,
         login_required=lambda f: f, registrar_auditoria=lambda *a, **k: None)))
     app.add_url_rule('/', endpoint='inicio', view_func=lambda:'Inicio')
     app.add_url_rule('/admin/comercial/fuentes-costos', endpoint='admin_comercial.fuentes_costos', view_func=lambda:'Costos')
@@ -51,7 +52,7 @@ def personal(entorno, monkeypatch):
     with c.session_transaction() as s:s['_csrf_token']='csrf-personal';s['unidad_negocio_id']=unidad.id
     yield c, org, otra, unidad, modelos, mem
     db.session.rollback()
-    db.metadata.drop_all(db.engine,tables=list(reversed(TABLAS_PERSONAL))+[TurnoLaboralPlanificado.__table__,NovedadLaboralPreparatoria.__table__,CompetenciaEmpleadoPreparatoria.__table__,EmpleadoDistribucionVersion.__table__,ConfiguracionCostoLaboralVersion.__table__,RecursoEmpleadoProductivo.__table__, EmpleadoCostoVersion.__table__, EmpleadoProductivo.__table__,UsuarioSistema.__table__])
+    db.metadata.drop_all(db.engine,tables=list(reversed(TABLAS_PERSONAL))+[TurnoLaboralPlanificado.__table__,NovedadLaboralPreparatoria.__table__,CompetenciaEmpleadoPreparatoria.__table__,EmpleadoDistribucionVersion.__table__,ConfiguracionCostoLaboralVersion.__table__,RecursoEmpleadoProductivo.__table__, EmpleadoCostoVersion.__table__, EmpleadoProductivo.__table__,UsuarioOrganizacion.__table__,UsuarioSistema.__table__])
 
 
 def campos(**cambios):

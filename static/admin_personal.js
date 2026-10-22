@@ -7,6 +7,26 @@
   const vista = document.getElementById('personal-vista'), error = document.getElementById('personal-form-error');
   const scrollKey = 'personal-scroll-' + document.querySelector('.personal-page').dataset.organizacion;
   let origen = null, pendiente = null, enviando = false;
+  function actualizarOpcionales() {
+    const edicion=form.elements.accion.value==='editar';
+    form.querySelectorAll('[data-personal-opcional]').forEach(check=>{
+      const panel=document.getElementById(check.dataset.personalOpcional);
+      const habilitado=!edicion&&check.checked;
+      panel.hidden=!habilitado;
+      panel.querySelectorAll('input,select,textarea').forEach(c=>{c.disabled=!habilitado;});
+    });
+  }
+  function actualizarCuenta() {
+    const accion=form.elements.acceso_accion.value;
+    form.querySelectorAll('[data-personal-cuenta]').forEach(label=>{
+      const habilitado=label.dataset.personalCuenta===accion;
+      label.hidden=!habilitado;label.querySelectorAll('input,select').forEach(c=>{c.disabled=!habilitado;c.required=habilitado;});
+    });
+    form.elements.password.required=accion==='crear';form.elements.password_confirm.required=accion==='crear';
+  }
+  form.querySelectorAll('[data-personal-opcional]').forEach(c=>c.addEventListener('change',actualizarOpcionales));
+  form.elements.acceso_accion.addEventListener('change',actualizarCuenta);
+
   function abrir(fila, fallido) {
     form.reset();enviando = false;pendiente = null;
     const valores = fallido || fila || {activo:'1', unidad_negocio_id:datos.unidad_inicial};
@@ -22,6 +42,31 @@
       o.disabled = editar ? o.value !== form.elements.unidad_negocio_id.value : o.dataset.activa === '0';
     });
     document.getElementById('personal-identidad-aviso').hidden = !editar;
+    form.querySelectorAll('[data-personal-solo-alta]').forEach(n=>{n.hidden=editar;});
+    form.querySelectorAll('[data-personal-solo-edicion]').forEach(n=>{n.hidden=!editar;});
+    for(const campo of ['cargar_sueldo_inicial','cargar_horario_inicial']) {
+      form.elements[campo].checked=!editar&&valores[campo]==='1';form.elements[campo].disabled=editar;
+    }
+    for(const c of form.elements) {
+      if(!c.name?.startsWith('inicial_')||!(c.name in valores))continue;
+      if(c.type==='checkbox')c.checked=(Array.isArray(valores[c.name])?valores[c.name]:[valores[c.name]]).includes(c.value);
+      else c.value=valores[c.name];
+    }
+    actualizarOpcionales();
+    document.getElementById('personal-sueldo-actual').textContent='Sueldo: '+(valores.sueldo_resumen||'Sin sueldo cargado');
+    document.getElementById('personal-horario-actual').textContent='Horario laboral: '+(valores.horario_resumen||'Sin horario cargado');
+    const base='/admin/personal/'+(valores.id||valores.empleado_id||'');
+    document.getElementById('personal-ir-sueldo').href=base+'?seccion=sueldos';
+    document.getElementById('personal-ir-horario').href=base+'?seccion=horarios';
+    form.elements.revision_accesos.value=valores.revision_accesos||'0';
+    form.elements.username.value=valores.username||'';
+    form.elements.usuario_organizacion_id.value=valores.usuario_organizacion_id||'';
+    form.elements.acceso_accion.value=valores.acceso_accion||'conservar';
+    for(const o of form.elements.acceso_accion.options)o.disabled=!!valores.usuario_sistema&&o.value!=='conservar';
+    form.elements.quitar_codigo_alarma.checked=valores.quitar_codigo_alarma==='1';
+    document.getElementById('personal-acceso-estado').textContent=(valores.usuario_sistema?'Usuario: '+valores.usuario_sistema+' · '+(valores.usuario_habilitado?'Habilitado':'Sin acceso habilitado'):'Sin usuario vinculado')+' · '+(valores.tiene_codigo_alarma?'Código de alarma configurado':'Sin código de alarma');
+    actualizarCuenta();
+
     document.getElementById('personal-titulo').textContent = editar ? 'Gestionar · ' + valores.codigo : 'Nuevo empleado';
     document.getElementById('personal-guardar').disabled = false;
     document.getElementById('personal-guardar').textContent = 'Guardar ficha';
@@ -41,7 +86,7 @@
     vista.showModal();
   }));
   document.querySelectorAll('[data-personal-cerrar]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
-  for (const dialogo of [editor,vista]) dialogo.addEventListener('close',()=>{pendiente=null;if(origen?.isConnected)origen.focus({preventScroll:true});});
+  for (const dialogo of [editor,vista]) dialogo.addEventListener('close',()=>{dialogo.querySelectorAll('input[type=password]').forEach(c=>{c.value='';});pendiente=null;if(origen?.isConnected)origen.focus({preventScroll:true});});
   function pedirConfirmacion(f,mensaje) {
     if(enviando||!f.reportValidity())return;
     pendiente=f;document.getElementById('personal-confirm-mensaje').textContent=mensaje;
@@ -64,6 +109,26 @@
     HTMLFormElement.prototype.submit.call(destino);
   });
   try{const y=sessionStorage.getItem(scrollKey);if(y!==null){sessionStorage.removeItem(scrollKey);requestAnimationFrame(()=>window.scrollTo(0,Number(y)));}}catch(_){}
+  const mostrarAlarma=document.getElementById('personal-alarma-mostrar');
+  if(mostrarAlarma){
+    const valor=document.getElementById('personal-alarma-valor'),aviso=document.getElementById('personal-alarma-error');
+    let visible=false,timer=null,version=0;
+    function ocultar(){version++;visible=false;clearTimeout(timer);valor.textContent='••••••';mostrarAlarma.textContent='Mostrar código';mostrarAlarma.disabled=false;}
+    mostrarAlarma.addEventListener('click',async()=>{
+      if(visible){ocultar();return;}
+      const intento=++version;mostrarAlarma.disabled=true;aviso.textContent='';
+      try{
+        const body=new URLSearchParams({_csrf_token:form.elements._csrf_token.value});
+        const r=await fetch(mostrarAlarma.dataset.url,{method:'POST',credentials:'same-origin',cache:'no-store',body});
+        if(r.redirected||!r.headers.get('content-type')?.includes('application/json'))throw Error('Revisá tu sesión antes de consultar el código.');
+        const data=await r.json();if(!r.ok)throw Error(data.error||'No se pudo consultar el código.');
+        if(intento!==version||document.hidden)return;
+        valor.textContent=data.codigo||'No configurado';visible=true;mostrarAlarma.textContent='Ocultar código';timer=setTimeout(ocultar,30000);
+      }catch(e){if(intento===version)aviso.textContent=e.message;}
+      finally{if(intento===version)mostrarAlarma.disabled=false;}
+    });
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)ocultar();});window.addEventListener('pagehide',ocultar);
+  }
   if(datos.formulario_error)abrir(null,datos.formulario_error);
   const camposFallidos=document.getElementById('personal-accion-error');
   if(camposFallidos){

@@ -1,12 +1,14 @@
 """Administración de la identidad del personal, compartida con Producción."""
-from flask import Blueprint, redirect, render_template, request, session, url_for
+from flask import Blueprint, redirect, render_template, request, session, url_for, jsonify, abort
 from sqlalchemy import or_, func
 from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from services.tenant_context import TenantError, resolver_tenant_usuario
 from services.personal_admin import datos_empleado, guardar_personal, huella_empleado
 from scripts.preparar_personal import preparado, preparar
-from models.personal_administrativo import PersonalDetalle, HorarioPersonal, AusenciaPersonal
+from models.personal_administrativo import PersonalDetalle, HorarioPersonal, AusenciaPersonal, PersonalAcceso
+from services.personal_accesos import estado_accesos, guardar_accesos, leer_codigo_alarma, formulario_publico
+from services.personal_alta_integral import completar_alta
 from services.personal_legajo import datos_detalle, guardar_salario, guardar_horario, guardar_ausencia, version_actual, DIAS
 from services.seguridad_entorno import laboratorio_forzado, entorno_actual
 import os
@@ -30,6 +32,19 @@ def crear_blueprint_personal(*, dependencias):
         session['organizacion_id'] = mem.organizacion_id
         return usuario, mem.organizacion, None
 
+    def usuarios_disponibles(o):
+        return m['UsuarioOrganizacion'].query.filter_by(organizacion_id=o.id).join(m['UsuarioSistema']).order_by(m['UsuarioSistema'].username).all()
+
+    def resumenes(empleados, listo):
+        ids=[e.id for e in empleados]
+        salarios=m['EmpleadoCostoVersion'].query.filter(m['EmpleadoCostoVersion'].empleado_id.in_(ids),m['EmpleadoCostoVersion'].vigente.is_(True),m['EmpleadoCostoVersion'].moneda=='ARS').all() if ids else []
+        sueldos={v.empleado_id:'ARS '+format(Decimal(v.sueldo_base_centavos)/100,'.2f') for v in salarios}
+        horarios={i:[] for i in ids}
+        if listo and ids:
+            for h in HorarioPersonal.query.filter(HorarioPersonal.empleado_id.in_(ids),HorarioPersonal.estado=='vigente').order_by(HorarioPersonal.dia_semana,HorarioPersonal.entrada).all():
+                horarios[h.empleado_id].append(f"{DIAS[h.dia_semana]} {h.entrada.strftime('%H:%M')}–{h.salida.strftime('%H:%M')}"+(' (+1 día)' if h.nocturno else ''))
+        return {i:{'sueldo_resumen':sueldos.get(i,'Sin sueldo cargado'),'horario_resumen':' · '.join(horarios[i]) or 'Sin horario cargado'} for i in ids}
+
     def pintar(o, *, error='', formulario=None):
         unidades = m['UnidadNegocio'].query.filter_by(organizacion_id=o.id).order_by(m['UnidadNegocio'].nombre).all()
         filtro = (request.values.get('buscar') or '').strip()[:120]
@@ -47,9 +62,10 @@ def crear_blueprint_personal(*, dependencias):
         empleados = consulta.order_by(m['EmpleadoProductivo'].nombre, m['EmpleadoProductivo'].id).offset((pagina-1)*25).limit(25).all()
         listo = preparado(db.engine)
         detalles = {d.empleado_id:d for d in db.session.query(PersonalDetalle).filter(PersonalDetalle.empleado_id.in_([e.id for e in empleados])).all()} if listo and empleados else {}
-        filas = [dict(datos_empleado(e), **datos_detalle(detalles.get(e.id)), huella=huella_empleado(e,detalle=detalles.get(e.id),preparado=listo)) for e in empleados]
+        laborales=resumenes(empleados,listo)
+        filas = [dict(datos_empleado(e), **datos_detalle(detalles.get(e.id)), **laborales[e.id], **estado_accesos(e,db.session), huella=huella_empleado(e,detalle=detalles.get(e.id),preparado=listo)) for e in empleados]
         return render_template('admin_personal.html', organizacion=o, empleados=empleados,
-            filas_personal=filas, unidades=unidades, unidad_inicial=session.get('unidad_negocio_id'),
+            filas_personal=filas, resumenes_laborales=laborales, usuarios_personal=usuarios_disponibles(o), unidades=unidades, unidad_inicial=session.get('unidad_negocio_id'),
             buscar=filtro, pagina=pagina, paginas=paginas, total=total,
             preparado=listo, puede_preparar=entorno_actual()=='staging' and laboratorio_forzado(),
             formulario_error=formulario, error=error, ok_feedback=request.args.get('ok', ''))
@@ -62,9 +78,11 @@ def crear_blueprint_personal(*, dependencias):
             return respuesta
         if request.method == 'POST':
             try:
-                if request.form.get('datos_ampliados_presentados') == '1' and not preparado(db.engine):
+                if any(request.form.get(c)=='1' for c in ('datos_ampliados_presentados','accesos_presentados','cargar_sueldo_inicial','cargar_horario_inicial')) and not preparado(db.engine):
                     raise ValueError('Prepará el módulo Personal antes de guardar los datos ampliados.')
                 empleado = guardar_personal(request.form, organizacion_id=o.id, modelos=m, db_session=db.session)
+                completar_alta(empleado,request.form,modelos=m,db_session=db.session,usuario_id=getattr(usuario,'id',None))
+                guardar_accesos(empleado,request.form,organizacion=o,modelos=m,db_session=db.session,creador=usuario)
                 db.session.commit()
                 # El registrador central de auditoría administra su propio commit.
                 dependencias['registrar_auditoria']('Guardó ficha de Personal', entidad='empleado',
@@ -76,7 +94,7 @@ def crear_blueprint_personal(*, dependencias):
             except (ValueError, IntegrityError) as error:
                 db.session.rollback()
                 mensaje = 'El legajo, DNI o CUIL ya existe en la organización. Revisá los empleados cargados.' if isinstance(error, IntegrityError) else str(error)
-                return pintar(o, error=mensaje, formulario=request.form.to_dict()), 400
+                return pintar(o, error=mensaje, formulario=formulario_publico(request.form)), 400
         return pintar(o)
 
     @bp.route('/admin/personal/preparar', methods=['POST'])
@@ -180,15 +198,32 @@ def crear_blueprint_personal(*, dependencias):
         unidad=e.unidad_negocio or next((u for u in unidades if u.activa),None)
         distribuciones=distribuciones_vigentes([e],Modelo=m['EmpleadoDistribucionVersion']) if seccion=='sueldos' else {}
         config=configuracion_vigente(o.id,unidad.id,Modelo=m['ConfiguracionCostoLaboralVersion']) if unidad and seccion=='sueldos' else None
-        fila=dict(datos_empleado(e),**datos_detalle(detalle),huella=huella_empleado(e,detalle=detalle,preparado=listo))
+        laboral=resumenes([e],listo)[e.id]
+        acceso_actual=estado_accesos(e,db.session)
+        fila=dict(datos_empleado(e),**datos_detalle(detalle),**laboral,**acceso_actual,huella=huella_empleado(e,detalle=detalle,preparado=listo))
         return render_template('admin_personal_ficha.html',empleado=e,organizacion=o,unidades=unidades,
             seccion=seccion,detalle=datos_detalle(detalle),vigente=version_actual(e) if seccion=='sueldos' else None,
             empleados=[e],unidad_activa=unidad,distribuciones_laborales=distribuciones,configuracion_costo_laboral=config,
             money=lambda centavos: format(Decimal(centavos)/100,'.2f'),
             horarios=HorarioPersonal.query.filter_by(empleado_id=e.id).order_by(HorarioPersonal.dia_semana,HorarioPersonal.entrada).all() if listo and seccion=='horarios' else [],
             ausencias=AusenciaPersonal.query.join(m['NovedadLaboralPreparatoria']).filter(AusenciaPersonal.empleado_id==e.id,m['NovedadLaboralPreparatoria'].organizacion_id==o.id).order_by(m['NovedadLaboralPreparatoria'].fecha_desde.desc()).all() if listo and seccion=='vacaciones' else [],
-            filas_personal=[fila],unidad_inicial=e.unidad_negocio_id,buscar='',pagina=1,
+            filas_personal=[fila],usuarios_personal=usuarios_disponibles(o),laboral=laboral,acceso_actual=acceso_actual,unidad_inicial=e.unidad_negocio_id,buscar='',pagina=1,
             formulario_error=None,formulario_accion=request.form if error else {},error=error,
             preparado=listo,dias_semana=DIAS,ok_feedback=request.args.get('ok',''),**extras),status
+
+    @bp.route('/admin/personal/<int:empleado_id>/alarma',methods=['POST'])
+    @dependencias['login_required']
+    def mostrar_alarma(empleado_id):
+        _,o,respuesta=acceso()
+        if respuesta is not None:return jsonify(error='Acceso no autorizado.'),403
+        e=empleado_de_org(o,empleado_id)
+        if e is None:abort(404)
+        if not preparado(db.engine):return jsonify(error='Prepará Personal antes de consultar el código.'),400
+        try:
+            respuesta=jsonify(codigo=leer_codigo_alarma(e,db.session))
+        except ValueError as error:
+            respuesta=jsonify(error=str(error));respuesta.status_code=400
+        respuesta.headers['Cache-Control']='no-store, private'
+        return respuesta
 
     return bp

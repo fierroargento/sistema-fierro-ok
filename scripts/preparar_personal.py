@@ -12,7 +12,7 @@ def preparar(engine):
     from models.fuentes_costo_productivo import EmpleadoProductivo
     with engine.begin() as conexion:
         inspector = inspect(conexion)
-        if not all(inspector.has_table(t) for t in ('empleado_productivo','novedad_laboral_preparatoria')):
+        if not all(inspector.has_table(t) for t in ('empleado_productivo','novedad_laboral_preparatoria','usuario_sistema','usuario_organizacion')):
             raise ValueError('Falta el maestro de empleados o de novedades laborales. No se preparó Personal.')
         for tabla in TABLAS_PERSONAL:
             if inspector.has_table(tabla.name) and not set(tabla.c.keys()) <= {c['name'] for c in inspector.get_columns(tabla.name)}:

@@ -39,9 +39,10 @@ def _texto(formulario, campo, maximo):
     ).strip()[:maximo]
 
 
-def _guardar(db_session):
+def _guardar(db_session, *, commit=True):
     try:
-        db_session.commit()
+        if commit: db_session.commit()
+        else: db_session.flush()
     except Exception:
         db_session.rollback()
         raise
@@ -98,6 +99,7 @@ def crear_usuario_tenant(
     UsuarioOrganizacion,
     db_session,
     creador,
+    commit=True,
 ):
     username = _texto(
         formulario,
@@ -166,7 +168,7 @@ def crear_usuario_tenant(
         predeterminada=True,
     )
     db_session.add(membresia)
-    _guardar(db_session)
+    _guardar(db_session, commit=commit)
 
     return (
         membresia,
@@ -181,6 +183,7 @@ def editar_membresia_tenant(
     organizacion,
     UsuarioOrganizacion,
     db_session,
+    commit=True,
 ):
     membresia = _membresia_tenant(
         membresia_id,
@@ -244,7 +247,7 @@ def editar_membresia_tenant(
             )
             usuario.session_epoch = int(getattr(usuario, "session_epoch", 0) or 0) + 1
 
-    _guardar(db_session)
+    _guardar(db_session, commit=commit)
 
     return (
         membresia,

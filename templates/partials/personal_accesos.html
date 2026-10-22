@@ -1,0 +1,10 @@
+<section class="personal-accesos"><h3>Alarma y usuario de Sistema Fierro</h3>
+<input type="hidden" name="accesos_presentados" value="1"><input type="hidden" name="revision_accesos" value="0">
+<p class="personal-muted" id="personal-acceso-estado">Sin usuario vinculado ni código de alarma.</p>
+<div class="personal-grid"><label>Código de alarma · activación/desactivación (opcional)<input type="password" name="codigo_alarma" maxlength="32" autocomplete="new-password" placeholder="Vacío: conservar el código actual"></label><label class="personal-check"><input type="checkbox" name="quitar_codigo_alarma" value="1">Quitar el código de alarma guardado</label>
+<label>Usuario de Sistema Fierro<select name="acceso_accion" id="personal-acceso-accion"><option value="conservar">Conservar la situación actual</option><option value="crear">Crear usuario para este empleado</option><option value="vincular">Vincular un usuario existente</option></select></label>
+<label data-personal-cuenta="crear" hidden>Nombre de usuario<input name="username" maxlength="80" autocomplete="off" disabled></label>
+<label data-personal-cuenta="vincular" hidden>Cuenta de esta organización<select name="usuario_organizacion_id" disabled><option value="">Seleccionar usuario</option>{% for mem in usuarios_personal %}<option value="{{ mem.id }}">{{ mem.usuario.username }} · {{ mem.usuario.nombre }}{% if not mem.activa or not mem.usuario.activo %} (sin acceso habilitado){% endif %}</option>{% endfor %}</select></label>
+<label>Contraseña nueva · ingreso a Sistema Fierro<input type="password" name="password" maxlength="128" autocomplete="new-password" placeholder="Vacío: conservar la contraseña actual"></label><label>Repetir contraseña nueva<input type="password" name="password_confirm" maxlength="128" autocomplete="new-password"></label></div>
+<p class="personal-muted">La contraseña debe tener al menos 12 caracteres y combinar letras y números. Se puede establecer o cambiar; no se muestra la contraseña guardada. Las cuentas nuevas quedan preparadas sin habilitar el ingreso hasta definir permisos.</p>
+</section>
