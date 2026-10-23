@@ -21,7 +21,7 @@ def acceso_form(e=None,**kw):
 def test_alta_con_sueldo_horario_alarma_y_cuenta_preparada(personal):
     c,org,_,u,*_=personal
     f=MultiDict(acceso_form(unidad_negocio_id=str(u.id),cargar_sueldo_inicial='1',
-        inicial_sueldo_base='1000',inicial_adicionales='0',inicial_otros_costos='0',inicial_porcentaje_cargas='10',inicial_horas_mensuales='160',inicial_horas_productivas='120',inicial_porcentaje_productivo='100',inicial_ubicacion_trabajo='Taller',inicial_tipo_funcion='directa',
+        inicial_sueldo_base='1000',inicial_adicionales='0',inicial_otros_costos='0',inicial_porcentaje_cargas='10',inicial_horas_mensuales='160',inicial_horas_productivas='60',inicial_porcentaje_productivo='100',inicial_ubicacion_trabajo='Taller',inicial_tipo_funcion='directa',
         cargar_horario_inicial='1',inicial_dias=['0','1'],inicial_entrada='08:00',inicial_salida='16:00',inicial_nocturno='0',inicial_pausa_minutos='30',inicial_desde='2026-10-01'))
     r=c.post('/admin/personal',data=f);assert r.status_code==302,r.text
     e=EmpleadoProductivo.query.one();a=PersonalAcceso.query.one();v=EmpleadoCostoVersion.query.one();user=UsuarioSistema.query.one()
@@ -45,7 +45,7 @@ def test_datos_invalidos_revierten_toda_el_alta_y_no_devuelven_secretos(personal
     r=c.post('/admin/personal',data=f)
     assert r.status_code==400 and EmpleadoProductivo.query.count()==0 and UsuarioSistema.query.count()==0
     assert CLAVE not in r.text and ALARMA not in r.text
-    f=acceso_form(cargar_sueldo_inicial='1',inicial_sueldo_base='1000',inicial_horas_mensuales='160',inicial_horas_productivas='120',inicial_porcentaje_productivo='100',inicial_ubicacion_trabajo='Taller',inicial_tipo_funcion='directa',password_confirm='distinta')
+    f=acceso_form(cargar_sueldo_inicial='1',inicial_sueldo_base='1000',inicial_horas_mensuales='160',inicial_horas_productivas='60',inicial_porcentaje_productivo='100',inicial_ubicacion_trabajo='Taller',inicial_tipo_funcion='directa',password_confirm='distinta')
     r=c.post('/admin/personal',data=f)
     assert r.status_code==400 and EmpleadoProductivo.query.count()==0 and EmpleadoCostoVersion.query.count()==0
     assert UsuarioSistema.query.count()==0 and CLAVE not in r.text and ALARMA not in r.text

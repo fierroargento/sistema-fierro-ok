@@ -7,6 +7,21 @@
   const vista = document.getElementById('personal-vista'), error = document.getElementById('personal-form-error');
   const scrollKey = 'personal-scroll-' + document.querySelector('.personal-page').dataset.organizacion;
   let origen = null, pendiente = null, enviando = false;
+  function actualizarHoras() {
+    const auto=form.elements.cargar_horario_inicial.checked;
+    const mensual=form.elements.inicial_horas_mensuales;
+    mensual.closest('label').hidden=auto;
+    mensual.disabled=auto||!form.elements.cargar_sueldo_inicial.checked||form.elements.accion.value==='editar';
+    mensual.required=!mensual.disabled;
+    const resumen=form.querySelector('[data-personal-horas-calculo]');
+    resumen.hidden=!auto;
+    const minutos=v=>{const p=v.split(':').map(Number);return p.length===2?p[0]*60+p[1]:NaN;};
+    const neto=minutos(form.elements.inicial_salida.value)-minutos(form.elements.inicial_entrada.value)+(form.elements.inicial_nocturno.value==='1'?1440:0)-Number(form.elements.inicial_pausa_minutos.value||0);
+    const dias=form.querySelectorAll('[name=inicial_dias]:checked').length;
+    resumen.textContent=dias&&neto>0&&neto<=960?'Horas mensuales automáticas: '+(neto/60*dias*52/12).toFixed(2)+' h. Jornada semanal neta de descansos × 52 ÷ 12 (promedio para costos).':'Completá los días, entrada, salida y descanso para calcular las horas mensuales automáticamente.';
+  }
+  form.addEventListener('input',actualizarHoras);
+  form.addEventListener('change',actualizarHoras);
   function actualizarOpcionales() {
     const edicion=form.elements.accion.value==='editar';
     form.querySelectorAll('[data-personal-opcional]').forEach(check=>{
@@ -15,6 +30,7 @@
       panel.hidden=!habilitado;
       panel.querySelectorAll('input,select,textarea').forEach(c=>{c.disabled=!habilitado;});
     });
+    actualizarHoras();
   }
   function actualizarCuenta() {
     const accion=form.elements.acceso_accion.value;

@@ -1,6 +1,8 @@
 """Datos, sueldos, horarios y ausencias en el mismo legajo de Personal."""
 from datetime import date, datetime, time
-from decimal import Decimal, InvalidOperation
+from zoneinfo import ZoneInfo
+from sqlalchemy import inspect
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import re
 from models.fuentes_costo_productivo import EmpleadoProductivo
 from models.personas import NovedadLaboralPreparatoria
@@ -56,10 +58,50 @@ def version_actual(e):
     return next((v for v in e.versiones_costo if v.vigente and v.moneda=='ARS'),None)
 
 
+def horas_desde_horario(e, db_session, referencia=None):
+    """Promedio mensual de la semana habitual vigente, neta de descansos.
+
+    No representa asistencia ni liquidación. Las vigencias futuras no alteran
+    el costo actual; en un alta futura se usa el primer día del horario.
+    """
+    if not inspect(db_session.connection()).has_table(HorarioPersonal.__tablename__):
+        return None
+    referencia = referencia or datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
+    horarios = db_session.query(HorarioPersonal).filter_by(empleado_id=e.id, estado='vigente').all()
+    activos = [h for h in horarios if h.desde <= referencia and (h.hasta is None or h.hasta >= referencia)]
+    if not activos and not version_actual(e):
+        futuros = [h.desde for h in horarios if h.desde > referencia]
+        if futuros:
+            inicio = min(futuros)
+            activos = [h for h in horarios if h.desde <= inicio and (h.hasta is None or h.hasta >= inicio)]
+    if not activos:
+        return None
+    minutos = sum(h.salida.hour*60+h.salida.minute-h.entrada.hour*60-h.entrada.minute
+                  +(1440 if h.nocturno else 0)-h.pausa_minutos for h in activos)
+    return (Decimal(minutos)*52/12/60).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def actualizar_horas_sueldo(e, *, modelos, db_session, usuario_id):
+    actual = version_actual(e)
+    horas = horas_desde_horario(e, db_session)
+    if actual is None or horas is None or horas == actual.horas_mensuales:
+        return
+    # Mantener la proporción productiva previamente definida, sin tocar el historial.
+    productivas = (horas*actual.horas_productivas/actual.horas_mensuales).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    formulario = {c: str(getattr(actual,c)) for c in ('porcentaje_productivo','ubicacion_trabajo','tipo_funcion')}
+    formulario.update({c: str(Decimal(getattr(actual,c+'_centavos'))/100) for c in ('sueldo_base','adicionales','otros_costos')})
+    formulario.update(version_actual=str(actual.id), porcentaje_cargas='' if actual.usa_porcentaje_general else str(actual.porcentaje_cargas),
+                      horas_productivas=str(max(Decimal('0.01'),productivas)), observacion_sueldo='Horas actualizadas desde el horario laboral habitual.')
+    guardar_salario(e, formulario, modelos=modelos, db_session=db_session, usuario_id=usuario_id)
+
+
 def guardar_salario(e, form, *, modelos, db_session, usuario_id):
     actual=version_actual(e)
     if str(form.get('version_actual') or '') != str(actual.id if actual else ''):
         raise ValueError('El sueldo cambió mientras lo editabas. Recargá el legajo antes de guardar.')
+    automaticas=horas_desde_horario(e,db_session)
+    horas_mes=automaticas if automaticas is not None else form.get('horas_mensuales')
+    horas_prod=form.get('horas_productivas') or horas_mes
     excepcion=str(form.get('porcentaje_cargas') or '').strip()
     general=configuracion_vigente(e.organizacion_id,e.unidad_negocio_id,Modelo=modelos['ConfiguracionCostoLaboralVersion']) if e.unidad_negocio_id else None
     porcentaje=validar_porcentaje(excepcion if excepcion else general.porcentaje_cargas if general else 0)
@@ -70,7 +112,7 @@ def guardar_salario(e, form, *, modelos, db_session, usuario_id):
         adicionales_centavos=importe_a_centavos(form.get('adicionales') or 0),
         otros_costos_centavos=importe_a_centavos(form.get('otros_costos') or 0),
         porcentaje_cargas=porcentaje,usa_porcentaje_general=not bool(excepcion),
-        horas_mensuales=form.get('horas_mensuales'),horas_productivas=form.get('horas_productivas'),
+        horas_mensuales=horas_mes,horas_productivas=horas_prod,
         ubicacion_trabajo=form.get('ubicacion_trabajo'),tipo_funcion=form.get('tipo_funcion'),
         porcentaje_productivo=form.get('porcentaje_productivo'),observacion=observacion,
         creado_por_usuario_id=usuario_id,EmpleadoCostoVersion=modelos['EmpleadoCostoVersion'],

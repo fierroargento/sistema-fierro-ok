@@ -9,7 +9,7 @@ from scripts.preparar_personal import preparado, preparar
 from models.personal_administrativo import PersonalDetalle, HorarioPersonal, AusenciaPersonal, PersonalAcceso
 from services.personal_accesos import estado_accesos, guardar_accesos, leer_codigo_alarma, formulario_publico
 from services.personal_alta_integral import completar_alta
-from services.personal_legajo import datos_detalle, guardar_salario, guardar_horario, guardar_ausencia, version_actual, DIAS
+from services.personal_legajo import datos_detalle, guardar_salario, guardar_horario, guardar_ausencia, version_actual, DIAS, horas_desde_horario, actualizar_horas_sueldo
 from services.seguridad_entorno import laboratorio_forzado, entorno_actual
 import os
 
@@ -176,6 +176,9 @@ def crear_blueprint_personal(*, dependencias):
                     if accion=='crear_turno':crear_turno(request.form,empleado=e,organizacion_id=o.id,unidad_negocio_id=unidad,Turno=m['TurnoLaboralPlanificado'],db_session=db.session,usuario_id=getattr(usuario,'id',None))
                     else:crear_novedad(request.form,empleado=e,organizacion_id=o.id,unidad_negocio_id=unidad,Novedad=m['NovedadLaboralPreparatoria'],db_session=db.session,usuario_id=getattr(usuario,'id',None))
                 else:raise ValueError('Acción de Personal no válida.')
+                if accion in {'crear_horario','cancelar_horario'}:
+                    db.session.flush()
+                    actualizar_horas_sueldo(e,modelos=m,db_session=db.session,usuario_id=getattr(usuario,'id',None))
                 db.session.commit()
                 dependencias['registrar_auditoria']('Actualizó legajo de Personal',entidad='empleado',entidad_id=e.id,detalle=f'Acción: {accion}.')
                 return redirect(url_for('admin_personal.ficha',empleado_id=e.id,seccion=seccion,ok='Información guardada correctamente.'))
@@ -202,6 +205,7 @@ def crear_blueprint_personal(*, dependencias):
         acceso_actual=estado_accesos(e,db.session)
         fila=dict(datos_empleado(e),**datos_detalle(detalle),**laboral,**acceso_actual,huella=huella_empleado(e,detalle=detalle,preparado=listo))
         return render_template('admin_personal_ficha.html',empleado=e,organizacion=o,unidades=unidades,
+            horas_automaticas=horas_desde_horario(e,db.session) if listo else None,
             seccion=seccion,detalle=datos_detalle(detalle),vigente=version_actual(e) if seccion=='sueldos' else None,
             empleados=[e],unidad_activa=unidad,distribuciones_laborales=distribuciones,configuracion_costo_laboral=config,
             money=lambda centavos: format(Decimal(centavos)/100,'.2f'),
