@@ -13115,6 +13115,12 @@ inicializar_base_datos_saas(
 )
 
 
+# Corrección de costos existentes autorizada para UAT: no activa bootstrap ni jobs.
+from services.personal_actualizacion_costos import actualizar_costos_personal_al_iniciar
+
+actualizar_costos_personal_al_iniciar(app, db=db)
+
+
 @app.cli.command("inicializar-base-staging")
 @click.option("--confirmar", required=True)
 def inicializar_base_staging(confirmar):

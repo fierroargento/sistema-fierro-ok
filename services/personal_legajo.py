@@ -81,17 +81,37 @@ def horas_desde_horario(e, db_session, referencia=None):
     return (Decimal(minutos)*52/12/60).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
-def actualizar_horas_sueldo(e, *, modelos, db_session, usuario_id):
+def actualizar_horas_sueldo(e, *, modelos, db_session, usuario_id,
+                            usar_horas_existentes=False, recalcular_dependientes=True):
     actual = version_actual(e)
+    if actual is None:
+        return None
     horas = horas_desde_horario(e, db_session)
-    if actual is None or horas is None or (horas == actual.horas_mensuales and horas == actual.horas_productivas and actual.porcentaje_productivo == 100):
-        return
-    # Toda la jornada neta del legajo se computa para el costo laboral.
-    formulario = {c: str(getattr(actual,c)) for c in ('ubicacion_trabajo','tipo_funcion')}
-    formulario.update({c: str(Decimal(getattr(actual,c+'_centavos'))/100) for c in ('sueldo_base','adicionales','otros_costos')})
-    formulario.update(version_actual=str(actual.id), porcentaje_cargas='' if actual.usa_porcentaje_general else str(actual.porcentaje_cargas),
-                      observacion_sueldo='Horas actualizadas desde el horario laboral habitual; jornada neta completa para costos.')
-    guardar_salario(e, formulario, modelos=modelos, db_session=db_session, usuario_id=usuario_id)
+    if horas is None and usar_horas_existentes:
+        horas = actual.horas_mensuales
+    if horas is None or (horas == actual.horas_mensuales and horas == actual.horas_productivas and actual.porcentaje_productivo == 100):
+        return None
+    # Cambiar sólo las horas/dedicación. Conservar incluso las cargas históricas
+    # registradas aunque hoy el porcentaje general tenga otro valor.
+    version = registrar_costo_empleado(e, moneda='ARS',
+        sueldo_base_centavos=actual.sueldo_base_centavos,
+        cargas_sociales_centavos=actual.cargas_sociales_centavos,
+        porcentaje_cargas=None,
+        usa_porcentaje_general=actual.usa_porcentaje_general,
+        adicionales_centavos=actual.adicionales_centavos,
+        otros_costos_centavos=actual.otros_costos_centavos,
+        horas_mensuales=horas, horas_productivas=horas, porcentaje_productivo=100,
+        ubicacion_trabajo=actual.ubicacion_trabajo, tipo_funcion=actual.tipo_funcion,
+        observacion='Actualización automática: jornada neta completa para costos; importes conservados.',
+        creado_por_usuario_id=usuario_id, EmpleadoCostoVersion=modelos['EmpleadoCostoVersion'],
+        db_session=db_session, commit=False)
+    version.porcentaje_cargas=actual.porcentaje_cargas
+    db_session.flush()
+    db_session.expire(e,['versiones_costo'])
+    if recalcular_dependientes:
+        recalcular_recursos_del_empleado(e,EmpleadoCostoVersion=modelos['EmpleadoCostoVersion'],
+            db_session=db_session,usuario_id=usuario_id,commit=False)
+    return version
 
 
 def guardar_salario(e, form, *, modelos, db_session, usuario_id):
