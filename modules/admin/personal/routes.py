@@ -209,7 +209,7 @@ def crear_blueprint_personal(*, dependencias):
             seccion=seccion,detalle=datos_detalle(detalle),vigente=version_actual(e) if seccion=='sueldos' else None,
             empleados=[e],unidad_activa=unidad,distribuciones_laborales=distribuciones,configuracion_costo_laboral=config,
             money=lambda centavos: format(Decimal(centavos)/100,'.2f'),
-            horarios=HorarioPersonal.query.filter_by(empleado_id=e.id).order_by(HorarioPersonal.dia_semana,HorarioPersonal.entrada).all() if listo and seccion=='horarios' else [],
+            horarios=HorarioPersonal.query.filter_by(empleado_id=e.id,estado='vigente').order_by(HorarioPersonal.dia_semana,HorarioPersonal.entrada).all() if listo and seccion=='horarios' else [],
             ausencias=AusenciaPersonal.query.join(m['NovedadLaboralPreparatoria']).filter(AusenciaPersonal.empleado_id==e.id,m['NovedadLaboralPreparatoria'].organizacion_id==o.id).order_by(m['NovedadLaboralPreparatoria'].fecha_desde.desc()).all() if listo and seccion=='vacaciones' else [],
             filas_personal=[fila],usuarios_personal=usuarios_disponibles(o),laboral=laboral,acceso_actual=acceso_actual,unidad_inicial=e.unidad_negocio_id,buscar='',pagina=1,
             formulario_error=None,formulario_accion=request.form if error else {},error=error,
