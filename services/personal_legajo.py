@@ -84,14 +84,13 @@ def horas_desde_horario(e, db_session, referencia=None):
 def actualizar_horas_sueldo(e, *, modelos, db_session, usuario_id):
     actual = version_actual(e)
     horas = horas_desde_horario(e, db_session)
-    if actual is None or horas is None or horas == actual.horas_mensuales:
+    if actual is None or horas is None or (horas == actual.horas_mensuales and horas == actual.horas_productivas and actual.porcentaje_productivo == 100):
         return
-    # Mantener la proporción productiva previamente definida, sin tocar el historial.
-    productivas = (horas*actual.horas_productivas/actual.horas_mensuales).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-    formulario = {c: str(getattr(actual,c)) for c in ('porcentaje_productivo','ubicacion_trabajo','tipo_funcion')}
+    # Toda la jornada neta del legajo se computa para el costo laboral.
+    formulario = {c: str(getattr(actual,c)) for c in ('ubicacion_trabajo','tipo_funcion')}
     formulario.update({c: str(Decimal(getattr(actual,c+'_centavos'))/100) for c in ('sueldo_base','adicionales','otros_costos')})
     formulario.update(version_actual=str(actual.id), porcentaje_cargas='' if actual.usa_porcentaje_general else str(actual.porcentaje_cargas),
-                      horas_productivas=str(max(Decimal('0.01'),productivas)), observacion_sueldo='Horas actualizadas desde el horario laboral habitual.')
+                      observacion_sueldo='Horas actualizadas desde el horario laboral habitual; jornada neta completa para costos.')
     guardar_salario(e, formulario, modelos=modelos, db_session=db_session, usuario_id=usuario_id)
 
 
@@ -101,7 +100,7 @@ def guardar_salario(e, form, *, modelos, db_session, usuario_id):
         raise ValueError('El sueldo cambió mientras lo editabas. Recargá el legajo antes de guardar.')
     automaticas=horas_desde_horario(e,db_session)
     horas_mes=automaticas if automaticas is not None else form.get('horas_mensuales')
-    horas_prod=form.get('horas_productivas') or horas_mes
+    horas_prod=horas_mes
     excepcion=str(form.get('porcentaje_cargas') or '').strip()
     general=configuracion_vigente(e.organizacion_id,e.unidad_negocio_id,Modelo=modelos['ConfiguracionCostoLaboralVersion']) if e.unidad_negocio_id else None
     porcentaje=validar_porcentaje(excepcion if excepcion else general.porcentaje_cargas if general else 0)
@@ -114,7 +113,7 @@ def guardar_salario(e, form, *, modelos, db_session, usuario_id):
         porcentaje_cargas=porcentaje,usa_porcentaje_general=not bool(excepcion),
         horas_mensuales=horas_mes,horas_productivas=horas_prod,
         ubicacion_trabajo=form.get('ubicacion_trabajo'),tipo_funcion=form.get('tipo_funcion'),
-        porcentaje_productivo=form.get('porcentaje_productivo'),observacion=observacion,
+        porcentaje_productivo=100,observacion=observacion,
         creado_por_usuario_id=usuario_id,EmpleadoCostoVersion=modelos['EmpleadoCostoVersion'],
         db_session=db_session,commit=False)
     # Todas las tarifas dependientes se actualizan en la misma transacción.

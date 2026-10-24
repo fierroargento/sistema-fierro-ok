@@ -30,7 +30,7 @@ def test_alta_calcula_descansos_sin_horas_manuales_y_rechaza_manipulacion(person
     assert [v for v in e.versiones_costo if v.vigente][0].horas_mensuales==Decimal('173.33')
 
 
-def test_cambiar_horario_reversiona_tarifa_conservando_historia_y_proporcion(personal):
+def test_cambiar_horario_reversiona_tarifa_conservando_historia_y_jornada_completa(personal):
     c,*_=personal
     assert c.post('/admin/personal',data=alta(inicial_horas_productivas='100')).status_code==302
     e=EmpleadoProductivo.query.one();anterior=EmpleadoCostoVersion.query.one();tarifa=anterior.costo_hora_productiva_centavos
@@ -38,7 +38,7 @@ def test_cambiar_horario_reversiona_tarifa_conservando_historia_y_proporcion(per
         dia_semana='5',entrada='08:00',salida='12:00',pausa_minutos='0',desde='2020-01-01'))
     assert r.status_code==302,r.text
     db.session.expire_all();vigente=[v for v in e.versiones_costo if v.vigente][0]
-    assert vigente.horas_mensuales==Decimal('190.67') and vigente.horas_productivas==Decimal('110.00')
+    assert vigente.horas_mensuales==Decimal('190.67') and vigente.horas_productivas==vigente.horas_mensuales
     assert not anterior.vigente and anterior.costo_hora_productiva_centavos==tarifa
     assert vigente.costo_hora_productiva_centavos<tarifa
 

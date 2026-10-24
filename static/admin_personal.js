@@ -7,6 +7,38 @@
   const vista = document.getElementById('personal-vista'), error = document.getElementById('personal-form-error');
   const scrollKey = 'personal-scroll-' + document.querySelector('.personal-page').dataset.organizacion;
   let origen = null, pendiente = null, enviando = false;
+  function tramosActuales() {
+    return Array.from(form.querySelectorAll('.personal-tramo')).map(fila=>{
+      const tramo={dia_semana:fila.closest('[data-personal-dia]').dataset.personalDia};
+      fila.querySelectorAll('[data-tramo-campo]').forEach(c=>{tramo[c.dataset.tramoCampo]=c.value;});
+      return tramo;
+    });
+  }
+  function agregarTramo(dia, valores={}) {
+    const seccion=form.querySelector('[data-personal-dia="'+dia+'"]');
+    if(!seccion||form.querySelectorAll('.personal-tramo').length>=42)return;
+    const fila=document.getElementById('personal-tramo-template').content.firstElementChild.cloneNode(true);
+    fila.querySelectorAll('[data-tramo-campo]').forEach(c=>{
+      if(c.dataset.tramoCampo in valores)c.value=valores[c.dataset.tramoCampo];
+      c.disabled=!form.elements.cargar_horario_inicial.checked;
+    });
+    seccion.querySelector('[data-personal-tramos]').append(fila);
+    actualizarHoras();
+    return fila;
+  }
+  form.addEventListener('click',e=>{
+    const agregar=e.target.closest('[data-personal-agregar-tramo]');
+    if(agregar){const fila=agregarTramo(agregar.dataset.personalAgregarTramo);fila?.querySelector('input').focus();}
+    const quitar=e.target.closest('[data-personal-quitar-tramo]');
+    if(quitar){const dia=quitar.closest('[data-personal-dia]');quitar.closest('.personal-tramo').remove();actualizarHoras();dia.querySelector('[data-personal-agregar-tramo]').focus({preventScroll:true});}
+  });
+  function restaurarTramos(valores) {
+    form.querySelectorAll('[data-personal-tramos]').forEach(n=>n.replaceChildren());
+    let tramos=[];
+    try{tramos=JSON.parse(valores.inicial_tramos||'[]');}catch(_){}
+    if(Array.isArray(tramos))tramos.slice(0,42).forEach(t=>{if(t&&typeof t==='object'&&/^[0-6]$/.test(String(t.dia_semana)))agregarTramo(t.dia_semana,t);});
+    actualizarHoras();
+  }
   function actualizarHoras() {
     const auto=form.elements.cargar_horario_inicial.checked;
     const mensual=form.elements.inicial_horas_mensuales;
@@ -16,9 +48,20 @@
     const resumen=form.querySelector('[data-personal-horas-calculo]');
     resumen.hidden=!auto;
     const minutos=v=>{const p=v.split(':').map(Number);return p.length===2?p[0]*60+p[1]:NaN;};
-    const neto=minutos(form.elements.inicial_salida.value)-minutos(form.elements.inicial_entrada.value)+(form.elements.inicial_nocturno.value==='1'?1440:0)-Number(form.elements.inicial_pausa_minutos.value||0);
-    const dias=form.querySelectorAll('[name=inicial_dias]:checked').length;
-    resumen.textContent=dias&&neto>0&&neto<=960?'Horas mensuales automáticas: '+(neto/60*dias*52/12).toFixed(2)+' h. Jornada semanal neta de descansos × 52 ÷ 12 (promedio para costos).':'Completá los días, entrada, salida y descanso para calcular las horas mensuales automáticamente.';
+    const tramos=tramosActuales();
+    form.elements.inicial_tramos.value=JSON.stringify(tramos);
+    let total=0,valido=tramos.length>0;
+    for(const t of tramos){
+      const duracion=minutos(t.salida)-minutos(t.entrada)+(t.nocturno==='1'?1440:0);
+      const pausa=Number(t.pausa_minutos),neto=duracion-pausa;
+      if(!Number.isFinite(neto)||duracion<=0||duracion>960||pausa<0||neto<=0)valido=false;
+      else total+=neto;
+    }
+    form.querySelectorAll('[data-personal-dia]').forEach(dia=>{
+      dia.querySelector('[data-personal-dia-libre]').hidden=!!dia.querySelector('.personal-tramo');
+      dia.querySelector('[data-personal-agregar-tramo]').disabled=tramos.length>=42;
+    });
+    resumen.textContent=valido?'Horas mensuales automáticas: '+(total/60*52/12).toFixed(2)+' h. Suma de tramos semanales netos de descansos × 52 ÷ 12 (promedio para costos).':'Agregá y completá los tramos de cada día para calcular las horas mensuales automáticamente.';
   }
   form.addEventListener('input',actualizarHoras);
   form.addEventListener('change',actualizarHoras);
@@ -68,6 +111,7 @@
       if(c.type==='checkbox')c.checked=(Array.isArray(valores[c.name])?valores[c.name]:[valores[c.name]]).includes(c.value);
       else c.value=valores[c.name];
     }
+    restaurarTramos(valores);
     actualizarOpcionales();
     document.getElementById('personal-sueldo-actual').textContent='Sueldo: '+(valores.sueldo_resumen||'Sin sueldo cargado');
     document.getElementById('personal-horario-actual').textContent='Horario laboral: '+(valores.horario_resumen||'Sin horario cargado');

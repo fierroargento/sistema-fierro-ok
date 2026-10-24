@@ -45,3 +45,11 @@
 .personal-page .personal-dias {display:flex;gap:10px;flex-wrap:wrap}
 .personal-page .personal-alta-laboral,.personal-page .personal-accesos {border-top:1px solid #e2e8f0;margin-top:22px;padding-top:8px}
 .personal-page .personal-accesos .personal-muted {font-size:13px}
+
+.personal-page .personal-semana {display:grid;gap:12px;margin-top:16px}
+.personal-page .personal-dia {border:1px solid #dbe4ec;border-radius:10px;padding:12px;background:#f8fafc}
+.personal-page .personal-dia:nth-child(even) {background:#fff}
+.personal-page .personal-dia h4 {margin:0;margin-right:auto}
+.personal-page .personal-dia [data-personal-dia-libre] {margin:8px 0 0;font-size:13px}
+.personal-page .personal-tramo {padding-top:12px;margin-top:12px;border-top:1px solid #dbe4ec}
+.personal-page .personal-tramo .personal-actions {justify-content:flex-end;margin-top:8px}
