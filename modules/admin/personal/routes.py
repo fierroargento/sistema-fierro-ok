@@ -215,6 +215,37 @@ def crear_blueprint_personal(*, dependencias):
             formulario_error=None,formulario_accion=request.form if error else {},error=error,
             preparado=listo,dias_semana=DIAS,ok_feedback=request.args.get('ok',''),**extras),status
 
+    @bp.route('/admin/personal/<int:empleado_id>/horarios',methods=['GET','POST'])
+    @dependencias['login_required']
+    def horarios_semana(empleado_id):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from services.personal_horarios_semana import filas_semana, huella_semana, guardar_semana, leer_semana
+        usuario,o,respuesta=acceso()
+        if respuesta is not None:return respuesta
+        e=empleado_de_org(o,empleado_id,request.method=='POST')
+        if e is None:abort(404)
+        if not preparado(db.engine):
+            return redirect(url_for('admin_personal.ficha',empleado_id=e.id,seccion='horarios',error='Prepará Personal desde el listado.'))
+        editar=request.args.get('modo')=='editar'
+        error='';status=200;fallidas=None
+        if request.method=='POST':
+            if not editar:abort(405)
+            try:
+                guardar_semana(e,request.form,modelos=m,db_session=db.session,usuario_id=getattr(usuario,'id',None))
+                db.session.commit()
+                dependencias['registrar_auditoria']('Actualizó semana laboral',entidad='empleado',entidad_id=e.id,detalle='Horarios semanales guardados en conjunto.')
+                return redirect(url_for('admin_personal.ficha',empleado_id=e.id,seccion='horarios',ok='Horario semanal guardado.'))
+            except (ValueError,IntegrityError) as exc:
+                db.session.rollback();error=str(exc) if isinstance(exc,ValueError) else 'Los horarios cambiaron. Recargá antes de guardar.';status=400
+                try:fallidas=leer_semana(request.form.get('semana'))
+                except ValueError:pass
+        filas=filas_semana(e,db.session)
+        return render_template('admin_personal_horarios.html',empleado=e,organizacion=o,editar=editar,
+            filas=fallidas if fallidas is not None else filas,error=error,dias_semana=DIAS,
+            huella=request.form.get('huella','') if error else huella_semana(e,filas),
+            hoy=datetime.now(ZoneInfo('America/Argentina/Buenos_Aires')).date().isoformat()),status
+
     @bp.route('/admin/personal/<int:empleado_id>/alarma',methods=['POST'])
     @dependencias['login_required']
     def mostrar_alarma(empleado_id):

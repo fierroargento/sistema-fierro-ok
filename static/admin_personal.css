@@ -53,3 +53,10 @@
 .personal-page .personal-dia [data-personal-dia-libre] {margin:8px 0 0;font-size:13px}
 .personal-page .personal-tramo {padding-top:12px;margin-top:12px;border-top:1px solid #dbe4ec}
 .personal-page .personal-tramo .personal-actions {justify-content:flex-end;margin-top:8px}
+.personal-page .personal-semana-guardar {justify-content:flex-end;margin-top:20px}
+.personal-page .personal-tramo details {margin:12px 0}
+.personal-page .personal-tramo summary {cursor:pointer;color:#64748b;margin-bottom:8px}
+
+.personal-page #semana-form .personal-dia h3 {font-size:16px;margin:0}
+.personal-page #semana-form .personal-tramo {margin-top:8px;padding-top:8px}
+.personal-page #semana-form .personal-dia > button {margin-top:10px}
