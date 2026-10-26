@@ -1953,3 +1953,9 @@ UAT e importación:
 - CSS acotado a estas cabeceras, con distribución flexible y versión actualizada para refrescar caché. No cambia formularios, activación, permisos, conexiones ni datos.
 - Aclaración de uso: la creación desactivada es el comportamiento actual. Para seleccionar una unidad en áreas o asignaciones debe activarse dentro de staging. cambiar_estado_unidad sólo modifica su bandera interna y no conecta canales ni producción.
 - Verificación: 13 pruebas de estructura aprobadas; una prueba preexistente de estilos de canales falla porque espera channel-status, ya ausente en HEAD antes de este cambio (fuera de estas cabeceras). DOM de las dos cabeceras con acciones_iconos.js real confirma que nombre/código/estado no se ocultan. git diff --check correcto. Pendiente deploy manual y validación visual en staging.
+
+### 2026-10-26 — Menú Empresa → Estructura comercial
+
+- Movido el acceso lateral Estructura dentro del grupo Empresa, con el nombre Estructura comercial, según indicación de Martín. Se conserva el endpoint y la visibilidad de administrador.
+- Empresa se abre y el enlace se marca activo cuando se navega en el módulo de estructura. No cambia el contenido de las pantallas ni su configuración, datos o integraciones.
+- Verificación de render Flask: acceso correcto, grupo abierto/enlace activo dentro del módulo y cerrado desde Personal; sin enlace raíz Estructura duplicado. git diff --check correcto. Pendiente deploy manual en staging.
