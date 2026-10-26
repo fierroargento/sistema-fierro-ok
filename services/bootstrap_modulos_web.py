@@ -367,6 +367,7 @@ def registrar_modulos_web(
                     for nombre in (
                         "ModuloOrganizacion",
                         "EntidadFiscal",
+                        "SucursalOperativa",
                         "ConfiguracionFiscal",
                         "PuntoVentaFiscal",
                         "TipoComprobanteFiscal",

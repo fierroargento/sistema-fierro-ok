@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Empresa · Datos fiscales{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static',filename='admin_comercial.css') }}">
+<link rel="stylesheet" href="{{ url_for('static',filename='admin_facturacion.css') }}">
+<script defer src="{{ url_for('static',filename='admin_facturacion.js') }}?v=20261026-sucursales"></script>
+{% endblock %}
+{% block content %}
+<main class="comercial-page fiscal-page">
+<header class="comercial-header"><div><h1>Datos fiscales</h1><p>Uno o varios CUIT por sucursal, independientes de las unidades de negocio.</p></div></header>
+{% if error %}<p class="comercial-message comercial-message-error" role="alert">{{ error }}</p>{% endif %}
+{% if ok_feedback %}<p class="comercial-message comercial-message-ok">{{ ok_feedback }}</p>{% endif %}
+<nav class="fiscal-actions"><a href="{{ url_for('admin_estructura.panel') }}#entidades-fiscales">Razones sociales y CUIT</a><a href="{{ url_for('admin_facturacion.panel') }}">Configurar puntos de venta</a></nav>
+<p>Estas asignaciones preparan la facturación. Guardar no activa emisión ni conexiones externas.</p>
+{% if not preparado %}<p role="status">Las asignaciones por sucursal requieren preparar la base de datos. Los datos fiscales existentes se conservan.</p>{% else %}
+{% for sucursal in sucursales %}
+<section class="comercial-section" id="sucursal-{{ sucursal.id }}">
+<h2>{{ sucursal.nombre }} <small>{{ 'Activa' if sucursal.activa else 'Desactivada' }}</small></h2>
+{% set asignados = vinculos|selectattr('sucursal_id','equalto',sucursal.id)|list %}
+{% if asignados %}<p>{% for a in asignados %}{% for p in puntos if p.id == a.punto_venta_fiscal_id %}{{ p.entidad_fiscal.razon_social }} · CUIT {{ p.entidad_fiscal.cuit or 'pendiente' }} · PV {{ '%05d'|format(p.numero) }}{{ ' (predeterminado)' if a.predeterminado else '' }}{{ ' / ' if not loop.last else '' }}{% endfor %}{% endfor %}</p>{% else %}<p>Sin CUIT asignados.</p>{% endif %}
+<details class="fiscal-editor"><summary>⚙ Gestionar CUIT</summary>
+<form method="post" class="comercial-form">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}">
+<input type="hidden" name="sucursal_id" value="{{ sucursal.id }}"><input type="hidden" name="huella" value="{{ huellas[sucursal.id] }}">
+<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Asignar</th><th>Razón social / CUIT</th><th>Punto de venta</th><th>Predeterminado</th></tr></thead><tbody>
+{% for punto in puntos %}{% set asignado = asignados|selectattr('punto_venta_fiscal_id','equalto',punto.id)|first %}
+<tr><td><input aria-label="Asignar {{ punto.entidad_fiscal.razon_social }} PV {{ punto.numero }}" type="checkbox" name="punto_id" value="{{ punto.id }}"{% if asignado %} checked{% endif %}></td><td>{{ punto.entidad_fiscal.razon_social }}<br><small>{{ punto.entidad_fiscal.cuit or 'CUIT pendiente' }}</small></td><td>{{ '%05d'|format(punto.numero) }} · {{ punto.nombre }}</td><td><input aria-label="Predeterminado {{ punto.entidad_fiscal.razon_social }} PV {{ punto.numero }}" type="radio" name="predeterminado" value="{{ punto.id }}"{% if asignado and asignado.predeterminado %} checked{% endif %}></td></tr>
+{% else %}<tr><td colspan="4">Primero cargá un CUIT y su punto de venta.</td></tr>{% endfor %}
+</tbody></table></div>
+<p>Seleccioná un punto de venta por CUIT. Podés usar el mismo CUIT en varias sucursales.</p>
+<button type="submit">Guardar</button><button type="button" data-fiscal-cancel>Cancelar</button>
+</form></details></section>
+{% else %}<p>Cargá las sucursales en <a href="{{ url_for('admin_estructura.panel') }}">Estructura comercial</a>.</p>{% endfor %}
+{% endif %}</main>
+{% endblock %}

@@ -384,6 +384,7 @@ from models.organizacion import Organizacion
 from models.unidad_negocio import UnidadNegocio
 from models.sucursal_operativa import SucursalOperativa
 from models.entidad_fiscal import EntidadFiscal
+from models.sucursal_fiscal import SucursalFiscal, ContextoFiscalBorrador
 from models.catalogo import Catalogo
 from models.catalogo_producto import CatalogoProducto
 from models.costo_producto_version import CostoProductoVersion

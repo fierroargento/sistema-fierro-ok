@@ -67,7 +67,8 @@
             <details class="menu-group"{% if empresa_abierta %} open{% endif %}>
                 <summary>Empresa</summary>
                 <div class="menu-children">
-                    <a href="{{ url_for('admin_estructura.panel') }}"{% if empresa_abierta %} aria-current="page"{% endif %}>Estructura comercial</a>
+                    <a href="{{ url_for('admin_estructura.panel') }}"{% if request.endpoint == 'admin_estructura.panel' %} aria-current="page"{% endif %}>Estructura comercial</a>
+                    <a href="{{ url_for('admin_estructura.datos_fiscales') }}"{% if request.endpoint == 'admin_estructura.datos_fiscales' %} aria-current="page"{% endif %}>Datos fiscales</a>
                 </div>
             </details>
             <a href="{{ url_for('admin_comercial.panel') }}">Comercial</a>

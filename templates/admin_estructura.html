@@ -298,7 +298,7 @@
         <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
         {% endif %}
 
-        <h3>Tenant activo</h3>
+        <h3>Empresa seleccionada</h3>
         <details class="estructura-editor"><summary class="estructura-identidad"><span><strong>{{ organizacion.nombre }}</strong><small>{{ organizacion.slug }}</small></span>{{ mostrar_estado("activa" if organizacion.activa else "desactivada") }}<span class="estructura-gestionar"><span aria-hidden="true">⚙</span> Gestionar</span></summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
               style="display:flex;gap:8px;flex-wrap:wrap;">
             <input type="hidden" name="accion" value="editar_organizacion">
@@ -453,7 +453,7 @@
     </div>
 
     <div class="card" style="margin-top:16px;">
-        <h2>Entidades fiscales</h2>
+        <h2 id="entidades-fiscales">Entidades fiscales</h2>
 
         <details class="estructura-editor"><summary>Crear entidad fiscal</summary><form method="post"
               action="{{ url_for('admin_estructura.guardar') }}"

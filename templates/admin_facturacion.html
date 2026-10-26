@@ -3,7 +3,7 @@
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css') }}?v=20261008-fiscal">
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_facturacion.css') }}?v=20261008-fiscal">
-<script defer src="{{ url_for('static', filename='admin_facturacion.js') }}?v=20261008-fiscal"></script>
+<script defer src="{{ url_for('static', filename='admin_facturacion.js') }}?v=20261026-sucursales"></script>
 {% endblock %}
 {% block content %}
 <main class="comercial-page fiscal-page">
@@ -43,6 +43,12 @@
               action="{{ url_for('admin_facturacion.guardar') }}">
             <input type="hidden" name="accion" value="crear_configuracion">
 
+            {% if sucursales_fiscales_preparadas %}
+            <script type="application/json" id="asignaciones-fiscales">{{ asignaciones_fiscales|tojson }}</script>
+            <label>Sucursal<select required name="sucursal_id"><option value="">Elegí sucursal</option>
+                {% for sucursal in sucursales_fiscales %}<option value="{{ sucursal.id }}">{{ sucursal.nombre }}</option>{% endfor %}
+            </select></label>
+            {% endif %}
             <label>Entidad fiscal<select required name="entidad_fiscal_id">
                 <option value="">Entidad fiscal</option>
                 {% for entidad in entidades_fiscales %}
@@ -208,7 +214,7 @@
             <label>Punto de venta<select required name="punto_venta_fiscal_id">
                 <option value="">Punto de venta</option>
                 {% for punto in puntos_venta %}
-                <option value="{{ punto.id }}">
+                <option value="{{ punto.id }}" data-entidad="{{ punto.entidad_fiscal_id }}">
                     {{ punto.entidad_fiscal.razon_social }}
                     / {{ "%05d"|format(punto.numero) }}
                 </option>
@@ -291,7 +297,7 @@
             <label>Punto de venta<select required name="punto_venta_fiscal_id">
                 <option value="">Punto de venta</option>
                 {% for punto in puntos_venta %}
-                <option value="{{ punto.id }}">
+                <option value="{{ punto.id }}" data-entidad="{{ punto.entidad_fiscal_id }}">
                     {{ punto.entidad_fiscal.razon_social }}
                     / {{ "%05d"|format(punto.numero) }}
                 </option>
@@ -301,7 +307,7 @@
             <label>Tipo de comprobante<select required name="tipo_comprobante_fiscal_id">
                 <option value="">Tipo de comprobante</option>
                 {% for tipo in tipos_comprobante %}
-                <option value="{{ tipo.id }}">
+                <option value="{{ tipo.id }}" data-punto="{{ tipo.punto_venta_fiscal_id }}">
                     {{ tipo.nombre }} {{ tipo.letra }}
                 </option>
                 {% endfor %}
@@ -350,8 +356,10 @@
                     <tr>
                         <td>#{{ borrador.id }}</td>
                         <td>
-                            {{ borrador.entidad_fiscal.razon_social }} /
-                            {{ "%05d"|format(borrador.punto_venta.numero) }}
+                            {% set contexto = contextos_fiscales.get(borrador.id) if contextos_fiscales else none %}
+                            {% if contexto %}{{ contexto.razon_social }} / {{ "%05d"|format(contexto.punto_venta_numero) }}
+                            <br><small>{{ contexto.sucursal_nombre }} · CUIT {{ contexto.cuit or 'pendiente' }}</small>
+                            {% else %}{{ borrador.entidad_fiscal.razon_social }} / {{ "%05d"|format(borrador.punto_venta.numero) }}{% endif %}
                         </td>
                         <td>{{ borrador.receptor_nombre }}</td>
                         <td>{{ borrador.estado }}</td>

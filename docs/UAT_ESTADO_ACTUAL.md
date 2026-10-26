@@ -1959,3 +1959,16 @@ UAT e importación:
 - Movido el acceso lateral Estructura dentro del grupo Empresa, con el nombre Estructura comercial, según indicación de Martín. Se conserva el endpoint y la visibilidad de administrador.
 - Empresa se abre y el enlace se marca activo cuando se navega en el módulo de estructura. No cambia el contenido de las pantallas ni su configuración, datos o integraciones.
 - Verificación de render Flask: acceso correcto, grupo abierto/enlace activo dentro del módulo y cerrado desde Personal; sin enlace raíz Estructura duplicado. git diff --check correcto. Pendiente deploy manual en staging.
+
+## 2026-10-26 — Empresa: CUIT por sucursal (preparatorio)
+
+- Empresa / Datos fiscales centraliza asignaciones: una sucursal admite varios CUIT; el mismo CUIT puede participar en varias sucursales. Se reutilizan EntidadFiscal, ConfiguracionFiscal y PuntoVentaFiscal. Las unidades comerciales siguen independientes.
+- Cada CUIT asignado tiene un punto de venta para esa sucursal; una selección predeterminada por sucursal. Guardado integral con bloqueo de sucursal y huella de concurrencia. Sin asignaciones inferidas ni cambios sobre datos reales cargados.
+- Alta manual de borrador: al preparar las tablas, exige sucursal y valida CUIT/PV asignados. Selección inicial del predeterminado, opción de otro CUIT asignado y filtros de punto/tipo. Captura inmutable de sucursal, razón social, CUIT, IVA, domicilio y número PV para esos borradores nuevos. Reasignaciones posteriores no modifican su emisor ni contexto.
+- Historial anterior y lotes importados se conservan sin atribuirles sucursal automáticamente; la importación offline mantiene su circuito existente. No hay emisión ni integración ARCA.
+- Cancelar resetea/cierra sin POST. Guardado vuelve a la sucursal por ancla. Acceso solo admin del tenant resuelto; rechazo de sucursales/puntos de otras empresas. La leyenda visible «Tenant activo» pasa a «Empresa seleccionada».
+- Preparación **explícita después del deploy en staging**, desde Shell de Render, directorio del proyecto:
+  `python -m scripts.preparar_sucursales_fiscales --staging`
+  Agrega únicamente sucursal_fiscal y contexto_fiscal_borrador. Comando idempotente, verifica laboratorio desconectado, rama y servicio staging si Render los informa. No importa app.py, no inicia jobs, no activa bootstrap ni conexiones. Antes de esa preparación la nueva página informa el pendiente y la facturación conserva su comportamiento anterior.
+- UAT: cargar CUIT en Estructura comercial y sus puntos en Facturación; entrar Empresa / Datos fiscales, seleccionar puntos y predeterminado; verificar dos CUIT en una sucursal y uno compartido con otra; crear borrador seleccionando sucursal y cambiar emisor; reasignar y comprobar contexto histórico. Cancelar no cambia asignaciones.
+- Validación local: 73 pruebas fiscales/tenant/bootstrap aprobadas, incluyendo 6 nuevas con SQLite y render real Flask; jsdom validó predeterminado, alternativa y filtros sucursal/CUIT/PV. Sin validación en staging ni deploy ejecutado. Mantener BOOTSTRAP_BASE_DATOS_HABILITADO=false y MODO_LABORATORIO_DESCONECTADO=true. Producción/main fuera de alcance.

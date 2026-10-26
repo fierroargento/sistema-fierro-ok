@@ -590,6 +590,7 @@ def procesar_accion_facturacion_admin(
         )
 
     if accion == "crear_borrador":
+        from services.sucursales_fiscales import validar_seleccion, guardar_contexto
         entidad = _obtener(
             EntidadFiscal,
             _id(
@@ -623,6 +624,9 @@ def procesar_accion_facturacion_admin(
                 "El punto de venta pertenece "
                 "a otra entidad fiscal."
             )
+
+        sucursal = validar_seleccion(formulario, organizacion_id=organizacion.id,
+            entidad=entidad, punto=punto, modelos=modelos, session=db_session)
 
         tipo = _obtener(
             TipoComprobanteFiscal,
@@ -710,6 +714,7 @@ def procesar_accion_facturacion_admin(
         )
         db_session.add(borrador)
         db_session.flush()
+        guardar_contexto(borrador, sucursal, entidad, punto, db_session)
 
         _crear_evento(
             EventoFiscal,

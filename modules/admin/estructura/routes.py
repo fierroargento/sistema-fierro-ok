@@ -126,6 +126,36 @@ def crear_blueprint_estructura(
             None,
         )
 
+    @blueprint.route("/admin/empresa/datos-fiscales", methods=["GET", "POST"])
+    @login_required
+    def datos_fiscales():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        from services.sucursales_fiscales import guardar, huella
+        from scripts.preparar_sucursales_fiscales import preparado
+        from models.sucursal_fiscal import SucursalFiscal
+        listo = preparado(db.engine)
+        error = ""
+        if request.method == "POST":
+            try:
+                sucursal = guardar(request.form, organizacion_id=organizacion.id, modelos=modelos, session=db.session)
+                db.session.commit()
+                registrar_auditoria("Configuró CUIT por sucursal", entidad="sucursal_operativa", entidad_id=sucursal.id,
+                    detalle="Asignación fiscal preparatoria; sin emisión real.")
+                db.session.commit()
+                return redirect(url_for("admin_estructura.datos_fiscales", ok="Asignación fiscal guardada.") + "#sucursal-" + str(sucursal.id))
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
+        sucursales = modelos["SucursalOperativa"].query.filter_by(organizacion_id=organizacion.id).order_by(modelos["SucursalOperativa"].nombre).all()
+        from models.punto_venta_fiscal import PuntoVentaFiscal
+        puntos = PuntoVentaFiscal.query.filter_by(organizacion_id=organizacion.id).order_by(PuntoVentaFiscal.entidad_fiscal_id, PuntoVentaFiscal.numero).all()
+        vinculos = SucursalFiscal.query.filter_by(organizacion_id=organizacion.id).all() if listo else []
+        return render_template("admin_empresa_fiscal.html", organizacion=organizacion, sucursales=sucursales,
+            puntos=puntos, vinculos=vinculos, preparado=listo, error=error,
+            huellas={s.id: huella(s, db.session) for s in sucursales} if listo else {}, ok_feedback=request.args.get("ok", ""))
+
     @blueprint.route("/admin/estructura")
     @login_required
     def panel():

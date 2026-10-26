@@ -1,5 +1,5 @@
 """Eliminación de entidades fiscales sin uso, limitada al tenant activo."""
-from sqlalchemy import select
+from sqlalchemy import select, inspect
 
 
 def eliminar_entidad_fiscal_sin_uso(
@@ -21,6 +21,8 @@ def eliminar_entidad_fiscal_sin_uso(
         # incluso vínculos desactivados y comprobantes cancelados.
         tabla_entidad = modelo.__table__
         for tabla in tabla_entidad.metadata.tables.values():
+            if tabla.name == "sucursal_fiscal" and not inspect(sesion.connection()).has_table(tabla.name):
+                continue
             for columna in tabla.columns:
                 referencia = any(
                     fk.column is tabla_entidad.c.id for fk in columna.foreign_keys
