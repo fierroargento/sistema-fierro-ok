@@ -2,7 +2,7 @@ from sqlalchemy import or_
 from flask import Blueprint,redirect,render_template,request,send_file,session,url_for
 from services.tenant_context import TenantError,resolver_tenant_usuario
 from services.personas_preparatorias import crear_turno,crear_novedad,cancelar,controlar_personas,exportar_control
-from services.cierre_personas_preparatorio import registrar_competencia,expediente_personas,exportar_expediente
+from services.cierre_personas_preparatorio import expediente_personas,exportar_expediente
 def crear_blueprint_personas(*,dependencias):
  bp=Blueprint("admin_personas",__name__);db=dependencias["db"];m=dependencias["modelos"]
  def acceso():
@@ -33,7 +33,9 @@ def crear_blueprint_personas(*,dependencias):
     if accion=="crear_turno":obj=crear_turno(request.form,empleado=empleado,organizacion_id=o.id,unidad_negocio_id=u.id,Turno=m["TurnoLaboralPlanificado"],db_session=db.session,usuario_id=getattr(usuario,"id",None));mensaje=f"Turno {obj.id} planificado sin fichaje."
     else:obj=crear_novedad(request.form,empleado=empleado,organizacion_id=o.id,unidad_negocio_id=u.id,Novedad=m["NovedadLaboralPreparatoria"],db_session=db.session,usuario_id=getattr(usuario,"id",None));mensaje=f"Novedad {obj.id} propuesta sin aprobar."
    elif accion=="registrar_competencia":
-    empleado=m["EmpleadoProductivo"].query.filter_by(id=int(request.form.get("empleado_id")),organizacion_id=o.id,tipo_registro="empleado").filter(or_(m["EmpleadoProductivo"].unidad_negocio_id.is_(None),m["EmpleadoProductivo"].unidad_negocio_id==u.id)).first();obj=registrar_competencia(request.form,empleado=empleado,organizacion_id=o.id,unidad_negocio_id=u.id,Competencia=m["CompetenciaEmpleadoPreparatoria"],db_session=db.session);mensaje=f"Competencia {obj.id} registrada sin habilitar asignaciones."
+    empleado=m["EmpleadoProductivo"].query.filter_by(id=int(request.form.get("empleado_id")),organizacion_id=o.id,tipo_registro="empleado").filter(or_(m["EmpleadoProductivo"].unidad_negocio_id.is_(None),m["EmpleadoProductivo"].unidad_negocio_id==u.id)).first()
+    if empleado is None:raise ValueError("El empleado no pertenece al contexto activo.")
+    return redirect(url_for('admin_personal.ficha',empleado_id=empleado.id,seccion='competencias',ok='Las competencias se cargan desde este legajo.'))
    elif accion in {"cancelar_turno","cancelar_novedad"}:
     Modelo=m["TurnoLaboralPlanificado"] if accion=="cancelar_turno" else m["NovedadLaboralPreparatoria"];obj=Modelo.query.filter_by(id=int(request.form.get("registro_id")),organizacion_id=o.id,unidad_negocio_id=u.id).first()
     if obj is None:raise ValueError("El registro no pertenece al contexto activo.")

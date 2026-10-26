@@ -28,7 +28,7 @@ def test_horarios_distintos_y_cortados_suman_solo_tramos_netos(personal):
     assert v.porcentaje_productivo==100
     e=EmpleadoProductivo.query.one()
     html=c.get(f'/admin/personal/{e.id}?seccion=horarios').text
-    assert '08:00 / 12:00' in html and '16:00 / 20:00' in html and '09:00 / 15:00' in html
+    assert '08:00–12:00 · 16:00–20:00' in html and '09:00–15:00' in html
     sueldo=c.get(f'/admin/personal/{e.id}?seccion=sueldos').text
     assert 'name="horas_productivas"' not in sueldo and 'name="porcentaje_productivo"' not in sueldo
 

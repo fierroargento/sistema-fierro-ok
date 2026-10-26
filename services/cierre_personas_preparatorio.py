@@ -3,14 +3,36 @@ import hashlib,io,json
 from collections import defaultdict
 from datetime import date
 
-def registrar_competencia(datos,*,empleado,organizacion_id,unidad_negocio_id,Competencia,db_session):
-    if empleado is None or empleado.tipo_registro!="empleado" or int(empleado.organizacion_id)!=int(organizacion_id) or (empleado.unidad_negocio_id is not None and int(empleado.unidad_negocio_id)!=int(unidad_negocio_id)):raise ValueError("El empleado no pertenece al contexto activo.")
+def datos_competencia(datos):
     codigo=str(datos.get("codigo") or "").strip();nombre=str(datos.get("nombre") or "").strip()
+    observacion=str(datos.get("observacion") or "").strip()
     try:nivel=int(datos.get("nivel"));vence=date.fromisoformat(str(datos.get("vence_el"))) if datos.get("vence_el") else None
-    except ValueError:raise ValueError("Nivel o vencimiento invalido.")
-    if not codigo or not nombre or not 1<=nivel<=5:raise ValueError("Codigo, nombre y nivel entre uno y cinco son obligatorios.")
-    c=Competencia(organizacion_id=organizacion_id,unidad_negocio_id=unidad_negocio_id,empleado_id=empleado.id,codigo=codigo,nombre=nombre,nivel=nivel,vence_el=vence,verificada=False,habilita_asignacion=False,observacion=str(datos.get("observacion") or "").strip() or None)
-    db_session.add(c);db_session.commit();return c
+    except (ValueError,TypeError) as error:raise ValueError("Revisá el nivel y la fecha de vencimiento.") from error
+    if not codigo or not nombre or not 1<=nivel<=5:raise ValueError("Completá código, nombre y nivel entre 1 y 5.")
+    if len(codigo)>80 or len(nombre)>180 or len(observacion)>500:raise ValueError("Código: máximo 80 caracteres; nombre: 180; observación: 500.")
+    return dict(codigo=codigo,nombre=nombre,nivel=nivel,vence_el=vence,observacion=observacion or None)
+
+
+def huella_competencia(c):
+    valores=[c.id,c.organizacion_id,c.unidad_negocio_id,c.empleado_id,c.codigo,c.nombre,c.nivel,
+        c.vence_el.isoformat() if c.vence_el else None,c.observacion,c.verificada,c.habilita_asignacion]
+    return hashlib.sha256(json.dumps(valores,ensure_ascii=False).encode()).hexdigest()
+
+
+def registrar_competencia(datos,*,empleado,organizacion_id,unidad_negocio_id,Competencia,db_session,commit=True):
+    if empleado is None or empleado.tipo_registro!="empleado" or int(empleado.organizacion_id)!=int(organizacion_id) or (empleado.unidad_negocio_id is not None and int(empleado.unidad_negocio_id)!=int(unidad_negocio_id)):raise ValueError("El empleado no pertenece al contexto activo.")
+    valores=datos_competencia(datos)
+    c=Competencia(organizacion_id=organizacion_id,unidad_negocio_id=unidad_negocio_id,empleado_id=empleado.id,verificada=False,habilita_asignacion=False,**valores)
+    db_session.add(c)
+    if commit:db_session.commit()
+    return c
+
+
+def editar_competencia(c,datos):
+    if datos.get('huella_competencia')!=huella_competencia(c):raise ValueError('La competencia cambió. Recargá el legajo antes de volver a editar.')
+    if c.verificada or c.habilita_asignacion:raise ValueError('Esta competencia requiere revisión antes de editarla.')
+    for campo,valor in datos_competencia(datos).items():setattr(c,campo,valor)
+    return c
 
 def expediente_personas(*,organizacion_id,unidad_negocio_id,empleados,turnos,novedades,competencias,hoy=None):
     hoy=hoy or date.today();ids={int(e.id) for e in empleados if e.tipo_registro=="empleado" and int(e.organizacion_id)==int(organizacion_id) and (e.unidad_negocio_id is None or int(e.unidad_negocio_id)==int(unidad_negocio_id))};hallazgos=[];cobertura=defaultdict(lambda:{"empleados":set(),"minutos":0});turnos_validos=[]

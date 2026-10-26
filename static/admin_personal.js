@@ -195,6 +195,7 @@
     const valores=JSON.parse(camposFallidos.textContent);
     for(const f of document.querySelectorAll('[data-personal-confirm]')){
       if(f.elements.accion?.value!==valores.accion)continue;
+      if(valores.registro_id&&f.elements.registro_id?.value!==valores.registro_id)continue;
       for(const [nombre,valor] of Object.entries(valores)){
         const c=f.elements[nombre];if(c&&c.tagName&&!['_csrf_token'].includes(nombre))c.value=valor;
       }

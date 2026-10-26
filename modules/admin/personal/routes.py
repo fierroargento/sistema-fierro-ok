@@ -1,5 +1,5 @@
 """Administración de la identidad del personal, compartida con Producción."""
-from flask import Blueprint, redirect, render_template, request, session, url_for, jsonify, abort
+from flask import Blueprint, redirect, render_template, request, session, url_for, jsonify, abort, send_file
 from sqlalchemy import or_, func
 from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
@@ -70,6 +70,22 @@ def crear_blueprint_personal(*, dependencias):
             preparado=listo, puede_preparar=entorno_actual()=='staging' and laboratorio_forzado(),
             formulario_error=formulario, error=error, ok_feedback=request.args.get('ok', ''))
 
+    @bp.route('/admin/personal/exportar',methods=['GET'])
+    @dependencias['login_required']
+    def exportar():
+        _,o,respuesta=acceso()
+        if respuesta is not None:return respuesta
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from services.personal_exportacion import exportar_personal
+        archivo=exportar_personal(o,modelos=m,db_session=db.session)
+        fecha=datetime.now(ZoneInfo('America/Argentina/Buenos_Aires')).strftime('%Y%m%d')
+        salida=send_file(archivo,as_attachment=True,download_name=f'Personal_{fecha}.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        salida.headers['Cache-Control']='private, no-store'
+        salida.headers['X-Content-Type-Options']='nosniff'
+        return salida
+
     @bp.route('/admin/personal', methods=['GET', 'POST'])
     @dependencias['login_required']
     def panel():
@@ -137,14 +153,33 @@ def crear_blueprint_personal(*, dependencias):
             from flask import abort
             abort(404)
         seccion=request.values.get('seccion','datos')
-        if seccion not in {'datos','sueldos','horarios','vacaciones','novedades'}:seccion='datos'
+        if seccion not in {'datos','sueldos','horarios','vacaciones','novedades','competencias'}:seccion='datos'
         error='';status=200
         listo=preparado(db.engine)
+        from sqlalchemy import inspect
+        competencias_preparadas=inspect(db.engine).has_table(m['CompetenciaEmpleadoPreparatoria'].__tablename__)
         if request.method=='POST':
             try:
                 accion=request.form.get('accion')
                 if accion=='guardar_sueldo':
                     guardar_salario(e,request.form,modelos=m,db_session=db.session,usuario_id=getattr(usuario,'id',None))
+                elif accion in {'registrar_competencia','editar_competencia'}:
+                    from services.cierre_personas_preparatorio import registrar_competencia,editar_competencia
+                    seccion='competencias'
+                    if not competencias_preparadas:raise ValueError('El esquema de competencias todavía no está preparado.')
+                    if accion=='registrar_competencia':
+                        unidad_id=e.unidad_negocio_id or request.form.get('competencia_unidad_id') or session.get('unidad_negocio_id')
+                        if not str(unidad_id or '').isdecimal():raise ValueError('Elegí una unidad válida de la organización.')
+                        unidad=m['UnidadNegocio'].query.filter_by(id=int(unidad_id),organizacion_id=o.id,activa=True).first() if unidad_id else None
+                        if unidad is None:raise ValueError('Elegí una unidad activa de la organización para registrar la competencia.')
+                        registrar_competencia(request.form,empleado=e,organizacion_id=o.id,unidad_negocio_id=unidad.id,
+                            Competencia=m['CompetenciaEmpleadoPreparatoria'],db_session=db.session,commit=False)
+                    else:
+                        ident=str(request.form.get('registro_id') or '')
+                        c=m['CompetenciaEmpleadoPreparatoria'].query.filter_by(id=int(ident),empleado_id=e.id,organizacion_id=o.id).with_for_update().first() if ident.isdecimal() else None
+                        if c is None:raise ValueError('La competencia no pertenece a este legajo.')
+                        editar_competencia(c,request.form)
+                    seccion='competencias'
                 elif accion in {'configurar_distribucion_laboral','configurar_porcentaje_costo_laboral'}:
                     from services.fuentes_costo_admin import procesar_accion_fuente_costo
                     unidad=e.unidad_negocio or m['UnidadNegocio'].query.filter_by(organizacion_id=o.id,activa=True).order_by(m['UnidadNegocio'].id).first()
@@ -193,9 +228,14 @@ def crear_blueprint_personal(*, dependencias):
             extras['ausencias_anteriores']=[n for n in existentes if n.id not in vinculadas]
         if seccion=='novedades':
             from sqlalchemy import inspect
-            for nombre,clave,orden in [('TurnoLaboralPlanificado','turnos','inicio'),('NovedadLaboralPreparatoria','novedades','fecha_desde'),('CompetenciaEmpleadoPreparatoria','competencias','codigo')]:
+            for nombre,clave,orden in [('TurnoLaboralPlanificado','turnos','inicio'),('NovedadLaboralPreparatoria','novedades','fecha_desde')]:
                 Modelo=m[nombre]
                 extras[clave]=Modelo.query.filter_by(organizacion_id=o.id,empleado_id=e.id).order_by(getattr(Modelo,orden).desc()).all() if inspect(db.engine).has_table(Modelo.__tablename__) else []
+        if seccion=='competencias':
+            from services.cierre_personas_preparatorio import huella_competencia
+            extras['competencias']=m['CompetenciaEmpleadoPreparatoria'].query.filter_by(organizacion_id=o.id,empleado_id=e.id).order_by(m['CompetenciaEmpleadoPreparatoria'].codigo).all() if competencias_preparadas else []
+            extras['huella_competencia']=huella_competencia
+            extras['competencias_preparadas']=competencias_preparadas
         from services.distribucion_laboral import distribuciones_vigentes
         from services.configuracion_costo_laboral import configuracion_vigente
         unidad=e.unidad_negocio or next((u for u in unidades if u.activa),None)

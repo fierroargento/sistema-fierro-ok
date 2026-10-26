@@ -1,0 +1,23 @@
+{% macro formulario_competencia(c=None) %}
+{% set nuevo = c is none %}
+<dialog class="personal-dialog" id="{{ 'personal-competencia-nueva' if nuevo else 'personal-competencia-' ~ c.id }}" aria-labelledby="{{ 'competencia-titulo-nueva' if nuevo else 'competencia-titulo-' ~ c.id }}"><form method="post" data-personal-confirm="¿Guardar la competencia en este legajo?">
+<header><h2 id="{{ 'competencia-titulo-nueva' if nuevo else 'competencia-titulo-' ~ c.id }}">{{ 'Nueva competencia' if nuevo else 'Gestionar competencia' }}</h2><button type="button" data-personal-cerrar aria-label="Cerrar">×</button></header>
+<div class="personal-dialog-body"><input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="seccion" value="competencias"><input type="hidden" name="accion" value="{{ 'registrar_competencia' if nuevo else 'editar_competencia' }}">
+{% if not nuevo %}<input type="hidden" name="registro_id" value="{{ c.id }}"><input type="hidden" name="huella_competencia" value="{{ huella_competencia(c) }}">{% endif %}
+<p class="personal-muted">{{ empleado.nombre }} · {{ empleado.codigo }}</p>
+<div class="personal-grid">
+<label>Código<input name="codigo" maxlength="80" required value="{{ c.codigo if c else '' }}"></label><label>Competencia o certificación<input name="nombre" maxlength="180" required value="{{ c.nombre if c else '' }}"></label>
+<label>Nivel (1 a 5)<input type="number" name="nivel" min="1" max="5" required value="{{ c.nivel if c else 1 }}"></label><label>Vencimiento (opcional)<input type="date" name="vence_el" value="{{ c.vence_el.isoformat() if c and c.vence_el else '' }}"></label>
+{% if nuevo and not empleado.unidad_negocio_id %}<label class="personal-wide">Unidad de referencia<select name="competencia_unidad_id" required><option value="">Elegir unidad</option>{% for u in unidades if u.activa %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}</select></label>{% endif %}
+<label class="personal-wide">Observación (opcional)<textarea name="observacion" maxlength="500">{{ c.observacion or '' if c else '' }}</textarea></label>
+</div></div><footer><button type="button" class="secondary-link" data-personal-cerrar>Cancelar</button><button type="submit" class="comercial-primary">Guardar competencia</button></footer></form></dialog>
+{% endmacro %}
+<div class="personal-actions"><h2>Competencias y certificaciones</h2>{% if competencias_preparadas %}<button type="button" class="comercial-primary" data-personal-abrir="personal-competencia-nueva">Nueva competencia</button>{% endif %}</div>
+<p class="personal-muted">Habilidades y certificaciones del empleado. Por ahora se registran como información, sin habilitar asignaciones automáticamente.</p>
+{% if not competencias_preparadas %}<p class="personal-error">El esquema de competencias todavía no está preparado.</p>{% endif %}
+<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Competencia</th><th>Nivel</th><th>Vencimiento</th><th>Acciones</th></tr></thead><tbody>{% for c in competencias %}<tr><td>{{ c.nombre }}<small class="table-subline">{{ c.codigo }}</small></td><td>{{ c.nivel }}</td><td>{{ c.vence_el.strftime('%d/%m/%Y') if c.vence_el else 'Sin vencimiento' }}</td><td><div class="personal-actions"><button type="button" class="secondary-link" data-fierro-icon="ver" data-personal-abrir="personal-competencia-ver-{{ c.id }}">Ver</button><button type="button" class="secondary-link" data-fierro-icon="gestionar" data-personal-abrir="personal-competencia-{{ c.id }}">Gestionar</button></div></td></tr>{% else %}<tr><td colspan="4">Sin competencias registradas.</td></tr>{% endfor %}</tbody></table></div>
+{% if competencias_preparadas %}{{ formulario_competencia() }}{% endif %}
+{% for c in competencias %}
+{{ formulario_competencia(c) }}
+<dialog class="personal-dialog" id="personal-competencia-ver-{{ c.id }}" aria-labelledby="competencia-ver-titulo-{{ c.id }}"><header><h2 id="competencia-ver-titulo-{{ c.id }}">{{ c.nombre }}</h2><button type="button" data-personal-cerrar aria-label="Cerrar">×</button></header><div class="personal-dialog-body"><dl class="personal-ficha-datos"><dt>Código</dt><dd>{{ c.codigo }}</dd><dt>Nivel</dt><dd>{{ c.nivel }}</dd><dt>Vencimiento</dt><dd>{{ c.vence_el.strftime('%d/%m/%Y') if c.vence_el else 'Sin vencimiento' }}</dd>{% if not empleado.unidad_negocio_id %}<dt>Unidad de referencia</dt><dd>{% for u in unidades if u.id==c.unidad_negocio_id %}{{ u.nombre }}{% endfor %}</dd>{% endif %}<dt>Observación</dt><dd>{{ c.observacion or 'Sin observación' }}</dd></dl></div><footer><button type="button" class="secondary-link" data-personal-cerrar>Cerrar</button></footer></dialog>
+{% endfor %}
