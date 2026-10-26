@@ -134,3 +134,9 @@
 .estructura-consolidado-huella summary { padding:6px 0;font-size:12px; }
 .estructura-consolidado-huella code { display:block;max-width:260px;padding:8px;background:#f7fafc;border-radius:6px;overflow-wrap:anywhere;font-size:11px;line-height:1.6; }
 .estructura-certification-note { margin:16px 0;font-size:12px; }
+
+.estructura-page summary.estructura-identidad {display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.estructura-page .estructura-identidad>span:first-child {display:grid;gap:4px;flex:1;min-width:160px}
+.estructura-page .estructura-identidad strong {font-size:14px;color:#183548}
+.estructura-page .estructura-identidad small {font-weight:400;color:#607487}
+.estructura-page .estructura-identidad .estructura-gestionar {display:inline-flex;align-items:center;gap:6px;border:1px solid #acd4e4;border-radius:6px;padding:6px 10px;background:#eef8fc}

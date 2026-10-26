@@ -4,7 +4,7 @@
 {%- endmacro %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20260821-2') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css', v='20261014-uniforme-1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_estructura.css', v='20261026-identidad') }}">
 <script defer src="{{ url_for('static', filename='admin_estructura.js', v='20261013-principal-1') }}"></script>
 {% endblock %}
 {% block content %}
@@ -299,7 +299,7 @@
         {% endif %}
 
         <h3>Tenant activo</h3>
-        <details class="estructura-editor"><summary data-fierro-icon="gestionar">Gestionar organización</summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+        <details class="estructura-editor"><summary class="estructura-identidad"><span><strong>{{ organizacion.nombre }}</strong><small>{{ organizacion.slug }}</small></span>{{ mostrar_estado("activa" if organizacion.activa else "desactivada") }}<span class="estructura-gestionar"><span aria-hidden="true">⚙</span> Gestionar</span></summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
               style="display:flex;gap:8px;flex-wrap:wrap;">
             <input type="hidden" name="accion" value="editar_organizacion">
             <input name="nombre" required maxlength="150" value="{{ organizacion.nombre }}">
@@ -317,7 +317,7 @@
         <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
         <div style="display:grid;gap:8px;margin-top:12px;">
             {% for unidad in unidades %}
-            <details class="estructura-editor"><summary data-fierro-icon="gestionar">Gestionar unidad de negocio</summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
+            <details class="estructura-editor"><summary class="estructura-identidad"><span><strong>{{ unidad.nombre }}</strong><small>{{ unidad.codigo }}</small></span>{{ mostrar_estado("activa" if unidad.activa else "desactivada") }}<span class="estructura-gestionar"><span aria-hidden="true">⚙</span> Gestionar</span></summary><form method="post" action="{{ url_for('admin_estructura.guardar') }}"
                   style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <input type="hidden" name="unidad_id" value="{{ unidad.id }}">
                 <input name="nombre" required maxlength="150" value="{{ unidad.nombre }}">
