@@ -38,7 +38,7 @@ def test_exporta_legajo_y_todas_las_secciones_con_historial_y_sin_secretos(perso
         unidad_negocio_id=u.id,Competencia=CompetenciaEmpleadoPreparatoria,db_session=db.session)
     antes=db.session.query(m['EmpleadoCostoVersion']).count()
     wb,datos=libro(c)
-    assert set(wb.sheetnames)=={'Personal','Sueldos','Horarios','Vacaciones y licencias','Novedades','Turnos','Competencias','Distribución de costos','Equipos','Accesos','Información'}
+    assert set(wb.sheetnames)=={'Personal','Sueldos','Horarios','Vacaciones y licencias','Novedades','Turnos','Competencias','Distribución de costos','Equipos','Áreas mano de obra','Accesos','Información'}
     personal=list(wb['Personal'].values);assert personal[1][6]=='00000001' and personal[1][11]=='0012345'
     assert wb['Sueldos'].max_row==3 and wb['Horarios'].max_row==3
     assert {r[9] for r in list(wb['Horarios'].values)[1:]}=={'cancelado','vigente'}

@@ -26,7 +26,7 @@ def _vigente(empleado):
 def crear_recurso(
     *, organizacion_id, unidad_negocio_id, codigo, nombre, sector,
     porcentaje_indirecto=0, observacion=None, Organizacion, UnidadNegocio,
-    EmpleadoProductivo, db_session,
+    EmpleadoProductivo, db_session, commit=True,
 ):
     recurso = crear_empleado(
         organizacion_id=organizacion_id,
@@ -46,7 +46,8 @@ def crear_recurso(
     recurso.porcentaje_indirecto = _decimal_porcentaje(
         porcentaje_indirecto, "El porcentaje indirecto",
     )
-    db_session.commit()
+    if commit:db_session.commit()
+    else:db_session.flush()
     return recurso
 
 

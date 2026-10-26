@@ -61,14 +61,56 @@ def crear_blueprint_personal(*, dependencias):
         pagina = min(pagina, paginas)
         empleados = consulta.order_by(m['EmpleadoProductivo'].nombre, m['EmpleadoProductivo'].id).offset((pagina-1)*25).limit(25).all()
         listo = preparado(db.engine)
-        detalles = {d.empleado_id:d for d in db.session.query(PersonalDetalle).filter(PersonalDetalle.empleado_id.in_([e.id for e in empleados])).all()} if listo and empleados else {}
-        laborales=resumenes(empleados,listo)
-        filas = [dict(datos_empleado(e), **datos_detalle(detalles.get(e.id)), **laborales[e.id], **estado_accesos(e,db.session), huella=huella_empleado(e,detalle=detalles.get(e.id),preparado=listo)) for e in empleados]
+        from services.personal_areas import unidades_asignadas
+        filas = []
+        from sqlalchemy import inspect
+        unidades_personal=unidades_asignadas(empleados) if inspect(db.session.connection()).has_table(m['RecursoEmpleadoProductivo'].__tablename__) else {e.id:e.unidad_negocio.nombre if e.unidad_negocio else 'Compartido' for e in empleados}
         return render_template('admin_personal.html', organizacion=o, empleados=empleados,
-            filas_personal=filas, resumenes_laborales=laborales, usuarios_personal=usuarios_disponibles(o), unidades=unidades, unidad_inicial=session.get('unidad_negocio_id'),
+            filas_personal=filas, unidades_personal=unidades_personal, usuarios_personal=usuarios_disponibles(o), unidades=unidades, unidad_inicial=session.get('unidad_negocio_id'),
             buscar=filtro, pagina=pagina, paginas=paginas, total=total,
             preparado=listo, puede_preparar=entorno_actual()=='staging' and laboratorio_forzado(),
             formulario_error=formulario, error=error, ok_feedback=request.args.get('ok', ''))
+
+    @bp.route('/admin/personal/mano-obra',methods=['GET','POST'])
+    @dependencias['login_required']
+    def mano_obra():
+        from services.personal_areas import resumen_areas, huella_area
+        usuario,o,respuesta=acceso()
+        if respuesta is not None:return respuesta
+        error='';status=200
+        area_editar=None
+        seleccion=request.form.get('registro_area') if request.method=='POST' else request.args.get('area')
+        if seleccion:
+            area_editar=m['EmpleadoProductivo'].query.filter_by(id=int(seleccion),organizacion_id=o.id,tipo_registro='recurso').with_for_update().first() if str(seleccion).isdecimal() else None
+            if area_editar is None:abort(404)
+        if request.method=='POST':
+            try:
+                if request.form.get('accion')=='editar_area':
+                    if area_editar is None or request.form.get('huella_area')!=huella_area(area_editar):raise ValueError('El área cambió. Recargá antes de editar.')
+                    nombre=str(request.form.get('nombre') or '').strip();sector=str(request.form.get('sector') or '').strip()
+                    if not nombre or len(nombre)>200 or not sector or len(sector)>120:raise ValueError('Completá nombre (máximo 200 caracteres) y sector (máximo 120).')
+                    area_editar.nombre=nombre;area_editar.sector=sector
+                    db.session.commit()
+                    dependencias['registrar_auditoria']('Personal: actualizó área',entidad='empleado',entidad_id=area_editar.id,detalle='Nombre y sector del área.')
+                    return redirect(url_for('admin_personal.mano_obra',ok='Área actualizada.'))
+                if request.form.get('accion')!='crear_area':raise ValueError('Acción no válida.')
+                ident=str(request.form.get('area_unidad_id') or '')
+                unidad=m['UnidadNegocio'].query.filter_by(id=int(ident),organizacion_id=o.id,activa=True).first() if ident.isdecimal() else None
+                if unidad is None:raise ValueError('Elegí una unidad de negocio activa de la organización.')
+                from services.recursos_productivos import crear_recurso
+                nueva_area=crear_recurso(organizacion_id=o.id,unidad_negocio_id=unidad.id,codigo=request.form.get('codigo'),nombre=request.form.get('nombre'),sector=request.form.get('sector'),
+                    Organizacion=m['Organizacion'],UnidadNegocio=m['UnidadNegocio'],EmpleadoProductivo=m['EmpleadoProductivo'],db_session=db.session,commit=False)
+                db.session.commit()
+                dependencias['registrar_auditoria']('Personal: creó área',entidad='empleado',entidad_id=nueva_area.id,detalle='Área de mano de obra.')
+                return redirect(url_for('admin_personal.mano_obra',ok='Área creada. Asigná sus empleados desde los legajos.'))
+            except (ValueError,IntegrityError) as exc:
+                db.session.rollback();error=str(exc) if isinstance(exc,ValueError) else 'Ya existe ese código de área.';status=400
+        recursos=m['EmpleadoProductivo'].query.filter_by(organizacion_id=o.id,tipo_registro='recurso').order_by(m['EmpleadoProductivo'].unidad_negocio_id,m['EmpleadoProductivo'].sector).all()
+        empleados=m['EmpleadoProductivo'].query.filter_by(organizacion_id=o.id,tipo_registro='empleado',activo=True).order_by(m['EmpleadoProductivo'].nombre).all()
+        pendientes=[e for e in empleados if sum((v.porcentaje_dedicacion for v in e.participaciones_recurso),Decimal(0))!=100 or version_actual(e) is None]
+        return render_template('admin_personal_mano_obra.html',organizacion=o,filas=resumen_areas(recursos),pendientes=pendientes,
+            unidades=m['UnidadNegocio'].query.filter_by(organizacion_id=o.id,activa=True).order_by(m['UnidadNegocio'].nombre).all(),
+            error=error,ok_feedback=request.args.get('ok',''),area_editar=area_editar,huella_area=huella_area,formulario=request.form if error else {}),status
 
     @bp.route('/admin/personal/exportar',methods=['GET'])
     @dependencias['login_required']
@@ -153,16 +195,23 @@ def crear_blueprint_personal(*, dependencias):
             from flask import abort
             abort(404)
         seccion=request.values.get('seccion','datos')
-        if seccion not in {'datos','sueldos','horarios','vacaciones','novedades','competencias'}:seccion='datos'
+        if seccion not in {'datos','sueldos','horarios','vacaciones','novedades','competencias','areas'}:seccion='datos'
         error='';status=200
         listo=preparado(db.engine)
         from sqlalchemy import inspect
         competencias_preparadas=inspect(db.engine).has_table(m['CompetenciaEmpleadoPreparatoria'].__tablename__)
         if request.method=='POST':
             try:
-                accion=request.form.get('accion')
+                accion=request.form.get('accion');detalle_auditoria=''
                 if accion=='guardar_sueldo':
                     guardar_salario(e,request.form,modelos=m,db_session=db.session,usuario_id=getattr(usuario,'id',None))
+                elif accion=='guardar_areas_personal':
+                    from services.personal_areas import guardar_asignacion
+                    seccion='areas'
+                    if not listo:raise ValueError('Prepará Personal antes de configurar áreas.')
+                    import json
+                    cambio_areas=guardar_asignacion(e,request.form,organizacion=o,modelos=m,db_session=db.session,usuario_id=getattr(usuario,'id',None))
+                    detalle_auditoria=json.dumps(cambio_areas,ensure_ascii=False)
                 elif accion in {'registrar_competencia','editar_competencia'}:
                     from services.cierre_personas_preparatorio import registrar_competencia,editar_competencia
                     seccion='competencias'
@@ -193,7 +242,9 @@ def crear_blueprint_personal(*, dependencias):
                         empleados=m['EmpleadoProductivo'].query.filter_by(organizacion_id=o.id,unidad_negocio_id=unidad.id,tipo_registro='empleado').with_for_update().all()
                         recalcular_empleados_generales(empleados,config.porcentaje_cargas,EmpleadoCostoVersion=m['EmpleadoCostoVersion'],
                             db_session=db.session,usuario_id=getattr(usuario,'id',None),commit=False)
-                    else:procesar_accion_fuente_costo(accion,formulario,organizacion=o,unidad_activa=unidad,modelos=m,db_session=db.session,usuario=usuario)
+                    else:
+                        if e.participaciones_recurso:raise ValueError('El reparto se gestiona desde Áreas y tareas del legajo.')
+                        procesar_accion_fuente_costo(accion,formulario,organizacion=o,unidad_activa=unidad,modelos=m,db_session=db.session,usuario=usuario)
                 elif accion in {'crear_horario','crear_ausencia','cancelar_horario','cancelar_ausencia'}:
                     if not listo:raise ValueError('Prepará el módulo Personal antes de cargar horarios y ausencias.')
                     if accion=='crear_horario':guardar_horario(e,request.form,db.session)
@@ -215,7 +266,7 @@ def crear_blueprint_personal(*, dependencias):
                     db.session.flush()
                     actualizar_horas_sueldo(e,modelos=m,db_session=db.session,usuario_id=getattr(usuario,'id',None))
                 db.session.commit()
-                dependencias['registrar_auditoria']('Actualizó legajo de Personal',entidad='empleado',entidad_id=e.id,detalle=f'Acción: {accion}.')
+                dependencias['registrar_auditoria']('Actualizó legajo de Personal',entidad='empleado',entidad_id=e.id,detalle=f'Acción: {accion}. {detalle_auditoria}')
                 return redirect(url_for('admin_personal.ficha',empleado_id=e.id,seccion=seccion,ok='Información guardada correctamente.'))
             except (ValueError,IntegrityError) as exc:
                 db.session.rollback();error=str(exc) if isinstance(exc,ValueError) else 'El registro ya existe o cambió. Recargá el legajo y revisá los datos.';status=400
@@ -236,14 +287,19 @@ def crear_blueprint_personal(*, dependencias):
             extras['competencias']=m['CompetenciaEmpleadoPreparatoria'].query.filter_by(organizacion_id=o.id,empleado_id=e.id).order_by(m['CompetenciaEmpleadoPreparatoria'].codigo).all() if competencias_preparadas else []
             extras['huella_competencia']=huella_competencia
             extras['competencias_preparadas']=competencias_preparadas
+        if seccion=='areas':
+            from services.personal_areas import huella_asignacion
+            extras['areas_personal']=m['EmpleadoProductivo'].query.filter_by(organizacion_id=o.id,tipo_registro='recurso').order_by(m['EmpleadoProductivo'].unidad_negocio_id,m['EmpleadoProductivo'].sector).all()
+            extras['dedicaciones_personal']={v.recurso_id:v.porcentaje_dedicacion for v in e.participaciones_recurso}
+            extras['huella_areas']=huella_asignacion(e)
         from services.distribucion_laboral import distribuciones_vigentes
         from services.configuracion_costo_laboral import configuracion_vigente
-        unidad=e.unidad_negocio or next((u for u in unidades if u.activa),None)
+        unidad=e.unidad_negocio if seccion=='sueldos' else e.unidad_negocio or next((u for u in unidades if u.activa),None)
         distribuciones=distribuciones_vigentes([e],Modelo=m['EmpleadoDistribucionVersion']) if seccion=='sueldos' else {}
         config=configuracion_vigente(o.id,unidad.id,Modelo=m['ConfiguracionCostoLaboralVersion']) if unidad and seccion=='sueldos' else None
         laboral=resumenes([e],listo)[e.id]
         acceso_actual=estado_accesos(e,db.session)
-        fila=dict(datos_empleado(e),**datos_detalle(detalle),**laboral,**acceso_actual,huella=huella_empleado(e,detalle=detalle,preparado=listo))
+        fila=dict(datos_empleado(e),**datos_detalle(detalle),**laboral,**acceso_actual,sector_estructurado=bool(e.participaciones_recurso),huella=huella_empleado(e,detalle=detalle,preparado=listo))
         return render_template('admin_personal_ficha.html',empleado=e,organizacion=o,unidades=unidades,
             horas_automaticas=horas_desde_horario(e,db.session) if listo else None,
             seccion=seccion,detalle=datos_detalle(detalle),vigente=version_actual(e) if seccion=='sueldos' else None,

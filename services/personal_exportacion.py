@@ -48,7 +48,10 @@ def exportar_personal(organizacion, *, modelos, db_session):
     detalles={d.empleado_id:d for d in db_session.query(PersonalDetalle).filter(PersonalDetalle.empleado_id.in_(ids),PersonalDetalle.organizacion_id==organizacion.id).all()} if disponible(PersonalDetalle,'Datos ampliados') and ids else {}
     campos=['dni','cuil','fecha_nacimiento','fecha_ingreso','fecha_egreso','telefono','email','domicilio','localidad','provincia','contacto_emergencia','categoria','convenio','modalidad']
     titulos=['Legajo','Nombre y apellido','Estado','Unidad','Sector','Puesto','DNI','CUIL','Nacimiento','Ingreso','Egreso','Teléfono','Email','Domicilio','Localidad','Provincia','Contacto emergencia','Categoría','Convenio','Modalidad','Observación general']
-    hoja('Personal',titulos,([e.codigo,e.nombre,'Activo' if e.activo else 'Inactivo',unidades.get(e.unidad_negocio_id,'Compartido'),e.sector,e.puesto]+[getattr(detalles.get(e.id),campo,None) for campo in campos]+[e.observacion] for e in empleados))
+    from services.personal_areas import unidades_asignadas
+    enlaces_disponibles=inspector.has_table(modelos['RecursoEmpleadoProductivo'].__tablename__)
+    unidades_personal=unidades_asignadas(empleados) if enlaces_disponibles else {e.id:unidades.get(e.unidad_negocio_id,'Compartido') for e in empleados}
+    hoja('Personal',titulos,([e.codigo,e.nombre,'Activo' if e.activo else 'Inactivo',unidades_personal[e.id],e.sector,e.puesto]+[getattr(detalles.get(e.id),campo,None) for campo in campos]+[e.observacion] for e in empleados))
     dinero=lambda valor:Decimal(valor)/100
     filas=[]
     for v in registros('Sueldos','EmpleadoCostoVersion'):
@@ -78,7 +81,17 @@ def exportar_personal(organizacion, *, modelos, db_session):
     hoja('Distribución de costos',['Legajo','Empleado','Revisión','Unidad','Asignación %','Ubicación','Función','Vigente','Desde','Hasta','Observación'],(identidad(d.empleado_id)+[d.numero_revision,unidades.get(d.unidad_negocio_id,''),d.porcentaje_asignacion,d.ubicacion_trabajo,d.tipo_funcion,d.vigente,d.vigente_desde,d.vigente_hasta,d.observacion] for d in distribuciones))
     vinculos=registros('Equipos','RecursoEmpleadoProductivo')
     recursos={r.id:r for r in db_session.query(E).filter(E.organizacion_id==organizacion.id,E.tipo_registro=='recurso',E.id.in_({v.recurso_id for v in vinculos})).all()} if vinculos else {}
-    hoja('Equipos',['Legajo','Empleado','Código equipo','Equipo','Dedicación %','Observación'],(identidad(v.empleado_id)+[recursos[v.recurso_id].codigo,recursos[v.recurso_id].nombre,v.porcentaje_dedicacion,v.observacion] for v in vinculos if v.recurso_id in recursos))
+    hoja('Equipos',['Legajo','Empleado','Código equipo','Equipo','Dedicación %','Observación','Unidad del área','Sector'],(identidad(v.empleado_id)+[recursos[v.recurso_id].codigo,recursos[v.recurso_id].nombre,v.porcentaje_dedicacion,v.observacion,unidades.get(recursos[v.recurso_id].unidad_negocio_id,''),recursos[v.recurso_id].sector] for v in vinculos if v.recurso_id in recursos))
+    from services.personal_legajo import version_actual
+    recursos_todos=db_session.query(E).filter_by(organizacion_id=organizacion.id,tipo_registro='recurso').order_by(E.unidad_negocio_id,E.sector).all()
+    filas_areas=[]
+    for r in recursos_todos:
+        v=version_actual(r) if inspector.has_table(modelos['EmpleadoCostoVersion'].__tablename__) else None
+        filas_areas.append([unidades.get(r.unidad_negocio_id,''),r.codigo,r.nombre,r.sector,len(r.miembros_recurso) if enlaces_disponibles else None,
+            dinero(v.costo_mensual_total_centavos) if v else None,v.horas_productivas if v else None,
+            dinero(v.costo_hora_productiva_centavos) if v else None,dinero(v.costo_minuto_productivo_centavos) if v else None,
+            'Activo' if r.activo else 'Inactivo',r.porcentaje_indirecto])
+    hoja('Áreas mano de obra',['Unidad','Código','Área','Sector','Integrantes','Costo mensual','Horas asignadas','Costo por hora','Costo por minuto','Estado','Recargo adicional %'],filas_areas,monetarias=(6,8,9))
     accesos={a.empleado_id:a for a in db_session.query(PersonalAcceso).filter(PersonalAcceso.empleado_id.in_(ids)).all()} if disponible(PersonalAcceso,'Accesos') and ids else {}
     M=modelos['UsuarioOrganizacion'];U=modelos['UsuarioSistema'];cuentas={}
     if disponible(M,'Usuarios de la organización') and disponible(U,'Usuarios del sistema'):

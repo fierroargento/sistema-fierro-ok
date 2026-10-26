@@ -91,7 +91,7 @@ def test_recursos_permanecen_aislados_de_app_y_tienen_importacion_masiva():
     assert "def calcular_componentes_recurso" in servicio
     assert "calcular_componentes_recurso" not in app
     assert '"recursos": {' in importador
-    assert "Importar recursos" in panel
+    assert "Importar recursos" in Path("templates/admin_personal_mano_obra.html").read_text()
     personal = Path("templates/admin_personal_ficha.html").read_text(encoding="utf-8")
     assert "configurar_porcentaje_costo_laboral" in personal
     assert "Porcentaje general de cargas" in personal
@@ -101,15 +101,13 @@ def test_gestion_de_equipo_es_masiva_y_recalcula_una_sola_vez():
     panel = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
     admin = Path("services/fuentes_costo_admin.py").read_text(encoding="utf-8")
 
-    assert 'value="configurar_integrantes_recurso"' in panel
-    assert 'name="integrante_seleccionado"' in panel
-    assert "Guardar equipo y recalcular" in panel
+    personal = Path('templates/partials/personal_areas.html').read_text()
+    assert 'value="guardar_areas_personal"' in personal
+    assert 'area_porcentaje_' in personal
     assert "configurar_integrantes(" in admin
-    assert 'class="labor-resources source-catalog"' in panel
-    assert "Disponible · no asignado" in panel
-    assert "def configurar_integrantes" in Path(
-        "services/recursos_productivos.py"
-    ).read_text(encoding="utf-8")
+    assert "admin_personal.mano_obra" in panel
+    assert 'Guardar áreas y tareas' in personal
+    assert 'def configurar_integrantes' in Path('services/recursos_productivos.py').read_text()
 
 
 def test_configuracion_general_es_historica_por_unidad_y_no_engrosa_app():

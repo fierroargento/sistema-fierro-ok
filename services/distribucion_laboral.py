@@ -54,7 +54,7 @@ def normalizar_asignaciones(filas):
 
 def registrar_distribucion(
     empleado, filas, *, organizacion_id, unidades_validas, Modelo,
-    db_session, usuario_id=None, observacion=None,
+    db_session, usuario_id=None, observacion=None, commit=True,
 ):
     asignaciones = normalizar_asignaciones(filas)
     permitidas = {int(unidad.id) for unidad in unidades_validas}
@@ -85,7 +85,8 @@ def registrar_distribucion(
         )
         db_session.add(nueva)
         creadas.append(nueva)
-    db_session.commit()
+    if commit:db_session.commit()
+    else:db_session.flush()
     return revision, creadas
 
 

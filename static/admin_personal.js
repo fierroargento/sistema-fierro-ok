@@ -97,6 +97,7 @@
     form.elements.accion.value = editar ? 'editar' : 'crear';
     form.elements.empleado_id.value = valores.empleado_id || valores.id || '';
     form.elements.codigo.readOnly = editar;
+    form.elements.sector.readOnly=editar&&!!valores.sector_estructurado;
     Array.from(form.elements.unidad_negocio_id.options).forEach(o => {
       o.disabled = editar ? o.value !== form.elements.unidad_negocio_id.value : o.dataset.activa === '0';
     });
@@ -201,6 +202,7 @@
       }
     }
   }
+  if(document.getElementById('personal-autoeditar'))document.querySelector('[data-personal-editar]')?.click();
   const reabrir=document.getElementById('personal-reabrir');
   if(reabrir){const dialogo=document.getElementById(reabrir.dataset.dialogo);if(dialogo)dialogo.showModal();}
 })();

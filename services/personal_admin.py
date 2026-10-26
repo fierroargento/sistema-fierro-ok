@@ -76,6 +76,8 @@ def guardar_personal(formulario, *, organizacion_id, modelos, db_session):
             raise ValueError('La ficha cambió mientras la editabas. Cerrá y recargá Personal antes de volver a editar.')
         if datos['codigo'] != empleado.codigo.lower() or unidad_id != empleado.unidad_negocio_id:
             raise ValueError('El legajo y la unidad se conservan al editar una ficha existente.')
+        if empleado.participaciones_recurso and datos['sector']!=empleado.sector:
+            raise ValueError('El sector se modifica desde Áreas y tareas de la ficha.')
         if empleado.activo and estado == '0':
             Vinculo = modelos['RecursoEmpleadoProductivo']
             if not inspect(db_session.get_bind()).has_table(Vinculo.__tablename__):

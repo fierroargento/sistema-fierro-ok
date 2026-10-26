@@ -78,7 +78,7 @@ def test_alta_administrativa_sin_sueldo_y_unica_identidad(personal):
     assert EmpleadoCostoVersion.query.count()==0
     r=c.get('/admin/personal');assert r.status_code==200
     assert 'leg-001' in r.text and 'Administración / Personal' in r.text
-    assert 'admin_personal.js' in r.text and 'data-personal-editar' in r.text
+    assert 'admin_personal.js' in r.text and f'/admin/personal/{e.id}?editar=1' in r.text
     assert 'name="sueldo_base"' not in r.text
     r=c.post('/admin/personal',data=campos(codigo='LEG-001'))
     assert r.status_code==400 and EmpleadoProductivo.query.count()==1
