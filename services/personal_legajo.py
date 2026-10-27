@@ -165,7 +165,7 @@ def guardar_horario(e, form, db_session):
     db_session.add(obj);db_session.flush();return obj
 
 
-def guardar_ausencia(e, form, db_session, usuario_id=None):
+def guardar_ausencia(e, form, db_session, usuario_id=None, unidad_negocio_id=None):
     tipo=form.get('tipo');desde=fecha(form.get('desde'),'Desde',True);hasta=fecha(form.get('hasta'),'Hasta',True)
     detalle=str(form.get('detalle') or '').strip();periodo=str(form.get('periodo') or '').strip()
     if tipo not in {'vacaciones','licencia','ausencia'} or hasta<desde or not detalle or len(detalle)>500 or len(periodo)>40:raise ValueError('Revisá tipo, fechas, período y detalle de la ausencia.')
@@ -182,7 +182,7 @@ def guardar_ausencia(e, form, db_session, usuario_id=None):
         NovedadLaboralPreparatoria.fecha_desde<=hasta,
         NovedadLaboralPreparatoria.fecha_hasta>=desde).first():
         raise ValueError('Ya hay vacaciones o una licencia planificada en esas fechas.')
-    unidad=e.unidad_negocio or db_session.query(UnidadNegocio).filter_by(organizacion_id=e.organizacion_id,activa=True).order_by(UnidadNegocio.id).first()
+    unidad=db_session.query(UnidadNegocio).filter_by(id=unidad_negocio_id,organizacion_id=e.organizacion_id,activa=True).first() if unidad_negocio_id is not None else e.unidad_negocio or db_session.query(UnidadNegocio).filter_by(organizacion_id=e.organizacion_id,activa=True).order_by(UnidadNegocio.id).first()
     if unidad is None:raise ValueError('Configurá una unidad activa para registrar vacaciones y licencias.')
     from services.personas_preparatorias import crear_novedad
     novedad=crear_novedad({'tipo':'ausencia' if tipo=='ausencia' else 'licencia',

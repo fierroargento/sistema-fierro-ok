@@ -83,8 +83,13 @@ def validar_confirmacion(resultado, *, organizacion_id, unidades, etapas, client
     return resultado
 
 
-def confirmar_importacion(resultado, *, organizacion_id, usuario, nombre_archivo, clientes_existentes, modelos, db_session):
+def confirmar_importacion(resultado, *, organizacion_id, usuario, nombre_archivo, clientes_existentes, modelos, db_session, unidad_negocio_id=None):
     """Crea clientes y su seguimiento interno; nunca importa pedidos ni contacta canales."""
+    if unidad_negocio_id is not None:
+        from services.clientes_unidad import exigir_preparado
+        exigir_preparado(db_session)
+        if resultado.get('unidad_negocio_id')!=unidad_negocio_id or any(f.get('unidad_negocio_id')!=unidad_negocio_id for f in resultado['filas']):
+            raise ValueError('El plan no pertenece a la unidad activa.')
     ClienteCRM = modelos["ClienteCRM"]
     ClienteIdentidadCanal = modelos["ClienteIdentidadCanal"]
     OportunidadCRM = modelos["OportunidadCRM"]
@@ -121,6 +126,7 @@ def confirmar_importacion(resultado, *, organizacion_id, usuario, nombre_archivo
                 identidades_nuevas.append(ClienteIdentidadCanal(
                     organizacion_id=organizacion_id,
                     cliente=cliente,
+                    **({"unidad_negocio_id":unidad_negocio_id} if unidad_negocio_id is not None else {}),
                     canal=fila["canal"],
                     identificador_externo=fila["identificador_externo"],
                     activo=False,
@@ -153,6 +159,7 @@ def confirmar_importacion(resultado, *, organizacion_id, usuario, nombre_archivo
         ActividadCRM(
             organizacion_id=organizacion_id,
             cliente=cliente,
+            **({"unidad_negocio_id":unidad_negocio_id} if unidad_negocio_id is not None else {}),
             tipo="nota",
             asunto=fila["nombre"],
             detalle=fila.get("detalle") or None,
@@ -163,6 +170,7 @@ def confirmar_importacion(resultado, *, organizacion_id, usuario, nombre_archivo
     ]
     lote = LoteImportacionCRM(
         organizacion_id=organizacion_id,
+        **({"unidad_negocio_id":unidad_negocio_id} if unidad_negocio_id is not None else {}),
         nombre_archivo=(nombre_archivo or "plan_crm.json")[:255],
         huella_documento=resultado["huella_documento"],
         huella_plan=resultado["huella_plan"],
@@ -177,5 +185,9 @@ def confirmar_importacion(resultado, *, organizacion_id, usuario, nombre_archivo
         creado_por_username=getattr(usuario, "username", None) or "admin",
     )
     db_session.add_all(clientes_nuevos + identidades_nuevas + oportunidades_nuevas + actividades_nuevas + [lote])
+    if unidad_negocio_id is not None:
+        from services.clientes_unidad import vincular
+        db_session.flush()
+        for cliente in clientes_nuevos:vincular(cliente,organizacion_id,unidad_negocio_id,db_session)
     db_session.commit()
     return lote

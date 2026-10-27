@@ -84,7 +84,7 @@ def _centavos(valor):
         raise ValueError("El importe está fuera del rango permitido.") from error
 
 
-def previsualizar_importacion(contenido, *, organizacion_id, unidades, etapas, clientes, identidades):
+def previsualizar_importacion(contenido, *, organizacion_id, unidades, etapas, clientes, identidades, unidad_negocio_id=None):
     """Genera un plan inmutable y tenant-aware; no recibe sesión de base de datos."""
     texto = _texto(contenido)
     try:
@@ -184,7 +184,7 @@ def previsualizar_importacion(contenido, *, organizacion_id, unidades, etapas, c
             "tipo": tipo,
             "codigo_cliente": codigo,
             "nombre": valor("nombre")[:200],
-            "unidad_negocio_id": unidades_tenant.get(unidad),
+            "unidad_negocio_id": unidades_tenant.get(unidad) or unidad_negocio_id,
             "documento": valor("documento")[:30],
             "email": email,
             "telefono": valor("telefono")[:50],
@@ -222,6 +222,9 @@ def previsualizar_importacion(contenido, *, organizacion_id, unidades, etapas, c
         "confirmacion_habilitada": False,
         "automatizaciones": False,
     }
+    if unidad_negocio_id is not None:
+        resultado["unidad_negocio_id"]=unidad_negocio_id
+        resultado["huella_documento"]=hashlib.sha256(str(unidad_negocio_id).encode()+b":"+contenido).hexdigest()
     resultado["huella_plan"] = hashlib.sha256(
         json.dumps(resultado, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()

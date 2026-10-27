@@ -93,6 +93,8 @@
     <section id="crm-clientes" class="card crm-section">
         <h2>{{ "Clientes" if vista_clientes else "Clientes CRM" }}</h2>
 
+        {% if clientes_unidad_preparados is defined and not clientes_unidad_preparados %}<p class="alerta alerta-error">Falta preparar Clientes por unidad en staging. Los datos anteriores se conservan.</p>{% endif %}
+        <details class="estructura-editor crm-create"><summary>Vincular cliente existente</summary><form method="post" class="crm-create-form" action="{{ url_for('admin_crm.guardar',vista='clientes') }}" data-unidad-confirmar="¿Vincular este cliente con la unidad activa?"><input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="accion" value="vincular_cliente"><label class="crm-field"><span>Código exacto del cliente</span><input name="codigo_existente" maxlength="80" required></label><p>Comparte la ficha de contacto con esta unidad, conservando sus operaciones separadas.</p><button type="button" data-crm-cancel>Cancelar</button><button type="submit">Vincular</button></form></details>
         <details class="estructura-editor crm-create"><summary>Nuevo cliente</summary><form data-arca-form="cliente" data-arca-url="{{ url_for('admin_crm.consultar_cuit') }}" class="crm-create-form" method="post"
               action="{{ url_for('admin_crm.guardar', vista='clientes' if vista_clientes else none) }}">
             <input type="hidden" name="accion" value="crear_cliente">
@@ -105,7 +107,7 @@
             </select></label>
 
             <label class="crm-field"><span>Unidad de negocio</span><select name="unidad_negocio_id">
-                <option value="">Sin unidad definida</option>
+
                 {% for unidad in unidades %}
                 <option value="{{ unidad.id }}">{{ unidad.nombre }}</option>
                 {% endfor %}
@@ -164,16 +166,16 @@
                             {{ cliente.email or "-" }}
                         </td>
                         <td>
-                            {{ cliente.unidad_negocio.nombre if cliente.unidad_negocio else "-" }}
+                            {{ unidades[0].nombre if unidades else "Sin unidad activa" }}
                         </td>
                         <td><span class="estructura-status" data-estado="{{ cliente.estado }}">{{ cliente.estado }}</span></td>
-                        <td><span class="estructura-status" data-estado="{{ "activo" if cliente.activo else "desactivado" }}">{{ "activo" if cliente.activo else "desactivado" }}</span></td>
+                        <td><span class="estructura-status" data-estado="{{ "activo" if (clientes_activos_unidad|default({})).get(cliente.id,cliente.activo) else "desactivado" }}">{{ "activo" if (clientes_activos_unidad|default({})).get(cliente.id,cliente.activo) else "desactivado" }}</span></td>
                         <td>
                             <form method="post" action="{{ url_for('admin_crm.guardar', vista='clientes' if vista_clientes else none) }}">
                                 <input type="hidden" name="accion" value="toggle_cliente">
                                 <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
                                 <button type="submit">
-                                    {{ "Desactivar" if cliente.activo else "Activar" }}
+                                    {{ "Desactivar" if (clientes_activos_unidad|default({})).get(cliente.id,cliente.activo) else "Activar" }}
                                 </button>
                             </form>
                         </td>
@@ -272,7 +274,7 @@
             <label class="crm-field"><span>Oportunidad</span><input required name="titulo" maxlength="200" placeholder="Oportunidad"></label>
 
             <label class="crm-field"><span>Unidad de negocio</span><select name="unidad_negocio_id">
-                <option value="">Sin unidad</option>
+
                 {% for unidad in unidades %}
                 <option value="{{ unidad.id }}">{{ unidad.nombre }}</option>
                 {% endfor %}

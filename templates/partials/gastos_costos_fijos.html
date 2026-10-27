@@ -1,0 +1,136 @@
+  <section class="comercial-section" id="costos-fijos">
+    <div class="section-heading"><div><span class="section-number">5</span><h2>Costos indirectos productivos</h2></div><div class="section-heading-actions"><p>Costos fijos, variables y provisiones; solo la parte productiva integra fabricación.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='costos-fijos') }}">Importar costos indirectos</a></div></div>
+    <details class="source-catalog uat-form-editor"><summary>Crear costo indirecto</summary><form class="comercial-form form-source-fixed" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1' if origen_gastos|default(false) else none) }}">
+      <input type="hidden" name="accion" value="crear_costo_fijo">
+      <div class="fixed-cost-row fixed-cost-identity">
+        <label><span>Alcance</span><select name="unidad_negocio_id"><option value="{{ unidad_activa.id }}">{{ unidad_activa.nombre }}</option></select></label>
+        <label><span>Código</span><input name="codigo" maxlength="80" placeholder="Ej. alquiler-galpon" required></label>
+        <label><span>Nombre</span><input name="nombre" maxlength="200" placeholder="Ej. Alquiler del galpón" required></label>
+        <label><span>Categoría</span><input name="categoria" maxlength="100" placeholder="Infraestructura" required></label>
+      </div>
+      <div class="fixed-cost-row fixed-cost-valuation">
+        <label><span>Naturaleza</span><select name="naturaleza"><option value="fijo">Fijo recurrente</option><option value="variable">Variable</option><option value="provision">Provisión</option></select></label>
+        <label><span>Tratamiento</span><select name="integra_costo_produccion" data-production-cost><option value="0">Solo informativo</option><option value="1">Integra producción</option></select></label>
+        <label><span>Distribución</span><select name="criterio_distribucion" data-distribution><option value="sin_distribuir">Sin distribuir</option><option value="horas_productivas">Horas productivas</option><option value="horas_maquina">Horas de máquina</option><option value="unidades_producidas">Unidades producidas</option><option value="porcentaje">Porcentaje</option><option value="importe_directo">Importe directo</option></select></label>
+        <label><span>Periodicidad</span><select name="periodicidad" data-cost-periodicity><option value="mensual">Mensual</option><option value="bimestral">Bimestral</option><option value="trimestral">Trimestral</option><option value="cuatrimestral">Cuatrimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option><option value="eventual">Eventual</option></select></label>
+        <label><span>Importe del período</span><div class="money-input"><span>$</span><input name="importe_periodo" inputmode="decimal" required></div></label>
+      </div>
+      <div class="fixed-cost-row fixed-cost-complement">
+        <label data-eventual-months hidden><span>Meses que cubre</span><input name="meses_cobertura" inputmode="decimal" placeholder="Ej. 12" disabled></label>
+        <label><span>Comprobante <small>opcional</small></span><input name="comprobante_referencia" maxlength="120"></label>
+        <button class="comercial-primary" type="submit">Crear costo indirecto</button>
+      </div>
+    </form></details>
+    {% if costos_fijos %}<details class="source-catalog"><summary><span>Ver costos indirectos cargados</span><strong>{{ costos_fijos|length }}</strong></summary><div class="table-wrap source-catalog-table"><table class="comercial-table"><thead><tr><th>Código</th><th>Concepto</th><th>Categoría</th><th>Tratamiento</th><th>Distribución</th><th>Importe mensual</th><th>Versión</th><th>Acciones</th></tr></thead><tbody>
+      {% for costo in costos_fijos %}
+      {% set vigente = costo.versiones|selectattr('vigente')|first %}
+      <tr><td><strong>{{ costo.codigo }}</strong></td><td>{{ costo.nombre }}</td><td>{{ costo.categoria }}{% if vigente %}<small class="table-subline">{{ vigente.naturaleza|capitalize }} · {{ vigente.periodicidad }}</small>{% endif %}</td><td><span class="status status-{{ 'active' if costo.integra_costo_produccion else 'draft' }}">{{ 'Productivo' if costo.integra_costo_produccion else 'Informativo' }}</span></td><td>{{ costo.criterio_distribucion|replace('_', ' ') }}</td><td>{% if vigente %}<strong>$ {{ formatear_centavos_ars(vigente.importe_mensual_centavos) }}</strong><small class="table-subline">equivalente mensual</small>{% else %}—{% endif %}</td><td>{{ 'v' ~ vigente.numero_version if vigente else '—' }}</td><td><details class="source-row-action"><summary data-fierro-icon="gestionar">Gestionar</summary><div class="source-row-panel"><form class="source-table-update" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1' if origen_gastos|default(false) else none) }}"><input type="hidden" name="accion" value="actualizar_importe_costo_fijo"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}"><input type="hidden" name="moneda" value="ARS"><label><span>Naturaleza</span><select name="naturaleza"><option value="fijo">Fijo recurrente</option><option value="variable">Variable</option><option value="provision">Provisión</option></select></label><label><span>Periodicidad</span><select name="periodicidad"><option value="mensual">Mensual</option><option value="bimestral">Bimestral</option><option value="trimestral">Trimestral</option><option value="cuatrimestral">Cuatrimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option><option value="eventual">Eventual</option></select></label><label><span>Importe del período</span><div class="money-input"><span>$</span><input name="importe_periodo" inputmode="decimal" required></div></label><label><span>Meses que cubre <small>solo eventual</small></span><input name="meses_cobertura" inputmode="decimal"></label><label><span>Comprobante</span><input name="comprobante_referencia"></label><label><span>Observación</span><input name="observacion"></label><button class="table-action" type="submit">Guardar versión</button></form><details class="source-table-history"><summary data-fierro-icon="ver">Ver historial ({{ costo.versiones|length }})</summary><div class="mini-history">{% for version in costo.versiones|sort(attribute='numero_version', reverse=true) %}<div><span>v{{ version.numero_version }} · {{ version.periodicidad }} · {{ version.vigente_desde.strftime('%d/%m/%Y') }}</span><strong>$ {{ formatear_centavos_ars(version.importe_mensual_centavos) }}/mes</strong></div>{% endfor %}</div></details></div></details></td></tr>
+      {% endfor %}
+    </tbody></table></div></details>
+    <details class="source-catalog fixed-cost-distributions">
+      <summary><span>Distribuir costos indirectos entre unidades</span><strong>{{ costos_fijos|length }}</strong></summary>
+      <div class="fixed-cost-distribution-list">
+        <p class="catalog-help">La participación reparte cada concepto entre las unidades y debe sumar 100%. Solo el porcentaje productivo integra el costo de fabricación.</p>
+        {% for costo in costos_fijos %}
+        {% set asignaciones = distribuciones_costos_fijos.get(costo.id, {}) %}
+        <form class="fixed-cost-distribution-card" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1' if origen_gastos|default(false) else none) }}">
+          <input type="hidden" name="accion" value="configurar_distribucion_costo_fijo">
+          <input type="hidden" name="costo_fijo_id" value="{{ costo.id }}">
+          <div class="fixed-cost-distribution-title"><div><strong>{{ costo.nombre }}</strong><small>{{ costo.codigo }} · {{ costo.categoria }}</small></div><span>Total requerido: 100%</span></div>
+          <div class="fixed-cost-distribution-head"><span>Unidad</span><span>Participación</span><span>Ubicación de origen</span><span>Parte productiva</span></div>
+          {% for unidad in unidades %}
+          {% if costo.unidad_negocio_id is none or costo.unidad_negocio_id == unidad.id %}
+          {% set asignacion = asignaciones.get(unidad.id) %}
+          <div class="fixed-cost-distribution-row">
+            <input type="hidden" name="costo_unidad_id" value="{{ unidad.id }}">
+            <strong>{{ unidad.nombre }}</strong>
+            <div class="percent-input"><input name="costo_porcentaje_asignacion" inputmode="decimal" value="{% if asignacion %}{{ numero_decimal_limpio(asignacion.porcentaje_asignacion) }}{% elif not asignaciones and unidad.id == unidad_activa.id %}100{% else %}0{% endif %}" required><span>%</span></div>
+            <input name="costo_ubicacion" maxlength="120" value="{{ asignacion.ubicacion_costo if asignacion else '' }}" placeholder="Ej. Taller o salón">
+            <div class="percent-input"><input name="costo_porcentaje_productivo" inputmode="decimal" value="{% if asignacion %}{{ numero_decimal_limpio(asignacion.porcentaje_productivo) }}{% elif costo.integra_costo_produccion %}100{% else %}0{% endif %}" required><span>%</span></div>
+          </div>
+          {% endif %}
+          {% endfor %}
+          <div class="fixed-cost-distribution-actions"><label><span>Observación <small>opcional</small></span><input name="observacion_distribucion_costo" placeholder="Ej. distribución vigente desde agosto"></label><button class="table-action" type="submit">Guardar distribución</button></div>
+        </form>
+        {% endfor %}
+      </div>
+    </details>
+    <details class="source-catalog indexed-costs">
+      <summary><span>Ajustes automáticos por IPC</span><strong>{{ propuestas_ipc|length }}</strong></summary>
+      <div class="indexed-cost-grid">
+        <div class="catalog-help indexed-cost-help">
+          <p>El sistema consulta el IPC nacional oficial y prepara la propuesta. Ningún importe cambia sin aprobación administrativa.</p>
+          <form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1' if origen_gastos|default(false) else none) }}"><input type="hidden" name="accion" value="actualizar_ipc"><button class="table-action">Consultar IPC ahora</button></form>
+        </div>
+        {% for costo in costos_fijos %}
+        {% set regla = reglas_ipc_por_costo.get(costo.id) %}
+        <article class="indexed-cost-card">
+          <div><strong>{{ costo.nombre }}</strong><small>{{ costo.codigo }}</small></div>
+          {% if regla %}
+          {% set ventana = ventana_para_ajuste(regla.proximo_ajuste, periodo_inicio=regla.periodo_ipc_inicio, periodo_final=regla.periodo_ipc_final, frecuencia_meses=regla.frecuencia_meses) %}
+          <div class="adjustment-rule-summary"><strong>IPC · cada {{ regla.frecuencia_meses }} meses</strong><small>Período {{ ventana.inicio.strftime('%m/%Y') }}–{{ ventana.final.strftime('%m/%Y') }} · vigencia {{ regla.proximo_ajuste.strftime('%d/%m/%Y') }} · pago {{ regla.modalidad_pago }}</small></div>
+          {% else %}<span class="status status-draft">Sin regla configurada</span>{% endif %}
+          <button class="table-action source-dialog-trigger indexed-configure-button" type="button" data-source-dialog>Configurar ajuste</button>
+          <dialog class="source-dialog adjustment-rule-dialog"><button class="source-dialog-close" type="button" aria-label="Cerrar">×</button><div class="source-row-panel">
+            <form class="adjustment-rule-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1' if origen_gastos|default(false) else none) }}">
+              <input type="hidden" name="accion" value="configurar_ajuste_ipc"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}">
+              <div class="dialog-heading"><strong>Regla de ajuste · {{ costo.nombre }}</strong><small>La configuración queda versionada y nunca modifica importes sin la aprobación indicada.</small></div>
+              <label><span>Tipo de ajuste</span><select name="tipo_ajuste"><option value="ipc" selected>IPC nacional</option></select></label>
+              <label><span>Frecuencia</span><select name="frecuencia_meses" required>{% for meses, nombre in [(1,'Mensual'),(2,'Bimestral'),(3,'Trimestral'),(4,'Cuatrimestral'),(6,'Semestral'),(12,'Anual')] %}<option value="{{ meses }}" {% if regla and regla.frecuencia_meses == meses %}selected{% elif not regla and meses == 6 %}selected{% endif %}>{{ nombre }}</option>{% endfor %}<option value="18" {% if regla and regla.frecuencia_meses == 18 %}selected{% endif %}>Cada 18 meses</option><option value="24" {% if regla and regla.frecuencia_meses == 24 %}selected{% endif %}>Cada 24 meses</option></select></label>
+              <label><span>Inicio del período IPC</span><input type="month" name="periodo_ipc_inicio" value="{{ regla.periodo_ipc_inicio.strftime('%Y-%m') if regla and regla.periodo_ipc_inicio else '2026-03' }}" required></label>
+              <label><span>Fin del período IPC</span><input type="month" name="periodo_ipc_final" value="{{ regla.periodo_ipc_final.strftime('%Y-%m') if regla and regla.periodo_ipc_final else '2026-08' }}" required></label>
+              <label><span>Vigencia del nuevo valor</span><input type="date" name="proximo_ajuste" value="{{ regla.proximo_ajuste.isoformat() if regla else '2026-09-01' }}" required></label>
+              <label><span>Modalidad de pago</span><select name="modalidad_pago"><option value="adelantado" {% if not regla or regla.modalidad_pago == 'adelantado' %}selected{% endif %}>Mes adelantado</option><option value="vencido" {% if regla and regla.modalidad_pago == 'vencido' %}selected{% endif %}>Mes vencido</option></select></label>
+              <label class="approval-choice"><input type="checkbox" name="requiere_aprobacion" value="1" {% if not regla or regla.requiere_aprobacion %}checked{% endif %}><span>Requerir aprobación administrativa antes de aplicar</span></label>
+              <label class="adjustment-note"><span>Observación</span><input name="observacion" value="{{ regla.observacion or '' if regla else '' }}" placeholder="Ej. alquiler pagado por adelantado"></label>
+              <button class="comercial-primary" type="submit">Guardar configuración</button>
+              {% if regla and regla.historial_configuracion %}<details class="source-table-history"><summary>Historial de configuraciones ({{ regla.historial_configuracion|length }})</summary><div class="mini-history">{% for version in regla.historial_configuracion|sort(attribute='numero_revision', reverse=true) %}<div><span>r{{ version.numero_revision }} · cada {{ version.frecuencia_meses }} meses · {{ version.periodo_ipc_inicio.strftime('%m/%Y') if version.periodo_ipc_inicio else '—' }}–{{ version.periodo_ipc_final.strftime('%m/%Y') if version.periodo_ipc_final else '—' }}</span><strong>Vigencia {{ version.proximo_ajuste.strftime('%d/%m/%Y') }}</strong></div>{% endfor %}</div></details>{% endif %}
+            </form>
+          </div></dialog>
+        </article>
+        {% endfor %}
+        {% for propuesta in propuestas_ipc %}
+        <article class="ipc-proposal">
+          <div><strong>Propuesta · {{ propuesta.regla.costo_fijo.nombre }}</strong><small>Vigencia {{ propuesta.vigente_desde.strftime('%d/%m/%Y') }}</small></div>
+          <span>{{ propuesta.variacion_porcentual }}%</span>
+          <span>$ {{ formatear_centavos_ars(propuesta.importe_actual_centavos) }} → <strong>$ {{ formatear_centavos_ars(propuesta.importe_propuesto_centavos) }}</strong></span>
+          {% if propuesta.estado == 'pendiente' %}<form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1' if origen_gastos|default(false) else none) }}" onsubmit="return confirm('Se aprobará este ajuste IPC. ¿Continuar?')"><input type="hidden" name="accion" value="aprobar_ajuste_ipc"><input type="hidden" name="propuesta_id" value="{{ propuesta.id }}"><button class="comercial-primary">Aprobar propuesta</button></form>{% else %}<span class="status status-draft">Aprobada · pendiente de vigencia</span>{% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </details>
+    <div class="payables-shortcut" id="cuentas-pagar"><div><strong>Pagos, saldos y vencimientos</strong><span>{{ obligaciones_costos|length }} obligaciones · gestión administrativa independiente</span></div><a class="secondary-link" href="{{ url_for('admin_comercial.cuentas_pagar') }}">Abrir cuentas a pagar</a></div>
+    <details class="source-catalog payable-costs legacy-payables" id="cuentas-pagar-detalle">
+      <summary><span>Pagos, saldos y vencimientos</span><strong>{{ obligaciones_costos|length }}</strong></summary>
+      <div class="payable-cost-body">
+        {% if avisos_vencimientos.vencidas or avisos_vencimientos.proximas %}<div class="payment-alerts"><strong>{{ avisos_vencimientos.vencidas|length }} vencidos</strong><span>{{ avisos_vencimientos.proximas|length }} próximos en 7 días</span></div>{% endif %}
+        <details class="recurring-obligations"><summary>Automatizar vencimientos recurrentes</summary>
+          <div class="table-wrap recurring-rules-table"><table class="comercial-table"><thead><tr><th>Concepto</th><th>Frecuencia</th><th>Primer período</th><th>Vencimiento</th><th>Anticipación</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+          {% for costo in costos_fijos %}{% set recurrencia = reglas_obligaciones_por_costo.get(costo.id) %}<tr>
+            <td><strong>{{ costo.nombre }}</strong></td><td>{{ (recurrencia.frecuencia_meses ~ (' mes' if recurrencia.frecuencia_meses == 1 else ' meses')) if recurrencia else 'Sin configurar' }}</td><td>{{ recurrencia.periodo_inicio.strftime('%m/%Y') if recurrencia else '—' }}</td><td>{{ 'Día ' ~ recurrencia.dia_vencimiento if recurrencia else '—' }}</td><td>{{ (recurrencia.meses_anticipacion ~ (' mes' if recurrencia.meses_anticipacion == 1 else ' meses')) if recurrencia else '—' }}</td><td><span class="status {{ 'status-active' if recurrencia and recurrencia.activa else 'status-draft' }}">{{ 'Activa' if recurrencia and recurrencia.activa else 'Inactiva' }}</span></td><td>
+              <button class="table-action source-dialog-trigger" type="button" data-source-dialog data-fierro-icon="gestionar">Gestionar</button>
+              <dialog class="source-dialog recurring-rule-dialog"><button class="source-dialog-close" type="button" aria-label="Cerrar">×</button><form class="recurring-rule-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1' if origen_gastos|default(false) else none) }}">
+                <input type="hidden" name="accion" value="configurar_obligaciones_recurrentes"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}"><div class="dialog-heading"><strong>Calendario · {{ costo.nombre }}</strong><small>La generación es idempotente: nunca duplica un mismo concepto y período.</small></div>
+                <label><span>Frecuencia</span><select name="frecuencia_meses"><option value="1" {% if not recurrencia or recurrencia.frecuencia_meses == 1 %}selected{% endif %}>Mensual</option><option value="2" {% if recurrencia and recurrencia.frecuencia_meses == 2 %}selected{% endif %}>Bimestral</option><option value="3" {% if recurrencia and recurrencia.frecuencia_meses == 3 %}selected{% endif %}>Trimestral</option><option value="6" {% if recurrencia and recurrencia.frecuencia_meses == 6 %}selected{% endif %}>Semestral</option><option value="12" {% if recurrencia and recurrencia.frecuencia_meses == 12 %}selected{% endif %}>Anual</option></select></label>
+                <label><span>Primer período</span><input type="month" name="periodo_inicio" value="{{ recurrencia.periodo_inicio.strftime('%Y-%m') if recurrencia else '2026-08' }}" required></label><label><span>Día de vencimiento</span><input name="dia_vencimiento" type="number" min="1" max="31" value="{{ recurrencia.dia_vencimiento if recurrencia else 1 }}" required></label>
+                <label><span>Generar con anticipación</span><select name="meses_anticipacion"><option value="0" {% if recurrencia and recurrencia.meses_anticipacion == 0 %}selected{% endif %}>Mes actual</option><option value="1" {% if recurrencia and recurrencia.meses_anticipacion == 1 %}selected{% endif %}>1 mes</option><option value="2" {% if not recurrencia or recurrencia.meses_anticipacion == 2 %}selected{% endif %}>2 meses</option><option value="3" {% if recurrencia and recurrencia.meses_anticipacion == 3 %}selected{% endif %}>3 meses</option><option value="6" {% if recurrencia and recurrencia.meses_anticipacion == 6 %}selected{% endif %}>6 meses</option></select></label><label class="recurring-note"><span>Observación</span><input name="observacion" value="{{ recurrencia.observacion or '' if recurrencia else '' }}"></label><label class="approval-choice"><input type="checkbox" name="activa" value="1" {% if not recurrencia or recurrencia.activa %}checked{% endif %}><span>Generación automática activa</span></label><button class="comercial-primary">Guardar y generar</button>
+              </form></dialog>
+            </td></tr>{% endfor %}
+          </tbody></table></div>
+        </details>
+        <details class="manual-obligation"><summary>Crear obligación manual</summary><form class="payable-create" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1' if origen_gastos|default(false) else none) }}">
+          <input type="hidden" name="accion" value="crear_obligacion_costo">
+          <label><span>Concepto</span><select name="costo_fijo_id" required>{% for costo in costos_fijos %}<option value="{{ costo.id }}">{{ costo.nombre }}</option>{% endfor %}</select></label>
+          <label><span>Período</span><input type="month" name="periodo" required></label>
+          <label><span>Vencimiento</span><input type="date" name="fecha_vencimiento" required></label>
+          <label><span>Importe</span><div class="money-input"><span>$</span><input name="importe" inputmode="decimal" required></div></label>
+          <label><span>Observación</span><input name="observacion"></label>
+          <button class="comercial-primary">Crear obligación</button>
+        </form></details>
+        {% if obligaciones_costos %}<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Período</th><th>Concepto</th><th>Vencimiento</th><th>Importe</th><th>Pagado</th><th>Saldo</th><th>Estado / pago</th></tr></thead><tbody>
+          {% for obligacion in obligaciones_costos %}{% set saldo = saldo_obligacion(obligacion) %}<tr><td>{{ obligacion.periodo.strftime('%m/%Y') }}</td><td>{{ obligacion.costo_fijo.nombre }}{% if obligacion.ajuste_pendiente %}<small class="table-subline status-pending-adjustment">Pendiente de ajuste IPC</small>{% endif %}</td><td>{{ obligacion.fecha_vencimiento.strftime('%d/%m/%Y') }}{% if obligacion in avisos_vencimientos.vencidas %}<small class="table-subline status-overdue">Vencida</small>{% elif obligacion in avisos_vencimientos.proximas %}<small class="table-subline status-upcoming">Próxima</small>{% endif %}</td><td>$ {{ formatear_centavos_ars(obligacion.importe_centavos) }}{% if obligacion.ajuste_pendiente %}<small class="table-subline">importe provisorio</small>{% endif %}</td><td>$ {{ formatear_centavos_ars(obligacion.importe_centavos - saldo) }}</td><td><strong>$ {{ formatear_centavos_ars(saldo) }}</strong></td><td><details class="source-row-action"><summary>{{ 'Pendiente de IPC' if obligacion.ajuste_pendiente else obligacion.estado|capitalize }}</summary><div class="source-row-panel payment-management"><div class="payment-management-heading"><div><strong>{{ obligacion.costo_fijo.nombre }} · {{ obligacion.periodo.strftime('%m/%Y') }}</strong><small>Saldo pendiente</small></div><strong>$ {{ formatear_centavos_ars(saldo) }}</strong></div>{% if saldo %}<form class="payment-form" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1' if origen_gastos|default(false) else none) }}"><input type="hidden" name="accion" value="registrar_pago_costo"><input type="hidden" name="obligacion_id" value="{{ obligacion.id }}"><label><span>Fecha</span><input type="date" name="fecha_pago" required></label><label><span>Importe</span><input name="importe" inputmode="decimal" required></label><label><span>Medio</span><input name="medio_pago" placeholder="Transferencia, efectivo..."></label><label><span>Referencia</span><input name="referencia"></label><label class="payment-proof"><span>Comprobante o enlace</span><input name="comprobante" placeholder="URL, número o nombre del archivo"></label><label class="payment-note"><span>Observación</span><input name="observacion"></label><button class="comercial-primary">Registrar pago a cuenta</button></form>{% else %}<div class="payment-complete">Obligación pagada en su totalidad.</div>{% endif %}<div class="payment-history"><strong>Historial de movimientos ({{ obligacion.pagos|length }})</strong>{% if obligacion.pagos %}<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Fecha</th><th>Importe</th><th>Medio / referencia</th><th>Comprobante</th><th>Estado</th><th>Acción</th></tr></thead><tbody>{% for pago in obligacion.pagos|sort(attribute='fecha_pago', reverse=true) %}<tr class="{{ 'payment-voided' if pago.anulado else '' }}"><td>{{ pago.fecha_pago.strftime('%d/%m/%Y') }}</td><td>$ {{ formatear_centavos_ars(pago.importe_centavos) }}</td><td>{{ pago.medio_pago or '—' }}<small class="table-subline">{{ pago.referencia or '' }}</small></td><td>{{ pago.comprobante or '—' }}</td><td>{{ 'Anulado' if pago.anulado else 'Aplicado' }}{% if pago.anulado %}<small class="table-subline">{{ pago.motivo_anulacion }}</small>{% endif %}</td><td>{% if not pago.anulado %}<form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1' if origen_gastos|default(false) else none) }}" onsubmit="return confirm('El pago quedará anulado en el historial y se recalculará el saldo. ¿Continuar?')"><input type="hidden" name="accion" value="anular_pago_costo"><input type="hidden" name="pago_id" value="{{ pago.id }}"><input name="motivo_anulacion" required placeholder="Motivo"><button class="table-action table-action-danger">Anular</button></form>{% else %}—{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty-inline">Todavía no hay pagos registrados.</p>{% endif %}</div></div></details></td></tr>{% endfor %}
+        </tbody></table></div>{% endif %}
+      </div>
+    </details>
+    {% else %}<p class="empty-card">Todavía no hay costos indirectos cargados.</p>{% endif %}
+  </section>

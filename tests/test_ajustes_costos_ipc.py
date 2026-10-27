@@ -35,7 +35,7 @@ def test_confirmacion_manual_y_job_quedan_modulares():
     from pathlib import Path
     servicio = Path("services/ajustes_costos_ipc.py").read_text(encoding="utf-8")
     manager = Path("modules/automation/manager.py").read_text(encoding="utf-8")
-    plantilla = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    plantilla = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8") + Path("templates/partials/gastos_costos_fijos.html").read_text(encoding="utf-8")
     assert "def aprobar_propuesta" in servicio
     assert 'estado="pendiente"' in servicio
     assert "job_ipc_costos" in manager
@@ -44,7 +44,7 @@ def test_confirmacion_manual_y_job_quedan_modulares():
 
 def test_interfaz_permite_configurar_frecuencia_periodo_y_pago():
     from pathlib import Path
-    plantilla = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    plantilla = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8") + Path("templates/partials/gastos_costos_fijos.html").read_text(encoding="utf-8")
     modelo = Path("models/ajuste_ipc_productivo.py").read_text(encoding="utf-8")
     assert "Configurar ajuste" in plantilla
     assert 'name="frecuencia_meses"' in plantilla

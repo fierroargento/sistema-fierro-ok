@@ -14,7 +14,7 @@ def consolidar_origenes(*,organizacion_id,unidad_negocio_id,obligaciones,factura
         if int(obligacion.organizacion_id)!=int(organizacion_id):
             hallazgos.append({"codigo":"obligacion_fuera_tenant","obligacion_id":obligacion.id});continue
         unidad=getattr(obligacion.costo_fijo,"unidad_negocio_id",None)
-        if unidad is not None and int(unidad)!=int(unidad_negocio_id):continue
+        if unidad is None or int(unidad)!=int(unidad_negocio_id):continue
         if obligacion.estado in ("pagada","anulada"):continue
         pagado=sum(int(p.importe_centavos) for p in obligacion.pagos if not p.anulado)
         saldo=max(0,int(obligacion.importe_centavos)-pagado)

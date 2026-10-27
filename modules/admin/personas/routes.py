@@ -1,4 +1,5 @@
 from sqlalchemy import or_
+from services.personal_unidad import consulta as personal_visible
 from flask import Blueprint,redirect,render_template,request,send_file,session,url_for
 from services.tenant_context import TenantError,resolver_tenant_usuario
 from services.personas_preparatorias import crear_turno,crear_novedad,cancelar,controlar_personas,exportar_control
@@ -10,11 +11,13 @@ def crear_blueprint_personas(*,dependencias):
   try:mem=resolver_tenant_usuario(usuario,UsuarioOrganizacion=dependencias["UsuarioOrganizacion"],organizacion_id=session.get("organizacion_id"))
   except TenantError as e:return None,None,None,redirect(url_for("inicio",error=str(e)))
   if mem.rol!="admin":return None,None,None,redirect(url_for("inicio"))
-  unidad=m["UnidadNegocio"].query.filter_by(id=session.get("unidad_negocio_id"),organizacion_id=mem.organizacion_id,activa=True).first() or m["UnidadNegocio"].query.filter_by(organizacion_id=mem.organizacion_id,activa=True).order_by(m["UnidadNegocio"].id.asc()).first()
-  if unidad is None:return usuario,mem.organizacion,None,redirect(url_for("admin_estructura.panel"))
+  from services.alcance_unidad import resolver,validar_formulario
+  try:
+   unidad=resolver(mem.organizacion_id,m['UnidadNegocio']);validar_formulario(unidad.id)
+  except ValueError as error:return usuario,mem.organizacion,None,redirect(url_for('inicio',error=str(error)))
   session["organizacion_id"]=mem.organizacion_id;session["unidad_negocio_id"]=unidad.id;return usuario,mem.organizacion,unidad,None
  def datos(o,u):
-  empleados=m["EmpleadoProductivo"].query.filter_by(organizacion_id=o.id,tipo_registro="empleado").filter(or_(m["EmpleadoProductivo"].unidad_negocio_id.is_(None),m["EmpleadoProductivo"].unidad_negocio_id==u.id)).order_by(m["EmpleadoProductivo"].nombre.asc()).all();turnos=m["TurnoLaboralPlanificado"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).order_by(m["TurnoLaboralPlanificado"].inicio.asc()).all();novedades=m["NovedadLaboralPreparatoria"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).order_by(m["NovedadLaboralPreparatoria"].fecha_desde.asc()).all();competencias=m["CompetenciaEmpleadoPreparatoria"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).order_by(m["CompetenciaEmpleadoPreparatoria"].vence_el.asc()).all();return empleados,turnos,novedades,competencias
+  empleados=personal_visible(o.id,u.id,m,db.session).order_by(m["EmpleadoProductivo"].nombre.asc()).all();turnos=m["TurnoLaboralPlanificado"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).order_by(m["TurnoLaboralPlanificado"].inicio.asc()).all();novedades=m["NovedadLaboralPreparatoria"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).order_by(m["NovedadLaboralPreparatoria"].fecha_desde.asc()).all();competencias=m["CompetenciaEmpleadoPreparatoria"].query.filter_by(organizacion_id=o.id,unidad_negocio_id=u.id).order_by(m["CompetenciaEmpleadoPreparatoria"].vence_el.asc()).all();return empleados,turnos,novedades,competencias
  @bp.route("/admin/personas")
  @dependencias["login_required"]
  def panel():
@@ -29,11 +32,11 @@ def crear_blueprint_personas(*,dependencias):
   try:
    accion=request.form.get("accion")
    if accion in {"crear_turno","crear_novedad"}:
-    empleado=m["EmpleadoProductivo"].query.filter_by(id=int(request.form.get("empleado_id")),organizacion_id=o.id,tipo_registro="empleado").filter(or_(m["EmpleadoProductivo"].unidad_negocio_id.is_(None),m["EmpleadoProductivo"].unidad_negocio_id==u.id)).first()
+    empleado=personal_visible(o.id,u.id,m,db.session).filter_by(id=int(request.form.get("empleado_id"))).first()
     if accion=="crear_turno":obj=crear_turno(request.form,empleado=empleado,organizacion_id=o.id,unidad_negocio_id=u.id,Turno=m["TurnoLaboralPlanificado"],db_session=db.session,usuario_id=getattr(usuario,"id",None));mensaje=f"Turno {obj.id} planificado sin fichaje."
     else:obj=crear_novedad(request.form,empleado=empleado,organizacion_id=o.id,unidad_negocio_id=u.id,Novedad=m["NovedadLaboralPreparatoria"],db_session=db.session,usuario_id=getattr(usuario,"id",None));mensaje=f"Novedad {obj.id} propuesta sin aprobar."
    elif accion=="registrar_competencia":
-    empleado=m["EmpleadoProductivo"].query.filter_by(id=int(request.form.get("empleado_id")),organizacion_id=o.id,tipo_registro="empleado").filter(or_(m["EmpleadoProductivo"].unidad_negocio_id.is_(None),m["EmpleadoProductivo"].unidad_negocio_id==u.id)).first()
+    empleado=personal_visible(o.id,u.id,m,db.session).filter_by(id=int(request.form.get("empleado_id"))).first()
     if empleado is None:raise ValueError("El empleado no pertenece al contexto activo.")
     return redirect(url_for('admin_personal.ficha',empleado_id=empleado.id,seccion='competencias',ok='Las competencias se cargan desde este legajo.'))
    elif accion in {"cancelar_turno","cancelar_novedad"}:

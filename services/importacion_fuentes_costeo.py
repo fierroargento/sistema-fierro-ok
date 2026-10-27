@@ -288,7 +288,7 @@ def _numero_positivo(valor, nombre, maximo=None):
     return str(numero)
 
 
-def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio_id, modelos):
+def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio_id, modelos, unidad_estricta=False):
     config = definicion(tipo)
     destinos = [campo for campo in mapeo.values() if campo]
     faltantes = [nombre for clave, (nombre, obligatorio) in config["campos"].items() if obligatorio and clave not in destinos]
@@ -321,6 +321,11 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                 existente = modelos["EmpleadoProductivo"].query.filter_by(organizacion_id=organizacion_id, codigo=str(datos.get("codigo") or "").strip().lower()).first()
                 if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
                     raise ValueError("El código ya pertenece a otra unidad")
+                if existente and unidad_estricta:
+                    from extensions import db
+                    from services.personal_unidad import consulta
+                    if consulta(organizacion_id,unidad_negocio_id,modelos,db.session).filter_by(id=existente.id).first() is None:
+                        raise ValueError('El legajo no está relacionado con la unidad activa')
                 if existente: ids = {"empleado_id": existente.id}
                 datos["tipo_funcion"] = _clave_valor(datos.get("tipo_funcion"))
                 if datos["tipo_funcion"] not in {
@@ -434,6 +439,8 @@ def previsualizar_fuentes(tipo, filas, mapeo, *, organizacion_id, unidad_negocio
                 existente = modelos["CostoFijoProductivo"].query.filter_by(organizacion_id=organizacion_id, codigo=str(datos.get("codigo") or "").strip().lower()).first()
                 if existente and existente.unidad_negocio_id not in {None, unidad_negocio_id}:
                     raise ValueError("El código ya pertenece a otra unidad")
+                if existente and unidad_estricta and existente.unidad_negocio_id!=unidad_negocio_id:
+                    raise ValueError('El gasto debe actualizarse desde su unidad responsable')
                 if existente: ids = {"costo_fijo_id": existente.id}
                 datos["naturaleza"] = _clave_valor(datos.get("naturaleza") or "fijo")
                 if datos["naturaleza"] not in {"fijo", "variable", "provision"}:

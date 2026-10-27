@@ -30,7 +30,7 @@ def test_distribucion_debe_sumar_cien():
 def test_distribucion_de_costos_fijos_permanece_modular():
     app = (ROOT / "app.py").read_text(encoding="utf-8")
     servicio = (ROOT / "services" / "distribucion_costos_fijos.py").read_text(encoding="utf-8")
-    plantilla = (ROOT / "templates" / "admin_fuentes_costos.html").read_text(encoding="utf-8")
+    plantilla = (ROOT / "templates" / "admin_fuentes_costos.html").read_text(encoding="utf-8") + (ROOT / "templates" / "partials" / "gastos_costos_fijos.html").read_text(encoding="utf-8")
     assert "def registrar_distribucion_costo_fijo" in servicio
     assert "def registrar_distribucion_costo_fijo" not in app
     assert "Distribuir costos indirectos entre unidades" in plantilla

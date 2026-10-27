@@ -56,6 +56,20 @@ def crear_blueprint_crm(
     ]
     modelos = dependencias["modelos"]
 
+    def datos_unidad(organizacion):
+        return obtener_datos_panel_crm(organizacion.id,modelos=modelos,
+            unidad_negocio_id=session['unidad_negocio_id'],db_session=db.session)
+
+    def lote_unidad(lote_id,organizacion):
+        from scripts.preparar_clientes_unidad import preparado
+        if not preparado(db.session.connection()):raise ValueError('Falta preparar Clientes por unidad.')
+        from services.clientes_unidad import obtener_lote
+        lote=obtener_lote(lote_id,organizacion.id,session['unidad_negocio_id'],modelos,db.session)
+        if lote is None:
+            from flask import abort
+            abort(404)
+        return lote
+
     def resolver_acceso():
         usuario = usuario_actual()
 
@@ -83,6 +97,13 @@ def crear_blueprint_crm(
         session["organizacion_id"] = (
             membresia.organizacion_id
         )
+        from services.alcance_unidad import resolver,validar_formulario
+        try:
+            unidad=resolver(membresia.organizacion_id,modelos['UnidadNegocio'])
+            validar_formulario(unidad.id)
+        except ValueError as error:
+            return None,None,redirect(url_for('inicio',error=str(error)))
+
 
         return (
             usuario,
@@ -109,14 +130,11 @@ def crear_blueprint_crm(
         if respuesta is not None:
             return respuesta
 
-        datos = obtener_datos_panel_crm(
-            organizacion.id,
-            modelos=modelos,
-        )
+        datos = datos_unidad(organizacion)
 
         from services.maestros_contacto import consultar, preparado
         datos['domicilios_preparados'] = preparado(db.session)
-        datos['domicilios_clientes'] = consultar(db.session, organizacion.id)
+        datos['domicilios_clientes'] = {k:v for k,v in consultar(db.session, organizacion.id).items() if k in {c.id for c in datos['clientes']}}
 
         return render_template(
             "admin_crm.html",
@@ -151,21 +169,9 @@ def crear_blueprint_crm(
         ).strip()
 
         try:
-            mensaje = procesar_accion_crm_admin(
-                accion,
-                request.form,
-                organizacion=organizacion,
-                modelos=modelos,
-                db_session=db.session,
-                usuario=(
-                    getattr(
-                        usuario,
-                        "username",
-                        None,
-                    )
-                    or "admin"
-                ),
-            )
+            from services.clientes_unidad import procesar
+            mensaje=procesar(accion,request.form,organizacion=organizacion,unidad_negocio_id=session['unidad_negocio_id'],
+                modelos=modelos,db_session=db.session,usuario=usuario)
 
             registrar_auditoria(
                 "Configuró CRM interno",
@@ -202,7 +208,7 @@ def crear_blueprint_crm(
     def certificacion_offline():
         _usuario,organizacion,respuesta=resolver_acceso()
         if respuesta is not None:return respuesta
-        datos=obtener_datos_panel_crm(organizacion.id,modelos=modelos)
+        datos=datos_unidad(organizacion)
         resultado=certificar_crm(organizacion_id=organizacion.id,modulo=datos["modulo_crm"],unidades=datos["unidades"],etapas=datos["etapas"],clientes=datos["clientes"],identidades=datos["identidades"],oportunidades=datos["oportunidades"],actividades=datos["actividades"])
         if request.method=="POST":return send_file(exportar_certificacion(resultado),as_attachment=True,download_name="certificacion_crm_offline.json",mimetype="application/json")
         return render_template("admin_certificacion_crm_offline.html",certificacion=resultado)
@@ -213,7 +219,7 @@ def crear_blueprint_crm(
         _usuario, organizacion, respuesta = resolver_acceso()
         if respuesta is not None:
             return respuesta
-        datos = obtener_datos_panel_crm(organizacion.id, modelos=modelos)
+        datos = datos_unidad(organizacion)
         resultado = None
         error = (request.args.get("error") or "").strip()
         ok_feedback = (request.args.get("ok") or "").strip()
@@ -231,6 +237,7 @@ def crear_blueprint_crm(
                     etapas=datos["etapas"],
                     clientes=datos["clientes"],
                     identidades=datos["identidades"],
+                    unidad_negocio_id=session["unidad_negocio_id"],
                 )
                 if request.form.get("accion") == "exportar":
                     return send_file(
@@ -260,8 +267,10 @@ def crear_blueprint_crm(
         try:
             if archivo is None or not archivo.filename:
                 raise ValueError("Seleccioná la previsualización JSON exportada.")
-            datos = obtener_datos_panel_crm(organizacion.id, modelos=modelos)
+            datos = datos_unidad(organizacion)
             plan = deserializar_plan(archivo.read())
+            if plan.get('unidad_negocio_id')!=session['unidad_negocio_id'] or any(f.get('unidad_negocio_id')!=session['unidad_negocio_id'] for f in plan.get('filas',[])):
+                raise ValueError('El plan no pertenece a la unidad activa.')
             validar_confirmacion(
                 plan,
                 organizacion_id=organizacion.id,
@@ -277,6 +286,7 @@ def crear_blueprint_crm(
                 usuario=usuario,
                 nombre_archivo=archivo.filename,
                 clientes_existentes=datos["clientes"],
+                unidad_negocio_id=session["unidad_negocio_id"],
                 modelos=modelos,
                 db_session=db.session,
             )
@@ -297,7 +307,7 @@ def crear_blueprint_crm(
         _usuario, organizacion, respuesta = resolver_acceso()
         if respuesta is not None:
             return respuesta
-        lote = obtener_lote_tenant(lote_id, organizacion_id=organizacion.id, LoteImportacionCRM=modelos["LoteImportacionCRM"])
+        lote = lote_unidad(lote_id,organizacion)
         return send_file(exportar_evidencia(lote), as_attachment=True, download_name=f"lote_crm_{lote.id}.json", mimetype="application/json")
 
     @blueprint.route("/admin/crm/lotes/<int:lote_id>/anular", methods=["POST"])
@@ -307,7 +317,7 @@ def crear_blueprint_crm(
         if respuesta is not None:
             return respuesta
         try:
-            lote = obtener_lote_tenant(lote_id, organizacion_id=organizacion.id, LoteImportacionCRM=modelos["LoteImportacionCRM"])
+            lote = lote_unidad(lote_id,organizacion)
             anular_lote(lote, organizacion_id=organizacion.id, db_session=db.session)
             registrar_auditoria("Anuló lote CRM", entidad="lote_importacion_crm", entidad_id=lote.id, detalle="Anulación interna; los registros y la evidencia se conservaron.")
             return redirect(url_for("admin_crm.importacion_offline", ok=f"Lote CRM #{lote.id} anulado."))
@@ -321,7 +331,7 @@ def crear_blueprint_crm(
         _usuario, organizacion, respuesta = resolver_acceso()
         if respuesta is not None:
             return respuesta
-        datos = obtener_datos_panel_crm(organizacion.id, modelos=modelos)
+        datos = datos_unidad(organizacion)
         resultado = controlar_crm(
             organizacion_id=organizacion.id,
             modulo=datos["modulo_crm"], unidades=datos["unidades"], etapas=datos["etapas"],

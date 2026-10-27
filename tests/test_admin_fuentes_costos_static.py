@@ -13,7 +13,7 @@ def test_panel_tiene_ruta_independiente():
 
 
 def test_pantalla_separa_tres_fuentes():
-    plantilla = leer("templates/admin_fuentes_costos.html")
+    plantilla = leer("templates/admin_fuentes_costos.html") + leer("templates/partials/gastos_costos_fijos.html")
     assert 'id="insumos"' in plantilla
     assert 'id="empleados"' in plantilla
     assert 'id="costos-fijos"' in plantilla
@@ -54,7 +54,7 @@ def test_app_solo_cablea_modelos():
 
 
 def test_interfaz_usa_javascript_externo_y_responsive():
-    plantilla = leer("templates/admin_fuentes_costos.html")
+    plantilla = leer("templates/admin_fuentes_costos.html") + leer("templates/partials/gastos_costos_fijos.html")
     javascript = leer("static/admin_fuentes_costos.js")
     estilos = leer("static/admin_comercial.css")
     assert "admin_fuentes_costos.js" in plantilla

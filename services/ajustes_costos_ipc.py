@@ -142,10 +142,10 @@ def configurar_regla(costo, *, proximo_ajuste, organizacion_id, usuario_id, obse
 
 
 def generar_propuestas(*, ReglaAjusteIPCProductivo, PropuestaAjusteIPCProductivo,
-                       IndiceIPCOficial, CostoFijoVersion, db_session, hoy=None):
+                       IndiceIPCOficial, CostoFijoVersion, db_session, hoy=None, reglas=None):
     hoy = hoy or date.today()
     creadas = []
-    reglas = ReglaAjusteIPCProductivo.query.filter_by(activa=True).all()
+    reglas = ReglaAjusteIPCProductivo.query.filter_by(activa=True).all() if reglas is None else reglas
     for regla in reglas:
         ventana = ventana_para_ajuste(
             regla.proximo_ajuste, periodo_inicio=regla.periodo_ipc_inicio,
@@ -240,9 +240,10 @@ def aprobar_propuesta(propuesta, *, usuario_id, CostoFijoVersion, db_session, ho
     return propuesta
 
 
-def ejecutar_ciclo_ipc(*, modelos, db_session, urlopen_fn=urlopen, hoy=None):
+def ejecutar_ciclo_ipc(*, modelos, db_session, urlopen_fn=urlopen, hoy=None, reglas=None):
     hoy = hoy or date.today()
-    reglas = modelos["ReglaAjusteIPCProductivo"].query.filter_by(activa=True).all()
+    acotado=reglas is not None
+    reglas = modelos["ReglaAjusteIPCProductivo"].query.filter_by(activa=True).all() if reglas is None else reglas
     if modelos.get("ObligacionCostoProductivo"):
         from services.cuentas_pagar_productivas import asegurar_obligacion_ajuste
         for regla in reglas:
@@ -267,9 +268,10 @@ def ejecutar_ciclo_ipc(*, modelos, db_session, urlopen_fn=urlopen, hoy=None):
         PropuestaAjusteIPCProductivo=modelos["PropuestaAjusteIPCProductivo"],
         IndiceIPCOficial=modelos["IndiceIPCOficial"],
         CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session,
-        hoy=hoy,
+        hoy=hoy, reglas=reglas,
     )
     aprobadas = modelos["PropuestaAjusteIPCProductivo"].query.filter_by(estado="aprobada").all()
+    if acotado:aprobadas=[p for p in aprobadas if p.regla_id in {r.id for r in reglas}]
     return sum(
         aplicar_propuesta(
             p, CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session, hoy=hoy,

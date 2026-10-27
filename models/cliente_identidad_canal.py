@@ -15,6 +15,7 @@ class ClienteIdentidadCanal(db.Model):
 
     __tablename__ = "cliente_identidad_canal"
 
+    unidad_negocio_id = db.Column(db.Integer, db.ForeignKey('unidad_negocio.id'), nullable=True, index=True)
     id = db.Column(
         db.Integer,
         primary_key=True,

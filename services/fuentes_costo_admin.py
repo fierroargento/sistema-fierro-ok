@@ -96,11 +96,17 @@ def procesar_accion_fuente_costo(
     archivos=None,
 ):
     usuario_id = getattr(usuario, "id", None)
+    from services.gastos_unidad import validar_accion,asignar_responsable
+    validar_accion(accion,formulario,organizacion.id,unidad_activa.id,modelos)
+    if accion=='asignar_responsable_gasto':
+        costo=asignar_responsable(formulario.get('codigo_existente'),organizacion.id,unidad_activa.id,modelos,db_session)
+        db_session.commit()
+        return 'Unidad responsable del gasto asignada. Reparto de costos e historial conservados.'
     comunes = _comunes(organizacion, modelos, db_session)
     unidad_solicitada = _id(formulario, "unidad_negocio_id", opcional=True)
     if unidad_solicitada not in {None, unidad_activa.id}:
         raise ValueError("La fuente no pertenece a la unidad activa.")
-    comunes["unidad_negocio_id"] = unidad_solicitada
+    comunes["unidad_negocio_id"] = unidad_solicitada or unidad_activa.id
 
     if accion in {
         "aprobar_costo", "aprobar_costos_masivo", "rechazar_costo",
@@ -263,7 +269,10 @@ def procesar_accion_fuente_costo(
         )
 
     if accion == "actualizar_ipc":
-        ejecutar_ciclo_ipc(modelos=modelos, db_session=db_session)
+        from services.seguridad_entorno import laboratorio_forzado
+        if laboratorio_forzado():raise ValueError('La consulta externa de IPC está deshabilitada en laboratorio desconectado.')
+        reglas=[r for r in modelos['ReglaAjusteIPCProductivo'].query.filter_by(organizacion_id=organizacion.id,activa=True).all() if r.costo_fijo.unidad_negocio_id==unidad_activa.id]
+        ejecutar_ciclo_ipc(modelos=modelos, db_session=db_session,reglas=reglas)
         return "IPC oficial consultado y propuestas actualizadas."
 
     if accion == "aprobar_ajuste_ipc":
@@ -1016,17 +1025,13 @@ def obtener_fuentes_costo(
         Catalogo.unidad_negocio_id == unidad_negocio_id,
         modelos["CatalogoProducto"].activo.is_(True),
     ).order_by(modelos["CatalogoProducto"].nombre_comercial).all()
-    empleados = modelos["EmpleadoProductivo"].query.filter(
-        modelos["EmpleadoProductivo"].organizacion_id == organizacion_id,
-        modelos["EmpleadoProductivo"].tipo_registro == "empleado",
-        (modelos["EmpleadoProductivo"].unidad_negocio_id.is_(None))
-        | (modelos["EmpleadoProductivo"].unidad_negocio_id == unidad_negocio_id),
-    ).order_by(modelos["EmpleadoProductivo"].nombre).all()
-    costos_fijos = modelos["CostoFijoProductivo"].query.filter(
-        modelos["CostoFijoProductivo"].organizacion_id == organizacion_id,
-        (modelos["CostoFijoProductivo"].unidad_negocio_id.is_(None))
-        | (modelos["CostoFijoProductivo"].unidad_negocio_id == unidad_negocio_id),
-    ).order_by(modelos["CostoFijoProductivo"].nombre).all()
+    from services.personal_unidad import consulta as personal_visible
+    from services.gastos_unidad import consulta as gastos_visibles
+    if db_session is None:
+        from extensions import db
+        db_session=db.session
+    empleados=personal_visible(organizacion_id,unidad_negocio_id,modelos,db_session).order_by(modelos['EmpleadoProductivo'].nombre).all()
+    costos_fijos=gastos_visibles(modelos['CostoFijoProductivo'],modelos['CostoFijoDistribucionVersion'],organizacion_id,unidad_negocio_id).order_by(modelos['CostoFijoProductivo'].nombre).all()
     ids_costos_visibles = [costo.id for costo in costos_fijos]
     reglas_ipc = modelos["ReglaAjusteIPCProductivo"].query.filter_by(
         organizacion_id=organizacion_id, activa=True,
@@ -1041,14 +1046,15 @@ def obtener_fuentes_costo(
         modelos["PropuestaAjusteIPCProductivo"].estado.in_(("pendiente", "aprobada")),
         modelos["ReglaAjusteIPCProductivo"].costo_fijo_id.in_(ids_costos_visibles),
     ).all() if ids_costos_visibles else []
+    ids_costos_responsables=[c.id for c in costos_fijos if c.unidad_negocio_id==unidad_negocio_id]
     obligaciones = modelos["ObligacionCostoProductivo"].query.filter_by(
         organizacion_id=organizacion_id,
     ).filter(
-        modelos["ObligacionCostoProductivo"].costo_fijo_id.in_(ids_costos_visibles),
+        modelos["ObligacionCostoProductivo"].costo_fijo_id.in_(ids_costos_responsables),
     ).order_by(
         modelos["ObligacionCostoProductivo"].fecha_vencimiento.asc(),
         modelos["ObligacionCostoProductivo"].id.asc(),
-    ).all() if ids_costos_visibles else []
+    ).all() if ids_costos_responsables else []
     reconciliar_estados_obligaciones(
         obligaciones,
         db_session=db_session,

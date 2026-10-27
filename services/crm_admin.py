@@ -110,6 +110,7 @@ def _validar_integridad_oportunidad(
     ClienteCRM,
     UnidadNegocio,
     EtapaCRM,
+    unidad_activa_id=None,
 ):
     _misma_organizacion(organizacion, oportunidad, "La oportunidad")
     cliente = _obtener(
@@ -129,6 +130,7 @@ def _validar_integridad_oportunidad(
         if (
             cliente.unidad_negocio_id is not None
             and cliente.unidad_negocio_id != unidad.id
+            and unidad_activa_id is None
         ):
             raise ValueError(
                 "La oportunidad y el cliente pertenecen a unidades diferentes."
@@ -145,9 +147,9 @@ def _validar_integridad_oportunidad(
     return cliente
 
 
-def _guardar(db_session):
+def _guardar(db_session, commit=True):
     try:
-        db_session.commit()
+        db_session.commit() if commit else db_session.flush()
     except Exception:
         db_session.rollback()
         raise
@@ -161,6 +163,8 @@ def procesar_accion_crm_admin(
     modelos,
     db_session,
     usuario="admin",
+    commit=True,
+    unidad_activa_id=None,
 ):
     accion = str(
         accion or ""
@@ -178,6 +182,10 @@ def procesar_accion_crm_admin(
     UnidadNegocio = modelos[
         "UnidadNegocio"
     ]
+
+    if unidad_activa_id is not None:
+        from services.clientes_unidad import validar_accion
+        validar_accion(formulario,org=organizacion.id,unidad=unidad_activa_id,modelos=modelos,session=db_session)
 
     if accion == "crear_etapa":
         codigo = _texto(
@@ -239,7 +247,7 @@ def procesar_accion_crm_admin(
             activa=False,
         )
         db_session.add(etapa)
-        _guardar(db_session)
+        _guardar(db_session, commit=commit)
 
         return "Etapa creada como desactivada."
 
@@ -260,7 +268,7 @@ def procesar_accion_crm_admin(
         etapa.activa = not bool(
             etapa.activa
         )
-        _guardar(db_session)
+        _guardar(db_session, commit=commit)
 
         return (
             "Etapa activada."
@@ -381,7 +389,7 @@ def procesar_accion_crm_admin(
         db_session.add(cliente)
         from services.maestros_contacto import guardar as guardar_domicilio
         guardar_domicilio(db_session, cliente, _texto(formulario, 'domicilio', 250), _texto(formulario, 'codigo_postal', 20))
-        _guardar(db_session)
+        _guardar(db_session, commit=commit)
 
         return "Cliente CRM creado como desactivado."
 
@@ -402,7 +410,7 @@ def procesar_accion_crm_admin(
         cliente.activo = not bool(
             cliente.activo
         )
-        _guardar(db_session)
+        _guardar(db_session, commit=commit)
 
         return (
             "Cliente activado."
@@ -462,6 +470,7 @@ def procesar_accion_crm_admin(
 
         identidad = ClienteIdentidadCanal(
             organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa_id,
             cliente_crm_id=cliente.id,
             canal=canal,
             identificador_externo=identificador,
@@ -478,7 +487,7 @@ def procesar_accion_crm_admin(
             activo=False,
         )
         db_session.add(identidad)
-        _guardar(db_session)
+        _guardar(db_session, commit=commit)
 
         return "Identidad agregada como desactivada."
 
@@ -512,7 +521,7 @@ def procesar_accion_crm_admin(
         identidad.activo = not bool(
             identidad.activo
         )
-        _guardar(db_session)
+        _guardar(db_session, commit=commit)
 
         return (
             "Identidad activada."
@@ -567,6 +576,7 @@ def procesar_accion_crm_admin(
             if (
                 cliente.unidad_negocio_id is not None
                 and cliente.unidad_negocio_id != unidad.id
+                and unidad_activa_id is None
             ):
                 raise ValueError(
                     "La oportunidad y el cliente pertenecen "
@@ -653,7 +663,7 @@ def procesar_accion_crm_admin(
         )
 
         db_session.add(oportunidad)
-        _guardar(db_session)
+        _guardar(db_session, commit=commit)
 
         return (
             "Oportunidad creada como desactivada."
@@ -674,6 +684,7 @@ def procesar_accion_crm_admin(
             ClienteCRM=ClienteCRM,
             UnidadNegocio=UnidadNegocio,
             EtapaCRM=EtapaCRM,
+            unidad_activa_id=unidad_activa_id,
         )
 
         cambiar_estado_oportunidad(
@@ -704,11 +715,12 @@ def procesar_accion_crm_admin(
             ClienteCRM=ClienteCRM,
             UnidadNegocio=UnidadNegocio,
             EtapaCRM=EtapaCRM,
+            unidad_activa_id=unidad_activa_id,
         )
         oportunidad.activa = not bool(
             oportunidad.activa
         )
-        _guardar(db_session)
+        _guardar(db_session, commit=commit)
 
         return (
             "Oportunidad activada."
@@ -755,6 +767,7 @@ def procesar_accion_crm_admin(
                 ClienteCRM=ClienteCRM,
                 UnidadNegocio=UnidadNegocio,
                 EtapaCRM=EtapaCRM,
+                unidad_activa_id=unidad_activa_id,
             )
 
             if (
@@ -779,6 +792,7 @@ def procesar_accion_crm_admin(
 
         actividad = ActividadCRM(
             organizacion_id=organizacion.id,
+            unidad_negocio_id=unidad_activa_id,
             cliente_crm_id=cliente.id,
             oportunidad_crm_id=(
                 oportunidad.id
@@ -813,7 +827,7 @@ def procesar_accion_crm_admin(
             )[:100],
         )
         db_session.add(actividad)
-        _guardar(db_session)
+        _guardar(db_session, commit=commit)
 
         return "Actividad CRM creada."
 
@@ -851,6 +865,7 @@ def procesar_accion_crm_admin(
                 ClienteCRM=ClienteCRM,
                 UnidadNegocio=UnidadNegocio,
                 EtapaCRM=EtapaCRM,
+                unidad_activa_id=unidad_activa_id,
             )
             if oportunidad.cliente_crm_id != cliente.id:
                 raise ValueError(
@@ -870,7 +885,7 @@ def procesar_accion_crm_admin(
             )
             mensaje = "Actividad completada."
 
-        _guardar(db_session)
+        _guardar(db_session, commit=commit)
         return mensaje
 
     raise ValueError(

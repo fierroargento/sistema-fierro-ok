@@ -48,7 +48,7 @@
             {% set personal_abierto = (request.endpoint or '').startswith('admin_personal.') or (request.endpoint or '').startswith('admin_personas.') or (request.endpoint == 'admin_comercial.importar_fuente_costeo' and (request.view_args or {}).get('tipo') == 'empleados') %}
             {% set contabilidad_abierta = (request.endpoint or '').startswith('admin_contabilidad.') %}
             {% set tesoreria_abierta = request.endpoint == 'admin_comercial.cuentas_pagar' or (request.endpoint or '').startswith('admin_tesoreria.') %}
-            <details class="menu-group"{% if tesoreria_abierta or contabilidad_abierta or personal_abierto or compras_abiertas %} open{% endif %}>
+            <details class="menu-group"{% if tesoreria_abierta or contabilidad_abierta or personal_abierto or compras_abiertas or request.endpoint == 'admin_comercial.gastos' %} open{% endif %}>
                 <summary>Administración</summary>
                 <div class="menu-children">
                     <details class="menu-group menu-group-secondary"{% if compras_abiertas %} open{% endif %}>
@@ -65,10 +65,11 @@
                     <details class="menu-group menu-group-secondary"{% if tesoreria_abierta %} open{% endif %}>
                         <summary>Tesorería</summary>
                         <div class="menu-children">
-                            <a href="{{ url_for('admin_tesoreria.panel') }}">Panel de tesorería</a>
+                            <a href="{{ url_for('admin_tesoreria.panel') }}"{% if request.endpoint == 'admin_tesoreria.panel' %} aria-current="page"{% endif %}>Cajas y bancos</a>
                             <a href="{{ url_for('admin_comercial.cuentas_pagar') }}"{% if request.endpoint == 'admin_comercial.cuentas_pagar' %} aria-current="page"{% endif %}>Pagos y vencimientos</a>
                         </div>
                     </details>
+                    <a href="{{ url_for('admin_comercial.gastos') }}"{% if request.endpoint == 'admin_comercial.gastos' %} aria-current="page"{% endif %}>Gastos</a>
                     <a href="{{ url_for('admin_personal.panel') }}"{% if personal_abierto %} aria-current="page"{% endif %}>Personal</a>
                     <a href="{{ url_for('admin_contabilidad.panel') }}"{% if contabilidad_abierta %} aria-current="page"{% endif %}>Contabilidad</a>
                 </div>
@@ -215,5 +216,6 @@
 </script>
 
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='confirmacion_acciones.js', v='20261003-confirm') }}" defer></script>
+<script defer src="{{ url_for('static',filename='unidad_contexto.js',v='20261027-1') }}" data-unidad="{{ session.get('unidad_negocio_id','') }}"></script>
 </body>
 </html>

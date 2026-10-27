@@ -14,6 +14,7 @@ class LoteImportacionCRM(db.Model):
         CheckConstraint("automatizaciones = false", name="ck_lote_importacion_crm_sin_automatizaciones"),
         Index("ix_lote_importacion_crm_historial", "organizacion_id", "fecha_creacion"),
     )
+    unidad_negocio_id = db.Column(db.Integer, db.ForeignKey('unidad_negocio.id'), nullable=True, index=True)
     id = db.Column(db.Integer, primary_key=True)
     organizacion_id = db.Column(db.Integer, db.ForeignKey("organizacion.id"), nullable=False, index=True)
     nombre_archivo = db.Column(db.String(255), nullable=False)

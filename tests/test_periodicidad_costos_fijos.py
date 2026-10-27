@@ -34,7 +34,7 @@ def test_periodicidad_es_aditiva_y_modular():
     migraciones = Path("services/migraciones_saas.py").read_text(encoding="utf-8")
     bootstrap = Path("services/bootstrap_base_datos.py").read_text(encoding="utf-8")
     app = Path("app.py").read_text(encoding="utf-8")
-    plantilla = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    plantilla = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8") + Path("templates/partials/gastos_costos_fijos.html").read_text(encoding="utf-8")
     assert "def asegurar_periodicidad_costos_fijos" in migraciones
     assert "asegurar_periodicidad_costos_fijos(" in bootstrap
     assert "def calcular_equivalente_mensual" not in app
@@ -43,7 +43,7 @@ def test_periodicidad_es_aditiva_y_modular():
 
 
 def test_presentacion_separa_bloques_y_muestra_cobertura_solo_en_eventuales():
-    plantilla = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8")
+    plantilla = Path("templates/admin_fuentes_costos.html").read_text(encoding="utf-8") + Path("templates/partials/gastos_costos_fijos.html").read_text(encoding="utf-8")
     javascript = Path("static/admin_fuentes_costos.js").read_text(encoding="utf-8")
     estilos = Path("static/admin_comercial.css").read_text(encoding="utf-8")
 

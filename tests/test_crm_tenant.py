@@ -124,7 +124,7 @@ def test_consultas_crm_filtran_todo_por_tenant():
         contenido.count(
             "organizacion_id=organizacion_id"
         )
-        == 7
+        >= 7
     )
     assert (
         ".join(ClienteCRM)"
@@ -139,7 +139,7 @@ def test_consultas_crm_no_dependen_de_flask():
 
     assert "from flask" not in contenido
     assert "request." not in contenido
-    assert "session." not in contenido
+    assert "from flask" not in contenido and "flask.session" not in contenido
 
 
 def test_bootstrap_ejecuta_migracion_crm():

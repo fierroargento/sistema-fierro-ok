@@ -15,6 +15,7 @@ class ActividadCRM(db.Model):
 
     __tablename__ = "actividad_crm"
 
+    unidad_negocio_id = db.Column(db.Integer, db.ForeignKey('unidad_negocio.id'), nullable=True, index=True)
     id = db.Column(
         db.Integer,
         primary_key=True,

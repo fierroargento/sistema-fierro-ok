@@ -21,12 +21,15 @@ from test_producto_ficha_maestra import entorno
 def personal(entorno, monkeypatch):
     from modules.admin.personal import routes
     app, org, otra, unidad = entorno
+    unidad.activa=True;db.session.commit()
     db.metadata.create_all(db.engine, tables=[UsuarioSistema.__table__, EmpleadoProductivo.__table__, EmpleadoCostoVersion.__table__, RecursoEmpleadoProductivo.__table__])
     from models.personas import TurnoLaboralPlanificado, NovedadLaboralPreparatoria, CompetenciaEmpleadoPreparatoria
     from scripts.preparar_personal import preparar
     from models.personal_administrativo import TABLAS_PERSONAL
     db.metadata.create_all(db.engine,tables=[UsuarioOrganizacion.__table__,ConfiguracionCostoLaboralVersion.__table__, EmpleadoDistribucionVersion.__table__,TurnoLaboralPlanificado.__table__,NovedadLaboralPreparatoria.__table__,CompetenciaEmpleadoPreparatoria.__table__])
     preparar(db.engine)
+    from scripts.preparar_aislamiento_unidades import preparar_personal
+    preparar_personal(db.engine)
     modelos = dict(UsuarioSistema=UsuarioSistema,UsuarioOrganizacion=UsuarioOrganizacion,Organizacion=Organizacion, UnidadNegocio=UnidadNegocio, EmpleadoProductivo=EmpleadoProductivo, RecursoEmpleadoProductivo=RecursoEmpleadoProductivo,
         ConfiguracionCostoLaboralVersion=ConfiguracionCostoLaboralVersion,EmpleadoCostoVersion=EmpleadoCostoVersion,
         EmpleadoDistribucionVersion=EmpleadoDistribucionVersion,TurnoLaboralPlanificado=TurnoLaboralPlanificado,
@@ -49,10 +52,11 @@ def personal(entorno, monkeypatch):
     exec(compile(ast.Module(body=[funcion], type_ignores=[]),'csrf-real','exec'),espacio)
     app.before_request(espacio['validar_csrf']);app.config['TESTING']=False
     c=app.test_client()
+    c.environ_base["HTTP_X_FIERRO_UNIDAD"]=str(unidad.id)
     with c.session_transaction() as s:s['_csrf_token']='csrf-personal';s['unidad_negocio_id']=unidad.id
     yield c, org, otra, unidad, modelos, mem
     db.session.rollback()
-    db.metadata.drop_all(db.engine,tables=list(reversed(TABLAS_PERSONAL))+[TurnoLaboralPlanificado.__table__,NovedadLaboralPreparatoria.__table__,CompetenciaEmpleadoPreparatoria.__table__,EmpleadoDistribucionVersion.__table__,ConfiguracionCostoLaboralVersion.__table__,RecursoEmpleadoProductivo.__table__, EmpleadoCostoVersion.__table__, EmpleadoProductivo.__table__,UsuarioOrganizacion.__table__,UsuarioSistema.__table__])
+    db.metadata.drop_all(db.engine,tables=[__import__('models.personal_unidad',fromlist=['PersonalUnidad']).PersonalUnidad.__table__]+list(reversed(TABLAS_PERSONAL))+[TurnoLaboralPlanificado.__table__,NovedadLaboralPreparatoria.__table__,CompetenciaEmpleadoPreparatoria.__table__,EmpleadoDistribucionVersion.__table__,ConfiguracionCostoLaboralVersion.__table__,RecursoEmpleadoProductivo.__table__, EmpleadoCostoVersion.__table__, EmpleadoProductivo.__table__,UsuarioOrganizacion.__table__,UsuarioSistema.__table__])
 
 
 def campos(**cambios):

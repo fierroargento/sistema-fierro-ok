@@ -22,15 +22,16 @@ def unidades_asignadas(empleados):
     return {e.id:' / '.join(sorted({v.recurso.unidad_negocio.nombre for v in e.participaciones_recurso if v.recurso.organizacion_id==e.organizacion_id and v.recurso.unidad_negocio_id})) or (e.unidad_negocio.nombre if e.unidad_negocio else 'Compartido') for e in empleados}
 
 
-def guardar_asignacion(e,form,*,organizacion,modelos,db_session,usuario_id):
+def guardar_asignacion(e,form,*,organizacion,modelos,db_session,usuario_id,unidades_permitidas=None):
     if form.get('huella_areas')!=huella_asignacion(e):raise ValueError('La asignación o las tareas cambiaron. Recargá la ficha antes de guardar.')
     tareas=str(form.get('tareas_habituales') or '').strip()
     if len(tareas)>500:raise ValueError('Las tareas habituales admiten hasta 500 caracteres.')
     recursos=modelos['EmpleadoProductivo'].query.filter_by(organizacion_id=organizacion.id,tipo_registro='recurso').order_by(modelos['EmpleadoProductivo'].id).with_for_update().all()
-    permitidas={str(r.id) for r in recursos}
+    editables=[r for r in recursos if unidades_permitidas is None or r.unidad_negocio_id in unidades_permitidas]
+    permitidas={str(r.id) for r in editables}
     if any(k.startswith('area_porcentaje_') and k.removeprefix('area_porcentaje_') not in permitidas for k in form):raise ValueError('La asignación contiene un área ajena o inexistente.')
-    nuevas={}
-    for recurso in recursos:
+    nuevas={v.recurso_id:v.porcentaje_dedicacion for v in e.participaciones_recurso if str(v.recurso_id) not in permitidas}
+    for recurso in editables:
         porcentaje=_decimal_porcentaje(form.get(f'area_porcentaje_{recurso.id}') or '0','La dedicación')
         if porcentaje:
             if not recurso.activo or recurso.unidad_negocio_id is None or not recurso.unidad_negocio.activa:raise ValueError('Elegí áreas activas con unidad de negocio activa.')

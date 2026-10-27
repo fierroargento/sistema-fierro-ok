@@ -13,9 +13,11 @@ def crear_blueprint_contabilidad(*,dependencias):
         try:membresia=resolver_tenant_usuario(usuario,UsuarioOrganizacion=dependencias["UsuarioOrganizacion"],organizacion_id=session.get("organizacion_id"))
         except TenantError as error:return None,None,None,redirect(url_for("inicio",error=str(error)))
         if membresia.rol!="admin":return None,None,None,redirect(url_for("inicio"))
-        unidad=modelos["UnidadNegocio"].query.filter_by(id=session.get("unidad_negocio_id"),organizacion_id=membresia.organizacion_id,activa=True).first()
-        if unidad is None:unidad=modelos["UnidadNegocio"].query.filter_by(organizacion_id=membresia.organizacion_id,activa=True).order_by(modelos["UnidadNegocio"].id.asc()).first()
-        if unidad is None:return usuario,membresia.organizacion,None,redirect(url_for("admin_estructura.panel"))
+        from services.alcance_unidad import resolver,validar_formulario
+        try:
+            unidad=resolver(membresia.organizacion_id,modelos['UnidadNegocio'])
+            validar_formulario(unidad.id)
+        except ValueError as error:return usuario,membresia.organizacion,None,redirect(url_for('inicio',error=str(error)))
         session["organizacion_id"]=membresia.organizacion_id;session["unidad_negocio_id"]=unidad.id
         return usuario,membresia.organizacion,unidad,None
     @bp.route("/admin/contabilidad")

@@ -11,20 +11,35 @@ from test_personal_actualizacion_costos import sueldo
 
 def preparar(personal):
     c,org,otra,base,m,*_=personal
-    U=m['UnidadNegocio'];nautica=U(organizacion_id=org.id,codigo='nautica',nombre='Náutica');taller=U(organizacion_id=org.id,codigo='taller',nombre='Taller Fierro')
+    U=m['UnidadNegocio'];nautica=U(organizacion_id=org.id,codigo='nautica',nombre='Náutica',activa=True);taller=U(organizacion_id=org.id,codigo='taller',nombre='Taller Fierro',activa=True)
     ajena=U(organizacion_id=otra.id,codigo='ajena',nombre='Ajena');db.session.add_all([nautica,taller,ajena]);db.session.commit()
     areas=[]
     for codigo,nombre,u in [('naut','Náutica',nautica),('herr','Taller Herrería',taller),('laser','Taller Láser',taller)]:
+        with c.session_transaction() as ses:ses['unidad_negocio_id']=u.id
+        c.environ_base['HTTP_X_FIERRO_UNIDAD']=str(u.id)
         r=c.post('/admin/personal/mano-obra',data=dict(_csrf_token='csrf-personal',accion='crear_area',area_unidad_id=str(u.id),codigo=codigo,nombre=nombre,sector=nombre))
         assert r.status_code==302,r.text
         areas.append(EmpleadoProductivo.query.filter_by(codigo=codigo).one())
+    with c.session_transaction() as ses:ses['unidad_negocio_id']=base.id
+    c.environ_base['HTTP_X_FIERRO_UNIDAD']=str(base.id)
     return areas,ajena
 
 
 def asignar(c,e,porcentajes,**kw):
+    # El escenario compartido declara los vínculos que antes eran implícitos.
+    from models.personal_unidad import PersonalUnidad
+    for r,_ in porcentajes:
+        if r.organizacion_id==e.organizacion_id and not PersonalUnidad.query.filter_by(empleado_id=e.id,unidad_negocio_id=r.unidad_negocio_id).first():
+            db.session.add(PersonalUnidad(organizacion_id=e.organizacion_id,empleado_id=e.id,unidad_negocio_id=r.unidad_negocio_id))
+    db.session.commit()
     f=dict(_csrf_token='csrf-personal',seccion='areas',accion='guardar_areas_personal',huella_areas=huella_asignacion(e),tareas_habituales='Coordinar tareas')
     f.update({f'area_porcentaje_{r.id}':str(p) for r,p in porcentajes});f.update(kw)
-    return c.post(f'/admin/personal/{e.id}',data=f)
+    r=c.post(f'/admin/personal/{e.id}',data=f)
+    if r.status_code==302 and porcentajes:
+        unidad=porcentajes[0][0].unidad_negocio_id
+        with c.session_transaction() as ses:ses['unidad_negocio_id']=unidad
+        c.environ_base['HTTP_X_FIERRO_UNIDAD']=str(unidad)
+    return r
 
 
 def test_asignacion_dos_unidades_tres_areas_calcula_costo_y_proyeccion_sin_doble_conteo(personal):
@@ -91,7 +106,8 @@ def test_sin_sueldo_no_inventa_tarifa_y_sin_asignaciones_es_pendiente(personal):
     c,*_=personal;areas,_=preparar(personal);e=nuevo(personal)
     assert asignar(c,e,[(areas[1],100)]).status_code==400
     html=c.get('/admin/personal/mano-obra').text
-    assert 'pendientes' in html.lower() and e.nombre in html and 'Pendiente de completar' in html
+    assert 'pendientes' in html.lower() and e.nombre in html
+    assert f'area={areas[1].id}' not in html  # no abrir áreas de unidades ajenas a la activa
     assert RecursoEmpleadoProductivo.query.count()==0
 
 
@@ -105,6 +121,8 @@ def test_fuentes_de_costo_solo_enlaza_a_personal_sin_otro_formulario():
 def test_datos_del_area_se_gestionan_en_personal_con_concurrencia_y_contexto(personal):
     from services.personal_areas import huella_area
     c,*_=personal;areas,_=preparar(personal);r=areas[1]
+    with c.session_transaction() as ses:ses['unidad_negocio_id']=r.unidad_negocio_id
+    c.environ_base['HTTP_X_FIERRO_UNIDAD']=str(r.unidad_negocio_id)
     vista=c.get(f'/admin/personal/mano-obra?area={r.id}')
     assert vista.status_code==200 and 'Gestionar área' in vista.text
     f=dict(_csrf_token='csrf-personal',accion='editar_area',registro_area=str(r.id),huella_area=huella_area(r),nombre='Herrería',sector='Taller Herrería')
@@ -119,8 +137,9 @@ def test_exportacion_refleja_areas_y_repartos_reales(personal):
     from test_personal_exportacion import libro
     c,*_=personal;areas,_=preparar(personal);e=nuevo(personal);sueldo(e)
     assert asignar(c,e,[(areas[1],40),(areas[2],60)]).status_code==302
+    with c.session_transaction() as ses:ses['unidad_negocio_id']=areas[1].unidad_negocio_id
     wb,_=libro(c)
-    assert wb['Áreas mano de obra'].max_row==4 and wb['Equipos'].max_row==3
+    assert wb['Áreas mano de obra'].max_row==3 and wb['Equipos'].max_row==3
     assert wb['Distribución de costos'].max_row==2
     assert list(wb['Personal'].values)[1][3]=='Taller Fierro'
     wb.close()

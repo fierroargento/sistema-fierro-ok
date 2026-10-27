@@ -182,6 +182,12 @@ def crear_blueprint_comercial(*, dependencias):
         if membresia.rol != "admin":
             return None, None, redirect(url_for("inicio"))
         session["organizacion_id"] = membresia.organizacion_id
+        if request.endpoint!='admin_comercial.seleccionar_unidad':
+            from services.alcance_unidad import resolver,validar_formulario
+            try:
+                unidad=resolver(membresia.organizacion_id,modelos['UnidadNegocio'])
+                validar_formulario(unidad.id)
+            except ValueError as error:return None,None,redirect(url_for('inicio',error=str(error)))
         return usuario, membresia.organizacion, None
 
     def contexto_comercial(organizacion):
@@ -388,6 +394,17 @@ def crear_blueprint_comercial(*, dependencias):
         except Exception as error:
             db.session.rollback()
             return redirect(url_for("admin_comercial.panel", error=str(error)))
+
+    @blueprint.route('/admin/gastos')
+    @dependencias['login_required']
+    def gastos():
+        _usuario,organizacion,respuesta=acceso()
+        if respuesta is not None:return respuesta
+        unidad,unidades=contexto_comercial(organizacion)
+        return render_template('admin_gastos.html',organizacion=organizacion,unidad_activa=unidad,unidades=unidades,
+            formatear_centavos_ars=formatear_centavos_ars,origen_gastos=True,
+            **obtener_fuentes_costo(organizacion.id,unidad.id,modelos=modelos,db_session=db.session),
+            ok_feedback=request.args.get('ok',''),error=request.args.get('error',''))
 
     @blueprint.route("/admin/comercial/fuentes-costos")
     @dependencias["login_required"]
@@ -1829,12 +1846,12 @@ def crear_blueprint_comercial(*, dependencias):
                 detalle=f"Accion: {accion}. {mensaje}",
             )
             destino = (request.form.get("destino") or "fuentes").strip()
-            endpoint = "admin_comercial.cuentas_pagar" if destino == "cuentas_pagar" else "admin_comercial.fuentes_costos"
+            endpoint = "admin_comercial.gastos" if request.args.get("origen_gastos")=="1" else "admin_comercial.cuentas_pagar" if destino == "cuentas_pagar" else "admin_comercial.fuentes_costos"
             return redirect(url_for(endpoint, ok=mensaje))
         except Exception as error:
             db.session.rollback()
             destino = (request.form.get("destino") or "fuentes").strip()
-            endpoint = "admin_comercial.cuentas_pagar" if destino == "cuentas_pagar" else "admin_comercial.fuentes_costos"
+            endpoint = "admin_comercial.gastos" if request.args.get("origen_gastos")=="1" else "admin_comercial.cuentas_pagar" if destino == "cuentas_pagar" else "admin_comercial.fuentes_costos"
             return redirect(url_for(endpoint, error=str(error)))
 
     @blueprint.route(
@@ -2591,7 +2608,7 @@ def crear_blueprint_comercial(*, dependencias):
                 if accion == "mapear":
                     encabezados = deserializar(lote.encabezados_json, [])
                     mapeo = {str(i): ((request.form.get(f"col_{i}") or "").strip() if request.form.get(f"usar_{i}") == "1" else "") for i in range(len(encabezados))}
-                    vista = previsualizar_fuentes(tipo, deserializar(lote.filas_json, []), mapeo, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, modelos=modelos)
+                    vista = previsualizar_fuentes(tipo, deserializar(lote.filas_json, []), mapeo, organizacion_id=organizacion.id, unidad_negocio_id=unidad_activa.id, modelos=modelos, unidad_estricta=True)
                     vista = aplicar_modo_vista_fuentes(vista, lote.modo)
                     lote.mapeo_json, lote.vista_previa_json, lote.estado = serializar(mapeo), serializar(vista), "mapeado"; db.session.commit()
                 elif accion == "confirmar":

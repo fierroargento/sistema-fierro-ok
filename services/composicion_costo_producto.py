@@ -18,7 +18,7 @@ def _alcance(perfil, recurso):
         raise ValueError("La ficha técnica requiere un producto de producción.")
     if recurso is None or int(recurso.organizacion_id) != int(perfil.organizacion_id):
         raise ValueError("El recurso no pertenece a la organización.")
-    if recurso.unidad_negocio_id not in {None, perfil.unidad_negocio_id}:
+    if recurso.unidad_negocio_id not in {None, perfil.unidad_negocio_id} and not any(v.vigente and v.unidad_negocio_id==perfil.unidad_negocio_id for v in getattr(recurso,"distribuciones_versionadas",[])):
         raise ValueError("El recurso no pertenece a la unidad del producto.")
 
 

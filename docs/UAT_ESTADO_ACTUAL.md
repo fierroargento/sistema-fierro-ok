@@ -2011,3 +2011,47 @@ Estado de revisión (no acredita aislamiento global terminado): Tesorería y Con
 - Preparación **explícita tras deploy en staging**, desde Shell de Render: `python -m scripts.preparar_proveedores_unidad --staging`. Crea sólo proveedor_unidad; registra vínculos demostrados por órdenes existentes de la misma empresa/unidad y conserva el estado previo de esos proveedores. Idempotente; no cambia documentos, stock, saldos ni precios. Proveedores sin órdenes se conservan pendientes de vinculación explícita por código/CUIT, sin adjudicarlos a Ensayo UAT ni a otra unidad por defecto.
 - Sin la preparación, el listado de proveedores informa el pendiente y no expone el maestro general; las escrituras de Compras se bloquean. El script no importa app.py, no activa bootstrap, scheduler ni conexiones externas. Mantener las flags de staging desconectado y producción/main fuera de alcance.
 - Validación local: 39 pruebas de Compras/proveedores/importación/conciliación/control aprobadas; ocho nuevas con SQLite cubren migración idempotente, proveedor privado/compartido, estado independiente, rechazo de organización/unidad ajena, ausencia de esquema, importación sin filtración, rollback, formularios de otra unidad y lotes ajenos/generales ocultos. Plantilla anterior actualizada para aportar contexto de unidad. Python compilado y diff revisado. No se leyó ni modificó la base remota, ni se ejecutó deploy; UAT visual pendiente.
+
+## 2026-10-27 — Clientes, Personal, Gastos y contexto financiero por unidad
+
+Continuación autorizada por Martín de la independencia por unidad, conservando administración completa durante construcción/UAT. No se activan todavía permisos por tarea ni usuarios operativos nuevos.
+
+### Clientes / CRM
+
+- ClienteUnidad conserva una identidad de ClienteCRM y un estado activo/desactivado independiente por unidad. El listado, contactos fiscales visibles, selectores, actividades, identidades de canal, oportunidades, lotes y evidencias usan la unidad activa.
+- Alta nueva y oportunidades se ligan a la unidad activa. Vincular cliente existente exige su código exacto, sin listado de otras unidades y sin copiar documentos. Se pueden compartir datos de contacto, pero no el seguimiento de otra unidad. El cambio de estado del cliente en una unidad no cambia su estado en las otras.
+- ActividadCRM, ClienteIdentidadCanal y LoteImportacionCRM incorporan unidad nullable para conservar historial anterior; los nuevos registros guardan el contexto explícito. Consultas de unidad y guardados rechazan referencias a registros ajenos. Etapas y definición del módulo continúan como configuración común de la organización.
+- Importación offline incluye unidad en el plan y su huella; el servidor revalida la unidad del plan y de cada fila. Confirmación mantiene una transacción, incluyendo relaciones de clientes nuevos. Lotes de otra unidad o generales anteriores no se muestran ni se descargan por ID desde la unidad actual.
+
+### Personal / Mano de obra
+
+- Lista, ficha directa, costos, horarios, áreas y descarga parten de empleados relacionados con la unidad: unidad primaria, asignación real a sus áreas o vínculo explícito PersonalUnidad. Un legajo sin unidad/asignación no se considera compartido automáticamente.
+- Nuevo empleado se crea en la unidad activa. Vincular legajo existente requiere su código exacto; no duplica identidad ni sueldo y no inventa porcentaje de dedicación. Las áreas disponibles para repartir pertenecen a unidades expresamente relacionadas con ese legajo. Se conservan las asignaciones existentes al validar/guardar, con la misma transacción y recálculo de recursos.
+- Mano de obra sólo muestra áreas de la unidad actual. No permite crear o editar un área de otra unidad mediante ID manual. La ficha, sueldo y horario del empleado compartido siguen siendo una única fuente común; las novedades, turnos, competencias y licencias guardadas por unidad se consultan/gestionan en su contexto.
+- Exportar Personal conserva todas las secciones del legajo, ahora de los empleados relacionados con la unidad activa. Equipos, áreas, distribución de costos, novedades y turnos se acotan a ella; sueldo y horario comunes se identifican como tales en Información. No se exportan secretos.
+
+### Gastos / Tesorería / Contabilidad
+
+- Nuevo acceso Administración / Gastos. Reutiliza CostoFijoProductivo, sus versiones, distribuciones, calendarios y la misma gestión existente; la sección se extrae a un parcial compartido en lugar de duplicar formularios o registros.
+- Gastos visibles: propios de la unidad o con distribución vigente explícita hacia ella. Los conceptos generales sin responsable ni reparto se conservan pendientes de asignación; hay acción por código exacto para establecer a la unidad actual como responsable de un gasto todavía sin dueño.
+- Crear un gasto ahora asigna responsabilidad a la unidad activa. Repartir un concepto para costos no permite volver a generar/pagar su deuda completa desde cada unidad: obligaciones y candidatos de Tesorería pertenecen a la unidad responsable, y el servidor valida pagos, anulaciones y ajustes por ese dueño. Se conserva una obligación por concepto/período y el historial de pagos.
+- Costos de productos pueden usar un indirecto con reparto explícito a su unidad aunque tenga otra unidad responsable. No se altera el porcentaje ni se recalculan/publican precios automáticamente.
+- El acceso existente de Tesorería se identifica como Cajas y bancos; continúa siendo preparatorio/proyectado, sin habilitar caja operativa, cobros, transferencias ni saldos reales nuevos. Sus cuentas/movimientos y los de Contabilidad ya estaban por unidad; ahora rechazan además formularios de un contexto anterior y no cambian silenciosamente de unidad inválida.
+- La actualización IPC manual se acota a reglas de la unidad responsable. En laboratorio desconectado rechaza la consulta externa. La API por defecto del ciclo y sus jobs existentes se conserva; no se inicia ni activa scheduler.
+
+### Formularios y permisos futuros
+
+- Alcance obligatorio de unidad en Personal, CRM, Tesorería, Contabilidad y Comercial, reutilizando el resolvedor existente y rechazando selección inválida. unidad_contexto.js conserva el contexto de cada documento, agrega marcador a formularios nuevos/dinámicos y cabecera a fetch del mismo origen; no sobrescribe un contexto anterior ni lo envía a terceros. El servidor contrasta el marcador/cabecera con la sesión antes de escribir. CSRF y login/admin existentes permanecen.
+- Cancelar en vinculaciones resetea/cierra sin enviar. Se reutiliza la confirmación de Personal y se pide popup para vinculaciones nuevas; no hay confirmación escrita. El script no crea movimientos ni datos por GET.
+- Requisito de Martín para la etapa de permisos: combinar unidad autorizada + función/acción + recurso concreto. Ejemplo Franco: acceso a caja(s) asignada(s) y a las acciones que se definan; sin Gastos/alquileres ni Personal/sueldos, ni cajas ajenas. No basta ocultar menús: deberán protegerse rutas, acciones, API, adjuntos, reportes, búsquedas y exportaciones; tampoco exponer comprobantes restringidos enlazados desde una caja. Este bloque NO concede esos accesos ni implementa aún la matriz fina; continúa sólo admin.
+
+### Preparación y validación
+
+Después del deploy manual de integración, ejecutar en Shell de **staging**:
+`python -m scripts.preparar_aislamiento_unidades --staging`
+
+Agrega cliente_unidad, personal_unidad y unidad_negocio_id nullable a las tres tablas CRM indicadas. No importa app.py ni activa bootstrap/jobs/conexiones. ClienteUnidad se deriva sólo de unidad explícita de cliente/oportunidades; actividades e identidades conservan sólo la unidad demostrable. Lotes generales no se reasignan, y los clientes/legajos sin evidencia requieren vinculación expresa. Idempotente, con guardias de laboratorio, rama y servicio staging. Mantener BOOTSTRAP_BASE_DATOS_HABILITADO=false y MODO_LABORATORIO_DESCONECTADO=true. El comando previo de Proveedores sigue siendo necesario si todavía no se ejecutó.
+
+Validación local: bloque de regresión de CRM, Personal/áreas/exportación, Gastos/IPC y Tesorería, con casos nuevos de DB real para clientes privados/compartidos, estado independiente, actividad/lote ajenos, plan/confirmación por unidad, empleado compartido y exportación, formularios antiguos, gastos repartidos sin duplicar deuda, ampliación de esquema legacy e IPC acotado. Render real Flask de Gastos y sus formularios compartidos; jsdom verifica contexto de forms/fetch, conservación del marcador anterior, no envío a terceros y cancelaciones. Sin QA visual en navegador ni lectura/escritura en la base remota. Deploy manual y UAT de staging pendientes; producción/main fuera de alcance.
+
+Cierre de validación: 140 pruebas del bloque principal aprobadas; otras 58 de agenda/importación de fuentes/Personal aprobadas (28 coinciden con el bloque principal). Se verifican además los dos casos nuevos de agenda compartida e importación de legajo general sin vínculo. La agenda general reutiliza la misma frontera de legajos y las importaciones estrictas rechazan legajos no relacionados y gastos sin responsabilidad de la unidad activa. La matriz fina de permisos sigue pendiente y no se habilitó ningún usuario de caja.

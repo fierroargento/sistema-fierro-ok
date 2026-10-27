@@ -11,14 +11,16 @@ from models.personal_administrativo import PersonalDetalle, HorarioPersonal, Aus
 from services.personal_legajo import DIAS
 
 
-def exportar_personal(organizacion, *, modelos, db_session):
+def exportar_personal(organizacion, *, modelos, db_session, unidad_negocio_id=None):
     inspector=inspect(db_session.connection());pendientes=[]
     def disponible(modelo, nombre):
         ok=inspector.has_table(modelo.__tablename__)
         if not ok:pendientes.append(nombre)
         return ok
     E=modelos['EmpleadoProductivo']
-    empleados=db_session.query(E).filter_by(organizacion_id=organizacion.id,tipo_registro='empleado').order_by(E.codigo,E.id).all()
+    from services.personal_unidad import consulta
+    q=consulta(organizacion.id,unidad_negocio_id,modelos,db_session) if unidad_negocio_id is not None else db_session.query(E).filter_by(organizacion_id=organizacion.id,tipo_registro='empleado')
+    empleados=q.order_by(E.codigo,E.id).all()
     por_id={e.id:e for e in empleados};ids=list(por_id)
     unidades={u.id:u.nombre for u in db_session.query(modelos['UnidadNegocio']).filter_by(organizacion_id=organizacion.id).all()}
     wb=Workbook();wb.remove(wb.active)
@@ -44,13 +46,17 @@ def exportar_personal(organizacion, *, modelos, db_session):
         e=por_id[empleado_id];return [e.codigo,e.nombre]
     def registros(nombre,clave):
         modelo=modelos[clave]
-        return db_session.query(modelo).filter(modelo.empleado_id.in_(ids)).order_by(modelo.empleado_id,modelo.id).all() if disponible(modelo,nombre) and ids else []
+        if not disponible(modelo,nombre) or not ids:return []
+        q=db_session.query(modelo).filter(modelo.empleado_id.in_(ids))
+        if unidad_negocio_id is not None and hasattr(modelo,'unidad_negocio_id'):q=q.filter(modelo.unidad_negocio_id==unidad_negocio_id)
+        return q.order_by(modelo.empleado_id,modelo.id).all()
     detalles={d.empleado_id:d for d in db_session.query(PersonalDetalle).filter(PersonalDetalle.empleado_id.in_(ids),PersonalDetalle.organizacion_id==organizacion.id).all()} if disponible(PersonalDetalle,'Datos ampliados') and ids else {}
     campos=['dni','cuil','fecha_nacimiento','fecha_ingreso','fecha_egreso','telefono','email','domicilio','localidad','provincia','contacto_emergencia','categoria','convenio','modalidad']
     titulos=['Legajo','Nombre y apellido','Estado','Unidad','Sector','Puesto','DNI','CUIL','Nacimiento','Ingreso','Egreso','Teléfono','Email','Domicilio','Localidad','Provincia','Contacto emergencia','Categoría','Convenio','Modalidad','Observación general']
     from services.personal_areas import unidades_asignadas
     enlaces_disponibles=inspector.has_table(modelos['RecursoEmpleadoProductivo'].__tablename__)
     unidades_personal=unidades_asignadas(empleados) if enlaces_disponibles else {e.id:unidades.get(e.unidad_negocio_id,'Compartido') for e in empleados}
+    if unidad_negocio_id is not None:unidades_personal={e.id:unidades.get(unidad_negocio_id,'') for e in empleados}
     hoja('Personal',titulos,([e.codigo,e.nombre,'Activo' if e.activo else 'Inactivo',unidades_personal[e.id],e.sector,e.puesto]+[getattr(detalles.get(e.id),campo,None) for campo in campos]+[e.observacion] for e in empleados))
     dinero=lambda valor:Decimal(valor)/100
     filas=[]
@@ -80,10 +86,11 @@ def exportar_personal(organizacion, *, modelos, db_session):
     distribuciones=[d for d in registros('Distribución de costos','EmpleadoDistribucionVersion') if d.organizacion_id==organizacion.id]
     hoja('Distribución de costos',['Legajo','Empleado','Revisión','Unidad','Asignación %','Ubicación','Función','Vigente','Desde','Hasta','Observación'],(identidad(d.empleado_id)+[d.numero_revision,unidades.get(d.unidad_negocio_id,''),d.porcentaje_asignacion,d.ubicacion_trabajo,d.tipo_funcion,d.vigente,d.vigente_desde,d.vigente_hasta,d.observacion] for d in distribuciones))
     vinculos=registros('Equipos','RecursoEmpleadoProductivo')
-    recursos={r.id:r for r in db_session.query(E).filter(E.organizacion_id==organizacion.id,E.tipo_registro=='recurso',E.id.in_({v.recurso_id for v in vinculos})).all()} if vinculos else {}
+    recursos={r.id:r for r in db_session.query(E).filter(E.organizacion_id==organizacion.id,E.tipo_registro=='recurso',E.id.in_({v.recurso_id for v in vinculos})).all() if unidad_negocio_id is None or r.unidad_negocio_id==unidad_negocio_id} if vinculos else {}
     hoja('Equipos',['Legajo','Empleado','Código equipo','Equipo','Dedicación %','Observación','Unidad del área','Sector'],(identidad(v.empleado_id)+[recursos[v.recurso_id].codigo,recursos[v.recurso_id].nombre,v.porcentaje_dedicacion,v.observacion,unidades.get(recursos[v.recurso_id].unidad_negocio_id,''),recursos[v.recurso_id].sector] for v in vinculos if v.recurso_id in recursos))
     from services.personal_legajo import version_actual
     recursos_todos=db_session.query(E).filter_by(organizacion_id=organizacion.id,tipo_registro='recurso').order_by(E.unidad_negocio_id,E.sector).all()
+    if unidad_negocio_id is not None:recursos_todos=[r for r in recursos_todos if r.unidad_negocio_id==unidad_negocio_id]
     filas_areas=[]
     for r in recursos_todos:
         v=version_actual(r) if inspector.has_table(modelos['EmpleadoCostoVersion'].__tablename__) else None
@@ -105,7 +112,7 @@ def exportar_personal(organizacion, *, modelos, db_session):
     ahora=datetime.now(ZoneInfo('America/Argentina/Buenos_Aires')).replace(tzinfo=None)
     info=hoja('Información',['Dato','Detalle'],[
         ['Organización',organizacion.nombre],['Fecha de descarga (Argentina)',ahora],['Cantidad de empleados',len(empleados)],
-        ['Alcance','Toda la organización, todas las unidades, activos e inactivos; incluye historial.'],
+        ['Alcance',('Unidad activa: '+unidades.get(unidad_negocio_id,str(unidad_negocio_id))+'; legajos vinculados, activos e inactivos. Ficha, sueldo y horario comunes de cada legajo; operaciones y distribuciones sólo de esta unidad.') if unidad_negocio_id is not None else 'Toda la organización, todas las unidades, activos e inactivos; incluye historial.'],
         ['Accesos','No se exportan contraseñas, hashes ni códigos de alarma. Sólo usuario, rol, estado y si la alarma está configurada.'],
         ['Fechas','Horarios y fechas laborales son locales; fechas de registro del sistema y versiones se muestran en UTC.'],
         ['Fuentes sin preparar',', '.join(pendientes) if pendientes else 'Todas disponibles']])
