@@ -156,6 +156,35 @@ def crear_blueprint_estructura(
             puntos=puntos, vinculos=vinculos, preparado=listo, error=error,
             huellas={s.id: huella(s, db.session) for s in sucursales} if listo else {}, ok_feedback=request.args.get("ok", ""))
 
+    @blueprint.route("/admin/empresa/configuracion", methods=["GET", "POST"])
+    @login_required
+    def configuracion():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        from services.modulos_organizacion import ESTADO_DESACTIVADO, ESTADO_PRUEBA, ESTADO_ACTIVO
+        if request.method == "POST":
+            modulo_id = request.form.get("modulo_id", type=int)
+            destino = url_for("admin_estructura.configuracion")
+            ancla = "#modulo-" + str(modulo_id) if modulo_id else ""
+            try:
+                mensaje = procesar_accion_estructura_admin(
+                    "estado_modulo", request.form, organizacion=organizacion,
+                    modelos=modelos, db_session=db.session,
+                )
+                registrar_auditoria("Configuró módulo de empresa", entidad="modulo_organizacion",
+                    entidad_id=modulo_id, detalle=mensaje)
+                destino = url_for("admin_estructura.configuracion", ok=mensaje)
+            except Exception as error:
+                db.session.rollback()
+                destino = url_for("admin_estructura.configuracion", error=str(error))
+            return redirect(destino + ancla)
+        Modulo = modelos["ModuloOrganizacion"]
+        modulos = Modulo.query.filter_by(organizacion_id=organizacion.id).order_by(Modulo.nombre).all()
+        return render_template("admin_empresa_configuracion.html", organizacion=organizacion,
+            modulos=modulos, estados_modulo=(ESTADO_DESACTIVADO, ESTADO_PRUEBA, ESTADO_ACTIVO),
+            ok_feedback=request.args.get("ok", ""), error=request.args.get("error", ""))
+
     @blueprint.route("/admin/estructura")
     @login_required
     def panel():

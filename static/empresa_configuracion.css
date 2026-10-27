@@ -1,0 +1,22 @@
+.empresa-configuracion{max-width:1050px}
+.empresa-configuracion .configuracion-tabla{overflow-x:auto}
+.empresa-configuracion table th,.empresa-configuracion table td{padding:10px 12px;vertical-align:middle}
+.empresa-configuracion table tbody tr:nth-child(even){background:#f0f5f8}
+.empresa-configuracion .configuracion-acciones{width:120px;text-align:right;white-space:nowrap}
+.empresa-configuracion button.configuracion-gestionar{min-height:32px;padding:5px 10px;gap:6px;background:#edf8fc;color:#14546a;border-color:#a4d6e6;text-decoration:none}
+.empresa-configuracion button.configuracion-gestionar:hover{background:#dceff6}
+.configuracion-dialogo{width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 40px);padding:0;border:1px solid #cbd9e4;border-radius:14px;color:#183548;box-shadow:0 16px 60px #102d4650;box-sizing:border-box}
+.configuracion-dialogo::backdrop{background:#102d4670}
+.configuracion-dialogo header{padding:20px 22px 16px;background:#f3f8fb;border-bottom:1px solid #dce5ed}
+.configuracion-dialogo header span{font-size:10px;letter-spacing:.08em;color:#607487}
+.configuracion-dialogo header h2{margin:6px 0 0;font-size:19px}
+.configuracion-campos{display:grid;gap:16px;padding:22px}
+.configuracion-campos label{display:grid;gap:6px;font-size:13px;font-weight:600}
+.configuracion-campos small{font-weight:400;color:#607487}
+.configuracion-campos select,.configuracion-campos textarea{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd9e4;border-radius:7px;font:inherit;background:#fff;color:#183548}
+.configuracion-campos textarea{resize:vertical}
+.configuracion-dialogo footer{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px;border-top:1px solid #dce5ed;background:#fafcfd}
+.empresa-configuracion .configuracion-secundario{background:#fff;color:#526778;border-color:#cbd9e4}
+.empresa-configuracion .configuracion-secundario:hover{background:#eaf0f5}
+#modulo-confirmacion>p{padding:0 22px}
+.empresa-configuracion tr[id]{scroll-margin-top:90px}

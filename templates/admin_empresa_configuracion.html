@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Empresa · Configuración{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static',filename='admin_estructura.css',v='20261027-configuracion') }}">
+<link rel="stylesheet" href="{{ url_for('static',filename='empresa_configuracion.css',v='20261027-1') }}">
+<script defer src="{{ url_for('static',filename='empresa_configuracion.js',v='20261027-1') }}"></script>
+{% endblock %}
+{% block content %}
+<main class="estructura-page empresa-configuracion">
+<h1>Configuración</h1>
+<p>{{ organizacion.nombre }}</p>
+{% if ok_feedback %}<p class="alerta alerta-ok" role="status">{{ ok_feedback }}</p>{% endif %}
+{% if error %}<p class="alerta alerta-error" role="alert">{{ error }}</p>{% endif %}
+<section class="card"><h2>Módulos</h2>
+<p>Administrá el estado de cada módulo. El modo prueba no habilita su uso en producción.</p>
+<div class="configuracion-tabla"><table><thead><tr><th>Módulo</th><th>Estado</th><th class="configuracion-acciones">Gestionar</th></tr></thead><tbody>
+{% for modulo in modulos %}
+<tr id="modulo-{{ modulo.id }}"><td>{{ modulo.nombre }}</td><td><span class="estructura-status" data-estado="{{ modulo.estado }}">{{ modulo.estado }}</span></td><td class="configuracion-acciones"><button type="button" class="configuracion-gestionar" data-modulo-abrir="modulo-dialogo-{{ modulo.id }}" aria-label="Gestionar {{ modulo.nombre }}" aria-haspopup="dialog"><span aria-hidden="true">⚙</span> Gestionar</button></td></tr>
+{% else %}<tr><td colspan="3">No hay módulos configurados para esta empresa.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% for modulo in modulos %}
+<dialog class="configuracion-dialogo" id="modulo-dialogo-{{ modulo.id }}" aria-labelledby="modulo-titulo-{{ modulo.id }}">
+<form method="post" action="{{ url_for('admin_estructura.configuracion') }}">
+<header><span>CONFIGURACIÓN DE MÓDULO</span><h2 id="modulo-titulo-{{ modulo.id }}">{{ modulo.nombre }}</h2></header>
+<div class="configuracion-campos">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="modulo_id" value="{{ modulo.id }}">
+<label>Estado<select name="estado" required>{% for estado in estados_modulo %}<option value="{{ estado }}"{% if estado == modulo.estado %} selected{% endif %}>{{ estado|capitalize }}</option>{% endfor %}</select></label>
+<label>Detalle interno <small>(opcional)</small><textarea name="detalle" maxlength="500" rows="3">{{ modulo.detalle or '' }}</textarea></label>
+</div><footer><button type="button" class="configuracion-secundario" data-modulo-cerrar>Cancelar</button><button type="submit">Guardar</button></footer>
+</form></dialog>
+{% endfor %}
+<dialog class="configuracion-dialogo" id="modulo-confirmacion" aria-labelledby="confirmacion-titulo"><header><h2 id="confirmacion-titulo">Guardar configuración</h2></header><p>¿Confirmás los cambios del módulo?</p><footer><button type="button" class="configuracion-secundario" id="modulo-no">Cancelar</button><button type="button" id="modulo-si">Confirmar</button></footer></dialog>
+</main>
+{% endblock %}

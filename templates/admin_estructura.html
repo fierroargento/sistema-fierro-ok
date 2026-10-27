@@ -333,56 +333,6 @@
     </div>
 
     <div class="card" style="margin-top:16px;">
-        <h2>Módulos</h2>
-        <p>
-            El estado <strong>prueba</strong> no habilita producción.
-            Actualmente ningún flujo productivo consume estos estados.
-        </p>
-
-        <div style="overflow-x:auto;">
-            <table style="width:100%;">
-                <thead>
-                    <tr>
-                        <th>Módulo</th>
-                        <th>Estado</th>
-                        <th>Detalle</th>
-                        <th>Actualizar</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for modulo in modulos %}
-                    <tr>
-                        <td>{{ modulo.nombre }}</td>
-                        <td>{{ mostrar_estado(modulo.estado) }}</td>
-                        <td>{{ modulo.detalle or "-" }}</td>
-                        <td>
-                            <details class="estructura-editor"><summary data-fierro-icon="gestionar">Gestionar</summary><form method="post"
-                                  action="{{ url_for('admin_estructura.guardar') }}">
-                                <input type="hidden" name="accion" value="estado_modulo">
-                                <input type="hidden" name="modulo_id" value="{{ modulo.id }}">
-                                <select name="estado">
-                                    {% for estado in estados_modulo %}
-                                    <option value="{{ estado }}"
-                                        {% if modulo.estado == estado %}selected{% endif %}>
-                                        {{ estado }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                                <input name="detalle"
-                                       maxlength="500"
-                                       value="{{ modulo.detalle or '' }}"
-                                       placeholder="Detalle interno">
-                                <button type="submit">Guardar</button>
-                            <div class="estructura-form-actions"><button type="button" data-estructura-cancel>Cancelar</button></div></form></details>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="card" style="margin-top:16px;">
         <h2>Sucursales operativas</h2>
 
         <details class="estructura-editor"><summary>Crear sucursal</summary><form method="post"
