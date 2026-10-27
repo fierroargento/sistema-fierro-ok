@@ -42,6 +42,7 @@ def test_ficha_proveedor_renderiza_datos_y_conserva_edicion_segura():
                  telefono="123", domicilio="Calle 123", localidad="Viedma", provincia="Río Negro",
                  codigo_postal="8500", observacion='Nota <script>sin ejecutar</script>')
     html = Environment(autoescape=True, loader=FileSystemLoader('templates')).from_string(source[start:end]).render(
+        unidad_activa=O(id=1,nombre="Unidad de prueba"),
         proveedores=[supplier], organizacion=O(nombre="UAT"), csrf_token_value="token-UAT",
         contactos_proveedores={1: "456"}, contactos_preparados=True,
         url_for=lambda *a, **k: "/guardar")

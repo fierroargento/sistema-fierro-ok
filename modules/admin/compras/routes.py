@@ -31,6 +31,17 @@ def crear_blueprint_compras(*, dependencias):
     blueprint = Blueprint("admin_compras", __name__)
     db = dependencias["db"]
     modelos = dependencias["modelos"]
+    from services.proveedores_unidad import consulta as proveedores_consulta, exigir as exigir_proveedor, vincular, vincular_por_identidad, exigir_preparado
+    from services.proveedores_unidad import previsualizar as previsualizar_unidad, para_importacion, operativo
+
+    def contexto_formulario(unidad):
+        if request.form.get('unidad_contexto_id', type=int) != unidad.id:
+            raise ValueError('La unidad activa cambió. Volvé a abrir el formulario antes de guardar.')
+
+    def vista_proveedores(filas, mapeo, organizacion, unidad):
+        return previsualizar_unidad(filas, mapeo, Proveedor=modelos['ProveedorCompra'],
+            organizacion_id=organizacion.id, unidad_id=unidad.id, session=db.session)
+
 
     def acceso():
         usuario = dependencias["usuario_actual"]()
@@ -49,6 +60,8 @@ def crear_blueprint_compras(*, dependencias):
         ).order_by(modelos["UnidadNegocio"].nombre.asc()).all()
         unidad_id = session.get("unidad_negocio_id")
         unidad = next((item for item in unidades if item.id == unidad_id), None)
+        if unidad is None and unidad_id is not None:
+            return usuario, membresia.organizacion, None, redirect(url_for("inicio", error="Seleccioná una unidad activa válida para abrir Compras."))
         if unidad is None and unidades:
             unidad = unidades[0]
             session["unidad_negocio_id"] = unidad.id
@@ -74,7 +87,7 @@ def crear_blueprint_compras(*, dependencias):
             return respuesta
         datos = obtener_panel_compras(organizacion.id, unidad.id, modelos=modelos)
         from services.maestros_contacto import consultar_contactos, contactos_preparados
-        datos['contactos_proveedores'] = consultar_contactos(db.session, organizacion.id)
+        datos['contactos_proveedores'] = {k:v for k,v in consultar_contactos(db.session, organizacion.id).items() if k in {p.id for p in datos['proveedores']}}
         datos['contactos_preparados'] = contactos_preparados(db.session)
         return render_template(
             "admin_compras.html", organizacion=organizacion, unidad_activa=unidad,
@@ -90,8 +103,11 @@ def crear_blueprint_compras(*, dependencias):
             return respuesta
         Lote = modelos["ImportacionMasivaCosto"]
         tipo_lote = "proveedores_compra"
+        exigir_listo = lambda: exigir_preparado(db.session)
         try:
             if request.method == "POST":
+                contexto_formulario(unidad)
+                exigir_listo()
                 accion = (request.form.get("accion") or "").strip()
                 if accion == "subir":
                     archivo = request.files.get("archivo")
@@ -99,7 +115,7 @@ def crear_blueprint_compras(*, dependencias):
                         raise ValueError("Seleccioná un archivo.")
                     lectura = leer_archivo(archivo, request.form.get("hoja"))
                     lote = Lote(
-                        organizacion_id=organizacion.id, unidad_negocio_id=None,
+                        organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
                         usuario_id=getattr(usuario, "id", None),
                         tipo_datos=tipo_lote, nombre_archivo=archivo.filename,
                         nombre_hoja=lectura["hoja"], estado="cargado",
@@ -118,13 +134,10 @@ def crear_blueprint_compras(*, dependencias):
                 lote = Lote.query.filter_by(
                     id=int(request.form.get("lote_id")),
                     organizacion_id=organizacion.id,
-                    unidad_negocio_id=None, tipo_datos=tipo_lote,
+                    unidad_negocio_id=unidad.id, tipo_datos=tipo_lote,
                 ).first()
                 if lote is None:
-                    raise ValueError("El lote no pertenece a la organización activa.")
-                proveedores = modelos["ProveedorCompra"].query.filter_by(
-                    organizacion_id=organizacion.id,
-                ).all()
+                    raise ValueError("El lote no pertenece a la unidad activa.")
                 if accion == "mapear":
                     encabezados = deserializar(lote.encabezados_json, [])
                     mapeo = {
@@ -133,10 +146,7 @@ def crear_blueprint_compras(*, dependencias):
                             if request.form.get(f"usar_{i}") == "1" else ""
                         ) for i in range(len(encabezados))
                     }
-                    vista = previsualizar_proveedores(
-                        deserializar(lote.filas_json, []), mapeo,
-                        proveedores=proveedores,
-                    )
+                    vista = vista_proveedores(deserializar(lote.filas_json, []), mapeo, organizacion, unidad)
                     lote.mapeo_json = serializar(mapeo)
                     lote.vista_previa_json = serializar(vista)
                     lote.estado = "mapeado"
@@ -145,11 +155,7 @@ def crear_blueprint_compras(*, dependencias):
                     if lote.estado != "mapeado":
                         raise ValueError("Primero validá el mapeo.")
                     vista_guardada = deserializar(lote.vista_previa_json, [])
-                    vista_actual = previsualizar_proveedores(
-                        deserializar(lote.filas_json, []),
-                        deserializar(lote.mapeo_json, {}),
-                        proveedores=proveedores,
-                    )
+                    vista_actual = vista_proveedores(deserializar(lote.filas_json, []), deserializar(lote.mapeo_json, {}), organizacion, unidad)
                     if serializar(vista_actual) != serializar(vista_guardada):
                         lote.vista_previa_json = serializar(vista_actual)
                         db.session.commit()
@@ -161,7 +167,7 @@ def crear_blueprint_compras(*, dependencias):
                     conteos = aplicar_proveedores(
                         vista_actual, organizacion_id=organizacion.id,
                         ProveedorCompra=modelos["ProveedorCompra"],
-                        db_session=db.session, commit=False,
+                        db_session=db.session, commit=False, unidad_negocio_id=unidad.id,
                     )
                     lote = db.session.get(Lote, lote.id)
                     for campo, valor in conteos.items():
@@ -188,7 +194,7 @@ def crear_blueprint_compras(*, dependencias):
         lote_id = request.args.get("lote", type=int)
         lote = Lote.query.filter_by(
             id=lote_id, organizacion_id=organizacion.id,
-            unidad_negocio_id=None, tipo_datos=tipo_lote,
+            unidad_negocio_id=unidad.id, tipo_datos=tipo_lote,
         ).first() if lote_id else None
         vista = deserializar(lote.vista_previa_json, []) if lote else []
         return render_template(
@@ -200,7 +206,7 @@ def crear_blueprint_compras(*, dependencias):
             vista=vista, resumen=resumir_proveedores(vista),
             campos=CAMPOS_PROVEEDORES,
             historial=Lote.query.filter_by(
-                organizacion_id=organizacion.id, unidad_negocio_id=None,
+                organizacion_id=organizacion.id, unidad_negocio_id=unidad.id,
                 tipo_datos=tipo_lote,
             ).order_by(Lote.fecha_creacion.desc()).limit(20).all(),
             error=(request.args.get("error") or "").strip(),
@@ -214,23 +220,33 @@ def crear_blueprint_compras(*, dependencias):
             return respuesta
         accion = (request.form.get("accion") or "").strip()
         try:
-            if accion == "crear_proveedor":
+            contexto_formulario(unidad)
+            exigir_preparado(db.session)
+            if accion == "vincular_proveedor":
+                proveedor=vincular_por_identidad(request.form.get('identidad_proveedor'), modelos['ProveedorCompra'], organizacion.id, unidad.id, db.session)
+                db.session.commit()
+                mensaje=f"Proveedor {proveedor.codigo} vinculado a {unidad.nombre}."
+            elif accion == "crear_proveedor":
                 creado = crear_proveedor(
                     request.form, organizacion_id=organizacion.id,
-                    ProveedorCompra=modelos["ProveedorCompra"], db_session=db.session,
+                    ProveedorCompra=modelos["ProveedorCompra"], db_session=db.session, commit=False,
                 )
-                mensaje = f"Proveedor {creado.codigo} creado."
+                estado_unidad=creado.estado
+                creado.estado="activo"
+                vincular(creado, organizacion.id, unidad.id, db.session, estado=estado_unidad)
+                db.session.commit()
+                mensaje = f"Proveedor {creado.codigo} creado en {unidad.nombre}."
             elif accion == "editar_proveedor":
                 proveedor = modelos["ProveedorCompra"].query.filter_by(id=int(request.form.get("proveedor_id")), organizacion_id=organizacion.id).first()
-                if proveedor is None: raise ValueError("El proveedor no pertenece a la organización activa.")
+                exigir_proveedor(proveedor, organizacion.id, unidad.id, db.session)
                 campos = list(CAMPOS_PROVEEDORES)
                 datos_proveedor = dict(request.form)
                 datos_proveedor["codigo"] = proveedor.codigo
-                proveedores = modelos["ProveedorCompra"].query.filter_by(organizacion_id=organizacion.id).all()
-                vista = previsualizar_proveedores([{"numero": 1, "valores": [datos_proveedor.get(campo, "") for campo in campos]}], {str(i): campo for i, campo in enumerate(campos)}, proveedores=proveedores)
+                proveedores = proveedores_consulta(modelos["ProveedorCompra"], organizacion.id, unidad.id, db.session).all()
+                vista = previsualizar_proveedores([{"numero": 1, "valores": [datos_proveedor.get(campo, "") for campo in campos]}], {str(i): campo for i, campo in enumerate(campos)}, proveedores=para_importacion(proveedores, organizacion.id, unidad.id, db.session))
                 if vista[0]["errores"]: raise ValueError("; ".join(vista[0]["errores"]))
                 if vista[0]["proveedor_id"] != proveedor.id: raise ValueError("La identidad del proveedor cambió.")
-                aplicar_proveedores(vista, organizacion_id=organizacion.id, ProveedorCompra=modelos["ProveedorCompra"], db_session=db.session, commit=False)
+                aplicar_proveedores(vista, organizacion_id=organizacion.id, ProveedorCompra=modelos["ProveedorCompra"], db_session=db.session, commit=False, unidad_negocio_id=unidad.id)
                 if "telefono_contacto" in request.form:
                     from services.maestros_contacto import guardar_contacto
                     guardar_contacto(db.session, proveedor, request.form.get("telefono_contacto"))
@@ -240,8 +256,7 @@ def crear_blueprint_compras(*, dependencias):
                 proveedor = modelos["ProveedorCompra"].query.filter_by(
                     id=int(request.form.get("proveedor_id")), organizacion_id=organizacion.id,
                 ).first()
-                if proveedor is None:
-                    raise ValueError("El proveedor no pertenece al tenant activo.")
+                exigir_proveedor(proveedor, organizacion.id, unidad.id, db.session)
                 insumo_id = request.form.get("insumo_id")
                 insumo = None
                 if insumo_id:
@@ -252,7 +267,7 @@ def crear_blueprint_compras(*, dependencias):
                         raise ValueError("El insumo no pertenece al tenant activo.")
                 creada = crear_orden(
                     request.form, organizacion_id=organizacion.id,
-                    unidad_negocio_id=unidad.id, proveedor=proveedor, insumo=insumo,
+                    unidad_negocio_id=unidad.id, proveedor=operativo(proveedor, organizacion.id, unidad.id, db.session), insumo=insumo,
                     OrdenCompra=modelos["OrdenCompra"],
                     OrdenCompraItem=modelos["OrdenCompraItem"],
                     db_session=db.session, usuario_id=getattr(usuario, "id", None),

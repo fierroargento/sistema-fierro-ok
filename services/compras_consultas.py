@@ -21,9 +21,11 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
     Mapeo = modelos["MapeoInsumoInventario"]
     Existencia = modelos["ExistenciaSucursal"]
     Factura = modelos["FacturaProveedorCompra"]
-    proveedores = Proveedor.query.filter_by(
-        organizacion_id=organizacion_id,
-    ).order_by(Proveedor.razon_social.asc()).all()
+    from extensions import db
+    from services.proveedores_unidad import consulta, estados
+    from scripts.preparar_proveedores_unidad import preparado
+    proveedores = consulta(Proveedor, organizacion_id, unidad_negocio_id, db.session).order_by(Proveedor.razon_social.asc()).all()
+    estados_proveedores=estados(organizacion_id,unidad_negocio_id,db.session)
     ordenes = Orden.query.filter_by(
         organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
     ).order_by(Orden.fecha_creacion.desc()).all()
@@ -48,6 +50,8 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
     ).order_by(Factura.fecha_creacion.desc()).all()
     return {
         "proveedores": proveedores,
+        "estados_proveedores": estados_proveedores,
+        "proveedores_unidad_preparados": preparado(db.session.connection()),
         "unidad_stock_por_existencia": {e.id: texto_unidad(e.item_inventario) for e in existencias},
         "ordenes_compra": ordenes,
         "recepciones_compra": recepciones,
@@ -61,7 +65,7 @@ def obtener_panel_compras(organizacion_id, unidad_negocio_id, *, modelos):
             and item.sucursal.activa],
         "facturas_proveedor_compra": facturas,
         "resumen_compras": {
-            "proveedores_activos": sum(item.estado == "activo" for item in proveedores),
+            "proveedores_activos": sum(estados_proveedores.get(item.id)=="activo" for item in proveedores),
             "ordenes_abiertas": sum(item.estado in {"borrador", "en_revision", "aprobada"} for item in ordenes),
             "ordenes_aprobadas": sum(item.estado == "aprobada" for item in ordenes),
             "recepciones_preparatorias": sum(item.estado == "preparatoria" for item in recepciones),

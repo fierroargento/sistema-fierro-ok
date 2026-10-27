@@ -142,9 +142,16 @@ def resumir_proveedores(vista):
 
 
 def aplicar_proveedores(
-    vista, *, organizacion_id, ProveedorCompra, db_session, commit=True,
+    vista, *, organizacion_id, ProveedorCompra, db_session, commit=True, unidad_negocio_id=None,
 ):
     conteos = resumir_proveedores(vista)
+    if unidad_negocio_id is not None:
+        from services.proveedores_unidad import exigir_preparado, exigir, vincular
+        exigir_preparado(db_session)
+        for fila in vista:
+            if fila['accion'] in {'actualizar','sin_cambios'}:
+                proveedor=ProveedorCompra.query.filter_by(id=fila['proveedor_id'],organizacion_id=organizacion_id).first()
+                exigir(proveedor,organizacion_id,unidad_negocio_id,db_session)
     for fila in vista:
         if fila["accion"] not in {"crear", "actualizar"}:
             continue
@@ -158,7 +165,10 @@ def aplicar_proveedores(
             proveedor = ProveedorCompra(organizacion_id=organizacion_id)
             db_session.add(proveedor)
         for campo, valor in fila["datos"].items():
-            setattr(proveedor, campo, valor)
+            if unidad_negocio_id is None or campo != 'estado':
+                setattr(proveedor, campo, valor)
+        if unidad_negocio_id is not None:
+            vincular(proveedor,organizacion_id,unidad_negocio_id,db_session,estado=fila['datos'].get('estado','activo'))
     try:
         db_session.flush()
         if commit:

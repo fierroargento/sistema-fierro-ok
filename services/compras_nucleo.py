@@ -32,7 +32,7 @@ def _centavos(valor):
     return int((numero * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
-def crear_proveedor(datos, *, organizacion_id, ProveedorCompra, db_session):
+def crear_proveedor(datos, *, organizacion_id, ProveedorCompra, db_session, commit=True):
     from services.importacion_proveedores_compra import CAMPOS_PROVEEDORES, previsualizar_proveedores
     campos = list(CAMPOS_PROVEEDORES)
     vista = previsualizar_proveedores([{"numero": 1, "valores": [datos.get(campo, "") for campo in campos]}], {str(i): campo for i, campo in enumerate(campos)}, proveedores=[])
@@ -52,7 +52,8 @@ def crear_proveedor(datos, *, organizacion_id, ProveedorCompra, db_session):
     if 'telefono_contacto' in datos:
         from services.maestros_contacto import guardar_contacto
         guardar_contacto(db_session, proveedor, datos.get('telefono_contacto'))
-    db_session.commit()
+    if commit: db_session.commit()
+    else: db_session.flush()
     return proveedor
 
 
