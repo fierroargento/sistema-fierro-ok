@@ -1982,3 +1982,13 @@ UAT e importación:
 - Aviso simplificado: «Administrá el estado de cada módulo. El modo prueba no habilita su uso en producción».
 - Validación: 19 pruebas existentes de módulos, tenant y registro web aprobadas; verificación temporal con Flask/SQLite real del render, menú activo, aislamiento entre empresas, guardado/ancla, estados inválidos y rechazo de rol carga; simulación de eventos JS verificó apertura, Cancelar/cierre, confirmación cancelada y envío único. Sintaxis JS/Python y diff revisados. Sin prueba visual en navegador ni despliegue en staging.
 - No requiere migración de base de datos ni cambia estados cargados por deploy. No se modifican scheduler, conexiones externas ni estados operativos. Producción/main fuera de alcance; despliegue manual en Render pendiente.
+
+## 2026-10-27 — Administración / Compras: accesos por área
+
+- Compras pasa de acceso raíz al grupo Administración. Submenú con Panel de compras, Proveedores, Precios de proveedores, Órdenes de compra, Recepciones y Facturas de proveedores. Se reutilizan los endpoints y anclas existentes; no se crean órdenes, facturas ni precios nuevos.
+- El maestro Proveedores se retira de Base de Datos y conserva su misma ficha/ruta bajo Compras; encabezado actualizado. Los grupos Administración/Compras se abren en sus pantallas y en precios/importación de insumos. Se conservan permisos admin y barra lateral.
+- Precios de proveedores conduce al bloque existente Insumos y precios de Fuentes de costo. Es el acceso a las fuentes/precios actuales; no acredita un gestor completo de listas por proveedor, comparación de ofertas o integración automática con compras.
+- Orden funcional acordado para seguir el área: solicitudes/pedidos internos de compra → órdenes → recepción → factura → obligación/cuenta corriente proveedor → pago por Tesorería. Los eslabones faltantes requieren desarrollo y validación; este bloque sólo ordena navegación existente.
+- Tesorería conserva Pagos y vencimientos. Cajas/bancos, gastos y cobranzas operativas, conciliación y saldos reales deben cerrarse allí reutilizando las obligaciones de compras/ventas, evitando registrar pagos/cobros duplicados. El panel actual es preparatorio/proyectado: no se declara control operativo de caja ni cuentas corrientes reales completo.
+- Sin migraciones, cambios de datos, conexiones, scheduler ni movimientos operativos. Producción/main fuera de alcance; deploy manual de staging pendiente.
+- Validación local: render Flask del menú en panel de Compras, Proveedores, precios, importación y Personal; apertura de grupos, enlaces/anclas, ausencia de duplicados y visibilidad sólo admin. Regresión temporal de Configuración aprobada. Diff revisado. Sin validación visual en navegador/staging.
