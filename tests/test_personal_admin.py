@@ -306,3 +306,53 @@ def test_empleado_compartido_tiene_vacaciones_sin_duplicar_identidad(personal):
     f=dict(_csrf_token='csrf-personal',seccion='vacaciones',accion='crear_ausencia',tipo='vacaciones',desde='2026-12-01',hasta='2026-12-03',detalle='Prueba compartida')
     assert c.post(f'/admin/personal/{e.id}',data=f).status_code==302
     assert AusenciaPersonal.query.one().empleado_id==e.id and EmpleadoProductivo.query.count()==1
+
+
+def test_admin_elige_todas_las_unidades_propias_y_reubica_sin_duplicar(personal):
+    c,org,otra,u,*_=personal;e=nuevo(personal)
+    destino=UnidadNegocio(organizacion_id=org.id,codigo='nautica',nombre='Náutica de prueba',activa=False)
+    ajena=UnidadNegocio(organizacion_id=otra.id,codigo='privada',nombre='Unidad privada ajena',activa=True)
+    db.session.add_all([destino,ajena]);db.session.commit()
+    registrar_costo_empleado(e,moneda='ARS',sueldo_base_centavos=100000,horas_mensuales='100',horas_productivas='100',EmpleadoCostoVersion=EmpleadoCostoVersion,db_session=db.session)
+    version=EmpleadoCostoVersion.query.one();antes=editar(e)
+    html=c.get(f'/admin/personal/{e.id}').text
+    assert 'Náutica de prueba (inactiva)' in html and 'Unidad privada ajena' not in html
+    r=c.post('/admin/personal',data=antes|{'unidad_negocio_id':str(destino.id),'volver_ficha':str(e.id)})
+    assert r.status_code==302 and '/admin/personal?' in r.location
+    assert c.get(r.location).status_code==200
+    db.session.expire_all()
+    assert e.unidad_negocio_id==destino.id and not destino.activa
+    assert EmpleadoProductivo.query.count()==1 and EmpleadoCostoVersion.query.count()==1
+    assert version.empleado_id==e.id and version.sueldo_base_centavos==100000
+    assert c.get(f'/admin/personal/{e.id}').status_code==404
+    with c.session_transaction() as s:assert s['unidad_negocio_id']==u.id
+
+
+def test_admin_alta_en_otra_unidad_y_rechazo_de_ajena_atomico(personal):
+    c,org,otra,u,*_=personal;e=nuevo(personal)
+    destino=UnidadNegocio(organizacion_id=org.id,codigo='destino',nombre='Destino',activa=False)
+    ajena=UnidadNegocio(organizacion_id=otra.id,codigo='otra',nombre='Ajena',activa=True)
+    db.session.add_all([destino,ajena]);db.session.commit()
+    r=c.post('/admin/personal',data=editar(e,unidad_negocio_id=str(ajena.id),nombre='No guardar'))
+    assert r.status_code==400
+    db.session.expire_all();assert e.unidad_negocio_id==u.id and e.nombre=='Persona ficticia'
+    r=c.post('/admin/personal',data=campos(codigo='OTRO-LEGAJO',unidad_negocio_id=str(destino.id)))
+    assert r.status_code==302
+    assert EmpleadoProductivo.query.filter_by(codigo='otro-legajo').one().unidad_negocio_id==destino.id
+    assert 'otro-legajo' not in c.get('/admin/personal').text
+
+
+def test_admin_cambio_unidad_con_areas_conserva_reparto(personal):
+    c,org,_,u,*_=personal;e=nuevo(personal)
+    registrar_costo_empleado(e,moneda='ARS',sueldo_base_centavos=100000,horas_mensuales='100',horas_productivas='100',EmpleadoCostoVersion=EmpleadoCostoVersion,db_session=db.session)
+    recurso=crear_empleado(organizacion_id=org.id,unidad_negocio_id=u.id,codigo='area-previa',nombre='Área previa',sector='Taller',Organizacion=Organizacion,UnidadNegocio=UnidadNegocio,EmpleadoProductivo=EmpleadoProductivo,db_session=db.session)
+    recurso.tipo_registro='recurso';db.session.commit()
+    vincular_empleado(recurso,e,porcentaje_dedicacion=100,RecursoEmpleadoProductivo=RecursoEmpleadoProductivo,db_session=db.session)
+    destino=UnidadNegocio(organizacion_id=org.id,codigo='nueva',nombre='Unidad nueva',activa=True)
+    db.session.add(destino);db.session.commit()
+    r=c.post('/admin/personal',data=editar(e,unidad_negocio_id=str(destino.id),volver_ficha=str(e.id)))
+    assert r.status_code==302
+    db.session.expire_all()
+    assert e.unidad_negocio_id==destino.id and e.participaciones_recurso[0].porcentaje_dedicacion==100
+    assert e.participaciones_recurso[0].recurso_id==recurso.id
+    assert c.get(f'/admin/personal/{e.id}').status_code==200

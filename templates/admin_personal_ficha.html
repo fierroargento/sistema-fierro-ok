@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Personal · {{ empleado.nombre }}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static',filename='admin_comercial.css',v='20261022-personal') }}"><link rel="stylesheet" href="{{ url_for('static',filename='admin_personal.css',v='20261028-ficha') }}"><script nonce="{{ csp_nonce }}" src="{{ url_for('static',filename='admin_personal.js',v='20261026-areas') }}" defer></script>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static',filename='admin_comercial.css',v='20261022-personal') }}"><link rel="stylesheet" href="{{ url_for('static',filename='admin_personal.css',v='20261028-ficha') }}"><script nonce="{{ csp_nonce }}" src="{{ url_for('static',filename='admin_personal.js',v='20261028-unidades-admin') }}" defer></script>{% endblock %}
 {% macro num(valor) %}{{ ('%.4f'|format(valor|float)).rstrip('0').rstrip('.') }}{% endmacro %}
 {% macro numero_decimal_limpio(valor) %}{{ num(valor) }}{% endmacro %}
 {% block content %}

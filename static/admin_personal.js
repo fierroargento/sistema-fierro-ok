@@ -99,7 +99,7 @@
     form.elements.codigo.readOnly = editar;
     form.elements.sector.readOnly=editar&&!!valores.sector_estructurado;
     Array.from(form.elements.unidad_negocio_id.options).forEach(o => {
-      o.disabled = editar ? o.value !== form.elements.unidad_negocio_id.value : o.dataset.activa === '0';
+      o.disabled = o.value === '' && (editar ? !!valores.unidad_negocio_id : true);
     });
     document.getElementById('personal-identidad-aviso').hidden = !editar;
     form.querySelectorAll('[data-personal-solo-alta]').forEach(n=>{n.hidden=editar;});

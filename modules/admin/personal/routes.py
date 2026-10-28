@@ -57,7 +57,7 @@ def crear_blueprint_personal(*, dependencias):
         return {i:{'sueldo_resumen':sueldos.get(i,'Sin sueldo cargado'),'horario_resumen':' · '.join(horarios[i]) or 'Sin horario cargado'} for i in ids}
 
     def pintar(o, *, error='', formulario=None):
-        unidades = [unidad_actual(o)]
+        unidades = m['UnidadNegocio'].query.filter_by(organizacion_id=o.id).order_by(m['UnidadNegocio'].nombre).all()
         filtro = (request.values.get('buscar') or '').strip()[:120]
         consulta = personal_visible(o.id,unidad_actual(o).id,m,db.session)
         if filtro:
@@ -157,16 +157,17 @@ def crear_blueprint_personal(*, dependencias):
                     return redirect(url_for('admin_personal.panel',ok='Legajo vinculado a la unidad activa. Revisá su reparto de áreas.'))
                 form=request.form.copy()
                 if form.get('accion')=='crear':
-                    if form.get('unidad_negocio_id') and form.get('unidad_negocio_id')!=str(unidad_actual(o).id):raise ValueError('El alta corresponde a la unidad activa.')
-                    form['unidad_negocio_id']=str(unidad_actual(o).id)
+                    if not form.get('unidad_negocio_id'):form['unidad_negocio_id']=str(unidad_actual(o).id)
                 elif empleado_de_org(o,form.get('empleado_id'),True) is None:raise ValueError('El empleado no pertenece a la unidad activa.')
-                empleado = guardar_personal(form, organizacion_id=o.id, modelos=m, db_session=db.session)
+                empleado = guardar_personal(form, organizacion_id=o.id, modelos=m, db_session=db.session, permitir_cambio_unidad=True)
                 completar_alta(empleado,request.form,modelos=m,db_session=db.session,usuario_id=getattr(usuario,'id',None))
                 guardar_accesos(empleado,request.form,organizacion=o,modelos=m,db_session=db.session,creador=usuario)
                 db.session.commit()
                 # El registrador central de auditoría administra su propio commit.
                 dependencias['registrar_auditoria']('Guardó ficha de Personal', entidad='empleado',
                     entidad_id=empleado.id, detalle=f"Ficha administrativa: {empleado.codigo}. Acción: {request.form.get('accion')}.")
+                if personal_visible(o.id,unidad_actual(o).id,m,db.session).filter_by(id=empleado.id).first() is None:
+                    return redirect(url_for('admin_personal.panel',ok='Ficha guardada en '+empleado.unidad_negocio.nombre+'. Para verla, seleccioná esa unidad como activa.'))
                 if str(request.form.get('volver_ficha') or '') == str(empleado.id):
                     return redirect(url_for('admin_personal.ficha',empleado_id=empleado.id,ok='Datos generales guardados correctamente.'))
                 return redirect(url_for('admin_personal.panel', buscar=request.form.get('buscar', '')[:120],
@@ -294,7 +295,7 @@ def crear_blueprint_personal(*, dependencias):
             except (ValueError,IntegrityError) as exc:
                 db.session.rollback();error=str(exc) if isinstance(exc,ValueError) else 'El registro ya existe o cambió. Recargá el legajo y revisá los datos.';status=400
         detalle=db.session.get(PersonalDetalle,e.id) if listo else None
-        unidades=[unidad_actual(o)]
+        unidades=m['UnidadNegocio'].query.filter_by(organizacion_id=o.id).order_by(m['UnidadNegocio'].nombre).all()
         extras={'ausencias_anteriores':[]}
         if seccion=='vacaciones':
             existentes=m['NovedadLaboralPreparatoria'].query.filter_by(organizacion_id=o.id,empleado_id=e.id,unidad_negocio_id=unidad_actual(o).id).filter(m['NovedadLaboralPreparatoria'].tipo.in_(['licencia','ausencia'])).order_by(m['NovedadLaboralPreparatoria'].fecha_desde.desc()).all()

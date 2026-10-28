@@ -29,7 +29,7 @@ def huella_empleado(empleado, *, detalle=None, preparado=None):
                                      ensure_ascii=False).encode()).hexdigest()
 
 
-def guardar_personal(formulario, *, organizacion_id, modelos, db_session):
+def guardar_personal(formulario, *, organizacion_id, modelos, db_session, permitir_cambio_unidad=False):
     accion = formulario.get('accion')
     if accion not in {'crear', 'editar'}:
         raise ValueError('La acción de Personal no es válida.')
@@ -57,7 +57,7 @@ def guardar_personal(formulario, *, organizacion_id, modelos, db_session):
             raise ValueError('La unidad no pertenece a la organización.')
     Empleado = modelos['EmpleadoProductivo']
     if accion == 'crear':
-        if unidad is not None and not unidad.activa:
+        if unidad is not None and not unidad.activa and not permitir_cambio_unidad:
             raise ValueError('Elegí una unidad activa para el alta.')
         empleado = crear_empleado(
             organizacion_id=organizacion_id, unidad_negocio_id=unidad_id,
@@ -74,8 +74,16 @@ def guardar_personal(formulario, *, organizacion_id, modelos, db_session):
             raise ValueError('El empleado no pertenece a la organización.')
         if formulario.get('huella') != huella_empleado(empleado):
             raise ValueError('La ficha cambió mientras la editabas. Cerrá y recargá Personal antes de volver a editar.')
-        if datos['codigo'] != empleado.codigo.lower() or unidad_id != empleado.unidad_negocio_id:
-            raise ValueError('El legajo y la unidad se conservan al editar una ficha existente.')
+        if datos['codigo'] != empleado.codigo.lower():
+            raise ValueError('El legajo se conserva al editar una ficha existente.')
+        if unidad_id != empleado.unidad_negocio_id:
+            if not permitir_cambio_unidad:
+                raise ValueError('La unidad se conserva al editar una ficha existente.')
+            if unidad_id is None:
+                raise ValueError('Elegí una unidad principal. Para compartir el empleado, vinculá su legajo y configurá Áreas y tareas.')
+            empleado.unidad_negocio_id=unidad_id
+            # No trasladar ni duplicar asignaciones, versiones salariales o novedades.
+            db_session.expire(empleado,['unidad_negocio'])
         if empleado.participaciones_recurso and datos['sector']!=empleado.sector:
             raise ValueError('El sector se modifica desde Áreas y tareas de la ficha.')
         if empleado.activo and estado == '0':
