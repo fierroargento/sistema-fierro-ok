@@ -143,3 +143,49 @@ def test_exportacion_refleja_areas_y_repartos_reales(personal):
     assert wb['Distribución de costos'].max_row==2
     assert list(wb['Personal'].values)[1][3]=='Taller Fierro'
     wb.close()
+
+
+def test_control_dedicacion_compartida_muestra_total_global_y_parte_local(personal):
+    from services.personal_areas import resumen_dedicacion
+    c,*_=personal;areas,_=preparar(personal);e=nuevo(personal);sueldo(e)
+    assert asignar(c,e,[(areas[0],20),(areas[1],80)]).status_code==302
+    control=resumen_dedicacion([e],areas[0].unidad_negocio_id)[0]
+    assert control['total']==100 and control['unidad']==20 and control['otras']==80
+    assert control['completa'] and control['sueldo']
+    html=c.get('/admin/personal/mano-obra').text
+    tabla=html.split('id="personal-control-dedicacion"')[1]
+    assert '20%' in tabla and '80%' in tabla and '100%' in tabla and 'Completa' in tabla
+    assert f'/admin/personal/{e.id}?seccion=areas&amp;gestionar=1' in tabla
+    ficha=c.get(f'/admin/personal/{e.id}?seccion=areas&gestionar=1').text
+    assert 'data-dedicacion-total>100%' in ficha and 'personal_dedicacion.js' in ficha
+
+
+def test_control_dedicacion_sin_asignar_y_sueldo_pendiente_separados(personal):
+    from services.personal_areas import resumen_dedicacion
+    c,_,_,u,*_=personal;e=nuevo(personal)
+    f=resumen_dedicacion([e],u.id)[0]
+    assert f['total']==0 and not f['completa'] and not f['sueldo'] and f['sin_asignacion']
+    html=c.get('/admin/personal/mano-obra').text.split('id="personal-control-dedicacion"')[1]
+    assert 'Sin asignación' in html and 'Pendiente de cargar' in html and e.nombre in html
+
+
+def test_listado_control_rojo_y_verde_sin_exigir_datos_opcionales(personal):
+    c,*_=personal;areas,_=preparar(personal);e=nuevo(personal)
+    html=c.get('/admin/personal').text
+    fila=html.split(f'data-control-empleado="{e.id}"')[1].split('</tr>')[0]
+    assert 'personal-control-pendiente' in fila and 'dedicación sin asignar' in fila
+    assert 'sueldo vigente' in fila and 'horario laboral vigente' in fila
+    sueldo(e)
+    from services.personal_legajo import guardar_horario
+    guardar_horario(e,dict(dia_semana='0',entrada='08:00',salida='16:00',desde='2020-01-01'),db.session)
+    db.session.commit()
+    assert asignar(c,e,[(areas[0],20),(areas[1],80)]).status_code==302
+    fila=c.get('/admin/personal').text.split(f'data-control-empleado="{e.id}"')[1].split('</tr>')[0]
+    assert 'personal-control-ok' in fila and 'Completo' in fila and 'Falta:' not in fila
+    # La falta de horario no queda tapada por tener 100% y sueldo vigente.
+    from models.personal_administrativo import HorarioPersonal
+    HorarioPersonal.query.filter_by(empleado_id=e.id).update({'hasta':__import__('datetime').date(2020,12,31)})
+    db.session.commit()
+    fila=c.get('/admin/personal').text.split(f'data-control-empleado="{e.id}"')[1].split('</tr>')[0]
+    assert 'personal-control-pendiente' in fila and 'horario laboral vigente' in fila
+    assert 'dedicación sin asignar' not in fila and 'sueldo vigente' not in fila

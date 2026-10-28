@@ -74,8 +74,10 @@ def crear_blueprint_personal(*, dependencias):
         listo = preparado(db.engine)
         filas = []
         ids_por_empleado={e.id:unidades_del_empleado(e,m,db.session) for e in empleados}
+        from services.personal_areas import control_carga_personal
+        controles_personal=control_carga_personal(empleados,unidad_actual(o).id,ids_por_empleado,db.session)
         return render_template('admin_personal.html', organizacion=o, empleados=empleados,
-            filas_personal=filas, unidades_personal={e.id:' / '.join(u.nombre for u in unidades if u.id in ids_por_empleado[e.id]) or 'Sin unidades asignadas' for e in empleados}, usuarios_personal=usuarios_disponibles(o), unidades=unidades, unidad_inicial=session.get('unidad_negocio_id'),
+            filas_personal=filas, controles_personal=controles_personal, unidades_personal={e.id:' / '.join(u.nombre for u in unidades if u.id in ids_por_empleado[e.id]) or 'Sin unidades asignadas' for e in empleados}, usuarios_personal=usuarios_disponibles(o), unidades=unidades, unidad_inicial=session.get('unidad_negocio_id'),
             buscar=filtro, pagina=pagina, paginas=paginas, total=total,
             preparado=listo, puede_preparar=entorno_actual()=='staging' and laboratorio_forzado(),
             formulario_error=formulario, error=error, ok_feedback=request.args.get('ok', ''))
@@ -83,7 +85,7 @@ def crear_blueprint_personal(*, dependencias):
     @bp.route('/admin/personal/mano-obra',methods=['GET','POST'])
     @dependencias['login_required']
     def mano_obra():
-        from services.personal_areas import resumen_areas, huella_area
+        from services.personal_areas import resumen_areas, huella_area, resumen_dedicacion
         usuario,o,respuesta=acceso()
         if respuesta is not None:return respuesta
         error='';status=200
@@ -116,8 +118,9 @@ def crear_blueprint_personal(*, dependencias):
                 db.session.rollback();error=str(exc) if isinstance(exc,ValueError) else 'Ya existe ese código de área.';status=400
         recursos=m['EmpleadoProductivo'].query.filter_by(organizacion_id=o.id,unidad_negocio_id=unidad_actual(o).id,tipo_registro='recurso').order_by(m['EmpleadoProductivo'].unidad_negocio_id,m['EmpleadoProductivo'].sector).all()
         empleados=personal_visible(o.id,unidad_actual(o).id,m,db.session).filter_by(activo=True).order_by(m['EmpleadoProductivo'].nombre).all()
-        pendientes=[e for e in empleados if sum((v.porcentaje_dedicacion for v in e.participaciones_recurso),Decimal(0))!=100 or version_actual(e) is None]
-        return render_template('admin_personal_mano_obra.html',organizacion=o,filas=resumen_areas(recursos),pendientes=pendientes,
+        dedicaciones=resumen_dedicacion(empleados,unidad_actual(o).id)
+        pendientes=[f['empleado'] for f in dedicaciones if not f['completa'] or not f['sueldo']]
+        return render_template('admin_personal_mano_obra.html',organizacion=o,filas=resumen_areas(recursos),pendientes=pendientes,dedicaciones=dedicaciones,completos=sum(f['completa'] for f in dedicaciones),
             unidades=[unidad_actual(o)],
             error=error,ok_feedback=request.args.get('ok',''),area_editar=area_editar,huella_area=huella_area,formulario=request.form if error else {}),status
 
@@ -313,6 +316,7 @@ def crear_blueprint_personal(*, dependencias):
             from services.personal_areas import huella_asignacion
             extras['areas_personal']=m['EmpleadoProductivo'].query.filter_by(organizacion_id=o.id,tipo_registro='recurso').filter(m['EmpleadoProductivo'].unidad_negocio_id.in_(unidades_del_empleado(e,m,db.session))).order_by(m['EmpleadoProductivo'].unidad_negocio_id,m['EmpleadoProductivo'].sector).all()
             extras['dedicaciones_personal']={v.recurso_id:v.porcentaje_dedicacion for v in e.participaciones_recurso}
+            extras['total_dedicacion']=sum(extras['dedicaciones_personal'].values(),Decimal(0))
             extras['huella_areas']=huella_asignacion(e)
         from services.distribucion_laboral import distribuciones_vigentes
         from services.configuracion_costo_laboral import configuracion_vigente

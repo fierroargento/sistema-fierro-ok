@@ -90,3 +90,30 @@ def resumen_areas(recursos):
         v=version_actual(r);faltantes=[x.empleado.nombre for x in r.miembros_recurso if version_actual(x.empleado) is None or not x.empleado.activo]
         filas.append(dict(recurso=r,version=v,integrantes=len(r.miembros_recurso),pendiente=not r.activo or not v or not r.miembros_recurso or bool(faltantes),faltantes=faltantes))
     return filas
+
+
+def resumen_dedicacion(empleados, unidad_id):
+    """Control de dedicación global y parte de la unidad, sin sumar dos veces."""
+    filas=[]
+    for e in empleados:
+        total=sum((v.porcentaje_dedicacion for v in e.participaciones_recurso),Decimal(0))
+        local=sum((v.porcentaje_dedicacion for v in e.participaciones_recurso if v.recurso.unidad_negocio_id==unidad_id),Decimal(0))
+        filas.append(dict(empleado=e,total=total,unidad=local,otras=total-local,
+                          completa=total==100,sin_asignacion=total==0,sueldo=version_actual(e) is not None))
+    return filas
+
+
+def control_carga_personal(empleados, unidad_id, unidades_por_empleado, db_session):
+    """Estado de carga laboral, separado de los datos personales opcionales."""
+    from services.personal_legajo import horas_desde_horario
+    controles={}
+    for f in resumen_dedicacion(empleados,unidad_id):
+        e=f['empleado'];faltantes=[]
+        if not unidades_por_empleado.get(e.id):faltantes.append('unidades asignadas')
+        if not f['completa']:
+            faltantes.append('dedicación sin asignar' if f['sin_asignacion'] else 'revisar dedicación ('+format(f['total'].normalize(),'f')+'%)')
+        if not f['sueldo']:faltantes.append('sueldo vigente')
+        horas=horas_desde_horario(e,db_session)
+        if horas is None or horas<=0:faltantes.append('horario laboral vigente')
+        controles[e.id]=dict(completo=not faltantes,faltantes=faltantes)
+    return controles

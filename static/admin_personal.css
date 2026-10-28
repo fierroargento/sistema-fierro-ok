@@ -105,3 +105,17 @@
 .personal-page .personal-gestion-dialog .comercial-message {margin:12px 22px}
 .personal-page #personal-editor .personal-gestion-nav {max-height:140px;overflow:auto}
 @media(max-width:600px){.personal-page .personal-gestion-nav {padding:10px}.personal-page .personal-gestion-nav a {flex:1 1 auto;text-align:center}.personal-page .personal-gestion-dialog > .comercial-section {padding:16px}}
+
+.personal-page .personal-dedicacion {display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 18px;margin:16px 0 8px;border:1px solid;border-radius:10px}
+.personal-page .personal-dedicacion > div {display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.personal-page [data-dedicacion-total] {font-size:25px;font-variant-numeric:tabular-nums}
+.personal-page .personal-dedicacion-completa {background:#ecf8f0;border-color:#86bc9b;color:#166344}
+.personal-page .personal-dedicacion-pendiente {background:#fff8e9;border-color:#d8b46b;color:#76521a}
+.personal-page .personal-dedicacion-etiqueta {display:inline-block;padding:5px 9px;border-radius:6px;font-size:13px;font-weight:700;white-space:nowrap}
+.personal-page .es-completa {background:#ecf8f0;color:#166344}
+.personal-page .es-pendiente {background:#fff8e9;color:#76521a}
+
+.personal-page .personal-control {display:inline-block;padding:5px 9px;border-radius:6px;font-size:13px;font-weight:700;white-space:nowrap}
+.personal-page .personal-control-ok {background:#ecf8f0;color:#166344;border:1px solid #a6cfb5}
+.personal-page .personal-control-pendiente {background:#fff1f2;color:#a12236;border:1px solid #e7aeb7}
+.personal-page .personal-control-detalle {max-width:240px;line-height:1.5;margin-top:6px}
