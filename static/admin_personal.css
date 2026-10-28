@@ -60,3 +60,27 @@
 .personal-page #semana-form .personal-dia h3 {font-size:16px;margin:0}
 .personal-page #semana-form .personal-tramo {margin-top:8px;padding-top:8px}
 .personal-page #semana-form .personal-dia > button {margin-top:10px}
+
+/* Ficha del legajo: bloques de lectura, sin afectar formularios ni otras pantallas. */
+.personal-legajo-page .personal-ficha-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.personal-legajo-page .personal-ficha-heading h2 {margin:0;font-size:22px}
+.personal-legajo-page .personal-legajo-numero {padding:7px 12px;border-radius:7px;background:#edf5f8;color:#124e64;font-size:14px;font-weight:700}
+.personal-legajo-page .personal-estado {display:inline-block;margin-left:8px;padding:3px 9px;border-radius:20px;font-size:13px;font-weight:700}
+.personal-legajo-page .personal-estado-activo {color:#166344;background:#e6f5ed}
+.personal-legajo-page .personal-estado-inactivo {color:#475569;background:#e2e8f0}
+.personal-legajo-page .personal-ficha-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.personal-legajo-page .personal-ficha-card {min-width:0;border:1px solid #d5e0e8;border-radius:12px;overflow:hidden;background:#fff}
+.personal-legajo-page .personal-ficha-card h3 {margin:0;padding:14px 18px;border-bottom:1px solid #d5e0e8;background:#edf4f7;color:#164d63;font-size:17px;line-height:1.4}
+.personal-legajo-page .personal-datos-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0;padding:4px 18px 12px}
+.personal-legajo-page .personal-dato {min-width:0;padding:12px 10px 12px 0;border-bottom:1px solid #e7edf2}
+.personal-legajo-page .personal-dato dt {margin:0 0 5px;color:#475569;font-size:13px;line-height:1.4;font-weight:600}
+.personal-legajo-page .personal-dato dd {margin:0;color:#1e293b;font-size:15px;line-height:1.5;font-weight:500;white-space:pre-wrap;overflow-wrap:anywhere}
+.personal-legajo-page .personal-datos-una-columna {grid-template-columns:minmax(0,1fr)}
+.personal-legajo-page .personal-sin-dato {color:#64748b!important;font-weight:400!important}
+.personal-legajo-page .personal-card-actions {padding:4px 18px 18px}
+.personal-legajo-page .personal-notas {margin:0;padding:18px;font-size:15px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.personal-legajo-page .personal-tabs {padding-bottom:12px;border-bottom:1px solid #cbd5e1;gap:7px}
+.personal-legajo-page .personal-tabs a {font-size:14px;font-weight:600}
+.personal-legajo-page a:focus-visible {outline:2px solid #227b9d;outline-offset:3px}
+@media(max-width:1000px){.personal-legajo-page .personal-ficha-grid {grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.personal-legajo-page .personal-datos-grid {grid-template-columns:minmax(0,1fr)}.personal-legajo-page .personal-ficha-heading h2 {font-size:20px}.personal-legajo-page .personal-tabs a {flex:1 1 auto;text-align:center}}
