@@ -114,6 +114,11 @@
     document.getElementById('personal-sueldo-actual').textContent='Sueldo: '+(valores.sueldo_resumen||'Sin sueldo cargado');
     document.getElementById('personal-horario-actual').textContent='Horario laboral: '+(valores.horario_resumen||'Sin horario cargado');
     const base='/admin/personal/'+(valores.id||valores.empleado_id||'');
+    const nav=editor.querySelector('[data-personal-gestion-nav]');nav.hidden=!editar;
+    nav.querySelectorAll('[data-personal-seccion]').forEach(a=>{
+      const s=a.dataset.personalSeccion;
+      a.href=s==='horarios'?base+'/horarios?modo=editar&gestionar=1':s==='datos'?base+'?editar=1':s==='accesos'?base+'?editar=1&panel=accesos':base+'?seccion='+s+'&gestionar=1';
+    });
     document.getElementById('personal-ir-sueldo').href=base+'?seccion=sueldos';
     document.getElementById('personal-ir-horario').href=base+'?seccion=horarios';
     form.elements.revision_accesos.value=valores.revision_accesos||'0';
@@ -130,6 +135,10 @@
     document.getElementById('personal-guardar').textContent = 'Guardar ficha';
     error.hidden = !fallido;error.textContent = fallido ? datos.error : '';
     editor.showModal();(editar ? form.elements.nombre : form.elements.codigo).focus();
+    if(editar&&new URL(window.location.href).searchParams.get('panel')==='accesos'){
+      nav.querySelectorAll('a').forEach(a=>{if(a.dataset.personalSeccion==='accesos')a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+      form.elements.acceso_accion.focus();
+    }
   }
   document.querySelectorAll('[data-personal-nuevo]').forEach(b => b.addEventListener('click', () => {origen=b;abrir(null,null);}));
   document.querySelectorAll('[data-personal-editar]').forEach(b => b.addEventListener('click', () => {

@@ -43,11 +43,13 @@ def test_validacion_no_guarda_y_reabre_formulario(personal,kw):
 
 
 def test_compartido_unidad_propia_y_registros_de_otros_legajos_protegidos(personal):
-    c,org,otra,u,m,*_=personal;e=nuevo(personal);e.unidad_negocio_id=None;db.session.commit()
-    assert c.post(f'/admin/personal/{e.id}',data=formulario(competencia_unidad_id='abc')).status_code==400
+    c,org,otra,u,m,*_=personal;e=nuevo(personal);e.unidad_negocio_id=None
+    from models.personal_unidad import PersonalUnidad
+    db.session.add(PersonalUnidad(organizacion_id=org.id,empleado_id=e.id,unidad_negocio_id=u.id));db.session.commit()
     Unidad=m['UnidadNegocio'];ajena=Unidad(organizacion_id=otra.id,codigo='ajena',nombre='Ajena');db.session.add(ajena);db.session.commit()
-    assert c.post(f'/admin/personal/{e.id}',data=formulario(competencia_unidad_id=str(ajena.id))).status_code==400
-    assert c.post(f'/admin/personal/{e.id}',data=formulario(competencia_unidad_id=str(u.id))).status_code==302
+    # El registro se estampa con la unidad activa; no usa un destino enviado por el navegador.
+    assert c.post(f'/admin/personal/{e.id}',data=formulario(competencia_unidad_id=str(ajena.id))).status_code==302
+    assert Competencia.query.one().unidad_negocio_id==u.id
     comp=Competencia.query.one();otro=nuevo(personal,codigo='otro')
     f=formulario(accion='editar_competencia',registro_id=str(comp.id),huella_competencia=huella_competencia(comp),nombre='Ajeno')
     assert c.post(f'/admin/personal/{otro.id}',data=f).status_code==400

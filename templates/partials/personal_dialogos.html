@@ -1,6 +1,8 @@
 <dialog class="personal-dialog" id="personal-editor" aria-labelledby="personal-titulo"><form method="post" action="{{ url_for('admin_personal.panel') }}" id="personal-form">
 <header><h2 id="personal-titulo">Nuevo empleado</h2><button type="button" data-personal-cerrar aria-label="Cerrar">×</button></header>
+{% include 'partials/personal_gestion_nav.html' %}
 <div class="personal-dialog-body">
+{% if ok_feedback and request.args.get('editar')=='1' %}<p class="comercial-message comercial-message-ok" role="status">{{ ok_feedback }}</p>{% endif %}
 <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="volver_ficha" value="{{ empleado.id if empleado is defined else '' }}"><input type="hidden" name="accion" value="crear"><input type="hidden" name="empleado_id"><input type="hidden" name="huella"><input type="hidden" name="buscar" value="{{ buscar }}"><input type="hidden" name="pagina" value="{{ pagina }}">
 <input type="hidden" name="datos_ampliados_presentados" value="1"><p class="personal-muted">Completá los datos generales. En el alta también podés completar sueldo, horario laboral y accesos.</p>
 <p class="personal-error" id="personal-form-error" role="alert" hidden></p>

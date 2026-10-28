@@ -1,0 +1,5 @@
+<nav class="personal-gestion-nav" aria-label="Gestionar empleado" data-personal-gestion-nav {% if empleado is not defined %}hidden{% endif %}>
+{% for clave,titulo in [('datos','Datos y unidades'),('sueldos','Sueldo e historial'),('horarios','Horario laboral'),('areas','Áreas y tareas'),('vacaciones','Vacaciones y licencias'),('novedades','Turnos y novedades'),('competencias','Competencias'),('accesos','Usuario y alarma')] %}
+<a class="secondary-link" data-personal-seccion="{{ clave }}" {% if empleado is defined %}href="{{ url_for('admin_personal.horarios_semana',empleado_id=empleado.id,modo='editar',gestionar='1') if clave=='horarios' else url_for('admin_personal.ficha',empleado_id=empleado.id,editar='1') if clave=='datos' else url_for('admin_personal.ficha',empleado_id=empleado.id,editar='1',panel='accesos') if clave=='accesos' else url_for('admin_personal.ficha',empleado_id=empleado.id,seccion=clave,gestionar='1') }}"{% endif %}{% if (gestion_activa|default('datos'))==clave %} aria-current="page"{% endif %}>{{ titulo }}</a>
+{% endfor %}
+</nav>

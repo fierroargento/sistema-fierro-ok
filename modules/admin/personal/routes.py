@@ -167,7 +167,7 @@ def crear_blueprint_personal(*, dependencias):
                 if personal_visible(o.id,unidad_actual(o).id,m,db.session).filter_by(id=empleado.id).first() is None:
                     return redirect(url_for('admin_personal.panel',ok='Ficha guardada en las unidades seleccionadas. Para verla, seleccioná una de ellas como activa.'))
                 if str(request.form.get('volver_ficha') or '') == str(empleado.id):
-                    return redirect(url_for('admin_personal.ficha',empleado_id=empleado.id,ok='Datos generales guardados correctamente.'))
+                    return redirect(url_for('admin_personal.ficha',empleado_id=empleado.id,editar='1',ok='Datos generales guardados correctamente.'))
                 return redirect(url_for('admin_personal.panel', buscar=request.form.get('buscar', '')[:120],
                     pagina=request.form.get('pagina', 1), ok='Ficha de personal guardada correctamente.'))
             except (ValueError, IntegrityError) as error:
@@ -289,7 +289,7 @@ def crear_blueprint_personal(*, dependencias):
                     actualizar_horas_sueldo(e,modelos=m,db_session=db.session,usuario_id=getattr(usuario,'id',None))
                 db.session.commit()
                 dependencias['registrar_auditoria']('Actualizó legajo de Personal',entidad='empleado',entidad_id=e.id,detalle=f'Acción: {accion}. {detalle_auditoria}')
-                return redirect(url_for('admin_personal.ficha',empleado_id=e.id,seccion=seccion,ok='Información guardada correctamente.'))
+                return redirect(url_for('admin_personal.ficha',empleado_id=e.id,seccion=seccion,gestionar='1' if request.args.get('gestionar')=='1' or request.form.get('gestionar')=='1' else None,ok='Información guardada correctamente.'))
             except (ValueError,IntegrityError) as exc:
                 db.session.rollback();error=str(exc) if isinstance(exc,ValueError) else 'El registro ya existe o cambió. Recargá el legajo y revisá los datos.';status=400
         detalle=db.session.get(PersonalDetalle,e.id) if listo else None
@@ -354,7 +354,7 @@ def crear_blueprint_personal(*, dependencias):
                 guardar_semana(e,request.form,modelos=m,db_session=db.session,usuario_id=getattr(usuario,'id',None))
                 db.session.commit()
                 dependencias['registrar_auditoria']('Actualizó semana laboral',entidad='empleado',entidad_id=e.id,detalle='Horarios semanales guardados en conjunto.')
-                return redirect(url_for('admin_personal.ficha',empleado_id=e.id,seccion='horarios',ok='Horario semanal guardado.'))
+                return redirect(url_for('admin_personal.ficha',empleado_id=e.id,seccion='horarios',gestionar='1' if request.args.get('gestionar')=='1' else None,ok='Horario semanal guardado.'))
             except (ValueError,IntegrityError) as exc:
                 db.session.rollback();error=str(exc) if isinstance(exc,ValueError) else 'Los horarios cambiaron. Recargá antes de guardar.';status=400
                 try:fallidas=leer_semana(request.form.get('semana'))

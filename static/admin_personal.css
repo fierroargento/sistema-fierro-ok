@@ -91,3 +91,17 @@
 .personal-page .personal-unidades-opciones {display:grid;gap:6px;margin-bottom:12px}
 .personal-page .personal-unidades-opciones label {padding:8px 10px;border:1px solid #dbe4ec;border-radius:7px;background:#fff;cursor:pointer}
 .personal-page .personal-unidades-opciones label:has(input:checked) {border-color:#227b9d;background:#edf6fa}
+
+.personal-page a.comercial-primary {display:inline-flex;align-items:center;justify-content:center;text-decoration:none;box-sizing:border-box;line-height:1.2;min-height:38px;padding:9px 14px}
+.personal-page #personal-editor {width:min(1000px,calc(100vw - 32px))}
+.personal-page .personal-gestion-nav {display:flex;flex-wrap:wrap;gap:6px;padding:12px 18px;border-bottom:1px solid #dbe4ec;background:#f8fafc;flex-shrink:0}
+.personal-page .personal-gestion-nav a {font-size:13px;padding:8px 10px;font-weight:600}
+.personal-page .personal-gestion-nav [aria-current] {background:#124e64;color:#fff;border-color:#124e64}
+.personal-page .personal-gestion-dialog {width:min(1100px,calc(100vw - 32px));max-height:calc(100dvh - 32px)}
+.personal-page .personal-gestion-dialog > header {position:sticky;top:0;z-index:1}
+.personal-page .personal-gestion-dialog header .personal-muted {font-size:13px;margin:5px 0 0}
+.personal-page .personal-gestion-dialog > .comercial-section {padding:18px 22px;margin:0;border:0;border-radius:0;box-shadow:none}
+.personal-page .personal-gestion-dialog > footer {position:sticky;bottom:0}
+.personal-page .personal-gestion-dialog .comercial-message {margin:12px 22px}
+.personal-page #personal-editor .personal-gestion-nav {max-height:140px;overflow:auto}
+@media(max-width:600px){.personal-page .personal-gestion-nav {padding:10px}.personal-page .personal-gestion-nav a {flex:1 1 auto;text-align:center}.personal-page .personal-gestion-dialog > .comercial-section {padding:16px}}
