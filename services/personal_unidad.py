@@ -33,3 +33,27 @@ def vincular(codigo,org,unidad,modelos,session):
     existente=session.query(PersonalUnidad).filter_by(empleado_id=e.id,unidad_negocio_id=unidad).first()
     if existente is None:session.add(PersonalUnidad(organizacion_id=org,empleado_id=e.id,unidad_negocio_id=unidad))
     session.flush();return e
+
+
+def guardar_unidades(e, valores, *, modelos, session):
+    """Reemplaza vínculos explícitos; mantiene áreas y costos existentes."""
+    if not inspect(session.connection()).has_table(PersonalUnidad.__tablename__):
+        raise ValueError('Falta preparar los vínculos de Personal por unidad.')
+    if not valores or any(not str(v).isdecimal() for v in valores):
+        raise ValueError('Seleccioná al menos una unidad de la empresa.')
+    ids={int(v) for v in valores}
+    propias={u.id for u in session.query(modelos['UnidadNegocio']).filter_by(organizacion_id=e.organizacion_id).all()}
+    if not ids <= propias:
+        raise ValueError('Una unidad seleccionada no pertenece a la empresa.')
+    asignadas={v.recurso.unidad_negocio_id for v in e.participaciones_recurso if v.porcentaje_dedicacion>0}
+    if not asignadas <= ids:
+        raise ValueError('Antes de quitar una unidad, retirala del reparto en Áreas y tareas.')
+    actuales=session.query(PersonalUnidad).filter_by(organizacion_id=e.organizacion_id,empleado_id=e.id).all()
+    existentes={v.unidad_negocio_id for v in actuales}
+    for v in actuales:
+        if v.unidad_negocio_id not in ids:session.delete(v)
+    for uid in sorted(ids-existentes):
+        session.add(PersonalUnidad(organizacion_id=e.organizacion_id,empleado_id=e.id,unidad_negocio_id=uid))
+    e.unidad_negocio_id=next(iter(ids)) if len(ids)==1 else None
+    session.flush();session.expire(e,['unidad_negocio'])
+    return ids

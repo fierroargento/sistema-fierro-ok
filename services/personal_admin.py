@@ -19,6 +19,9 @@ def huella_empleado(empleado, *, detalle=None, preparado=None):
     from scripts.preparar_personal import preparado as esquema_preparado
     from extensions import db
     datos = datos_empleado(empleado)
+    from models.fuentes_costo_productivo import EmpleadoProductivo, RecursoEmpleadoProductivo
+    from services.personal_unidad import unidades_del_empleado
+    datos['unidades_ids']=sorted(unidades_del_empleado(empleado,dict(EmpleadoProductivo=EmpleadoProductivo,RecursoEmpleadoProductivo=RecursoEmpleadoProductivo),db.session))
     if preparado is None:
         preparado = esquema_preparado(db.session.get_bind())
         if preparado:
@@ -45,7 +48,16 @@ def guardar_personal(formulario, *, organizacion_id, modelos, db_session, permit
     estado = formulario.get('activo')
     if estado not in {'0', '1'}:
         raise ValueError('Elegí Activo o Inactivo.')
-    unidad_texto = str(formulario.get('unidad_negocio_id') or '').strip()
+    multi=formulario.get('unidades_presentadas')=='1'
+    if multi and not permitir_cambio_unidad:raise ValueError('No se permite cambiar las unidades.')
+    seleccion=formulario.getlist('unidades_ids') if multi and hasattr(formulario,'getlist') else formulario.get('unidades_ids',[]) if multi else []
+    # Validar selección antes de crear la identidad o modificar sus datos.
+    if multi:
+        if not seleccion or any(not str(v).isdecimal() for v in seleccion):raise ValueError('Seleccioná al menos una unidad de la empresa.')
+        ids={int(v) for v in seleccion}
+        propias={u.id for u in db_session.query(modelos['UnidadNegocio']).filter_by(organizacion_id=organizacion_id).all()}
+        if not ids <= propias:raise ValueError('Una unidad seleccionada no pertenece a la empresa.')
+    unidad_texto = str(next(iter(ids)) if multi and len(ids)==1 else '' if multi else formulario.get('unidad_negocio_id') or '').strip()
     if unidad_texto and not unidad_texto.isdecimal():
         raise ValueError('La unidad no es válida.')
     unidad_id = int(unidad_texto) if unidad_texto else None
@@ -79,7 +91,7 @@ def guardar_personal(formulario, *, organizacion_id, modelos, db_session, permit
         if unidad_id != empleado.unidad_negocio_id:
             if not permitir_cambio_unidad:
                 raise ValueError('La unidad se conserva al editar una ficha existente.')
-            if unidad_id is None:
+            if unidad_id is None and not multi:
                 raise ValueError('Elegí una unidad principal. Para compartir el empleado, vinculá su legajo y configurá Áreas y tareas.')
             empleado.unidad_negocio_id=unidad_id
             # No trasladar ni duplicar asignaciones, versiones salariales o novedades.
@@ -96,6 +108,9 @@ def guardar_personal(formulario, *, organizacion_id, modelos, db_session, permit
             setattr(empleado, campo, datos[campo] or None)
     empleado.activo = estado == '1'
     db_session.flush()
+    if multi:
+        from services.personal_unidad import guardar_unidades
+        guardar_unidades(empleado,seleccion,modelos=modelos,session=db_session)
     if formulario.get('datos_ampliados_presentados') == '1':
         from services.personal_legajo import guardar_detalle
         guardar_detalle(empleado, formulario, db_session)

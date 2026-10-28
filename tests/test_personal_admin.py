@@ -316,7 +316,7 @@ def test_admin_elige_todas_las_unidades_propias_y_reubica_sin_duplicar(personal)
     registrar_costo_empleado(e,moneda='ARS',sueldo_base_centavos=100000,horas_mensuales='100',horas_productivas='100',EmpleadoCostoVersion=EmpleadoCostoVersion,db_session=db.session)
     version=EmpleadoCostoVersion.query.one();antes=editar(e)
     html=c.get(f'/admin/personal/{e.id}').text
-    assert 'Náutica de prueba (inactiva)' in html and 'Unidad privada ajena' not in html
+    assert 'Náutica de prueba' in html and '(inactiva)' in html and 'Unidad privada ajena' not in html
     r=c.post('/admin/personal',data=antes|{'unidad_negocio_id':str(destino.id),'volver_ficha':str(e.id)})
     assert r.status_code==302 and '/admin/personal?' in r.location
     assert c.get(r.location).status_code==200
@@ -356,3 +356,67 @@ def test_admin_cambio_unidad_con_areas_conserva_reparto(personal):
     assert e.unidad_negocio_id==destino.id and e.participaciones_recurso[0].porcentaje_dedicacion==100
     assert e.participaciones_recurso[0].recurso_id==recurso.id
     assert c.get(f'/admin/personal/{e.id}').status_code==200
+
+
+def test_multiunidad_una_ficha_visible_en_ambas_sin_uat(personal):
+    c,org,_,uat,*_=personal;e=nuevo(personal)
+    a=UnidadNegocio(organizacion_id=org.id,codigo='fierro',nombre='Fierro real',activa=True)
+    b=UnidadNegocio(organizacion_id=org.id,codigo='nautica',nombre='Náutica real',activa=True)
+    db.session.add_all([a,b]);db.session.commit()
+    registrar_costo_empleado(e,moneda='ARS',sueldo_base_centavos=100000,horas_mensuales='100',horas_productivas='100',EmpleadoCostoVersion=EmpleadoCostoVersion,db_session=db.session)
+    from werkzeug.datastructures import MultiDict
+    from models.personal_unidad import PersonalUnidad
+    form=MultiDict(editar(e));form['unidades_presentadas']='1';form.setlist('unidades_ids',[str(a.id),str(b.id)])
+    antigua=editar(e)
+    r=c.post('/admin/personal',data=form)
+    assert r.status_code==302 and c.get(r.location).status_code==200
+    db.session.expire_all()
+    assert e.unidad_negocio_id is None
+    assert {v.unidad_negocio_id for v in PersonalUnidad.query.filter_by(empleado_id=e.id)}=={a.id,b.id}
+    assert EmpleadoProductivo.query.count()==1 and EmpleadoCostoVersion.query.count()==1
+    assert c.get(f'/admin/personal/{e.id}').status_code==404
+    for u in [a,b]:
+        with c.session_transaction() as s:s['unidad_negocio_id']=u.id
+        c.environ_base['HTTP_X_FIERRO_UNIDAD']=str(u.id)
+        r=c.get(f'/admin/personal/{e.id}')
+        assert r.status_code==200 and 'Fierro real / Náutica real' in r.text
+        assert e.nombre in c.get('/admin/personal').text
+    # La huella anterior tampoco permite sobrescribir los vínculos ya guardados.
+    assert c.post('/admin/personal',data=antigua).status_code==400
+
+
+def test_multiunidad_validacion_y_error_conservan_seleccion(personal):
+    c,org,otra,u,*_=personal;e=nuevo(personal)
+    from werkzeug.datastructures import MultiDict
+    ajena=UnidadNegocio(organizacion_id=otra.id,codigo='ajena-multi',nombre='Ajena multi',activa=True)
+    db.session.add(ajena);db.session.commit()
+    for ids in [[],[str(u.id),str(ajena.id)],['xyz']]:
+        form=MultiDict(editar(e,nombre='No guardar'));form['unidades_presentadas']='1';form.setlist('unidades_ids',ids)
+        r=c.post('/admin/personal',data=form)
+        assert r.status_code==400
+        db.session.expire_all();assert e.nombre=='Persona ficticia' and e.unidad_negocio_id==u.id
+    form=MultiDict(editar(e,nombre=''));form['unidades_presentadas']='1';form.setlist('unidades_ids',[str(u.id)])
+    r=c.post('/admin/personal',data=form)
+    assert r.status_code==400 and '"unidades_ids": ["'+str(u.id)+'"]' in r.text
+
+
+def test_multiunidad_no_retira_area_con_costo_ni_pierde_vinculos_al_editar(personal):
+    c,org,_,u,*_=personal;e=nuevo(personal)
+    from werkzeug.datastructures import MultiDict
+    from models.personal_unidad import PersonalUnidad
+    otra=UnidadNegocio(organizacion_id=org.id,codigo='compartida',nombre='Compartida',activa=True)
+    db.session.add(otra);db.session.commit()
+    registrar_costo_empleado(e,moneda='ARS',sueldo_base_centavos=100000,horas_mensuales='100',horas_productivas='100',EmpleadoCostoVersion=EmpleadoCostoVersion,db_session=db.session)
+    area=crear_empleado(organizacion_id=org.id,unidad_negocio_id=u.id,codigo='equipo-multi',nombre='Equipo multi',sector='Taller',Organizacion=Organizacion,UnidadNegocio=UnidadNegocio,EmpleadoProductivo=EmpleadoProductivo,db_session=db.session)
+    area.tipo_registro='recurso';db.session.commit()
+    vincular_empleado(area,e,porcentaje_dedicacion=100,RecursoEmpleadoProductivo=RecursoEmpleadoProductivo,db_session=db.session)
+    form=MultiDict(editar(e));form['unidades_presentadas']='1';form.setlist('unidades_ids',[str(u.id),str(otra.id)])
+    assert c.post('/admin/personal',data=form).status_code==302
+    form=MultiDict(editar(e));form['unidades_presentadas']='1';form.setlist('unidades_ids',[str(otra.id)])
+    assert c.post('/admin/personal',data=form).status_code==400
+    db.session.expire_all()
+    assert PersonalUnidad.query.filter_by(empleado_id=e.id).count()==2
+    assert e.participaciones_recurso[0].porcentaje_dedicacion==100
+    # Un formulario viejo sin marcador multiunidad no borra los vínculos.
+    assert c.post('/admin/personal',data=editar(e,nombre='Nombre actualizado')).status_code==302
+    assert PersonalUnidad.query.filter_by(empleado_id=e.id).count()==2

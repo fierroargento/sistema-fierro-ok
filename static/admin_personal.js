@@ -90,17 +90,14 @@
     form.reset();enviando = false;pendiente = null;
     const valores = fallido || fila || {activo:'1', unidad_negocio_id:datos.unidad_inicial};
     const editar = fallido ? fallido.accion === 'editar' : !!fila;
-    // Las opciones bloqueadas por una edición anterior no se arrastran al alta.
-    Array.from(form.elements.unidad_negocio_id.options).forEach(o => {o.disabled = false;});
-    for (const campo of ['codigo','nombre','sector','puesto','observacion','unidad_negocio_id','huella','dni','cuil','fecha_nacimiento','fecha_ingreso','fecha_egreso','telefono','email','domicilio','localidad','provincia','contacto_emergencia','categoria','convenio','modalidad']) form.elements[campo].value = valores[campo] ?? '';
+    const elegidas=(valores.unidades_ids ?? (valores.unidad_negocio_id ? [valores.unidad_negocio_id] : [])).map(String);
+    form.querySelectorAll('[name=unidades_ids]').forEach(c=>{c.checked=elegidas.includes(c.value);});
+    for (const campo of ['codigo','nombre','sector','puesto','observacion','huella','dni','cuil','fecha_nacimiento','fecha_ingreso','fecha_egreso','telefono','email','domicilio','localidad','provincia','contacto_emergencia','categoria','convenio','modalidad']) form.elements[campo].value = valores[campo] ?? '';
     form.elements.activo.value = valores.activo === true || valores.activo === '1' ? '1' : '0';
     form.elements.accion.value = editar ? 'editar' : 'crear';
     form.elements.empleado_id.value = valores.empleado_id || valores.id || '';
     form.elements.codigo.readOnly = editar;
     form.elements.sector.readOnly=editar&&!!valores.sector_estructurado;
-    Array.from(form.elements.unidad_negocio_id.options).forEach(o => {
-      o.disabled = o.value === '' && (editar ? !!valores.unidad_negocio_id : true);
-    });
     document.getElementById('personal-identidad-aviso').hidden = !editar;
     form.querySelectorAll('[data-personal-solo-alta]').forEach(n=>{n.hidden=editar;});
     form.querySelectorAll('[data-personal-solo-edicion]').forEach(n=>{n.hidden=!editar;});
@@ -141,7 +138,7 @@
   document.querySelectorAll('[data-personal-ver]').forEach(b => b.addEventListener('click', () => {
     origen=b;const fila=datos.filas.find(f=>String(f.id)===b.dataset.personalVer);if(!fila)return;
     const detalle=document.getElementById('personal-detalle');detalle.replaceChildren();
-    for (const [titulo,valor] of [['Legajo',fila.codigo],['Nombre y apellido',fila.nombre],['Sector',fila.sector],['Puesto',fila.puesto],['Unidad',Array.from(form.elements.unidad_negocio_id.options).find(o=>o.value===String(fila.unidad_negocio_id||''))?.textContent],['Estado',fila.activo?'Activo':'Inactivo'],['Observaciones',fila.observacion]]) {
+    for (const [titulo,valor] of [['Legajo',fila.codigo],['Nombre y apellido',fila.nombre],['Sector',fila.sector],['Puesto',fila.puesto],['Unidades',Array.from(form.querySelectorAll('[name=unidades_ids]')).filter(c=>(fila.unidades_ids||[fila.unidad_negocio_id]).map(String).includes(c.value)).map(c=>c.closest('label').textContent.trim()).join(' / ')],['Estado',fila.activo?'Activo':'Inactivo'],['Observaciones',fila.observacion]]) {
       const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=titulo;dd.textContent=valor||'Sin definir';detalle.append(dt,dd);
     }
     vista.showModal();
@@ -153,7 +150,7 @@
     pendiente=f;document.getElementById('personal-confirm-mensaje').textContent=mensaje;
     confirm.showModal();document.getElementById('personal-no').focus();
   }
-  form.addEventListener('submit',e=>{e.preventDefault();pedirConfirmacion(form,'¿Guardar los datos de este empleado?');});
+  form.addEventListener('submit',e=>{e.preventDefault();if(!form.querySelector('[name=unidades_ids]:checked')){error.textContent='Seleccioná al menos una unidad de la empresa.';error.hidden=false;form.querySelector('[name=unidades_ids]')?.focus();return;}pedirConfirmacion(form,'¿Guardar los datos de este empleado?');});
   document.querySelectorAll('[data-personal-confirm]').forEach(f=>f.addEventListener('submit',e=>{
     e.preventDefault();pedirConfirmacion(f,f.dataset.personalConfirm);
   }));

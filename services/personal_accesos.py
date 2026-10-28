@@ -15,6 +15,7 @@ SECRETOS = {'password','password_confirm','codigo_alarma'}
 def formulario_publico(formulario):
     datos={k:v for k,v in formulario.items() if k not in SECRETOS}
     if hasattr(formulario,'getlist') and 'inicial_dias' in formulario:datos['inicial_dias']=formulario.getlist('inicial_dias')
+    if hasattr(formulario,'getlist') and 'unidades_presentadas' in formulario:datos['unidades_ids']=formulario.getlist('unidades_ids')
     return datos
 
 

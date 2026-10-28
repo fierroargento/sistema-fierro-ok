@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Personal · {{ empleado.nombre }}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static',filename='admin_comercial.css',v='20261022-personal') }}"><link rel="stylesheet" href="{{ url_for('static',filename='admin_personal.css',v='20261028-ficha') }}"><script nonce="{{ csp_nonce }}" src="{{ url_for('static',filename='admin_personal.js',v='20261028-unidades-admin') }}" defer></script>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static',filename='admin_comercial.css',v='20261022-personal') }}"><link rel="stylesheet" href="{{ url_for('static',filename='admin_personal.css',v='20261028-multiunidad') }}"><script nonce="{{ csp_nonce }}" src="{{ url_for('static',filename='admin_personal.js',v='20261028-multiunidad') }}" defer></script>{% endblock %}
 {% macro num(valor) %}{{ ('%.4f'|format(valor|float)).rstrip('0').rstrip('.') }}{% endmacro %}
 {% macro numero_decimal_limpio(valor) %}{{ num(valor) }}{% endmacro %}
 {% block content %}
@@ -20,7 +20,7 @@
 {{ campo('Nombre y apellido',empleado.nombre) }}{{ campo('DNI',detalle.dni) }}{{ campo('CUIL',detalle.cuil) }}{{ campo('Fecha de nacimiento',detalle.fecha_nacimiento,true) }}
 </dl></section>
 <section class="personal-ficha-card" aria-labelledby="personal-relacion-title"><h3 id="personal-relacion-title">Relación laboral</h3><dl class="personal-datos-grid">
-{{ campo('Unidad principal',empleado.unidad_negocio.nombre if empleado.unidad_negocio else 'Sin unidad principal asignada') }}{{ campo('Sector',empleado.sector) }}{{ campo('Puesto',empleado.puesto) }}{{ campo('Fecha de ingreso',detalle.fecha_ingreso,true) }}{{ campo('Fecha de egreso',detalle.fecha_egreso,true) }}{{ campo('Categoría',detalle.categoria) }}{{ campo('Convenio',detalle.convenio) }}{{ campo('Modalidad',detalle.modalidad) }}
+{{ campo('Unidades donde trabaja',unidades_empleado|map(attribute='nombre')|join(' / ')) }}{{ campo('Sector',empleado.sector) }}{{ campo('Puesto',empleado.puesto) }}{{ campo('Fecha de ingreso',detalle.fecha_ingreso,true) }}{{ campo('Fecha de egreso',detalle.fecha_egreso,true) }}{{ campo('Categoría',detalle.categoria) }}{{ campo('Convenio',detalle.convenio) }}{{ campo('Modalidad',detalle.modalidad) }}
 </dl></section>
 <section class="personal-ficha-card" aria-labelledby="personal-contacto-title"><h3 id="personal-contacto-title">Contacto y domicilio</h3><dl class="personal-datos-grid">
 {{ campo('Teléfono',detalle.telefono) }}{{ campo('Correo electrónico',detalle.email) }}{{ campo('Domicilio',detalle.domicilio) }}{{ campo('Localidad',detalle.localidad) }}{{ campo('Provincia',detalle.provincia) }}{{ campo('Contacto de emergencia',detalle.contacto_emergencia) }}

@@ -72,12 +72,10 @@ def crear_blueprint_personal(*, dependencias):
         pagina = min(pagina, paginas)
         empleados = consulta.order_by(m['EmpleadoProductivo'].nombre, m['EmpleadoProductivo'].id).offset((pagina-1)*25).limit(25).all()
         listo = preparado(db.engine)
-        from services.personal_areas import unidades_asignadas
         filas = []
-        from sqlalchemy import inspect
-        unidades_personal=unidades_asignadas(empleados) if inspect(db.session.connection()).has_table(m['RecursoEmpleadoProductivo'].__tablename__) else {e.id:e.unidad_negocio.nombre if e.unidad_negocio else 'Compartido' for e in empleados}
+        ids_por_empleado={e.id:unidades_del_empleado(e,m,db.session) for e in empleados}
         return render_template('admin_personal.html', organizacion=o, empleados=empleados,
-            filas_personal=filas, unidades_personal=unidades_personal, usuarios_personal=usuarios_disponibles(o), unidades=unidades, unidad_inicial=session.get('unidad_negocio_id'),
+            filas_personal=filas, unidades_personal={e.id:' / '.join(u.nombre for u in unidades if u.id in ids_por_empleado[e.id]) or 'Sin unidades asignadas' for e in empleados}, usuarios_personal=usuarios_disponibles(o), unidades=unidades, unidad_inicial=session.get('unidad_negocio_id'),
             buscar=filtro, pagina=pagina, paginas=paginas, total=total,
             preparado=listo, puede_preparar=entorno_actual()=='staging' and laboratorio_forzado(),
             formulario_error=formulario, error=error, ok_feedback=request.args.get('ok', ''))
@@ -167,7 +165,7 @@ def crear_blueprint_personal(*, dependencias):
                 dependencias['registrar_auditoria']('Guardó ficha de Personal', entidad='empleado',
                     entidad_id=empleado.id, detalle=f"Ficha administrativa: {empleado.codigo}. Acción: {request.form.get('accion')}.")
                 if personal_visible(o.id,unidad_actual(o).id,m,db.session).filter_by(id=empleado.id).first() is None:
-                    return redirect(url_for('admin_personal.panel',ok='Ficha guardada en '+empleado.unidad_negocio.nombre+'. Para verla, seleccioná esa unidad como activa.'))
+                    return redirect(url_for('admin_personal.panel',ok='Ficha guardada en las unidades seleccionadas. Para verla, seleccioná una de ellas como activa.'))
                 if str(request.form.get('volver_ficha') or '') == str(empleado.id):
                     return redirect(url_for('admin_personal.ficha',empleado_id=empleado.id,ok='Datos generales guardados correctamente.'))
                 return redirect(url_for('admin_personal.panel', buscar=request.form.get('buscar', '')[:120],
@@ -323,8 +321,9 @@ def crear_blueprint_personal(*, dependencias):
         config=configuracion_vigente(o.id,unidad.id,Modelo=m['ConfiguracionCostoLaboralVersion']) if unidad and seccion=='sueldos' else None
         laboral=resumenes([e],listo)[e.id]
         acceso_actual=estado_accesos(e,db.session)
-        fila=dict(datos_empleado(e),**datos_detalle(detalle),**laboral,**acceso_actual,sector_estructurado=bool(e.participaciones_recurso),huella=huella_empleado(e,detalle=detalle,preparado=listo))
-        return render_template('admin_personal_ficha.html',empleado=e,organizacion=o,unidades=unidades,
+        unidades_ids=sorted(unidades_del_empleado(e,m,db.session))
+        fila=dict(datos_empleado(e),unidades_ids=unidades_ids,**datos_detalle(detalle),**laboral,**acceso_actual,sector_estructurado=bool(e.participaciones_recurso),huella=huella_empleado(e,detalle=detalle,preparado=listo))
+        return render_template('admin_personal_ficha.html',empleado=e,organizacion=o,unidades=unidades,unidades_empleado=[u for u in unidades if u.id in unidades_ids],
             horas_automaticas=horas_desde_horario(e,db.session) if listo else None,
             seccion=seccion,detalle=datos_detalle(detalle),vigente=version_actual(e) if seccion=='sueldos' else None,
             empleados=[e],unidad_activa=unidad,distribuciones_laborales=distribuciones,configuracion_costo_laboral=config,
