@@ -1,6 +1,6 @@
-{% set compras_tab = 'materiales' if request.endpoint=='admin_compras.materiales' else 'proveedores' if request.endpoint=='admin_compras.importar_proveedores' else vista_compras|default('resumen') %}
+{% set compras_tab = 'listas' if request.endpoint=='admin_compras.listas_proveedores' else 'materiales' if request.endpoint=='admin_compras.materiales' else 'proveedores' if request.endpoint=='admin_compras.importar_proveedores' else vista_compras|default('resumen') %}
 <nav class="compras-tabs" aria-label="Secciones de Compras">
-{% for clave,titulo in [('resumen','Resumen'),('proveedores','Proveedores'),('materiales','Materiales y precios'),('ordenes','Órdenes de compra'),('recepciones','Recepciones'),('facturas','Facturas de proveedores'),('mapeos','Vínculos de inventario'),('propuestas','Impactos pendientes')] %}
-<a href="{{ url_for('admin_compras.materiales') if clave=='materiales' else url_for('admin_compras.panel',vista=clave) }}"{% if compras_tab==clave %} aria-current="page"{% endif %}>{{ titulo }}</a>
+{% for clave,titulo in [('resumen','Resumen'),('proveedores','Proveedores'),('materiales','Materiales y precios'),('listas','Listas de proveedores'),('ordenes','Órdenes de compra'),('recepciones','Recepciones'),('facturas','Facturas de proveedores'),('mapeos','Vínculos de inventario'),('propuestas','Impactos pendientes')] %}
+<a href="{{ url_for('admin_compras.materiales') if clave=='materiales' else url_for('admin_compras.listas_proveedores') if clave=='listas' else url_for('admin_compras.panel',vista=clave) }}"{% if compras_tab==clave %} aria-current="page"{% endif %}>{{ titulo }}</a>
 {% endfor %}
 </nav>

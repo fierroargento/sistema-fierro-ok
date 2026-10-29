@@ -82,6 +82,93 @@ def crear_blueprint_compras(*, dependencias):
         if accion=='preparar_recepcion':return 'recepciones'
         return 'ordenes' if accion else 'resumen'
 
+    @blueprint.route('/admin/compras/listas-proveedores/plantilla')
+    @dependencias['login_required']
+    def plantilla_lista_proveedor():
+        _,_,_,respuesta=acceso()
+        if respuesta is not None:return respuesta
+        from services.listas_proveedores_compra import plantilla
+        return send_file(plantilla(),as_attachment=True,download_name='Lista_proveedor_Fierro.xlsx',mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    @blueprint.route('/admin/compras/listas-proveedores',methods=['GET','POST'])
+    @dependencias['login_required']
+    def listas_proveedores():
+        from flask import current_app,abort
+        from sqlalchemy.exc import IntegrityError
+        from decimal import Decimal
+        from services import listas_proveedores_compra as listas
+        from models.listas_proveedores_compra import MaterialProveedorCompra as L,CotizacionProveedorCompra as C
+        from models.fuentes_costo_productivo import InsumoPrecioVersion as V
+        from scripts.preparar_listas_proveedores import preparado
+        from services.proveedores_unidad import estados
+        usuario,org,unidad,respuesta=acceso()
+        if respuesta is not None:return respuesta
+        proveedores=proveedores_consulta(modelos['ProveedorCompra'],org.id,unidad.id,db.session).order_by(modelos['ProveedorCompra'].razon_social).all()
+        ident=request.form.get('proveedor_id') if request.method=='POST' else request.args.get('proveedor_id')
+        p=next((p for p in proveedores if str(p.id)==str(ident)),None)
+        if ident and p is None:abort(404)
+        listo=preparado(db.session.connection());error='';status=200;vista=None;token=''
+        campos=request.form.getlist('campos_actualizar') if request.method=='POST' else list(listas.CAMPOS)
+        if request.method=='POST':
+            try:
+                contexto_formulario(unidad)
+                listas.listo(db.session)
+                listas.proveedor_valido(p,org.id,unidad.id,db.session)
+                accion=request.form.get('accion')
+                if accion=='vincular_material':
+                    i=listas._material(request.form.get('insumo_id'),org.id,unidad.id,db.session)
+                    listas.vincular(i,p,request.form.get('codigo_proveedor'),org.id,unidad.id,db.session)
+                    mensaje='Material vinculado sin duplicar su ficha.'
+                elif accion=='editar_codigo':
+                    l=db.session.query(L).filter_by(id=request.form.get('vinculo_id',type=int),organizacion_id=org.id,unidad_negocio_id=unidad.id,proveedor_id=p.id).with_for_update().first()
+                    if l is None or l.codigo!=request.form.get('codigo_anterior'):raise ValueError('El vínculo cambió. Recargá antes de editar.')
+                    codigo=str(request.form.get('codigo_proveedor') or '').strip()
+                    if not codigo or len(codigo)>120:raise ValueError('Completá el código del proveedor (máximo 120 caracteres).')
+                    l.codigo=codigo;l.codigo_clave=codigo.upper();mensaje='Código actualizado. Se conserva el historial del material.'
+                elif accion in {'revisar_lista','revisar_manual'}:
+                    if accion=='revisar_lista':
+                        archivo=request.files.get('archivo_lista')
+                        if archivo is None or not archivo.filename:raise ValueError('Seleccioná la planilla XLSX o CSV.')
+                        filas,campos=listas.lector.leer(archivo,campos)
+                    else:
+                        campos=list(listas.CAMPOS)
+                        l=db.session.query(L).filter_by(id=request.form.get('vinculo_id',type=int),organizacion_id=org.id,unidad_negocio_id=unidad.id,proveedor_id=p.id).first()
+                        if l is None:raise ValueError('El vínculo no pertenece al proveedor de esta unidad.')
+                        filas=[dict(numero=1,valores={c:request.form.get(c,'') for c in campos}|{'codigo_proveedor':l.codigo},formulas=[])]
+                    vista=listas.revisar(filas,campos,p,org.id,unidad.id,db.session)
+                    vista['referencia']=(str(archivo.filename)[:120] if accion=='revisar_lista' else 'Cotización manual')
+                    if vista['filas'] and not any(f['errores'] for f in vista['filas']) and any(f['cambia'] for f in vista['filas']):
+                        token=listas.firmar(vista,p.id,org.id,unidad.id,usuario.id,current_app.secret_key)
+                    mensaje=None
+                elif accion=='confirmar_lista':
+                    n=listas.confirmar(request.form.get('token_lista',''),p,org.id,unidad.id,usuario.id,current_app.secret_key,db.session)
+                    mensaje=f'{n} cotizaciones actualizadas. El costo del material se conserva hasta elegir Usar en costo.'
+                elif accion=='usar_costo':
+                    listas.usar_en_costo(request.form.get('cotizacion_id',type=int),p,org.id,unidad.id,request.form.get('version_fuente'),db.session,getattr(usuario,'id',None))
+                    mensaje='Cotización aplicada a la fuente de costo. Sin stock, pagos ni publicación de precios de venta.'
+                else:raise ValueError('La acción no es válida.')
+                if mensaje is not None:
+                    db.session.commit()
+                    dependencias['registrar_auditoria']('Compras: lista de proveedor',entidad='proveedor',entidad_id=p.id,detalle='Unidad '+str(unidad.id)+'. Acción '+accion+'. Sin movimientos operativos.')
+                    return redirect(url_for('admin_compras.listas_proveedores',proveedor_id=p.id,ok=mensaje,pagina=request.args.get('pagina',1)))
+            except (ValueError,IntegrityError) as exc:
+                db.session.rollback();error=str(exc) if isinstance(exc,ValueError) else 'El código o la cotización cambió o está duplicado. Revisá y volvé a intentar.';status=400
+        links=[];total=0;paginas=1;pagina=max(1,request.args.get('pagina',default=1,type=int) or 1);cotizaciones={};fuentes={};historia=[];detalle=None
+        insumos=listas.materiales(org.id,unidad.id,db.session) if p else []
+        if p and listo:
+            q=db.session.query(L).filter_by(organizacion_id=org.id,unidad_negocio_id=unidad.id,proveedor_id=p.id)
+            total=q.count();paginas=max(1,(total+24)//25);pagina=min(pagina,paginas)
+            links=q.order_by(L.codigo,L.id).offset((pagina-1)*25).limit(25).all()
+            ids=[l.id for l in links]
+            for c in db.session.query(C).filter(C.vinculo_id.in_(ids),C.vigente.is_(True)).order_by(C.moneda):cotizaciones.setdefault(c.vinculo_id,[]).append(c)
+            for v in db.session.query(V).filter(V.insumo_id.in_([l.insumo_id for l in links]),V.vigente.is_(True)):fuentes[(v.insumo_id,v.moneda)]=v
+            ver=request.args.get('ver',type=int)
+            if ver:
+                detalle=q.filter_by(id=ver).first()
+                if detalle is None:abort(404)
+                historia=db.session.query(C).filter_by(vinculo_id=detalle.id).order_by(C.fecha.desc(),C.id.desc()).limit(20).all()
+        return render_template('admin_compras_listas.html',organizacion=org,unidad_activa=unidad,proveedores=proveedores,proveedor=p,proveedor_habilitado=bool(p and estados(org.id,unidad.id,db.session).get(p.id)=='activo'),listo=listo,materiales=insumos,materiales_por_id={i.id:i for i in db.session.query(listas.I).filter_by(organizacion_id=org.id,unidad_negocio_id=unidad.id).filter(listas.I.id.in_([l.insumo_id for l in links]))},vinculos=links,cotizaciones=cotizaciones,fuentes=fuentes,total=total,pagina=pagina,paginas=paginas,detalle=detalle,historia=historia,vista=vista,token_lista=token,campos=campos,campos_disponibles=listas.CAMPOS,etiqueta=listas.lector.etiqueta,error=error,ok_feedback=request.args.get('ok',''),formulario_error={k:v for k,v in request.form.items() if k not in {'_csrf_token','unidad_contexto_id','token_lista'}} if error else None,dinero=lambda n:format(Decimal(n)/100,',.2f').replace(',','_').replace('.',',').replace('_','.')),status
+
     @blueprint.route('/admin/compras/materiales',methods=['GET','POST'])
     @dependencias['login_required']
     def materiales():
