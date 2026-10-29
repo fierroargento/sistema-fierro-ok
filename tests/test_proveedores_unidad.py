@@ -128,3 +128,38 @@ def test_estado_del_compartido_es_independiente(datos):
     assert estados(org.id,b.id,db.session)[ps[2].id]=='activo'
     assert operativo(ps[2],org.id,b.id,db.session).estado=='activo'
     assert ps[2].estado=='activo'
+
+
+def test_busqueda_por_nombre_parcial_codigo_cuit_solo_identidades_propias(datos):
+    from services.proveedores_unidad import buscar_para_vincular
+    _,org,_,a,b,_,ps=datos
+    assert {p.id for p in buscar_para_vincular('pRiVaDo',ProveedorCompra,org.id,db.session)}=={ps[0].id,ps[1].id}
+    assert [p.id for p in buscar_para_vincular('307333',ProveedorCompra,org.id,db.session)]==[ps[2].id]
+    assert buscar_para_vincular('%',ProveedorCompra,org.id,db.session)==[]
+    assert buscar_para_vincular('Otra empresa',ProveedorCompra,org.id,db.session)==[]
+    assert buscar_para_vincular('',ProveedorCompra,org.id,db.session)==[]
+    assert ProveedorUnidad.query.count()==2  # Buscar nunca vincula.
+
+
+def test_busqueda_y_eleccion_explicita_respetan_empresa_contexto_y_rol(datos,monkeypatch):
+    import modules.admin.compras.routes as rutas
+    app,org,_,a,b,_,ps=datos
+    mem=SimpleNamespace(rol='admin',organizacion_id=org.id,organizacion=org)
+    monkeypatch.setattr(rutas,'resolver_tenant_usuario',lambda *args,**kw:mem)
+    app.register_blueprint(rutas.crear_blueprint_compras(dependencias=dict(db=db,modelos=dict(UnidadNegocio=UnidadNegocio,ProveedorCompra=ProveedorCompra),usuario_actual=lambda:SimpleNamespace(id=1),UsuarioOrganizacion=object,login_required=lambda f:f,registrar_auditoria=lambda *a,**k:None)))
+    app.add_url_rule('/',endpoint='inicio',view_func=lambda:'Inicio')
+    c=app.test_client()
+    with c.session_transaction() as s:s['unidad_negocio_id']=a.id
+    r=c.get('/admin/compras/buscar-proveedores',query_string=dict(q='privado',unidad_contexto_id=a.id))
+    assert r.status_code==200 and len(r.json['proveedores'])==2
+    assert set(r.json['proveedores'][0])=={'id','nombre','codigo','cuit'}
+    assert 'no-store' in r.headers['Cache-Control']
+    assert c.get('/admin/compras/buscar-proveedores',query_string=dict(q='privado',unidad_contexto_id=b.id)).status_code==409
+    def elegir(p,unidad=a):return c.post('/admin/compras/guardar?vista=proveedores',data=dict(accion='vincular_proveedor',proveedor_a_vincular=str(p.id),unidad_contexto_id=unidad.id))
+    assert 'error=' in elegir(ps[3]).location
+    assert 'error=' in elegir(ps[1],b).location
+    assert 'ok=' in elegir(ps[1]).location
+    assert ProveedorUnidad.query.filter_by(proveedor_id=ps[1].id,unidad_negocio_id=a.id).count()==1
+    assert OrdenCompra.query.filter_by(unidad_negocio_id=a.id).count()==1
+    mem.rol='carga'
+    assert c.get('/admin/compras/buscar-proveedores',query_string=dict(q='privado',unidad_contexto_id=a.id)).status_code==302

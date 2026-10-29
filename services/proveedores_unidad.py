@@ -92,3 +92,15 @@ def operativo(proveedor,organizacion_id,unidad_id,session):
     exigir(proveedor,organizacion_id,unidad_id,session)
     return SimpleNamespace(id=proveedor.id,organizacion_id=proveedor.organizacion_id,
         estado=estados(organizacion_id,unidad_id,session).get(proveedor.id,'inactivo'))
+
+
+def buscar_para_vincular(texto, Proveedor, organizacion_id, session):
+    """Sólo identidades de la empresa para una vinculación explícita del admin."""
+    from sqlalchemy import func
+    texto=str(texto or '').strip()[:120]
+    if len(texto)<2:return []
+    valor=texto.lower()
+    condiciones=[func.lower(Proveedor.razon_social).contains(valor,autoescape=True),func.lower(Proveedor.codigo).contains(valor,autoescape=True)]
+    cuit=re.sub(r'\D','',texto)
+    if len(cuit)>=2:condiciones.append(Proveedor.cuit.contains(cuit,autoescape=True))
+    return session.query(Proveedor).filter(Proveedor.organizacion_id==organizacion_id,or_(*condiciones)).order_by(Proveedor.razon_social,Proveedor.id).limit(20).all()

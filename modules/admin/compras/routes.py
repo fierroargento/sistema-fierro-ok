@@ -1,6 +1,6 @@
 """Panel tenant de compras preparatorias sin impacto automático."""
 
-from flask import Blueprint, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, jsonify, redirect, render_template, request, send_file, session, url_for
 
 from services.materias_primas_inventario import preparar_materia_prima, validar_existencia_insumo
 from services.compras_consultas import obtener_panel_compras
@@ -109,6 +109,19 @@ def crear_blueprint_compras(*, dependencias):
             from flask import abort
             abort(404)
         return render_template('admin_compras_materiales.html',organizacion=organizacion,unidad_activa=unidad,buscar=buscar,error=error,ok_feedback=request.args.get('ok',''),formulario_error={k:v for k,v in request.form.items() if k not in {'_csrf_token','unidad_contexto_id'}} if error else None,dinero=lambda n:format(Decimal(n)/100,',.2f').replace(',','_').replace('.',',').replace('_','.'),**datos),status
+
+    @blueprint.route('/admin/compras/buscar-proveedores')
+    @dependencias['login_required']
+    def buscar_proveedores():
+        _,organizacion,unidad,respuesta=acceso()
+        if respuesta is not None:return respuesta
+        if request.args.get('unidad_contexto_id',type=int)!=unidad.id:
+            return jsonify(error='La unidad activa cambió. Recargá antes de buscar.'),409
+        from services.proveedores_unidad import buscar_para_vincular
+        filas=buscar_para_vincular(request.args.get('q'),modelos['ProveedorCompra'],organizacion.id,db.session)
+        salida=jsonify(proveedores=[dict(id=p.id,nombre=p.razon_social,codigo=p.codigo,cuit=p.cuit or '') for p in filas])
+        salida.headers['Cache-Control']='no-store, private'
+        return salida
 
     @blueprint.route("/admin/compras/consultar-cuit", methods=["POST"])
     @dependencias["login_required"]
@@ -263,7 +276,13 @@ def crear_blueprint_compras(*, dependencias):
             contexto_formulario(unidad)
             exigir_preparado(db.session)
             if accion == "vincular_proveedor":
-                proveedor=vincular_por_identidad(request.form.get('identidad_proveedor'), modelos['ProveedorCompra'], organizacion.id, unidad.id, db.session)
+                elegido=request.form.get('proveedor_a_vincular')
+                if elegido:
+                    proveedor=modelos['ProveedorCompra'].query.filter_by(id=int(elegido),organizacion_id=organizacion.id).first() if elegido.isdecimal() else None
+                    if proveedor is None:raise ValueError('Elegí un proveedor de la empresa en los resultados.')
+                    vincular(proveedor,organizacion.id,unidad.id,db.session)
+                else:
+                    proveedor=vincular_por_identidad(request.form.get('identidad_proveedor'), modelos['ProveedorCompra'], organizacion.id, unidad.id, db.session)
                 db.session.commit()
                 mensaje=f"Proveedor {proveedor.codigo} vinculado a {unidad.nombre}."
             elif accion == "crear_proveedor":
