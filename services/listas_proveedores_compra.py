@@ -119,7 +119,10 @@ def revisar(filas,campos,p,org,unidad,session):
         if ref is None:ignoradas+=1;continue
         if len(vista)>=500:raise ValueError('La lista supera 500 coincidencias. Dividila en bloques de hasta 500.')
         i=insumos[ref['insumo_id']];r=dict(numero=fila['numero'],codigo=ref['codigo'],insumo_id=i.id,material=i.nombre,valores={c:v[c] for c in campos if c in v},errores=[],vinculo_id=ref['vinculo_id'])
+        for clave in ('_codimat','_error_codimat'):
+            if clave in v:r['valores'][clave]=v[clave]
         try:
+            if v.get('_error_codimat'):raise ValueError(v['_error_codimat'][0])
             if sku and i.codigo.casefold()!=sku.casefold() and sku.casefold() not in ref['skus']:raise ValueError('SKU/código de material y código de proveedor no coinciden.')
             if fila.get('formulas'):raise ValueError('Pegá valores, no fórmulas, en los campos seleccionados.')
             moneda=str(v.get('moneda_proveedor') if 'moneda_proveedor' in campos and v.get('moneda_proveedor') else 'ARS').upper()
@@ -158,6 +161,13 @@ def confirmar(token,p,org,unidad,usuario,secreto,session):
     except (BadSignature,SignatureExpired):raise ValueError('La revisión venció o no es válida. Volvé a importar.') from None
     if [datos.get(k) for k in ['org','unidad','proveedor','usuario']]!=[org,unidad,p.id,usuario]:raise ValueError('La revisión pertenece a otro usuario, proveedor o unidad.')
     anterior=datos['vista'];listo(session);proveedor_valido(p,org,unidad,session)
+    config=None
+    if 'codimat' in anterior:
+        from services.listas_codimat import configuracion
+        from models.listas_proveedores_compra import ConfiguracionListaProveedor
+        session.query(type(p)).filter_by(id=p.id,organizacion_id=org).with_for_update().one()
+        config=configuracion(org,unidad,p.id,session,bloquear=True)
+        if (config.reglas if config else None)!=anterior['codimat']['config_anterior']:raise ValueError('Las bonificaciones cambiaron. Volvé a revisar la lista.')
     # Bloquear material/vínculos antes de releer para detectar revisiones antiguas.
     ids=sorted({f['insumo_id'] for f in anterior['filas']})
     session.query(I).filter(I.id.in_(ids),I.organizacion_id==org,I.unidad_negocio_id==unidad).order_by(I.id).with_for_update().all()
@@ -169,7 +179,17 @@ def confirmar(token,p,org,unidad,usuario,secreto,session):
     for f in nueva['filas']:
         if not f['cambia']:continue
         l=vincular(_material(f['insumo_id'],org,unidad,session),p,f['codigo'],org,unidad,session)
-        _guardar_cotizacion(l,f['plan'],str(anterior.get('referencia') or 'Importación de lista')[:120],session);n+=1
+        cotizacion=_guardar_cotizacion(l,f['plan'],str(anterior.get('referencia') or 'Importación de lista')[:120],session)
+        if f['valores'].get('_codimat'):
+            from models.listas_proveedores_compra import CalculoCotizacionProveedor
+            session.add(CalculoCotizacionProveedor(cotizacion_id=cotizacion.id,datos=f['valores']['_codimat']))
+        n+=1
+    if 'codimat' in anterior:
+        if config is None:
+            config=ConfiguracionListaProveedor(organizacion_id=org,unidad_negocio_id=unidad,proveedor_id=p.id)
+            session.add(config)
+        config.reglas=anterior['codimat']['reglas']
+        session.flush()
     return n
 
 def usar_en_costo(cotizacion,p,org,unidad,version_esperada,session,usuario):

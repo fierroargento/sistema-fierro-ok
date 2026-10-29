@@ -30,3 +30,17 @@ class CotizacionProveedorCompra(db.Model):
     fecha=db.Column(db.DateTime,nullable=False,default=ahora_utc_naive)
     precio_insumo_version_id=db.Column(db.Integer,db.ForeignKey('insumo_precio_version.id'))
     __table_args__=(db.UniqueConstraint('vinculo_id','moneda','numero_version',name='uq_cotizacion_proveedor_version'),db.Index('uq_cotizacion_proveedor_vigente','vinculo_id','moneda',unique=True,postgresql_where=text('vigente IS TRUE'),sqlite_where=text('vigente IS TRUE')),db.CheckConstraint("moneda IN ('ARS','USD')",name='ck_cotizacion_moneda'),db.CheckConstraint('precio_unitario_centavos >= 0',name='ck_cotizacion_precio'),db.CheckConstraint('numero_version > 0',name='ck_cotizacion_version'),db.CheckConstraint("base_precio IN ('unitario','bulto')",name='ck_cotizacion_base'),db.CheckConstraint('cantidad_bulto IS NULL OR cantidad_bulto > 0',name='ck_cotizacion_cantidad'))
+
+class ConfiguracionListaProveedor(db.Model):
+    __tablename__='configuracion_lista_proveedor'
+    id=db.Column(db.Integer,primary_key=True)
+    organizacion_id=db.Column(db.Integer,db.ForeignKey('organizacion.id'),nullable=False)
+    unidad_negocio_id=db.Column(db.Integer,db.ForeignKey('unidad_negocio.id'),nullable=False)
+    proveedor_id=db.Column(db.Integer,db.ForeignKey('proveedor_compra.id'),nullable=False)
+    reglas=db.Column(db.JSON,nullable=False)
+    __table_args__=(db.UniqueConstraint('unidad_negocio_id','proveedor_id',name='uq_config_lista_proveedor'),)
+
+class CalculoCotizacionProveedor(db.Model):
+    __tablename__='calculo_cotizacion_proveedor'
+    cotizacion_id=db.Column(db.Integer,db.ForeignKey('cotizacion_proveedor_compra.id'),primary_key=True)
+    datos=db.Column(db.JSON,nullable=False)

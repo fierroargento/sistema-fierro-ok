@@ -1,7 +1,7 @@
 """Prepara tablas de cotizaciones, sin atribuir datos anteriores ni iniciar la app."""
 from sqlalchemy import inspect
-from models.listas_proveedores_compra import MaterialProveedorCompra,CotizacionProveedorCompra
-TABLAS=(MaterialProveedorCompra.__table__,CotizacionProveedorCompra.__table__)
+from models.listas_proveedores_compra import MaterialProveedorCompra,CotizacionProveedorCompra,ConfiguracionListaProveedor,CalculoCotizacionProveedor
+TABLAS=(MaterialProveedorCompra.__table__,CotizacionProveedorCompra.__table__,ConfiguracionListaProveedor.__table__,CalculoCotizacionProveedor.__table__)
 
 def preparado(conexion):
     from models.insumo_presentacion_compra import InsumoPresentacionCompra,InsumoPrecioBultoVersion
