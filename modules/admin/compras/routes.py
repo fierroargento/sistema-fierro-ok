@@ -70,6 +70,34 @@ def crear_blueprint_compras(*, dependencias):
         session["organizacion_id"] = membresia.organizacion_id
         return usuario, membresia.organizacion, unidad, None
 
+    @blueprint.route('/admin/compras/materiales',methods=['GET','POST'])
+    @dependencias['login_required']
+    def materiales():
+        from sqlalchemy.exc import IntegrityError
+        from decimal import Decimal
+        from services.compras_materiales import consultar, guardar as guardar_material
+        usuario,organizacion,unidad,respuesta=acceso()
+        if respuesta is not None:return respuesta
+        error='';status=200
+        if request.method=='POST':
+            try:
+                contexto_formulario(unidad)
+                i=guardar_material(request.form,organizacion,unidad,modelos,db.session,getattr(usuario,'id',None))
+                db.session.commit()
+                dependencias['registrar_auditoria']('Compras: guardó material o precio',entidad='insumo',entidad_id=i.id,detalle='Fuente de costo; sin movimientos de stock ni publicación de precios.')
+                return redirect(url_for('admin_compras.materiales',ok='Material guardado. Se conserva el historial de precios.'))
+            except (ValueError,IntegrityError) as exc:
+                db.session.rollback();error=str(exc) if isinstance(exc,ValueError) else 'El código ya existe o el precio cambió. Recargá antes de guardar.';status=400
+        try:pagina=max(1,int(request.args.get('pagina','1')))
+        except ValueError:pagina=1
+        ver=request.args.get('ver',type=int)
+        buscar=(request.args.get('buscar') or '').strip()[:120]
+        try:datos=consultar(organizacion.id,unidad.id,modelos,db.session,buscar,pagina,ver)
+        except ValueError:
+            from flask import abort
+            abort(404)
+        return render_template('admin_compras_materiales.html',organizacion=organizacion,unidad_activa=unidad,buscar=buscar,error=error,ok_feedback=request.args.get('ok',''),formulario_error={k:v for k,v in request.form.items() if k not in {'_csrf_token','unidad_contexto_id'}} if error else None,dinero=lambda n:format(Decimal(n)/100,',.2f').replace(',','_').replace('.',',').replace('_','.'),**datos),status
+
     @blueprint.route("/admin/compras/consultar-cuit", methods=["POST"])
     @dependencias["login_required"]
     def consultar_cuit():

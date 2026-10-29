@@ -56,7 +56,7 @@
                         <div class="menu-children">
                             <a href="{{ url_for('admin_compras.panel') }}"{% if request.endpoint == 'admin_compras.panel' and request.args.get('vista') != 'proveedores' %} aria-current="page"{% endif %}>Panel de compras</a>
                             <a href="{{ url_for('admin_compras.panel', vista='proveedores') }}"{% if request.endpoint == 'admin_compras.importar_proveedores' or (request.endpoint == 'admin_compras.panel' and request.args.get('vista') == 'proveedores') %} aria-current="page"{% endif %}>Proveedores</a>
-                            <a href="{{ url_for('admin_comercial.fuentes_costos', _anchor='insumos') }}"{% if request.endpoint == 'admin_comercial.fuentes_costos' or (request.endpoint == 'admin_comercial.importar_fuente_costeo' and (request.view_args or {}).get('tipo') == 'insumos') %} aria-current="page"{% endif %}>Precios de proveedores</a>
+                            <a href="{{ url_for('admin_compras.materiales') }}"{% if request.endpoint == 'admin_compras.materiales' %} aria-current="page"{% endif %}>Materiales y precios</a>
                             <a href="{{ url_for('admin_compras.panel', _anchor='compras-ordenes') }}">Órdenes de compra</a>
                             <a href="{{ url_for('admin_compras.panel', _anchor='compras-recepciones') }}">Recepciones</a>
                             <a href="{{ url_for('admin_compras.panel', _anchor='compras-facturas') }}">Facturas de proveedores</a>
