@@ -207,5 +207,7 @@
 
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='confirmacion_acciones.js', v='20261003-confirm') }}" defer></script>
 <script defer src="{{ url_for('static',filename='unidad_contexto.js',v='20261027-1') }}" data-unidad="{{ session.get('unidad_negocio_id','') }}"></script>
+<script type="application/json" nonce="{{ csp_nonce }}" id="datos-formulario-config">{{ normalizacion_datos_config|default({})|tojson }}</script>
+<script defer src="{{ url_for('static',filename='datos_formulario.js',v='20261029-1') }}"></script>
 </body>
 </html>

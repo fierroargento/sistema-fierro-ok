@@ -1,0 +1,4 @@
+{% extends 'base.html' %}
+{% block title %}Revisar datos{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static',filename='admin_comercial.css') }}">{% endblock %}
+{% block content %}<main class="comercial-page"><section class="comercial-section"><h1>Revisá los datos antes de guardar</h1><ul role="alert">{% for error in errores %}<li>{{ error }}</li>{% endfor %}</ul><p>No se guardaron cambios. Volvé al formulario y corregí los campos indicados.</p><button class="comercial-primary" type="button" data-formato-volver>Volver y corregir</button></section></main>{% endblock %}

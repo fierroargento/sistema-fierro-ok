@@ -42,6 +42,9 @@ def registrar_modulos_web(
         crear_blueprint_edicion_cliente,
     )
 
+    from services.normalizacion_datos_formulario import registrar as registrar_normalizacion_datos
+    registrar_normalizacion_datos(app)
+
     db = dependencias["db"]
     modelos = {**dependencias["modelos"], "ConfiguracionSistema": ConfiguracionSistema,
                "UsuarioSistema": dependencias["UsuarioSistema"], "UsuarioOrganizacion": dependencias["UsuarioOrganizacion"]}
