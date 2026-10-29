@@ -14,7 +14,17 @@ def materiales(personal,monkeypatch):
     monkeypatch.setattr(rutas,'resolver_tenant_usuario',lambda *args,**kw:mem)
     m.update(Organizacion=Organizacion,InsumoProductivo=I,InsumoPrecioVersion=V)
     db.metadata.create_all(db.engine,tables=[V.__table__])
-    c.application.register_blueprint(rutas.crear_blueprint_compras(dependencias=dict(db=db,modelos=m,usuario_actual=lambda:SimpleNamespace(id=1),UsuarioOrganizacion=m['UsuarioOrganizacion'],login_required=lambda f:f,registrar_auditoria=lambda *a,**k:None)))
+    # Usar el filtro del bootstrap real: evita que un fixture rico oculte modelos faltantes.
+    import ast
+    from pathlib import Path
+    tree=ast.parse(Path('services/bootstrap_modulos_web.py').read_text())
+    call=next(n for n in ast.walk(tree) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name) and n.func.id=='crear_blueprint_compras')
+    deps=next(k.value for k in call.keywords if k.arg=='dependencias')
+    models=next(v for k,v in zip(deps.keys,deps.values) if isinstance(k,ast.Constant) and k.value=='modelos')
+    nombres=[n.value for n in models.generators[0].iter.elts]
+    filtrados={k:v for k,v in m.items() if k in nombres}
+    assert {'Organizacion','InsumoProductivo','InsumoPrecioVersion'} <= filtrados.keys()
+    c.application.register_blueprint(rutas.crear_blueprint_compras(dependencias=dict(db=db,modelos=filtrados,usuario_actual=lambda:SimpleNamespace(id=1),UsuarioOrganizacion=m['UsuarioOrganizacion'],login_required=lambda f:f,registrar_auditoria=lambda *a,**k:None)))
     b=UnidadNegocio(organizacion_id=org.id,codigo='naut',nombre='Náutica',activa=True);db.session.add(b);db.session.commit()
     rows=[I(organizacion_id=o,unidad_negocio_id=unit,codigo=cod,nombre=nom,tipo='materia_prima',unidad_medida='metro') for o,unit,cod,nom in [(org.id,u.id,'A','Material propio'),(org.id,b.id,'B','Material otra unidad'),(org.id,None,'C','Material sin asignar'),(otra.id,None,'X','Material ajeno')]]
     db.session.add_all(rows);db.session.commit()
@@ -72,3 +82,23 @@ def test_precio_conserva_presentacion_y_version_por_bulto(materiales):
         assert base.cantidad_bulto==6 and db.session.get(P,rows[0].id).medidas_origen=='Barra de 6 m'
     finally:
         db.session.rollback();db.metadata.drop_all(db.engine,tables=[B.__table__,P.__table__])
+
+
+def test_compras_una_pestana_por_vez_y_guardado_vuelve_al_contexto(materiales,monkeypatch):
+    from modules.admin.compras import routes
+    c,org,u,b,rows,_=materiales
+    datos={k:[] for k in ['proveedores','ordenes_compra','recepciones_compra','insumos_compra','propuestas_impacto_compra','mapeos_insumo_inventario','existencias_para_compras','facturas_proveedor_compra']}
+    datos.update(proveedores_unidad_preparados=False,estados_proveedores={},unidad_stock_por_existencia={},detalles_propuestas_compra={},resumen_compras=dict(proveedores_activos=0,ordenes_abiertas=0,recepciones_preparatorias=0,facturas_observadas=0,propuestas_pendientes=0))
+    monkeypatch.setattr(routes,'obtener_panel_compras',lambda *a,**kw:datos)
+    claves=['proveedores','ordenes','recepciones','facturas','mapeos','propuestas']
+    r=c.get('/admin/compras');assert r.status_code==200,r.text
+    assert 'Resumen de Compras' in r.text and all('id="compras-'+k+'"' not in r.text for k in claves)
+    for k in claves:
+        r=c.get('/admin/compras?vista='+k);assert r.status_code==200,r.text
+        assert 'id="compras-'+k+'"' in r.text
+        assert all('id="compras-'+otro+'"' not in r.text for otro in claves if otro!=k)
+        assert 'Secciones de Compras' in r.text
+    assert 'Secciones de Compras' in c.get('/admin/compras/materiales').text
+    # Error de preparación: conserva la pestaña en lugar de volver al resumen largo.
+    r=c.post('/admin/compras/guardar?vista=ordenes',data=form(u,accion='no-valida'))
+    assert r.status_code==302 and 'vista=ordenes' in r.location and 'error=' in r.location

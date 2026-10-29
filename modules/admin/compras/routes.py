@@ -70,6 +70,18 @@ def crear_blueprint_compras(*, dependencias):
         session["organizacion_id"] = membresia.organizacion_id
         return usuario, membresia.organizacion, unidad, None
 
+    vistas_compras={'resumen','proveedores','ordenes','recepciones','facturas','mapeos','propuestas'}
+
+    def vista_compras_actual(accion=None):
+        vista=request.args.get('vista')
+        if vista in vistas_compras:return vista
+        if accion in {'vincular_proveedor','crear_proveedor','editar_proveedor'}:return 'proveedores'
+        if accion in {'preparar_materia_prima','crear_mapeo_inventario'}:return 'mapeos'
+        if accion in {'preparar_impactos','decidir_impacto'}:return 'propuestas'
+        if accion=='registrar_factura':return 'facturas'
+        if accion=='preparar_recepcion':return 'recepciones'
+        return 'ordenes' if accion else 'resumen'
+
     @blueprint.route('/admin/compras/materiales',methods=['GET','POST'])
     @dependencias['login_required']
     def materiales():
@@ -118,7 +130,7 @@ def crear_blueprint_compras(*, dependencias):
         datos['contactos_proveedores'] = {k:v for k,v in consultar_contactos(db.session, organizacion.id).items() if k in {p.id for p in datos['proveedores']}}
         datos['contactos_preparados'] = contactos_preparados(db.session)
         return render_template(
-            "admin_compras.html", organizacion=organizacion, unidad_activa=unidad,
+            "admin_compras.html", organizacion=organizacion, unidad_activa=unidad,vista_compras=vista_compras_actual(),
             ok_feedback=(request.args.get("ok") or "").strip(),
             error=(request.args.get("error") or "").strip(), **datos,
         )
@@ -448,10 +460,10 @@ def crear_blueprint_compras(*, dependencias):
             dependencias["registrar_auditoria"](
                 f"Compras: {accion}", entidad="compras", detalle=mensaje,
             )
-            return redirect(url_for("admin_compras.panel", ok=mensaje, vista="proveedores" if request.args.get("vista") == "proveedores" else None, _anchor="compras-mapeos" if accion in {"preparar_materia_prima", "crear_mapeo_inventario"} else None))
+            return redirect(url_for("admin_compras.panel", ok=mensaje, vista=vista_compras_actual(accion)))
         except Exception as error:
             db.session.rollback()
-            return redirect(url_for("admin_compras.panel", error=str(error), vista="proveedores" if request.args.get("vista") == "proveedores" else None, _anchor="compras-mapeos" if request.form.get("accion") in {"preparar_materia_prima", "crear_mapeo_inventario"} else None))
+            return redirect(url_for("admin_compras.panel", error=str(error), vista=vista_compras_actual(request.form.get("accion"))))
 
     @blueprint.route("/admin/compras/control-integral")
     @dependencias["login_required"]

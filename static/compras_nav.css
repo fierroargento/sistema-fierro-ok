@@ -1,0 +1,10 @@
+.compras-tabs {display:flex;gap:7px;flex-wrap:wrap;margin:0 0 20px;padding-bottom:14px;border-bottom:1px solid #cbd5e1}
+.compras-tabs a {display:inline-flex;align-items:center;min-height:38px;padding:9px 13px;border:1px solid #a9d7e8;border-radius:7px;background:#f0f9fc;color:#165c78;font-size:13px;font-weight:700;text-decoration:none;box-sizing:border-box}
+.compras-tabs [aria-current=page] {background:#124e64;border-color:#124e64;color:#fff}
+.compras-tabs a:focus-visible,.compras-accesos a:focus-visible {outline:2px solid #227b9d;outline-offset:3px}
+.compras-accesos {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.compras-accesos a {display:grid;gap:7px;padding:18px;border:1px solid #d5e0e8;border-radius:10px;text-decoration:none;color:#164d63;background:#f8fafc}
+.compras-accesos a:hover {border-color:#227b9d;background:#edf6fa}
+.compras-accesos span {font-size:13px;color:#475569}
+@media(max-width:800px){.compras-accesos {grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.compras-accesos {grid-template-columns:minmax(0,1fr)}.compras-tabs a {flex:1 1 auto;justify-content:center}}

@@ -51,17 +51,7 @@
             <details class="menu-group"{% if tesoreria_abierta or contabilidad_abierta or personal_abierto or compras_abiertas or request.endpoint == 'admin_comercial.gastos' %} open{% endif %}>
                 <summary>Administración</summary>
                 <div class="menu-children">
-                    <details class="menu-group menu-group-secondary"{% if compras_abiertas %} open{% endif %}>
-                        <summary>Compras</summary>
-                        <div class="menu-children">
-                            <a href="{{ url_for('admin_compras.panel') }}"{% if request.endpoint == 'admin_compras.panel' and request.args.get('vista') != 'proveedores' %} aria-current="page"{% endif %}>Panel de compras</a>
-                            <a href="{{ url_for('admin_compras.panel', vista='proveedores') }}"{% if request.endpoint == 'admin_compras.importar_proveedores' or (request.endpoint == 'admin_compras.panel' and request.args.get('vista') == 'proveedores') %} aria-current="page"{% endif %}>Proveedores</a>
-                            <a href="{{ url_for('admin_compras.materiales') }}"{% if request.endpoint == 'admin_compras.materiales' %} aria-current="page"{% endif %}>Materiales y precios</a>
-                            <a href="{{ url_for('admin_compras.panel', _anchor='compras-ordenes') }}">Órdenes de compra</a>
-                            <a href="{{ url_for('admin_compras.panel', _anchor='compras-recepciones') }}">Recepciones</a>
-                            <a href="{{ url_for('admin_compras.panel', _anchor='compras-facturas') }}">Facturas de proveedores</a>
-                        </div>
-                    </details>
+                    <a href="{{ url_for('admin_compras.panel') }}"{% if compras_abiertas %} aria-current="page"{% endif %}>Compras</a>
                     <details class="menu-group menu-group-secondary"{% if tesoreria_abierta %} open{% endif %}>
                         <summary>Tesorería</summary>
                         <div class="menu-children">
