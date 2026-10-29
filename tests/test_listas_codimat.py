@@ -134,3 +134,77 @@ def test_dimension_a1_incorrecta_del_excel_original(listas):
     salida.seek(0);vinculo(listas,codigo='1955')
     vista=revisar(listas,FileStorage(stream=salida,filename='Codimat.xlsx'))
     assert vista['filas'][0]['plan']['precio_bulto_centavos']==1310084
+
+
+def test_pendientes_con_descripcion_vinculacion_atomica_y_reutilizacion(listas):
+    from models.listas_proveedores_compra import MaterialProveedorCompra as L
+    _,org,_,a,_,ps,items,*_=listas
+    vista=revisar(listas)
+    assert vista['filas']==[] and len(vista['pendientes'])==1
+    assert vista['pendientes'][0]['descripcion']=='BARRA ANGULO'
+    assert vista['codimat']['codigos_ausentes']==[] and vista['ignoradas']==0
+    with pytest.raises(ValueError,match='pendientes'):aplicar(listas,vista)
+    nueva=s.resolver_vinculos(vista,[str(items[0].id)],ps[0],org.id,a.id,db.session)
+    assert L.query.count()==C.query.count()==Config.query.count()==0
+    assert nueva['filas'][0]['material']==items[0].nombre
+    assert nueva['filas'][0]['plan']['precio_bulto_centavos']==1310084
+    assert aplicar(listas,nueva)[0]==1
+    assert L.query.one().codigo=='1955' and L.query.one().insumo_id==items[0].id
+    assert C.query.count()==1 and Calculo.query.count()==1 and V.query.count()==0
+    siguiente=revisar(listas)
+    assert not siguiente['pendientes'] and len(siguiente['filas'])==1
+    assert aplicar(listas,siguiente)[0]==0
+
+
+def test_pendientes_omitir_y_aislamiento(listas):
+    from models.listas_proveedores_compra import MaterialProveedorCompra as L
+    _,org,_,a,_,ps,items,*_=listas
+    vista=revisar(listas)
+    for ident in ['',str(items[2].id),str(items[3].id),str(items[4].id),'99999']:
+        with pytest.raises(ValueError):s.resolver_vinculos(vista,[ident],ps[0],org.id,a.id,db.session)
+    nueva=s.resolver_vinculos(vista,['omitir'],ps[0],org.id,a.id,db.session)
+    assert nueva['filas']==[] and nueva['ignoradas']==1 and nueva['vinculos_propuestos']==[]
+    assert L.query.count()==C.query.count()==Config.query.count()==0
+
+
+def test_pendientes_no_duplicar_material_y_conflicto_concurrente(listas):
+    from models.listas_proveedores_compra import MaterialProveedorCompra as L
+    _,org,_,a,_,ps,items,*_=listas
+    entrada=archivo(extra=['UNI',1,'1957','OTRA BARRA',1.21,1,100,0,'=1','=1'])
+    vista=revisar(listas,entrada,reglas()+[dict(codigo='1957',descuento='40',cantidad='6')])
+    with pytest.raises(ValueError,match='vínculo'):s.resolver_vinculos(vista,[str(items[0].id)]*2,ps[0],org.id,a.id,db.session)
+    nueva=s.resolver_vinculos(vista,[str(items[0].id),str(items[1].id)],ps[0],org.id,a.id,db.session)
+    vinculo(listas,codigo='OTRO')
+    with pytest.raises(ValueError,match='vínculo'):aplicar(listas,nueva)
+    assert L.query.count()==1 and C.query.count()==Config.query.count()==0
+
+
+def test_borrador_firmado_contexto_y_manipulacion(listas):
+    _,org,_,a,b,ps,*_=listas
+    vista=revisar(listas)
+    token=s.firmar_borrador(vista,ps[0].id,org.id,a.id,1,'secreto')
+    assert s.leer_borrador(token,ps[0].id,org.id,a.id,1,'secreto')==vista
+    for p,u,usuario in [(ps[1].id,a.id,1),(ps[0].id,b.id,1),(ps[0].id,a.id,2)]:
+        with pytest.raises(ValueError):s.leer_borrador(token,p,org.id,u,usuario,'secreto')
+    with pytest.raises(ValueError):s.leer_borrador(token+'roto',ps[0].id,org.id,a.id,1,'secreto')
+
+
+def test_ruta_sin_vinculos_revisa_sin_resubir_y_confirma(listas):
+    from models.listas_proveedores_compra import MaterialProveedorCompra as L
+    import re
+    cliente,org,_,a,_,ps,items,*_=listas
+    data=MultiDict(form(listas,'revisar_codimat'))
+    for k,v in [('codimat_codigo','1955'),('codimat_descuento','40'),('codimat_cantidad','6')]:data.add(k,v)
+    data.add('archivo_lista',archivo())
+    r=cliente.post('/admin/compras/listas-proveedores',data=data,content_type='multipart/form-data')
+    assert r.status_code==200 and b'Vincular art' in r.data and b'BARRA ANGULO' in r.data
+    token=re.search(rb'name="token_vinculacion" value="([^"]+)"',r.data).group(1).decode()
+    assert b'name="token_lista"' not in r.data
+    r=cliente.post('/admin/compras/listas-proveedores',data=form(listas,'revisar_vinculos_codimat',token_vinculacion=token,material_0=''))
+    assert r.status_code==400 and b'name="token_vinculacion"' in r.data
+    r=cliente.post('/admin/compras/listas-proveedores',data=form(listas,'revisar_vinculos_codimat',token_vinculacion=token,material_0=str(items[0].id)))
+    assert r.status_code==200 and b'13.100,84' in r.data and b'vinculos_propuestos' not in r.data
+    assert L.query.count()==C.query.count()==Config.query.count()==0
+    final=re.search(rb'name="token_lista" value="([^"]+)"',r.data).group(1).decode()
+    r=cliente.post('/admin/compras/listas-proveedores',data=form(listas,'confirmar_lista',token_lista=final))
+    assert r.status_code==302 and L.query.count()==C.query.count()==1

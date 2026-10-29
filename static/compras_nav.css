@@ -17,3 +17,11 @@
 .compras-proveedor-opcion:hover,.compras-proveedor-opcion:focus-visible {background:#edf6fa;border-color:#227b9d}
 .compras-vincular-acciones {display:flex;gap:8px;justify-content:flex-end;width:100%}
 .compras-vincular-acciones button {width:auto;min-height:38px;padding:9px 14px;border-radius:7px}
+
+/* Vinculación inicial desde la propia revisión de la lista. */
+.compras-listas #lista-vinculacion .comercial-table {table-layout:fixed !important;min-width:680px}
+.compras-listas #lista-vinculacion .comercial-table th:first-child {width:35%}
+.compras-listas #lista-vinculacion .comercial-table th:last-child {width:40%}
+.compras-listas #lista-vinculacion .comercial-table td {white-space:normal;overflow-wrap:anywhere}
+.compras-listas #lista-vinculacion .comercial-table tbody tr:nth-child(even) {background:#f5f8fb}
+.compras-listas #lista-vinculacion select {min-width:0;max-width:100%}

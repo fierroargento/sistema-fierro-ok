@@ -100,10 +100,15 @@ def _igual(c,plan):
     return True
 
 
-def revisar(filas,campos,p,org,unidad,session):
+def revisar(filas,campos,p,org,unidad,session,propuestos=None):
     listo(session);proveedor_valido(p,org,unidad,session)
     if not campos or any(c not in CAMPOS for c in campos):raise ValueError('Elegí campos de precio válidos.')
     cat,insumos=catalogo(org,unidad,p.id,session);vista=[];ignoradas=0;vistas=set()
+    ocupados={l.insumo_id for l in vinculos(org,unidad,p.id,session)}|{r['insumo_id'] for r in cat.values()}
+    for propuesto in propuestos or []:
+        codigo=str(propuesto['codigo']).strip().upper();i=_material(propuesto['insumo_id'],org,unidad,session)
+        if codigo in cat or i.id in ocupados:raise ValueError('El código o material ya tiene un vínculo con este proveedor. Elegí otro material o revisá sus vínculos.')
+        ocupados.add(i.id);cat[codigo]=dict(insumo_id=i.id,codigo=codigo,vinculo_id=None,skus=[])
     por_sku=defaultdict(list);previas=defaultdict(list)
     for ref in cat.values():
         for alias in {insumos[ref['insumo_id']].codigo.casefold(),*ref['skus']}:por_sku[alias].append(ref)
@@ -144,6 +149,7 @@ def revisar(filas,campos,p,org,unidad,session):
     return dict(filas=vista,ignoradas=ignoradas,campos=list(campos))
 
 def firmar(vista,p,org,unidad,usuario,secreto):
+    if vista.get('pendientes'):raise ValueError('Elegí los materiales pendientes antes de confirmar.')
     if any(f['errores'] for f in vista['filas']):raise ValueError('Corregí las filas con errores antes de confirmar.')
     # Sólo coincidencias revisadas: no incluir miles de filas ignoradas en el token.
     return URLSafeTimedSerializer(secreto,salt=SALT).dumps(dict(org=org,unidad=unidad,proveedor=p,usuario=usuario,vista=vista))
@@ -160,7 +166,9 @@ def confirmar(token,p,org,unidad,usuario,secreto,session):
     try:datos=URLSafeTimedSerializer(secreto,salt=SALT).loads(token,max_age=1800)
     except (BadSignature,SignatureExpired):raise ValueError('La revisión venció o no es válida. Volvé a importar.') from None
     if [datos.get(k) for k in ['org','unidad','proveedor','usuario']]!=[org,unidad,p.id,usuario]:raise ValueError('La revisión pertenece a otro usuario, proveedor o unidad.')
-    anterior=datos['vista'];listo(session);proveedor_valido(p,org,unidad,session)
+    anterior=datos['vista']
+    if anterior.get('pendientes'):raise ValueError('Elegí los materiales pendientes antes de confirmar.')
+    listo(session);proveedor_valido(p,org,unidad,session)
     config=None
     if 'codimat' in anterior:
         from services.listas_codimat import configuracion
@@ -173,7 +181,7 @@ def confirmar(token,p,org,unidad,usuario,secreto,session):
     session.query(I).filter(I.id.in_(ids),I.organizacion_id==org,I.unidad_negocio_id==unidad).order_by(I.id).with_for_update().all()
     session.query(L).filter(L.insumo_id.in_(ids),L.proveedor_id==p.id,L.unidad_negocio_id==unidad).order_by(L.id).with_for_update().all()
     filas=[dict(numero=f['numero'],valores=f['valores']|{'codigo_proveedor':f['codigo']},formulas=[]) for f in anterior['filas']]
-    nueva=revisar(filas,anterior['campos'],p,org,unidad,session)
+    nueva=revisar(filas,anterior['campos'],p,org,unidad,session,propuestos=anterior.get('vinculos_propuestos'))
     if _firma(nueva['filas'])!=_firma(anterior['filas']):raise ValueError('Cambió un vínculo, material o cotización. Volvé a revisar; no se guardó nada.')
     n=0
     for f in nueva['filas']:

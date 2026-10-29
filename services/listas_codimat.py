@@ -59,7 +59,7 @@ def revisar(archivo,reglas,p,org,unidad,session):
         w=load_workbook(BytesIO(contenido),read_only=True,data_only=False,keep_links=False)
     except (BadZipFile,KeyError,OSError):raise ValueError('No se pudo leer el XLSX de Codimat.') from None
     cat,materiales=listas.catalogo(org,unidad,p.id,session)
-    por_codigo={r['codigo']:r for r in reglas};filas=[];ignoradas=0;encontrados=set()
+    por_codigo={r['codigo']:r for r in reglas};filas=[];pendientes=[];ignoradas=0;encontrados=set()
     ids=[r['vinculo_id'] for r in cat.values() if r['vinculo_id']]
     previas={c.vinculo_id:c for c in session.query(C).filter(C.vinculo_id.in_(ids),C.moneda=='ARS',C.vigente.is_(True))}
     presentaciones={x.insumo_id:x for x in session.query(IP).filter(IP.organizacion_id==org,IP.insumo_id.in_(list(materiales)))}
@@ -78,8 +78,9 @@ def revisar(archivo,reglas,p,org,unidad,session):
             v=[c.value for c in row];cod=str(v[2] or '').strip().upper()
             if not cod:continue
             ref=cat.get(cod)
-            if not ref:ignoradas+=1;continue
-            if len(filas)>=500:raise ValueError('La lista supera 500 coincidencias.')
+            if not ref and cod not in por_codigo:ignoradas+=1;continue
+            if not ref and cod in encontrados:raise ValueError('El código '+cod+' está repetido en la lista. Revisá antes de vincular.')
+            if len(filas)+len(pendientes)>=500:raise ValueError('La lista supera 500 coincidencias.')
             encontrados.add(cod);errores=[];datos={};calculo={}
             try:
                 regla=por_codigo.get(cod)
@@ -91,17 +92,51 @@ def revisar(archivo,reglas,p,org,unidad,session):
                 bonif_archivo=decimal(v[7] if v[7] is not None else 0,'BonifC del archivo')
                 if not 0<=bonif_archivo<=100:raise ValueError('BonifC del archivo fuera de rango.')
                 neto=bruto*(1-bonif/100)/iva
-                q=regla['cantidad'];previa=previas.get(ref['vinculo_id']);presentacion=presentaciones.get(ref['insumo_id'])
+                q=regla['cantidad'];previa=previas.get(ref['vinculo_id']) if ref else None;presentacion=presentaciones.get(ref['insumo_id']) if ref else None
                 if not q:q=str(previa.cantidad_bulto) if previa and previa.cantidad_bulto else str(presentacion.cantidad_bulto) if presentacion and presentacion.cantidad_bulto else ''
                 if not q:raise ValueError('Completá cantidad de consumo por bulto. Cant Unidad del Excel puede ser peso y no se utiliza para esta conversión.')
                 calculo=dict(formato='Codimat',precio_34_con_iva=str(bruto),bonificacion=str(bonif),bonificacion_archivo=str(bonif_archivo),factor_iva=str(iva),bulto_con_iva=str((bruto*(1-bonif/100)).quantize(Decimal('.01'),rounding=ROUND_HALF_UP)),bulto_sin_iva=str(neto.quantize(Decimal('.01'),rounding=ROUND_HALF_UP)),cantidad=str(q),descripcion=str(v[3] or '')[:300],tipo_unidad=str(v[0] or ''),cant_unidad_archivo=str(v[1] or ''))
                 datos=dict(precio_proveedor=calculo['bulto_sin_iva'],base_precio='bulto',cantidad_bulto=q,moneda_proveedor='ARS',medidas_origen=previa.medidas_origen if previa else (presentacion.medidas_origen or '') if presentacion else '')
             except ValueError as e:errores=[str(e)]
             datos.update(codigo_proveedor=cod,_codimat=calculo,_error_codimat=errores)
-            filas.append(dict(numero=numero,valores=datos,formulas=[]))
+            fila=dict(numero=numero,valores=datos,formulas=[])
+            if ref:filas.append(fila)
+            else:pendientes.append(dict(codigo=cod,descripcion=str(v[3] or '')[:300],fila=fila,errores=errores))
     finally:w.close()
     vista=listas.revisar(filas,list(listas.CAMPOS),p,org,unidad,session)
     vista['ignoradas']=ignoradas
+    vista['pendientes']=pendientes
     c=configuracion(org,unidad,p.id,session)
     vista['codimat']=dict(reglas=reglas,config_anterior=c.reglas if c else None,codigos_ausentes=sorted(set(por_codigo)-encontrados))
     return vista
+
+
+SALT_VINCULACION='codimat-vinculacion-v1'
+
+def firmar_borrador(vista,p,org,unidad,usuario,secreto):
+    from itsdangerous import URLSafeTimedSerializer
+    return URLSafeTimedSerializer(secreto,salt=SALT_VINCULACION).dumps(dict(org=org,unidad=unidad,proveedor=p,usuario=usuario,vista=vista))
+
+def leer_borrador(token,p,org,unidad,usuario,secreto):
+    from itsdangerous import URLSafeTimedSerializer,BadSignature,SignatureExpired
+    try:datos=URLSafeTimedSerializer(secreto,salt=SALT_VINCULACION).loads(token,max_age=1800)
+    except (BadSignature,SignatureExpired):raise ValueError('La revisión venció o no es válida. Volvé a subir la lista.') from None
+    if [datos.get(k) for k in ['org','unidad','proveedor','usuario']]!=[org,unidad,p,usuario]:raise ValueError('La revisión pertenece a otro usuario, proveedor o unidad.')
+    return datos['vista']
+
+def resolver_vinculos(vista,selecciones,p,org,unidad,session):
+    from services import listas_proveedores_compra as listas
+    pendientes=vista.get('pendientes',[])
+    if len(selecciones)!=len(pendientes):raise ValueError('Revisá la selección de materiales.')
+    propuestos=[];nuevas=[];omitidas=0
+    for pendiente,ident in zip(pendientes,selecciones):
+        if ident=='omitir':omitidas+=1;continue
+        if not ident:raise ValueError('Elegí un material o No importar para el código '+pendiente['codigo']+'.')
+        i=listas._material(ident,org,unidad,session)
+        propuestos.append(dict(codigo=pendiente['codigo'],insumo_id=i.id))
+        nuevas.append(pendiente['fila'])
+    originales=[dict(numero=f['numero'],valores=f['valores']|{'codigo_proveedor':f['codigo']},formulas=[]) for f in vista['filas']]
+    nueva=listas.revisar(originales+nuevas,vista['campos'],p,org,unidad,session,propuestos=propuestos)
+    if listas._firma(nueva['filas'][:len(originales)])!=listas._firma(vista['filas']):raise ValueError('Cambió un material o cotización. Volvé a subir la lista para revisar.')
+    nueva.update(referencia=vista.get('referencia','Codimat'),codimat=vista['codimat'],ignoradas=vista['ignoradas']+omitidas,vinculos_propuestos=propuestos,pendientes=[])
+    return nueva

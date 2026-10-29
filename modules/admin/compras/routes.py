@@ -125,8 +125,14 @@ def crear_blueprint_compras(*, dependencias):
                     codigo=str(request.form.get('codigo_proveedor') or '').strip()
                     if not codigo or len(codigo)>120:raise ValueError('Completá el código del proveedor (máximo 120 caracteres).')
                     l.codigo=codigo;l.codigo_clave=codigo.upper();mensaje='Código actualizado. Se conserva el historial del material.'
-                elif accion in {'revisar_lista','revisar_manual','revisar_codimat'}:
-                    if accion=='revisar_codimat':
+                elif accion in {'revisar_lista','revisar_manual','revisar_codimat','revisar_vinculos_codimat'}:
+                    if accion=='revisar_vinculos_codimat':
+                        from services import listas_codimat as codimat
+                        vista=codimat.leer_borrador(request.form.get('token_vinculacion',''),p.id,org.id,unidad.id,usuario.id,current_app.secret_key)
+                        selecciones=[request.form.get('material_'+str(n),'') for n in range(len(vista.get('pendientes',[])))]
+                        vista=codimat.resolver_vinculos(vista,selecciones,p,org.id,unidad.id,db.session)
+                        campos=list(listas.CAMPOS)
+                    elif accion=='revisar_codimat':
                         from services import listas_codimat as codimat
                         archivo=request.files.get('archivo_lista')
                         if archivo is None or not archivo.filename:raise ValueError('Seleccioná el XLSX original de Codimat.')
@@ -142,9 +148,9 @@ def crear_blueprint_compras(*, dependencias):
                         l=db.session.query(L).filter_by(id=request.form.get('vinculo_id',type=int),organizacion_id=org.id,unidad_negocio_id=unidad.id,proveedor_id=p.id).first()
                         if l is None:raise ValueError('El vínculo no pertenece al proveedor de esta unidad.')
                         filas=[dict(numero=1,valores={c:request.form.get(c,'') for c in campos}|{'codigo_proveedor':l.codigo},formulas=[])]
-                    if accion!='revisar_codimat':vista=listas.revisar(filas,campos,p,org.id,unidad.id,db.session)
-                    vista['referencia']=(str(archivo.filename)[:120] if accion in {'revisar_lista','revisar_codimat'} else 'Cotización manual')
-                    if vista['filas'] and not any(f['errores'] for f in vista['filas']) and (any(f['cambia'] for f in vista['filas']) or 'codimat' in vista):
+                    if accion not in {'revisar_codimat','revisar_vinculos_codimat'}:vista=listas.revisar(filas,campos,p,org.id,unidad.id,db.session)
+                    if accion!='revisar_vinculos_codimat':vista['referencia']=(str(archivo.filename)[:120] if accion in {'revisar_lista','revisar_codimat'} else 'Cotización manual')
+                    if vista['filas'] and not vista.get('pendientes') and not any(f['errores'] for f in vista['filas']) and (any(f['cambia'] for f in vista['filas']) or 'codimat' in vista):
                         token=listas.firmar(vista,p.id,org.id,unidad.id,usuario.id,current_app.secret_key)
                     mensaje=None
                 elif accion=='confirmar_lista':
@@ -174,14 +180,20 @@ def crear_blueprint_compras(*, dependencias):
                 detalle=q.filter_by(id=ver).first()
                 if detalle is None:abort(404)
                 historia=db.session.query(C).filter_by(vinculo_id=detalle.id).order_by(C.fecha.desc(),C.id.desc()).limit(20).all()
-        from services.listas_codimat import reglas_actuales
+        from services.listas_codimat import reglas_actuales,firmar_borrador
         from models.listas_proveedores_compra import CalculoCotizacionProveedor
         reglas_codimat=reglas_actuales(org.id,unidad.id,p.id,db.session) if p and listo else []
         if vista and 'codimat' in vista:reglas_codimat=vista['codimat']['reglas']
         if error and request.form.get('accion')=='revisar_codimat':
             reglas_codimat=[dict(codigo=c,descuento=d,cantidad=q) for c,d,q in zip(request.form.getlist('codimat_codigo'),request.form.getlist('codimat_descuento'),request.form.getlist('codimat_cantidad'))][:500]
         calculos={d.cotizacion_id:d.datos for d in db.session.query(CalculoCotizacionProveedor).filter(CalculoCotizacionProveedor.cotizacion_id.in_([c.id for c in historia]))} if listo and historia else {}
-        return render_template('admin_compras_listas.html',reglas_codimat=reglas_codimat,calculos=calculos,organizacion=org,unidad_activa=unidad,proveedores=proveedores,proveedor=p,proveedor_habilitado=bool(p and estados(org.id,unidad.id,db.session).get(p.id)=='activo'),listo=listo,materiales=insumos,materiales_por_id={i.id:i for i in db.session.query(listas.I).filter_by(organizacion_id=org.id,unidad_negocio_id=unidad.id).filter(listas.I.id.in_([l.insumo_id for l in links]))},vinculos=links,cotizaciones=cotizaciones,fuentes=fuentes,total=total,pagina=pagina,paginas=paginas,detalle=detalle,historia=historia,vista=vista,token_lista=token,campos=campos,campos_disponibles=listas.CAMPOS,etiqueta=listas.lector.etiqueta,error=error,ok_feedback=request.args.get('ok',''),formulario_error={k:v for k,v in request.form.items() if k not in {'_csrf_token','unidad_contexto_id','token_lista'}} if error else None,dinero=lambda n:format(Decimal(n)/100,',.2f').replace(',','_').replace('.',',').replace('_','.')),status
+        materiales_vinculables=insumos
+        if vista and vista.get('pendientes'):
+            catalogo_actual,_=listas.catalogo(org.id,unidad.id,p.id,db.session)
+            ocupados={r['insumo_id'] for r in catalogo_actual.values()}|{l.insumo_id for l in listas.vinculos(org.id,unidad.id,p.id,db.session)}
+            materiales_vinculables=[i for i in insumos if i.id not in ocupados]
+        token_vinculacion=firmar_borrador(vista,p.id,org.id,unidad.id,usuario.id,current_app.secret_key) if vista and vista.get('pendientes') else ''
+        return render_template('admin_compras_listas.html',token_vinculacion=token_vinculacion,materiales_vinculables=materiales_vinculables,reglas_codimat=reglas_codimat,calculos=calculos,organizacion=org,unidad_activa=unidad,proveedores=proveedores,proveedor=p,proveedor_habilitado=bool(p and estados(org.id,unidad.id,db.session).get(p.id)=='activo'),listo=listo,materiales=insumos,materiales_por_id={i.id:i for i in db.session.query(listas.I).filter_by(organizacion_id=org.id,unidad_negocio_id=unidad.id).filter(listas.I.id.in_([l.insumo_id for l in links]))},vinculos=links,cotizaciones=cotizaciones,fuentes=fuentes,total=total,pagina=pagina,paginas=paginas,detalle=detalle,historia=historia,vista=vista,token_lista=token,campos=campos,campos_disponibles=listas.CAMPOS,etiqueta=listas.lector.etiqueta,error=error,ok_feedback=request.args.get('ok',''),formulario_error={k:v for k,v in request.form.items() if k not in {'_csrf_token','unidad_contexto_id','token_lista'}} if error else None,dinero=lambda n:format(Decimal(n)/100,',.2f').replace(',','_').replace('.',',').replace('_','.')),status
 
     @blueprint.route('/admin/compras/materiales',methods=['GET','POST'])
     @dependencias['login_required']
