@@ -58,8 +58,10 @@ def ejecutar(engine,origen,destino,*,aplicar=False,mapa=None,proveedor=None,base
             if versiones and filas(v,(v.c.organizacion_id==org)&v.c.producto_id.in_({r['producto_id'] for r in versiones})&(v.c.unidad_negocio_id==destino)):
                 resultado['bloqueos'].append('Fierro ya tiene versiones de costo de estos productos; no se renumeran automáticamente.')
             ajustes=[];tarifas_reasignadas={}
-            productos_por_id={r['id']:r for r in productos}
-            lineas_por_perfil={r['id']:str(productos_por_id[r['producto_id']].get('linea') or '') for r in perfiles}
+            ficha=tabla('producto_ficha_maestra')
+            if aplicar:c.execute(select(ficha.c.producto_id).where(ficha.c.organizacion_id==org,ficha.c.producto_id.in_(pids)).order_by(ficha.c.producto_id).with_for_update()).all()
+            fichas={r['producto_id']:r for r in filas(ficha,(ficha.c.organizacion_id==org)&ficha.c.producto_id.in_(pids))}
+            lineas_por_perfil={r['id']:str(fichas.get(r['producto_id'],{}).get('linea') or '').strip() for r in perfiles}
             for nombre,campo,recurso in [('producto_insumo_costeo','insumo_id','insumo_productivo'),('producto_operacion_costeo','empleado_id','empleado_productivo'),('producto_maquina_costeo','maquina_id','maquina_productiva'),('producto_costo_fijo_costeo','costo_fijo_id','costo_fijo_productivo')]:
                 t=tabla(nombre);bloquear(t,t.c.perfil_costeo_id.in_(fids));lineas=filas(t,t.c.perfil_costeo_id.in_(fids));rt=tabla(recurso);bloquear(rt)
                 usados=Counter(r[campo] for r in lineas)
@@ -76,6 +78,8 @@ def ejecutar(engine,origen,destino,*,aplicar=False,mapa=None,proveedor=None,base
                     for linea in lineas:
                         if linea[campo]==rid:grupos.setdefault(lineas_por_perfil[linea['perfil_costeo_id']],[]).append(linea)
                     for grupo,afectadas in sorted(grupos.items()):
+                        if not grupo:
+                            resultado['bloqueos'].append(f'Hay perfiles sin línea en su ficha maestra para {recurso} {rid}. Revisá la clasificación antes de reasignar.')
                         nuevo=mapa.get('por_linea',{}).get(grupo,{}).get(recurso,{}).get(str(rid),mapa.get(recurso,{}).get(str(rid)))
                         resultado['dependencias'].append({'tabla':recurso,'id':rid,'codigo':r.get('codigo'),'nombre':r.get('nombre'),'linea_producto':grupo,'lineas':len(afectadas),'reemplazo':nuevo})
                         candidatos=[x for x in opciones if str(x['id'])==str(nuevo) and x.get('activo',True)]

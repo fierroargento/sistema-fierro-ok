@@ -10,7 +10,8 @@ def base():
     ddl=[
       'CREATE TABLE unidad_negocio(id INTEGER PRIMARY KEY,organizacion_id INTEGER,codigo TEXT,activa BOOLEAN)',
       'CREATE TABLE insumo_productivo(id INTEGER PRIMARY KEY,organizacion_id INTEGER,unidad_negocio_id INTEGER,codigo TEXT,nombre TEXT,activo BOOLEAN)',
-      'CREATE TABLE producto(id INTEGER PRIMARY KEY,organizacion_id INTEGER,sku TEXT,linea TEXT)',
+      'CREATE TABLE producto(id INTEGER PRIMARY KEY,organizacion_id INTEGER,sku TEXT)',
+      'CREATE TABLE producto_ficha_maestra(producto_id INTEGER PRIMARY KEY,organizacion_id INTEGER,linea TEXT)',
       'CREATE TABLE perfil_costeo_producto(id INTEGER PRIMARY KEY,organizacion_id INTEGER,unidad_negocio_id INTEGER,producto_id INTEGER,tipo TEXT)',
       'CREATE TABLE costo_producto_version(id INTEGER PRIMARY KEY,organizacion_id INTEGER,unidad_negocio_id INTEGER,producto_id INTEGER,vigente BOOLEAN,estado TEXT)',
       'CREATE TABLE producto_insumo_costeo(id INTEGER PRIMARY KEY,perfil_costeo_id INTEGER,insumo_id INTEGER,cantidad INTEGER,porcentaje_merma INTEGER,observacion TEXT)',
@@ -32,6 +33,7 @@ def base():
         c.execute(text("INSERT INTO insumo_productivo VALUES(1,1,3,'uat-ins-001','Sintético',1)"))
         for ident,codigo in enumerate(codigos,2):c.execute(text('INSERT INTO insumo_productivo VALUES(:id,1,3,:codigo,:codigo,1)'),dict(id=ident,codigo=codigo))
         c.execute(text("INSERT INTO producto(id,organizacion_id,sku) VALUES(1,1,'UAT-001'),(5,1,'REAL')"))
+        c.execute(text("INSERT INTO producto_ficha_maestra VALUES(1,1,'UAT'),(5,1,'HERRERIA')"))
         c.execute(text("INSERT INTO perfil_costeo_producto VALUES(1,1,3,1,'produccion'),(5,1,3,5,'produccion')"))
         c.execute(text("INSERT INTO costo_producto_version VALUES(1,1,3,1,1,'vigente'),(5,1,3,5,0,'preparatorio')"))
         c.execute(text('INSERT INTO producto_insumo_costeo VALUES(1,5,2,6,0,NULL)'))
@@ -141,8 +143,9 @@ def test_cli_exige_staging_antes_de_conectar():
 def test_un_recurso_de_ensayo_se_reasigna_por_linea_de_producto(base):
     e,codigos=base
     with e.begin() as c:
-        c.execute(text("UPDATE producto SET linea='HERRERIA' WHERE id=5"))
-        c.execute(text("INSERT INTO producto VALUES(6,1,'REAL2','LASER')"))
+        c.execute(text("UPDATE producto_ficha_maestra SET linea='HERRERIA' WHERE producto_id=5"))
+        c.execute(text("INSERT INTO producto VALUES(6,1,'REAL2')"))
+        c.execute(text("INSERT INTO producto_ficha_maestra VALUES(6,1,'LASER')"))
         c.execute(text("INSERT INTO perfil_costeo_producto VALUES(6,1,3,6,'produccion')"))
         c.execute(text("INSERT INTO producto_operacion_costeo VALUES(2,6,1,'Grabar',5,0,NULL)"))
         c.execute(text("INSERT INTO empleado_productivo VALUES(3,1,1,'LASER','Área láser real',1)"))
@@ -150,3 +153,11 @@ def test_un_recurso_de_ensayo_se_reasigna_por_linea_de_producto(base):
     r=ejecutar(e,3,1,aplicar=True,bases_separadas=True,mapa=mapa,proveedor=2,skus=('REAL','REAL2'),codigos=codigos)
     assert r['aplicado']
     with e.connect() as c:assert list(c.execute(text('SELECT perfil_costeo_id,empleado_id FROM producto_operacion_costeo ORDER BY id')))==[(5,2),(6,3)]
+
+
+def test_linea_sale_de_ficha_maestra_y_no_del_producto_logistico(base):
+    r=correr(base,proveedor=2)
+    assert {d['linea_producto'] for d in r['dependencias']}=={'HERRERIA'}
+    with base[0].begin() as c:c.execute(text("UPDATE producto_ficha_maestra SET linea='' WHERE producto_id=5"))
+    r=correr(base,mapa=MAPA,proveedor=2)
+    assert any('sin línea' in b for b in r['bloqueos']) and not r['aplicado']
