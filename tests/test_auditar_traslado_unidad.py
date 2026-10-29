@@ -35,3 +35,22 @@ def test_cli_rechaza_servicio_o_rama_ajena():
     env['RENDER_GIT_BRANCH']='integracion-saas-2026-09';env['RENDER_EXTERNAL_URL']='https://produccion.example'
     p=subprocess.run([sys.executable,'-m','scripts.auditar_traslado_unidad','--staging'],env=env,capture_output=True,text=True)
     assert p.returncode!=0 and 'staging' in p.stderr
+
+
+def test_detalle_solo_campos_necesarios_y_producto():
+    engine=create_engine('sqlite://')
+    with engine.begin() as c:
+        c.execute(text('CREATE TABLE unidad_negocio (id INTEGER PRIMARY KEY, organizacion_id INTEGER, codigo TEXT, nombre TEXT, activa BOOLEAN)'))
+        c.execute(text("INSERT INTO unidad_negocio VALUES (1,1,'UAT','Ensayo',1),(2,1,'F','Fierro',1),(3,2,'AJENO','Ajeno',1)"))
+        c.execute(text('CREATE TABLE producto (id INTEGER PRIMARY KEY, organizacion_id INTEGER, sku TEXT, nombre TEXT)'))
+        c.execute(text("INSERT INTO producto VALUES (1,1,'REAL-001','Real')"))
+        c.execute(text('CREATE TABLE perfil_costeo_producto (id INTEGER PRIMARY KEY, producto_id INTEGER REFERENCES producto(id), unidad_negocio_id INTEGER REFERENCES unidad_negocio(id), clave TEXT, sueldo INTEGER)'))
+        c.execute(text("INSERT INTO perfil_costeo_producto VALUES (1,1,1,'SECRETO',123)"))
+    with pytest.raises(ValueError,match='organización'):auditar(engine,detalle=True,origen=1,destino=3)
+    r=auditar(engine,detalle=True,origen=1,destino=2)
+    assert r['alcance']=={'origen':1,'destino':2}
+    fila=r['referencias'][0]
+    assert fila['registros_origen']==[{'id':1,'producto_id':1,'unidad_negocio_id':1}]
+    assert fila['productos'][0]['sku']=='REAL-001'
+    assert 'SECRETO' not in json.dumps(r) and 'sueldo' not in json.dumps(r)
+    assert fila['detalle_truncado'] is False
