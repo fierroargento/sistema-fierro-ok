@@ -57,6 +57,8 @@ def registrar_costo_maquina(
 ):
     if maquina is None:
         raise ValueError("La maquina no existe.")
+    from services.cotizaciones import tarifa_maquina
+    if tarifa_maquina(maquina) is not None:raise ValueError('Este recurso usa el dólar general. Gestioná sus consumibles desde Administración / Cotizaciones.')
     tarifa = calcular_tarifa_maquina(
         valor_adquisicion_centavos=valor_adquisicion_centavos,
         valor_residual_centavos=valor_residual_centavos,

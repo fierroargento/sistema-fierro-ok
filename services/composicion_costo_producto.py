@@ -187,7 +187,8 @@ def construir_detalles(perfil):
     for linea in sorted(
         getattr(perfil, "maquinas_costeo", []), key=lambda item: item.orden,
     ):
-        version = _vigente(linea.maquina.versiones_costo)
+        from services.cotizaciones import tarifa_maquina
+        version = tarifa_maquina(linea.maquina) or _vigente(linea.maquina.versiones_costo)
         if version is None:
             raise ValueError(f"{linea.maquina.nombre} no tiene costo vigente.")
         detalles.append({
@@ -196,7 +197,7 @@ def construir_detalles(perfil):
             "unidad_medida": "minuto",
             "costo_unitario_centavos": version.costo_minuto_centavos,
             "porcentaje_merma": 0, "orden": orden,
-            "observacion": linea.observacion,
+            "observacion": (version.observacion + (" · "+linea.observacion if linea.observacion else ""))[:500] if getattr(version,"modo_dolar",False) else linea.observacion,
         }); orden += 1
     for linea in perfil.costos_fijos_costeo:
         version = _vigente(linea.costo_fijo.versiones)

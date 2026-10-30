@@ -13,6 +13,7 @@ def registrar_modulos_web(
     from modules.admin.comercial.routes import crear_blueprint_comercial
     from modules.admin.rentabilidad_ml.routes import crear_blueprint_rentabilidad_ml
     from modules.admin.compras.routes import crear_blueprint_compras
+    from modules.admin.cotizaciones.routes import crear_blueprint_cotizaciones
     from modules.admin.crm.routes import (
         crear_blueprint_crm,
     )
@@ -145,6 +146,10 @@ def registrar_modulos_web(
             **comunes, "UnidadNegocio": modelos["UnidadNegocio"],
         })
     )
+
+    from services.cotizaciones import tarifa_maquina
+    app.jinja_env.globals['tarifa_maquina_dolar']=tarifa_maquina
+    app.register_blueprint(crear_blueprint_cotizaciones(dependencias={**comunes,'UnidadNegocio':modelos['UnidadNegocio']}))
 
     app.register_blueprint(
         crear_blueprint_compras(

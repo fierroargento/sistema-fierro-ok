@@ -1,0 +1,5 @@
+.cotizaciones-page .comercial-table {table-layout:fixed !important;min-width:560px}
+.cotizaciones-page .comercial-table td {white-space:normal;overflow-wrap:anywhere}
+.cotizaciones-page .comercial-table tbody tr:nth-child(even) {background:#f5f8fb}
+.cotizaciones-page fieldset {border:1px solid #dce4ed;border-radius:9px;margin:12px 0;padding:12px}
+.cotizaciones-page legend {font-weight:600;padding:0 6px}
