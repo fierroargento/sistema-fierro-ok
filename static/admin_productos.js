@@ -17,6 +17,7 @@
   const anterior = document.getElementById("producto-anterior");
   const siguiente = document.getElementById("producto-siguiente");
   const guardar = document.getElementById("producto-guardar");
+  let modoEditor = false;
   let pasoActual = 0;
   let maxVisitado = 0;
   const indicador = document.getElementById("producto-pasos-indicador");
@@ -25,7 +26,7 @@
     boton.type = "button"; boton.textContent = String(i + 1);
     boton.setAttribute("aria-label", "Paso " + (i + 1) + ": " + p.dataset.titulo);
     boton.title = p.dataset.titulo;
-    boton.addEventListener("click", () => { if (i <= maxVisitado) mostrarPaso(i); });
+    boton.addEventListener("click", () => { if (modoEditor || i <= maxVisitado) mostrarPaso(i); });
     li.appendChild(boton); indicador.appendChild(li);
   });
   function mostrarPaso(indice, enfocar = true) {
@@ -33,15 +34,19 @@
     maxVisitado = Math.max(maxVisitado, indice);
     pasos.forEach((p, i) => { p.hidden = i !== indice; });
     Array.from(indicador.querySelectorAll("button")).forEach((b, i) => {
-      b.disabled = i > maxVisitado;
+      b.disabled = !modoEditor && i > maxVisitado;
+      b.textContent = modoEditor ? pasos[i].dataset.titulo : String(i + 1);
+      b.parentElement.hidden = modoEditor && pasos[i].dataset.paso === "resumen";
       if (i === indice) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
       b.dataset.completado = String(i < indice);
     });
     document.getElementById("producto-paso-progreso").textContent =
+      modoEditor ? "Elegí la sección que querés gestionar. Los cambios se guardan al confirmar." :
       "Paso " + (indice + 1) + " de " + pasos.length + " · " + pasos[indice].dataset.titulo;
-    anterior.hidden = indice === 0;
+    anterior.hidden = modoEditor || indice === 0;
     const ultimo = indice === pasos.length - 1;
-    siguiente.hidden = ultimo; guardar.hidden = !ultimo;
+    siguiente.hidden = modoEditor || ultimo; guardar.hidden = !modoEditor && !ultimo;
+    guardar.textContent = modoEditor ? "Guardar cambios" : "Guardar producto";
     siguiente.textContent = indice === pasos.length - 2 ? "Revisar ficha" : "Siguiente";
     if (ultimo) armarResumen();
     dialogo.querySelector(".producto-dialog-body").scrollTop = 0;
@@ -209,6 +214,9 @@
     vinculoInsumo.hidden = true;
     pasoActual = 0; maxVisitado = 0;
     const edicion = !duplicacion && (fallido ? fallido.accion === "editar_producto" : !!fila);
+    modoEditor = edicion;
+    dialogo.classList.toggle("producto-editor-general", modoEditor);
+    document.getElementById("producto-editor-duplicar").hidden = !modoEditor;
     duplicadoOrigen = duplicacion ? duplicacion.sku : "";
     form.elements.sku.setCustomValidity("");
     const avisoCopia = document.getElementById("producto-duplicacion-aviso");
@@ -280,8 +288,19 @@
     cancelarCopia();botonAcciones = b;
     editarAccion.dataset.editProduct = duplicarAccion.dataset.duplicateProduct = String(fila.id);
     document.getElementById("producto-acciones-nombre").textContent = fila.datos.sku + " · " + (fila.datos.nombre || fila.datos.descripcion || "");
-    acciones.showModal();editarAccion.focus();
+    abrir(fila, null);
   }));
+  document.getElementById("producto-editor-duplicar").addEventListener("click", () => {
+    const fila = datos.filas.find(f => String(f.id) === String(form.elements.producto_id.value));
+    if (!fila) return;
+    dialogo.close();
+    document.getElementById("producto-acciones-nombre").textContent = fila.datos.sku + " · " + fila.datos.nombre;
+    editarAccion.dataset.editProduct = duplicarAccion.dataset.duplicateProduct = String(fila.id);
+    acciones.showModal();duplicarAccion.focus();
+  });
+  dialogo.addEventListener("close", () => {
+    if (botonAcciones && botonAcciones.isConnected) botonAcciones.focus({preventScroll:true});
+  });
   document.querySelectorAll("[data-close-product-actions]").forEach(b => b.addEventListener("click", () => acciones.close()));
   acciones.addEventListener("close", () => {
     cancelarCopia();
@@ -374,7 +393,7 @@
     if (f === form) {
       // Un submit anticipado tampoco guarda: lleva a la revisión explícita.
       if (!validarFicha()) return;
-      if (pasoActual !== pasos.length - 1) { mostrarPaso(pasos.length - 1); return; }
+      if (!modoEditor && pasoActual !== pasos.length - 1) { mostrarPaso(pasos.length - 1); return; }
     } else if (!validarCampos(f)) return;
     pendiente = f;
     document.getElementById("producto-confirm-text").textContent = f.dataset.confirmSave;

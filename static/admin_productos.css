@@ -262,3 +262,11 @@
 .producto-dialog .producto-vinculo-insumo > summary { cursor:pointer; color:#334155; font-size:.9rem; font-weight:600; }
 .producto-dialog .producto-vinculo-insumo .producto-section-body { padding:10px 0 0; }
 .producto-dialog #producto-pasos-indicador { flex-wrap:wrap; }
+
+/* Edición directa; el alta conserva el asistente numerado. */
+.producto-editor-general #producto-pasos-indicador {display:flex;flex-wrap:wrap;gap:6px;padding:0;list-style:none}
+.producto-editor-general #producto-pasos-indicador li {flex:0 1 auto}
+.producto-editor-general #producto-pasos-indicador button {width:auto;height:auto;min-height:34px;border-radius:6px;padding:7px 10px;font-size:12px;white-space:normal}
+.producto-editor-general #producto-pasos-indicador button[aria-current="step"] {background:#16566a;color:#fff;border-color:#16566a}
+.producto-editor-general .producto-dialog-footer {flex-wrap:wrap;gap:8px}
+.producto-editor-general .producto-dialog-footer .productos-actions {flex-wrap:wrap}

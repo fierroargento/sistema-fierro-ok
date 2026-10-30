@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_comercial.css', v='20261019-maestro') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261022-pasos-costos') }}">
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261022-pasos-costos') }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin_productos.css', v='20261030-editor-general') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_datos.js', v='20261030-editor-general') }}" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_produccion.js', v='20261020-acciones-comunes') }}" defer></script>
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261022-pasos-costos') }}" defer></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos.js', v='20261030-editor-general') }}" defer></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='admin_producto_vista.css', v='20261020-acciones-comunes') }}">
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_producto_vista.js', v='20261020-iconos-producto') }}" defer></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='admin_productos_importar_fabricacion.js', v='20261021-planilla') }}" defer></script>
@@ -115,7 +115,7 @@
 </section>
 
     </div>
-    <footer class="producto-dialog-footer"><button type="button" class="secondary-link" data-close-product>Cancelar</button><div class="productos-actions"><button type="button" class="secondary-link" id="producto-anterior">Anterior</button><button type="button" class="comercial-primary" id="producto-siguiente">Siguiente</button><button type="submit" class="comercial-primary" id="producto-guardar" hidden>Guardar producto</button></div></footer>
+    <footer class="producto-dialog-footer"><button type="button" class="secondary-link" data-close-product>Cancelar</button><div class="productos-actions"><button type="button" class="secondary-link" id="producto-editor-duplicar" hidden>Duplicar producto…</button><button type="button" class="secondary-link" id="producto-anterior">Anterior</button><button type="button" class="comercial-primary" id="producto-siguiente">Siguiente</button><button type="submit" class="comercial-primary" id="producto-guardar" hidden>Guardar producto</button></div></footer>
   </form>
 </dialog>
 {% include "partials/producto_despiece_dialogos.html" %}
