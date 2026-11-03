@@ -146,51 +146,6 @@
 })();
 
 (function () {
-    {% if usuario_logueado %}
-    const REFRESH_MS = 20000;
-    let lastRefreshAt = Date.now();
-    const filtroStorageKey = 'fierro_filtro_inicio_{{ rol_actual }}';
-
-    function onWorkPage() {
-        return window.location.pathname === "/";
-    }
-
-    function limpiarFiltroInicio() {
-        try {
-            localStorage.removeItem(filtroStorageKey);
-        } catch (e) {}
-    }
-
-    function refreshIfNeeded(force) {
-        if (!onWorkPage()) return;
-        const now = Date.now();
-        if (force || now - lastRefreshAt >= REFRESH_MS) {
-            lastRefreshAt = now;
-            window.location.reload();
-        }
-    }
-
-    if (!onWorkPage()) {
-        limpiarFiltroInicio();
-    }
-
-    setInterval(function () {
-        refreshIfNeeded(false);
-    }, REFRESH_MS);
-
-    window.addEventListener("focus", function () {
-        refreshIfNeeded(true);
-    });
-
-    document.addEventListener("visibilitychange", function () {
-        if (!document.hidden) {
-            refreshIfNeeded(true);
-        }
-    });
-    {% endif %}
-})();
-
-(function () {
     const toast = document.getElementById("toast-feedback");
     if (!toast) return;
 
@@ -206,6 +161,7 @@
 })();
 </script>
 
+{% if usuario_logueado %}<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='inicio_auto_refresh.js', v='20261103-navegacion') }}" data-filtro-storage-key="fierro_filtro_inicio_{{ rol_actual }}" defer></script>{% endif %}
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='confirmacion_acciones.js', v='20261003-confirm') }}" defer></script>
 <script defer src="{{ url_for('static',filename='unidad_contexto.js',v='20261027-1') }}" data-unidad="{{ session.get('unidad_negocio_id','') }}"></script>
 <script type="application/json" nonce="{{ csp_nonce }}" id="datos-formulario-config">{{ normalizacion_datos_config|default({})|tojson }}</script>

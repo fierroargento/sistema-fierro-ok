@@ -100,6 +100,7 @@ from services.auditoria_consolidacion_comercial import construir_auditoria, expo
 from services.cola_acciones_comerciales import crear_propuestas, decidir_propuesta
 from services.fuentes_costo_admin import (
     obtener_fuentes_costo,
+    obtener_gastos_unidad,
     procesar_accion_fuente_costo,
 )
 from services.importacion_productos_costeo import (
@@ -404,7 +405,7 @@ def crear_blueprint_comercial(*, dependencias):
         from services.reparto_gasto_sector import contexto as contexto_reparto
         return render_template('admin_gastos.html',organizacion=organizacion,unidad_activa=unidad,unidades=unidades,
             formatear_centavos_ars=formatear_centavos_ars,origen_gastos=True,
-            **obtener_fuentes_costo(organizacion.id,unidad.id,modelos=modelos,db_session=db.session),
+            **obtener_gastos_unidad(organizacion.id,unidad.id,modelos=modelos,db_session=db.session),
             **contexto_reparto(db.session,organizacion.id),
             ok_feedback=request.args.get('ok',''),error=request.args.get('error',''))
 
@@ -1811,7 +1812,7 @@ def crear_blueprint_comercial(*, dependencias):
             organizacion=organizacion,
             unidad_activa=unidad_activa, unidades=unidades,
             formatear_centavos_ars=formatear_centavos_ars,
-            **obtener_fuentes_costo(
+            **obtener_gastos_unidad(
                 organizacion.id, unidad_activa.id,
                 modelos=modelos, db_session=db.session,
             ),

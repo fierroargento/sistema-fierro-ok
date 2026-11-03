@@ -1036,45 +1036,12 @@ def obtener_fuentes_costo(
         modelos["CatalogoProducto"].activo.is_(True),
     ).order_by(modelos["CatalogoProducto"].nombre_comercial).all()
     from services.personal_unidad import consulta as personal_visible
-    from services.gastos_unidad import consulta as gastos_visibles
     if db_session is None:
         from extensions import db
         db_session=db.session
     empleados=personal_visible(organizacion_id,unidad_negocio_id,modelos,db_session).order_by(modelos['EmpleadoProductivo'].nombre).all()
-    costos_fijos=gastos_visibles(modelos['CostoFijoProductivo'],modelos['CostoFijoDistribucionVersion'],organizacion_id,unidad_negocio_id).order_by(modelos['CostoFijoProductivo'].nombre).all()
-    ids_costos_visibles = [costo.id for costo in costos_fijos]
-    reglas_ipc = modelos["ReglaAjusteIPCProductivo"].query.filter_by(
-        organizacion_id=organizacion_id, activa=True,
-    ).filter(
-        modelos["ReglaAjusteIPCProductivo"].costo_fijo_id.in_(ids_costos_visibles)
-    ).all() if ids_costos_visibles else []
-    reglas_por_costo = {regla.costo_fijo_id: regla for regla in reglas_ipc}
-    propuestas = modelos["PropuestaAjusteIPCProductivo"].query.join(
-        modelos["ReglaAjusteIPCProductivo"],
-    ).filter(
-        modelos["ReglaAjusteIPCProductivo"].organizacion_id == organizacion_id,
-        modelos["PropuestaAjusteIPCProductivo"].estado.in_(("pendiente", "aprobada")),
-        modelos["ReglaAjusteIPCProductivo"].costo_fijo_id.in_(ids_costos_visibles),
-    ).all() if ids_costos_visibles else []
-    ids_costos_responsables=[c.id for c in costos_fijos if c.unidad_negocio_id==unidad_negocio_id]
-    obligaciones = modelos["ObligacionCostoProductivo"].query.filter_by(
-        organizacion_id=organizacion_id,
-    ).filter(
-        modelos["ObligacionCostoProductivo"].costo_fijo_id.in_(ids_costos_responsables),
-    ).order_by(
-        modelos["ObligacionCostoProductivo"].fecha_vencimiento.asc(),
-        modelos["ObligacionCostoProductivo"].id.asc(),
-    ).all() if ids_costos_responsables else []
-    reconciliar_estados_obligaciones(
-        obligaciones,
-        db_session=db_session,
-    )
-    reglas_obligaciones = modelos["ReglaObligacionCostoProductivo"].query.filter_by(
-        organizacion_id=organizacion_id,
-    ).filter(
-        modelos["ReglaObligacionCostoProductivo"].costo_fijo_id.in_(ids_costos_visibles),
-    ).all() if ids_costos_visibles else []
     return {
+        **obtener_gastos_unidad(organizacion_id, unidad_negocio_id, modelos=modelos, db_session=db_session),
         "configuracion_costo_laboral": configuracion_vigente(
             organizacion_id, unidad_negocio_id,
             Modelo=modelos["ConfiguracionCostoLaboralVersion"],
@@ -1109,17 +1076,60 @@ def obtener_fuentes_costo(
             (modelos["MaquinaProductiva"].unidad_negocio_id.is_(None))
             | (modelos["MaquinaProductiva"].unidad_negocio_id == unidad_negocio_id),
         ).order_by(modelos["MaquinaProductiva"].nombre).all(),
-        "costos_fijos": costos_fijos,
-        "distribuciones_costos_fijos": distribuciones_costos_fijos_vigentes(
+    }
+
+
+def obtener_gastos_unidad(organizacion_id, unidad_negocio_id, *, modelos, db_session=None):
+    """Datos de gastos y obligaciones, sin cargar ni diagnosticar recetas."""
+    from services.gastos_unidad import consulta as gastos_visibles
+    if db_session is None:
+        from extensions import db
+        db_session = db.session
+    costos_fijos=gastos_visibles(modelos['CostoFijoProductivo'],modelos['CostoFijoDistribucionVersion'],organizacion_id,unidad_negocio_id).order_by(modelos['CostoFijoProductivo'].nombre).all()
+    ids_costos_visibles = [costo.id for costo in costos_fijos]
+    reglas_ipc = modelos["ReglaAjusteIPCProductivo"].query.filter_by(
+        organizacion_id=organizacion_id, activa=True,
+    ).filter(
+        modelos["ReglaAjusteIPCProductivo"].costo_fijo_id.in_(ids_costos_visibles)
+    ).all() if ids_costos_visibles else []
+    reglas_por_costo = {regla.costo_fijo_id: regla for regla in reglas_ipc}
+    propuestas = modelos["PropuestaAjusteIPCProductivo"].query.join(
+        modelos["ReglaAjusteIPCProductivo"],
+    ).filter(
+        modelos["ReglaAjusteIPCProductivo"].organizacion_id == organizacion_id,
+        modelos["PropuestaAjusteIPCProductivo"].estado.in_(("pendiente", "aprobada")),
+        modelos["ReglaAjusteIPCProductivo"].costo_fijo_id.in_(ids_costos_visibles),
+    ).all() if ids_costos_visibles else []
+    ids_costos_responsables=[c.id for c in costos_fijos if c.unidad_negocio_id==unidad_negocio_id]
+    obligaciones = modelos["ObligacionCostoProductivo"].query.filter_by(
+        organizacion_id=organizacion_id,
+    ).filter(
+        modelos["ObligacionCostoProductivo"].costo_fijo_id.in_(ids_costos_responsables),
+    ).order_by(
+        modelos["ObligacionCostoProductivo"].fecha_vencimiento.asc(),
+        modelos["ObligacionCostoProductivo"].id.asc(),
+    ).all() if ids_costos_responsables else []
+    reconciliar_estados_obligaciones(
+        obligaciones,
+        db_session=db_session,
+    )
+    reglas_obligaciones = modelos["ReglaObligacionCostoProductivo"].query.filter_by(
+        organizacion_id=organizacion_id,
+    ).filter(
+        modelos["ReglaObligacionCostoProductivo"].costo_fijo_id.in_(ids_costos_visibles),
+    ).all() if ids_costos_visibles else []
+    return {
+        'costos_fijos': costos_fijos,
+        'distribuciones_costos_fijos': distribuciones_costos_fijos_vigentes(
             costos_fijos, Modelo=modelos["CostoFijoDistribucionVersion"],
         ),
-        "reglas_ipc_por_costo": reglas_por_costo,
-        "propuestas_ipc": propuestas,
-        "obligaciones_costos": obligaciones,
-        "reglas_obligaciones_por_costo": {
+        'reglas_ipc_por_costo': reglas_por_costo,
+        'propuestas_ipc': propuestas,
+        'obligaciones_costos': obligaciones,
+        'reglas_obligaciones_por_costo': {
             regla.costo_fijo_id: regla for regla in reglas_obligaciones
         },
-        "avisos_vencimientos": resumen_vencimientos(obligaciones),
-        "saldo_obligacion": saldo_obligacion,
-        "ventana_para_ajuste": ventana_para_ajuste,
+        'avisos_vencimientos': resumen_vencimientos(obligaciones),
+        'saldo_obligacion': saldo_obligacion,
+        'ventana_para_ajuste': ventana_para_ajuste,
     }
