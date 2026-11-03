@@ -218,6 +218,10 @@ def construir_detalles(perfil):
             "unidad_medida": "unidad", "costo_unitario_centavos": int(unitario),
             "porcentaje_merma": 0, "orden": orden, "observacion": linea.observacion,
         }); orden += 1
+    from services.reparto_gasto_sector import detalles as detalles_reparto
+    for detalle in detalles_reparto(perfil):
+        detalle['orden'] = orden
+        detalles.append(detalle); orden += 1
     if not detalles:
         raise ValueError("La ficha técnica todavía no tiene componentes.")
     return detalles

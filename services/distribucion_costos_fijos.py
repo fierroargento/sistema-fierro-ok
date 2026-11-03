@@ -46,7 +46,7 @@ def normalizar_distribucion_costo_fijo(filas):
 
 def registrar_distribucion_costo_fijo(
     costo, filas, *, organizacion_id, unidades_validas, Modelo,
-    db_session, usuario_id=None, observacion=None,
+    db_session, usuario_id=None, observacion=None, commit=True,
 ):
     asignaciones = normalizar_distribucion_costo_fijo(filas)
     permitidas = {int(unidad.id) for unidad in unidades_validas}
@@ -84,7 +84,7 @@ def registrar_distribucion_costo_fijo(
         costo.criterio_distribucion = "sin_distribuir"
     elif costo.criterio_distribucion == "sin_distribuir":
         costo.criterio_distribucion = "porcentaje"
-    db_session.commit()
+    if commit: db_session.commit()
     return revision, creadas
 
 

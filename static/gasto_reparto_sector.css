@@ -1,0 +1,6 @@
+.reparto-sector-dialog{width:min(850px,94vw);max-height:85vh;border:1px solid #d1e1e8;border-radius:12px;padding:24px;color:#1d3d50}
+.reparto-sector-dialog::backdrop{background:#18364580}
+.reparto-sector-fila{display:grid;grid-template-columns:1fr 1.3fr .7fr auto;gap:10px;align-items:end;padding:12px;background:#f4f8fa;margin:8px 0;border-radius:7px}
+.reparto-sector-fila label{display:grid;gap:5px;font-size:12px}.reparto-sector-fila input,.reparto-sector-fila select{width:100%;min-width:0;padding:8px;border:1px solid #b9ccd7;border-radius:5px;box-sizing:border-box}
+.reparto-sector-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+@media(max-width:650px){.reparto-sector-fila{grid-template-columns:1fr 1fr}}

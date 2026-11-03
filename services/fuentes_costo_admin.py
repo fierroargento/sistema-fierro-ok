@@ -403,7 +403,17 @@ def procesar_accion_fuente_costo(
         )
         return f"Distribución de {empleado.nombre} guardada en revisión {revision}."
 
+    if accion == "guardar_reparto_sector":
+        from services.reparto_gasto_sector import guardar
+        costo = _registro_tenant(modelos["CostoFijoProductivo"], _id(formulario,"costo_fijo_id"), organizacion.id, "El gasto", unidad_activa.id)
+        reparto = guardar(costo, formulario, org=organizacion.id, unidad=unidad_activa.id, session=db_session, modelos=modelos, usuario_id=usuario_id)
+        db_session.commit()
+        return f"Reparto por sectores guardado en revisión {reparto.numero_revision}. Obligaciones y pagos conservados. Depósito pendiente de asignación a productos."
+
     if accion == "configurar_distribucion_costo_fijo":
+        from services.reparto_gasto_sector import actuales
+        if any(r.costo_fijo_id == _id(formulario,"costo_fijo_id") for r in actuales(db_session,organizacion.id)):
+            raise ValueError("Este gasto se distribuye desde Reparto por sectores.")
         costo = _registro_tenant(
             modelos["CostoFijoProductivo"],
             _id(formulario, "costo_fijo_id"), organizacion.id,

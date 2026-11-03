@@ -401,9 +401,11 @@ def crear_blueprint_comercial(*, dependencias):
         _usuario,organizacion,respuesta=acceso()
         if respuesta is not None:return respuesta
         unidad,unidades=contexto_comercial(organizacion)
+        from services.reparto_gasto_sector import contexto as contexto_reparto
         return render_template('admin_gastos.html',organizacion=organizacion,unidad_activa=unidad,unidades=unidades,
             formatear_centavos_ars=formatear_centavos_ars,origen_gastos=True,
             **obtener_fuentes_costo(organizacion.id,unidad.id,modelos=modelos,db_session=db.session),
+            **contexto_reparto(db.session,organizacion.id),
             ok_feedback=request.args.get('ok',''),error=request.args.get('error',''))
 
     @blueprint.route("/admin/comercial/fuentes-costos")
