@@ -19,3 +19,16 @@
 .reparto-sector-card>.reparto-sector-help,.reparto-sector-card>p{margin:14px 16px}
 .reparto-sector-pendiente{display:inline-block;padding:3px 7px;border-radius:5px;background:#fff3d8;color:#785100}
 @media(max-width:600px){.reparto-sector-card-head{align-items:flex-start;padding:12px}.reparto-sector-card-head>div{display:block}.reparto-sector-status{margin-top:7px}.reparto-sector-detalle{padding:12px}.reparto-sector-detalle table{min-width:560px}}
+
+.gasto-asignar{margin-bottom:16px;border:1px solid #d1e1e8;border-radius:9px;background:#fff;overflow:hidden}
+.gasto-asignar>summary{justify-content:flex-start!important;gap:8px;text-align:left;padding:13px 16px}
+.gasto-asignar-form{display:block;padding:16px}
+.gasto-asignar-form>p{margin:0 0 14px;font-size:14px;line-height:1.5;color:#365367}
+.gasto-asignar-campos{display:grid;grid-template-columns:minmax(180px,340px) 1fr;gap:20px;align-items:start}
+.gasto-asignar-campos label{display:grid;gap:7px;font-size:13px;font-weight:600}
+.gasto-asignar-campos input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #b9ccd7;border-radius:6px;font:inherit;font-weight:400}
+.gasto-asignar-destino{display:grid;gap:7px;font-size:13px;padding:0 0 8px}.gasto-asignar-destino strong{padding:10px 0;color:#1d3d50}
+.gasto-asignar-form .gasto-asignar-ayuda{margin:12px 0 0;font-size:13px;color:#50697b}
+.gasto-asignar-acciones{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid #e2ebf0}
+.gasto-asignar-acciones button{min-height:34px;padding:7px 12px}
+@media(max-width:600px){.gasto-asignar-campos{grid-template-columns:1fr;gap:12px}.gasto-asignar-acciones{flex-wrap:wrap}}

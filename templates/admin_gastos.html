@@ -2,7 +2,7 @@
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static',filename='admin_comercial.css') }}">
 <script defer src="{{ url_for('static',filename='admin_fuentes_costos.js',v='20261027-gastos') }}"></script>
-<link rel="stylesheet" href="{{ url_for('static',filename='gasto_reparto_sector.css',v='20261103-visual') }}">
+<link rel="stylesheet" href="{{ url_for('static',filename='gasto_reparto_sector.css',v='20261103-asignar') }}">
 <script nonce="{{ csp_nonce }}" defer src="{{ url_for('static',filename='gasto_reparto_sector.js',v='20261103') }}"></script>
 {% endblock %}
 {% block content %}
@@ -10,7 +10,18 @@
 <header class="comercial-header"><div><span class="eyebrow">ADMINISTRACIÓN</span><h1>Gastos</h1><p>{{ unidad_activa.nombre }} · conceptos, importes y reparto para costos.</p></div><a class="secondary-link" href="{{ url_for('admin_comercial.cuentas_pagar') }}">Pagos y vencimientos</a></header>
 {% if error %}<p class="feedback feedback-error" role="alert">{{ error }}</p>{% endif %}{% if ok_feedback %}<p class="feedback feedback-ok" role="status">{{ ok_feedback }}</p>{% endif %}
 <p>El reparto indica qué parte del gasto integra cada unidad. La obligación y su pago se gestionan una sola vez desde la unidad responsable.</p>
-<details class="source-catalog"><summary>Asignar un gasto existente sin unidad responsable</summary><form class="comercial-form" method="post" data-unidad-confirmar="¿Asignar esta unidad como responsable del gasto existente?" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="accion" value="asignar_responsable_gasto"><label>Código exacto<input name="codigo_existente" required maxlength="80"></label><p>Asigna la responsabilidad a {{ unidad_activa.nombre }}. Conserva sus importes, reparto y pagos anteriores.</p><button type="button" data-unidad-cancelar>Cancelar</button><button type="submit">Asignar a esta unidad</button></form></details>
+<details class="source-catalog gasto-asignar">
+  <summary><span>Asignar un gasto existente sin unidad responsable</span></summary>
+  <form class="gasto-asignar-form" method="post" data-unidad-confirmar="¿Asignar esta unidad como responsable del gasto existente?" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}">
+    <input type="hidden" name="unidad_contexto_id" value="{{ unidad_activa.id }}">
+    <input type="hidden" name="accion" value="asignar_responsable_gasto">
+    <p>Usá esta opción si el gasto ya existe y todavía no tiene una unidad responsable.</p>
+    <div class="gasto-asignar-campos"><label>Código del gasto<input name="codigo_existente" required maxlength="80" placeholder="Ej.: alquiler-taller" aria-describedby="gasto-asignar-ayuda"></label><div class="gasto-asignar-destino"><span>Unidad responsable</span><strong>{{ unidad_activa.nombre }}</strong></div></div>
+    <p id="gasto-asignar-ayuda" class="gasto-asignar-ayuda">Ingresá el código exacto. Se conservan los importes, el reparto y los pagos anteriores.</p>
+    <div class="gasto-asignar-acciones"><button type="button" class="secondary-link" data-unidad-cancelar>Cancelar</button><button type="submit" class="comercial-primary">Asignar a esta unidad</button></div>
+  </form>
+</details>
 {% include 'partials/gastos_costos_fijos.html' %}
 {% include 'partials/gasto_reparto_sector.html' %}
 </main>
