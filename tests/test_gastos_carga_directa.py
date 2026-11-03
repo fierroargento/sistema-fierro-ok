@@ -42,3 +42,19 @@ def test_consulta_directa_respeta_unidad(pantalla):
     app,org,u,m,vistas=pantalla
     datos=obtener_gastos_unidad(org.id,99999,modelos=m,db_session=db.session)
     assert datos['costos_fijos']==[] and datos['obligaciones_costos']==[]
+
+
+def test_render_gastos_con_reparto_guardado(pantalla,reparto):
+    from jinja2 import Environment, ChoiceLoader, DictLoader, FileSystemLoader
+    from test_reparto_gasto_sector import guardar
+    from services.reparto_gasto_sector import contexto
+    from services.presentacion_monetaria import formatear_centavos_ars
+    app,org,u,m,vistas=pantalla
+    guardar(reparto);db.session.commit()
+    datos=obtener_gastos_unidad(org.id,u.id,modelos=m,db_session=db.session)
+    env=Environment(loader=ChoiceLoader([DictLoader({'base.html':'{% block extra_head %}{% endblock %}{% block content %}{% endblock %}'}),FileSystemLoader('templates')]),autoescape=True)
+    env.globals['url_for']=lambda endpoint,**kw:'/'+endpoint
+    html=env.get_template('admin_gastos.html').render(**datos,**contexto(db.session,org.id),organizacion=org,unidad_activa=u,unidades=[u],formatear_centavos_ars=formatear_centavos_ars)
+    assert 'value="80"' in html and 'value="75"' in html
+    assert 'Revisión 1' in html
+    assert 'porcentaje_asignacion' in html

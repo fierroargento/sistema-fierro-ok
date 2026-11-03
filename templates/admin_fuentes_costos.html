@@ -9,9 +9,7 @@
 {% endblock %}
 
 {% block content %}
-{% macro numero_decimal_limpio(valor) -%}
-  {{- ('%.4f'|format(valor|float)).rstrip('0').rstrip('.') -}}
-{%- endmacro %}
+{% from 'partials/numeros_costos.html' import numero_decimal_limpio %}
 <main class="comercial-page cost-sources-page">
 {% set presentaciones_insumos = presentaciones_insumos|default({}) %}
   <header class="comercial-header">

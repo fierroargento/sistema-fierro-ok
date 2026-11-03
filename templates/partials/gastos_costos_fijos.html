@@ -1,3 +1,4 @@
+{% from 'partials/numeros_costos.html' import numero_decimal_limpio %}
   <section class="comercial-section" id="costos-fijos">
     <div class="section-heading"><div><span class="section-number">5</span><h2>Costos indirectos productivos</h2></div><div class="section-heading-actions"><p>Costos fijos, variables y provisiones; solo la parte productiva integra fabricación.</p><a class="section-link" href="{{ url_for('admin_comercial.importar_fuente_costeo', tipo='costos-fijos') }}">Importar costos indirectos</a></div></div>
     <details class="source-catalog uat-form-editor"><summary>Crear costo indirecto</summary><form class="comercial-form form-source-fixed" method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1' if origen_gastos|default(false) else none) }}">

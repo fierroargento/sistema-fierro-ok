@@ -1,0 +1,3 @@
+{% macro numero_decimal_limpio(valor) -%}
+  {{- ('%.4f'|format(valor|float)).rstrip('0').rstrip('.') -}}
+{%- endmacro %}
