@@ -4,3 +4,18 @@
 .reparto-sector-fila label{display:grid;gap:5px;font-size:12px}.reparto-sector-fila input,.reparto-sector-fila select{width:100%;min-width:0;padding:8px;border:1px solid #b9ccd7;border-radius:5px;box-sizing:border-box}
 .reparto-sector-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
 @media(max-width:650px){.reparto-sector-fila{grid-template-columns:1fr 1fr}}
+#reparto-sectores .reparto-sector-heading{display:block;margin-bottom:18px}
+#reparto-sectores .reparto-sector-heading h2{display:block;margin:0 0 8px;font-size:18px;line-height:1.4}
+#reparto-sectores .reparto-sector-heading p{margin:6px 0;font-size:14px;line-height:1.5;color:#365367}
+#reparto-sectores .reparto-sector-help{font-size:13px;line-height:1.5;color:#50697b}
+.reparto-sector-card{border:1px solid #d1e1e8;border-radius:9px;margin-top:14px;overflow:hidden}
+.reparto-sector-card-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;background:#f4f8fa}
+.reparto-sector-card-head>div{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
+.reparto-sector-card-head h3{margin:0;font-size:15px;line-height:1.4;overflow-wrap:anywhere}
+.reparto-sector-status{display:inline-block;border-radius:12px;background:#e5f2f7;color:#245469;padding:4px 9px;font-size:12px;white-space:nowrap}
+#reparto-sectores .reparto-sector-gestionar.fierro-icon-action{width:auto!important;max-width:none!important;min-height:34px!important;height:34px!important;display:inline-flex;gap:7px!important;padding:6px 10px!important;flex:0 0 auto}
+#reparto-sectores .reparto-sector-gestionar .fierro-action-label{position:static!important;width:auto!important;height:auto!important;clip:auto!important;clip-path:none!important;overflow:visible!important;white-space:nowrap;margin:0!important}
+.reparto-sector-detalle{padding:12px 16px 16px}.reparto-sector-detalle summary{cursor:pointer;font-size:13px;font-weight:600;color:#21546a;margin-bottom:12px}
+.reparto-sector-card>.reparto-sector-help,.reparto-sector-card>p{margin:14px 16px}
+.reparto-sector-pendiente{display:inline-block;padding:3px 7px;border-radius:5px;background:#fff3d8;color:#785100}
+@media(max-width:600px){.reparto-sector-card-head{align-items:flex-start;padding:12px}.reparto-sector-card-head>div{display:block}.reparto-sector-status{margin-top:7px}.reparto-sector-detalle{padding:12px}.reparto-sector-detalle table{min-width:560px}}

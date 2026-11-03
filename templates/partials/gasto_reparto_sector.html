@@ -1,11 +1,12 @@
 <section class="comercial-section" id="reparto-sectores">
-<div class="section-heading"><div><h2>Reparto por unidad y sector</h2><p>Una sola obligación. Cada área absorbe su parte según los minutos de trabajo del producto y las horas productivas de Personal. Depósito queda pendiente de reparto a productos.</p></div></div>
+<header class="reparto-sector-heading"><h2>Reparto por unidad y sector</h2><p>Distribuí el gasto entre las unidades y sus áreas. El pago se gestiona una sola vez desde la unidad responsable.</p><p class="reparto-sector-help">Las áreas aplican su parte por minutos laborales. Depósito queda pendiente de asignación a productos.</p></header>
 {% if not reparto_sector_preparado %}<p>Preparación pendiente del reparto por sectores.</p>{% else %}
 {% for costo in costos_fijos %}{% set reparto = repartos_sector.get(costo.id) %}
-<details class="source-catalog"><summary>{{ costo.nombre }} · {{ 'Revisión ' ~ reparto.numero_revision if reparto else 'Sin reparto por sectores' }}</summary>
-{% if reparto %}<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Unidad</th><th>Sector</th><th>Participación</th><th>Aplicación</th></tr></thead><tbody>{% for f in reparto.filas %}<tr><td>{% for u in unidades %}{% if u.id==f.unidad_id %}{{ u.nombre }}{% endif %}{% endfor %}</td><td>{{ f.nombre }}</td><td>{{ f.porcentaje }} %</td><td>{{ 'Por minutos laborales' if f.area_id else 'Pendiente: depósito' }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+<article class="reparto-sector-card">
+<header class="reparto-sector-card-head"><div><h3>{{ costo.nombre }}</h3><span class="reparto-sector-status">{{ 'Revisión ' ~ reparto.numero_revision if reparto else 'Sin reparto por sectores' }}</span></div>
+{% if costo.unidad_negocio_id==unidad_activa.id %}<button type="button" class="table-action reparto-sector-gestionar" data-reparto-abrir="reparto-{{ costo.id }}" data-fierro-icon="gestionar" aria-label="Gestionar reparto de {{ costo.nombre }}">Gestionar</button>{% endif %}</header>
+{% if reparto %}<details class="reparto-sector-detalle" open><summary>Ver distribución guardada</summary><div class="table-wrap"><table class="comercial-table"><thead><tr><th>Unidad</th><th>Sector</th><th>Participación</th><th>Aplicación</th></tr></thead><tbody>{% for f in reparto.filas %}<tr><td>{% for u in unidades %}{% if u.id==f.unidad_id %}{{ u.nombre }}{% endif %}{% endfor %}</td><td>{{ f.nombre }}</td><td>{{ f.porcentaje }} %</td><td><span class="{{ 'reparto-sector-pendiente' if not f.area_id else '' }}">{{ 'Por minutos laborales' if f.area_id else 'Pendiente: depósito' }}</span></td></tr>{% endfor %}</tbody></table></div></details>{% else %}<p class="reparto-sector-help">Configurá los sectores y sus porcentajes para distribuir este gasto.</p>{% endif %}
 {% if costo.unidad_negocio_id==unidad_activa.id %}
-<button type="button" class="table-action" data-reparto-abrir="reparto-{{ costo.id }}" data-fierro-icon="gestionar">Gestionar reparto</button>
 <dialog class="source-dialog reparto-sector-dialog" id="reparto-{{ costo.id }}"><form method="post" action="{{ url_for('admin_comercial.guardar_fuente_costo',origen_gastos='1') }}" data-reparto-form>
 <h3>Reparto · {{ costo.nombre }}</h3><p>Los porcentajes son partes del gasto completo y deben sumar 100 %. Guardar no registra pagos ni activa costos.</p>
 <input type="hidden" name="_csrf_token" value="{{ csrf_token_value }}"><input type="hidden" name="unidad_contexto_id" value="{{ unidad_activa.id }}"><input type="hidden" name="accion" value="guardar_reparto_sector"><input type="hidden" name="costo_fijo_id" value="{{ costo.id }}"><input type="hidden" name="reparto_version" value="{{ reparto.id if reparto else '' }}">
@@ -16,5 +17,5 @@
 <div class="reparto-sector-footer"><button type="button" class="secondary-link" data-reparto-cancelar>Cancelar</button><button class="comercial-primary" type="submit">Confirmar y guardar reparto</button></div>
 </form></dialog>
 {% else %}<p>El reparto se gestiona desde la unidad responsable del gasto.</p>{% endif %}
-</details>{% else %}<p>Creá primero el gasto real en la unidad responsable.</p>{% endfor %}{% endif %}
+</article>{% else %}<p>Creá primero el gasto real en la unidad responsable.</p>{% endfor %}{% endif %}
 </section>

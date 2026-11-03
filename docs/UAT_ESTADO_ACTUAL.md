@@ -2276,3 +2276,8 @@ Aplicar formato +549 XXXXXXXXXX en todos los campos de teléfono argentinos. Agr
 - La macro numérica existía sólo dentro de Fuentes general; se extrae a parcial común y se importa explícitamente desde el bloque de Gastos. Fuentes conserva el mismo formato. No cambia el cálculo ni datos.
 - Validación: 18 pruebas aprobadas. Nueva regresión renderiza admin_gastos.html real con reparto persistido y comprueba porcentajes 80/75 y revisión 1; las anteriores pruebas de rutas sustituían el render, por lo que no detectaron esta falta de macro. Se mantiene el pendiente visual #1 para otro bloque.
 - Publicación sólo integración; deploy manual de staging, sin preparación de base adicional ni cambios en producción.
+
+### 2026-11-03 — Visual de reparto por sectores (pendiente #1)
+- Solicitud explícita de Martín: resolver ahora la visual pendiente. Encabezado y explicación en líneas separadas, tipografía legible, tarjeta con nombre del gasto, revisión y botón Gestionar alineados. El botón conserva engranaje y texto visible, con nombre accesible por gasto. Detalle desplegable abierto inicialmente, tabla alternada, depósito destacado pendiente y adaptación a móvil con desplazamiento horizontal de tabla.
+- En Gastos, se oculta el formulario anterior de distribución para gastos que ya tienen reparto por sectores; otros gastos conservan su formulario. No se cambian porcentajes, cálculos, responsable, obligaciones ni pagos. Emergente y comportamiento de Cancelar/scroll se reutilizan.
+- Validación: 13 pruebas aprobadas de rutas, plantilla real con reparto, ausencia de edición duplicada, formato legacy para otros gastos y reglas de reparto. git diff --check correcto. Sin navegador local disponible para QA visual: validar en staging tras deploy manual.

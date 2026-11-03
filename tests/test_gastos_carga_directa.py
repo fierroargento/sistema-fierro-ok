@@ -55,6 +55,10 @@ def test_render_gastos_con_reparto_guardado(pantalla,reparto):
     env=Environment(loader=ChoiceLoader([DictLoader({'base.html':'{% block extra_head %}{% endblock %}{% block content %}{% endblock %}'}),FileSystemLoader('templates')]),autoescape=True)
     env.globals['url_for']=lambda endpoint,**kw:'/'+endpoint
     html=env.get_template('admin_gastos.html').render(**datos,**contexto(db.session,org.id),organizacion=org,unidad_activa=u,unidades=[u],formatear_centavos_ars=formatear_centavos_ars)
-    assert 'value="80"' in html and 'value="75"' in html
     assert 'Revisión 1' in html
-    assert 'porcentaje_asignacion' in html
+    assert 'data-reparto-abrir=' in html
+    assert 'reparto-sector-card-head' in html
+    assert 'configurar_distribucion_costo_fijo' not in html
+    # El formato anterior sigue disponible para gastos sin reparto sectorial.
+    legacy=env.get_template('admin_gastos.html').render(**datos,reparto_sector_preparado=True,repartos_sector={},areas_reparto=[],organizacion=org,unidad_activa=u,unidades=[u],formatear_centavos_ars=formatear_centavos_ars)
+    assert 'value="80"' in legacy and 'value="75"' in legacy
