@@ -78,7 +78,7 @@ def asegurar_regla_desde_ajuste(regla_ajuste, *, ReglaObligacionCostoProductivo,
 
 def generar_obligaciones_recurrentes(regla, *, ObligacionCostoProductivo,
                                       CostoFijoVersion, db_session, hoy=None,
-                                      usuario_id=None):
+                                      usuario_id=None, completar_desde_inicio=False):
     """Genera períodos faltantes hasta el horizonte, de forma idempotente."""
     if not regla.activa:
         return []
@@ -95,7 +95,9 @@ def generar_obligaciones_recurrentes(regla, *, ObligacionCostoProductivo,
     if int(version.costo_fijo.organizacion_id) != int(regla.organizacion_id):
         raise ValueError("La versión del costo pertenece a otra organización.")
     creadas = []
-    periodo = inicio
+    # El guardado manual puede completar meses anteriores; el ciclo programado
+    # conserva su horizonte actual y no reconstruye históricos por su cuenta.
+    periodo = regla.periodo_inicio if completar_desde_inicio else inicio
     while periodo <= fin:
         distancia = (periodo.year - regla.periodo_inicio.year) * 12 + periodo.month - regla.periodo_inicio.month
         if distancia >= 0 and distancia % regla.frecuencia_meses == 0:

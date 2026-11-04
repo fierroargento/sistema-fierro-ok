@@ -323,7 +323,7 @@ def procesar_accion_fuente_costo(
         creadas = generar_obligaciones_recurrentes(
             regla, ObligacionCostoProductivo=modelos["ObligacionCostoProductivo"],
             CostoFijoVersion=modelos["CostoFijoVersion"], db_session=db_session,
-            usuario_id=usuario_id,
+            usuario_id=usuario_id, completar_desde_inicio=True,
         )
         return f"Calendario de {costo.nombre} guardado; {len(creadas)} obligaciones generadas."
 

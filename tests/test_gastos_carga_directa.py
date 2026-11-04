@@ -62,3 +62,22 @@ def test_render_gastos_con_reparto_guardado(pantalla,reparto):
     # El formato anterior sigue disponible para gastos sin reparto sectorial.
     legacy=env.get_template('admin_gastos.html').render(**datos,reparto_sector_preparado=True,repartos_sector={},areas_reparto=[],organizacion=org,unidad_activa=u,unidades=[u],formatear_centavos_ars=formatear_centavos_ars)
     assert 'value="80"' in legacy and 'value="75"' in legacy
+
+
+def test_guardar_calendario_completa_octubre_sin_duplicar(pantalla):
+    from datetime import date
+    from services.cuentas_pagar_productivas import configurar_regla_obligacion, generar_obligaciones_recurrentes
+    from models.fuentes_costo_productivo import CostoFijoVersion
+    app,org,u,m,vistas=pantalla
+    costo=CostoFijoProductivo.query.filter_by(unidad_negocio_id=u.id).first()
+    regla=configurar_regla_obligacion(costo,organizacion_id=org.id,frecuencia_meses=1,periodo_inicio='2026-11',dia_vencimiento=1,meses_anticipacion=2,activa=True,observacion=None,usuario_id=None,ReglaObligacionCostoProductivo=ReglaObligacionCostoProductivo,db_session=db.session)
+    args=dict(ObligacionCostoProductivo=ObligacionCostoProductivo,CostoFijoVersion=CostoFijoVersion,db_session=db.session,hoy=date(2026,11,4))
+    assert len(generar_obligaciones_recurrentes(regla,**args))==3
+    originales={x.id:x.importe_centavos for x in ObligacionCostoProductivo.query.all()}
+    regla.periodo_inicio=date(2026,9,1);db.session.commit()
+    assert generar_obligaciones_recurrentes(regla,**args)==[]
+    nuevas=generar_obligaciones_recurrentes(regla,completar_desde_inicio=True,**args)
+    assert {x.periodo for x in nuevas}=={date(2026,9,1),date(2026,10,1)}
+    assert generar_obligaciones_recurrentes(regla,completar_desde_inicio=True,**args)==[]
+    assert ObligacionCostoProductivo.query.count()==5
+    assert {x.id:x.importe_centavos for x in ObligacionCostoProductivo.query.all() if x.id in originales}==originales
