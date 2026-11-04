@@ -979,13 +979,20 @@ def procesar_accion_fuente_costo(
             "El costo fijo",
             unidad_activa.id,
         )
-        if formulario.get("nombre") is not None:
-            costo.nombre = str(formulario.get("nombre") or "").strip()
-        if formulario.get("categoria") is not None:
-            costo.categoria = str(formulario.get("categoria") or "").strip()
+        for campo, limite in (("nombre", 200), ("categoria", 100)):
+            if formulario.get(campo) is not None:
+                valor = str(formulario.get(campo) or "").strip()
+                if not valor or len(valor) > limite:
+                    raise ValueError(f"Completá {campo} (máximo {limite} caracteres).")
+                setattr(costo, campo, valor)
         if formulario.get("integra_costo_produccion") is not None:
+            from services.reparto_gasto_sector import actuales
             integra = formulario.get("integra_costo_produccion") == "1"
             criterio = str(formulario.get("criterio_distribucion") or "").strip().lower()
+            if (integra != costo.integra_costo_produccion or criterio != costo.criterio_distribucion) and any(
+                r.costo_fijo_id == costo.id for r in actuales(db_session, organizacion.id)
+            ):
+                raise ValueError("Este gasto se distribuye desde Reparto por unidad y sector.")
             permitidos = {"horas_productivas", "horas_maquina", "unidades_producidas", "porcentaje", "importe_directo", "sin_distribuir"}
             if criterio not in permitidos:
                 raise ValueError("El criterio de distribucion no es valido.")

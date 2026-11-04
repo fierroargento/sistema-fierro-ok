@@ -2285,3 +2285,8 @@ Aplicar formato +549 XXXXXXXXXX en todos los campos de teléfono argentinos. Agr
 ### 2026-11-03 — Gastos: presentación de asignar responsable
 - Se completa el bloque visual pendiente de Asignar un gasto existente sin unidad responsable: resumen alineado a izquierda, cuerpo blanco con margen, explicación breve, código con ejemplo y ayuda accesible, unidad destino visible y botones Cancelar/Asignar alineados a derecha. Adaptación móvil en una columna.
 - Se mantienen acción, confirmación, validación de código y cancelación sin guardar; contexto de unidad explícito en el formulario. Sin cambios en datos, reparto ni pagos. Regresión: 4 pruebas de rutas y render de Gastos aprobadas; diff sin errores. Sin QA visual en navegador local. Deploy manual de staging, sin preparación de base.
+
+### 2026-11-04 — Editor general de gastos
+- Martín detecta que Gestionar sólo ofrece nueva versión de importe. Se amplía formulario existente con nombre, categoría, tratamiento y criterio de distribución, mostrando naturaleza, periodicidad, importe, cobertura y comprobante actuales. Se conserva acción de versionado existente y Cancelar sin envío.
+- Gastos con reparto sectorial conservan tratamiento/distribución en el editor de sectores; validación servidor impide sobrescribirlos desde importe. Nombre/categoría obligatorios y con límites de longitud. No se modifica IPC, calendario, pagos ni obligaciones.
+- GitHub restablecido; bloque para publicación sólo en integración y deploy manual de staging. Sin preparación de base adicional ni modificación remota de datos. Compileall y git diff --check correctos; 13 pruebas de carga, plantilla real y reparto aprobadas tras restablecer dependencias. Sin QA visual en navegador.
