@@ -2296,3 +2296,23 @@ Aplicar formato +549 XXXXXXXXXX en todos los campos de teléfono argentinos. Agr
 - El guardado manual del calendario ahora solicita completar desde periodo_inicio hasta el horizonte actual más anticipación. Se reutiliza la comprobación de existencia por gasto/período: no duplica ni altera obligaciones existentes ni pagos. El ciclo programado mantiene su alcance actual; no se activa scheduler ni consulta externa IPC.
 - Se conserva la versión de importe vigente como fuente de las obligaciones generadas, igual que el motor anterior. Para alquiler_salon, base 750.000 anterior al ajuste de septiembre: validación IPC conectada pendiente por decisión de Martín; no afirmar importe ajustado ni obligación pagada.
 - Validación: 14 pruebas aprobadas, nueva regresión SQLite reproduce noviembre–enero existentes, cambio de inicio a septiembre, generación de septiembre/octubre, idempotencia y conservación de importes existentes; ciclo normal no completa histórico. Sin preparación de base; deploy manual sólo staging.
+
+
+## 2026-11-05 · Pintura automática desde componentes (LOCAL, pendiente de publicación)
+
+Pedido: casillero Producto pintado para estimar polvo sin calcular cada SKU a mano.
+Implementado en editor de Composición: casillero desactivado por defecto, insumo consumible por kg con precio vigente existente, rendimiento inicial editable 10 m²/kg y superficie manual opcional para formas no reconocidas o pintura parcial. El cálculo desarrollado contempla planchuelas en pulgadas y redondos DN en mm, cantidad, longitud, caras, cantos y extremos. Tornillos/tarugos excluidos; geometrías desconocidas requieren superficie explícita, nunca cero silencioso. El consumo se integra a las líneas existentes, sin duplicar insumo ni crear gastos o pagos. Configuración en JSON del despiece actual, sin migración. Cambiar componentes recalcula al calcular/guardar; cancelar no persiste. No se marca automáticamente ningún SKU.
+
+Dato usuario: polvo $10.900/kg, rendimiento aproximado 10 m²/kg. Solo KITPACH, PPH-3, PPH-6, PPH-4, KPADES pintados; B4030H no. Referencia PPH-3: 3 planchuelas 3/4 x 1/8 de 18 cm y una 1 x 1/8 de 44,5 cm => 0,04995894 m², 0,004996 kg y $54,46. Estimación, no consumo medido. Gas del primer tubo 45 kg pendiente de cuantificar (al menos 30 horneadas); no incluido en polvo.
+
+Validación local: 5 pruebas de geometría/consumo y rechazos pasan con unittest; sintaxis JS/Python correcta. Dos pruebas de integración escritas para expansión, duplicación y aislamiento; no ejecutadas porque entorno sin pytest/Flask/SQLAlchemy y descarga de dependencias bloqueada por timeout. Sin validación de navegador ni deploy. GitHub no expuesto en sesión; cambios NO publicados. Base remota conocida 9b28796e35c6cb7c4c8e2444b6ae60b3e04a11fb, rama integracion-saas-2026-09. No usar HEAD local antiguo como padre de publicación.
+
+
+## 2026-11-05 · Acceso Proveedores en Base de Datos (LOCAL)
+
+Se agregó el acceso Base de Datos → Proveedores a la vista existente admin_compras.panel?vista=proveedores, sin duplicar proveedores ni formularios. El menú abre Base de Datos y resalta Proveedores en consulta/importación; Compras conserva sus demás accesos. Pendiente publicación junto con pintura automática: herramientas GitHub ausentes en el registro de sesión, causa de desconexión no observable. No se atribuye a Render ni a permisos del repositorio.
+
+
+### Publicación preparada · pintura y acceso Proveedores
+
+GitHub reconectado y cabecera remota 9b28796e35c6cb7c4c8e2444b6ae60b3e04a11fb verificada. Se prepara publicación exclusiva en integracion-saas-2026-09. Se agregó versión de caché del JS. Verificación final: 6 pruebas unitarias de geometría y validación pasan; sintaxis JS/Python y diff sin errores. Integración con base de datos y navegador siguen pendientes por dependencias no disponibles (nuevo intento de descarga dio timeout). Requiere deploy manual y prueba PPH-3 en staging. Crear/reutilizar un único consumible Pintura en polvo, kg, precio 10.900; no se inserta ningún insumo o precio automáticamente. El casillero no activa SKUs por su nombre.

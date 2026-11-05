@@ -140,6 +140,7 @@ def calcular(plan,org):
     detalles=preparar_detalles(construir_detalles(perfil))
     return {'detalles':detalles,'total_centavos':sum(d['subtotal_centavos'] for d in detalles),'huella':huella_detalles(detalles),'moneda':'ARS',
         'consumos':[{'nombre':d['recurso'].nombre,'cantidad':str(d['cantidad']),'unidad':d['recurso'].unidad_medida} for d in plan['lineas']['insumos']],
+        'pintura':(plan.get('despiece') or {}).get('pintura'),
         'tiempo_segundos':str(sum((Decimal(t['segundos']) for t in (plan.get('despiece') or {}).get('tareas',[])),Decimal(0)))}
 
 

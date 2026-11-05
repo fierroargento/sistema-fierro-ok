@@ -8,6 +8,17 @@
 </div>
 <section id="fabricacion-piezas" data-fabricacion-grupo="piezas" role="tabpanel" aria-labelledby="fabricacion-tab-piezas">
 <p class="productos-muted">Cargá las piezas del producto: material, medida y cantidad. Por ejemplo, 24 varillas de 39,5 cm. El consumo se suma automáticamente por material, sin agregar merma.</p>
+<fieldset class="producto-pintura">
+<legend>Pintura en polvo</legend>
+<label><input type="checkbox" name="producto_pintado_ui"> Producto pintado</label>
+<div id="producto-pintura-config" hidden>
+<p class="productos-muted">Elegí el consumible Pintura en polvo, creado una sola vez en <a href="{{ url_for('admin_compras.materiales') }}">Materiales y precios</a>, con unidad kg y su precio vigente.</p>
+<label>Pintura (precio vigente por kg)<select name="pintura_insumo_ui"><option value="">Seleccionar pintura</option></select></label>
+<label>Rendimiento estimado (m²/kg)<input type="number" name="pintura_rendimiento_ui" value="10" min="0.000001" max="1000000" step="any"></label>
+<label>Superficie manual (m²) · opcional<input type="number" name="pintura_superficie_ui" min="0.000001" max="1000000" step="any"></label>
+<p class="productos-muted">Se estima la superficie de planchuelas en pulgadas y redondos DN en mm desde sus largos y cantidades, incluyendo caras y cantos. Tornillos y tarugos quedan fuera. Para otras formas o pintura parcial, ingresá la superficie total a pintar. No incluye gas ni mano de obra.</p>
+</div>
+</fieldset>
 <div id="producto-piezas-lista" class="producto-despiece-lista"></div><button type="button" class="secondary-link" id="producto-pieza-agregar">Agregar componente</button>
 </section>
 <section id="fabricacion-tareas" data-fabricacion-grupo="tareas" role="tabpanel" aria-labelledby="fabricacion-tab-tareas" hidden>

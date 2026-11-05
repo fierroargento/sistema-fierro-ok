@@ -155,10 +155,26 @@
       form.querySelectorAll("[data-costo-manual]").forEach(n=>{n.hidden=!manual;});
       document.getElementById("producto-costo-titulo").textContent=manual?"Precio de costo e IVA":"IVA del producto · costo construido en ARS";
     }
-    if(habilitado)filtrarRecursos();
+    if(habilitado){filtrarRecursos();estadoPintura();}
+  }
+  function estadoPintura() {
+    const activa=form.elements.producto_pintado_ui.checked;
+    const config=document.getElementById("producto-pintura-config");config.hidden=!activa;
+    config.querySelectorAll("input,select").forEach(c=>c.disabled=!activa||form.elements.tipo.value!=="produccion");
+  }
+  function prepararPintura(valor={}) {
+    const selector=form.elements.pintura_insumo_ui;
+    selector.replaceChildren(new Option("Seleccionar pintura", ""));
+    listaRecursos("insumos").filter(r=>["kg","kilogramo","kilogramos"].includes(r.unidad.trim().toLowerCase())).forEach(r=>selector.add(new Option(r.codigo+" · "+r.nombre,String(r.id))));
+    selector.value=String(valor.insumo_id||"");
+    form.elements.producto_pintado_ui.checked=!!valor.activa;
+    form.elements.pintura_rendimiento_ui.value=valor.rendimiento_m2_kg||"10";
+    form.elements.pintura_superficie_ui.value=valor.superficie_manual_m2||"";
+    estadoPintura();
   }
   function actual() {
     const d={unidad_id:form.elements.unidad_produccion_ui.value,piezas:piezas.map(p=>({...p})),tareas:tareas.map(t=>({...t})),tarifa_id:form.elements.tarifa_produccion_ui.value};
+    if(form.elements.producto_pintado_ui.checked)d.pintura={activa:true,insumo_id:form.elements.pintura_insumo_ui.value,rendimiento_m2_kg:form.elements.pintura_rendimiento_ui.value,superficie_manual_m2:form.elements.pintura_superficie_ui.value};
     for(const [g,cfg] of Object.entries(grupos))d[g]=Array.from(panel.querySelector('[data-fabricacion-filas="'+g+'"]').children).map(f=>{
       const v={id:f.dataset.id||null,observacion:f.dataset.observacion||""};
       f.querySelectorAll("[data-campo]").forEach(c=>{v[c.dataset.campo]=c.value;});return v;
@@ -201,7 +217,7 @@
     llenarSelector(form.elements.tarifa_produccion_ui,"operaciones",tarifa);
     const opciones=listaRecursos("operaciones");if(!tarifa&&tarifasPrevias.size<2&&opciones.length===1)form.elements.tarifa_produccion_ui.value=String(opciones[0].id);
     for(const g of Object.keys(grupos)){panel.querySelector('[data-fabricacion-filas="'+g+'"]').replaceChildren();(d[g]||[]).forEach(f=>agregar(g,f));}
-    renderListas();invalidar();tab("piezas");
+    prepararPintura(fisico.pintura||{});renderListas();invalidar();tab("piezas");
     const aviso=document.getElementById("producto-fabricacion-error");aviso.hidden=true;
     if(estado&&!estado.actual)error("La composición cambió desde Costos. Se muestran sus consumos actuales; revisá las piezas y tareas antes de guardar.");
     if(tarifasPrevias.size>1&&!fisico.tarifa_id)error("La composición anterior utiliza varias tarifas. Elegí la tarifa del taller y revisá las tareas antes de guardar.");
@@ -212,6 +228,7 @@
     return false;
   }
   if(habilitado) {
+    form.elements.producto_pintado_ui.addEventListener("change",estadoPintura);
     document.getElementById("producto-pieza-agregar").addEventListener("click",()=>{if(piezas.length<100)abrirPieza();});
     document.getElementById("producto-tarea-agregar").addEventListener("click",()=>{if(tareas.length<100)abrirTarea();});
     for(const [dlg,f] of [[piezaDialog,piezaForm],[tareaDialog,tareaForm]]){
@@ -253,6 +270,8 @@
         const destino=document.getElementById("producto-fabricacion-resultado");destino.replaceChildren();
         const formato=n=>(Number(n)/100).toLocaleString("es-AR",{style:"currency",currency:"ARS"});
         const lista=document.createElement("ul");(d.detalles||[]).forEach(f=>{const li=document.createElement("li");li.textContent=f.concepto+" · "+f.cantidad+" "+f.unidad_medida+" · "+formato(f.subtotal_centavos);lista.appendChild(li);});
+        const formatoNumero=n=>Number(n).toLocaleString("es-AR",{maximumFractionDigits:6});
+        if(d.pintura){const estimacion=document.createElement("p");estimacion.className="productos-muted";estimacion.textContent="Pintura estimada: "+formatoNumero(d.pintura.superficie_m2)+" m² · "+formatoNumero(d.pintura.consumo_kg)+" kg · rendimiento "+formatoNumero(d.pintura.rendimiento_m2_kg)+" m²/kg.";destino.appendChild(estimacion);}
         const total=document.createElement("strong");resultado=formato(d.total_centavos)+" por unidad de medida del producto";total.textContent="Costo unitario: "+resultado;destino.append(lista,total);destino.hidden=false;
         document.getElementById("producto-fabricacion-estado").textContent="Cálculo terminado. Todavía no se guardó ningún cambio.";
       } catch(err) {
@@ -276,7 +295,9 @@
       if(form.elements.tipo.value!=="produccion")return true;
       if(!habilitado)return false;
       document.getElementById("producto-fabricacion-error").hidden=true;
-      const d=actual();if(!piezas.length&&!tareas.length)return error("Agregá los componentes o las tareas del producto.");
+      const d=actual();
+      if(d.pintura&&(!d.pintura.insumo_id||numero(d.pintura.rendimiento_m2_kg)<=0||!Number.isFinite(numero(d.pintura.rendimiento_m2_kg)))){tab("piezas");return error("Seleccioná la pintura y un rendimiento mayor que cero.");}
+      if(!piezas.length&&!tareas.length)return error("Agregá los componentes o las tareas del producto.");
       if(tareas.length&&(!d.tarifa_id||(form.elements.tarifa_produccion_ui.selectedOptions[0]&&form.elements.tarifa_produccion_ui.selectedOptions[0].disabled))){tab("tareas");return error("Seleccioná la tarifa de mano de obra del taller.",form.elements.tarifa_produccion_ui);}
       for(const c of panel.querySelectorAll("input[data-campo],select[data-campo]")) {
         if(!c.validity.valid || (c.tagName==="SELECT" && c.selectedOptions[0]&&c.selectedOptions[0].disabled))return error("Revisá los recursos, cantidades y tiempos de fabricación.",c);

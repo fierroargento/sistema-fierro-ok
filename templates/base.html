@@ -37,14 +37,16 @@
             {% if rol_actual == "admin" %}
             {% set productos_abiertos = (request.endpoint or '').startswith('admin_productos.') %}
             {% set clientes_abiertos = request.endpoint == 'admin_crm.panel' and request.args.get('vista') == 'clientes' %}
-            <details class="menu-group"{% if productos_abiertos or clientes_abiertos %} open{% endif %}>
+            {% set proveedores_abiertos = (request.endpoint == 'admin_compras.panel' and request.args.get('vista') == 'proveedores') or request.endpoint == 'admin_compras.importar_proveedores' or (request.endpoint == 'admin_compras.guardar' and request.args.get('vista') == 'proveedores') %}
+            <details class="menu-group"{% if productos_abiertos or clientes_abiertos or proveedores_abiertos %} open{% endif %}>
                 <summary>Base de Datos</summary>
                 <div class="menu-children">
                     <a href="{{ url_for('admin_productos.panel') }}"{% if productos_abiertos %} aria-current="page"{% endif %}>Productos</a>
                     <a href="{{ url_for('admin_crm.panel', vista='clientes') }}"{% if clientes_abiertos %} aria-current="page"{% endif %}>Clientes</a>
+                    <a href="{{ url_for('admin_compras.panel', vista='proveedores') }}"{% if proveedores_abiertos %} aria-current="page"{% endif %}>Proveedores</a>
                 </div>
             </details>
-            {% set compras_abiertas = (request.endpoint or '').startswith('admin_compras.') or request.endpoint == 'admin_comercial.fuentes_costos' or (request.endpoint == 'admin_comercial.importar_fuente_costeo' and (request.view_args or {}).get('tipo') == 'insumos') %}
+            {% set compras_abiertas = ((request.endpoint or '').startswith('admin_compras.') and not proveedores_abiertos) or request.endpoint == 'admin_comercial.fuentes_costos' or (request.endpoint == 'admin_comercial.importar_fuente_costeo' and (request.view_args or {}).get('tipo') == 'insumos') %}
             {% set personal_abierto = (request.endpoint or '').startswith('admin_personal.') or (request.endpoint or '').startswith('admin_personas.') or (request.endpoint == 'admin_comercial.importar_fuente_costeo' and (request.view_args or {}).get('tipo') == 'empleados') %}
             {% set contabilidad_abierta = (request.endpoint or '').startswith('admin_contabilidad.') %}
             {% set tesoreria_abierta = request.endpoint == 'admin_comercial.cuentas_pagar' or (request.endpoint or '').startswith('admin_tesoreria.') %}

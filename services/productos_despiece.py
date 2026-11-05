@@ -55,6 +55,7 @@ def expandir(valor,session,org,perfil,*,lectura=None):
     salida=dict(valor);salida['insumos']=[];salida['operaciones']=[]
     despiece={'piezas':[],'tareas':[],'tarifa_id':valor.get('tarifa_id') or None}
     consumos={}
+    piezas_pintura=[]
     for p in piezas:
         if not isinstance(p,dict):raise ValueError('Revisá los componentes del producto.')
         ident=str(p.get('insumo_id') or '')
@@ -81,6 +82,23 @@ def expandir(valor,session,org,perfil,*,lectura=None):
         consumos[int(ident)]=consumos.get(int(ident),Decimal(0))+consumo
         despiece['piezas'].append({'insumo_id':int(ident),'nombre':nombre,'cantidad':str(cantidad),'modo':modo,
             'largo_cm':str(largo) if largo is not None else '', 'rendimiento':str(rendimiento) if rendimiento is not None else ''})
+        piezas_pintura.append((despiece['piezas'][-1],recurso.nombre))
+    pintura=valor.get('pintura')
+    if pintura is not None and not isinstance(pintura,dict):
+        raise ValueError('Revisá la configuración de pintura.')
+    if pintura and pintura.get('activa') is not False:
+        from services.pintura_producto import calcular
+        ident=str(pintura.get('insumo_id') or '')
+        if not ident.isdigit():raise ValueError('Seleccioná el insumo de pintura en polvo.')
+        recurso=lectura.recurso(InsumoProductivo,int(ident)) if lectura is not None else session.query(InsumoProductivo).filter_by(id=int(ident),organizacion_id=org).first()
+        if recurso is None or recurso.tipo!='consumible' or recurso.unidad_medida.strip().lower() not in {'kg','kilogramo','kilogramos'}:
+            raise ValueError('La pintura debe ser un insumo consumible cotizado por kilogramo de tu organización.')
+        if int(ident) in consumos:raise ValueError('La pintura ya está cargada como componente. Quitala antes de activar el cálculo automático.')
+        superficie,kg,rendimiento=calcular(pintura,piezas_pintura)
+        consumos[int(ident)]=kg
+        despiece['pintura']={'activa':True,'insumo_id':int(ident),'rendimiento_m2_kg':str(rendimiento),
+            'superficie_manual_m2':str(pintura.get('superficie_manual_m2') or '').strip(),
+            'superficie_m2':str(superficie),'consumo_kg':str(kg)}
     previos={r.insumo_id:r for r in perfil.insumos_costeo} if perfil else {}
     for ident,consumo in consumos.items():
         consumo=consumo.quantize(Decimal('0.000001'),rounding=ROUND_HALF_UP)
