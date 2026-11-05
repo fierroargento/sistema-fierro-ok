@@ -253,21 +253,11 @@ def usar_en_costo(cotizacion,p,org,unidad,version_esperada,session,usuario):
 
 def plantilla():
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment
-    from openpyxl.worksheet.datavalidation import DataValidation
     w=Workbook();s=w.active;s.title='Productos';s.append([lector.etiqueta(c) for c in ['codigo_proveedor','sku','descripcion','unidad_medida','tipo',*CAMPOS]])
     for col in s.columns:s.column_dimensions[col[0].column_letter].width=30
-    s.freeze_panes='C2';s.auto_filter.ref='A1:J501';s.sheet_view.showGridLines=False
-    for cell in s[1]:
-        cell.font=Font(bold=True,color='FFFFFF');cell.fill=PatternFill('solid',fgColor='17566D');cell.alignment=Alignment(wrap_text=True)
-    s.column_dimensions['C'].width=50;s.row_dimensions[1].height=32
-    for columna,opciones in [('D','kg,metro,m2,unidad,litro'),('E','Materia prima,Consumible,Servicio productivo,Embalaje productivo'),('G','unitario,bulto'),('I','ARS,USD')]:
-        validacion=DataValidation(type='list',formula1='"'+opciones+'"');validacion.showErrorMessage=True;validacion.error='Elegí una opción de la lista.';s.add_data_validation(validacion);validacion.add(f'{columna}2:{columna}50001')
+    s.freeze_panes='A2'
     a=w.create_sheet('Cómo usar')
     for t in ['Pegá la lista del proveedor en Productos, sin cambiar encabezados.','Código proveedor identifica el vínculo. SKU es opcional: código interno del material.','Si usás vínculos de Productos previos, su fuente debe estar asignada explícitamente a esta unidad.','Tildá sólo los campos que querés actualizar. Vacíos conservan datos; cero es un precio válido.','Primera cotización: completá Precio proveedor sin IVA, Cotización proveedor (unitario/bulto) y Moneda proveedor.','Bulto requiere Cantidad por bulto. Los precios son sin IVA.','Para altas, tildá Crear materiales nuevos al importar y completá Descripción, Unidad de medida y Tipo. Sin esa opción, códigos sin vínculo se ignoran.', 'Tipo: materia_prima, consumible, servicio_productivo o embalaje_productivo. Pintura en polvo: consumible y kg.', 'SKU es el código interno del material; opcional en altas, se genera si falta. Código proveedor es el código del ARTÍCULO del proveedor, no el identificador de la empresa.', 'Medidas en origen: texto informativo como Caja de 20 kg. Cantidad por bulto debe contener 20 kg; no se deduce del texto.', 'La revisión no guarda nada. Confirmar crea materiales y vínculos nuevos junto con las cotizaciones; no crea productos de venta, stock ni pagos.','Confirmar guarda cotizaciones independientes. Para cambiar el costo, elegí Usar en costo después.']:a.append([t])
-    a.column_dimensions['A'].width=110
-    for fila in a:
-        fila[0].alignment=Alignment(wrap_text=True,vertical='top');a.row_dimensions[fila[0].row].height=42
     for col in ['A','B']:
         s.column_dimensions[col].number_format='@'
         for row in range(2,502):s[f'{col}{row}'].number_format='@'
