@@ -100,10 +100,10 @@ def _igual(c,plan):
     return True
 
 
-def revisar(filas,campos,p,org,unidad,session,propuestos=None):
+def revisar(filas,campos,p,org,unidad,session,propuestos=None,permitir_altas=False):
     listo(session);proveedor_valido(p,org,unidad,session)
     if not campos or any(c not in CAMPOS for c in campos):raise ValueError('Elegí campos de precio válidos.')
-    cat,insumos=catalogo(org,unidad,p.id,session);vista=[];ignoradas=0;vistas=set()
+    cat,insumos=catalogo(org,unidad,p.id,session);vista=[];ignoradas=0;vistas=set();altas_codigos=set();altas_nombres=set()
     ocupados={l.insumo_id for l in vinculos(org,unidad,p.id,session)}|{r['insumo_id'] for r in cat.values()}
     for propuesto in propuestos or []:
         codigo=str(propuesto['codigo']).strip().upper();i=_material(propuesto['insumo_id'],org,unidad,session)
@@ -121,12 +121,35 @@ def revisar(filas,campos,p,org,unidad,session,propuestos=None):
         if ref is None and sku and not codigo:
             opciones=por_sku.get(sku.casefold(),[])
             if len(opciones)==1:ref=opciones[0]
+        if ref is None and permitir_altas:
+            if len(vista)>=500:raise ValueError('La lista supera 500 artículos revisados. Dividila en bloques.')
+            r=dict(numero=fila['numero'],codigo=codigo,insumo_id=None,material=v.get('descripcion') or codigo,
+                valores={c:v[c] for c in [*campos,'descripcion','unidad_medida','tipo','sku'] if c in v},errores=[],vinculo_id=None,cambia=False)
+            try:
+                from services.altas_lista_proveedor import preparar as preparar_alta
+                if fila.get('formulas'):raise ValueError('Pegá valores, no fórmulas, en los campos seleccionados.')
+                alta=preparar_alta(v,p.id,org,session)
+                if (codigo.upper() in altas_codigos or alta['codigo'].casefold() in altas_codigos
+                    or alta['nombre'].casefold() in altas_nombres):raise ValueError('El artículo nuevo está repetido. Dejá una sola fila por material.')
+                altas_codigos.update([codigo.upper(),alta['codigo'].casefold()]);altas_nombres.add(alta['nombre'].casefold())
+                if not all(str(r['valores'].get(c) or '').strip() for c in ['precio_proveedor','base_precio','moneda_proveedor']):
+                    raise ValueError('Alta: seleccioná y completá precio, cotización unitario/bulto y moneda.')
+                r.update(alta=alta,plan=_plan(r['valores'],None),anterior=None,version_actual=None,cambia=True)
+                r['huella']=_firma([alta,codigo.upper(),org,unidad,p.id])
+            except ValueError as e:r['errores']=[str(e)]
+            vista.append(r);continue
         if ref is None:ignoradas+=1;continue
         if len(vista)>=500:raise ValueError('La lista supera 500 coincidencias. Dividila en bloques de hasta 500.')
         i=insumos[ref['insumo_id']];r=dict(numero=fila['numero'],codigo=ref['codigo'],insumo_id=i.id,material=i.nombre,valores={c:v[c] for c in campos if c in v},errores=[],vinculo_id=ref['vinculo_id'])
-        for clave in ('_codimat','_error_codimat'):
+        for clave in ('_codimat','_error_codimat') + (('descripcion','unidad_medida','tipo','sku') if permitir_altas else ()):
             if clave in v:r['valores'][clave]=v[clave]
         try:
+            if permitir_altas:
+                from services.altas_lista_proveedor import unidad as normalizar_unidad
+                if v.get('unidad_medida') and normalizar_unidad(v['unidad_medida'])!=normalizar_unidad(i.unidad_medida):
+                    raise ValueError('La unidad de medida no coincide con el material vinculado. No se convirtió ni cambió su unidad.')
+                if v.get('tipo') and str(v['tipo']).strip().lower().replace(' ', '_')!=i.tipo:
+                    raise ValueError('El tipo no coincide con el material vinculado. Revisá su ficha.')
             if v.get('_error_codimat'):raise ValueError(v['_error_codimat'][0])
             if sku and i.codigo.casefold()!=sku.casefold() and sku.casefold() not in ref['skus']:raise ValueError('SKU/código de material y código de proveedor no coinciden.')
             if fila.get('formulas'):raise ValueError('Pegá valores, no fórmulas, en los campos seleccionados.')
@@ -146,7 +169,9 @@ def revisar(filas,campos,p,org,unidad,session,propuestos=None):
             r['huella']=_firma([i.id,i.codigo,i.nombre,i.activo,i.unidad_negocio_id,ref,actual.id if actual else None,_datos(actual)])
         except ValueError as e:r['errores']=[str(e)];r['cambia']=False
         vista.append(r)
-    return dict(filas=vista,ignoradas=ignoradas,campos=list(campos))
+    resultado=dict(filas=vista,ignoradas=ignoradas,campos=list(campos))
+    if permitir_altas:resultado['permitir_altas']=True
+    return resultado
 
 def firmar(vista,p,org,unidad,usuario,secreto):
     if vista.get('pendientes'):raise ValueError('Elegí los materiales pendientes antes de confirmar.')
@@ -177,16 +202,22 @@ def confirmar(token,p,org,unidad,usuario,secreto,session):
         config=configuracion(org,unidad,p.id,session,bloquear=True)
         if (config.reglas if config else None)!=anterior['codimat']['config_anterior']:raise ValueError('Las bonificaciones cambiaron. Volvé a revisar la lista.')
     # Bloquear material/vínculos antes de releer para detectar revisiones antiguas.
-    ids=sorted({f['insumo_id'] for f in anterior['filas']})
+    if anterior.get('permitir_altas'):
+        session.query(type(p)).filter_by(id=p.id,organizacion_id=org).with_for_update().one()
+    ids=sorted({f['insumo_id'] for f in anterior['filas'] if f['insumo_id'] is not None})
     session.query(I).filter(I.id.in_(ids),I.organizacion_id==org,I.unidad_negocio_id==unidad).order_by(I.id).with_for_update().all()
     session.query(L).filter(L.insumo_id.in_(ids),L.proveedor_id==p.id,L.unidad_negocio_id==unidad).order_by(L.id).with_for_update().all()
     filas=[dict(numero=f['numero'],valores=f['valores']|{'codigo_proveedor':f['codigo']},formulas=[]) for f in anterior['filas']]
-    nueva=revisar(filas,anterior['campos'],p,org,unidad,session,propuestos=anterior.get('vinculos_propuestos'))
+    nueva=revisar(filas,anterior['campos'],p,org,unidad,session,propuestos=anterior.get('vinculos_propuestos'),permitir_altas=bool(anterior.get('permitir_altas')))
     if _firma(nueva['filas'])!=_firma(anterior['filas']):raise ValueError('Cambió un vínculo, material o cotización. Volvé a revisar; no se guardó nada.')
     n=0
     for f in nueva['filas']:
         if not f['cambia']:continue
-        l=vincular(_material(f['insumo_id'],org,unidad,session),p,f['codigo'],org,unidad,session)
+        if f.get('alta'):
+            from services.altas_lista_proveedor import guardar as guardar_alta
+            material=guardar_alta(f['alta'],org,unidad,session)
+        else:material=_material(f['insumo_id'],org,unidad,session)
+        l=vincular(material,p,f['codigo'],org,unidad,session)
         cotizacion=_guardar_cotizacion(l,f['plan'],str(anterior.get('referencia') or 'Importación de lista')[:120],session)
         if f['valores'].get('_codimat'):
             from models.listas_proveedores_compra import CalculoCotizacionProveedor
@@ -222,11 +253,21 @@ def usar_en_costo(cotizacion,p,org,unidad,version_esperada,session,usuario):
 
 def plantilla():
     from openpyxl import Workbook
-    w=Workbook();s=w.active;s.title='Productos';s.append([lector.etiqueta(c) for c in ['codigo_proveedor','sku',*CAMPOS]])
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.worksheet.datavalidation import DataValidation
+    w=Workbook();s=w.active;s.title='Productos';s.append([lector.etiqueta(c) for c in ['codigo_proveedor','sku','descripcion','unidad_medida','tipo',*CAMPOS]])
     for col in s.columns:s.column_dimensions[col[0].column_letter].width=30
-    s.freeze_panes='A2'
+    s.freeze_panes='C2';s.auto_filter.ref='A1:J501';s.sheet_view.showGridLines=False
+    for cell in s[1]:
+        cell.font=Font(bold=True,color='FFFFFF');cell.fill=PatternFill('solid',fgColor='17566D');cell.alignment=Alignment(wrap_text=True)
+    s.column_dimensions['C'].width=50;s.row_dimensions[1].height=32
+    for columna,opciones in [('D','kg,metro,m2,unidad,litro'),('E','Materia prima,Consumible,Servicio productivo,Embalaje productivo'),('G','unitario,bulto'),('I','ARS,USD')]:
+        validacion=DataValidation(type='list',formula1='"'+opciones+'"');validacion.showErrorMessage=True;validacion.error='Elegí una opción de la lista.';s.add_data_validation(validacion);validacion.add(f'{columna}2:{columna}50001')
     a=w.create_sheet('Cómo usar')
-    for t in ['Pegá la lista del proveedor en Productos, sin cambiar encabezados.','Código proveedor identifica el vínculo. SKU es opcional: código interno del material.','Si usás vínculos de Productos previos, su fuente debe estar asignada explícitamente a esta unidad.','Tildá sólo los campos que querés actualizar. Vacíos conservan datos; cero es un precio válido.','Primera cotización: completá Precio proveedor sin IVA, Cotización proveedor (unitario/bulto) y Moneda proveedor.','Bulto requiere Cantidad por bulto. Los precios son sin IVA.','Artículos sin vínculo se ignoran; no se crean productos ni materiales.','Confirmar guarda cotizaciones independientes. Para cambiar el costo, elegí Usar en costo después.']:a.append([t])
+    for t in ['Pegá la lista del proveedor en Productos, sin cambiar encabezados.','Código proveedor identifica el vínculo. SKU es opcional: código interno del material.','Si usás vínculos de Productos previos, su fuente debe estar asignada explícitamente a esta unidad.','Tildá sólo los campos que querés actualizar. Vacíos conservan datos; cero es un precio válido.','Primera cotización: completá Precio proveedor sin IVA, Cotización proveedor (unitario/bulto) y Moneda proveedor.','Bulto requiere Cantidad por bulto. Los precios son sin IVA.','Para altas, tildá Crear materiales nuevos al importar y completá Descripción, Unidad de medida y Tipo. Sin esa opción, códigos sin vínculo se ignoran.', 'Tipo: materia_prima, consumible, servicio_productivo o embalaje_productivo. Pintura en polvo: consumible y kg.', 'SKU es el código interno del material; opcional en altas, se genera si falta. Código proveedor es el código del ARTÍCULO del proveedor, no el identificador de la empresa.', 'Medidas en origen: texto informativo como Caja de 20 kg. Cantidad por bulto debe contener 20 kg; no se deduce del texto.', 'La revisión no guarda nada. Confirmar crea materiales y vínculos nuevos junto con las cotizaciones; no crea productos de venta, stock ni pagos.','Confirmar guarda cotizaciones independientes. Para cambiar el costo, elegí Usar en costo después.']:a.append([t])
+    a.column_dimensions['A'].width=110
+    for fila in a:
+        fila[0].alignment=Alignment(wrap_text=True,vertical='top');a.row_dimensions[fila[0].row].height=42
     for col in ['A','B']:
         s.column_dimensions[col].number_format='@'
         for row in range(2,502):s[f'{col}{row}'].number_format='@'

@@ -142,13 +142,15 @@ def crear_blueprint_compras(*, dependencias):
                     elif accion=='revisar_lista':
                         archivo=request.files.get('archivo_lista')
                         if archivo is None or not archivo.filename:raise ValueError('Seleccioná la planilla XLSX o CSV.')
-                        filas,campos=listas.lector.leer(archivo,campos)
+                        altas=request.form.get('crear_materiales')=='1'
+                        seleccion=[*campos,*('descripcion','unidad_medida','tipo')] if altas else campos
+                        filas,_=listas.lector.leer(archivo,seleccion)
                     else:
                         campos=list(listas.CAMPOS)
                         l=db.session.query(L).filter_by(id=request.form.get('vinculo_id',type=int),organizacion_id=org.id,unidad_negocio_id=unidad.id,proveedor_id=p.id).first()
                         if l is None:raise ValueError('El vínculo no pertenece al proveedor de esta unidad.')
                         filas=[dict(numero=1,valores={c:request.form.get(c,'') for c in campos}|{'codigo_proveedor':l.codigo},formulas=[])]
-                    if accion not in {'revisar_codimat','revisar_vinculos_codimat'}:vista=listas.revisar(filas,campos,p,org.id,unidad.id,db.session)
+                    if accion not in {'revisar_codimat','revisar_vinculos_codimat'}:vista=listas.revisar(filas,campos,p,org.id,unidad.id,db.session,permitir_altas=accion=='revisar_lista' and request.form.get('crear_materiales')=='1')
                     if accion!='revisar_vinculos_codimat':vista['referencia']=(str(archivo.filename)[:120] if accion in {'revisar_lista','revisar_codimat'} else 'Cotización manual')
                     if vista['filas'] and not vista.get('pendientes') and not any(f['errores'] for f in vista['filas']) and (any(f['cambia'] for f in vista['filas']) or 'codimat' in vista):
                         token=listas.firmar(vista,p.id,org.id,unidad.id,usuario.id,current_app.secret_key)

@@ -287,3 +287,38 @@ def test_importes_locales_sin_ambiguedad_ni_valores_no_finitos(listas):
         v=revision(listas,[fila(precio=precio,base='unitario',cantidad='')])
         assert v['filas'][0]['errores']
     assert C.query.count()==0
+
+
+def test_alta_desde_lista_revisa_sin_escribir_y_confirma_sin_costo(listas):
+    c,org,otra,a,b,ps,items,mem = listas
+    valores=dict(codigo_proveedor='00000542000020',sku='POLVO-NEGRO',descripcion='Polvo negro microtexturado',
+        unidad_medida='kg',tipo='consumible',precio_proveedor='178969,66',base_precio='bulto',cantidad_bulto='20',moneda_proveedor='ARS',medidas_origen='Caja de 20 kg')
+    fila=dict(numero=2,valores=valores,formulas=[])
+    antes=I.query.count();precios=V.query.count()
+    vista=s.revisar([fila],s.CAMPOS,ps[0],org.id,a.id,db.session,permitir_altas=True)
+    assert I.query.count()==antes and V.query.count()==precios
+    assert not vista['filas'][0]['errores'] and vista['filas'][0]['alta']['unidad_medida']=='kg'
+    assert vista['filas'][0]['plan']['precio_unitario_centavos']==894848
+    token=s.firmar(vista,ps[0].id,org.id,a.id,1,'secreto')
+    assert s.confirmar(token,ps[0],org.id,a.id,1,'secreto',db.session)==1
+    db.session.commit()
+    nuevo=I.query.filter_by(codigo='polvo-negro',organizacion_id=org.id).one()
+    assert nuevo.tipo=='consumible' and nuevo.unidad_negocio_id==a.id
+    assert V.query.count()==precios  # aplicar al costo es una acción separada
+    assert L.query.filter_by(insumo_id=nuevo.id,proveedor_id=ps[0].id).one().codigo=='00000542000020'
+    with pytest.raises(ValueError):s.confirmar(token,ps[0],org.id,a.id,1,'secreto',db.session)
+    db.session.rollback()
+    assert I.query.filter_by(codigo='polvo-negro').count()==1
+
+
+def test_altas_duplicadas_o_incompletas_no_se_firman(listas):
+    c,org,otra,a,b,ps,items,mem = listas
+    v=dict(codigo_proveedor='POLVO',descripcion='Polvo blanco',unidad_medida='kg',tipo='consumible',precio_proveedor='100',base_precio='unitario',moneda_proveedor='ARS')
+    filas=[dict(numero=n,valores=v,formulas=[]) for n in [2,3]]
+    vista=s.revisar(filas,s.CAMPOS,ps[0],org.id,a.id,db.session,permitir_altas=True)
+    assert vista['filas'][1]['errores']
+    with pytest.raises(ValueError):s.firmar(vista,ps[0].id,org.id,a.id,1,'secreto')
+    vista=s.revisar([dict(numero=2,valores=v|{'descripcion':''},formulas=[])],s.CAMPOS,ps[0],org.id,a.id,db.session,permitir_altas=True)
+    assert vista['filas'][0]['errores']
+    # Compatibilidad: sin habilitar altas se sigue ignorando lo no vinculado.
+    assert s.revisar(filas,s.CAMPOS,ps[0],org.id,a.id,db.session)['ignoradas']==2
