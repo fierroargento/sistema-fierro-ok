@@ -26,3 +26,12 @@ class AltasListaDatosTests(unittest.TestCase):
     def test_unidades_equivalentes(self):
         for entrada,salida in [('Kilogramos','kg'),('metros','metro'),('m²','m2'),('unidades','unidad')]:
             self.assertEqual(unidad(entrada),salida)
+
+    def test_informa_todos_los_faltantes_juntos(self):
+        from services.altas_lista_proveedor import errores_entrada
+        errores=errores_entrada({},4)
+        self.assertEqual(len(errores),7)
+        self.assertTrue(any('Descripción' in e for e in errores))
+        self.assertTrue(any('Moneda' in e for e in errores))
+        self.assertTrue(any('Cotización' in e for e in errores))
+        self.assertEqual(errores_entrada(self.base()|{'precio_proveedor':'100','base_precio':'unitario','moneda_proveedor':'ARS'},4),[])

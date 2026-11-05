@@ -125,6 +125,11 @@ def revisar(filas,campos,p,org,unidad,session,propuestos=None,permitir_altas=Fal
             if len(vista)>=500:raise ValueError('La lista supera 500 artículos revisados. Dividila en bloques.')
             r=dict(numero=fila['numero'],codigo=codigo,insumo_id=None,material=v.get('descripcion') or codigo,
                 valores={c:v[c] for c in [*campos,'descripcion','unidad_medida','tipo','sku'] if c in v},errores=[],vinculo_id=None,cambia=False)
+            from services.altas_lista_proveedor import errores_entrada
+            r['errores']=errores_entrada(r['valores']|{'codigo_proveedor':codigo},p.id)
+            if fila.get('formulas'):r['errores'].append('Pegá valores, no fórmulas, en los campos seleccionados.')
+            if r['errores']:
+                vista.append(r);continue
             try:
                 from services.altas_lista_proveedor import preparar as preparar_alta
                 if fila.get('formulas'):raise ValueError('Pegá valores, no fórmulas, en los campos seleccionados.')

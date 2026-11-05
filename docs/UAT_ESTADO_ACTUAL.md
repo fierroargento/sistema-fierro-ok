@@ -2331,3 +2331,8 @@ Verificación: 4 pruebas puras de validación y normalización pasan. Generador 
 ## 2026-11-05 · Plantilla de proveedores simple
 
 A pedido del usuario se vuelve al formato básico anterior: encabezados comunes, cuadrícula visible, ancho uniforme 30, sin colores, filtros, listas desplegables ni paneles divididos. Se conserva sólo congelar primera fila como antes y códigos como texto. Se mantienen Descripción/Unidad/Tipo y el contrato del importador; no se cambian datos ni validaciones del servidor. Generador XLSX verificado con openpyxl: 10 columnas, encabezados sin relleno, sin autofiltro, sin validaciones desplegables, cuadrícula visible, identificadores de texto.
+
+
+## 2026-11-05 · Correcciones de alta agrupadas
+
+Usuario validó en staging la revisión LAF S.A. / artículo 000000542000020, ESM. HIBRIDO NEGRO MATE X 20KG, consumible kg, caja 20 kg, cotización sin IVA 178969,66 => 8948,48/kg. Aún sin confirmación observada. Pide proponer todas las correcciones juntas: validación de altas ahora devuelve todos los campos faltantes de identificación, descripción, unidad, tipo, precio, base y moneda, además de cantidad por bulto y fórmulas cuando corresponda, en una revisión. No se cambian escrituras ni aplicación de costos. 5 pruebas puras pasan; sintaxis/diff verificados. Integración DB sigue pendiente por dependencias ausentes.
