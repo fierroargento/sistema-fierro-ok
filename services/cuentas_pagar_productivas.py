@@ -138,15 +138,12 @@ def ejecutar_generacion_recurrente(*, ReglaObligacionCostoProductivo,
 
 
 def saldo_obligacion(obligacion):
-    pagado = sum(
-        int(p.importe_centavos) for p in obligacion.pagos
-        if not getattr(p, "anulado", False)
-    )
-    return max(0, int(obligacion.importe_centavos) - pagado)
+    from services.saldo_favor_costos import detalle_saldo
+    return detalle_saldo(obligacion)['saldo']
 
 
-def actualizar_estado(obligacion):
-    saldo = saldo_obligacion(obligacion)
+def actualizar_estado(obligacion, saldo=None):
+    saldo = saldo_obligacion(obligacion) if saldo is None else saldo
     if saldo == 0:
         obligacion.estado = "pagada"
     elif saldo < int(obligacion.importe_centavos):
@@ -158,12 +155,16 @@ def actualizar_estado(obligacion):
 
 def reconciliar_estados_obligaciones(obligaciones, *, db_session=None):
     """Corrige estados históricos usando pagos aplicados como fuente de verdad."""
+    obligaciones=list(obligaciones or [])
+    from services.saldo_favor_costos import calcular_cuenta
+    completos=all(hasattr(ob,'costo_fijo_id') and hasattr(ob,'periodo') and getattr(ob,'id',None) is not None for ob in obligaciones)
+    detalles=calcular_cuenta(obligaciones) if completos else {}
     corregidas = 0
-    for obligacion in obligaciones or []:
+    for obligacion in obligaciones:
         if getattr(obligacion, "estado", None) == "anulada":
             continue
         anterior = obligacion.estado
-        actualizar_estado(obligacion)
+        actualizar_estado(obligacion,detalles[obligacion.id]['saldo'] if completos else None)
         corregidas += int(obligacion.estado != anterior)
     if corregidas and db_session is not None:
         db_session.commit()
@@ -281,9 +282,13 @@ def registrar_pago(obligacion, *, organizacion_id, fecha_pago, importe_centavos,
     if obligacion.estado == "anulada":
         raise ValueError("No se puede pagar una obligación anulada.")
     importe = int(importe_centavos)
-    saldo = saldo_obligacion(obligacion)
-    if importe <= 0 or importe > saldo:
-        raise ValueError("El pago debe ser positivo y no superar el saldo pendiente.")
+    from services.saldo_favor_costos import obligaciones_concepto
+    # Serializa pagos/anulaciones del mismo concepto, incluidos sus arrastres.
+    obligaciones_concepto(obligacion,bloquear=True)
+    if obligacion.estado == "anulada":
+        raise ValueError("No se puede pagar una obligación anulada.")
+    if importe <= 0:
+        raise ValueError("El pago debe ser mayor que cero.")
     pago = PagoObligacionCostoProductivo(
         obligacion=obligacion, fecha_pago=date.fromisoformat(str(fecha_pago)),
         importe_centavos=importe, medio_pago=str(medio_pago or "").strip() or None,
@@ -294,7 +299,8 @@ def registrar_pago(obligacion, *, organizacion_id, fecha_pago, importe_centavos,
     )
     db_session.add(pago)
     db_session.flush()
-    actualizar_estado(obligacion)
+    from services.saldo_favor_costos import actualizar_cuenta
+    actualizar_cuenta(obligacion)
     db_session.commit()
     return pago
 
@@ -311,11 +317,16 @@ def anular_pago(pago, *, organizacion_id, motivo, usuario_id, db_session, ahora_
     if ahora_fn is None:
         from services.fechas import ahora_utc_naive
         ahora_fn = ahora_utc_naive
+    from services.saldo_favor_costos import obligaciones_concepto
+    obligaciones_concepto(pago.obligacion,bloquear=True)
+    if pago.anulado:
+        raise ValueError("El pago ya se encuentra anulado.")
     pago.anulado = True
     pago.motivo_anulacion = motivo_limpio
     pago.fecha_anulacion = ahora_fn()
     pago.anulado_por_usuario_id = usuario_id
-    actualizar_estado(pago.obligacion)
+    from services.saldo_favor_costos import actualizar_cuenta
+    actualizar_cuenta(pago.obligacion)
     db_session.commit()
     return pago
 

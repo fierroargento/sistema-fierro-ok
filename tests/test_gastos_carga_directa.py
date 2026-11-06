@@ -81,3 +81,30 @@ def test_guardar_calendario_completa_octubre_sin_duplicar(pantalla):
     assert generar_obligaciones_recurrentes(regla,completar_desde_inicio=True,**args)==[]
     assert ObligacionCostoProductivo.query.count()==5
     assert {x.id:x.importe_centavos for x in ObligacionCostoProductivo.query.all() if x.id in originales}==originales
+
+
+def test_pago_excedente_se_traslada_y_anulacion_revierte_en_db(pantalla):
+    from datetime import date
+    from services.cuentas_pagar_productivas import registrar_pago, anular_pago, saldo_obligacion
+    from services.saldo_favor_costos import detalle_saldo
+    app,org,u,m,vistas=pantalla
+    costo=CostoFijoProductivo.query.filter_by(organizacion_id=org.id,unidad_negocio_id=u.id).first()
+    noviembre=ObligacionCostoProductivo(organizacion_id=org.id,costo_fijo_id=costo.id,version_costo_id=costo.versiones[0].id,
+        periodo=date(2026,11,1),fecha_vencimiento=date(2026,11,1),importe_centavos=139557850,estado='pendiente')
+    diciembre=ObligacionCostoProductivo(organizacion_id=org.id,costo_fijo_id=costo.id,version_costo_id=costo.versiones[0].id,
+        periodo=date(2026,12,1),fecha_vencimiento=date(2026,12,1),importe_centavos=139557850,estado='pendiente')
+    db.session.add_all([noviembre,diciembre]);db.session.commit()
+    for cantidad in [110000000,30000000]:
+        pago=registrar_pago(noviembre,organizacion_id=org.id,fecha_pago='2026-11-06',importe_centavos=cantidad,
+            medio_pago='transferencia',referencia=None,comprobante=None,observacion=None,usuario_id=None,
+            PagoObligacionCostoProductivo=PagoObligacionCostoProductivo,db_session=db.session)
+    assert noviembre.estado=='pagada' and diciembre.estado=='parcial'
+    assert saldo_obligacion(diciembre)==139115700
+    assert detalle_saldo(diciembre)['credito_aplicado']==442150
+    assert len(noviembre.pagos)==2 and len(diciembre.pagos)==0
+    contexto=obtener_gastos_unidad(org.id,u.id,modelos=m,db_session=db.session)
+    assert contexto['saldo_obligacion'](diciembre)==139115700
+    anular_pago(pago,organizacion_id=org.id,motivo='Carga duplicada',usuario_id=None,db_session=db.session)
+    assert noviembre.estado=='parcial' and diciembre.estado=='pendiente'
+    assert saldo_obligacion(noviembre)==29557850 and saldo_obligacion(diciembre)==139557850
+    assert len(noviembre.pagos)==2  # historial conservado, sin pago sintético de arrastre

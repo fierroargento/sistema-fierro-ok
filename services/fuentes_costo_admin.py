@@ -53,6 +53,7 @@ from services.ajustes_costos_ipc import (
     aprobar_propuesta, configurar_regla, ejecutar_ciclo_ipc,
     ventana_para_ajuste,
 )
+from services.saldo_favor_costos import detalle_saldo, calcular_cuenta
 from services.cuentas_pagar_productivas import (
     anular_pago, asegurar_obligacion_ajuste, configurar_regla_obligacion,
     crear_obligacion, generar_obligaciones_recurrentes, registrar_pago,
@@ -353,7 +354,7 @@ def procesar_accion_fuente_costo(
             PagoObligacionCostoProductivo=modelos["PagoObligacionCostoProductivo"],
             db_session=db_session,
         )
-        return "Pago registrado y saldo actualizado."
+        return "Pago registrado. El excedente, si existe, queda a favor para períodos siguientes del mismo concepto."
 
     if accion == "anular_pago_costo":
         pago = modelos["PagoObligacionCostoProductivo"].query.filter_by(
@@ -1116,6 +1117,7 @@ def obtener_gastos_unidad(organizacion_id, unidad_negocio_id, *, modelos, db_ses
         modelos["ObligacionCostoProductivo"].fecha_vencimiento.asc(),
         modelos["ObligacionCostoProductivo"].id.asc(),
     ).all() if ids_costos_responsables else []
+    saldos_cuenta=calcular_cuenta(obligaciones)
     reconciliar_estados_obligaciones(
         obligaciones,
         db_session=db_session,
@@ -1137,6 +1139,7 @@ def obtener_gastos_unidad(organizacion_id, unidad_negocio_id, *, modelos, db_ses
             regla.costo_fijo_id: regla for regla in reglas_obligaciones
         },
         'avisos_vencimientos': resumen_vencimientos(obligaciones),
-        'saldo_obligacion': saldo_obligacion,
+        'saldo_obligacion': lambda ob: saldos_cuenta[ob.id]['saldo'],
+        'detalle_saldo_obligacion': lambda ob: saldos_cuenta[ob.id],
         'ventana_para_ajuste': ventana_para_ajuste,
     }
