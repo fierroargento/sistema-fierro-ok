@@ -266,3 +266,29 @@ def test_panel_completo_contiene_modal_y_pendientes_en_seccion_existente():
     assert 'Simulación sin publicar' in html and 'Cálculos pendientes de revisión · 1' in html
     assert 'data-open-catalog-dialog="enlace-economico-10-14"' in html
     assert 'id="enlace-economico-10-14"' in html and 'Revisar fuente' in html
+
+
+def test_mayorista_usa_utilidad_propia_y_no_regla_general():
+    d=fuentes()
+    f=Obj(producto_id=7,organizacion_id=1,revision=1,utilidad_pct=200,
+        utilidad_base='costo',iva_pct=21,iibb_pct=4)
+    d['datos_productos']={7:f}
+    pisos,filas,bloqueos=ejecutar(d)
+    assert not bloqueos and len(filas)==1
+    assert pisos[0]['mayorista']['base_centavos']==63000
+    assert filas[0]['minimo']['piso_liquidacion_centavos']==pisos[0]['mayorista']['precio_final_centavos']
+    huella=filas[0]['trazabilidad_economica']['huella_enlace']
+    f.utilidad_pct=90;f.revision=2
+    assert ejecutar(d)[1][0]['trazabilidad_economica']['huella_enlace']!=huella
+    d['datos_productos']={}
+    assert not ejecutar(d)[1]
+
+
+def test_mayorista_no_requiere_ni_reaplica_utilidad_general():
+    d=fuentes();d['reglas_economicas']=[]
+    d['datos_productos']={7:Obj(producto_id=7,organizacion_id=1,revision=1,
+        utilidad_pct=90,utilidad_base='costo',iva_pct=0,iibb_pct=0)}
+    pisos,filas,bloqueos=ejecutar(d)
+    assert not bloqueos
+    assert pisos[0]['mayorista']['base_centavos']==39900
+    assert filas[0]['regla'] is None

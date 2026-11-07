@@ -4,6 +4,7 @@ import json
 from datetime import timezone
 from decimal import Decimal, InvalidOperation
 
+from services.precio_mayorista_producto import calcular_desde_ficha, piso_mayorista
 from services.fechas import ahora_utc_naive
 from services.costos_productos import preparar_detalles
 from services.motor_costeo_productos import huella_detalles
@@ -86,7 +87,7 @@ def _datos(registro, campos):
 
 
 def construir_enlaces(*, organizacion_id, unidad_negocio_id, costos, inclusiones,
-                       reglas_economicas, reglas_canal, perfiles, modelo_costo, ahora=None):
+                       reglas_economicas, reglas_canal, perfiles, modelo_costo, ahora=None, datos_productos=None):
     """Devuelve las filas usadas por la bandeja existente y bloqueos visibles."""
     ahora = _fecha(ahora or ahora_utc_naive())
     pisos, simulaciones, bloqueos = [], [], []
@@ -108,16 +109,24 @@ def construir_enlaces(*, organizacion_id, unidad_negocio_id, costos, inclusiones
             candidatos_perfil = [p for p in perfiles if (p.producto_id,p.organizacion_id,p.unidad_negocio_id)==(costo.producto_id,organizacion_id,unidad_negocio_id)]
             perfil = candidatos_perfil[0] if len(candidatos_perfil)==1 else None
             composicion = _validar_costo(costo,perfil,modelo_costo,ahora)
-            reglas = [r for r in reglas_economicas if r.organizacion_id==organizacion_id and r.unidad_negocio_id in (None,unidad_negocio_id)]
-            regla = resolver_regla_vigente(reglas,unidad_negocio_id=unidad_negocio_id,catalogo_id=inclusion.catalogo_id,producto_id=costo.producto_id)
-            if regla is None: raise ValueError('Falta una regla económica aplicable y vigente.')
-            if sum(r.vigente and r.clave_alcance==regla.clave_alcance for r in reglas)!=1:
-                raise ValueError('La regla económica aplicable es ambigua.')
-            _vigencia(regla,ahora)
-            if clave_alcance(regla.alcance,unidad_negocio_id=regla.unidad_negocio_id,catalogo_id=regla.catalogo_id,producto_id=regla.producto_id)!=regla.clave_alcance:
-                raise ValueError('El alcance de la regla económica no coincide con sus referencias.')
-            calculados = calcular_pisos_regla(costo.costo_total_centavos,regla)
-            fila = {'costo':costo,'inclusion':inclusion,'regla':regla,'pisos':calculados}
+            mayorista = None
+            if datos_productos is not None:
+                ficha = datos_productos.get(costo.producto_id)
+                mayorista = calcular_desde_ficha(costo, ficha)
+                calculados = {k: piso_mayorista(mayorista) for k in ('minimo', 'objetivo')}
+                regla = None
+            else:
+                reglas = [r for r in reglas_economicas if r.organizacion_id==organizacion_id and r.unidad_negocio_id in (None,unidad_negocio_id)]
+                regla = resolver_regla_vigente(reglas,unidad_negocio_id=unidad_negocio_id,catalogo_id=inclusion.catalogo_id,producto_id=costo.producto_id)
+                if regla is None: raise ValueError('Falta una regla económica aplicable y vigente.')
+                if sum(r.vigente and r.clave_alcance==regla.clave_alcance for r in reglas)!=1:
+                    raise ValueError('La regla económica aplicable es ambigua.')
+                _vigencia(regla,ahora)
+                if clave_alcance(regla.alcance,unidad_negocio_id=regla.unidad_negocio_id,catalogo_id=regla.catalogo_id,producto_id=regla.producto_id)!=regla.clave_alcance:
+                    raise ValueError('El alcance de la regla económica no coincide con sus referencias.')
+                calculados = calcular_pisos_regla(costo.costo_total_centavos,regla)
+            fila = {'costo':costo,'inclusion':inclusion,'regla':regla,'pisos':calculados,
+                    'mayorista':mayorista}
             pisos.append(fila)
         except ValueError as error:
             bloquear(costo,error); continue
@@ -142,7 +151,7 @@ def construir_enlaces(*, organizacion_id, unidad_negocio_id, costos, inclusiones
                     'catalogo_producto_id':inclusion.id,'catalogo_id':inclusion.catalogo_id,
                     'costo':_datos(costo,('id','numero_version','tipo','moneda','costo_total_centavos','vigente_desde','vigente_hasta')),
                     'huella_composicion':composicion,
-                    'regla_economica':_datos(regla,('id','numero_version','clave_alcance','impuesto_pct','metodo_impuesto','utilidad_minima_pct','utilidad_objetivo_pct','metodo_utilidad','incremento_redondeo_centavos','vigente_desde','vigente_hasta')),
+                    'regla_economica':{} if regla is None else _datos(regla,('id','numero_version','clave_alcance','impuesto_pct','metodo_impuesto','utilidad_minima_pct','utilidad_objetivo_pct','metodo_utilidad','incremento_redondeo_centavos','vigente_desde','vigente_hasta')),
                     'politica_canal':_datos(canal,('id','numero_version','lista_precio_id','comision_pct','publicidad_pct','financiacion_pct','devoluciones_pct','umbral_envio_centavos','costo_envio_default_centavos','incremento_redondeo_centavos','vigente_desde','vigente_hasta')),
                     'canal':lista.tipo,'moneda':lista.moneda,
                     'tramos':[_datos(t,('precio_desde_centavos','precio_hasta_centavos','cargo_fijo_centavos')) for t in sorted(canal.tramos,key=lambda t:t.precio_desde_centavos)],
@@ -153,6 +162,9 @@ def construir_enlaces(*, organizacion_id, unidad_negocio_id, costos, inclusiones
                         'Contrastar cargos, promociones y envío con la cuenta y publicación exactas.'],
                     'habilita_publicacion':False,'conexiones_externas':0,
                 }
+                if mayorista is not None:
+                    traza['mayorista_producto'] = {**mayorista, 'producto_id': ficha.producto_id,
+                        'organizacion_id': ficha.organizacion_id, 'revision': ficha.revision}
                 huella = hashlib.sha256(json.dumps(traza,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
                 simulaciones.append({**fila,'regla_canal':canal,'minimo':minimo,'objetivo':objetivo,
                     'trazabilidad_economica':{**traza,'huella_enlace':huella}})

@@ -7,6 +7,7 @@ from services.catalogo_ficha_integral import (
     presentar_atributos,
     presentar_variantes,
 )
+from services.precio_mayorista_producto import preparar_mayoristas
 from services.enlace_economico_producto import construir_enlaces
 from services.cobertura_precio_publicacion import completar_cobertura
 from services.control_comercial_masivo import construir_bandeja
@@ -58,10 +59,13 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
     perfiles_costeo = modelos["PerfilCosteoProducto"].query.filter_by(
         organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
     ).all()
+    from models.producto_datos_generales import ProductoDatosGenerales
+    datos_productos = {d.producto_id: d for d in ProductoDatosGenerales.query.filter_by(
+        organizacion_id=organizacion_id).all()}
     pisos_economicos, simulaciones_canal, bloqueos_enlace_economico = construir_enlaces(
         organizacion_id=organizacion_id, unidad_negocio_id=unidad_negocio_id,
         costos=costos, inclusiones=inclusiones, reglas_economicas=reglas_economicas,
-        reglas_canal=reglas_canal, perfiles=perfiles_costeo, modelo_costo=Costo,
+        reglas_canal=reglas_canal, perfiles=perfiles_costeo, modelo_costo=Costo, datos_productos=datos_productos,
     )
     items = Item.query.join(Lista).filter(
         Lista.organizacion_id == organizacion_id,
@@ -130,6 +134,7 @@ def obtener_datos_panel_comercial(organizacion_id, unidad_negocio_id, *, modelos
         "items": items,
         "reglas_economicas": reglas_economicas,
         "pisos_economicos": pisos_economicos,
+        "mayoristas_producto": preparar_mayoristas(costos, datos_productos),
         "reglas_canal": reglas_canal,
         "simulaciones_canal": simulaciones_canal,
         "bloqueos_enlace_economico": bloqueos_enlace_economico,

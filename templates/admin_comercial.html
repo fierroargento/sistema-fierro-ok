@@ -213,6 +213,17 @@
     </tbody></table></div>
   </section>
 
+  <section class="comercial-section" id="mayorista-base">
+    <div class="section-heading"><div><h2>Mayorista · lista base por producto</h2></div></div>
+    <p>La utilidad se toma de la ficha de cada producto. Las demás listas cubren sus gastos de canal sobre este mayorista, sin volver a sumar utilidad.</p>
+    <p>Base: costo más recargo, o margen sobre venta según la ficha. El neto cubre IIBB sobre venta; el IVA se muestra al final. Los importes preparatorios son una vista previa: activá el costo en Costos base para habilitar su cálculo de canal.</p>
+    <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Producto</th><th>Costo</th><th>Utilidad propia</th><th>Base sin impuestos</th><th>Neto con IIBB</th><th>Mayorista con IVA</th><th>Estado del costo</th></tr></thead><tbody>
+    {% for fila in mayoristas_producto %}<tr><td><strong>{{ fila.costo.producto.sku }}</strong></td><td>${{ '%.2f'|format(fila.costo.costo_total_centavos / 100) }}</td>
+    {% if fila.precio %}<td>{{ fila.precio.utilidad_pct }}% · {{ 'sobre costo' if fila.precio.utilidad_base == 'costo' else 'margen sobre venta' }}</td><td>${{ '%.2f'|format(fila.precio.base_centavos / 100) }}</td><td>${{ '%.2f'|format(fila.precio.neto_centavos / 100) }}<small class="table-subline">IIBB {{ fila.precio.iibb_pct }}%</small></td><td><strong>${{ '%.2f'|format(fila.precio.precio_final_centavos / 100) }}</strong><small class="table-subline">IVA {{ fila.precio.iva_pct }}%</small></td>{% else %}<td colspan="4">{{ fila.error }}</td>{% endif %}
+    <td>{{ 'Costo vigente; sujeto a validar fuentes' if fila.costo.vigente else 'Vista previa · costo sin activar' }}</td></tr>{% else %}<tr><td colspan="7">Guardá el costo y la utilidad de cada producto para ver su mayorista.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+
   <section class="comercial-section" id="listas">
     <div class="section-heading"><div><span class="section-number">3</span><h2>Listas de precios</h2></div><p>Creá listas generales o específicas para las unidades de {{ organizacion.nombre }}.</p></div>
     <details class="source-catalog uat-form-editor"><summary>Crear lista</summary><form class="comercial-form form-listas" method="post" action="{{ url_for('admin_comercial.guardar') }}">
@@ -230,7 +241,7 @@
   </section>
 
   <section class="comercial-section" id="reglas-economicas">
-    <div class="section-heading"><div><span class="section-number">4</span><h2>Reglas económicas internas</h2></div><p>Definen cuánto debe quedar como mínimo luego de costos comerciales. La excepción más específica reemplaza a la general.</p></div>
+    <div class="section-heading"><div><span class="section-number">4</span><h2>Reglas económicas históricas</h2></div><p>Se conservan para consultar escenarios anteriores. El cálculo actual usa exclusivamente la utilidad de la ficha de cada producto, mostrada en Mayorista · lista base.</p></div>
     <details class="source-catalog uat-form-editor"><summary>Crear versión preparatoria</summary><form class="comercial-form form-reglas-economicas" method="post" action="{{ url_for('admin_comercial.guardar') }}">
       <input type="hidden" name="accion" value="crear_regla_economica">
       <label><span>Nombre</span><input name="nombre" placeholder="Ej. Regla general" required></label>
@@ -247,7 +258,7 @@
       <button class="comercial-primary">Crear versión preparatoria</button>
     </form></details>
     <div class="economic-priority">Prioridad: producto → catálogo → unidad → organización.</div>
-    {% if pisos_economicos %}<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Producto</th><th>Costo vigente</th><th>Regla efectiva</th><th>Liquidación mínima</th><th>Liquidación objetivo</th></tr></thead><tbody>{% for fila in pisos_economicos %}<tr><td><strong>{{ fila.costo.producto.sku }}</strong></td><td>${{ '%.2f'|format(fila.costo.costo_total_centavos / 100) }}</td><td>{{ fila.regla.nombre if fila.regla else 'Sin regla aplicable' }}</td><td>{% if fila.pisos %}<strong>${{ '%.2f'|format(fila.pisos.minimo.piso_liquidacion_centavos / 100) }}</strong>{% else %}—{% endif %}</td><td>{% if fila.pisos %}${{ '%.2f'|format(fila.pisos.objetivo.piso_liquidacion_centavos / 100) }}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+    {% if pisos_economicos %}<div class="table-wrap"><table class="comercial-table"><thead><tr><th>Producto</th><th>Costo vigente</th><th>Regla efectiva</th><th>Liquidación mínima</th><th>Liquidación objetivo</th></tr></thead><tbody>{% for fila in pisos_economicos %}<tr><td><strong>{{ fila.costo.producto.sku }}</strong></td><td>${{ '%.2f'|format(fila.costo.costo_total_centavos / 100) }}</td><td>{{ fila.regla.nombre if fila.regla else 'Utilidad propia del producto · mayorista base' }}</td><td>{% if fila.pisos %}<strong>${{ '%.2f'|format(fila.pisos.minimo.piso_liquidacion_centavos / 100) }}</strong>{% else %}—{% endif %}</td><td>{% if fila.pisos %}${{ '%.2f'|format(fila.pisos.objetivo.piso_liquidacion_centavos / 100) }}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
     <div class="table-wrap"><table class="comercial-table"><thead><tr><th>Regla</th><th>Alcance</th><th>Impuesto</th><th>Utilidad mínima</th><th>Objetivo</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
       {% for regla in reglas_economicas %}<tr><td><strong>{{ regla.nombre }}</strong><small class="table-subline">v{{ regla.numero_version }} · {{ regla.clave_alcance }}</small></td><td>{{ regla.alcance }}</td><td>{{ ('%.2f'|format(regla.impuesto_pct|float)).rstrip('0').rstrip('.') }}% · {{ regla.metodo_impuesto|replace('_', ' ') }}</td><td>{{ ('%.2f'|format(regla.utilidad_minima_pct|float)).rstrip('0').rstrip('.') }}% · {{ regla.metodo_utilidad|replace('_', ' ') }}</td><td>{{ ('%.2f'|format(regla.utilidad_objetivo_pct|float)).rstrip('0').rstrip('.') }}%</td><td><span class="status status-{{ 'active' if regla.vigente else 'draft' }}">{{ regla.estado }}</span></td><td>{% if not regla.vigente %}<form method="post" action="{{ url_for('admin_comercial.guardar') }}" onsubmit="return confirm('La regla reemplazará a la vigente para este alcance. ¿Continuar?')"><input type="hidden" name="accion" value="activar_regla_economica"><input type="hidden" name="regla_id" value="{{ regla.id }}"><button class="table-action">Activar</button></form>{% else %}<span class="current-label">Vigente</span>{% endif %}</td></tr>{% else %}<tr><td colspan="7" class="empty-state">Todavía no hay reglas económicas.</td></tr>{% endfor %}
     </tbody></table></div>

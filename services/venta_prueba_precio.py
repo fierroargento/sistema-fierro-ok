@@ -167,7 +167,7 @@ No consulta el costo actual: releer el archivo debe conservar su historia.
         congelado = _fecha(e["fecha_snapshot"])
         if congelado > _fecha(x["fecha_venta"]):
             raise ValueError("No se aplica un costo actual a una venta anterior al snapshot.")
-        for origen in (t["costo"], t["regla_economica"], t["politica_canal"]):
+        for origen in (t["costo"], t["politica_canal"]) + (() if "mayorista_producto" in t else (t["regla_economica"],)):
             if _fecha(origen["vigente_desde"]) > congelado or (origen["vigente_hasta"] and congelado >= _fecha(origen["vigente_hasta"])):
                 raise ValueError("Las fuentes no estaban vigentes al congelar el cálculo.")
         costo = x["costo_snapshot"]
@@ -187,7 +187,18 @@ No consulta el costo actual: releer el archivo debe conservar su historia.
                 or (embalaje["modo_embalaje"] == "adicional" and not extra)):
             raise ValueError("La fotografía de embalaje es contradictoria.")
         politica, canal = _liquidacion(t, precio)
-        piso = calcular_pisos_regla(_centavos(t["costo"]["costo_total_centavos"]), SimpleNamespace(**t["regla_economica"]))["minimo"]["piso_liquidacion_centavos"]
+        if 'mayorista_producto' in t:
+            from services.precio_mayorista_producto import calcular_mayorista
+            base = t['mayorista_producto']
+            if (base['producto_id'], base['organizacion_id']) != (t['producto_id'], t['organizacion_id']):
+                raise ValueError('La base mayorista no corresponde al producto.')
+            recalculado = calcular_mayorista(_centavos(t['costo']['costo_total_centavos']),
+                **{k: base[k] for k in ('utilidad_pct', 'utilidad_base', 'iva_pct', 'iibb_pct')})
+            if any(base[k] != v for k, v in recalculado.items()):
+                raise ValueError('La base mayorista no reproduce la ficha congelada.')
+            piso = recalculado['precio_final_centavos']
+        else:
+            piso = calcular_pisos_regla(_centavos(t["costo"]["costo_total_centavos"]), SimpleNamespace(**t["regla_economica"]))["minimo"]["piso_liquidacion_centavos"]
         primer_precio = calcular_precio_minimo_canal(piso + extra, politica)["precio_final_centavos"]
         if (precio != primer_precio or t["minimo"]["piso_liquidacion_centavos"] != piso
                 or e["neto_minimo_centavos"] != piso or canal["liquidacion_centavos"] - extra != t["minimo"]["liquidacion_centavos"]
