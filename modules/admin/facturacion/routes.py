@@ -91,6 +91,40 @@ def crear_blueprint_facturacion(
             None,
         )
 
+    @blueprint.route("/admin/facturacion/precios-stock")
+    @login_required
+    def consulta_precios_stock():
+        _usuario, organizacion, respuesta = resolver_acceso()
+        if respuesta is not None:
+            return respuesta
+        from services.unidad_negocio_contexto import resolver_unidad_activa, UnidadNegocioError
+        from services.consulta_precios_stock import consultar, exportar, importe_visible
+        from models.unidad_negocio import UnidadNegocio
+        try:
+            unidad, _unidades = resolver_unidad_activa(organizacion.id,
+                session.get('unidad_negocio_id'), UnidadNegocio=UnidadNegocio)
+            filtros={k:request.args.get(k,'').strip() for k in
+                ('codigo','nombre','rubro','subrubro','marca','proveedor','lista','deposito','stock','sin_precio','iva')}
+            datos=consultar(organizacion.id,unidad.id,filtros)
+        except (ValueError, UnidadNegocioError) as error:
+            return render_template('admin_consulta_precios_stock.html',error=str(error),datos=None,filtros={},unidad=None),400
+        con_iva=filtros['iva']!='sin'
+        if request.args.get('exportar')=='1':
+            return send_file(exportar(datos['filas'],datos['columnas'],con_iva),as_attachment=True,
+                download_name='consulta_precios_stock.csv',mimetype='text/csv; charset=utf-8')
+        try:
+            pagina=max(1,int(request.args.get('pagina','1')))
+        except ValueError:
+            pagina=1
+        total=len(datos['filas']);paginas=max(1,(total+49)//50);pagina=min(pagina,paginas)
+        datos['filas']=datos['filas'][(pagina-1)*50:pagina*50]
+        def enlace(**cambios):
+            parametros=request.args.to_dict();parametros.update(cambios)
+            return url_for('admin_facturacion.consulta_precios_stock',**parametros)
+        return render_template('admin_consulta_precios_stock.html',datos=datos,filtros=filtros,
+            unidad=unidad,con_iva=con_iva,importe_visible=importe_visible,total=total,
+            pagina=pagina,paginas=paginas,enlace=enlace,error=None)
+
     @blueprint.route("/admin/facturacion")
     @login_required
     def panel():

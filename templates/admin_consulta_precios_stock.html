@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static',filename='admin_comercial.css',v='20261107-consulta') }}">
+<link rel="stylesheet" href="{{ url_for('static',filename='consulta_precios_stock.css',v='20261107') }}">
+{% endblock %}
+{% block content %}
+<main class="comercial-page consulta-precios">
+<header class="comercial-header"><div><span class="comercial-eyebrow">FACTURACIÓN</span><h1>Consulta de precios y stock</h1><p>{{ unidad.nombre if unidad else '' }}</p></div>{% if datos %}<a class="section-link" href="{{ enlace(exportar=1) }}">Exportar</a>{% endif %}</header>
+{% if error %}<p class="comercial-message comercial-message-error">{{ error }}</p>{% endif %}
+{% if datos %}
+<section class="comercial-section"><form method="get" class="consulta-filtros">
+{% for campo,titulo in [('codigo','Código'),('nombre','Producto'),('rubro','Rubro'),('subrubro','Subrubro'),('marca','Marca'),('proveedor','Proveedor')] %}<label>{{ titulo }}<input name="{{ campo }}" value="{{ filtros[campo] }}"></label>{% endfor %}
+<label>Lista de precios<select name="lista"><option value="">Todas</option><option value="base" {% if filtros.lista=='base' %}selected{% endif %}>Mayorista base</option>{% for l in datos.listas %}<option value="{{ l.id }}" {% if filtros.lista==l.id|string %}selected{% endif %}>{{ l.nombre }}</option>{% endfor %}</select></label>
+<label>Depósito / sucursal<select name="deposito"><option value="">Todos los registrados</option>{% for d in datos.sucursales %}<option value="{{ d.id }}" {% if filtros.deposito==d.id|string %}selected{% endif %}>{{ d.nombre }}</option>{% endfor %}</select></label>
+<label>Stock<select name="stock">{% for valor,titulo in [('todos','Todos'),('con','Con disponible'),('sin','Sin disponible'),('pendiente','Sin control')] %}<option value="{{ valor }}" {% if filtros.stock==valor %}selected{% endif %}>{{ titulo }}</option>{% endfor %}</select></label>
+<label>Precios<select name="iva"><option value="con">Con IVA</option><option value="sin" {% if filtros.iva=='sin' %}selected{% endif %}>Sin IVA</option></select></label>
+<label class="consulta-checkbox"><input type="checkbox" name="sin_precio" value="1" {% if filtros.sin_precio %}checked{% endif %}>Sin precio en listas seleccionadas</label>
+<div><button class="comercial-primary">Consultar</button> <a class="secondary-link" href="{{ url_for('admin_facturacion.consulta_precios_stock') }}">Limpiar</a></div>
+</form></section>
+<section class="comercial-section"><h2>Listado general · {{ total }} resultados</h2><p>Importes en ARS. La mayorista base es calculada; cada celda indica si es vista previa o un precio guardado. Las columnas de otras listas aparecen al configurarlas en <a href="{{ url_for('admin_comercial.panel') }}#listas">Comercial → 3. Listas de precios</a>.</p>
+<div class="table-wrap consulta-grilla"><table class="comercial-table"><thead><tr><th>Código</th><th>Producto</th><th>Stock disponible</th>{% for c in datos.columnas %}<th>{{ c.nombre }}</th>{% endfor %}</tr></thead><tbody>
+{% for f in datos.filas %}<tr><td><strong>{{ f.codigo }}</strong></td><td>{{ f.nombre }}{% if f.marca %}<small class="table-subline">{{ f.marca }}</small>{% endif %}</td><td>{{ f.stock if f.stock is not none else 'Sin control' }}</td>{% for c in datos.columnas %}{% set p=f.precios[c.id] %}<td>{% if p %}<strong>${{ '%.2f'|format(importe_visible(p,con_iva)/100) }}</strong><small class="table-subline">{{ p.estado }}</small>{% else %}<span>Sin precio</span><small class="table-subline">{{ f.motivo or 'Lista sin precio vigente ni cálculo disponible' }}</small>{% endif %}</td>{% endfor %}</tr>{% else %}<tr><td colspan="{{ datos.columnas|length+3 }}">No hay productos que coincidan con los filtros en esta unidad.</td></tr>{% endfor %}
+</tbody></table></div>
+<nav class="consulta-paginacion" aria-label="Páginas">{% if pagina>1 %}<a class="section-link" href="{{ enlace(pagina=pagina-1) }}">Anterior</a>{% endif %}<span>Página {{ pagina }} de {{ paginas }}</span>{% if pagina<paginas %}<a class="section-link" href="{{ enlace(pagina=pagina+1) }}">Siguiente</a>{% endif %}</nav>
+</section>{% endif %}
+</main>
+{% endblock %}

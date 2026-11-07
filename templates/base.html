@@ -93,7 +93,12 @@
             <a href="{{ url_for('admin_produccion.panel') }}">Producción</a>
             <a href="{{ url_for('admin_mantenimiento.panel') }}">Mantenimiento</a>
             <a href="{{ url_for('admin_postventa.panel') }}">Postventa</a>
-            <a href="{{ url_for('admin_facturacion.panel') }}">Facturación</a>
+            <details class="menu-group"{% if (request.endpoint or '').startswith('admin_facturacion.') %} open{% endif %}>
+                <summary>Facturación</summary><div class="menu-children">
+                    <a href="{{ url_for('admin_facturacion.panel') }}">Panel de facturación</a>
+                    <a href="{{ url_for('admin_facturacion.consulta_precios_stock') }}">Consulta de precios y stock</a>
+                </div>
+            </details>
             <a href="{{ url_for('admin_integraciones.panel') }}">Integraciones</a>
             <a href="{{ url_for('admin_usuarios.panel') }}">Usuarios</a>
             <a href="{{ url_for('admin_auditoria') }}">Auditoría</a>
