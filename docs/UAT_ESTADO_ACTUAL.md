@@ -2382,3 +2382,8 @@ Validación: 7 pruebas unitarias de filtros combinados, stock desconocido/cero, 
 ## 2026-11-07 · Criterio visual único de desplegables
 
 Captura de staging muestra títulos de desplegables nuevos alineados a derecha por summary flex con space-between y texto sin span. Se corrige estilo compartido source-catalog: flecha y título a izquierda, título flexible y contador a derecha sin encogerse. Costos base, mayorista y listas configuradas usan span y contador strong existentes; conservan cierre inicial. Versión de CSS de Comercial actualizada para invalidar caché. Sin cambios de precios, reglas, datos ni rutas. Verificación diff y estructura de tres summaries; sin render navegador local. Publicación exclusivamente integracion-saas-2026-09 sobre 36c59a1dbddb641ff6412024a00414d359b3c5a1.
+
+
+## 2026-11-07 · Consulta de precios siempre con IVA
+
+Pedido: eliminar selector con/sin IVA para evitar confusión. Se retira filtro visual y se fija con_iva=True en la ruta de consulta/exportación. Parámetros antiguos iva=sin no cambian el resultado y se eliminan de enlaces de navegación/exportación. Se aclara IVA incluido en la grilla. Cálculos netos internos y utilidad no cambian. Verificación sintaxis Python, diff y comprobación de ruta/template; pendiente UAT tras deploy manual. Sólo rama integracion-saas-2026-09, base eee8f4671f5847ccb6ddf6fad9ba0294216a2ea5.
