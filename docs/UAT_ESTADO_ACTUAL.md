@@ -2392,3 +2392,8 @@ Pedido: eliminar selector con/sin IVA para evitar confusión. Se retira filtro v
 ## 2026-11-07 · Ficha emergente desde Consulta de precios y stock
 
 Pedido: icono Ver antes de Código. Se reutiliza iconografía compartida; abre dialog nativo accesible con código, descripción, alto/ancho/largo cm, peso g, imágenes, precios con IVA y stock de la consulta seleccionada. Cierre por botones/Escape y retorno de foco sin mover scroll. Imágenes reutilizan endpoint protegido existente /admin/productos/<producto>/imagenes/<imagen> y se solicitan sólo al abrir; contenido binario no se carga en la consulta. Ficha sólo lectura; faltantes explícitos. Variantes no heredan medidas del padre por descarte; imágenes se identifican como producto compartido. No cambia cálculos, filtros, exportación ni datos. Verificación Python/JS y diff; pendientes render y UAT tras deploy. Sólo integracion-saas-2026-09 sobre d83677f8a10b832811d6e1d98ee8a1d0639aa21b.
+
+
+## 2026-11-07 · Diagramación de ficha emergente de consulta
+
+Usuario validó apertura y pidió jerarquía visual. Rediseño de presentación: cabecera con código como etiqueta y nombre destacado; dos columnas para imágenes y medidas/peso en tarjetas; stock en franja destacada con estado explícito; precios en bloque con importes alineados y sello IVA incluido. Estado sin imagen con marcador visual. Números de medidas sin decimales sobrantes. Adaptación a una columna en móvil. Datos, cálculos, endpoint de imágenes y comportamiento de cierre intactos. Diff/estructura verificados; render visual pendiente de deploy manual. Sólo integracion-saas-2026-09 sobre 9327b0e4de7b12874b5b2624f80ff8a8625e140a.
