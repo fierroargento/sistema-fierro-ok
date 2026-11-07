@@ -41,7 +41,7 @@ def consultar(organizacion_id, unidad_id, filtros):
     from extensions import db
     from models.producto import Producto
     from models.producto_ficha_maestra import ProductoFichaMaestra
-    from models.producto_datos_generales import ProductoDatosGenerales, ProductoProveedor
+    from models.producto_datos_generales import ProductoDatosGenerales, ProductoProveedor, ProductoImagenMaestra
     from models.compras import ProveedorCompra
     from models.perfil_costeo_producto import PerfilCosteoProducto
     from models.catalogo import Catalogo
@@ -113,6 +113,12 @@ def consultar(organizacion_id, unidad_id, filtros):
         sucids={int(deposito)}
     inventario=[i for i in todos(ItemInventario) if i.producto_id in ids and (i.catalogo_producto_id is None or i.catalogo_producto_id in inc_por_id)]
     existencias=[e for e in todos(ExistenciaSucursal) if e.producto_id in ids and e.sucursal_operativa_id in sucids]
+    imagenes={pid:[] for pid in ids}
+    for imagen in todos(ProductoImagenMaestra):
+        if imagen.producto_id in imagenes:
+            imagenes[imagen.producto_id].append(dict(nombre=imagen.nombre,principal=imagen.principal,
+                url=f'/admin/productos/{imagen.producto_id}/imagenes/{imagen.id}'))
+    for grupo in imagenes.values(): grupo.sort(key=lambda i:not i['principal'])
     filas=[]
     for producto in sorted(productos,key=lambda p:p.sku):
         ficha=fichas.get(producto.id);g=generales.get(producto.id)
@@ -142,7 +148,8 @@ def consultar(organizacion_id, unidad_id, filtros):
             ex=[e for e in existencias if e.producto_id==producto.id and (variante.id is not None and e.item_inventario_id==variante.id if variante else e.item_inventario_id is None or any(i.id==e.item_inventario_id and i.sku==producto.sku for i in unidades))]
             # No se copia el precio del producto padre a una variante sin precio propio.
             pv=valores if variante is None else {col['id']:None for col in columnas}
-            filas.append(dict(codigo=codigo,nombre=nombre,rubro=g.rubro if g else '',subrubro=g.subrubro if g else '',marca=g.marca if g else '',proveedor=' · '.join(proveedores_producto[producto.id]),stock=disponible(ex),precios=pv,
+            filas.append(dict(codigo=codigo,nombre=nombre,producto_id=producto.id,imagenes=imagenes[producto.id],
+                medidas={k:getattr(producto,k,None) if variante is None else None for k in ('alto_cm','ancho_cm','largo_cm','peso_gr')},rubro=g.rubro if g else '',subrubro=g.subrubro if g else '',marca=g.marca if g else '',proveedor=' · '.join(proveedores_producto[producto.id]),stock=disponible(ex),precios=pv,
                 motivo=(base['error'] if base else 'Sin costo guardado') if variante is None else 'Variante: precio propio pendiente'))
     filas=filtrar_filas(filas,filtros)
     return dict(filas=filas,columnas=columnas,listas=listas,sucursales=sucursales,bloqueos=bloqueos)

@@ -2387,3 +2387,8 @@ Captura de staging muestra títulos de desplegables nuevos alineados a derecha p
 ## 2026-11-07 · Consulta de precios siempre con IVA
 
 Pedido: eliminar selector con/sin IVA para evitar confusión. Se retira filtro visual y se fija con_iva=True en la ruta de consulta/exportación. Parámetros antiguos iva=sin no cambian el resultado y se eliminan de enlaces de navegación/exportación. Se aclara IVA incluido en la grilla. Cálculos netos internos y utilidad no cambian. Verificación sintaxis Python, diff y comprobación de ruta/template; pendiente UAT tras deploy manual. Sólo rama integracion-saas-2026-09, base eee8f4671f5847ccb6ddf6fad9ba0294216a2ea5.
+
+
+## 2026-11-07 · Ficha emergente desde Consulta de precios y stock
+
+Pedido: icono Ver antes de Código. Se reutiliza iconografía compartida; abre dialog nativo accesible con código, descripción, alto/ancho/largo cm, peso g, imágenes, precios con IVA y stock de la consulta seleccionada. Cierre por botones/Escape y retorno de foco sin mover scroll. Imágenes reutilizan endpoint protegido existente /admin/productos/<producto>/imagenes/<imagen> y se solicitan sólo al abrir; contenido binario no se carga en la consulta. Ficha sólo lectura; faltantes explícitos. Variantes no heredan medidas del padre por descarte; imágenes se identifican como producto compartido. No cambia cálculos, filtros, exportación ni datos. Verificación Python/JS y diff; pendientes render y UAT tras deploy. Sólo integracion-saas-2026-09 sobre d83677f8a10b832811d6e1d98ee8a1d0639aa21b.

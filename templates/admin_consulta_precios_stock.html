@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static',filename='admin_comercial.css',v='20261107-consulta') }}">
-<link rel="stylesheet" href="{{ url_for('static',filename='consulta_precios_stock.css',v='20261107') }}">
+<link rel="stylesheet" href="{{ url_for('static',filename='consulta_precios_stock.css',v='20261107-ficha') }}">
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static',filename='consulta_precios_stock.js',v='20261107-ficha') }}" defer></script>
 {% endblock %}
 {% block content %}
 <main class="comercial-page consulta-precios">
@@ -18,9 +19,21 @@
 <div><button class="comercial-primary">Consultar</button> <a class="secondary-link" href="{{ url_for('admin_facturacion.consulta_precios_stock') }}">Limpiar</a></div>
 </form></section>
 <section class="comercial-section"><h2>Listado general · {{ total }} resultados</h2><p>Importes en ARS, siempre con IVA incluido. La mayorista base es calculada; cada celda indica si es vista previa o un precio guardado. Las columnas de otras listas aparecen al configurarlas en <a href="{{ url_for('admin_comercial.panel') }}#listas">Comercial → 3. Listas de precios</a>.</p>
-<div class="table-wrap consulta-grilla"><table class="comercial-table"><thead><tr><th>Código</th><th>Producto</th><th>Stock disponible</th>{% for c in datos.columnas %}<th>{{ c.nombre }}</th>{% endfor %}</tr></thead><tbody>
-{% for f in datos.filas %}<tr><td><strong>{{ f.codigo }}</strong></td><td>{{ f.nombre }}{% if f.marca %}<small class="table-subline">{{ f.marca }}</small>{% endif %}</td><td>{{ f.stock if f.stock is not none else 'Sin control' }}</td>{% for c in datos.columnas %}{% set p=f.precios[c.id] %}<td>{% if p %}<strong>${{ '%.2f'|format(importe_visible(p,con_iva)/100) }}</strong><small class="table-subline">{{ p.estado }}</small>{% else %}<span>Sin precio</span><small class="table-subline">{{ f.motivo or 'Lista sin precio vigente ni cálculo disponible' }}</small>{% endif %}</td>{% endfor %}</tr>{% else %}<tr><td colspan="{{ datos.columnas|length+3 }}">No hay productos que coincidan con los filtros en esta unidad.</td></tr>{% endfor %}
+<div class="table-wrap consulta-grilla"><table class="comercial-table"><thead><tr><th class="consulta-ver-col"><span class="consulta-sr">Ver producto</span></th><th>Código</th><th>Producto</th><th>Stock disponible</th>{% for c in datos.columnas %}<th>{{ c.nombre }}</th>{% endfor %}</tr></thead><tbody>
+{% for f in datos.filas %}<tr><td class="consulta-ver-col"><button type="button" class="table-action" data-fierro-icon="ver" data-consulta-ver="consulta-producto-{{ loop.index }}" aria-label="Ver {{ f.codigo }}">Ver</button></td><td><strong>{{ f.codigo }}</strong></td><td>{{ f.nombre }}{% if f.marca %}<small class="table-subline">{{ f.marca }}</small>{% endif %}</td><td>{{ f.stock if f.stock is not none else 'Sin control' }}</td>{% for c in datos.columnas %}{% set p=f.precios[c.id] %}<td>{% if p %}<strong>${{ '%.2f'|format(importe_visible(p,con_iva)/100) }}</strong><small class="table-subline">{{ p.estado }}</small>{% else %}<span>Sin precio</span><small class="table-subline">{{ f.motivo or 'Lista sin precio vigente ni cálculo disponible' }}</small>{% endif %}</td>{% endfor %}</tr>{% else %}<tr><td colspan="{{ datos.columnas|length+4 }}">No hay productos que coincidan con los filtros en esta unidad.</td></tr>{% endfor %}
 </tbody></table></div>
+{% for f in datos.filas %}
+<dialog id="consulta-producto-{{ loop.index }}" class="consulta-producto-dialog" aria-labelledby="consulta-titulo-{{ loop.index }}">
+<header class="consulta-ficha-header"><div><small>Ficha del producto</small><h2 id="consulta-titulo-{{ loop.index }}">{{ f.codigo }} · {{ f.nombre }}</h2></div><button type="button" class="table-action" data-consulta-cerrar aria-label="Cerrar ficha">Cerrar</button></header>
+<div class="consulta-ficha-body"><dl class="consulta-datos"><div><dt>Código</dt><dd>{{ f.codigo }}</dd></div><div><dt>Descripción</dt><dd>{{ f.nombre }}</dd></div>
+{% for campo,titulo,unidad_medida in [('alto_cm','Alto','cm'),('ancho_cm','Ancho','cm'),('largo_cm','Largo','cm'),('peso_gr','Peso','g')] %}<div><dt>{{ titulo }}</dt><dd>{{ (f.medidas[campo]|string ~ ' ' ~ unidad_medida) if f.medidas[campo] is not none else 'Sin informar' }}</dd></div>{% endfor %}
+<div><dt>Stock disponible</dt><dd>{{ f.stock if f.stock is not none else 'Sin control' }}</dd></div></dl>
+<h3>Imágenes</h3><div class="consulta-imagenes">{% for imagen in f.imagenes %}<figure><a href="{{ imagen.url }}" target="_blank" rel="noopener"><img data-consulta-src="{{ imagen.url }}" alt="{{ imagen.nombre }}"></a><figcaption>{{ imagen.nombre }}{% if imagen.principal %} · Principal{% endif %}</figcaption></figure>{% else %}<p>Sin imágenes cargadas.</p>{% endfor %}</div>
+<h3>Precios · IVA incluido</h3><div class="table-wrap"><table class="comercial-table"><thead><tr><th>Lista</th><th>Precio</th><th>Estado</th></tr></thead><tbody>{% for c in datos.columnas %}{% set p=f.precios[c.id] %}<tr><td>{{ c.nombre }}</td><td>{{ ('$' ~ '%.2f'|format(p.final/100)) if p else 'Sin precio' }}</td><td>{{ p.estado if p else (f.motivo or 'Pendiente') }}</td></tr>{% endfor %}</tbody></table></div>
+<p class="consulta-nota">Stock del depósito o sucursales seleccionados; precios de las listas seleccionadas. Ficha de consulta.</p></div>
+<footer><button type="button" class="table-action" data-consulta-cerrar>Cerrar</button></footer>
+</dialog>
+{% endfor %}
 <nav class="consulta-paginacion" aria-label="Páginas">{% if pagina>1 %}<a class="section-link" href="{{ enlace(pagina=pagina-1) }}">Anterior</a>{% endif %}<span>Página {{ pagina }} de {{ paginas }}</span>{% if pagina<paginas %}<a class="section-link" href="{{ enlace(pagina=pagina+1) }}">Siguiente</a>{% endif %}</nav>
 </section>{% endif %}
 </main>
